@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertCircle } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
 
 export default function LoginPage() {
   const t = useTranslations();
@@ -64,6 +65,7 @@ export default function LoginPage() {
   return (
     <Card>
       <CardHeader className="text-center">
+        <BackButton href="/" label={t("common.backToHome")} className="mb-4 justify-center" />
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
           VC
         </div>

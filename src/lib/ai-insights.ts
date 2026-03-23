@@ -85,6 +85,68 @@ export async function generateReportInsights(
   }
 }
 
+// ─── AI Touchpoints Throughout the App ─────────────────────────────────
+
+export async function generateWeeklySummary(
+  groupName: string,
+  weekData: { payments: number; collectionRate: number; events: number; newMembers: number; prevRate: number },
+  locale: 'en' | 'fr'
+): Promise<string> {
+  const rateDiff = weekData.collectionRate - weekData.prevRate;
+  const trend = rateDiff >= 0 ? `up ${rateDiff}%` : `down ${Math.abs(rateDiff)}%`;
+  if (locale === 'fr') {
+    return `📊 La semaine dernière dans ${groupName}: ${weekData.payments} paiements collectés (${weekData.collectionRate}%), ${weekData.events} événement(s), ${weekData.newMembers} nouveau(x) membre(s). Le taux de collecte est ${rateDiff >= 0 ? 'en hausse' : 'en baisse'} de ${Math.abs(rateDiff)}% par rapport à la semaine précédente.`;
+  }
+  return `📊 Last week in ${groupName}: ${weekData.payments} payments collected (${weekData.collectionRate}% rate), ${weekData.events} event(s) held, ${weekData.newMembers} new member(s) joined. Collection is ${trend} vs last week.`;
+}
+
+export async function generateMeetingAgenda(
+  groupName: string,
+  context: { overduePayments: number; pendingClaims: number; upcomingEvents: number; pendingActions: number },
+  locale: 'en' | 'fr'
+): Promise<string[]> {
+  const items: string[] = [];
+  if (locale === 'fr') {
+    if (context.overduePayments > 0) items.push(`${context.overduePayments} paiement(s) en retard à discuter`);
+    if (context.pendingClaims > 0) items.push(`${context.pendingClaims} demande(s) de secours en attente`);
+    if (context.upcomingEvents > 0) items.push(`${context.upcomingEvents} événement(s) à venir à planifier`);
+    if (context.pendingActions > 0) items.push(`${context.pendingActions} action(s) en suspens des réunions précédentes`);
+    if (items.length === 0) items.push('Aucun point urgent — bonne nouvelle !');
+  } else {
+    if (context.overduePayments > 0) items.push(`${context.overduePayments} overdue payment(s) to discuss`);
+    if (context.pendingClaims > 0) items.push(`${context.pendingClaims} pending relief claim(s) to review`);
+    if (context.upcomingEvents > 0) items.push(`${context.upcomingEvents} upcoming event(s) to plan`);
+    if (context.pendingActions > 0) items.push(`${context.pendingActions} outstanding action item(s) from previous meetings`);
+    if (items.length === 0) items.push('No urgent items — good news!');
+  }
+  return items;
+}
+
+export async function generateMinutesSummary(
+  content: string,
+  decisions: string[],
+  locale: 'en' | 'fr'
+): Promise<string> {
+  const decisionCount = decisions.length;
+  if (locale === 'fr') {
+    return `Procès-verbal publié avec ${decisionCount} décision(s). Consultez les détails dans l'application.`;
+  }
+  return `Minutes published with ${decisionCount} decision(s) recorded. View full details in the app.`;
+}
+
+export async function detectPaymentAnomaly(
+  memberName: string,
+  usualPayDay: number,
+  currentDay: number,
+  locale: 'en' | 'fr'
+): Promise<string | null> {
+  if (currentDay <= usualPayDay + 5) return null;
+  if (locale === 'fr') {
+    return `${memberName} paie habituellement le ${usualPayDay}. Nous sommes le ${currentDay} et il/elle n'a pas encore payé. Cela est inhabituel — vous pourriez vouloir prendre des nouvelles.`;
+  }
+  return `${memberName} usually pays on the ${usualPayDay}th. It's the ${currentDay}th and they haven't paid. This is unusual — you may want to check in.`;
+}
+
 export function clearInsightsCache(reportId?: string, locale?: string): void {
   if (reportId && locale) {
     insightsCache.delete(getCacheKey(reportId, locale));

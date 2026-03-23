@@ -31,6 +31,11 @@ import {
   RefreshCw,
   Vote,
   FolderLock,
+  Activity,
+  Banknote,
+  AlertTriangle,
+  FolderKanban,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -43,11 +48,15 @@ interface NavItem {
 }
 
 const adminNavItems: NavItem[] = [
+  { key: "feed", href: "/dashboard/feed", icon: Activity },
   { key: "dashboard", href: "/dashboard", icon: LayoutDashboard, adminOnly: true },
   { key: "members", href: "/dashboard/members", icon: Users, adminOnly: true },
   { key: "invitations", href: "/dashboard/invitations", icon: UserPlus, adminOnly: true },
   { key: "contributions", href: "/dashboard/contributions", icon: HandCoins, adminOnly: true },
   { key: "finances", href: "/dashboard/finances", icon: BarChart3, adminOnly: true },
+  { key: "fines", href: "/dashboard/fines", icon: AlertTriangle, adminOnly: true },
+  { key: "loans", href: "/dashboard/loans", icon: Banknote, adminOnly: true },
+  { key: "projects", href: "/dashboard/projects", icon: FolderKanban, adminOnly: true },
   { key: "events", href: "/dashboard/events", icon: Calendar, adminOnly: true },
   { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck, adminOnly: true },
   { key: "hosting", href: "/dashboard/hosting", icon: Home, adminOnly: true },
@@ -57,11 +66,13 @@ const adminNavItems: NavItem[] = [
   { key: "relief", href: "/dashboard/relief", icon: Heart, adminOnly: true },
   { key: "reports", href: "/dashboard/reports", icon: PieChart, adminOnly: true },
   { key: "announcements", href: "/dashboard/announcements", icon: Megaphone, adminOnly: true },
+  { key: "badges", href: "/dashboard/badges", icon: Trophy },
   { key: "enterprise", href: "/dashboard/enterprise", icon: GitBranch, adminOnly: true },
   { key: "documents", href: "/dashboard/documents", icon: FolderLock },
 ];
 
 const memberNavItems: NavItem[] = [
+  { key: "feed", href: "/dashboard/feed", icon: Activity },
   { key: "dashboard", href: "/dashboard/my-dashboard", icon: LayoutDashboard, memberOnly: true },
   { key: "myPayments", href: "/dashboard/my-payments", icon: CreditCard, memberOnly: true },
   { key: "myEvents", href: "/dashboard/my-events", icon: Calendar, memberOnly: true },

@@ -588,3 +588,183 @@ export function useGroupPositions() {
     enabled: !!groupId,
   });
 }
+
+// ─── Activity Feed ─────────────────────────────────────────────────────────
+
+export function useActivityFeed(limit = 30) {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["activity-feed", groupId, limit],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("activity_feed")
+        .select("*, actor:memberships!activity_feed_actor_membership_id_fkey(id, profiles!inner(id, full_name, avatar_url)), reactions:feed_reactions(id, membership_id, reaction)")
+        .eq("group_id", groupId)
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
+export function useAddFeedReaction() {
+  const queryClient = useQueryClient();
+  const { groupId, currentMembership } = useGroup();
+  return useMutation({
+    mutationFn: async ({ feedItemId, reaction }: { feedItemId: string; reaction: string }) => {
+      if (!currentMembership) throw new Error("No membership");
+      const { error } = await supabase.from("feed_reactions").upsert({
+        feed_item_id: feedItemId,
+        membership_id: currentMembership.id,
+        reaction,
+      }, { onConflict: "feed_item_id,membership_id,reaction" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activity-feed", groupId] });
+    },
+  });
+}
+
+// ─── Fines ─────────────────────────────────────────────────────────────────
+
+export function useFineRules() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["fine-rules", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase.from("fine_rules").select("*").eq("group_id", groupId).order("created_at");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
+export function useFines() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["fines", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("fines")
+        .select("*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url)), rule:fine_rules(id, description, trigger_type)")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
+// ─── Loans ─────────────────────────────────────────────────────────────────
+
+export function useLoans() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["loans", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("loan_requests")
+        .select("*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url)), repayments:loan_repayments(*)")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
+// ─── Projects ──────────────────────────────────────────────────────────────
+
+export function useProjects() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["projects", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*, contributions:project_contributions(id, amount), expenses:project_expenses(id, amount), milestones:project_milestones(*)")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
+// ─── Badges ────────────────────────────────────────────────────────────────
+
+export function useBadges() {
+  return useQuery({
+    queryKey: ["badges"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("badges").select("*").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+export function useMemberBadges(membershipId?: string | null) {
+  return useQuery({
+    queryKey: ["member-badges", membershipId],
+    queryFn: async () => {
+      if (!membershipId) return [];
+      const { data, error } = await supabase
+        .from("member_badges")
+        .select("*, badge:badges(*)")
+        .eq("membership_id", membershipId)
+        .order("earned_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!membershipId,
+  });
+}
+
+// ─── Event Photos ──────────────────────────────────────────────────────────
+
+export function useEventPhotos(eventId?: string | null) {
+  return useQuery({
+    queryKey: ["event-photos", eventId],
+    queryFn: async () => {
+      if (!eventId) return [];
+      const { data, error } = await supabase
+        .from("event_photos")
+        .select("*, uploader:memberships!inner(id, profiles!inner(id, full_name, avatar_url))")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!eventId,
+  });
+}
+
+// ─── Payment Reminder Rules ────────────────────────────────────────────────
+
+export function usePaymentReminderRules() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["reminder-rules", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase.from("payment_reminder_rules").select("*").eq("group_id", groupId).order("days_after_due");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}

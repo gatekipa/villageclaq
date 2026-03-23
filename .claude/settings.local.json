@@ -5,7 +5,9 @@
       "Bash(echo -e \"No\\\\nNo\" | npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack 2>&1)",
       "Bash(echo -e \"No\\\\nNo\\\\nNo\" | npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm 2>&1)",
       "Bash(printf 'n\\\\nn\\\\n' | npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm 2>&1)",
-      "Bash(yes \"no\" | npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm 2>&1)"
+      "Bash(yes \"no\" | npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm 2>&1)",
+      "Bash(npm install @supabase/supabase-js @supabase/ssr next-intl @tanstack/react-query recharts lucide-react next-themes 2>&1)",
+      "Bash(npx shadcn@latest init -y --defaults 2>&1)"
     ]
   }
 }

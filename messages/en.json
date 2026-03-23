@@ -63,7 +63,9 @@
     "assign": "Assign",
     "dueDate": "Due Date",
     "assignee": "Assignee",
-    "notesOptional": "Optional notes..."
+    "notesOptional": "Optional notes...",
+    "saving": "Saving...",
+    "saved": "Saved!"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -247,7 +249,8 @@
     "actionItemsCount": "{count} action items",
     "reliefSummary": "Relief Funds",
     "activeFunds": "{count} active funds",
-    "pendingClaimsCount": "{count} pending"
+    "pendingClaimsCount": "{count} pending",
+    "emptyDescription": "Your group is set up! Start by inviting members or creating your first contribution type."
   },
   "groups": {
     "switchGroup": "Switch Group",
@@ -366,7 +369,16 @@
     "missedMeetings": "Missed meetings for warning",
     "autoWarning": "Auto-warning after missed payments",
     "autoSuspend": "Auto-suspend after missed payments",
-    "saved": "Settings saved successfully"
+    "saved": "Settings saved successfully",
+    "positionsTab": "Positions",
+    "positions": "Group Positions",
+    "positionsDesc": "Manage leadership roles and assignments",
+    "noPositions": "No positions defined",
+    "noPositionsDesc": "Create positions to define leadership roles",
+    "positionHolder": "Current holder",
+    "vacant": "Vacant",
+    "groupInfo": "Group Information",
+    "groupInfoDesc": "Basic details about your group"
   },
   "contributions": {
     "title": "Contributions",
@@ -513,7 +525,11 @@
     "codeCopied": "Join code copied to clipboard",
     "shareText": "Join {group} on VillageClaq! Use code: {code}",
     "activeJoinCodes": "Active Join Codes",
-    "createJoinCode": "Create Join Code"
+    "createJoinCode": "Create Join Code",
+    "roleMember": "Member",
+    "roleAdmin": "Admin",
+    "noInvitationsDesc": "Send an email invitation to add new members to your group.",
+    "unknown": "Unknown"
   },
   "events": {
     "title": "Events",
@@ -1095,7 +1111,11 @@
     "coHosts": "Co-hosts",
     "profileCompletion": "Profile Completion",
     "completeProfile": "Complete your profile to help your group know you better",
-    "completeProfileBtn": "Complete"
+    "completeProfileBtn": "Complete",
+    "noOutstanding": "All payments up to date!",
+    "noOutstandingDesc": "You have no outstanding payments. Great job!",
+    "noEvents": "No upcoming events",
+    "noEventsDesc": "There are no upcoming events scheduled for your group."
   },
   "myHosting": {
     "title": "My Hosting",

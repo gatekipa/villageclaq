@@ -27,47 +27,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  CardGridSkeleton,
+  EmptyState,
+  ErrorState,
+} from "@/components/ui/page-skeleton";
+import { useGroup } from "@/lib/group-context";
+import { useFamilyMembers } from "@/lib/hooks/use-supabase-query";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Users, Plus, Edit3, Trash2, Heart, Cake, User } from "lucide-react";
 
 type Relationship = "spouse" | "child" | "parent" | "sibling" | "other";
-
-interface FamilyMember {
-  id: string;
-  name: string;
-  relationship: Relationship;
-  birthday: string;
-  notes?: string;
-}
-
-const INITIAL_MEMBERS: FamilyMember[] = [
-  {
-    id: "1",
-    name: "Nkeng Aisha Fon",
-    relationship: "spouse",
-    birthday: "1990-06-15",
-    notes: "Works at the university in Buea",
-  },
-  {
-    id: "2",
-    name: "Tabi Etienne Jr.",
-    relationship: "child",
-    birthday: "2015-03-22",
-    notes: "Currently in primary school",
-  },
-  {
-    id: "3",
-    name: "Mbah Divine Ngwa",
-    relationship: "child",
-    birthday: "2019-11-08",
-  },
-  {
-    id: "4",
-    name: "Mami Comfort Enow",
-    relationship: "parent",
-    birthday: "1958-01-10",
-    notes: "Lives in Kumba",
-  },
-];
 
 const RELATIONSHIP_COLORS: Record<Relationship, string> = {
   spouse:
@@ -85,18 +56,27 @@ const RELATIONSHIP_COLORS: Record<Relationship, string> = {
 const EMPTY_FORM = {
   name: "",
   relationship: "" as Relationship | "",
-  birthday: "",
+  date_of_birth: "",
   notes: "",
 };
 
 export default function MyFamilyPage() {
   const t = useTranslations("family");
   const tc = useTranslations("common");
+  const { currentMembership, loading: groupLoading } = useGroup();
+  const queryClient = useQueryClient();
 
-  const [members, setMembers] = useState<FamilyMember[]>(INITIAL_MEMBERS);
+  const {
+    data: members,
+    isLoading,
+    error,
+    refetch,
+  } = useFamilyMembers();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
 
   const openAdd = () => {
     setEditingId(null);
@@ -104,54 +84,73 @@ export default function MyFamilyPage() {
     setDialogOpen(true);
   };
 
-  const openEdit = (member: FamilyMember) => {
-    setEditingId(member.id);
+  const openEdit = (member: Record<string, unknown>) => {
+    setEditingId(member.id as string);
     setForm({
-      name: member.name,
-      relationship: member.relationship,
-      birthday: member.birthday,
-      notes: member.notes ?? "",
+      name: (member.name as string) || "",
+      relationship: (member.relationship as Relationship) || "",
+      date_of_birth: (member.date_of_birth as string) || "",
+      notes: (member.notes as string) || "",
     });
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
-    if (!form.name || !form.relationship || !form.birthday) return;
+  const handleSave = async () => {
+    if (!form.name || !form.relationship || !form.date_of_birth || !currentMembership) return;
+    setSaving(true);
 
-    if (editingId) {
-      setMembers((prev) =>
-        prev.map((m) =>
-          m.id === editingId
-            ? {
-                ...m,
-                name: form.name,
-                relationship: form.relationship as Relationship,
-                birthday: form.birthday,
-                notes: form.notes || undefined,
-              }
-            : m
-        )
-      );
-    } else {
-      setMembers((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          name: form.name,
-          relationship: form.relationship as Relationship,
-          birthday: form.birthday,
-          notes: form.notes || undefined,
-        },
-      ]);
+    const supabase = createClient();
+
+    try {
+      if (editingId) {
+        const { error: updateError } = await supabase
+          .from("family_members")
+          .update({
+            name: form.name,
+            relationship: form.relationship,
+            date_of_birth: form.date_of_birth,
+            notes: form.notes || null,
+          })
+          .eq("id", editingId);
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("family_members")
+          .insert({
+            membership_id: currentMembership.id,
+            name: form.name,
+            relationship: form.relationship,
+            date_of_birth: form.date_of_birth,
+            notes: form.notes || null,
+          });
+        if (insertError) throw insertError;
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: ["family-members", currentMembership.id],
+      });
+      setDialogOpen(false);
+      setForm(EMPTY_FORM);
+      setEditingId(null);
+    } catch (err) {
+      console.error("Failed to save family member:", err);
+    } finally {
+      setSaving(false);
     }
-
-    setDialogOpen(false);
-    setForm(EMPTY_FORM);
-    setEditingId(null);
   };
 
-  const handleDelete = (id: string) => {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!currentMembership) return;
+    const supabase = createClient();
+    const { error: deleteError } = await supabase
+      .from("family_members")
+      .delete()
+      .eq("id", id);
+    if (!deleteError) {
+      queryClient.invalidateQueries({
+        queryKey: ["family-members", currentMembership.id],
+      });
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -165,6 +164,14 @@ export default function MyFamilyPage() {
       return dateStr;
     }
   };
+
+  if (groupLoading || isLoading) return <CardGridSkeleton cards={4} />;
+
+  if (error) {
+    return <ErrorState message={error.message} onRetry={() => refetch()} />;
+  }
+
+  const familyMembers = members || [];
 
   return (
     <div className="space-y-6">
@@ -183,88 +190,89 @@ export default function MyFamilyPage() {
       </div>
 
       {/* Empty state */}
-      {members.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="mb-4 h-12 w-12 text-muted-foreground/50" />
-            <h3 className="text-lg font-semibold text-foreground">
-              {t("noFamily")}
-            </h3>
-            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              {t("noFamilyDesc")}
-            </p>
-            <Button onClick={openAdd} className="mt-6">
+      {familyMembers.length === 0 && (
+        <EmptyState
+          icon={Users}
+          title={t("noFamily")}
+          description={t("noFamilyDesc")}
+          action={
+            <Button onClick={openAdd}>
               <Plus className="mr-2 h-4 w-4" />
               {t("addMember")}
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       )}
 
       {/* Family members grid */}
-      {members.length > 0 && (
+      {familyMembers.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {members.map((member) => (
-            <Card key={member.id} className="group relative">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
-                      {member.relationship === "spouse" ? (
-                        <Heart className="h-5 w-5 text-pink-500" />
-                      ) : (
-                        <User className="h-5 w-5 text-muted-foreground" />
-                      )}
+          {familyMembers.map((member: Record<string, unknown>) => {
+            const rel = (member.relationship as Relationship) || "other";
+            return (
+              <Card key={member.id as string} className="group relative">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                        {rel === "spouse" ? (
+                          <Heart className="h-5 w-5 text-pink-500" />
+                        ) : (
+                          <User className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <CardTitle className="truncate text-base">
+                          {member.name as string}
+                        </CardTitle>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <CardTitle className="truncate text-base">
-                        {member.name}
-                      </CardTitle>
+                    <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => openEdit(member)}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                        <span className="sr-only">{t("editMember")}</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(member.id as string)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">{t("deleteMember")}</span>
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => openEdit(member)}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      <span className="sr-only">{t("editMember")}</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(member.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">{t("deleteMember")}</span>
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <Badge
-                  variant="secondary"
-                  className={RELATIONSHIP_COLORS[member.relationship]}
-                >
-                  {t(`relationships.${member.relationship}`)}
-                </Badge>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  <Badge
+                    variant="secondary"
+                    className={RELATIONSHIP_COLORS[rel]}
+                  >
+                    {t(`relationships.${rel}`)}
+                  </Badge>
 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Cake className="h-4 w-4 shrink-0" />
-                  <span>{formatDate(member.birthday)}</span>
-                </div>
+                  {member.date_of_birth ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Cake className="h-4 w-4 shrink-0" />
+                      <span>{formatDate(member.date_of_birth as string)}</span>
+                    </div>
+                  ) : null}
 
-                {member.notes && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {member.notes}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  {member.notes ? (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {String(member.notes)}
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -321,9 +329,12 @@ export default function MyFamilyPage() {
               <Input
                 id="family-birthday"
                 type="date"
-                value={form.birthday}
+                value={form.date_of_birth}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, birthday: e.target.value }))
+                  setForm((prev) => ({
+                    ...prev,
+                    date_of_birth: e.target.value,
+                  }))
                 }
               />
             </div>
@@ -348,9 +359,18 @@ export default function MyFamilyPage() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!form.name || !form.relationship || !form.birthday}
+              disabled={
+                !form.name ||
+                !form.relationship ||
+                !form.date_of_birth ||
+                saving
+              }
             >
-              {editingId ? t("editMember") : t("addMember")}
+              {saving
+                ? tc("saving")
+                : editingId
+                  ? t("editMember")
+                  : t("addMember")}
             </Button>
           </DialogFooter>
         </DialogContent>

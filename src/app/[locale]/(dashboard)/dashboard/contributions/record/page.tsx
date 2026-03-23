@@ -21,53 +21,35 @@ import {
   BarChart3,
   X,
   Share2,
+  Loader2,
 } from "lucide-react";
-
-interface Member {
-  id: string;
-  name: string;
-  avatarUrl?: string;
-  standing: string;
-}
-
-interface ContributionType {
-  id: string;
-  name: string;
-  amount: number;
-  currency: string;
-  frequency: string;
-}
-
-const mockMembers: Member[] = [
-  { id: "1", name: "Cyril Ndonwi", standing: "good" },
-  { id: "2", name: "Jean-Pierre Kamga", standing: "good" },
-  { id: "3", name: "Sylvie Mbarga", standing: "good" },
-  { id: "4", name: "Emmanuel Tabi", standing: "good" },
-  { id: "5", name: "Marie-Claire Fotso", standing: "good" },
-  { id: "6", name: "Patrick Njoya", standing: "warning" },
-  { id: "7", name: "Beatrice Ngono", standing: "good" },
-  { id: "8", name: "Thomas Nkeng", standing: "suspended" },
-  { id: "9", name: "Papa François Mbeki", standing: "good" },
-  { id: "10", name: "Angeline Tchatchouang", standing: "good" },
-  { id: "11", name: "Samuel Fon", standing: "warning" },
-  { id: "12", name: "Grace Eteki", standing: "good" },
-];
-
-const mockContributionTypes: ContributionType[] = [
-  { id: "1", name: "Annual Dues", amount: 50000, currency: "XAF", frequency: "annual" },
-  { id: "2", name: "Monthly Contribution", amount: 15000, currency: "XAF", frequency: "monthly" },
-  { id: "3", name: "Building Fund Levy", amount: 100000, currency: "XAF", frequency: "one_time" },
-  { id: "4", name: "Quarterly Social Fund", amount: 25000, currency: "XAF", frequency: "quarterly" },
-];
+import { useGroup } from "@/lib/group-context";
+import {
+  useMembers,
+  useContributionTypes,
+  useRecordPayment,
+} from "@/lib/hooks/use-supabase-query";
+import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+  }).format(amount);
 }
 
 export default function RecordPaymentPage() {
   const t = useTranslations();
+  const { currentGroup } = useGroup();
+  const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
+  const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
+  const recordPayment = useRecordPayment();
+
+  const currency = currentGroup?.currency || "XAF";
+
   const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedMembership, setSelectedMembership] = useState<{ id: string; name: string } | null>(null);
   const [selectedTypeId, setSelectedTypeId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
@@ -79,16 +61,29 @@ export default function RecordPaymentPage() {
   const memberInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const filteredMembers = mockMembers.filter((m) =>
+  const isLoading = membersLoading || typesLoading;
+  const isError = membersError || typesError;
+
+  const memberList = (members || []).map((m: Record<string, unknown>) => {
+    const profile = m.profile as { full_name?: string; avatar_url?: string } | undefined;
+    return {
+      membershipId: m.id as string,
+      name: (m.display_name as string) || profile?.full_name || "Unknown",
+      avatarUrl: profile?.avatar_url || null,
+    };
+  });
+
+  const filteredMembers = memberList.filter((m) =>
     m.name.toLowerCase().includes(memberSearch.toLowerCase())
   );
 
-  const selectedType = mockContributionTypes.find((t) => t.id === selectedTypeId);
+  const types = contributionTypes || [];
+  const selectedType = types.find((ct: Record<string, unknown>) => ct.id === selectedTypeId);
 
   // Auto-fill amount when contribution type changes
   useEffect(() => {
     if (selectedType) {
-      setAmount(selectedType.amount.toString());
+      setAmount(String(selectedType.amount));
     }
   }, [selectedType]);
 
@@ -103,38 +98,47 @@ export default function RecordPaymentPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  function handleSelectMember(member: Member) {
-    setSelectedMember(member);
+  function handleSelectMember(member: { membershipId: string; name: string }) {
+    setSelectedMembership({ id: member.membershipId, name: member.name });
     setMemberSearch(member.name);
     setShowMemberList(false);
   }
 
-  function handleSaveAndNext() {
-    if (!selectedMember || !selectedTypeId || !amount) return;
-    setLastSavedName(selectedMember.name);
-    setShowSuccess(true);
-    // Clear member but keep everything else
-    setSelectedMember(null);
-    setMemberSearch("");
-    setReference("");
-    setNotes("");
-    setTimeout(() => setShowSuccess(false), 3000);
-    memberInputRef.current?.focus();
-  }
+  async function handleSave(keepTypeAndMethod: boolean) {
+    if (!selectedMembership || !selectedTypeId || !amount) return;
 
-  function handleSave() {
-    if (!selectedMember || !selectedTypeId || !amount) return;
-    setLastSavedName(selectedMember.name);
-    setShowSuccess(true);
-    // Clear everything
-    setSelectedMember(null);
-    setMemberSearch("");
-    setAmount("");
-    setSelectedTypeId("");
-    setMethod("cash");
-    setReference("");
-    setNotes("");
-    setTimeout(() => setShowSuccess(false), 3000);
+    try {
+      await recordPayment.mutateAsync({
+        membership_id: selectedMembership.id,
+        contribution_type_id: selectedTypeId,
+        amount: Number(amount),
+        currency,
+        payment_method: method,
+        reference_number: reference || undefined,
+        notes: notes || undefined,
+      });
+
+      setLastSavedName(selectedMembership.name);
+      setShowSuccess(true);
+
+      // Clear member fields always
+      setSelectedMembership(null);
+      setMemberSearch("");
+      setReference("");
+      setNotes("");
+
+      if (!keepTypeAndMethod) {
+        // Full clear
+        setAmount("");
+        setSelectedTypeId("");
+        setMethod("cash");
+      }
+
+      setTimeout(() => setShowSuccess(false), 3000);
+      memberInputRef.current?.focus();
+    } catch {
+      // error displayed via mutation state
+    }
   }
 
   const subNavItems = [
@@ -145,6 +149,42 @@ export default function RecordPaymentPage() {
     { key: "unpaid", href: "/dashboard/contributions/unpaid", icon: AlertTriangle, label: t("contributions.unpaid") },
     { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
+          <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {subNavItems.map((item) => (
+            <Link key={item.key} href={item.href}>
+              <Button variant={item.key === "record" ? "default" : "outline"} size="sm" className="shrink-0">
+                <item.icon className="mr-1.5 h-3.5 w-3.5" />
+                {item.label}
+              </Button>
+            </Link>
+          ))}
+        </div>
+        <ListSkeleton rows={4} />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
+          <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
+        </div>
+        <ErrorState onRetry={() => { refetchMembers(); refetchTypes(); }} />
+      </div>
+    );
+  }
+
+  const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && !recordPayment.isPending;
 
   return (
     <div className="space-y-6">
@@ -158,11 +198,7 @@ export default function RecordPaymentPage() {
       <div className="flex gap-2 overflow-x-auto pb-1">
         {subNavItems.map((item) => (
           <Link key={item.key} href={item.href}>
-            <Button
-              variant={item.key === "record" ? "default" : "outline"}
-              size="sm"
-              className="shrink-0"
-            >
+            <Button variant={item.key === "record" ? "default" : "outline"} size="sm" className="shrink-0">
               <item.icon className="mr-1.5 h-3.5 w-3.5" />
               {item.label}
             </Button>
@@ -218,20 +254,20 @@ export default function RecordPaymentPage() {
                   value={memberSearch}
                   onChange={(e) => {
                     setMemberSearch(e.target.value);
-                    setSelectedMember(null);
+                    setSelectedMembership(null);
                     setShowMemberList(true);
                   }}
                   onFocus={() => setShowMemberList(true)}
                   className="pl-9"
                   autoComplete="off"
                 />
-                {selectedMember && (
+                {selectedMembership && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                     onClick={() => {
-                      setSelectedMember(null);
+                      setSelectedMembership(null);
                       setMemberSearch("");
                       memberInputRef.current?.focus();
                     }}
@@ -240,20 +276,23 @@ export default function RecordPaymentPage() {
                   </Button>
                 )}
               </div>
-              {showMemberList && !selectedMember && memberSearch.length > 0 && (
+              {showMemberList && !selectedMembership && memberSearch.length > 0 && (
                 <div className="absolute z-20 mt-1 max-h-48 w-full max-w-md overflow-auto rounded-md border bg-popover shadow-md">
                   {filteredMembers.length === 0 ? (
                     <p className="p-3 text-sm text-muted-foreground">{t("common.noResults")}</p>
                   ) : (
                     filteredMembers.map((member) => (
                       <button
-                        key={member.id}
+                        key={member.membershipId}
                         className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-accent transition-colors"
                         onClick={() => handleSelectMember(member)}
                       >
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {member.name.split(" ").map((n) => n[0]).join("")}
+                            {member.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div>
@@ -275,9 +314,9 @@ export default function RecordPaymentPage() {
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
               >
                 <option value="">{t("contributions.selectType")}</option>
-                {mockContributionTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name} — {formatCurrency(type.amount, type.currency)}
+                {types.map((type: Record<string, unknown>) => (
+                  <option key={type.id as string} value={type.id as string}>
+                    {type.name as string} — {formatCurrency(Number(type.amount), (type.currency as string) || currency)}
                   </option>
                 ))}
               </select>
@@ -295,15 +334,21 @@ export default function RecordPaymentPage() {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0"
                 />
-                {selectedType && amount && Number(amount) !== selectedType.amount && (
+                {selectedType && amount && Number(amount) !== Number(selectedType.amount) && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    {t("contributions.amountDiffers", { expected: formatCurrency(selectedType.amount, selectedType.currency) })}
+                    {t("contributions.amountDiffers", {
+                      expected: formatCurrency(Number(selectedType.amount), (selectedType.currency as string) || currency),
+                    })}
                   </p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label>{t("contributions.paymentMethod")}</Label>
-                <select value={method} onChange={(e) => setMethod(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
+                <select
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                >
                   <option value="cash">{t("contributions.cash")}</option>
                   <option value="mobile_money">{t("contributions.mobileMoney")}</option>
                   <option value="bank_transfer">{t("contributions.bankTransfer")}</option>
@@ -344,21 +389,36 @@ export default function RecordPaymentPage() {
               />
             </div>
 
+            {/* Error display */}
+            {recordPayment.isError && (
+              <p className="text-sm text-destructive">
+                {(recordPayment.error as Error)?.message || "Failed to record payment."}
+              </p>
+            )}
+
             {/* Action Buttons */}
             <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-end">
               <Button
                 variant="outline"
-                onClick={handleSave}
-                disabled={!selectedMember || !selectedTypeId || !amount}
+                onClick={() => handleSave(false)}
+                disabled={!canSubmit}
               >
-                <Check className="mr-2 h-4 w-4" />
+                {recordPayment.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
                 {t("contributions.savePayment")}
               </Button>
               <Button
-                onClick={handleSaveAndNext}
-                disabled={!selectedMember || !selectedTypeId || !amount}
+                onClick={() => handleSave(true)}
+                disabled={!canSubmit}
               >
-                <CreditCard className="mr-2 h-4 w-4" />
+                {recordPayment.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CreditCard className="mr-2 h-4 w-4" />
+                )}
                 {t("contributions.saveAndNext")}
               </Button>
             </div>
@@ -371,9 +431,9 @@ export default function RecordPaymentPage() {
         <CardContent className="py-4">
           <p className="text-sm font-medium text-primary">{t("contributions.quickTipsTitle")}</p>
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-            <li>• {t("contributions.quickTip1")}</li>
-            <li>• {t("contributions.quickTip2")}</li>
-            <li>• {t("contributions.quickTip3")}</li>
+            <li>&#8226; {t("contributions.quickTip1")}</li>
+            <li>&#8226; {t("contributions.quickTip2")}</li>
+            <li>&#8226; {t("contributions.quickTip3")}</li>
           </ul>
         </CardContent>
       </Card>

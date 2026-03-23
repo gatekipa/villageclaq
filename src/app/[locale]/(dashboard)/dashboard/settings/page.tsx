@@ -2,24 +2,55 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Upload,
   Globe,
-  CreditCard,
   Shield,
-  Save,
-  ImageIcon,
+  Users,
+  Settings2,
 } from "lucide-react";
+import { useGroupSettings, useGroupPositions } from "@/lib/hooks/use-supabase-query";
+import { useGroup } from "@/lib/group-context";
+import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function GroupSettingsPage() {
   const t = useTranslations("settings");
-  const tc = useTranslations("common");
+  const { isAdmin } = useGroup();
+  const { data: group, isLoading: groupLoading, isError: groupError, error: groupErr, refetch: refetchGroup } = useGroupSettings();
+  const { data: positions, isLoading: posLoading, isError: posError, error: posErr, refetch: refetchPos } = useGroupPositions();
+
+  const isLoading = groupLoading || posLoading;
+  const isError = groupError || posError;
+
+  if (isLoading) {
+    return <ListSkeleton rows={5} />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        message={(groupErr as Error)?.message || (posErr as Error)?.message}
+        onRetry={() => {
+          refetchGroup();
+          refetchPos();
+        }}
+      />
+    );
+  }
+
+  const groupData = group as Record<string, unknown> | null;
+  const positionsData = (positions || []) as Record<string, unknown>[];
 
   return (
     <div className="space-y-6">
@@ -28,82 +59,75 @@ export default function GroupSettingsPage() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <Tabs defaultValue="profile">
+      <Tabs defaultValue="info">
         <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="profile">{t("profileTab")}</TabsTrigger>
+          <TabsTrigger value="info">{t("profileTab")}</TabsTrigger>
           <TabsTrigger value="localization">{t("localizationTab")}</TabsTrigger>
-          <TabsTrigger value="payments">{t("paymentsTab")}</TabsTrigger>
-          <TabsTrigger value="standing">{t("standingTab")}</TabsTrigger>
+          <TabsTrigger value="positions">{t("positionsTab")}</TabsTrigger>
         </TabsList>
 
-        {/* Profile Tab */}
-        <TabsContent value="profile" className="mt-6 space-y-6">
+        {/* Group Info Tab */}
+        <TabsContent value="info" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <ImageIcon className="h-4 w-4" />
-                {t("groupLogo")}
+                <Settings2 className="h-4 w-4" />
+                {t("groupInfo")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-6">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-bold text-primary">
-                  BA
-                </div>
-                <div>
-                  <Button variant="outline" size="sm">
-                    <Upload className="mr-2 h-4 w-4" />
-                    {t("uploadImage")}
-                  </Button>
-                  <p className="mt-1 text-xs text-muted-foreground">PNG, JPG. Max 2MB.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              {groupData ? (
+                <div className="space-y-4">
+                  {/* Logo + Name */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-xl font-bold text-primary">
+                      {groupData.logo_url ? (
+                        <img
+                          src={groupData.logo_url as string}
+                          alt=""
+                          className="h-16 w-16 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        getInitials((groupData.name as string) || "G")
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">{groupData.name as string}</h3>
+                      <p className="text-sm text-muted-foreground">/{groupData.slug as string}</p>
+                    </div>
+                  </div>
 
-          <Card>
-            <CardContent className="space-y-4 pt-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>{t("groupName")}</Label>
-                  <Input defaultValue="Bamenda Alumni Union - DC Chapter" />
+                  {/* Details Grid */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">{t("groupType")}</p>
+                      <p className="mt-1 text-sm font-medium capitalize">{(groupData.group_type as string) || "—"}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">{t("currency")}</p>
+                      <p className="mt-1 text-sm font-medium">{(groupData.currency as string) || "—"}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</p>
+                      <p className="mt-1 text-sm font-medium">{(groupData.locale as string) || "—"}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">{t("groupSlug")}</p>
+                      <p className="mt-1 text-sm font-medium">{(groupData.slug as string) || "—"}</p>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {(groupData.description as string) ? (
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">{t("groupDescription")}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{groupData.description as string}</p>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="space-y-2">
-                  <Label>{t("groupSlug")}</Label>
-                  <Input defaultValue="bamenda-alumni-dc" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>{t("groupDescription")}</Label>
-                <textarea
-                  className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  defaultValue="Alumni association for graduates from Bamenda, now based in the Washington DC area"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>{t("groupType")}</Label>
-                  <select className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="alumni">Alumni</option>
-                    <option value="njangi">Njangi</option>
-                    <option value="village">Village</option>
-                    <option value="church">Church</option>
-                    <option value="family">Family</option>
-                    <option value="professional">Professional</option>
-                    <option value="general">General</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("maxMembers")}</Label>
-                  <Input type="number" placeholder={t("maxMembersHint")} />
-                </div>
-              </div>
-              <div className="flex justify-end pt-4">
-                <Button>
-                  <Save className="mr-2 h-4 w-4" />
-                  {tc("save")}
-                </Button>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -117,202 +141,104 @@ export default function GroupSettingsPage() {
                 {t("localizationTab")}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>{t("defaultLocale")}</Label>
-                  <select className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="en">English</option>
-                    <option value="fr">Français</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("currency")}</Label>
-                  <select className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="XAF">XAF - CFA Franc (CEMAC)</option>
-                    <option value="USD">USD - US Dollar</option>
-                    <option value="EUR">EUR - Euro</option>
-                    <option value="GBP">GBP - British Pound</option>
-                    <option value="CAD">CAD - Canadian Dollar</option>
-                    <option value="NGN">NGN - Nigerian Naira</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>{t("timezone")}</Label>
-                  <select className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="Africa/Douala">Africa/Douala (WAT)</option>
-                    <option value="America/New_York">America/New_York (EST)</option>
-                    <option value="Europe/Paris">Europe/Paris (CET)</option>
-                    <option value="Europe/London">Europe/London (GMT)</option>
-                    <option value="America/Toronto">America/Toronto (EST)</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("dateFormat")}</Label>
-                  <select className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex justify-end pt-4">
-                <Button>
-                  <Save className="mr-2 h-4 w-4" />
-                  {tc("save")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Payments Tab */}
-        <TabsContent value="payments" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CreditCard className="h-4 w-4" />
-                {t("paymentsTab")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <Label className="text-sm font-semibold">{t("paymentMethods")}</Label>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {(["mobileMoney", "bankTransfer", "cash"] as const).map((method) => (
-                    <label
-                      key={method}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/5"
-                    >
-                      <input type="checkbox" className="h-4 w-4 rounded accent-emerald-600" defaultChecked={method !== "bankTransfer"} />
-                      <span className="text-sm font-medium">{t(method)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>{t("contributionAmount")}</Label>
-                  <div className="flex gap-2">
-                    <Input type="number" defaultValue="15000" />
-                    <Badge variant="outline" className="shrink-0 px-3">XAF</Badge>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("contributionFrequency")}</Label>
-                  <select className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="monthly">{t("monthly")}</option>
-                    <option value="weekly">{t("weekly")}</option>
-                    <option value="biweekly">{t("biweekly")}</option>
-                    <option value="quarterly">{t("quarterly")}</option>
-                    <option value="annually">{t("annually")}</option>
-                  </select>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <Label className="text-sm font-semibold">{t("latePenalty")}</Label>
+            <CardContent>
+              {groupData ? (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("penaltyAmount")}</Label>
-                    <div className="flex gap-2">
-                      <Input type="number" defaultValue="5000" />
-                      <Badge variant="outline" className="shrink-0 px-3">XAF</Badge>
-                    </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</p>
+                    <p className="mt-1 text-sm font-medium">
+                      {(groupData.locale as string) === "fr" ? "Francais" : "English"}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("gracePeriod")}</Label>
-                    <Input type="number" defaultValue="7" />
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">{t("currency")}</p>
+                    <p className="mt-1 text-sm font-medium">{(groupData.currency as string) || "—"}</p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">{t("timezone")}</p>
+                    <p className="mt-1 text-sm font-medium">{(groupData.timezone as string) || "—"}</p>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex justify-end pt-4">
-                <Button>
-                  <Save className="mr-2 h-4 w-4" />
-                  {tc("save")}
-                </Button>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Standing Rules Tab */}
-        <TabsContent value="standing" className="mt-6 space-y-6">
+        {/* Positions Tab */}
+        <TabsContent value="positions" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Shield className="h-4 w-4" />
-                {t("standingRules")}
+                {t("positions")}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <p className="text-sm text-muted-foreground">{t("standingRulesDesc")}</p>
+            <CardContent>
+              {positionsData.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title={t("noPositions")}
+                  description={t("noPositionsDesc")}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {positionsData.map((pos) => {
+                    const posId = pos.id as string;
+                    const posName = (pos.name as string) || "—";
+                    const posNameFr = pos.name_fr as string | null;
+                    const assignments = (pos.position_assignments || []) as Record<string, unknown>[];
 
-              {/* Auto Warning */}
-              <div className="rounded-lg border p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                    <Label className="text-sm font-semibold">{t("autoWarning")}</Label>
-                  </div>
-                  <label className="relative inline-flex cursor-pointer items-center">
-                    <input type="checkbox" className="peer sr-only" defaultChecked />
-                    <div className="peer h-5 w-9 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-full" />
-                  </label>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("missedPayments")}</Label>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" defaultValue="2" className="w-20" />
-                      <span className="text-xs text-muted-foreground">{t("missedPaymentsWarning")}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">{t("missedMeetings")}</Label>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" defaultValue="3" className="w-20" />
-                      <span className="text-xs text-muted-foreground">{t("missedPaymentsWarning")}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    // Get current holders (active assignments)
+                    const activeHolders = assignments.filter((a) => {
+                      const endDate = a.ended_at as string | null;
+                      return !endDate || new Date(endDate) > new Date();
+                    });
 
-              {/* Auto Suspend */}
-              <div className="rounded-lg border p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-red-500" />
-                    <Label className="text-sm font-semibold">{t("autoSuspend")}</Label>
-                  </div>
-                  <label className="relative inline-flex cursor-pointer items-center">
-                    <input type="checkbox" className="peer sr-only" defaultChecked />
-                    <div className="peer h-5 w-9 rounded-full bg-muted after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-full" />
-                  </label>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">{t("missedPayments")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input type="number" defaultValue="4" className="w-20" />
-                    <span className="text-xs text-muted-foreground">{t("missedPaymentsSuspend")}</span>
-                  </div>
-                </div>
-              </div>
+                    return (
+                      <div key={posId} className="rounded-lg border p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h4 className="font-medium text-sm">{posName}</h4>
+                            {posNameFr && (
+                              <p className="text-xs text-muted-foreground">{posNameFr}</p>
+                            )}
+                          </div>
+                          {activeHolders.length === 0 ? (
+                            <Badge variant="secondary">{t("vacant")}</Badge>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {activeHolders.map((holder, i) => {
+                                const membership = holder.membership as Record<string, unknown> | undefined;
+                                const profiles = membership?.profiles;
+                                const profile = (
+                                  Array.isArray(profiles) ? profiles[0] : profiles
+                                ) as { full_name?: string; avatar_url?: string } | null;
+                                const holderName = profile?.full_name || "—";
 
-              <div className="flex justify-end pt-4">
-                <Button>
-                  <Save className="mr-2 h-4 w-4" />
-                  {tc("save")}
-                </Button>
-              </div>
+                                return (
+                                  <div key={i} className="flex items-center gap-2">
+                                    <Avatar className="h-7 w-7">
+                                      {profile?.avatar_url && (
+                                        <AvatarImage src={profile.avatar_url} alt={holderName} />
+                                      )}
+                                      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                                        {getInitials(holderName)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm">{holderName}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

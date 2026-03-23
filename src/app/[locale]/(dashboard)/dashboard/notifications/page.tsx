@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  ListSkeleton,
+  EmptyState,
+  ErrorState,
+} from "@/components/ui/page-skeleton";
+import { useGroup } from "@/lib/group-context";
+import { useNotifications } from "@/lib/hooks/use-supabase-query";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   Check,
@@ -25,16 +34,7 @@ type NotificationType =
   | "minutes"
   | "member";
 
-interface Notification {
-  id: string;
-  type: NotificationType;
-  titleKey: string;
-  bodyKey: string;
-  timestamp: Date;
-  isRead: boolean;
-}
-
-const TYPE_ICONS: Record<NotificationType, React.ElementType> = {
+const TYPE_ICONS: Record<string, React.ElementType> = {
   event: Calendar,
   payment: HandCoins,
   announcement: Megaphone,
@@ -43,7 +43,7 @@ const TYPE_ICONS: Record<NotificationType, React.ElementType> = {
   member: Users,
 };
 
-const TYPE_COLORS: Record<NotificationType, string> = {
+const TYPE_COLORS: Record<string, string> = {
   event: "text-blue-500 dark:text-blue-400",
   payment: "text-amber-500 dark:text-amber-400",
   announcement: "text-purple-500 dark:text-purple-400",
@@ -52,7 +52,7 @@ const TYPE_COLORS: Record<NotificationType, string> = {
   member: "text-emerald-500 dark:text-emerald-400",
 };
 
-const TYPE_BG: Record<NotificationType, string> = {
+const TYPE_BG: Record<string, string> = {
   event: "bg-blue-50 dark:bg-blue-950/40",
   payment: "bg-amber-50 dark:bg-amber-950/40",
   announcement: "bg-purple-50 dark:bg-purple-950/40",
@@ -60,96 +60,6 @@ const TYPE_BG: Record<NotificationType, string> = {
   minutes: "bg-slate-50 dark:bg-slate-950/40",
   member: "bg-emerald-50 dark:bg-emerald-950/40",
 };
-
-function createMockNotifications(): Notification[] {
-  const now = new Date();
-
-  return [
-    // Today - 3 notifications
-    {
-      id: "1",
-      type: "payment",
-      titleKey: "paymentReminderTitle",
-      bodyKey: "paymentReminderBody",
-      timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000), // 2h ago
-      isRead: false,
-    },
-    {
-      id: "2",
-      type: "event",
-      titleKey: "eventRsvpTitle",
-      bodyKey: "eventRsvpBody",
-      timestamp: new Date(now.getTime() - 5 * 60 * 60 * 1000), // 5h ago
-      isRead: false,
-    },
-    {
-      id: "3",
-      type: "minutes",
-      titleKey: "minutesPublishedTitle",
-      bodyKey: "minutesPublishedBody",
-      timestamp: new Date(now.getTime() - 8 * 60 * 60 * 1000), // 8h ago
-      isRead: true,
-    },
-    // This Week - 4 notifications
-    {
-      id: "4",
-      type: "relief",
-      titleKey: "reliefApprovedTitle",
-      bodyKey: "reliefApprovedBody",
-      timestamp: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000), // Yesterday
-      isRead: false,
-    },
-    {
-      id: "5",
-      type: "member",
-      titleKey: "newMemberTitle",
-      bodyKey: "newMemberBody",
-      timestamp: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      isRead: true,
-    },
-    {
-      id: "6",
-      type: "event",
-      titleKey: "eventWeekTitle",
-      bodyKey: "eventWeekBody",
-      timestamp: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-      isRead: false,
-    },
-    {
-      id: "7",
-      type: "payment",
-      titleKey: "paymentConfirmTitle",
-      bodyKey: "paymentConfirmBody",
-      timestamp: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
-      isRead: true,
-    },
-    // Earlier - 3 notifications
-    {
-      id: "8",
-      type: "announcement",
-      titleKey: "announcementTitle",
-      bodyKey: "announcementBody",
-      timestamp: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
-      isRead: true,
-    },
-    {
-      id: "9",
-      type: "minutes",
-      titleKey: "minutesWeekTitle",
-      bodyKey: "minutesWeekBody",
-      timestamp: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000), // 14 days ago
-      isRead: true,
-    },
-    {
-      id: "10",
-      type: "relief",
-      titleKey: "reliefEarlierTitle",
-      bodyKey: "reliefEarlierBody",
-      timestamp: new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000), // 21 days ago
-      isRead: true,
-    },
-  ];
-}
 
 function getRelativeTime(
   timestamp: Date,
@@ -162,7 +72,8 @@ function getRelativeTime(
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffMinutes < 1) return t("timeAgo.justNow");
-  if (diffMinutes < 60) return t("timeAgo.minutesAgo", { count: diffMinutes });
+  if (diffMinutes < 60)
+    return t("timeAgo.minutesAgo", { count: diffMinutes });
   if (diffHours < 24) return t("timeAgo.hoursAgo", { count: diffHours });
   if (diffDays === 1) return t("timeAgo.yesterday");
   if (diffDays < 7) return t("timeAgo.daysAgo", { count: diffDays });
@@ -189,30 +100,69 @@ function getTimeGroup(timestamp: Date, now: Date): TimeGroup {
 
 export default function NotificationsPage() {
   const t = useTranslations("notifications");
-  const [notifications, setNotifications] = useState<Notification[]>(
-    createMockNotifications
-  );
+  const { user, loading: groupLoading } = useGroup();
+  const queryClient = useQueryClient();
+
+  const {
+    data: notifications,
+    isLoading,
+    error,
+    refetch,
+  } = useNotifications(50);
 
   const now = new Date();
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const grouped = notifications.reduce<Record<TimeGroup, Notification[]>>(
-    (acc, notif) => {
-      const group = getTimeGroup(notif.timestamp, now);
-      acc[group].push(notif);
-      return acc;
-    },
-    { today: [], thisWeek: [], earlier: [] }
-  );
+  const unreadCount = useMemo(() => {
+    if (!notifications) return 0;
+    return notifications.filter(
+      (n: Record<string, unknown>) => !n.is_read
+    ).length;
+  }, [notifications]);
 
-  const toggleRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n))
-    );
+  const grouped = useMemo(() => {
+    const groups: Record<TimeGroup, Record<string, unknown>[]> = {
+      today: [],
+      thisWeek: [],
+      earlier: [],
+    };
+    if (!notifications) return groups;
+
+    for (const notif of notifications) {
+      const ts = new Date((notif as Record<string, unknown>).created_at as string);
+      const group = getTimeGroup(ts, now);
+      groups[group].push(notif as Record<string, unknown>);
+    }
+    return groups;
+  }, [notifications, now]);
+
+  const markAsRead = async (id: string) => {
+    const supabase = createClient();
+    await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("id", id);
+    queryClient.invalidateQueries({
+      queryKey: ["notifications", user?.id],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["unread-notifications", user?.id],
+    });
   };
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  const markAllRead = async () => {
+    if (!user) return;
+    const supabase = createClient();
+    await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false);
+    queryClient.invalidateQueries({
+      queryKey: ["notifications", user.id],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["unread-notifications", user.id],
+    });
   };
 
   const groupOrder: { key: TimeGroup; label: string }[] = [
@@ -220,6 +170,14 @@ export default function NotificationsPage() {
     { key: "thisWeek", label: t("thisWeek") },
     { key: "earlier", label: t("earlier") },
   ];
+
+  if (groupLoading || isLoading) return <ListSkeleton rows={6} />;
+
+  if (error) {
+    return <ErrorState message={error.message} onRetry={() => refetch()} />;
+  }
+
+  const allNotifications = notifications || [];
 
   return (
     <div className="space-y-6">
@@ -267,24 +225,28 @@ export default function NotificationsPage() {
             </h2>
             <div className="space-y-2">
               {items.map((notif) => {
-                const Icon = TYPE_ICONS[notif.type];
+                const type = (notif.type as string) || "announcement";
+                const Icon = TYPE_ICONS[type] || Bell;
+                const isRead = notif.is_read as boolean;
+                const timestamp = new Date(notif.created_at as string);
+
                 return (
                   <Card
-                    key={notif.id}
+                    key={notif.id as string}
                     className={`cursor-pointer transition-colors hover:bg-muted/50 ${
-                      !notif.isRead
-                        ? "bg-primary/5 dark:bg-primary/10"
-                        : ""
+                      !isRead ? "bg-primary/5 dark:bg-primary/10" : ""
                     }`}
-                    onClick={() => toggleRead(notif.id)}
+                    onClick={() => {
+                      if (!isRead) markAsRead(notif.id as string);
+                    }}
                   >
                     <CardContent className="flex items-start gap-3 p-3 sm:p-4">
                       {/* Type icon */}
                       <div
-                        className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TYPE_BG[notif.type]}`}
+                        className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TYPE_BG[type] || TYPE_BG.announcement}`}
                       >
                         <Icon
-                          className={`h-4.5 w-4.5 ${TYPE_COLORS[notif.type]}`}
+                          className={`h-4.5 w-4.5 ${TYPE_COLORS[type] || TYPE_COLORS.announcement}`}
                         />
                       </div>
 
@@ -295,31 +257,31 @@ export default function NotificationsPage() {
                             <div className="flex items-center gap-2">
                               <p
                                 className={`text-sm leading-tight ${
-                                  !notif.isRead
+                                  !isRead
                                     ? "font-semibold"
                                     : "font-medium"
                                 }`}
                               >
-                                {t(`mock.${notif.titleKey}`)}
+                                {(notif.title as string) || ""}
                               </p>
                               <Badge
                                 variant="outline"
                                 className="hidden shrink-0 text-[10px] sm:inline-flex"
                               >
-                                {t(`types.${notif.type}`)}
+                                {t(`types.${type}`)}
                               </Badge>
                             </div>
                             <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {t(`mock.${notif.bodyKey}`)}
+                              {(notif.body as string) || ""}
                             </p>
                           </div>
 
                           {/* Right side: time + unread dot */}
                           <div className="flex shrink-0 items-center gap-2">
                             <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                              {getRelativeTime(notif.timestamp, now, t)}
+                              {getRelativeTime(timestamp, now, t)}
                             </span>
-                            {!notif.isRead ? (
+                            {!isRead ? (
                               <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
                             ) : (
                               <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
@@ -337,18 +299,12 @@ export default function NotificationsPage() {
       })}
 
       {/* Empty state */}
-      {notifications.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <Bell className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold">
-            {t("noNotifications")}
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("noNotificationsDesc")}
-          </p>
-        </div>
+      {allNotifications.length === 0 && (
+        <EmptyState
+          icon={Bell}
+          title={t("noNotifications")}
+          description={t("noNotificationsDesc")}
+        />
       )}
     </div>
   );

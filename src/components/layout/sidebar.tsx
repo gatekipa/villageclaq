@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/i18n/routing";
 import { Link } from "@/i18n/routing";
+import { useGroup } from "@/lib/group-context";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -92,9 +92,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
-  // TODO: Replace with actual role from Supabase membership
-  // For now, use a toggle. In production, this comes from the user's membership role.
-  const [isAdmin, setIsAdmin] = useState(true);
+  const { isAdmin } = useGroup();
 
   const navItems = isAdmin ? adminNavItems : memberNavItems;
   const bottomItems = isAdmin ? adminBottomItems : memberBottomItems;
@@ -133,28 +131,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           >
             <X className="h-5 w-5" />
           </Button>
-        </div>
-
-        {/* Role toggle (dev helper - remove in production) */}
-        <div className="mx-3 mb-2 flex rounded-lg bg-sidebar-accent/50 p-1">
-          <button
-            onClick={() => setIsAdmin(true)}
-            className={cn(
-              "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-              isAdmin ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/60"
-            )}
-          >
-            Admin
-          </button>
-          <button
-            onClick={() => setIsAdmin(false)}
-            className={cn(
-              "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-              !isAdmin ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/60"
-            )}
-          >
-            Member
-          </button>
         </div>
 
         {/* Navigation */}

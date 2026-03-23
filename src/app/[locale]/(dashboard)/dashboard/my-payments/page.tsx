@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
 import {
   Card,
   CardContent,
@@ -12,6 +11,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  ListSkeleton,
+  EmptyState,
+  ErrorState,
+} from "@/components/ui/page-skeleton";
+import { useGroup } from "@/lib/group-context";
+import { useObligations, usePayments } from "@/lib/hooks/use-supabase-query";
 import {
   Wallet,
   AlertCircle,
@@ -25,33 +31,12 @@ import {
   Building2,
 } from "lucide-react";
 
-// --- Types ---
-
-interface OutstandingItem {
-  id: string;
-  contributionType: string;
-  amount: number;
-  dueDate: string;
-  method: string;
-}
-
-interface HistoryItem {
-  id: string;
-  date: string;
-  contributionType: string;
-  amount: number;
-  method: "Cash" | "Mobile Money" | "Bank Transfer";
-  reference: string;
-  status: "Paid" | "Pending";
-}
-
-// --- Helpers ---
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
+function formatCurrency(amount: number, currency = "XAF") {
+  return new Intl.NumberFormat("fr-CM", {
     style: "currency",
-    currency: "XAF",
+    currency,
     minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
@@ -81,140 +66,104 @@ function getUrgencyBadgeClass(dueDate: string) {
   return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
 }
 
-// --- Mock Data ---
-
-const mockOutstanding: OutstandingItem[] = [
-  {
-    id: "out-1",
-    contributionType: "Annual Dues 2026",
-    amount: 50000,
-    dueDate: "2026-01-15",
-    method: "Mobile Money / Cash",
-  },
-  {
-    id: "out-2",
-    contributionType: "Monthly Contribution - March 2026",
-    amount: 15000,
-    dueDate: "2026-03-28",
-    method: "Mobile Money / Bank Transfer",
-  },
-  {
-    id: "out-3",
-    contributionType: "Building Fund Levy",
-    amount: 100000,
-    dueDate: "2026-04-15",
-    method: "Bank Transfer",
-  },
-];
-
-const mockHistory: HistoryItem[] = [
-  {
-    id: "hist-1",
-    date: "2026-03-05",
-    contributionType: "Monthly Contribution - Feb 2026",
-    amount: 15000,
-    method: "Mobile Money",
-    reference: "MM-20260305-7842",
-    status: "Paid",
-  },
-  {
-    id: "hist-2",
-    date: "2026-02-10",
-    contributionType: "Quarterly Social Fund Q1",
-    amount: 25000,
-    method: "Bank Transfer",
-    reference: "BT-20260210-3156",
-    status: "Paid",
-  },
-  {
-    id: "hist-3",
-    date: "2026-02-05",
-    contributionType: "Monthly Contribution - Jan 2026",
-    amount: 15000,
-    method: "Cash",
-    reference: "CSH-20260205-9021",
-    status: "Paid",
-  },
-  {
-    id: "hist-4",
-    date: "2026-01-15",
-    contributionType: "Annual Dues 2025",
-    amount: 50000,
-    method: "Mobile Money",
-    reference: "MM-20260115-4563",
-    status: "Paid",
-  },
-  {
-    id: "hist-5",
-    date: "2025-12-05",
-    contributionType: "Monthly Contribution - Dec 2025",
-    amount: 15000,
-    method: "Mobile Money",
-    reference: "MM-20251205-1188",
-    status: "Paid",
-  },
-  {
-    id: "hist-6",
-    date: "2025-11-20",
-    contributionType: "Emergency Levy - Mami Ngozi",
-    amount: 10000,
-    method: "Cash",
-    reference: "CSH-20251120-6734",
-    status: "Pending",
-  },
-];
-
-// --- Component ---
-
 export default function MyPaymentsPage() {
   const t = useTranslations("myPayments");
-  const [activeTab, setActiveTab] = useState<"outstanding" | "history">(
-    "outstanding"
-  );
+  const { currentMembership, currentGroup, loading: groupLoading } = useGroup();
+  const [activeTab, setActiveTab] = useState<"outstanding" | "history">("outstanding");
   const [search, setSearch] = useState("");
 
+  const currency = currentGroup?.currency || "XAF";
+
+  const {
+    data: obligations,
+    isLoading: oblLoading,
+    error: oblError,
+    refetch: refetchObl,
+  } = useObligations({ membershipId: currentMembership?.id });
+
+  const {
+    data: allPayments,
+    isLoading: paymentsLoading,
+    error: paymentsError,
+    refetch: refetchPayments,
+  } = usePayments();
+
+  // Filter outstanding obligations (pending/partial)
+  const outstanding = useMemo(() => {
+    if (!obligations) return [];
+    return obligations.filter(
+      (o: Record<string, unknown>) =>
+        o.status === "pending" || o.status === "partial"
+    );
+  }, [obligations]);
+
+  // Filter payments for current membership
+  const myPayments = useMemo(() => {
+    if (!allPayments || !currentMembership) return [];
+    return allPayments.filter(
+      (p: Record<string, unknown>) => {
+        const membership = p.membership as Record<string, unknown> | null;
+        return membership?.id === currentMembership.id;
+      }
+    );
+  }, [allPayments, currentMembership]);
+
   const totalPaidThisYear = useMemo(() => {
-    return mockHistory
-      .filter((h) => h.date.startsWith("2026") && h.status === "Paid")
-      .reduce((sum, h) => sum + h.amount, 0);
-  }, []);
+    const year = new Date().getFullYear().toString();
+    return myPayments
+      .filter((p: Record<string, unknown>) =>
+        (p.recorded_at as string)?.startsWith(year)
+      )
+      .reduce((sum: number, p: Record<string, unknown>) => sum + Number(p.amount), 0);
+  }, [myPayments]);
 
   const totalOutstanding = useMemo(() => {
-    return mockOutstanding.reduce((sum, o) => sum + o.amount, 0);
-  }, []);
-
-  const filteredOutstanding = useMemo(() => {
-    if (!search) return mockOutstanding;
-    const q = search.toLowerCase();
-    return mockOutstanding.filter(
-      (o) =>
-        o.contributionType.toLowerCase().includes(q) ||
-        o.dueDate.includes(q)
+    return outstanding.reduce(
+      (sum: number, o: Record<string, unknown>) =>
+        sum + (Number(o.amount) - Number(o.amount_paid || 0)),
+      0
     );
-  }, [search]);
+  }, [outstanding]);
+
+  // Search filtering
+  const filteredOutstanding = useMemo(() => {
+    if (!search) return outstanding;
+    const q = search.toLowerCase();
+    return outstanding.filter((o: Record<string, unknown>) => {
+      const ct = o.contribution_type as Record<string, unknown> | null;
+      const name = (ct?.name as string) || "";
+      const dueDate = (o.due_date as string) || "";
+      return name.toLowerCase().includes(q) || dueDate.includes(q);
+    });
+  }, [outstanding, search]);
 
   const filteredHistory = useMemo(() => {
-    if (!search) return mockHistory;
+    if (!search) return myPayments;
     const q = search.toLowerCase();
-    return mockHistory.filter(
-      (h) =>
-        h.contributionType.toLowerCase().includes(q) ||
-        h.date.includes(q) ||
-        h.reference.toLowerCase().includes(q)
-    );
-  }, [search]);
+    return myPayments.filter((p: Record<string, unknown>) => {
+      const ct = p.contribution_type as Record<string, unknown> | null;
+      const name = (ct?.name as string) || "";
+      const ref = (p.reference_number as string) || "";
+      const date = (p.recorded_at as string) || "";
+      return (
+        name.toLowerCase().includes(q) ||
+        ref.toLowerCase().includes(q) ||
+        date.includes(q)
+      );
+    });
+  }, [myPayments, search]);
 
   const methodIcon = (method: string) => {
-    if (method.includes("Mobile"))
+    if (method?.includes("mobile"))
       return <Smartphone className="h-3.5 w-3.5" />;
-    if (method.includes("Bank"))
+    if (method?.includes("bank"))
       return <Building2 className="h-3.5 w-3.5" />;
     return <Banknote className="h-3.5 w-3.5" />;
   };
 
   const methodLabel = (method: string) => {
-    if (method.includes("Mobile")) return t("mobileMoney");
-    if (method.includes("Bank")) return t("bankTransfer");
+    if (method?.includes("mobile")) return t("mobileMoney");
+    if (method?.includes("bank")) return t("bankTransfer");
     return t("cash");
   };
 
@@ -247,6 +196,22 @@ export default function MyPaymentsPage() {
     );
   }
 
+  const isLoading = groupLoading || oblLoading || paymentsLoading;
+
+  if (isLoading) return <ListSkeleton rows={5} />;
+
+  if (oblError || paymentsError) {
+    return (
+      <ErrorState
+        message={(oblError || paymentsError)?.message}
+        onRetry={() => {
+          refetchObl();
+          refetchPayments();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -268,7 +233,7 @@ export default function MyPaymentsPage() {
                   {t("totalPaidThisYear")}
                 </p>
                 <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                  {formatCurrency(totalPaidThisYear)}
+                  {formatCurrency(totalPaidThisYear, currency)}
                 </p>
               </div>
             </div>
@@ -285,7 +250,7 @@ export default function MyPaymentsPage() {
                   {t("totalOutstanding")}
                 </p>
                 <p className="text-2xl font-bold text-red-700 dark:text-red-400">
-                  {formatCurrency(totalOutstanding)}
+                  {formatCurrency(totalOutstanding, currency)}
                 </p>
               </div>
             </div>
@@ -335,40 +300,40 @@ export default function MyPaymentsPage() {
               </CardContent>
             </Card>
           ) : (
-            filteredOutstanding.map((item) => (
-              <Card
-                key={item.id}
-                className={`border transition-colors ${getUrgencyColor(item.dueDate)}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <p className="font-semibold truncate">
-                        {item.contributionType}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <CalendarDays className="h-3 w-3" />
-                          {t("dueDate")}: {item.dueDate}
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          {methodIcon(item.method)}
-                          {item.method}
-                        </span>
+            filteredOutstanding.map((item: Record<string, unknown>) => {
+              const ct = item.contribution_type as Record<string, unknown> | null;
+              const name = (ct?.name as string) || "";
+              const dueDate = (item.due_date as string) || "";
+              const remaining = Number(item.amount) - Number(item.amount_paid || 0);
+              return (
+                <Card
+                  key={item.id as string}
+                  className={`border transition-colors ${getUrgencyColor(dueDate)}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="font-semibold truncate">{name}</p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" />
+                            {t("dueDate")}: {dueDate}
+                          </span>
+                        </div>
+                        <div className="pt-1">
+                          {renderUrgencyBadge(dueDate)}
+                        </div>
                       </div>
-                      <div className="pt-1">
-                        {renderUrgencyBadge(item.dueDate)}
+                      <div className="text-right shrink-0">
+                        <p className="text-xl font-bold">
+                          {formatCurrency(remaining, currency)}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-bold">
-                        {formatCurrency(item.amount)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       )}
@@ -384,113 +349,87 @@ export default function MyPaymentsPage() {
               </CardContent>
             </Card>
           ) : (
-            <>
-              {/* Desktop table header - hidden on mobile */}
-              <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-4 text-xs font-medium text-muted-foreground">
-                <span className="col-span-2">{t("dueDate")}</span>
-                <span className="col-span-3">{t("paymentDetails")}</span>
-                <span className="col-span-2 text-right">{t("amount")}</span>
-                <span className="col-span-2">{t("method")}</span>
-                <span className="col-span-2">{t("reference")}</span>
-                <span className="col-span-1">{t("status")}</span>
-              </div>
+            filteredHistory.map((item: Record<string, unknown>) => {
+              const ct = item.contribution_type as Record<string, unknown> | null;
+              const name = (ct?.name as string) || "";
+              const method = (item.payment_method as string) || "cash";
+              const ref = (item.reference_number as string) || "";
+              const date = item.recorded_at
+                ? new Date(item.recorded_at as string).toLocaleDateString()
+                : "";
+              const status = (item.status as string) || "confirmed";
+              const isPaid = status === "confirmed" || status === "approved";
 
-              {filteredHistory.map((item) => (
-                <Card key={item.id}>
+              return (
+                <Card key={item.id as string}>
                   <CardContent className="p-4">
                     {/* Mobile layout */}
                     <div className="sm:hidden space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-semibold truncate text-sm">
-                            {item.contributionType}
+                            {name}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {item.date}
+                            {date}
                           </p>
                         </div>
                         <p className="text-sm font-bold shrink-0">
-                          {formatCurrency(item.amount)}
+                          {formatCurrency(Number(item.amount), currency)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
-                          {methodIcon(item.method)}
-                          {methodLabel(item.method)}
+                          {methodIcon(method)}
+                          {methodLabel(method)}
                         </span>
-                        <span>{item.reference}</span>
+                        {ref && <span className="font-mono">{ref}</span>}
                         <Badge
-                          variant={
-                            item.status === "Paid" ? "default" : "secondary"
-                          }
+                          variant={isPaid ? "default" : "secondary"}
                           className={
-                            item.status === "Paid"
+                            isPaid
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
                               : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
                           }
                         >
-                          {item.status === "Paid"
-                            ? t("paid")
-                            : t("pending")}
+                          {isPaid ? t("paid") : t("pending")}
                         </Badge>
                       </div>
-                      {item.status === "Paid" && (
-                        <Link
-                          href="/dashboard/my-payments"
-                          className="text-xs text-primary hover:underline"
-                        >
-                          {t("digitalReceipt")}
-                        </Link>
-                      )}
                     </div>
 
                     {/* Desktop layout */}
                     <div className="hidden sm:grid sm:grid-cols-12 gap-2 items-center">
-                      <span className="col-span-2 text-sm">
-                        {item.date}
-                      </span>
+                      <span className="col-span-2 text-sm">{date}</span>
                       <span className="col-span-3 text-sm font-medium truncate">
-                        {item.contributionType}
+                        {name}
                       </span>
                       <span className="col-span-2 text-sm font-semibold text-right">
-                        {formatCurrency(item.amount)}
+                        {formatCurrency(Number(item.amount), currency)}
                       </span>
                       <span className="col-span-2 text-sm inline-flex items-center gap-1.5">
-                        {methodIcon(item.method)}
-                        {methodLabel(item.method)}
+                        {methodIcon(method)}
+                        {methodLabel(method)}
                       </span>
                       <span className="col-span-2 text-xs text-muted-foreground font-mono">
-                        {item.reference}
+                        {ref}
                       </span>
-                      <span className="col-span-1 flex items-center gap-2">
+                      <span className="col-span-1">
                         <Badge
-                          variant={
-                            item.status === "Paid" ? "default" : "secondary"
-                          }
+                          variant={isPaid ? "default" : "secondary"}
                           className={
-                            item.status === "Paid"
+                            isPaid
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
                               : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
                           }
                         >
-                          {item.status === "Paid"
-                            ? t("paid")
-                            : t("pending")}
+                          {isPaid ? t("paid") : t("pending")}
                         </Badge>
-                        {item.status === "Paid" && (
-                          <Link
-                            href="/dashboard/my-payments"
-                            className="text-xs text-primary hover:underline whitespace-nowrap"
-                          >
-                            {t("digitalReceipt")}
-                          </Link>
-                        )}
                       </span>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </>
+              );
+            })
           )}
         </div>
       )}

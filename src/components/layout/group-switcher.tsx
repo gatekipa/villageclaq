@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ChevronsUpDown, Plus } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,16 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-// TODO: Replace with real data from memberships query
-const mockGroups = [
-  { id: "1", name: "Bamenda Alumni Union", role: "President" },
-  { id: "2", name: "Njangi Group #5", role: "Member" },
-];
+import { useGroup } from "@/lib/group-context";
 
 export function GroupSwitcher() {
   const t = useTranslations("groups");
-  const currentGroup = mockGroups[0]; // TODO: use state/context
+  const { memberships, currentGroup, switchGroup } = useGroup();
+
+  if (!currentGroup) return null;
 
   return (
     <DropdownMenu>
@@ -33,21 +31,28 @@ export function GroupSwitcher() {
         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
           {t("allGroups")}
         </div>
-        {mockGroups.map((group) => (
-          <DropdownMenuItem key={group.id} className="flex items-center gap-2">
+        {memberships.map((m) => (
+          <DropdownMenuItem
+            key={m.id}
+            className="flex items-center gap-2"
+            onClick={() => switchGroup(m.group_id)}
+          >
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary text-[10px] font-bold text-primary-foreground">
-              {group.name.charAt(0)}
+              {m.group.name.charAt(0)}
             </div>
             <div className="flex flex-col">
-              <span className="text-sm">{group.name}</span>
-              <span className="text-xs text-muted-foreground">
-                {group.role}
+              <span className="text-sm">{m.group.name}</span>
+              <span className="text-xs text-muted-foreground capitalize">
+                {m.role}
               </span>
             </div>
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="flex items-center gap-2">
+        <DropdownMenuItem
+          className="flex items-center gap-2"
+          onClick={() => window.location.href = "/dashboard/onboarding/group"}
+        >
           <Plus className="h-4 w-4" />
           <span>{t("manageGroups")}</span>
         </DropdownMenuItem>

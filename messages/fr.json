@@ -63,7 +63,9 @@
     "assign": "Assigner",
     "dueDate": "Date d'échéance",
     "assignee": "Responsable",
-    "notesOptional": "Notes optionnelles..."
+    "notesOptional": "Notes optionnelles...",
+    "saving": "Enregistrement...",
+    "saved": "Enregistré !"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -247,7 +249,8 @@
     "actionItemsCount": "{count} actions",
     "reliefSummary": "Fonds de secours",
     "activeFunds": "{count} fonds actifs",
-    "pendingClaimsCount": "{count} en attente"
+    "pendingClaimsCount": "{count} en attente",
+    "emptyDescription": "Votre groupe est configuré ! Commencez par inviter des membres ou créer votre premier type de contribution."
   },
   "groups": {
     "switchGroup": "Changer de groupe",
@@ -366,7 +369,16 @@
     "missedMeetings": "Réunions manquées pour avertissement",
     "autoWarning": "Avertissement automatique après paiements manqués",
     "autoSuspend": "Suspension automatique après paiements manqués",
-    "saved": "Paramètres enregistrés avec succès"
+    "saved": "Paramètres enregistrés avec succès",
+    "positionsTab": "Postes",
+    "positions": "Postes du groupe",
+    "positionsDesc": "Gérez les rôles de direction et les affectations",
+    "noPositions": "Aucun poste défini",
+    "noPositionsDesc": "Créez des postes pour définir les rôles de direction",
+    "positionHolder": "Titulaire actuel",
+    "vacant": "Vacant",
+    "groupInfo": "Informations du groupe",
+    "groupInfoDesc": "Détails de base sur votre groupe"
   },
   "contributions": {
     "title": "Cotisations",
@@ -513,7 +525,11 @@
     "codeCopied": "Code d'adhésion copié dans le presse-papier",
     "shareText": "Rejoignez {group} sur VillageClaq ! Utilisez le code : {code}",
     "activeJoinCodes": "Codes d'adhésion actifs",
-    "createJoinCode": "Créer un code d'adhésion"
+    "createJoinCode": "Créer un code d'adhésion",
+    "roleMember": "Membre",
+    "roleAdmin": "Administrateur",
+    "noInvitationsDesc": "Envoyez une invitation par e-mail pour ajouter de nouveaux membres.",
+    "unknown": "Inconnu"
   },
   "events": {
     "title": "Événements",
@@ -841,7 +857,11 @@
     "coHosts": "Co-hôtes",
     "profileCompletion": "Complétion du profil",
     "completeProfile": "Complétez votre profil pour que votre groupe vous connaisse mieux",
-    "completeProfileBtn": "Compléter"
+    "completeProfileBtn": "Compléter",
+    "noOutstanding": "Tous les paiements sont à jour !",
+    "noOutstandingDesc": "Vous n'avez aucun paiement en attente. Bravo !",
+    "noEvents": "Aucun événement à venir",
+    "noEventsDesc": "Aucun événement n'est prévu pour votre groupe."
   },
   "myPayments": {
     "title": "Mes paiements",

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
+import { createClient } from "@/lib/supabase/client";
+import { useGroup } from "@/lib/group-context";
 import {
   Globe,
   Plane,
@@ -61,7 +64,10 @@ interface FormData {
 
 export default function GroupOnboardingPage() {
   const t = useTranslations("onboarding");
+  const router = useRouter();
+  const { refresh } = useGroup();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     location: null,
     template: null,
@@ -79,6 +85,94 @@ export default function GroupOnboardingPage() {
   const goNext = () => setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
   const goBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
   const skipStep = () => goNext();
+
+  async function handleFinish() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const slug = formData.groupName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "group";
+
+      // Map template to group_type
+      const typeMap: Record<string, string> = { savings: "njangi", church: "church", alumni: "alumni", women: "njangi", village: "village", professional: "professional" };
+      const groupType = formData.template ? typeMap[formData.template] || "general" : "general";
+
+      // 1. Create organization
+      const { data: org, error: orgErr } = await supabase.from("organizations").insert({
+        name: formData.groupName,
+        slug: `${slug}-${Date.now()}`,
+        owner_id: user.id,
+      }).select().single();
+      if (orgErr) throw orgErr;
+
+      // 2. Create group
+      const { data: group, error: groupErr } = await supabase.from("groups").insert({
+        organization_id: org.id,
+        name: formData.groupName,
+        slug: `${slug}-${Date.now()}`,
+        group_type: groupType,
+        currency: formData.currency || "XAF",
+        locale: "en",
+        created_by: user.id,
+        settings: {
+          location: formData.location,
+          meeting_schedule: formData.meetingSchedule,
+          savings_circle_label: formData.rotationLabel || "Savings Circle",
+        },
+      }).select().single();
+      if (groupErr) throw groupErr;
+
+      // 3. Create owner membership
+      const { error: memErr } = await supabase.from("memberships").insert({
+        user_id: user.id,
+        group_id: group.id,
+        role: "owner",
+        standing: "good",
+      });
+      if (memErr) throw memErr;
+
+      // 4. Create default positions
+      const positions = [
+        { title: "President", title_fr: "Président", sort_order: 1, is_executive: true, is_default: true },
+        { title: "Vice President", title_fr: "Vice-Président", sort_order: 2, is_executive: true, is_default: true },
+        { title: "Secretary", title_fr: "Secrétaire", sort_order: 3, is_executive: true, is_default: true },
+        { title: "Treasurer", title_fr: "Trésorier", sort_order: 4, is_executive: true, is_default: true },
+        { title: "Financial Secretary", title_fr: "Secrétaire Financier", sort_order: 5, is_executive: true, is_default: true },
+        { title: "Discipline Master", title_fr: "Maître de Discipline", sort_order: 6, is_executive: false, is_default: true },
+      ];
+      await supabase.from("group_positions").insert(positions.map((p) => ({ ...p, group_id: group.id })));
+
+      // 5. Create default join code
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      await supabase.from("join_codes").insert({ group_id: group.id, code, created_by: user.id, is_active: true });
+
+      // 6. Send invitations if provided
+      const validInvites = formData.invites.filter((i) => i.value.trim());
+      if (validInvites.length > 0) {
+        await supabase.from("invitations").insert(
+          validInvites.map((inv) => ({
+            group_id: group.id,
+            invited_by: user.id,
+            email: inv.value.includes("@") ? inv.value : null,
+            phone: !inv.value.includes("@") ? inv.value : null,
+            role: "member",
+            token: crypto.randomUUID(),
+          }))
+        );
+      }
+
+      // Refresh context and go to dashboard
+      await refresh();
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Group creation failed:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   const addInviteRow = () => {
     setFormData((prev) => ({
@@ -480,9 +574,15 @@ export default function GroupOnboardingPage() {
           <Button
             size="lg"
             className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+            onClick={handleFinish}
+            disabled={isSubmitting}
           >
-            <Check className="size-4" />
-            {t("finish")}
+            {isSubmitting ? (
+              <span className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full inline-block" />
+            ) : (
+              <Check className="size-4" />
+            )}
+            {isSubmitting ? t("next") : t("finish")}
           </Button>
         )}
       </div>

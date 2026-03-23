@@ -257,53 +257,110 @@ ALTER TABLE project_milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE member_badges ENABLE ROW LEVEL SECURITY;
 
--- RLS: group members can view group data
-CREATE POLICY "Members view feed" ON activity_feed FOR SELECT USING (is_group_member(group_id));
-CREATE POLICY "Members insert feed" ON activity_feed FOR INSERT WITH CHECK (is_group_member(group_id));
+-- RLS: inline EXISTS queries (no helper functions needed)
+
+-- Activity Feed
+CREATE POLICY "Members view feed" ON activity_feed FOR SELECT USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = activity_feed.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Members insert feed" ON activity_feed FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = activity_feed.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Admin update feed" ON activity_feed FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = activity_feed.group_id AND memberships.user_id = auth.uid() AND memberships.role IN ('owner', 'admin'))
+);
+
+-- Feed Reactions
 CREATE POLICY "Members react" ON feed_reactions FOR ALL USING (
-  EXISTS (SELECT 1 FROM activity_feed af WHERE af.id = feed_item_id AND is_group_member(af.group_id))
+  EXISTS (SELECT 1 FROM activity_feed af JOIN memberships m ON m.group_id = af.group_id WHERE af.id = feed_reactions.feed_item_id AND m.user_id = auth.uid())
 );
-CREATE POLICY "Members view reminder rules" ON payment_reminder_rules FOR SELECT USING (is_group_member(group_id));
-CREATE POLICY "Admin manage reminder rules" ON payment_reminder_rules FOR ALL USING (is_group_admin(group_id));
+
+-- Payment Reminder Rules
+CREATE POLICY "Members view reminder rules" ON payment_reminder_rules FOR SELECT USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = payment_reminder_rules.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Admin manage reminder rules" ON payment_reminder_rules FOR ALL USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = payment_reminder_rules.group_id AND memberships.user_id = auth.uid() AND memberships.role IN ('owner', 'admin'))
+);
+
+-- Payment Reminders Sent
 CREATE POLICY "Members view reminders sent" ON payment_reminders_sent FOR SELECT USING (
-  EXISTS (SELECT 1 FROM payment_reminder_rules r WHERE r.id = rule_id AND is_group_member(r.group_id))
+  EXISTS (SELECT 1 FROM payment_reminder_rules r JOIN memberships m ON m.group_id = r.group_id WHERE r.id = payment_reminders_sent.rule_id AND m.user_id = auth.uid())
 );
-CREATE POLICY "Members view fine rules" ON fine_rules FOR SELECT USING (is_group_member(group_id));
-CREATE POLICY "Admin manage fine rules" ON fine_rules FOR ALL USING (is_group_admin(group_id));
-CREATE POLICY "Members view own fines" ON fines FOR SELECT USING (is_group_member(group_id));
-CREATE POLICY "Admin manage fines" ON fines FOR ALL USING (is_group_admin(group_id));
+
+-- Fine Rules
+CREATE POLICY "Members view fine rules" ON fine_rules FOR SELECT USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = fine_rules.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Admin manage fine rules" ON fine_rules FOR ALL USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = fine_rules.group_id AND memberships.user_id = auth.uid() AND memberships.role IN ('owner', 'admin'))
+);
+
+-- Fines
+CREATE POLICY "Members view own fines" ON fines FOR SELECT USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = fines.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Admin manage fines" ON fines FOR ALL USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = fines.group_id AND memberships.user_id = auth.uid() AND memberships.role IN ('owner', 'admin'))
+);
+
+-- Event Photos
 CREATE POLICY "Members view event photos" ON event_photos FOR SELECT USING (
-  EXISTS (SELECT 1 FROM events e WHERE e.id = event_id AND is_group_member(e.group_id))
+  EXISTS (SELECT 1 FROM events e JOIN memberships m ON m.group_id = e.group_id WHERE e.id = event_photos.event_id AND m.user_id = auth.uid())
 );
 CREATE POLICY "Members upload photos" ON event_photos FOR INSERT WITH CHECK (
-  EXISTS (SELECT 1 FROM events e WHERE e.id = event_id AND is_group_member(e.group_id))
+  EXISTS (SELECT 1 FROM events e JOIN memberships m ON m.group_id = e.group_id WHERE e.id = event_photos.event_id AND m.user_id = auth.uid())
 );
-CREATE POLICY "Members view loans" ON loan_requests FOR SELECT USING (is_group_member(group_id));
-CREATE POLICY "Members request loans" ON loan_requests FOR INSERT WITH CHECK (is_group_member(group_id));
-CREATE POLICY "Admin manage loans" ON loan_requests FOR UPDATE USING (is_group_admin(group_id));
+
+-- Loan Requests
+CREATE POLICY "Members view loans" ON loan_requests FOR SELECT USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = loan_requests.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Members request loans" ON loan_requests FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = loan_requests.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Admin manage loans" ON loan_requests FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = loan_requests.group_id AND memberships.user_id = auth.uid() AND memberships.role IN ('owner', 'admin'))
+);
+
+-- Loan Repayments
 CREATE POLICY "Members view repayments" ON loan_repayments FOR SELECT USING (
-  EXISTS (SELECT 1 FROM loan_requests lr WHERE lr.id = loan_id AND is_group_member(lr.group_id))
+  EXISTS (SELECT 1 FROM loan_requests lr JOIN memberships m ON m.group_id = lr.group_id WHERE lr.id = loan_repayments.loan_id AND m.user_id = auth.uid())
 );
-CREATE POLICY "Members view projects" ON projects FOR SELECT USING (is_group_member(group_id));
-CREATE POLICY "Admin manage projects" ON projects FOR ALL USING (is_group_admin(group_id));
+
+-- Projects
+CREATE POLICY "Members view projects" ON projects FOR SELECT USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = projects.group_id AND memberships.user_id = auth.uid())
+);
+CREATE POLICY "Admin manage projects" ON projects FOR ALL USING (
+  EXISTS (SELECT 1 FROM memberships WHERE memberships.group_id = projects.group_id AND memberships.user_id = auth.uid() AND memberships.role IN ('owner', 'admin'))
+);
+
+-- Project Contributions
 CREATE POLICY "Members view project contributions" ON project_contributions FOR SELECT USING (
-  EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND is_group_member(p.group_id))
+  EXISTS (SELECT 1 FROM projects p JOIN memberships m ON m.group_id = p.group_id WHERE p.id = project_contributions.project_id AND m.user_id = auth.uid())
 );
 CREATE POLICY "Members contribute to projects" ON project_contributions FOR INSERT WITH CHECK (
-  EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND is_group_member(p.group_id))
+  EXISTS (SELECT 1 FROM projects p JOIN memberships m ON m.group_id = p.group_id WHERE p.id = project_contributions.project_id AND m.user_id = auth.uid())
 );
+
+-- Project Expenses
 CREATE POLICY "Members view expenses" ON project_expenses FOR SELECT USING (
-  EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND is_group_member(p.group_id))
+  EXISTS (SELECT 1 FROM projects p JOIN memberships m ON m.group_id = p.group_id WHERE p.id = project_expenses.project_id AND m.user_id = auth.uid())
 );
 CREATE POLICY "Admin manage expenses" ON project_expenses FOR ALL USING (
-  EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND is_group_admin(p.group_id))
+  EXISTS (SELECT 1 FROM projects p JOIN memberships m ON m.group_id = p.group_id WHERE p.id = project_expenses.project_id AND m.user_id = auth.uid() AND m.role IN ('owner', 'admin'))
 );
+
+-- Project Milestones
 CREATE POLICY "Members view milestones" ON project_milestones FOR SELECT USING (
-  EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND is_group_member(p.group_id))
+  EXISTS (SELECT 1 FROM projects p JOIN memberships m ON m.group_id = p.group_id WHERE p.id = project_milestones.project_id AND m.user_id = auth.uid())
 );
 CREATE POLICY "Admin manage milestones" ON project_milestones FOR ALL USING (
-  EXISTS (SELECT 1 FROM projects p WHERE p.id = project_id AND is_group_admin(p.group_id))
+  EXISTS (SELECT 1 FROM projects p JOIN memberships m ON m.group_id = p.group_id WHERE p.id = project_milestones.project_id AND m.user_id = auth.uid() AND m.role IN ('owner', 'admin'))
 );
+
+-- Badges (public read)
 CREATE POLICY "Anyone view badges" ON badges FOR SELECT USING (true);
 CREATE POLICY "Members view earned badges" ON member_badges FOR SELECT USING (true);
 CREATE POLICY "System award badges" ON member_badges FOR INSERT WITH CHECK (true);

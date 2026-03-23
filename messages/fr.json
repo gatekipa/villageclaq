@@ -132,7 +132,16 @@
     "brandTestimonial1": "VillageClaq a transformé la gestion financière de notre groupe. Transparence totale.",
     "brandTestimonial1Author": "Cyril N., Union des Anciens de Bamenda",
     "brandTestimonial2": "Nous sommes passés du chaos WhatsApp à une gestion organisée du jour au lendemain.",
-    "brandTestimonial2Author": "Adebayo O., Coopérative Ajo de Lagos"
+    "brandTestimonial2Author": "Adebayo O., Coopérative Ajo de Lagos",
+    "reqMinLength": "Au moins 8 caractères",
+    "reqNumber": "Contient un chiffre",
+    "reqUpper": "Contient une majuscule",
+    "reqLower": "Contient une minuscule",
+    "reqSpecial": "Contient un caractère spécial (!@#$%^&*)",
+    "strengthWeak": "Faible",
+    "strengthMedium": "Moyen",
+    "strengthStrong": "Fort",
+    "passwordsMatch": "Les mots de passe correspondent"
   },
   "landing": {
     "heroTitle": "Votre communauté,",

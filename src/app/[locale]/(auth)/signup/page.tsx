@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertCircle, ArrowLeft, Check, Star } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordStrength, usePasswordRequirements } from "@/components/ui/password-strength";
 
 function GoogleIcon() {
   return (
@@ -33,16 +35,22 @@ export default function SignupPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const { allMet } = usePasswordRequirements(password);
+  const passwordsMatch = password.length > 0 && password === confirmPassword;
+  const canSubmit = email.length > 0 && allMet && passwordsMatch && !isLoading;
 
   async function handleSignup(formData: FormData) {
     setError(null);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const confirmPassword = formData.get("confirmPassword") as string;
+    const formEmail = formData.get("email") as string;
+    const formPassword = formData.get("password") as string;
+    const formConfirmPassword = formData.get("confirmPassword") as string;
 
-    if (!email || !password || !confirmPassword) { setError(t("auth.allFieldsRequired")); return; }
-    if (password.length < 6) { setError(t("auth.passwordMinLength")); return; }
-    if (password !== confirmPassword) { setError(t("auth.passwordsMismatch")); return; }
+    if (!formEmail || !formPassword || !formConfirmPassword) { setError(t("auth.allFieldsRequired")); return; }
+    if (!allMet) { setError(t("auth.passwordMinLength")); return; }
+    if (formPassword !== formConfirmPassword) { setError(t("auth.passwordsMismatch")); return; }
 
     setIsLoading(true);
     try {
@@ -155,19 +163,26 @@ export default function SignupPage() {
 
             <form action={handleSignup} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">{t("auth.email")}</Label>
-                <Input id="email" name="email" type="email" required autoComplete="email" disabled={isLoading} className="h-11" />
+                <Label htmlFor="email">{t("auth.email")} <span className="text-red-500">*</span></Label>
+                <Input id="email" name="email" type="email" required autoComplete="email" autoFocus disabled={isLoading} className="h-11" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">{t("auth.password")}</Label>
-                <Input id="password" name="password" type="password" required minLength={6} autoComplete="new-password" disabled={isLoading} className="h-11" />
+                <Label htmlFor="password">{t("auth.password")} <span className="text-red-500">*</span></Label>
+                <PasswordInput id="password" name="password" required autoComplete="new-password" disabled={isLoading} className="h-11" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <PasswordStrength password={password} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">{t("auth.confirmPassword")}</Label>
-                <Input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} autoComplete="new-password" disabled={isLoading} className="h-11" />
+                <Label htmlFor="confirmPassword">{t("auth.confirmPassword")} <span className="text-red-500">*</span></Label>
+                <PasswordInput id="confirmPassword" name="confirmPassword" required autoComplete="new-password" disabled={isLoading} className="h-11" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                {confirmPassword.length > 0 && (
+                  <p className={`flex items-center gap-1.5 text-xs ${passwordsMatch ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                    {passwordsMatch ? <Check className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                    {passwordsMatch ? t("auth.passwordsMatch") : t("auth.passwordsMismatch")}
+                  </p>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">{t("auth.agreeToTerms")}</p>
-              <Button type="submit" className="w-full h-11 font-semibold" disabled={isLoading}>
+              <Button type="submit" className="w-full h-11 font-semibold" disabled={!canSubmit}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("auth.signup")}
               </Button>

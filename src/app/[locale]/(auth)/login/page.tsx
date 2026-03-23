@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertCircle, ArrowLeft, Check, Star } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 
 function GoogleIcon() {
   return (
@@ -160,7 +161,7 @@ export default function LoginPage() {
                   <Label htmlFor="password">{t("auth.password")}</Label>
                   <Link href="/login" className="text-xs text-primary hover:underline">{t("auth.forgotPassword")}</Link>
                 </div>
-                <Input id="password" name="password" type="password" required autoComplete="current-password" disabled={isLoading} className="h-11" />
+                <PasswordInput id="password" name="password" required autoComplete="current-password" disabled={isLoading} className="h-11" />
               </div>
               <Button type="submit" className="w-full h-11 font-semibold" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

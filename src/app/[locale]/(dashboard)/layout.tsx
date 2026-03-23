@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { GroupProvider, useGroup } from "@/lib/group-context";
 import { useRouter } from "@/i18n/routing";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
+import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
   const { loading, memberships } = useGroup();
@@ -42,6 +43,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+            <ScrollToTopOnNav />
             <Suspense fallback={<DashboardSkeleton />}>
               {children}
             </Suspense>

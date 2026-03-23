@@ -18,7 +18,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold animate-pulse">VC</div>
+          <img src="/logo-mark.svg" alt="VillageClaq" className="h-12 w-12 animate-pulse" />
           <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
         </div>
       </div>

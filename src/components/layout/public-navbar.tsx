@@ -38,9 +38,7 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 font-bold text-white text-sm shadow-md">
-            VC
-          </div>
+          <img src="/logo-mark.svg" alt="VillageClaq" className="h-9 w-9" />
           <span
             className={`text-xl font-bold tracking-tight transition-colors duration-300 ${
               isTransparent ? "text-white" : ""

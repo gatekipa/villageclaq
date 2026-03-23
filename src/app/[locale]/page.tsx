@@ -178,7 +178,7 @@ export default function HomePage() {
                   {/* Sidebar mock */}
                   <div className="hidden w-48 shrink-0 border-r border-white/5 p-4 sm:block">
                     <div className="mb-6 flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-lg bg-emerald-500/30 flex items-center justify-center text-xs text-emerald-300 font-bold">VC</div>
+                      <img src="/logo-vc-simple.svg" alt="VC" className="h-7 w-7 rounded-lg" />
                       <div className="h-3 w-20 rounded bg-white/10" />
                     </div>
                     <div className="space-y-2">
@@ -592,9 +592,7 @@ export default function HomePage() {
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Link href="/" className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 font-bold text-white text-sm shadow-md">
-                  VC
-                </div>
+                <img src="/logo-mark.svg" alt="VillageClaq" className="h-9 w-9" />
                 <span className="text-lg font-bold tracking-tight">{t("common.appName")}</span>
               </Link>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">

@@ -69,7 +69,7 @@ export default function LoginPage() {
         </div>
         <div className="relative flex flex-col justify-center px-12 xl:px-16">
           <Link href="/" className="flex items-center gap-3 mb-12">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-400 text-emerald-950 font-bold text-sm shadow-lg">VC</div>
+            <img src="/logo-mark.svg" alt="VillageClaq" className="h-11 w-11" />
             <span className="text-2xl font-bold text-white tracking-tight">{t("common.appName")}</span>
           </Link>
 
@@ -109,7 +109,7 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="mb-8 flex flex-col items-center lg:hidden">
             <Link href="/" className="flex items-center gap-2.5 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-white font-bold text-sm shadow-md">VC</div>
+              <img src="/logo-mark.svg" alt="VillageClaq" className="h-10 w-10" />
               <span className="text-xl font-bold tracking-tight">{t("common.appName")}</span>
             </Link>
           </div>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/i18n/routing";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Check,
@@ -19,94 +19,13 @@ import {
   BarChart3,
   Download,
 } from "lucide-react";
+import { useGroup } from "@/lib/group-context";
+import { useContributionTypes } from "@/lib/hooks/use-supabase-query";
+import { createClient } from "@/lib/supabase/client";
+import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 type CellStatus = "paid" | "partial" | "unpaid" | "not_member" | "waived";
-
-interface MemberRow {
-  id: string;
-  name: string;
-  joinedYear: number;
-  cells: Record<string, CellStatus>;
-  amounts: Record<string, { paid: number; total: number }>;
-}
-
-// Mock data for Year-over-Year matrix
-const years = ["2023", "2024", "2025", "2026"];
-const months2026 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-const mockMemberRows: MemberRow[] = [
-  {
-    id: "1", name: "Cyril Ndonwi", joinedYear: 2023,
-    cells: { "2023": "paid", "2024": "paid", "2025": "paid", "2026": "paid" },
-    amounts: { "2023": { paid: 50000, total: 50000 }, "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 50000, total: 50000 } },
-  },
-  {
-    id: "2", name: "Jean-Pierre Kamga", joinedYear: 2023,
-    cells: { "2023": "paid", "2024": "paid", "2025": "paid", "2026": "paid" },
-    amounts: { "2023": { paid: 50000, total: 50000 }, "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 50000, total: 50000 } },
-  },
-  {
-    id: "3", name: "Sylvie Mbarga", joinedYear: 2023,
-    cells: { "2023": "paid", "2024": "paid", "2025": "paid", "2026": "partial" },
-    amounts: { "2023": { paid: 50000, total: 50000 }, "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 25000, total: 50000 } },
-  },
-  {
-    id: "4", name: "Emmanuel Tabi", joinedYear: 2023,
-    cells: { "2023": "paid", "2024": "paid", "2025": "paid", "2026": "unpaid" },
-    amounts: { "2023": { paid: 50000, total: 50000 }, "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 0, total: 50000 } },
-  },
-  {
-    id: "5", name: "Marie-Claire Fotso", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "paid", "2025": "paid", "2026": "paid" },
-    amounts: { "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 50000, total: 50000 } },
-  },
-  {
-    id: "6", name: "Patrick Njoya", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "paid", "2025": "partial", "2026": "unpaid" },
-    amounts: { "2024": { paid: 50000, total: 50000 }, "2025": { paid: 30000, total: 50000 }, "2026": { paid: 0, total: 50000 } },
-  },
-  {
-    id: "7", name: "Beatrice Ngono", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "paid", "2025": "paid", "2026": "paid" },
-    amounts: { "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 50000, total: 50000 } },
-  },
-  {
-    id: "8", name: "Thomas Nkeng", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "partial", "2025": "unpaid", "2026": "unpaid" },
-    amounts: { "2024": { paid: 25000, total: 50000 }, "2025": { paid: 0, total: 50000 }, "2026": { paid: 0, total: 50000 } },
-  },
-  {
-    id: "9", name: "Papa François Mbeki", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "paid", "2025": "paid", "2026": "paid" },
-    amounts: { "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 50000, total: 50000 } },
-  },
-  {
-    id: "10", name: "Angeline Tchatchouang", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "paid", "2025": "paid", "2026": "partial" },
-    amounts: { "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 10000, total: 50000 } },
-  },
-  {
-    id: "11", name: "Samuel Fon", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "paid", "2025": "unpaid", "2026": "unpaid" },
-    amounts: { "2024": { paid: 50000, total: 50000 }, "2025": { paid: 0, total: 50000 }, "2026": { paid: 0, total: 50000 } },
-  },
-  {
-    id: "12", name: "Grace Eteki", joinedYear: 2024,
-    cells: { "2023": "not_member", "2024": "paid", "2025": "paid", "2026": "paid" },
-    amounts: { "2024": { paid: 50000, total: 50000 }, "2025": { paid: 50000, total: 50000 }, "2026": { paid: 50000, total: 50000 } },
-  },
-];
-
-// Monthly view mock data
-const mockMonthlyRows = mockMemberRows.map((m) => ({
-  ...m,
-  monthlyCells: {
-    Jan: m.cells["2026"] === "paid" ? "paid" : m.cells["2026"] === "partial" ? "partial" : Math.random() > 0.3 ? "paid" : "unpaid",
-    Feb: Math.random() > 0.2 ? "paid" : Math.random() > 0.5 ? "partial" : "unpaid",
-    Mar: Math.random() > 0.4 ? "paid" : Math.random() > 0.5 ? "partial" : "unpaid",
-    Apr: "unpaid", May: "unpaid", Jun: "unpaid", Jul: "unpaid", Aug: "unpaid", Sep: "unpaid", Oct: "unpaid", Nov: "unpaid", Dec: "unpaid",
-  } as Record<string, string>,
-}));
 
 const cellConfig: Record<CellStatus, { icon: typeof Check; color: string; bg: string }> = {
   paid: { icon: Check, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
@@ -120,12 +39,177 @@ function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
 }
 
+function useMatrixData(contributionTypeId: string | null) {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["matrix-data", groupId, contributionTypeId],
+    queryFn: async () => {
+      if (!groupId) return { obligations: [], members: [] };
+      const supabase = createClient();
+
+      // Fetch all obligations for this group + contribution type
+      let oblQuery = supabase
+        .from("contribution_obligations")
+        .select("id, membership_id, amount, amount_paid, status, due_date, period_label, contribution_type_id")
+        .eq("group_id", groupId);
+      if (contributionTypeId) {
+        oblQuery = oblQuery.eq("contribution_type_id", contributionTypeId);
+      }
+      const { data: obligations, error: oblError } = await oblQuery.order("due_date", { ascending: true });
+      if (oblError) throw oblError;
+
+      // Fetch all members with profiles and joined_at
+      const { data: members, error: memError } = await supabase
+        .from("memberships")
+        .select("id, user_id, joined_at, standing, profiles!inner(id, full_name, avatar_url)")
+        .eq("group_id", groupId)
+        .order("joined_at", { ascending: true });
+      if (memError) throw memError;
+
+      return {
+        obligations: obligations || [],
+        members: (members || []).map((m: { id: string; user_id: string; joined_at: string; standing: string; profiles: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[] }) => ({
+          id: m.id,
+          user_id: m.user_id,
+          joined_at: m.joined_at,
+          standing: m.standing,
+          profile: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
+        })),
+      };
+    },
+    enabled: !!groupId,
+  });
+}
+
+interface MemberRow {
+  id: string;
+  name: string;
+  joinedAt: string;
+  cells: Record<string, CellStatus>;
+  amounts: Record<string, { paid: number; total: number }>;
+}
+
 export default function DuesMatrixPage() {
   const t = useTranslations();
+  const { currentGroup } = useGroup();
+  const currency = currentGroup?.currency || "XAF";
   const [view, setView] = useState<"yearly" | "monthly">("yearly");
-  const [selectedType, setSelectedType] = useState("annual_dues");
+  const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
 
-  const columns = view === "yearly" ? years : months2026;
+  const { data: contributionTypes } = useContributionTypes();
+  const { data: matrixData, isLoading, isError, refetch } = useMatrixData(selectedTypeId);
+
+  // Auto-select first contribution type when loaded
+  const activeTypeId = selectedTypeId || (contributionTypes && contributionTypes.length > 0 ? contributionTypes[0].id : null);
+
+  // Build the matrix from real data
+  const { columns, memberRows } = useMemo(() => {
+    if (!matrixData || !matrixData.obligations || matrixData.obligations.length === 0) {
+      return { columns: [] as string[], memberRows: [] as MemberRow[] };
+    }
+
+    const obligations = matrixData.obligations.filter(
+      (o: { contribution_type_id: string }) => !activeTypeId || o.contribution_type_id === activeTypeId
+    );
+
+    // Determine columns from obligations' period_labels or due_date year/month
+    const periodSet = new Set<string>();
+    for (const obl of obligations) {
+      if (view === "yearly") {
+        // Extract year from due_date
+        const year = obl.due_date?.slice(0, 4);
+        if (year) periodSet.add(year);
+      } else {
+        // Extract YYYY-MM
+        const ym = obl.due_date?.slice(0, 7);
+        if (ym) periodSet.add(ym);
+      }
+    }
+    const cols = Array.from(periodSet).sort();
+
+    // Build member rows
+    const memberMap = new Map<string, MemberRow>();
+    for (const member of matrixData.members) {
+      const profile = member.profile;
+      memberMap.set(member.id, {
+        id: member.id,
+        name: profile?.full_name || "Unknown",
+        joinedAt: member.joined_at,
+        cells: {},
+        amounts: {},
+      });
+      // Initialize all cells as not_member or unpaid based on join date
+      for (const col of cols) {
+        const joinYear = member.joined_at?.slice(0, 4);
+        const colYear = col.slice(0, 4);
+        if (parseInt(colYear) < parseInt(joinYear || "9999")) {
+          memberMap.get(member.id)!.cells[col] = "not_member";
+        }
+        // Don't default to unpaid here; we'll set from obligations
+      }
+    }
+
+    // Fill in obligation data
+    for (const obl of obligations) {
+      const key = view === "yearly" ? obl.due_date?.slice(0, 4) : obl.due_date?.slice(0, 7);
+      if (!key) continue;
+      const row = memberMap.get(obl.membership_id);
+      if (!row) continue;
+
+      const amount = Number(obl.amount);
+      const paid = Number(obl.amount_paid);
+
+      // Accumulate if multiple obligations in the same period
+      if (!row.amounts[key]) {
+        row.amounts[key] = { paid: 0, total: 0 };
+      }
+      row.amounts[key].paid += paid;
+      row.amounts[key].total += amount;
+
+      // Determine status
+      const status = obl.status as string;
+      if (status === "waived") {
+        row.cells[key] = "waived";
+      } else if (status === "paid") {
+        // Only set to paid if not already partial
+        if (row.cells[key] !== "partial" && row.cells[key] !== "unpaid") {
+          row.cells[key] = "paid";
+        }
+      } else if (status === "partial") {
+        row.cells[key] = "partial";
+      } else if (status === "pending" || status === "overdue") {
+        // If some amount was paid, it's partial; otherwise unpaid
+        if (paid > 0) {
+          row.cells[key] = "partial";
+        } else if (row.cells[key] !== "partial") {
+          row.cells[key] = "unpaid";
+        }
+      }
+    }
+
+    return {
+      columns: cols,
+      memberRows: Array.from(memberMap.values()),
+    };
+  }, [matrixData, view, activeTypeId]);
+
+  // Format column labels
+  const columnLabels = useMemo(() => {
+    if (view === "yearly") return columns; // e.g. "2023", "2024"
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return columns.map((ym) => {
+      const [y, m] = ym.split("-");
+      return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+    });
+  }, [columns, view]);
+
+  // Calculate column totals
+  const columnTotals = columns.map((col) => {
+    const paid = memberRows.filter((m) => m.cells[col] === "paid" || m.cells[col] === "waived").length;
+    const partial = memberRows.filter((m) => m.cells[col] === "partial").length;
+    const total = memberRows.filter((m) => m.cells[col] !== "not_member" && m.cells[col] !== undefined).length;
+    return { paid, partial, total };
+  });
 
   const subNavItems = [
     { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
@@ -136,19 +220,12 @@ export default function DuesMatrixPage() {
     { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
   ];
 
-  // Calculate column totals
-  const columnTotals = columns.map((col) => {
-    if (view === "yearly") {
-      const paid = mockMemberRows.filter((m) => m.cells[col] === "paid").length;
-      const partial = mockMemberRows.filter((m) => m.cells[col] === "partial").length;
-      const total = mockMemberRows.filter((m) => m.cells[col] !== "not_member").length;
-      return { paid, partial, total };
-    }
-    return { paid: 0, partial: 0, total: mockMemberRows.length };
-  });
+  if (isLoading) return <AdminGuard><ListSkeleton rows={8} /></AdminGuard>;
+
+  if (isError) return <AdminGuard><ErrorState message="Failed to load matrix data." onRetry={() => refetch()} /></AdminGuard>;
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -180,13 +257,16 @@ export default function DuesMatrixPage() {
       {/* Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <select
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
+          value={activeTypeId || ""}
+          onChange={(e) => setSelectedTypeId(e.target.value || null)}
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-60"
         >
-          <option value="annual_dues">{t("contributions.annualDues")}</option>
-          <option value="monthly">{t("contributions.monthlyContribution")}</option>
-          <option value="building_fund">Building Fund Levy</option>
+          {contributionTypes?.map((ct) => (
+            <option key={ct.id} value={ct.id}>{ct.name}</option>
+          ))}
+          {(!contributionTypes || contributionTypes.length === 0) && (
+            <option value="">--</option>
+          )}
         </select>
         <div className="flex rounded-lg border bg-muted/30 p-0.5">
           <button
@@ -232,61 +312,70 @@ export default function DuesMatrixPage() {
         </span>
       </div>
 
-      {/* Matrix Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="sticky left-0 z-10 bg-muted/50 whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground min-w-[180px]">
-                    {t("contributions.member")}
-                  </th>
-                  {columns.map((col) => (
-                    <th key={col} className="whitespace-nowrap px-3 py-3 text-center font-medium text-muted-foreground min-w-[70px]">
-                      {col}
+      {memberRows.length === 0 || columns.length === 0 ? (
+        <EmptyState
+          icon={Grid3X3}
+          title="No obligation data"
+          description="Create contribution types and generate obligations to see the matrix."
+        />
+      ) : (
+        /* Matrix Table */
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="sticky left-0 z-10 bg-muted/50 whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground min-w-[180px]">
+                      {t("contributions.member")}
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {mockMemberRows.map((member) => (
-                  <tr key={member.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                    <td className="sticky left-0 z-10 bg-background px-4 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
-                            {member.name.split(" ").map((n) => n[0]).join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="truncate font-medium text-sm">{member.name}</span>
-                      </div>
-                    </td>
-                    {columns.map((col) => {
-                      const status = (view === "yearly" ? member.cells[col] : mockMonthlyRows.find((m) => m.id === member.id)?.monthlyCells[col]) as CellStatus || "not_member";
-                      const config = cellConfig[status];
-                      const Icon = config.icon;
-                      const amountData = view === "yearly" ? member.amounts[col] : undefined;
-                      return (
-                        <td key={col} className="px-3 py-2.5 text-center">
-                          <div className="flex flex-col items-center" title={amountData ? `${formatCurrency(amountData.paid, "XAF")} / ${formatCurrency(amountData.total, "XAF")}` : undefined}>
-                            <span className={`flex h-7 w-7 items-center justify-center rounded ${config.bg}`}>
-                              <Icon className={`h-3.5 w-3.5 ${config.color}`} />
-                            </span>
-                            {view === "yearly" && amountData && status === "partial" && (
-                              <span className="text-[9px] text-amber-600 dark:text-amber-400 mt-0.5">
-                                {Math.round((amountData.paid / amountData.total) * 100)}%
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
+                    {columnLabels.map((label, i) => (
+                      <th key={columns[i]} className="whitespace-nowrap px-3 py-3 text-center font-medium text-muted-foreground min-w-[70px]">
+                        {label}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-              {/* Totals row */}
-              {view === "yearly" && (
+                </thead>
+                <tbody>
+                  {memberRows.map((member) => (
+                    <tr key={member.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                      <td className="sticky left-0 z-10 bg-background px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                              {member.name.split(" ").map((n) => n[0]).join("")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate font-medium text-sm">{member.name}</span>
+                        </div>
+                      </td>
+                      {columns.map((col) => {
+                        const status: CellStatus = member.cells[col] || "not_member";
+                        const config = cellConfig[status];
+                        const Icon = config.icon;
+                        const amountData = member.amounts[col];
+                        return (
+                          <td key={col} className="px-3 py-2.5 text-center">
+                            <div
+                              className="flex flex-col items-center"
+                              title={amountData ? `${formatCurrency(amountData.paid, currency)} / ${formatCurrency(amountData.total, currency)}` : undefined}
+                            >
+                              <span className={`flex h-7 w-7 items-center justify-center rounded ${config.bg}`}>
+                                <Icon className={`h-3.5 w-3.5 ${config.color}`} />
+                              </span>
+                              {amountData && status === "partial" && amountData.total > 0 && (
+                                <span className="text-[9px] text-amber-600 dark:text-amber-400 mt-0.5">
+                                  {Math.round((amountData.paid / amountData.total) * 100)}%
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+                {/* Totals row */}
                 <tfoot>
                   <tr className="border-t-2 bg-muted/30 font-medium">
                     <td className="sticky left-0 z-10 bg-muted/30 px-4 py-3 text-sm">
@@ -302,11 +391,11 @@ export default function DuesMatrixPage() {
                     ))}
                   </tr>
                 </tfoot>
-              )}
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div></AdminGuard>
   );
 }

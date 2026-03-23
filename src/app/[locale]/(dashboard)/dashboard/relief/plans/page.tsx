@@ -24,38 +24,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Heart, Plus, Users, DollarSign, Clock, Settings, CheckCircle2 } from "lucide-react";
+import { useGroup } from "@/lib/group-context";
+import { useReliefPlans } from "@/lib/hooks/use-supabase-query";
+import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 type ReliefEventType = "death" | "illness" | "wedding" | "childbirth" | "natural_disaster" | "other";
-
-interface ReliefPlan {
-  id: string;
-  name: string;
-  nameFr: string;
-  qualifyingEvents: ReliefEventType[];
-  contributionAmount: number;
-  contributionFrequency: string;
-  payoutRules: Record<string, number>;
-  waitingPeriodDays: number;
-  autoEnroll: boolean;
-  isActive: boolean;
-  enrolledCount: number;
-  balance: number;
-}
-
-const mockPlans: ReliefPlan[] = [
-  { id: "1", name: "Bereavement Fund", nameFr: "Fonds de deuil", qualifyingEvents: ["death"], contributionAmount: 5000, contributionFrequency: "monthly", payoutRules: { death: 250000 }, waitingPeriodDays: 180, autoEnroll: true, isActive: true, enrolledCount: 45, balance: 950000 },
-  { id: "2", name: "Health Emergency Fund", nameFr: "Fonds d'urgence santé", qualifyingEvents: ["illness"], contributionAmount: 3000, contributionFrequency: "monthly", payoutRules: { illness: 150000 }, waitingPeriodDays: 90, autoEnroll: true, isActive: true, enrolledCount: 42, balance: 580000 },
-  { id: "3", name: "Life Events Fund", nameFr: "Fonds événements de vie", qualifyingEvents: ["wedding", "childbirth"], contributionAmount: 2000, contributionFrequency: "monthly", payoutRules: { wedding: 100000, childbirth: 100000 }, waitingPeriodDays: 180, autoEnroll: false, isActive: true, enrolledCount: 38, balance: 320000 },
-];
-
 const allEventTypes: ReliefEventType[] = ["death", "illness", "wedding", "childbirth", "natural_disaster", "other"];
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "XAF", minimumFractionDigits: 0 }).format(amount);
+function formatCurrency(amount: number, currency = "XAF") {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
 }
 
 export default function ReliefPlansPage() {
   const t = useTranslations();
+  const { currentGroup } = useGroup();
+  const { data: plans, isLoading, error, refetch } = useReliefPlans();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<ReliefEventType[]>([]);
   const [autoEnroll, setAutoEnroll] = useState(true);
@@ -66,8 +50,14 @@ export default function ReliefPlansPage() {
     );
   };
 
+  if (isLoading) return <AdminGuard><CardGridSkeleton cards={3} /></AdminGuard>;
+  if (error) return <AdminGuard><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></AdminGuard>;
+
+  const plansList = plans || [];
+  const currency = currentGroup?.currency || "XAF";
+
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("relief.plans")}</h1>
@@ -78,75 +68,84 @@ export default function ReliefPlansPage() {
         </Button>
       </div>
 
-      {mockPlans.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Heart className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold">{t("relief.noPlans")}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{t("relief.noPlansDesc")}</p>
-            <Button className="mt-4" onClick={() => setShowCreateDialog(true)}>
+      {plansList.length === 0 ? (
+        <EmptyState
+          icon={Heart}
+          title={t("relief.noPlans")}
+          description={t("relief.noPlansDesc")}
+          action={
+            <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />{t("relief.createPlan")}
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {mockPlans.map((plan) => (
-            <Card key={plan.id} className="transition-shadow hover:shadow-md">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{plan.name}</CardTitle>
-                  <Badge variant={plan.isActive ? "default" : "secondary"}>
-                    {plan.isActive ? t("common.active") : t("common.inactive")}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">{plan.nameFr}</p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-1">
-                  {plan.qualifyingEvents.map((event) => (
-                    <Badge key={event} variant="outline" className="text-xs">
-                      {t(`relief.eventTypes.${event}`)}
+          {plansList.map((plan: Record<string, unknown>) => {
+            const qualifyingEvents = (plan.qualifying_events as string[]) || [];
+            const payoutRules = (plan.payout_rules as Record<string, number>) || {};
+            const contributionAmount = Number(plan.contribution_amount || 0);
+            const contributionFrequency = (plan.contribution_frequency as string) || "monthly";
+            const waitingPeriodDays = (plan.waiting_period_days as number) || 180;
+            const isActive = plan.is_active as boolean;
+
+            return (
+              <Card key={plan.id as string} className="transition-shadow hover:shadow-md">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{plan.name as string}</CardTitle>
+                    <Badge variant={isActive ? "default" : "secondary"}>
+                      {isActive ? t("common.active") : t("common.inactive")}
                     </Badge>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-muted p-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Users className="h-3 w-3" />{t("relief.enrolledMembers")}
-                    </div>
-                    <p className="mt-1 font-semibold text-sm">{plan.enrolledCount}</p>
                   </div>
-                  <div className="rounded-lg bg-muted p-2">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <DollarSign className="h-3 w-3" />{t("relief.totalFundBalance")}
-                    </div>
-                    <p className="mt-1 font-semibold text-sm text-primary">{formatCurrency(plan.balance)}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(plan.contributionAmount)}/{plan.contributionFrequency}</span>
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{plan.waitingPeriodDays}d {t("relief.waiting").toLowerCase()}</span>
-                </div>
-                <div className="pt-2 border-t">
-                  <p className="text-xs font-medium text-muted-foreground">{t("relief.payoutPerEvent")}:</p>
-                  <div className="mt-1 space-y-1">
-                    {Object.entries(plan.payoutRules).map(([event, amount]) => (
-                      <div key={event} className="flex items-center justify-between text-xs">
-                        <span>{t(`relief.eventTypes.${event}`)}</span>
-                        <span className="font-semibold text-primary">{formatCurrency(amount)}</span>
-                      </div>
+                  {plan.name_fr ? <p className="text-xs text-muted-foreground">{String(plan.name_fr)}</p> : null}
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-1">
+                    {qualifyingEvents.map((event: string) => (
+                      <Badge key={event} variant="outline" className="text-xs">
+                        {t(`relief.eventTypes.${event}`)}
+                      </Badge>
                     ))}
                   </div>
-                </div>
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Settings className="mr-1 h-3 w-3" />{t("common.edit")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg bg-muted p-2">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <DollarSign className="h-3 w-3" />{t("relief.contributionAmount")}
+                      </div>
+                      <p className="mt-1 font-semibold text-sm">{formatCurrency(contributionAmount, currency)}</p>
+                    </div>
+                    <div className="rounded-lg bg-muted p-2">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />{t("relief.waitingPeriod")}
+                      </div>
+                      <p className="mt-1 font-semibold text-sm">{waitingPeriodDays}d</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(contributionAmount, currency)}/{contributionFrequency}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{waitingPeriodDays}d {t("relief.waiting").toLowerCase()}</span>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <p className="text-xs font-medium text-muted-foreground">{t("relief.payoutPerEvent")}:</p>
+                    <div className="mt-1 space-y-1">
+                      {Object.entries(payoutRules).map(([event, amount]) => (
+                        <div key={event} className="flex items-center justify-between text-xs">
+                          <span>{t(`relief.eventTypes.${event}`)}</span>
+                          <span className="font-semibold text-primary">{formatCurrency(amount as number, currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Settings className="mr-1 h-3 w-3" />{t("common.edit")}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -230,6 +229,6 @@ export default function ReliefPlansPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div></AdminGuard>
   );
 }

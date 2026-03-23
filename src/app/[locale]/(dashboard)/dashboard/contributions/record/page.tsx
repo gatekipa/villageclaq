@@ -30,6 +30,7 @@ import {
   useRecordPayment,
 } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", {
@@ -152,7 +153,7 @@ export default function RecordPaymentPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <AdminGuard><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
@@ -168,26 +169,26 @@ export default function RecordPaymentPage() {
           ))}
         </div>
         <ListSkeleton rows={4} />
-      </div>
+      </div></AdminGuard>
     );
   }
 
   if (isError) {
     return (
-      <div className="space-y-6">
+      <AdminGuard><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
         </div>
         <ErrorState onRetry={() => { refetchMembers(); refetchTypes(); }} />
-      </div>
+      </div></AdminGuard>
     );
   }
 
   const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && !recordPayment.isPending;
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
@@ -437,6 +438,6 @@ export default function RecordPaymentPage() {
           </ul>
         </CardContent>
       </Card>
-    </div>
+    </div></AdminGuard>
   );
 }

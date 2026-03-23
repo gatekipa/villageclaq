@@ -38,6 +38,7 @@ import {
   EmptyState,
   ErrorState,
 } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", {
@@ -115,7 +116,7 @@ export default function ContributionsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <AdminGuard><div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
@@ -133,26 +134,26 @@ export default function ContributionsPage() {
           ))}
         </div>
         <CardGridSkeleton cards={4} />
-      </div>
+      </div></AdminGuard>
     );
   }
 
   if (isError) {
     return (
-      <div className="space-y-6">
+      <AdminGuard><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
           <p className="text-muted-foreground">{t("contributions.subtitle")}</p>
         </div>
         <ErrorState onRetry={() => refetch()} />
-      </div>
+      </div></AdminGuard>
     );
   }
 
   const types = contributionTypes || [];
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -359,6 +360,6 @@ export default function ContributionsPage() {
           ))}
         </div>
       )}
-    </div>
+    </div></AdminGuard>
   );
 }

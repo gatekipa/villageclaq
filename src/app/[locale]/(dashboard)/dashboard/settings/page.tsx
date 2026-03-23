@@ -14,6 +14,7 @@ import {
 import { useGroupSettings, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 function getInitials(name: string) {
   return name
@@ -34,18 +35,18 @@ export default function GroupSettingsPage() {
   const isError = groupError || posError;
 
   if (isLoading) {
-    return <ListSkeleton rows={5} />;
+    return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
   }
 
   if (isError) {
     return (
-      <ErrorState
+      <AdminGuard><ErrorState
         message={(groupErr as Error)?.message || (posErr as Error)?.message}
         onRetry={() => {
           refetchGroup();
           refetchPos();
         }}
-      />
+      /></AdminGuard>
     );
   }
 
@@ -53,7 +54,7 @@ export default function GroupSettingsPage() {
   const positionsData = (positions || []) as Record<string, unknown>[];
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
@@ -243,6 +244,6 @@ export default function GroupSettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </div></AdminGuard>
   );
 }

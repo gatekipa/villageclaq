@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,28 +34,14 @@ import {
   AlertCircle,
   FileText,
 } from "lucide-react";
+import { useGroup } from "@/lib/group-context";
+import { useMembers } from "@/lib/hooks/use-supabase-query";
+import { createClient } from "@/lib/supabase/client";
+import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+
+const supabase = createClient();
 
 type TransferStatus = "requested" | "source_approved" | "dest_approved" | "completed" | "rejected";
-
-interface Transfer {
-  id: string;
-  memberName: string;
-  sourceBranch: string;
-  destBranch: string;
-  status: TransferStatus;
-  reason: string;
-  requestedBy: string;
-  date: string;
-  yearsOfMembership: number;
-  totalContributions: number;
-}
-
-const mockTransfers: Transfer[] = [
-  { id: "1", memberName: "François Mbassi", sourceBranch: "Douala Chapter", destBranch: "Paris Chapter", status: "requested", reason: "Relocating to Paris for work", requestedBy: "Jean-Pierre Kamga", date: "2026-03-20", yearsOfMembership: 3, totalContributions: 540000 },
-  { id: "2", memberName: "Rosalie Edimo", sourceBranch: "Yaoundé Chapter", destBranch: "Douala Chapter", status: "source_approved", reason: "Moving to Douala", requestedBy: "Admin Yaoundé", date: "2026-03-10", yearsOfMembership: 2, totalContributions: 360000 },
-  { id: "3", memberName: "Patrick Biyick", sourceBranch: "Douala Chapter", destBranch: "Maryland Chapter", status: "completed", reason: "Emigrating to the US", requestedBy: "Jean-Pierre Kamga", date: "2026-01-15", yearsOfMembership: 4, totalContributions: 720000 },
-  { id: "4", memberName: "Yvonne Tchana", sourceBranch: "Bamenda Chapter", destBranch: "Douala Chapter", status: "rejected", reason: "Outstanding dues not cleared", requestedBy: "Admin Bamenda", date: "2025-12-05", yearsOfMembership: 1, totalContributions: 120000 },
-];
 
 const statusConfig: Record<TransferStatus, { color: string; icon: typeof CheckCircle2 }> = {
   requested: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", icon: Clock },
@@ -64,17 +51,47 @@ const statusConfig: Record<TransferStatus, { color: string; icon: typeof CheckCi
   rejected: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
 };
 
-const branches = ["Douala Chapter", "Yaoundé Chapter", "Paris Chapter", "Maryland Chapter", "Bamenda Chapter"];
-const members = ["François Mbassi", "Rosalie Edimo", "Jean-Pierre Kamga", "Sylvie Mbarga", "Emmanuel Tabi"];
+function useTransfers() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["member-transfers", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("member_transfers")
+        .select("*, member:profiles!member_transfers_member_id_fkey(id, full_name, avatar_url), source_group:groups!member_transfers_source_group_id_fkey(id, name), dest_group:groups!member_transfers_dest_group_id_fkey(id, name)")
+        .or(`source_group_id.eq.${groupId},dest_group_id.eq.${groupId}`)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "XAF", minimumFractionDigits: 0 }).format(amount);
+function formatCurrency(amount: number, currency = "XAF") {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
 }
 
 export default function TransfersPage() {
   const t = useTranslations();
+  const { currentGroup, memberships } = useGroup();
+  const { data: transfers, isLoading, error, refetch } = useTransfers();
+  const { data: membersList } = useMembers();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [selectedTransfer, setSelectedTransfer] = useState<Transfer | null>(null);
+  const [selectedTransfer, setSelectedTransfer] = useState<Record<string, unknown> | null>(null);
+
+  const currency = currentGroup?.currency || "XAF";
+
+  if (isLoading) return <ListSkeleton rows={4} />;
+  if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
+
+  const transferList = transfers || [];
+  const memberOptions = (membersList || []).map((m: Record<string, unknown>) => {
+    const profile = (m.profile || m.profiles) as Record<string, unknown> | undefined;
+    return { id: m.user_id as string, name: (profile?.full_name as string) || (m.display_name as string) || "Unknown" };
+  });
+  const branchOptions = memberships.map((m) => ({ id: m.group_id, name: m.group.name }));
 
   return (
     <div className="space-y-6">
@@ -95,31 +112,43 @@ export default function TransfersPage() {
 
       {/* Transfer List */}
       <div className="space-y-3">
-        {mockTransfers.length === 0 ? (
-          <Card><CardContent className="flex flex-col items-center justify-center py-12">
-            <ArrowRightLeft className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold">{t("enterprise.noTransfers")}</h3>
-          </CardContent></Card>
+        {transferList.length === 0 ? (
+          <EmptyState
+            icon={ArrowRightLeft}
+            title={t("enterprise.noTransfers")}
+            description={t("enterprise.subtitle")}
+          />
         ) : (
-          mockTransfers.map((transfer) => {
-            const config = statusConfig[transfer.status];
+          transferList.map((transfer: Record<string, unknown>) => {
+            const status = (transfer.status as TransferStatus) || "requested";
+            const config = statusConfig[status] || statusConfig.requested;
             const StatusIcon = config.icon;
+            const member = transfer.member as Record<string, unknown> | null;
+            const memberName = (member?.full_name as string) || "Unknown";
+            const sourceGroup = transfer.source_group as Record<string, unknown> | null;
+            const destGroup = transfer.dest_group as Record<string, unknown> | null;
+            const sourceName = (sourceGroup?.name as string) || "";
+            const destName = (destGroup?.name as string) || "";
+            const reason = (transfer.reason as string) || "";
+            const createdAt = transfer.created_at ? new Date(transfer.created_at as string).toLocaleDateString() : "";
+            const summary = (transfer.transfer_summary_json as Record<string, unknown>) || {};
+
             return (
-              <Card key={transfer.id} className="transition-shadow hover:shadow-md cursor-pointer" onClick={() => setSelectedTransfer(transfer)}>
+              <Card key={transfer.id as string} className="transition-shadow hover:shadow-md cursor-pointer" onClick={() => setSelectedTransfer(transfer)}>
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">{transfer.memberName}</h3>
-                        <Badge className={config.color}><StatusIcon className="mr-1 h-3 w-3" />{t(`enterprise.transferStatus.${transfer.status}`)}</Badge>
+                        <h3 className="font-semibold text-sm">{memberName}</h3>
+                        <Badge className={config.color}><StatusIcon className="mr-1 h-3 w-3" />{t(`enterprise.transferStatus.${status}`)}</Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {transfer.sourceBranch} → {transfer.destBranch} · {transfer.date}
+                        {sourceName} → {destName} · {createdAt}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{transfer.reason}</p>
+                      {reason && <p className="mt-0.5 text-xs text-muted-foreground">{reason}</p>}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {(transfer.status === "requested" || transfer.status === "source_approved") && (
+                      {(status === "requested" || status === "source_approved") && (
                         <>
                           <Button size="sm" variant="outline" className="text-destructive" onClick={(e) => { e.stopPropagation(); }}>
                             <XCircle className="mr-1 h-3.5 w-3.5" />{t("enterprise.rejectTransfer")}
@@ -145,17 +174,26 @@ export default function TransfersPage() {
             <DialogHeader><DialogTitle>{t("enterprise.memberTransfer")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="rounded-lg border p-3 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Member</span><span className="font-medium">{selectedTransfer.memberName}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.sourceBranch")}</span><span className="font-medium">{selectedTransfer.sourceBranch}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.destBranch")}</span><span className="font-medium">{selectedTransfer.destBranch}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.transferReason")}</span><span className="font-medium">{selectedTransfer.reason}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Member</span><span className="font-medium">{((selectedTransfer.member as Record<string, unknown>)?.full_name as string) || "Unknown"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.sourceBranch")}</span><span className="font-medium">{((selectedTransfer.source_group as Record<string, unknown>)?.name as string) || ""}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.destBranch")}</span><span className="font-medium">{((selectedTransfer.dest_group as Record<string, unknown>)?.name as string) || ""}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.transferReason")}</span><span className="font-medium">{(selectedTransfer.reason as string) || ""}</span></div>
               </div>
-              <Card className="bg-muted/50"><CardContent className="pt-4 space-y-1 text-sm">
-                <h4 className="font-semibold mb-2">Transfer Summary</h4>
-                <div className="flex justify-between"><span className="text-muted-foreground">Years of Membership</span><span className="font-medium">{selectedTransfer.yearsOfMembership}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Total Contributions</span><span className="font-medium text-primary">{formatCurrency(selectedTransfer.totalContributions)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Standing at Transfer</span><Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Good</Badge></div>
-              </CardContent></Card>
+              {(() => {
+                const summary = selectedTransfer.transfer_summary_json as Record<string, unknown> | null;
+                if (!summary || Object.keys(summary).length === 0) return null;
+                return (
+                  <Card className="bg-muted/50"><CardContent className="pt-4 space-y-1 text-sm">
+                    <h4 className="font-semibold mb-2">Transfer Summary</h4>
+                    {Object.entries(summary).map(([key, value]) => (
+                      <div key={key} className="flex justify-between">
+                        <span className="text-muted-foreground">{key}</span>
+                        <span className="font-medium">{typeof value === "number" ? formatCurrency(value, currency) : String(value)}</span>
+                      </div>
+                    ))}
+                  </CardContent></Card>
+                );
+              })()}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setSelectedTransfer(null)}>{t("common.close")}</Button>
@@ -172,19 +210,19 @@ export default function TransfersPage() {
             <div className="space-y-2">
               <Label>{t("contributions.member")}</Label>
               <Select><SelectTrigger><SelectValue placeholder={t("minutes.selectMember")} /></SelectTrigger>
-                <SelectContent>{members.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                <SelectContent>{memberOptions.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>{t("enterprise.sourceBranch")}</Label>
               <Select><SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{branches.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                <SelectContent>{branchOptions.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label>{t("enterprise.destBranch")}</Label>
               <Select><SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{branches.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                <SelectContent>{branchOptions.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">

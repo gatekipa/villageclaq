@@ -23,6 +23,7 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 const methodLabels: Record<string, string> = {
   cash: "Cash",
@@ -139,7 +140,7 @@ export default function PaymentHistoryPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <AdminGuard><div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("contributions.history")}</h1>
@@ -157,24 +158,24 @@ export default function PaymentHistoryPage() {
           ))}
         </div>
         <ListSkeleton rows={6} />
-      </div>
+      </div></AdminGuard>
     );
   }
 
   if (isError) {
     return (
-      <div className="space-y-6">
+      <AdminGuard><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.history")}</h1>
           <p className="text-muted-foreground">{t("contributions.historyDesc")}</p>
         </div>
         <ErrorState onRetry={() => refetch()} />
-      </div>
+      </div></AdminGuard>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -358,6 +359,6 @@ export default function PaymentHistoryPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </div></AdminGuard>
   );
 }

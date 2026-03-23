@@ -83,18 +83,35 @@ function isInQuietHours(
 
 // ─── Channel Senders (stubs) ────────────────────────────────────────────────
 
+/** Queue an outbound notification for later delivery by external provider */
+async function queueForDelivery(
+  userId: string,
+  channel: 'email' | 'sms' | 'whatsapp' | 'push',
+  title: string,
+  body: string,
+  data?: Record<string, unknown>
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+    await supabase.from('notifications_queue').insert({
+      user_id: userId,
+      channel,
+      template: title,
+      data: { title, body, ...data },
+      status: 'queued',
+    });
+  } catch {
+    // Queue failure is non-fatal — in-app notification still delivered
+  }
+}
+
 async function sendEmail(
   userId: string,
   title: string,
   body: string,
   data?: Record<string, unknown>
 ): Promise<void> {
-  // TODO: Integrate with email provider (Resend, SendGrid, etc.)
-  // 1. Fetch user's email from profiles table
-  // 2. Select the appropriate email template from email-templates.ts
-  // 3. Send via email API
-  // Stub: email integration pending (Resend/SendGrid)
-  void [userId, title, body, data];
+  await queueForDelivery(userId, 'email', title, body, data);
 }
 
 async function sendSms(
@@ -103,12 +120,7 @@ async function sendSms(
   body: string,
   data?: Record<string, unknown>
 ): Promise<void> {
-  // TODO: Integrate with SMS provider (Twilio, Africa's Talking, etc.)
-  // 1. Fetch user's phone number from profiles table
-  // 2. Select the appropriate SMS template from sms-templates.ts
-  // 3. Send via SMS API
-  // Stub: SMS integration pending (Africa's Talking/Twilio)
-  void [userId, title, body, data];
+  await queueForDelivery(userId, 'sms', title, body, data);
 }
 
 async function sendWhatsApp(
@@ -117,12 +129,7 @@ async function sendWhatsApp(
   body: string,
   data?: Record<string, unknown>
 ): Promise<void> {
-  // TODO: Integrate with WhatsApp Business API
-  // 1. Fetch user's WhatsApp number from profiles table
-  // 2. Build message from whatsapp-templates.ts
-  // 3. Send via WhatsApp Business API
-  // Stub: WhatsApp Business API integration pending
-  void [userId, title, body, data];
+  await queueForDelivery(userId, 'whatsapp', title, body, data);
 }
 
 async function sendPush(
@@ -131,12 +138,7 @@ async function sendPush(
   body: string,
   data?: Record<string, unknown>
 ): Promise<void> {
-  // TODO: Integrate with push notification service (Firebase FCM, OneSignal, etc.)
-  // 1. Fetch user's device tokens from push_subscriptions table
-  // 2. Build push payload
-  // 3. Send via push API
-  // Stub: push notification integration pending (FCM/OneSignal)
-  void [userId, title, body, data];
+  await queueForDelivery(userId, 'push', title, body, data);
 }
 
 // ─── Channel Dispatcher ─────────────────────────────────────────────────────

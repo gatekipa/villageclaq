@@ -19,6 +19,7 @@ import {
 import { useHostingRosters } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 type HostingStatus = "upcoming" | "completed" | "missed" | "swapped" | "exempted";
 
@@ -57,15 +58,15 @@ export default function HostingPage() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
 
   if (isLoading) {
-    return <ListSkeleton rows={6} />;
+    return <AdminGuard><ListSkeleton rows={6} /></AdminGuard>;
   }
 
   if (isError) {
     return (
-      <ErrorState
+      <AdminGuard><ErrorState
         message={(error as Error)?.message}
         onRetry={() => refetch()}
-      />
+      /></AdminGuard>
     );
   }
 
@@ -80,7 +81,7 @@ export default function HostingPage() {
 
   if (allAssignments.length === 0 && (!rosters || rosters.length === 0)) {
     return (
-      <div className="space-y-6">
+      <AdminGuard><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
@@ -90,7 +91,7 @@ export default function HostingPage() {
           title={t("noRoster")}
           description={t("noRosterDesc")}
         />
-      </div>
+      </div></AdminGuard>
     );
   }
 
@@ -119,7 +120,7 @@ export default function HostingPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -197,6 +198,6 @@ export default function HostingPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </div></AdminGuard>
   );
 }

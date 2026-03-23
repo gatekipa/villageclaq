@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   AlertTriangle,
@@ -20,13 +19,17 @@ import {
   ArrowUpDown,
   Users,
 } from "lucide-react";
+import { useObligations } from "@/lib/hooks/use-supabase-query";
+import { useGroup } from "@/lib/group-context";
+import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 interface UnpaidMember {
   id: string;
   name: string;
-  phone?: string;
+  avatarUrl: string | null;
+  standing: string;
   totalOutstanding: number;
-  currency: string;
   obligations: {
     type: string;
     period: string;
@@ -34,60 +37,7 @@ interface UnpaidMember {
     amountPaid: number;
     dueDate: string;
   }[];
-  standing: string;
-  lastPaymentDate?: string;
 }
-
-const mockUnpaidMembers: UnpaidMember[] = [
-  {
-    id: "8", name: "Thomas Nkeng", phone: "+237 6XX XXX XXX", totalOutstanding: 165000, currency: "XAF", standing: "suspended",
-    obligations: [
-      { type: "Annual Dues", period: "2025", amount: 50000, amountPaid: 0, dueDate: "2025-01-15" },
-      { type: "Annual Dues", period: "2026", amount: 50000, amountPaid: 0, dueDate: "2026-01-15" },
-      { type: "Monthly Contribution", period: "March 2026", amount: 15000, amountPaid: 7500, dueDate: "2026-03-05" },
-      { type: "Building Fund Levy", period: "2025", amount: 100000, amountPaid: 50000, dueDate: "2025-06-15" },
-    ],
-    lastPaymentDate: "2026-03-03",
-  },
-  {
-    id: "6", name: "Patrick Njoya", phone: "+237 6XX XXX XXX", totalOutstanding: 85000, currency: "XAF", standing: "warning",
-    obligations: [
-      { type: "Annual Dues", period: "2026", amount: 50000, amountPaid: 0, dueDate: "2026-01-15" },
-      { type: "Monthly Contribution", period: "March 2026", amount: 15000, amountPaid: 0, dueDate: "2026-03-05" },
-      { type: "Quarterly Social Fund", period: "Q1 2026", amount: 25000, amountPaid: 5000, dueDate: "2026-01-01" },
-    ],
-    lastPaymentDate: "2026-03-14",
-  },
-  {
-    id: "11", name: "Samuel Fon", phone: "+237 6XX XXX XXX", totalOutstanding: 80000, currency: "XAF", standing: "warning",
-    obligations: [
-      { type: "Annual Dues", period: "2025", amount: 50000, amountPaid: 0, dueDate: "2025-01-15" },
-      { type: "Monthly Contribution", period: "March 2026", amount: 15000, amountPaid: 0, dueDate: "2026-03-05" },
-      { type: "Monthly Contribution", period: "February 2026", amount: 15000, amountPaid: 0, dueDate: "2026-02-05" },
-    ],
-    lastPaymentDate: "2026-03-08",
-  },
-  {
-    id: "4", name: "Emmanuel Tabi", totalOutstanding: 50000, currency: "XAF", standing: "good",
-    obligations: [
-      { type: "Annual Dues", period: "2026", amount: 50000, amountPaid: 0, dueDate: "2026-01-15" },
-    ],
-  },
-  {
-    id: "3", name: "Sylvie Mbarga", totalOutstanding: 25000, currency: "XAF", standing: "good",
-    obligations: [
-      { type: "Annual Dues", period: "2026", amount: 50000, amountPaid: 25000, dueDate: "2026-01-15" },
-    ],
-    lastPaymentDate: "2026-03-19",
-  },
-  {
-    id: "10", name: "Angeline Tchatchouang", totalOutstanding: 40000, currency: "XAF", standing: "good",
-    obligations: [
-      { type: "Annual Dues", period: "2026", amount: 50000, amountPaid: 10000, dueDate: "2026-01-15" },
-    ],
-    lastPaymentDate: "2026-03-10",
-  },
-];
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
@@ -97,17 +47,62 @@ const standingColors: Record<string, string> = {
   good: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
   warning: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
   suspended: "bg-red-500/10 text-red-700 dark:text-red-400",
+  banned: "bg-red-500/10 text-red-700 dark:text-red-400",
 };
 
 export default function UnpaidReportPage() {
   const t = useTranslations();
+  const { currentGroup } = useGroup();
+  const currency = currentGroup?.currency || "XAF";
   const [sortBy, setSortBy] = useState<"amount" | "name">("amount");
-  const [filterType, setFilterType] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const sorted = [...mockUnpaidMembers].sort((a, b) =>
-    sortBy === "amount" ? b.totalOutstanding - a.totalOutstanding : a.name.localeCompare(b.name)
-  );
+  const { data: pendingObligations, isLoading, isError, refetch } = useObligations({ status: "pending" });
+
+  // Group obligations by membership (member)
+  const unpaidMembers = useMemo<UnpaidMember[]>(() => {
+    if (!pendingObligations || pendingObligations.length === 0) return [];
+
+    const memberMap = new Map<string, UnpaidMember>();
+
+    for (const obl of pendingObligations) {
+      const membership = obl.membership as { id: string; user_id: string; profiles: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[] };
+      const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
+      const membershipId = membership.id;
+
+      if (!memberMap.has(membershipId)) {
+        memberMap.set(membershipId, {
+          id: membershipId,
+          name: profile?.full_name || "Unknown",
+          avatarUrl: profile?.avatar_url || null,
+          standing: "good",
+          totalOutstanding: 0,
+          obligations: [],
+        });
+      }
+
+      const member = memberMap.get(membershipId)!;
+      const outstanding = Number(obl.amount) - Number(obl.amount_paid);
+      member.totalOutstanding += outstanding;
+
+      const contributionType = obl.contribution_type as { id: string; name: string; name_fr?: string } | null;
+      member.obligations.push({
+        type: contributionType?.name || "Contribution",
+        period: obl.period_label || obl.due_date?.slice(0, 7) || "",
+        amount: Number(obl.amount),
+        amountPaid: Number(obl.amount_paid),
+        dueDate: obl.due_date || "",
+      });
+    }
+
+    return Array.from(memberMap.values());
+  }, [pendingObligations]);
+
+  const sorted = useMemo(() => {
+    return [...unpaidMembers].sort((a, b) =>
+      sortBy === "amount" ? b.totalOutstanding - a.totalOutstanding : a.name.localeCompare(b.name)
+    );
+  }, [unpaidMembers, sortBy]);
 
   const totalOutstanding = sorted.reduce((sum, m) => sum + m.totalOutstanding, 0);
 
@@ -120,8 +115,12 @@ export default function UnpaidReportPage() {
     { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
   ];
 
+  if (isLoading) return <AdminGuard><ListSkeleton rows={6} /></AdminGuard>;
+
+  if (isError) return <AdminGuard><ErrorState message="Failed to load unpaid obligations." onRetry={() => refetch()} /></AdminGuard>;
+
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -156,119 +155,133 @@ export default function UnpaidReportPage() {
         ))}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">{t("contributions.totalOutstanding")}</p>
-            <p className="text-2xl font-bold text-destructive">{formatCurrency(totalOutstanding, "XAF")}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">{t("contributions.membersWithBalance")}</p>
-            <p className="text-2xl font-bold">{sorted.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-xs text-muted-foreground">{t("contributions.avgOutstanding")}</p>
-            <p className="text-2xl font-bold">{formatCurrency(Math.round(totalOutstanding / sorted.length), "XAF")}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {sorted.length === 0 ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="No unpaid obligations"
+          description="All members are up to date with their contributions."
+        />
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card>
+              <CardContent className="py-4">
+                <p className="text-xs text-muted-foreground">{t("contributions.totalOutstanding")}</p>
+                <p className="text-2xl font-bold text-destructive">{formatCurrency(totalOutstanding, currency)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-4">
+                <p className="text-xs text-muted-foreground">{t("contributions.membersWithBalance")}</p>
+                <p className="text-2xl font-bold">{sorted.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-4">
+                <p className="text-xs text-muted-foreground">{t("contributions.avgOutstanding")}</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(Math.round(totalOutstanding / sorted.length), currency)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Sort Controls */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">{t("contributions.sortBy")}:</span>
-        <button
-          className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${sortBy === "amount" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"}`}
-          onClick={() => setSortBy("amount")}
-        >
-          <ArrowUpDown className="h-3 w-3" />
-          {t("contributions.amount")}
-        </button>
-        <button
-          className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${sortBy === "name" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"}`}
-          onClick={() => setSortBy("name")}
-        >
-          <Users className="h-3 w-3" />
-          {t("contributions.memberName")}
-        </button>
-      </div>
+          {/* Sort Controls */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">{t("contributions.sortBy")}:</span>
+            <button
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${sortBy === "amount" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"}`}
+              onClick={() => setSortBy("amount")}
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              {t("contributions.amount")}
+            </button>
+            <button
+              className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${sortBy === "name" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"}`}
+              onClick={() => setSortBy("name")}
+            >
+              <Users className="h-3 w-3" />
+              {t("contributions.memberName")}
+            </button>
+          </div>
 
-      {/* Member List */}
-      <div className="space-y-3">
-        {sorted.map((member) => (
-          <Card key={member.id} className="overflow-hidden">
-            <CardContent className="p-0">
-              <button
-                className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/30 transition-colors"
-                onClick={() => setExpandedId(expandedId === member.id ? null : member.id)}
-              >
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    {member.name.split(" ").map((n) => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-semibold">{member.name}</p>
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${standingColors[member.standing]}`}>
-                      {t(`members.standing${member.standing.charAt(0).toUpperCase() + member.standing.slice(1)}` as "members.standingGood")}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {member.obligations.length} {t("contributions.outstandingItems")}
-                    {member.lastPaymentDate && ` • ${t("contributions.lastPayment")}: ${member.lastPaymentDate}`}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-lg font-bold text-destructive">{formatCurrency(member.totalOutstanding, member.currency)}</p>
-                </div>
-              </button>
-
-              {/* Expanded Details */}
-              {expandedId === member.id && (
-                <div className="border-t bg-muted/10 px-4 pb-4">
-                  <div className="mt-3 space-y-2">
-                    {member.obligations.map((obl, i) => (
-                      <div key={i} className="flex items-center justify-between rounded-lg bg-background p-3 text-sm">
-                        <div>
-                          <p className="font-medium">{obl.type}</p>
-                          <p className="text-xs text-muted-foreground">{obl.period} • {t("contributions.due")}: {obl.dueDate}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-destructive">
-                            {formatCurrency(obl.amount - obl.amountPaid, "XAF")}
-                          </p>
-                          {obl.amountPaid > 0 && (
-                            <p className="text-[10px] text-muted-foreground">
-                              {t("contributions.paidSoFar")}: {formatCurrency(obl.amountPaid, "XAF")}
-                            </p>
-                          )}
-                        </div>
+          {/* Member List */}
+          <div className="space-y-3">
+            {sorted.map((member) => (
+              <Card key={member.id} className="overflow-hidden">
+                <CardContent className="p-0">
+                  <button
+                    className="flex w-full items-center gap-3 p-4 text-left hover:bg-muted/30 transition-colors"
+                    onClick={() => setExpandedId(expandedId === member.id ? null : member.id)}
+                  >
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {member.name.split(" ").map((n) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate font-semibold">{member.name}</p>
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${standingColors[member.standing] || standingColors.good}`}>
+                          {t(`members.standing${member.standing.charAt(0).toUpperCase() + member.standing.slice(1)}` as "members.standingGood")}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 flex justify-end gap-2">
-                    <Link href="/dashboard/contributions/record">
-                      <Button size="sm" variant="outline">
-                        <CreditCard className="mr-1.5 h-3.5 w-3.5" />
-                        {t("contributions.recordPayment")}
-                      </Button>
-                    </Link>
-                    <Button size="sm">
-                      <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-                      {t("contributions.sendReminder")}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+                      <p className="text-xs text-muted-foreground">
+                        {member.obligations.length} {t("contributions.outstandingItems")}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-lg font-bold text-destructive">{formatCurrency(member.totalOutstanding, currency)}</p>
+                    </div>
+                  </button>
+
+                  {/* Expanded Details */}
+                  {expandedId === member.id && (
+                    <div className="border-t bg-muted/10 px-4 pb-4">
+                      <div className="mt-3 space-y-2">
+                        {member.obligations.map((obl, i) => (
+                          <div key={i} className="flex items-center justify-between rounded-lg bg-background p-3 text-sm">
+                            <div>
+                              <p className="font-medium">{obl.type}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {obl.period}
+                                {obl.dueDate && ` \u2022 ${t("contributions.due")}: ${obl.dueDate}`}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-destructive">
+                                {formatCurrency(obl.amount - obl.amountPaid, currency)}
+                              </p>
+                              {obl.amountPaid > 0 && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  {t("contributions.paidSoFar")}: {formatCurrency(obl.amountPaid, currency)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <Link href="/dashboard/contributions/record">
+                          <Button size="sm" variant="outline">
+                            <CreditCard className="mr-1.5 h-3.5 w-3.5" />
+                            {t("contributions.recordPayment")}
+                          </Button>
+                        </Link>
+                        <Button size="sm">
+                          <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                          {t("contributions.sendReminder")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+    </div></AdminGuard>
   );
 }

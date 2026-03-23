@@ -31,6 +31,7 @@ import {
 } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 type AttendanceStatus = "present" | "absent" | "excused" | "late";
 
@@ -110,15 +111,15 @@ export default function AttendancePage() {
   };
 
   if (eventsLoading || membersLoading) {
-    return <ListSkeleton rows={5} />;
+    return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
   }
 
   if (eventsError) {
-    return <ErrorState message={(eventsErr as Error)?.message} onRetry={() => refetchEvents()} />;
+    return <AdminGuard><ErrorState message={(eventsErr as Error)?.message} onRetry={() => refetchEvents()} /></AdminGuard>;
   }
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -321,6 +322,6 @@ export default function AttendancePage() {
           )}
         </>
       )}
-    </div>
+    </div></AdminGuard>
   );
 }

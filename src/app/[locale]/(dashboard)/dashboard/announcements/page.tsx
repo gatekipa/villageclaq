@@ -40,10 +40,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useGroup } from "@/lib/group-context";
+import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
+import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 type AudienceType = "all" | "roles" | "members";
 type ScheduleType = "now" | "later";
-type AnnouncementStatus = "sent" | "scheduled" | "draft";
 
 interface ChannelSelection {
   in_app: boolean;
@@ -52,83 +55,12 @@ interface ChannelSelection {
   whatsapp: boolean;
 }
 
-interface MockAnnouncement {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  channels: ChannelSelection;
-  stats: { sent: number; delivered: number; read: number };
-  status: AnnouncementStatus;
-}
-
 const AVAILABLE_ROLES = [
   "President",
   "Secretary",
   "Treasurer",
   "Member",
   "Elder",
-];
-
-const MOCK_MEMBERS = [
-  "Marie Tabi",
-  "Jean-Pierre Nkeng",
-  "Comfort Fon",
-  "Emmanuel Bah",
-  "Sylvie Mbu",
-];
-
-const MOCK_ANNOUNCEMENTS: MockAnnouncement[] = [
-  {
-    id: "1",
-    title: "Monthly Meeting Rescheduled",
-    content:
-      "The monthly general meeting has been moved to Saturday, March 29 at 3 PM. Please confirm your attendance through the events page. Refreshments will be provided.",
-    date: "2026-03-20T14:30:00",
-    channels: { in_app: true, email: true, sms: true, whatsapp: false },
-    stats: { sent: 45, delivered: 43, read: 38 },
-    status: "sent",
-  },
-  {
-    id: "2",
-    title: "Contribution Deadline Reminder",
-    content:
-      "This is a reminder that March contributions are due by March 25. Members with outstanding balances should settle before the next meeting.",
-    date: "2026-03-18T09:00:00",
-    channels: { in_app: true, email: true, sms: false, whatsapp: true },
-    stats: { sent: 45, delivered: 44, read: 41 },
-    status: "sent",
-  },
-  {
-    id: "3",
-    title: "New Relief Plan Available",
-    content:
-      "We are excited to announce a new education relief plan for members' children. Enrollment opens April 1. Visit the relief section for details.",
-    date: "2026-03-28T10:00:00",
-    channels: { in_app: true, email: true, sms: false, whatsapp: false },
-    stats: { sent: 0, delivered: 0, read: 0 },
-    status: "scheduled",
-  },
-  {
-    id: "4",
-    title: "Annual General Meeting Agenda",
-    content:
-      "The AGM agenda has been finalized. Key topics include budget review, election of new officers, and proposed constitutional amendments.",
-    date: "2026-03-15T16:00:00",
-    channels: { in_app: true, email: true, sms: true, whatsapp: true },
-    stats: { sent: 45, delivered: 45, read: 42 },
-    status: "sent",
-  },
-  {
-    id: "5",
-    title: "Welcome New Members",
-    content:
-      "Please join us in welcoming three new members to our group: Comfort Fon, Emmanuel Bah, and Sylvie Mbu. They will be officially introduced at the next meeting.",
-    date: "2026-03-12T11:00:00",
-    channels: { in_app: true, email: false, sms: false, whatsapp: false },
-    stats: { sent: 42, delivered: 42, read: 35 },
-    status: "sent",
-  },
 ];
 
 const CHANNEL_CONFIG: {
@@ -163,31 +95,44 @@ const CHANNEL_CONFIG: {
   },
 ];
 
-function getStatusBadge(status: AnnouncementStatus, t: (key: string) => string) {
-  switch (status) {
-    case "sent":
-      return (
-        <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-          {t("sent")}
-        </Badge>
-      );
-    case "scheduled":
-      return (
-        <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-          {t("scheduled")}
-        </Badge>
-      );
-    case "draft":
-      return (
-        <Badge variant="secondary">
-          {t("draft")}
-        </Badge>
-      );
+function getStatusBadge(announcement: Record<string, unknown>, t: (key: string) => string) {
+  const sentAt = announcement.sent_at as string | null;
+  const scheduledAt = announcement.scheduled_at as string | null;
+  if (sentAt) {
+    return (
+      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+        {t("sent")}
+      </Badge>
+    );
   }
+  if (scheduledAt) {
+    return (
+      <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+        {t("scheduled")}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary">
+      {t("draft")}
+    </Badge>
+  );
+}
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function AnnouncementsPage() {
   const t = useTranslations("communications");
+  const { data: announcements, isLoading, error, refetch } = useAnnouncements();
+  const { data: membersList } = useMembers();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [titleEn, setTitleEn] = useState("");
@@ -206,8 +151,6 @@ export default function AnnouncementsPage() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [schedule, setSchedule] = useState<ScheduleType>("now");
   const [scheduledDate, setScheduledDate] = useState("");
-
-  const [announcements] = useState<MockAnnouncement[]>(MOCK_ANNOUNCEMENTS);
 
   function toggleChannel(key: keyof ChannelSelection) {
     if (key === "in_app") return;
@@ -247,22 +190,21 @@ export default function AnnouncementsPage() {
     resetForm();
   }
 
-  const filteredMembers = MOCK_MEMBERS.filter((m) =>
+  const memberNames = (membersList || []).map((m: Record<string, unknown>) => {
+    const profile = (m.profile || m.profiles) as Record<string, unknown> | undefined;
+    return (profile?.full_name as string) || (m.display_name as string) || "Unknown";
+  });
+  const filteredMembers = memberNames.filter((m: string) =>
     m.toLowerCase().includes(memberSearch.toLowerCase())
   );
 
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
+  if (isLoading) return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
+  if (error) return <AdminGuard><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></AdminGuard>;
+
+  const announcementList = announcements || [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
+    <AdminGuard><div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -418,7 +360,7 @@ export default function AnnouncementsPage() {
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {filteredMembers.map((member) => (
+                      {filteredMembers.map((member: string) => (
                         <button
                           key={member}
                           type="button"
@@ -488,102 +430,72 @@ export default function AnnouncementsPage() {
       </div>
 
       {/* Announcements List */}
-      {announcements.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-              <Megaphone className="size-6 text-muted-foreground" />
-            </div>
-            <h3 className="mt-4 text-sm font-medium text-foreground">
-              {t("noAnnouncements")}
-            </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("noAnnouncementsDesc")}
-            </p>
-          </CardContent>
-        </Card>
+      {announcementList.length === 0 ? (
+        <EmptyState
+          icon={Megaphone}
+          title={t("noAnnouncements")}
+          description={t("noAnnouncementsDesc")}
+        />
       ) : (
         <div className="space-y-4">
-          {announcements.map((announcement) => (
-            <Card key={announcement.id}>
-              <CardHeader>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-base">
-                      {announcement.title}
-                    </CardTitle>
-                    <CardDescription className="mt-1 line-clamp-2">
-                      {announcement.content}
-                    </CardDescription>
-                  </div>
-                  <div className="shrink-0">
-                    {getStatusBadge(announcement.status, t)}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Date */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="size-3.5" />
-                  <span>
-                    {announcement.status === "scheduled"
-                      ? `${t("scheduledFor")}: ${formatDate(announcement.date)}`
-                      : formatDate(announcement.date)}
-                  </span>
-                </div>
+          {announcementList.map((announcement: Record<string, unknown>) => {
+            const channelsData = (announcement.channels as string[]) || [];
+            const channelObj: Record<string, boolean> = {};
+            if (Array.isArray(channelsData)) {
+              channelsData.forEach((ch: string) => { channelObj[ch] = true; });
+            }
+            const sentAt = announcement.sent_at as string | null;
+            const scheduledAt = announcement.scheduled_at as string | null;
+            const dateStr = sentAt || scheduledAt || (announcement.created_at as string);
 
-                {/* Channel badges */}
-                <div className="flex flex-wrap gap-1.5">
-                  {CHANNEL_CONFIG.filter(
-                    (ch) => announcement.channels[ch.key]
-                  ).map((ch) => (
-                    <span
-                      key={ch.key}
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${ch.color}`}
-                    >
-                      {ch.icon}
-                      {t(ch.label)}
+            return (
+              <Card key={announcement.id as string}>
+                <CardHeader>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base">
+                        {announcement.title as string}
+                      </CardTitle>
+                      <CardDescription className="mt-1 line-clamp-2">
+                        {announcement.content as string}
+                      </CardDescription>
+                    </div>
+                    <div className="shrink-0">
+                      {getStatusBadge(announcement, t)}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Date */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="size-3.5" />
+                    <span>
+                      {!sentAt && scheduledAt
+                        ? `${t("scheduledFor")}: ${formatDate(scheduledAt)}`
+                        : dateStr ? formatDate(dateStr) : ""}
                     </span>
-                  ))}
-                </div>
-
-                {/* Delivery stats */}
-                {announcement.status === "sent" && (
-                  <div className="flex flex-wrap gap-4 rounded-lg bg-muted/50 px-3 py-2 dark:bg-muted/30">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <Send className="size-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {t("sent")}:
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {announcement.stats.sent}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <CheckCheck className="size-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {t("delivered")}:
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {announcement.stats.delivered}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <Eye className="size-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {t("read")}:
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {announcement.stats.read}
-                      </span>
-                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+
+                  {/* Channel badges */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {CHANNEL_CONFIG.filter(
+                      (ch) => channelObj[ch.key]
+                    ).map((ch) => (
+                      <span
+                        key={ch.key}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${ch.color}`}
+                      >
+                        {ch.icon}
+                        {t(ch.label)}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
-    </div>
+    </div></AdminGuard>
   );
 }

@@ -13,35 +13,49 @@ import {
   AlertTriangle,
   XCircle,
 } from "lucide-react";
-
-// Mock membership data
-const mockMember = {
-  id: "mem_abc123",
-  name: "Cyril Ndikum",
-  groupName: "Bamenda Alumni Association",
-  groupId: "grp_xyz789",
-  position: "Member",
-  memberSince: "January 2024",
-  standing: "good" as "good" | "warning" | "suspended",
-  photoUrl: null,
-  initials: "CN",
-};
+import { useGroup } from "@/lib/group-context";
+import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 
 const standingConfig = {
   good: { color: "bg-emerald-500", icon: CheckCircle, label: "standingGood" as const },
   warning: { color: "bg-amber-500", icon: AlertTriangle, label: "standingWarning" as const },
   suspended: { color: "bg-red-500", icon: XCircle, label: "standingSuspended" as const },
+  banned: { color: "bg-red-500", icon: XCircle, label: "standingSuspended" as const },
 };
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function MembershipCardPage() {
   const t = useTranslations("memberCard");
-  const member = mockMember;
-  const standing = standingConfig[member.standing];
+  const { user, currentMembership, currentGroup, loading } = useGroup();
+
+  if (loading) return <ListSkeleton rows={3} />;
+  if (!user || !currentMembership || !currentGroup) {
+    return <ErrorState message="Unable to load membership data." />;
+  }
+
+  const memberName = user.full_name || user.display_name || "Member";
+  const groupName = currentGroup.name || "Group";
+  const memberStanding = (currentMembership.standing as keyof typeof standingConfig) || "good";
+  const standing = standingConfig[memberStanding] || standingConfig.good;
   const StandingIcon = standing.icon;
+  const memberRole = currentMembership.role || "member";
+  const joinedAt = currentMembership.joined_at
+    ? new Date(currentMembership.joined_at).toLocaleDateString(undefined, { year: "numeric", month: "long" })
+    : "";
+  const membershipId = currentMembership.id;
+  const initials = getInitials(memberName);
 
-  const verificationUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/verify/${btoa(`${member.id}:${member.groupId}`)}`;
+  const verificationUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/verify/${btoa(`${membershipId}:${currentGroup.id}`)}`;
 
-  if (member.standing === "suspended") {
+  if (memberStanding === "suspended" || memberStanding === "banned") {
     return (
       <div className="mx-auto max-w-md py-12">
         <Card className="border-red-200 dark:border-red-900">
@@ -81,13 +95,13 @@ export default function MembershipCardPage() {
             {/* Member Photo / Initials */}
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-3xl font-bold backdrop-blur-sm">
-                {member.initials}
+                {initials}
               </div>
               <div>
-                <h2 className="text-2xl font-bold">{member.name}</h2>
-                <p className="text-sm text-emerald-100">{member.groupName}</p>
+                <h2 className="text-2xl font-bold">{memberName}</h2>
+                <p className="text-sm text-emerald-100">{groupName}</p>
                 <Badge className="mt-1 bg-white/20 text-white border-0 text-xs">
-                  {member.position}
+                  {memberRole}
                 </Badge>
               </div>
             </div>
@@ -99,7 +113,7 @@ export default function MembershipCardPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-muted-foreground">{t("memberSince")}</p>
-                <p className="text-sm font-medium">{member.memberSince}</p>
+                <p className="text-sm font-medium">{joinedAt}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t("standing")}</p>
@@ -113,16 +127,20 @@ export default function MembershipCardPage() {
             {/* QR Code Section */}
             <div className="flex flex-col items-center gap-2 rounded-lg border bg-muted/30 p-4">
               <div className="flex h-32 w-32 items-center justify-center rounded-lg bg-white p-2 dark:bg-gray-100">
-                {/* QR Code placeholder — in production use a QR library */}
+                {/* QR Code placeholder - uses membership ID as seed for deterministic pattern */}
                 <div className="grid h-full w-full grid-cols-8 grid-rows-8 gap-0.5">
-                  {Array.from({ length: 64 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`rounded-[1px] ${
-                        Math.random() > 0.4 ? "bg-gray-900" : "bg-transparent"
-                      }`}
-                    />
-                  ))}
+                  {Array.from({ length: 64 }).map((_, i) => {
+                    // Deterministic pattern from membership ID
+                    const hash = membershipId.charCodeAt(i % membershipId.length) + i;
+                    return (
+                      <div
+                        key={i}
+                        className={`rounded-[1px] ${
+                          hash % 3 !== 0 ? "bg-gray-900" : "bg-transparent"
+                        }`}
+                      />
+                    );
+                  })}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">{t("scanToVerify")}</p>

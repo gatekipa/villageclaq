@@ -43,6 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
@@ -117,17 +118,17 @@ export default function InvitationsPage() {
 
   const isLoading = groupLoading || invLoading || codesLoading;
 
-  if (isLoading) return <ListSkeleton rows={5} />;
+  if (isLoading) return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
 
   if (invError || codesError) {
     return (
-      <ErrorState
+      <AdminGuard><ErrorState
         message={(invError || codesError)?.message}
         onRetry={() => {
           refetchInv();
           refetchCodes();
         }}
-      />
+      /></AdminGuard>
     );
   }
 
@@ -135,7 +136,7 @@ export default function InvitationsPage() {
   const allInvitations = invitations || [];
 
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           {t("invitations.title")}
@@ -339,6 +340,6 @@ export default function InvitationsPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </div></AdminGuard>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useMutation } from "@tanstack/react-query";
 import {
   Bell,
   Mail,
@@ -26,6 +27,11 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
+import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
+
+const supabase = createClient();
 
 type ChannelKey = "in_app" | "email" | "sms" | "whatsapp" | "push";
 
@@ -51,11 +57,6 @@ interface TypeConfig {
   key: NotificationType;
   nameKey: string;
   descKey: string;
-}
-
-interface MockGroup {
-  id: string;
-  name: string;
 }
 
 const CHANNELS: ChannelConfig[] = [
@@ -103,47 +104,99 @@ const NOTIFICATION_TYPES: TypeConfig[] = [
   { key: "new_member", nameKey: "typeNewMember", descKey: "typeNewMemberDesc" },
 ];
 
-const MOCK_GROUPS: MockGroup[] = [
-  { id: "g1", name: "Bamenda Alumni Union" },
-  { id: "g2", name: "Nkwen Family Njangi" },
-  { id: "g3", name: "Grace Community Church" },
-];
+const DEFAULT_CHANNELS: Record<ChannelKey, boolean> = {
+  in_app: true,
+  email: true,
+  sms: false,
+  whatsapp: false,
+  push: false,
+};
+
+const DEFAULT_TYPE_PREFS: Record<NotificationType, Record<ChannelKey, boolean>> = {
+  payment_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  event_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  minutes_published: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
+  relief_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  standing_changes: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
+  announcements: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  hosting_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  new_member: { in_app: true, email: false, sms: false, whatsapp: false, push: false },
+};
 
 export default function NotificationPreferencesPage() {
   const t = useTranslations("communications");
+  const { user, memberships } = useGroup();
 
-  const [channelEnabled, setChannelEnabled] = useState<Record<ChannelKey, boolean>>({
-    in_app: true,
-    email: true,
-    sms: false,
-    whatsapp: false,
-    push: true,
-  });
-
-  const [typePreferences, setTypePreferences] = useState<
-    Record<NotificationType, Record<ChannelKey, boolean>>
-  >({
-    payment_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-    event_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-    minutes_published: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
-    relief_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-    standing_changes: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
-    announcements: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-    hosting_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-    new_member: { in_app: true, email: false, sms: false, whatsapp: false, push: false },
-  });
-
+  const [loaded, setLoaded] = useState(false);
+  const [channelEnabled, setChannelEnabled] = useState<Record<ChannelKey, boolean>>(DEFAULT_CHANNELS);
+  const [typePreferences, setTypePreferences] = useState<Record<NotificationType, Record<ChannelKey, boolean>>>(DEFAULT_TYPE_PREFS);
   const [quietHoursEnabled, setQuietHoursEnabled] = useState(false);
   const [quietHoursStart, setQuietHoursStart] = useState("22:00");
   const [quietHoursEnd, setQuietHoursEnd] = useState("07:00");
-
-  const [mutedGroups, setMutedGroups] = useState<Record<string, boolean>>({
-    g1: false,
-    g2: false,
-    g3: true,
-  });
-
+  const [mutedGroups, setMutedGroups] = useState<Record<string, boolean>>({});
   const [showToast, setShowToast] = useState(false);
+
+  // Load preferences from profile
+  useEffect(() => {
+    async function loadPrefs() {
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("notification_preferences")
+        .eq("id", user.id)
+        .single();
+      if (data?.notification_preferences) {
+        const prefs = data.notification_preferences as Record<string, unknown>;
+        if (prefs.channels) setChannelEnabled({ ...DEFAULT_CHANNELS, ...(prefs.channels as Record<string, boolean>) });
+        if (prefs.types) {
+          const types = prefs.types as Record<string, Record<string, boolean>>;
+          setTypePreferences((prev) => {
+            const updated = { ...prev };
+            for (const key of Object.keys(types)) {
+              if (key in updated) {
+                updated[key as NotificationType] = { ...updated[key as NotificationType], ...types[key] };
+              }
+            }
+            return updated;
+          });
+        }
+        if (prefs.quiet_hours) {
+          const qh = prefs.quiet_hours as Record<string, unknown>;
+          setQuietHoursEnabled(!!(qh.enabled));
+          if (qh.start) setQuietHoursStart(qh.start as string);
+          if (qh.end) setQuietHoursEnd(qh.end as string);
+        }
+        if (prefs.muted_groups && Array.isArray(prefs.muted_groups)) {
+          const muted: Record<string, boolean> = {};
+          (prefs.muted_groups as string[]).forEach((gid) => { muted[gid] = true; });
+          setMutedGroups(muted);
+        }
+      }
+      setLoaded(true);
+    }
+    loadPrefs();
+  }, [user]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("No user");
+      const prefs = {
+        channels: channelEnabled,
+        types: typePreferences,
+        quiet_hours: { enabled: quietHoursEnabled, start: quietHoursStart, end: quietHoursEnd },
+        muted_groups: Object.entries(mutedGroups).filter(([, v]) => v).map(([k]) => k),
+      };
+      const { error } = await supabase
+        .from("profiles")
+        .update({ notification_preferences: prefs })
+        .eq("id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    },
+  });
 
   function toggleChannel(key: ChannelKey) {
     if (key === "in_app") return;
@@ -161,12 +214,10 @@ export default function NotificationPreferencesPage() {
     setMutedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   }
 
-  function handleSave() {
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-  }
+  if (!loaded) return <ListSkeleton rows={5} />;
 
   const enabledChannels = CHANNELS.filter((ch) => channelEnabled[ch.key]);
+  const userGroups = memberships.map((m) => ({ id: m.group_id, name: m.group.name }));
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
@@ -334,11 +385,11 @@ export default function NotificationPreferencesPage() {
             <CardDescription>{t("muteGroupsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-0 p-0 pb-2">
-            {MOCK_GROUPS.map((group, idx) => (
+            {userGroups.map((group, idx) => (
               <div
                 key={group.id}
                 className={`flex items-center justify-between px-4 py-3 ${
-                  idx < MOCK_GROUPS.length - 1 ? "border-b" : ""
+                  idx < userGroups.length - 1 ? "border-b" : ""
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -371,15 +422,20 @@ export default function NotificationPreferencesPage() {
                 </Button>
               </div>
             ))}
+            {userGroups.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                No groups to display.
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
 
       {/* Save Button */}
       <div className="flex justify-end pb-6">
-        <Button onClick={handleSave} size="lg">
+        <Button onClick={() => saveMutation.mutate()} size="lg" disabled={saveMutation.isPending}>
           <Save className="size-4" data-icon="inline-start" />
-          {t("preferencesSaved").split(" ")[0]}
+          {saveMutation.isPending ? "Saving..." : t("preferencesSaved").split(" ")[0]}
         </Button>
       </div>
 

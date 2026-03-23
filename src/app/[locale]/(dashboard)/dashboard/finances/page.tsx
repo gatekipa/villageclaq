@@ -1,10 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -18,7 +18,6 @@ import {
   TrendingDown,
   DollarSign,
   Clock,
-  Users,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -31,48 +30,10 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-
-// Mock data for financial dashboard
-const stats = {
-  totalCollected: 7835000,
-  totalOutstanding: 445000,
-  collectionRate: 95,
-  paymentsThisMonth: 28,
-  collectedThisMonth: 485000,
-  collectedLastMonth: 420000,
-};
-
-const monthlyTrend = [
-  { month: "Oct", amount: 380000 },
-  { month: "Nov", amount: 425000 },
-  { month: "Dec", amount: 510000 },
-  { month: "Jan", amount: 890000 },
-  { month: "Feb", amount: 420000 },
-  { month: "Mar", amount: 485000 },
-];
-
-const topOverdue = [
-  { id: "8", name: "Thomas Nkeng", amount: 165000, currency: "XAF", obligations: 4 },
-  { id: "6", name: "Patrick Njoya", amount: 85000, currency: "XAF", obligations: 3 },
-  { id: "11", name: "Samuel Fon", amount: 80000, currency: "XAF", obligations: 3 },
-  { id: "4", name: "Emmanuel Tabi", amount: 50000, currency: "XAF", obligations: 1 },
-  { id: "10", name: "Angeline Tchatchouang", amount: 40000, currency: "XAF", obligations: 1 },
-];
-
-const collectionByType = [
-  { name: "Monthly Contribution", collected: 4935000, target: 6015000, rate: 82 },
-  { name: "Annual Dues", collected: 1850000, target: 2350000, rate: 79 },
-  { name: "Building Fund Levy", collected: 2300000, target: 4700000, rate: 49 },
-  { name: "Quarterly Social Fund", collected: 750000, target: 1125000, rate: 67 },
-];
-
-const recentPayments = [
-  { id: "1", name: "Jean-Pierre Kamga", type: "Monthly", amount: 15000, currency: "XAF", method: "Cash", date: "Mar 20" },
-  { id: "2", name: "Sylvie Mbarga", type: "Monthly", amount: 15000, currency: "XAF", method: "MoMo", date: "Mar 19" },
-  { id: "3", name: "Emmanuel Tabi", type: "Monthly", amount: 15000, currency: "XAF", method: "Bank", date: "Mar 18" },
-  { id: "4", name: "Beatrice Ngono", type: "Annual", amount: 50000, currency: "XAF", method: "MoMo", date: "Mar 15" },
-  { id: "5", name: "Grace Eteki", type: "Building", amount: 100000, currency: "XAF", method: "Bank", date: "Mar 12" },
-];
+import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
+import { useGroup } from "@/lib/group-context";
+import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { AdminGuard } from "@/components/ui/admin-guard";
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
@@ -86,10 +47,148 @@ function formatCompact(amount: number) {
 
 export default function FinancesPage() {
   const t = useTranslations();
+  const { currentGroup } = useGroup();
+  const currency = currentGroup?.currency || "XAF";
 
-  const monthOverMonthChange = Math.round(
-    ((stats.collectedThisMonth - stats.collectedLastMonth) / stats.collectedLastMonth) * 100
-  );
+  const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
+  const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(200);
+  const { data: contributionTypes } = useContributionTypes();
+
+  const isLoading = oblLoading || payLoading;
+  const isError = oblError || payError;
+
+  // Compute stats from real data
+  const stats = useMemo(() => {
+    const obligations = allObligations || [];
+    const payments = allPayments || [];
+
+    const totalDue = obligations.reduce((sum, o) => sum + Number(o.amount), 0);
+    const totalPaidOnObligations = obligations.reduce((sum, o) => sum + Number(o.amount_paid), 0);
+    const totalCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalOutstanding = totalDue - totalPaidOnObligations;
+    const collectionRate = totalDue > 0 ? Math.round((totalPaidOnObligations / totalDue) * 100) : 0;
+
+    // This month's payments
+    const now = new Date();
+    const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}`;
+
+    let collectedThisMonth = 0;
+    let collectedLastMonth = 0;
+    let paymentsThisMonth = 0;
+
+    for (const p of payments) {
+      const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
+      if (pMonth === thisMonthKey) {
+        collectedThisMonth += Number(p.amount);
+        paymentsThisMonth++;
+      } else if (pMonth === lastMonthKey) {
+        collectedLastMonth += Number(p.amount);
+      }
+    }
+
+    return { totalCollected, totalOutstanding, collectionRate, collectedThisMonth, collectedLastMonth, paymentsThisMonth };
+  }, [allObligations, allPayments]);
+
+  // Monthly trend: group payments by month (last 6 months)
+  const monthlyTrend = useMemo(() => {
+    const payments = allPayments || [];
+    const now = new Date();
+    const months: { key: string; label: string }[] = [];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: monthNames[d.getMonth()],
+      });
+    }
+
+    const monthMap = new Map<string, number>();
+    for (const m of months) monthMap.set(m.key, 0);
+
+    for (const p of payments) {
+      const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
+      if (monthMap.has(pMonth)) {
+        monthMap.set(pMonth, (monthMap.get(pMonth) || 0) + Number(p.amount));
+      }
+    }
+
+    return months.map((m) => ({ month: m.label, amount: monthMap.get(m.key) || 0 }));
+  }, [allPayments]);
+
+  // Top overdue members: group pending obligations by membership
+  const topOverdue = useMemo(() => {
+    const obligations = allObligations || [];
+    const pending = obligations.filter((o) => o.status === "pending" || o.status === "overdue" || o.status === "partial");
+    const memberMap = new Map<string, { name: string; amount: number; obligations: number }>();
+
+    for (const obl of pending) {
+      const membership = obl.membership as { id: string; profiles: { full_name: string } | { full_name: string }[] };
+      const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
+      const mid = membership.id;
+      const outstanding = Number(obl.amount) - Number(obl.amount_paid);
+
+      if (!memberMap.has(mid)) {
+        memberMap.set(mid, { name: profile?.full_name || "Unknown", amount: 0, obligations: 0 });
+      }
+      const entry = memberMap.get(mid)!;
+      entry.amount += outstanding;
+      entry.obligations++;
+    }
+
+    return Array.from(memberMap.entries())
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+  }, [allObligations]);
+
+  // Collection by contribution type
+  const collectionByType = useMemo(() => {
+    const obligations = allObligations || [];
+    const typeMap = new Map<string, { name: string; collected: number; target: number }>();
+
+    for (const obl of obligations) {
+      const ct = obl.contribution_type as { id: string; name: string } | null;
+      const typeId = ct?.id || "unknown";
+      if (!typeMap.has(typeId)) {
+        typeMap.set(typeId, { name: ct?.name || "Unknown", collected: 0, target: 0 });
+      }
+      const entry = typeMap.get(typeId)!;
+      entry.target += Number(obl.amount);
+      entry.collected += Number(obl.amount_paid);
+    }
+
+    return Array.from(typeMap.values())
+      .map((t) => ({ ...t, rate: t.target > 0 ? Math.round((t.collected / t.target) * 100) : 0 }))
+      .sort((a, b) => b.target - a.target);
+  }, [allObligations]);
+
+  // Recent payments (top 5)
+  const recentPayments = useMemo(() => {
+    const payments = allPayments || [];
+    return payments.slice(0, 5).map((p) => {
+      const membership = p.membership as { id: string; profiles: { full_name: string } | { full_name: string }[] };
+      const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
+      const ct = p.contribution_type as { id: string; name: string; name_fr?: string } | null;
+      const date = (p.recorded_at || p.created_at || "").slice(0, 10);
+      const shortDate = date ? new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+      return {
+        id: p.id,
+        name: profile?.full_name || "Unknown",
+        type: ct?.name || "Payment",
+        amount: Number(p.amount),
+        method: p.payment_method || "cash",
+        date: shortDate,
+      };
+    });
+  }, [allPayments]);
+
+  const monthOverMonthChange = stats.collectedLastMonth > 0
+    ? Math.round(((stats.collectedThisMonth - stats.collectedLastMonth) / stats.collectedLastMonth) * 100)
+    : stats.collectedThisMonth > 0 ? 100 : 0;
 
   const subNavItems = [
     { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
@@ -100,8 +199,12 @@ export default function FinancesPage() {
     { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
   ];
 
+  if (isLoading) return <AdminGuard><DashboardSkeleton /></AdminGuard>;
+
+  if (isError) return <AdminGuard><ErrorState message="Failed to load financial data." onRetry={() => oblRefetch()} /></AdminGuard>;
+
   return (
-    <div className="space-y-6">
+    <AdminGuard><div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("finances.title")}</h1>
@@ -135,7 +238,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {formatCurrency(stats.collectedThisMonth, "XAF")}
+              {formatCurrency(stats.collectedThisMonth, currency)}
             </div>
             <div className="mt-1 flex items-center gap-1 text-xs">
               {monthOverMonthChange >= 0 ? (
@@ -160,7 +263,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {formatCurrency(stats.totalOutstanding, "XAF")}
+              {formatCurrency(stats.totalOutstanding, currency)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {topOverdue.length} {t("finances.membersOverdue")}
@@ -216,7 +319,7 @@ export default function FinancesPage() {
                     tickFormatter={(v) => formatCompact(v)}
                   />
                   <Tooltip
-                    formatter={(value) => [formatCurrency(Number(value), "XAF"), t("finances.collected")]}
+                    formatter={(value) => [formatCurrency(Number(value), currency), t("finances.collected")]}
                     contentStyle={{
                       backgroundColor: "hsl(var(--popover))",
                       border: "1px solid hsl(var(--border))",
@@ -250,29 +353,33 @@ export default function FinancesPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {topOverdue.map((member, i) => (
-                <div key={member.id} className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-destructive/10 text-xs font-bold text-destructive">
-                    {i + 1}
-                  </span>
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
-                      {member.name.split(" ").map((n) => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium">{member.name}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {member.obligations} {t("finances.items")}
-                    </p>
+            {topOverdue.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No overdue members</p>
+            ) : (
+              <div className="space-y-3">
+                {topOverdue.map((member, i) => (
+                  <div key={member.id} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-destructive/10 text-xs font-bold text-destructive">
+                      {i + 1}
+                    </span>
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                        {member.name.split(" ").map((n) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-medium">{member.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {member.obligations} {t("finances.items")}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-destructive">
+                      {formatCurrency(member.amount, currency)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-destructive">
-                    {formatCurrency(member.amount, member.currency)}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -285,21 +392,25 @@ export default function FinancesPage() {
             <CardTitle className="text-base">{t("finances.byType")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {collectionByType.map((type) => (
-                <div key={type.name} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{type.name}</span>
-                    <span className="text-muted-foreground">{type.rate}%</span>
+            {collectionByType.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No contribution types yet</p>
+            ) : (
+              <div className="space-y-4">
+                {collectionByType.map((type) => (
+                  <div key={type.name} className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">{type.name}</span>
+                      <span className="text-muted-foreground">{type.rate}%</span>
+                    </div>
+                    <Progress value={type.rate} />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formatCurrency(type.collected, currency)} {t("finances.collected")}</span>
+                      <span>{t("finances.target")}: {formatCurrency(type.target, currency)}</span>
+                    </div>
                   </div>
-                  <Progress value={type.rate} />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{formatCurrency(type.collected, "XAF")} {t("finances.collected")}</span>
-                    <span>{t("finances.target")}: {formatCurrency(type.target, "XAF")}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -315,30 +426,34 @@ export default function FinancesPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentPayments.map((payment) => (
-                <div key={payment.id} className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
-                      {payment.name.split(" ").map((n) => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium">{payment.name}</p>
-                    <p className="text-xs text-muted-foreground">{payment.type} • {payment.method}</p>
+            {recentPayments.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No payments recorded yet</p>
+            ) : (
+              <div className="space-y-3">
+                {recentPayments.map((payment) => (
+                  <div key={payment.id} className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                        {payment.name.split(" ").map((n) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-medium">{payment.name}</p>
+                      <p className="text-xs text-muted-foreground">{payment.type} {payment.method && `\u2022 ${payment.method}`}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-primary">
+                        +{formatCurrency(payment.amount, currency)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">{payment.date}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-primary">
-                      +{formatCurrency(payment.amount, payment.currency)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">{payment.date}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
-    </div>
+    </div></AdminGuard>
   );
 }

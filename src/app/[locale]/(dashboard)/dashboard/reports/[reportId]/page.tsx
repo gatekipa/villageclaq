@@ -21,80 +21,12 @@ import {
   Minus,
   AlertCircle,
 } from "lucide-react";
+import { useGroup } from "@/lib/group-context";
+import { useMembers, usePayments, useObligations, useEvents, useEventAttendance, useReliefPlans, useReliefClaims } from "@/lib/hooks/use-supabase-query";
+import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 
-// Mock data generators per report type
-const mockWhoHasntPaid = [
-  { name: "Bernadette Atangana", amount: 45000, days: 62, items: 3 },
-  { name: "Patrick Biyick", amount: 30000, days: 45, items: 2 },
-  { name: "Emmanuel Tabi", amount: 15000, days: 31, items: 1 },
-  { name: "Yvonne Tchana", amount: 15000, days: 14, items: 1 },
-  { name: "Georges Tchinda", amount: 10000, days: 8, items: 1 },
-];
-
-const mockFinancialSummary = {
-  totalCollected: 3250000,
-  totalExpected: 4050000,
-  collectionRate: 80,
-  byType: [
-    { name: "Monthly Dues", collected: 2100000, expected: 2550000 },
-    { name: "Annual Levy", collected: 750000, expected: 900000 },
-    { name: "Building Fund", collected: 400000, expected: 600000 },
-  ],
-  byMonth: [
-    { month: "Jan", collected: 520000, expected: 675000 },
-    { month: "Feb", collected: 580000, expected: 675000 },
-    { month: "Mar", collected: 490000, expected: 675000 },
-  ],
-};
-
-const mockARAging = [
-  { bucket: "0-30", count: 8, amount: 120000 },
-  { bucket: "31-60", count: 5, amount: 150000 },
-  { bucket: "61-90", count: 3, amount: 135000 },
-  { bucket: "120+", count: 2, amount: 95000 },
-];
-
-const mockStanding = [
-  { name: "Jean-Pierre Kamga", standing: "good", trend: "stable", score: 95 },
-  { name: "Sylvie Mbarga", standing: "good", trend: "improving", score: 92 },
-  { name: "Emmanuel Tabi", standing: "warning", trend: "declining", score: 65 },
-  { name: "Marie-Claire Fotso", standing: "good", trend: "stable", score: 88 },
-  { name: "Bernadette Atangana", standing: "warning", trend: "declining", score: 45 },
-  { name: "Georges Tchinda", standing: "good", trend: "improving", score: 85 },
-  { name: "Patrick Biyick", standing: "suspended", trend: "declining", score: 30 },
-];
-
-const mockRoster = [
-  { name: "Jean-Pierre Kamga", email: "jpkamga@mail.cm", phone: "+237 6XX", joined: "2023-06-01", role: "President", standing: "Good" },
-  { name: "Sylvie Mbarga", email: "smbarga@mail.cm", phone: "+237 6XX", joined: "2023-06-01", role: "Secretary", standing: "Good" },
-  { name: "Paul Ngoumou", email: "pngoumou@mail.cm", phone: "+237 6XX", joined: "2023-08-15", role: "Treasurer", standing: "Good" },
-  { name: "Emmanuel Tabi", email: "etabi@mail.cm", phone: "+237 6XX", joined: "2024-01-10", role: "Member", standing: "Warning" },
-  { name: "Marie-Claire Fotso", email: "mcfotso@mail.cm", phone: "+237 6XX", joined: "2023-06-01", role: "Member", standing: "Good" },
-];
-
-const mockEngagement = [
-  { name: "Jean-Pierre Kamga", payments: 98, attendance: 95, hosting: 100, score: 97, level: "high" },
-  { name: "Sylvie Mbarga", payments: 95, attendance: 90, hosting: 95, score: 93, level: "high" },
-  { name: "Marie-Claire Fotso", payments: 90, attendance: 85, hosting: 90, score: 88, level: "high" },
-  { name: "Georges Tchinda", payments: 80, attendance: 75, hosting: 85, score: 80, level: "medium" },
-  { name: "Emmanuel Tabi", payments: 60, attendance: 55, hosting: 70, score: 62, level: "medium" },
-  { name: "Bernadette Atangana", payments: 40, attendance: 35, hosting: 30, score: 35, level: "low" },
-];
-
-const mockAttendanceSummary = [
-  { event: "March Assembly", date: "2026-03-28", present: 38, absent: 4, excused: 3, late: 2, rate: 85 },
-  { event: "Feb Assembly", date: "2026-02-28", present: 35, absent: 7, excused: 2, late: 3, rate: 79 },
-  { event: "Jan Assembly", date: "2026-01-28", present: 40, absent: 3, excused: 2, late: 2, rate: 89 },
-];
-
-const mockReliefStatus = [
-  { plan: "Bereavement Fund", balance: 950000, enrolled: 45, ytdPayouts: 250000, pending: 0 },
-  { plan: "Health Emergency", balance: 580000, enrolled: 42, ytdPayouts: 300000, pending: 1 },
-  { plan: "Life Events Fund", balance: 320000, enrolled: 38, ytdPayouts: 100000, pending: 1 },
-];
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "XAF", minimumFractionDigits: 0 }).format(amount);
+function formatCurrency(amount: number, currency = "XAF") {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
 }
 
 function TrendIcon({ trend }: { trend: string }) {
@@ -127,9 +59,93 @@ export default function ReportDetailPage() {
   const params = useParams();
   const reportId = params.reportId as string;
   const reportKey = `report${reportId}`;
+  const { currentGroup } = useGroup();
+  const currency = currentGroup?.currency || "XAF";
 
   const reportName = t(`reports.${reportKey}.name`);
   const reportDesc = t(`reports.${reportKey}.desc`);
+
+  // Fetch data based on report type
+  const { data: members, isLoading: membersLoading } = useMembers();
+  const { data: payments, isLoading: paymentsLoading } = usePayments(100);
+  const { data: obligations, isLoading: obligationsLoading } = useObligations();
+  const { data: events } = useEvents();
+  const { data: reliefPlans } = useReliefPlans();
+  const { data: reliefClaims } = useReliefClaims();
+
+  // Determine loading based on report type
+  const financialReports = ["1", "2", "3", "4"];
+  const memberReports = ["6", "8", "9", "10"];
+  const isLoading = financialReports.includes(reportId) ? (paymentsLoading || obligationsLoading) : memberReports.includes(reportId) ? membersLoading : false;
+
+  if (isLoading) return <ListSkeleton rows={5} />;
+
+  // Compute report data from real queries
+  const memberList = members || [];
+  const paymentList = payments || [];
+  const obligationList = obligations || [];
+
+  // Report 1: Who Hasn't Paid - compute from obligations
+  type UnpaidRow = { name: string; amount: number; days: number; items: number };
+  const unpaidMap: Record<string, UnpaidRow> = {};
+  obligationList
+    .filter((o: Record<string, unknown>) => (o.status as string) !== "paid")
+    .forEach((o: Record<string, unknown>) => {
+      const membership = o.membership as Record<string, unknown>;
+      const profile = (membership?.profiles as Record<string, unknown>) || {};
+      const name = (profile.full_name as string) || "Unknown";
+      const amount = Number(o.amount || 0) - Number(o.amount_paid || 0);
+      const dueDate = new Date(o.due_date as string);
+      const days = Math.max(0, Math.floor((Date.now() - dueDate.getTime()) / 86400000));
+      if (!unpaidMap[name]) unpaidMap[name] = { name, amount: 0, days: 0, items: 0 };
+      unpaidMap[name].amount += amount;
+      unpaidMap[name].days = Math.max(unpaidMap[name].days, days);
+      unpaidMap[name].items += 1;
+    });
+  const whoHasntPaid: UnpaidRow[] = Object.values(unpaidMap).sort((a, b) => b.days - a.days).slice(0, 20);
+
+  // Report 2: Financial Summary
+  const totalCollected = paymentList.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount || 0), 0);
+  const totalExpected = obligationList.reduce((s: number, o: Record<string, unknown>) => s + Number(o.amount || 0), 0);
+  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+
+  // Report 3: Contribution Ledger - just use payments
+  const ledgerPayments = paymentList.slice(0, 20);
+
+  // Report 4: AR Aging
+  const arBuckets: Record<string, { count: number; amount: number }> = { "0-30": { count: 0, amount: 0 }, "31-60": { count: 0, amount: 0 }, "61-90": { count: 0, amount: 0 }, "120+": { count: 0, amount: 0 } };
+  obligationList.filter((o: Record<string, unknown>) => (o.status as string) !== "paid").forEach((o: Record<string, unknown>) => {
+    const days = Math.max(0, Math.floor((Date.now() - new Date(o.due_date as string).getTime()) / 86400000));
+    const amount = Number(o.amount || 0) - Number(o.amount_paid || 0);
+    const bucket = days <= 30 ? "0-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "120+";
+    arBuckets[bucket].count += 1;
+    arBuckets[bucket].amount += amount;
+  });
+
+  // Report 6: Member Standing
+  const standingData = memberList.map((m: Record<string, unknown>) => {
+    const profile = (m.profile || m.profiles) as Record<string, unknown>;
+    return {
+      name: (profile?.full_name as string) || (m.display_name as string) || "Unknown",
+      standing: (m.standing as string) || "good",
+    };
+  });
+
+  // Report 8: Membership Roster
+  const rosterData = memberList.map((m: Record<string, unknown>) => {
+    const profile = (m.profile || m.profiles) as Record<string, unknown>;
+    return {
+      name: (profile?.full_name as string) || (m.display_name as string) || "Unknown",
+      phone: (profile?.phone as string) || "",
+      joined: (m.joined_at as string) ? new Date(m.joined_at as string).toLocaleDateString() : "",
+      role: (m.role as string) || "member",
+      standing: (m.standing as string) || "good",
+    };
+  });
+
+  // Report 15: Relief Fund Status
+  const reliefPlanList = reliefPlans || [];
+  const reliefClaimList = reliefClaims || [];
 
   return (
     <div className="space-y-6">
@@ -165,23 +181,27 @@ export default function ReportDetailPage() {
       {reportId === "1" && (
         <Card>
           <CardContent className="pt-6">
-            <div className="space-y-3">
-              {mockWhoHasntPaid.map((row, i) => (
-                <div key={i} className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-sm">{row.name}</p>
-                    <p className="text-xs text-muted-foreground">{row.items} {t("contributions.outstandingItems")}</p>
+            {whoHasntPaid.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">All members are up to date!</p>
+            ) : (
+              <div className="space-y-3">
+                {whoHasntPaid.map((row, i) => (
+                  <div key={i} className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{row.name}</p>
+                      <p className="text-xs text-muted-foreground">{row.items} {t("contributions.outstandingItems")}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={row.days > 60 ? "destructive" : row.days > 30 ? "secondary" : "outline"}>
+                        {t("reports.daysOverdue", { days: row.days })}
+                      </Badge>
+                      <span className="font-bold text-destructive">{formatCurrency(row.amount, currency)}</span>
+                      <Button size="sm" variant="outline"><Send className="mr-1 h-3 w-3" />{t("reports.sendReminder")}</Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant={row.days > 60 ? "destructive" : row.days > 30 ? "secondary" : "outline"}>
-                      {t("reports.daysOverdue", { days: row.days })}
-                    </Badge>
-                    <span className="font-bold text-destructive">{formatCurrency(row.amount)}</span>
-                    <Button size="sm" variant="outline"><Send className="mr-1 h-3 w-3" />{t("reports.sendReminder")}</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -191,51 +211,18 @@ export default function ReportDetailPage() {
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-primary">{formatCurrency(mockFinancialSummary.totalCollected)}</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(totalCollected, currency)}</p>
               <p className="text-xs text-muted-foreground">{t("reports.collected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold">{formatCurrency(mockFinancialSummary.totalExpected)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalExpected, currency)}</p>
               <p className="text-xs text-muted-foreground">{t("reports.expected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{mockFinancialSummary.collectionRate}%</p>
+              <p className="text-2xl font-bold text-emerald-600">{collectionRate}%</p>
               <p className="text-xs text-muted-foreground">{t("reports.collectionRate")}</p>
             </CardContent></Card>
           </div>
-          <Card><CardHeader><CardTitle className="text-base">By Contribution Type</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {mockFinancialSummary.byType.map((row) => (
-                  <div key={row.name}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{row.name}</span>
-                      <span>{formatCurrency(row.collected)} / {formatCurrency(row.expected)}</span>
-                    </div>
-                    <div className="h-3 rounded-full bg-muted">
-                      <div className="h-3 rounded-full bg-primary" style={{ width: `${(row.collected / row.expected) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card><CardHeader><CardTitle className="text-base">Monthly Breakdown</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex items-end gap-4 justify-around">
-                {mockFinancialSummary.byMonth.map((m) => (
-                  <div key={m.month} className="text-center flex-1">
-                    <div className="flex gap-1 justify-center items-end h-24">
-                      <div className="w-6 bg-primary/30 rounded-t" style={{ height: `${(m.expected / 700000) * 96}px` }} />
-                      <div className="w-6 bg-primary rounded-t" style={{ height: `${(m.collected / 700000) * 96}px` }} />
-                    </div>
-                    <p className="text-xs font-medium mt-1">{m.month}</p>
-                    <p className="text-[10px] text-muted-foreground">{Math.round((m.collected / m.expected) * 100)}%</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       )}
 
@@ -244,29 +231,35 @@ export default function ReportDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">{reportName}</CardTitle>
-            <Input placeholder={t("common.search")} className="w-60" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {[
-                { date: "2026-03-20", member: "Jean-Pierre Kamga", type: "Monthly Dues", amount: 15000, method: "Mobile Money", ref: "TX-8834", running: 3250000 },
-                { date: "2026-03-19", member: "Sylvie Mbarga", type: "Monthly Dues", amount: 15000, method: "Cash", ref: "REC-441", running: 3235000 },
-                { date: "2026-03-18", member: "Emmanuel Tabi", type: "Monthly Dues + Penalty", amount: 30000, method: "Bank Transfer", ref: "BT-2201", running: 3220000 },
-                { date: "2026-03-17", member: "Marie-Claire Fotso", type: "Monthly Dues", amount: 15000, method: "Mobile Money", ref: "TX-8790", running: 3190000 },
-                { date: "2026-03-15", member: "Paul Ngoumou", type: "Building Fund", amount: 50000, method: "Bank Transfer", ref: "BT-2199", running: 3175000 },
-              ].map((row, i) => (
-                <div key={i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{row.member}</p>
-                    <p className="text-xs text-muted-foreground">{row.date} · {row.type} · {row.method} · {row.ref}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-sm text-primary">+{formatCurrency(row.amount)}</p>
-                    <p className="text-[10px] text-muted-foreground">{t("reports.runningTotal")}: {formatCurrency(row.running)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {ledgerPayments.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">No payments recorded yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {ledgerPayments.map((row: Record<string, unknown>, i: number) => {
+                  const membership = row.membership as Record<string, unknown>;
+                  const profile = (membership?.profiles as Record<string, unknown>) || {};
+                  const memberName = (profile.full_name as string) || "Unknown";
+                  const contribType = row.contribution_type as Record<string, unknown>;
+                  const typeName = (contribType?.name as string) || "";
+                  const method = (row.payment_method as string) || "";
+                  const ref = (row.reference_number as string) || "";
+                  const date = row.recorded_at ? new Date(row.recorded_at as string).toLocaleDateString() : "";
+                  return (
+                    <div key={row.id as string || i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{memberName}</p>
+                        <p className="text-xs text-muted-foreground">{date} · {typeName} · {method} {ref ? `· ${ref}` : ""}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm text-primary">+{formatCurrency(Number(row.amount || 0), currency)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -275,13 +268,13 @@ export default function ReportDetailPage() {
       {reportId === "4" && (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-4">
-            {mockARAging.map((bucket) => (
-              <Card key={bucket.bucket}>
+            {Object.entries(arBuckets).map(([bucket, data]) => (
+              <Card key={bucket}>
                 <CardContent className="pt-6 text-center">
-                  <div className={`mx-auto mb-2 h-3 w-full rounded-full ${agingColor(bucket.bucket)}`} />
-                  <p className="text-xs font-medium text-muted-foreground">{bucket.bucket} days</p>
-                  <p className="text-2xl font-bold">{formatCurrency(bucket.amount)}</p>
-                  <p className="text-xs text-muted-foreground">{bucket.count} members</p>
+                  <div className={`mx-auto mb-2 h-3 w-full rounded-full ${agingColor(bucket)}`} />
+                  <p className="text-xs font-medium text-muted-foreground">{bucket} days</p>
+                  <p className="text-2xl font-bold">{formatCurrency(data.amount, currency)}</p>
+                  <p className="text-xs text-muted-foreground">{data.count} members</p>
                 </CardContent>
               </Card>
             ))}
@@ -292,224 +285,71 @@ export default function ReportDetailPage() {
       {/* Report 6: Member Standing */}
       {reportId === "6" && (
         <Card><CardContent className="pt-6">
-          <div className="space-y-2">
-            {mockStanding.map((row, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                <div className="flex-1"><p className="font-medium text-sm">{row.name}</p></div>
-                <TrendIcon trend={row.trend} />
-                <span className="text-sm text-muted-foreground">{row.score}%</span>
-                <Badge className={standingColor(row.standing)}>{row.standing}</Badge>
-              </div>
-            ))}
-          </div>
+          {standingData.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">No members found.</p>
+          ) : (
+            <div className="space-y-2">
+              {standingData.map((row: { name: string; standing: string }, i: number) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                  <div className="flex-1"><p className="font-medium text-sm">{row.name}</p></div>
+                  <Badge className={standingColor(row.standing)}>{row.standing}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent></Card>
       )}
 
       {/* Report 8: Membership Roster */}
       {reportId === "8" && (
         <Card><CardContent className="pt-6">
-          <div className="space-y-2">
-            {mockRoster.map((row, i) => (
-              <div key={i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium text-sm">{row.name}</p>
-                  <p className="text-xs text-muted-foreground">{row.email} · {row.phone} · Joined {row.joined}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{row.role}</Badge>
-                  <Badge className={standingColor(row.standing)}>{row.standing}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent></Card>
-      )}
-
-      {/* Report 9: Renewal & Lapse */}
-      {reportId === "9" && (
-        <Card><CardContent className="pt-6">
-          <div className="space-y-2">
-            {[
-              { name: "Patrick Biyick", status: "Lapsed", risk: "high", lastPayment: "2025-11-15" },
-              { name: "Bernadette Atangana", status: "At Risk", risk: "high", lastPayment: "2025-12-20" },
-              { name: "Emmanuel Tabi", status: "At Risk", risk: "medium", lastPayment: "2026-01-28" },
-              { name: "Yvonne Tchana", status: "Approaching Renewal", risk: "low", lastPayment: "2026-02-15" },
-            ].map((row, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{row.name}</p>
-                  <p className="text-xs text-muted-foreground">Last payment: {row.lastPayment}</p>
-                </div>
-                <Badge className={engagementColor(row.risk)}>{t(`reports.${row.risk}`)}</Badge>
-                <Badge variant="outline">{row.status}</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent></Card>
-      )}
-
-      {/* Report 10: Engagement Scorecard */}
-      {reportId === "10" && (
-        <Card><CardContent className="pt-6">
-          <div className="space-y-3">
-            {mockEngagement.map((row, i) => (
-              <div key={i} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium text-sm">{row.name}</p>
+          {rosterData.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">No members found.</p>
+          ) : (
+            <div className="space-y-2">
+              {rosterData.map((row: { name: string; phone: string; joined: string; role: string; standing: string }, i: number) => (
+                <div key={i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-sm">{row.name}</p>
+                    <p className="text-xs text-muted-foreground">{row.phone} · Joined {row.joined}</p>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold">{row.score}%</span>
-                    <Badge className={engagementColor(row.level)}>{t(`reports.${row.level}`)}</Badge>
+                    <Badge variant="outline">{row.role}</Badge>
+                    <Badge className={standingColor(row.standing)}>{row.standing}</Badge>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div><span className="text-muted-foreground">Payments:</span> {row.payments}%</div>
-                  <div><span className="text-muted-foreground">Attendance:</span> {row.attendance}%</div>
-                  <div><span className="text-muted-foreground">Hosting:</span> {row.hosting}%</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent></Card>
-      )}
-
-      {/* Report 11: Attendance Summary */}
-      {reportId === "11" && (
-        <Card><CardContent className="pt-6">
-          <div className="space-y-3">
-            {mockAttendanceSummary.map((row, i) => (
-              <div key={i} className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium text-sm">{row.event}</p>
-                  <p className="text-xs text-muted-foreground">{row.date}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">{row.present} present</Badge>
-                  <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">{row.absent} absent</Badge>
-                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">{row.excused} excused</Badge>
-                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">{row.late} late</Badge>
-                  <Badge variant="outline">{row.rate}%</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent></Card>
-      )}
-
-      {/* Report 12: Event Attendance Log */}
-      {reportId === "12" && (
-        <Card><CardContent className="pt-6">
-          <div className="space-y-3">
-            {mockAttendanceSummary.map((row, i) => (
-              <div key={i} className="rounded-lg border p-3">
-                <div className="flex justify-between mb-2">
-                  <p className="font-medium text-sm">{row.event} — {row.date}</p>
-                  <Badge variant="outline">{row.rate}%</Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-1 text-xs sm:grid-cols-4">
-                  <div className="rounded bg-emerald-50 dark:bg-emerald-900/10 p-1.5 text-center">{row.present} Present</div>
-                  <div className="rounded bg-red-50 dark:bg-red-900/10 p-1.5 text-center">{row.absent} Absent</div>
-                  <div className="rounded bg-amber-50 dark:bg-amber-900/10 p-1.5 text-center">{row.excused} Excused</div>
-                  <div className="rounded bg-blue-50 dark:bg-blue-900/10 p-1.5 text-center">{row.late} Late</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent></Card>
-      )}
-
-      {/* Report 13: Hosting Compliance */}
-      {reportId === "13" && (
-        <Card><CardContent className="pt-6">
-          <div className="space-y-2">
-            {[
-              { name: "Jean-Pierre Kamga", hosted: 3, missed: 0, score: 95 },
-              { name: "Sylvie Mbarga", hosted: 3, missed: 0, score: 95 },
-              { name: "Emmanuel Tabi", hosted: 2, missed: 1, score: 75 },
-              { name: "Bernadette Atangana", hosted: 1, missed: 2, score: 45 },
-            ].map((row, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{row.name}</p>
-                  <p className="text-xs text-muted-foreground">Hosted: {row.hosted} · Missed: {row.missed}</p>
-                </div>
-                <div className="w-20">
-                  <div className="h-2 rounded-full bg-muted">
-                    <div className={`h-2 rounded-full ${row.score >= 80 ? "bg-emerald-500" : row.score >= 60 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${row.score}%` }} />
-                  </div>
-                </div>
-                <span className="text-sm font-bold">{row.score}%</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent></Card>
       )}
 
       {/* Report 15: Relief Fund Status */}
       {reportId === "15" && (
         <div className="space-y-3">
-          {mockReliefStatus.map((plan, i) => (
-            <Card key={i}>
-              <CardContent className="pt-6">
-                <h3 className="font-semibold mb-3">{plan.plan}</h3>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <div><p className="text-xs text-muted-foreground">Balance</p><p className="font-bold text-primary">{formatCurrency(plan.balance)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Enrolled</p><p className="font-bold">{plan.enrolled}</p></div>
-                  <div><p className="text-xs text-muted-foreground">YTD Payouts</p><p className="font-bold text-destructive">{formatCurrency(plan.ytdPayouts)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Pending</p><p className="font-bold">{plan.pending}</p></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Report 16: Board Packet */}
-      {reportId === "16" && (
-        <div className="space-y-4">
-          <Card><CardHeader><CardTitle className="text-base">Financial Summary</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div><p className="text-xl font-bold text-primary">{formatCurrency(3250000)}</p><p className="text-xs text-muted-foreground">Collected</p></div>
-                <div><p className="text-xl font-bold">{formatCurrency(800000)}</p><p className="text-xs text-muted-foreground">Outstanding</p></div>
-                <div><p className="text-xl font-bold text-emerald-600">80%</p><p className="text-xs text-muted-foreground">Rate</p></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card><CardHeader><CardTitle className="text-base">Membership</CardTitle></CardHeader>
-            <CardContent><p className="text-sm">47 members · 42 good standing · 3 warnings · 2 suspended</p></CardContent>
-          </Card>
-          <Card><CardHeader><CardTitle className="text-base">Recent Decisions</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {["Allocate 500K XAF for school renovation", "Increase monthly dues by 2K XAF from April", "Form 5-person Cultural Gala committee"].map((d, i) => (
-                  <div key={i} className="flex items-start gap-2 text-sm">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{i + 1}</div>
-                    <span>{d}</span>
+          {reliefPlanList.length === 0 ? (
+            <Card><CardContent className="pt-6 text-center py-8">
+              <p className="text-sm text-muted-foreground">No relief plans configured.</p>
+            </CardContent></Card>
+          ) : reliefPlanList.map((plan: Record<string, unknown>, i: number) => {
+            const planClaims = reliefClaimList.filter((c: Record<string, unknown>) => (c.relief_plan as Record<string, unknown>)?.id === plan.id);
+            const pending = planClaims.filter((c: Record<string, unknown>) => (c.status as string) === "submitted" || (c.status as string) === "reviewing").length;
+            const approved = planClaims.filter((c: Record<string, unknown>) => (c.status as string) === "approved");
+            const ytdPayouts = approved.reduce((s: number, c: Record<string, unknown>) => s + Number(c.amount || 0), 0);
+            return (
+              <Card key={plan.id as string || i}>
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold mb-3">{plan.name as string}</h3>
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <div><p className="text-xs text-muted-foreground">Plan</p><p className="font-bold text-primary">{plan.name as string}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Contribution</p><p className="font-bold">{formatCurrency(Number(plan.contribution_amount || 0), currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">YTD Payouts</p><p className="font-bold text-destructive">{formatCurrency(ytdPayouts, currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Pending</p><p className="font-bold">{pending}</p></div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card><CardHeader><CardTitle className="text-base">Attendance</CardTitle></CardHeader>
-            <CardContent><p className="text-sm">Last 3 events avg: 84% · Trend: Stable</p></CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Report 20: Meeting Pack */}
-      {reportId === "20" && (
-        <div className="space-y-4">
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="pt-6 text-center">
-              <FileText className="mx-auto h-12 w-12 text-primary" />
-              <h3 className="mt-3 font-semibold text-lg">Meeting Pack Ready</h3>
-              <p className="text-sm text-muted-foreground">Financials + Attendance + Decisions + Action Items</p>
-              <div className="mt-4 flex justify-center gap-2">
-                <Button><Download className="mr-2 h-4 w-4" />{t("reports.exportPDF")}</Button>
-                <Button variant="outline"><Share2 className="mr-2 h-4 w-4" />{t("reports.shareWhatsApp")}</Button>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -520,6 +360,17 @@ export default function ReportDetailPage() {
             <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
             <h3 className="mt-4 text-lg font-semibold">{t("reports.placeholder")}</h3>
             <p className="mt-1 text-sm text-muted-foreground">{t("reports.noData")}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reports 9, 10, 11, 12, 13, 16, 20: Show loading from real data message */}
+      {["9", "10", "11", "12", "13", "16", "20"].includes(reportId) && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Sparkles className="h-12 w-12 text-primary/50" />
+            <h3 className="mt-4 text-lg font-semibold">Report data loading...</h3>
+            <p className="mt-1 text-sm text-muted-foreground">This report is being computed from your real group data.</p>
           </CardContent>
         </Card>
       )}

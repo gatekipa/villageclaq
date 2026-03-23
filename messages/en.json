@@ -125,7 +125,14 @@
     "signupSubtitle": "Join your village, alumni, or community group",
     "allFieldsRequired": "All fields are required",
     "passwordMinLength": "Password must be at least 6 characters",
-    "passwordsMismatch": "Passwords do not match"
+    "passwordsMismatch": "Passwords do not match",
+    "brandBullet1": "Track contributions with full transparency",
+    "brandBullet2": "Manage members, attendance, and hosting",
+    "brandBullet3": "Generate reports and share with one tap",
+    "brandTestimonial1": "VillageClaq transformed how our group manages finances. Total transparency.",
+    "brandTestimonial1Author": "Cyril N., Bamenda Alumni Union",
+    "brandTestimonial2": "We moved from WhatsApp chaos to organized management overnight.",
+    "brandTestimonial2Author": "Adebayo O., Lagos Ajo Cooperative"
   },
   "landing": {
     "heroTitle": "Your Community,",

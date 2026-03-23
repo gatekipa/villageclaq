@@ -125,7 +125,14 @@
     "signupSubtitle": "Rejoignez votre village, association ou groupe communautaire",
     "allFieldsRequired": "Tous les champs sont obligatoires",
     "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
-    "passwordsMismatch": "Les mots de passe ne correspondent pas"
+    "passwordsMismatch": "Les mots de passe ne correspondent pas",
+    "brandBullet1": "Suivez les cotisations en toute transparence",
+    "brandBullet2": "Gérez les membres, présences et hébergement",
+    "brandBullet3": "Générez des rapports et partagez en un clic",
+    "brandTestimonial1": "VillageClaq a transformé la gestion financière de notre groupe. Transparence totale.",
+    "brandTestimonial1Author": "Cyril N., Union des Anciens de Bamenda",
+    "brandTestimonial2": "Nous sommes passés du chaos WhatsApp à une gestion organisée du jour au lendemain.",
+    "brandTestimonial2Author": "Adebayo O., Coopérative Ajo de Lagos"
   },
   "landing": {
     "heroTitle": "Votre communauté,",

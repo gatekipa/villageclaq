@@ -1,116 +1,89 @@
 "use client";
 
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-type LogoVariant = "mark" | "horizontal" | "icon" | "simple";
-type LogoTheme = "dark" | "light" | "auto";
 type LogoSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 interface LogoProps {
-  /** Which logo file to use */
-  variant?: LogoVariant;
   /**
-   * "dark"  → dark text (for light backgrounds)
-   * "light" → white text (for dark backgrounds)
-   * "auto"  → CSS-switched: dark text in light mode, white text in dark mode
+   * "mark"       — calabash icon only (theme-independent)
+   * "horizontal" — calabash + "VillageClaq" text
    */
-  theme?: LogoTheme;
+  variant?: "mark" | "horizontal";
+  /**
+   * Text color for horizontal variant:
+   * "dark"  — dark text (#0F172A) for light backgrounds
+   * "light" — white text for dark backgrounds
+   * "auto"  — inherits from current text color (works with Tailwind dark mode)
+   */
+  textColor?: "dark" | "light" | "auto";
   size?: LogoSize;
   className?: string;
 }
 
-const sizeMap: Record<LogoVariant, Record<LogoSize, { width: number; height: number }>> = {
-  mark: {
-    xs: { width: 24, height: 24 },
-    sm: { width: 32, height: 32 },
-    md: { width: 40, height: 40 },
-    lg: { width: 56, height: 56 },
-    xl: { width: 80, height: 80 },
-  },
-  horizontal: {
-    xs: { width: 120, height: 24 },
-    sm: { width: 150, height: 30 },
-    md: { width: 180, height: 36 },
-    lg: { width: 220, height: 44 },
-    xl: { width: 280, height: 56 },
-  },
-  icon: {
-    xs: { width: 24, height: 24 },
-    sm: { width: 32, height: 32 },
-    md: { width: 48, height: 48 },
-    lg: { width: 64, height: 64 },
-    xl: { width: 96, height: 96 },
-  },
-  simple: {
-    xs: { width: 24, height: 24 },
-    sm: { width: 32, height: 32 },
-    md: { width: 40, height: 40 },
-    lg: { width: 56, height: 56 },
-    xl: { width: 80, height: 80 },
-  },
+const markSizes: Record<LogoSize, string> = {
+  xs: "h-6 w-6",
+  sm: "h-8 w-8",
+  md: "h-10 w-10",
+  lg: "h-14 w-14",
+  xl: "h-20 w-20",
 };
 
-function getSrc(variant: LogoVariant, theme: "dark" | "light"): string {
-  switch (variant) {
-    case "horizontal":
-      // "dark" theme prop = dark text variant (for light bgs)
-      // "light" theme prop = white text variant (for dark bgs)
-      return theme === "light" ? "/logo-horizontal-white.svg" : "/logo-horizontal-dark.svg";
-    case "mark":
-      return "/logo-mark.svg";
-    case "icon":
-      return "/app-icon.svg";
-    case "simple":
-      return "/logo-vc-simple.svg";
-  }
-}
+const textSizes: Record<LogoSize, string> = {
+  xs: "text-sm",
+  sm: "text-lg",
+  md: "text-xl",
+  lg: "text-2xl",
+  xl: "text-3xl",
+};
 
-export function Logo({ variant = "mark", theme = "auto", size = "md", className }: LogoProps) {
-  const dimensions = sizeMap[variant][size];
+const gapSizes: Record<LogoSize, string> = {
+  xs: "gap-1.5",
+  sm: "gap-2",
+  md: "gap-2.5",
+  lg: "gap-3",
+  xl: "gap-4",
+};
 
-  // For horizontal variant with "auto" theme: render BOTH and toggle via CSS dark: class
-  // This avoids hydration mismatch since useTheme() can flash
-  if (variant === "horizontal" && theme === "auto") {
+const textColorClass: Record<"dark" | "light" | "auto", string> = {
+  dark: "text-slate-900 dark:text-white",
+  light: "text-white",
+  auto: "", // inherits from parent
+};
+
+export function Logo({ variant = "mark", textColor = "auto", size = "md", className }: LogoProps) {
+  if (variant === "mark") {
     return (
-      <>
-        <Image
-          src="/logo-horizontal-dark.svg"
-          alt="VillageClaq"
-          width={dimensions.width}
-          height={dimensions.height}
-          priority
-          className={cn("dark:hidden", className)}
-        />
-        <Image
-          src="/logo-horizontal-white.svg"
-          alt="VillageClaq"
-          width={dimensions.width}
-          height={dimensions.height}
-          priority
-          className={cn("hidden dark:block", className)}
-        />
-      </>
+      <img
+        src="/logo-mark.svg"
+        alt="VillageClaq"
+        className={cn(markSizes[size], className)}
+      />
     );
   }
 
-  // For non-horizontal or forced theme: single image
-  const resolvedTheme = theme === "auto" ? "dark" : theme;
-  const src = getSrc(variant, resolvedTheme);
-
+  // horizontal: calabash mark + "VillageClaq" text
   return (
-    <Image
-      src={src}
-      alt="VillageClaq"
-      width={dimensions.width}
-      height={dimensions.height}
-      priority
-      className={className}
-    />
+    <span className={cn("inline-flex items-center", gapSizes[size], className)}>
+      <img
+        src="/logo-mark.svg"
+        alt=""
+        className={markSizes[size]}
+      />
+      <span
+        className={cn(
+          "font-extrabold tracking-tight",
+          textSizes[size],
+          textColorClass[textColor]
+        )}
+      >
+        VillageClaq
+      </span>
+    </span>
   );
 }
 
-/** Inline gradient VC circle — no image load, works everywhere */
+/** Inline gradient VC circle fallback — no image load needed */
 export function LogoMark({ size = "md", className }: { size?: LogoSize; className?: string }) {
   const px: Record<LogoSize, string> = {
     xs: "h-6 w-6 text-[8px]",

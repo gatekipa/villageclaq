@@ -593,7 +593,7 @@ export default function HomePage() {
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Link href="/" className="flex items-center gap-2.5">
-                <Logo variant="horizontal" theme="auto" size="md" />
+                <Logo variant="horizontal" textColor="dark" size="md" />
               </Link>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                 {t("landing.footerTagline")}

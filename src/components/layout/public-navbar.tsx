@@ -9,7 +9,6 @@ import { LanguageToggle } from "@/components/layout/language-toggle";
 import { Logo } from "@/components/brand/logo";
 
 interface PublicNavbarProps {
-  /** If true, text on navbar is white (for use over dark hero sections) */
   heroOverlay?: boolean;
 }
 
@@ -18,15 +17,11 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 80);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // When over hero (not scrolled): white text, transparent bg
-  // When scrolled: normal text, blurred bg — use theme-aware logo
   const isTransparent = heroOverlay && !scrolled;
 
   return (
@@ -38,13 +33,11 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" className="flex items-center">
           {isTransparent ? (
-            /* On gradient hero: always white logo */
-            <Logo variant="horizontal" theme="light" size="md" />
+            <Logo variant="horizontal" textColor="light" size="sm" />
           ) : (
-            /* Scrolled past hero: auto-switch dark/light based on app theme */
-            <Logo variant="horizontal" theme="auto" size="md" />
+            <Logo variant="horizontal" textColor="dark" size="sm" />
           )}
         </Link>
         <div className="flex items-center gap-1 sm:gap-2">

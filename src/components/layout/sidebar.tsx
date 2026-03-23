@@ -15,6 +15,9 @@ import {
   UserPlus,
   X,
   BarChart3,
+  ClipboardCheck,
+  Home,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +28,9 @@ const navItems = [
   { key: "contributions", href: "/dashboard/contributions", icon: HandCoins },
   { key: "finances", href: "/dashboard/finances", icon: BarChart3 },
   { key: "events", href: "/dashboard/events", icon: Calendar },
+  { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
+  { key: "hosting", href: "/dashboard/hosting", icon: Home },
+  { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
   { key: "documents", href: "/dashboard/documents", icon: FileText },
 ] as const;
 
@@ -79,7 +85,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||

@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -180,15 +179,15 @@ export default function DuesMatrixPage() {
 
       {/* Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Select
+        <select
           value={selectedType}
           onChange={(e) => setSelectedType(e.target.value)}
-          className="sm:w-60"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-60"
         >
           <option value="annual_dues">{t("contributions.annualDues")}</option>
           <option value="monthly">{t("contributions.monthlyContribution")}</option>
           <option value="building_fund">Building Fund Levy</option>
-        </Select>
+        </select>
         <div className="flex rounded-lg border bg-muted/30 p-0.5">
           <button
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === "yearly" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}

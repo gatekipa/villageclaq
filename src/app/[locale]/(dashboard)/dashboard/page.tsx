@@ -18,6 +18,11 @@ import {
   CalendarPlus,
   Megaphone,
   ArrowRight,
+  Home,
+  FileText,
+  CheckCircle2,
+  ListChecks,
+  BarChart3,
 } from "lucide-react";
 
 // Mock data
@@ -38,10 +43,35 @@ const recentPayments = [
   { id: "4", name: "Marie-Claire Fotso", amount: 15000, currency: "XAF", date: "2026-03-17", type: "Monthly Dues" },
 ];
 
-const upcomingEvents = [
-  { id: "1", title: "Monthly General Assembly", date: "2026-03-28", time: "6:00 PM", type: "meeting" },
-  { id: "2", title: "Cultural Gala Night", date: "2026-04-12", time: "7:00 PM", type: "event" },
-  { id: "3", title: "Board Meeting", date: "2026-04-05", time: "5:00 PM", type: "meeting" },
+const nextEvent = {
+  id: "1",
+  title: "Monthly General Assembly",
+  date: "2026-03-28",
+  time: "6:00 PM",
+  type: "meeting",
+  rsvpYes: 32,
+  rsvpMaybe: 8,
+};
+
+const nextHosting = {
+  memberName: "Jean-Pierre Kamga",
+  eventTitle: "April General Assembly",
+  date: "2026-04-28",
+  daysUntil: 37,
+};
+
+const recentMinutes = {
+  eventTitle: "February General Assembly",
+  date: "2026-02-28",
+  decisionsCount: 3,
+  actionItemsCount: 3,
+  publishedBy: "Sylvie Mbarga",
+};
+
+const attendanceTrend = [
+  { event: "Dec", rate: 89 },
+  { event: "Jan", rate: 79 },
+  { event: "Feb", rate: 85 },
 ];
 
 function formatCurrency(amount: number, currency: string) {
@@ -157,10 +187,12 @@ export default function DashboardPage() {
                 <span className="text-xs">{t("dashboard.recordPayment")}</span>
               </Button>
             </Link>
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
-              <CalendarPlus className="h-5 w-5 text-primary" />
-              <span className="text-xs">{t("dashboard.scheduleEvent")}</span>
-            </Button>
+            <Link href="/dashboard/events">
+              <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
+                <CalendarPlus className="h-5 w-5 text-primary" />
+                <span className="text-xs">{t("dashboard.scheduleEvent")}</span>
+              </Button>
+            </Link>
             <Button variant="outline" className="h-auto flex-col gap-2 py-4">
               <Megaphone className="h-5 w-5 text-primary" />
               <span className="text-xs">{t("dashboard.sendAnnouncement")}</span>
@@ -169,7 +201,101 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Recent Payments + Upcoming Events */}
+      {/* Phase 3 Widgets Row */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Next Event Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">{t("dashboard.nextEvent")}</CardTitle>
+            <Link href="/dashboard/events">
+              <Button variant="ghost" size="sm" className="text-xs text-primary">
+                {t("common.viewAll")}
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
+                <span className="text-xs font-medium text-primary">
+                  {new Date(nextEvent.date).toLocaleDateString("en", { month: "short" })}
+                </span>
+                <span className="text-lg font-bold leading-none text-primary">
+                  {new Date(nextEvent.date).getDate()}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-sm">{nextEvent.title}</p>
+                <p className="text-xs text-muted-foreground">{nextEvent.time}</p>
+                <p className="mt-1 text-xs text-primary">
+                  {t("dashboard.rsvpCount", { yes: nextEvent.rsvpYes, maybe: nextEvent.rsvpMaybe })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Next Hosting */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">{t("dashboard.nextHosting")}</CardTitle>
+            <Link href="/dashboard/hosting">
+              <Button variant="ghost" size="sm" className="text-xs text-primary">
+                {t("common.viewAll")}
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Home className="h-6 w-6 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-sm">{nextHosting.memberName}</p>
+                <p className="text-xs text-muted-foreground">{nextHosting.eventTitle}</p>
+                <p className="mt-1 text-xs text-primary font-semibold">
+                  {t("dashboard.hostingIn", { days: nextHosting.daysUntil })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Attendance Rate Trend */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">{t("dashboard.attendanceRate")}</CardTitle>
+            <Link href="/dashboard/attendance">
+              <Button variant="ghost" size="sm" className="text-xs text-primary">
+                {t("common.viewAll")}
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2">
+              {attendanceTrend.map((item) => (
+                <div key={item.event} className="flex-1 text-center">
+                  <div className="mx-auto mb-1 w-full max-w-[40px]">
+                    <div
+                      className="rounded-t bg-primary/80 transition-all"
+                      style={{ height: `${item.rate * 0.6}px` }}
+                    />
+                  </div>
+                  <div className="text-xs font-bold text-primary">{item.rate}%</div>
+                  <div className="text-[10px] text-muted-foreground">{item.event}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              {t("dashboard.lastEvents", { count: 3 })}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Payments + Recent Minutes */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Payments */}
         <Card>
@@ -207,36 +333,46 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Upcoming Events */}
+        {/* Recent Minutes */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{t("dashboard.upcomingEvents")}</CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary">
-              {t("dashboard.viewAllEvents")}
-              <ArrowRight className="ml-1 h-3 w-3" />
-            </Button>
+            <CardTitle className="text-base">{t("dashboard.recentMinutes")}</CardTitle>
+            <Link href="/dashboard/minutes">
+              <Button variant="ghost" size="sm" className="text-xs text-primary">
+                {t("common.viewAll")}
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {upcomingEvents.map((event) => (
-                <div key={event.id} className="flex items-center gap-3 rounded-lg border p-3">
-                  <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
-                    <span className="text-xs font-medium text-primary">
-                      {new Date(event.date).toLocaleDateString("en", { month: "short" })}
-                    </span>
-                    <span className="text-lg font-bold text-primary leading-none">
-                      {new Date(event.date).getDate()}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium">{event.title}</p>
-                    <p className="text-xs text-muted-foreground">{event.time}</p>
-                  </div>
-                  <Badge variant="secondary" className="shrink-0">
-                    {event.type}
-                  </Badge>
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
+                <span className="text-xs font-medium text-primary">
+                  {new Date(recentMinutes.date).toLocaleDateString("en", { month: "short" })}
+                </span>
+                <span className="text-lg font-bold leading-none text-primary">
+                  {new Date(recentMinutes.date).getDate()}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm">{recentMinutes.eventTitle}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("minutes.publishedBy", { name: recentMinutes.publishedBy })}
+                </p>
+                <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                    {t("dashboard.decisionsCount", { count: recentMinutes.decisionsCount })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <ListChecks className="h-3.5 w-3.5 text-primary" />
+                    {t("dashboard.actionItemsCount", { count: recentMinutes.actionItemsCount })}
+                  </span>
                 </div>
-              ))}
+              </div>
+              <Badge variant="default" className="shrink-0 text-xs">
+                {t("common.published")}
+              </Badge>
             </div>
           </CardContent>
         </Card>

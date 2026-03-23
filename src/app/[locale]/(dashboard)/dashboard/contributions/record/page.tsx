@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -270,9 +269,10 @@ export default function RecordPaymentPage() {
             {/* Contribution Type */}
             <div className="space-y-2">
               <Label>{t("contributions.contributionType")}</Label>
-              <Select
+              <select
                 value={selectedTypeId}
                 onChange={(e) => setSelectedTypeId(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
               >
                 <option value="">{t("contributions.selectType")}</option>
                 {mockContributionTypes.map((type) => (
@@ -280,7 +280,7 @@ export default function RecordPaymentPage() {
                     {type.name} — {formatCurrency(type.amount, type.currency)}
                   </option>
                 ))}
-              </Select>
+              </select>
             </div>
 
             {/* Amount + Method Row */}
@@ -303,12 +303,12 @@ export default function RecordPaymentPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("contributions.paymentMethod")}</Label>
-                <Select value={method} onChange={(e) => setMethod(e.target.value)}>
+                <select value={method} onChange={(e) => setMethod(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
                   <option value="cash">{t("contributions.cash")}</option>
                   <option value="mobile_money">{t("contributions.mobileMoney")}</option>
                   <option value="bank_transfer">{t("contributions.bankTransfer")}</option>
                   <option value="online">{t("contributions.online")}</option>
-                </Select>
+                </select>
               </div>
             </div>
 

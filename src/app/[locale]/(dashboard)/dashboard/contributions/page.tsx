@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogClose, DialogFooter } from "@/components/ui/dialog";
 import {
@@ -173,22 +172,22 @@ export default function ContributionsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">{t("contributions.currency")}</Label>
-                  <Select id="currency" defaultValue="XAF">
+                  <select id="currency" defaultValue="XAF" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
                     <option value="XAF">XAF (FCFA)</option>
                     <option value="USD">USD ($)</option>
                     <option value="EUR">EUR (€)</option>
                     <option value="GBP">GBP (£)</option>
                     <option value="CAD">CAD ($)</option>
-                  </Select>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="frequency">{t("contributions.frequency")}</Label>
-                  <Select id="frequency" defaultValue="monthly">
+                  <select id="frequency" defaultValue="monthly" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
                     <option value="one_time">{t("contributions.oneTime")}</option>
                     <option value="monthly">{t("contributions.monthly")}</option>
                     <option value="quarterly">{t("contributions.quarterly")}</option>
                     <option value="annual">{t("contributions.annual")}</option>
-                  </Select>
+                  </select>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">

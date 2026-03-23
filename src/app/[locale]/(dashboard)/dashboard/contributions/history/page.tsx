@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Search,
@@ -171,28 +170,28 @@ export default function PaymentHistoryPage() {
             className="pl-9"
           />
         </div>
-        <Select
+        <select
           value={filterType}
           onChange={(e) => { setFilterType(e.target.value); setPage(1); }}
-          className="sm:w-48"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-48"
         >
           <option value="all">{t("contributions.allTypes")}</option>
           <option value="Monthly Contribution">{t("contributions.monthly")}</option>
           <option value="Annual Dues">{t("contributions.annual")}</option>
           <option value="Building Fund Levy">Building Fund Levy</option>
           <option value="Quarterly Social Fund">Quarterly Social Fund</option>
-        </Select>
-        <Select
+        </select>
+        <select
           value={filterMethod}
           onChange={(e) => { setFilterMethod(e.target.value); setPage(1); }}
-          className="sm:w-40"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 sm:w-40"
         >
           <option value="all">{t("contributions.allMethods")}</option>
           <option value="cash">{t("contributions.cash")}</option>
           <option value="mobile_money">{t("contributions.mobileMoney")}</option>
           <option value="bank_transfer">{t("contributions.bankTransfer")}</option>
           <option value="online">{t("contributions.online")}</option>
-        </Select>
+        </select>
       </div>
 
       {/* Summary */}

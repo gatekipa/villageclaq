@@ -52,9 +52,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}>
         <div className="flex h-16 items-center justify-between px-6">
           <Link href="/admin" className="flex items-center gap-2">
-            <img src="/logo-mark.svg" alt="VillageClaq" className="h-8 w-8" />
+            <img src="/logo-mark.svg" alt="VillageClaq" className="h-10 w-10" />
             <div>
-              <span className="text-sm font-bold text-emerald-400">VillageClaq</span>
+              <span className="text-lg font-bold text-emerald-400">VillageClaq</span>
               <span className="block text-[10px] text-slate-400">Platform Admin</span>
             </div>
           </Link>

@@ -41,10 +41,10 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
         <Link href="/" className="flex items-center gap-2.5">
           {isTransparent ? (
             /* On gradient hero: always white logo */
-            <Logo variant="horizontal" theme="light" size="sm" />
+            <Logo variant="horizontal" theme="light" size="md" />
           ) : (
             /* Scrolled past hero: auto-switch dark/light based on app theme */
-            <Logo variant="horizontal" theme="auto" size="sm" />
+            <Logo variant="horizontal" theme="auto" size="md" />
           )}
         </Link>
         <div className="flex items-center gap-1 sm:gap-2">

@@ -79,8 +79,8 @@ export default function SignupPage() {
         </div>
         <div className="relative flex flex-col justify-center px-12 xl:px-16">
           <Link href="/" className="flex items-center gap-3 mb-12">
-            <img src="/logo-mark.svg" alt="VillageClaq" className="h-11 w-11" />
-            <span className="text-2xl font-bold text-white tracking-tight">{t("common.appName")}</span>
+            <img src="/logo-mark.svg" alt="VillageClaq" className="h-20 w-20" />
+            <span className="text-3xl font-bold text-white tracking-tight">{t("common.appName")}</span>
           </Link>
 
           <h2 className="text-4xl font-extrabold text-white leading-tight xl:text-5xl">
@@ -119,8 +119,8 @@ export default function SignupPage() {
           {/* Mobile logo */}
           <div className="mb-8 flex flex-col items-center lg:hidden">
             <Link href="/" className="flex items-center gap-2.5 mb-2">
-              <img src="/logo-mark.svg" alt="VillageClaq" className="h-10 w-10" />
-              <span className="text-xl font-bold tracking-tight">{t("common.appName")}</span>
+              <img src="/logo-mark.svg" alt="VillageClaq" className="h-16 w-16" />
+              <span className="text-2xl font-bold tracking-tight">{t("common.appName")}</span>
             </Link>
           </div>
 

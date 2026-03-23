@@ -25,6 +25,8 @@ import {
   User,
   UserCircle,
   Contact,
+  PieChart,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -47,6 +49,8 @@ const adminNavItems: NavItem[] = [
   { key: "hosting", href: "/dashboard/hosting", icon: Home, adminOnly: true },
   { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
   { key: "relief", href: "/dashboard/relief", icon: Heart, adminOnly: true },
+  { key: "reports", href: "/dashboard/reports", icon: PieChart, adminOnly: true },
+  { key: "enterprise", href: "/dashboard/enterprise", icon: GitBranch, adminOnly: true },
   { key: "documents", href: "/dashboard/documents", icon: FileText },
 ];
 

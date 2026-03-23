@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname } from "@/i18n/routing";
 import { Link } from "@/i18n/routing";
@@ -19,27 +20,58 @@ import {
   Home,
   BookOpen,
   Heart,
+  CreditCard,
+  Bell,
+  User,
+  UserCircle,
+  Contact,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-  { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { key: "members", href: "/dashboard/members", icon: Users },
-  { key: "invitations", href: "/dashboard/invitations", icon: UserPlus },
-  { key: "contributions", href: "/dashboard/contributions", icon: HandCoins },
-  { key: "finances", href: "/dashboard/finances", icon: BarChart3 },
-  { key: "events", href: "/dashboard/events", icon: Calendar },
-  { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
-  { key: "hosting", href: "/dashboard/hosting", icon: Home },
-  { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
-  { key: "relief", href: "/dashboard/relief", icon: Heart },
-  { key: "documents", href: "/dashboard/documents", icon: FileText },
-] as const;
+interface NavItem {
+  key: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  adminOnly?: boolean;
+  memberOnly?: boolean;
+}
 
-const bottomItems = [
-  { key: "settings", href: "/dashboard/settings", icon: Settings },
+const adminNavItems: NavItem[] = [
+  { key: "dashboard", href: "/dashboard", icon: LayoutDashboard, adminOnly: true },
+  { key: "members", href: "/dashboard/members", icon: Users, adminOnly: true },
+  { key: "invitations", href: "/dashboard/invitations", icon: UserPlus, adminOnly: true },
+  { key: "contributions", href: "/dashboard/contributions", icon: HandCoins, adminOnly: true },
+  { key: "finances", href: "/dashboard/finances", icon: BarChart3, adminOnly: true },
+  { key: "events", href: "/dashboard/events", icon: Calendar, adminOnly: true },
+  { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck, adminOnly: true },
+  { key: "hosting", href: "/dashboard/hosting", icon: Home, adminOnly: true },
+  { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
+  { key: "relief", href: "/dashboard/relief", icon: Heart, adminOnly: true },
+  { key: "documents", href: "/dashboard/documents", icon: FileText },
+];
+
+const memberNavItems: NavItem[] = [
+  { key: "dashboard", href: "/dashboard/my-dashboard", icon: LayoutDashboard, memberOnly: true },
+  { key: "myPayments", href: "/dashboard/my-payments", icon: CreditCard, memberOnly: true },
+  { key: "myEvents", href: "/dashboard/my-events", icon: Calendar, memberOnly: true },
+  { key: "myAttendance", href: "/dashboard/my-attendance", icon: ClipboardCheck, memberOnly: true },
+  { key: "myHosting", href: "/dashboard/my-hosting", icon: Home, memberOnly: true },
+  { key: "myRelief", href: "/dashboard/relief/my", icon: Heart, memberOnly: true },
+  { key: "myFamily", href: "/dashboard/my-family", icon: Contact, memberOnly: true },
+  { key: "directory", href: "/dashboard/directory", icon: Users, memberOnly: true },
+  { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
+  { key: "notifications", href: "/dashboard/notifications", icon: Bell, memberOnly: true },
+];
+
+const adminBottomItems: NavItem[] = [
+  { key: "settings", href: "/dashboard/settings", icon: Settings, adminOnly: true },
   { key: "help", href: "/dashboard/help", icon: HelpCircle },
-] as const;
+];
+
+const memberBottomItems: NavItem[] = [
+  { key: "profile", href: "/dashboard/my-profile", icon: UserCircle, memberOnly: true },
+  { key: "help", href: "/dashboard/help", icon: HelpCircle },
+];
 
 interface SidebarProps {
   isOpen: boolean;
@@ -49,6 +81,12 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  // TODO: Replace with actual role from Supabase membership
+  // For now, use a toggle. In production, this comes from the user's membership role.
+  const [isAdmin, setIsAdmin] = useState(true);
+
+  const navItems = isAdmin ? adminNavItems : memberNavItems;
+  const bottomItems = isAdmin ? adminBottomItems : memberBottomItems;
 
   return (
     <>
@@ -86,12 +124,34 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </Button>
         </div>
 
+        {/* Role toggle (dev helper - remove in production) */}
+        <div className="mx-3 mb-2 flex rounded-lg bg-sidebar-accent/50 p-1">
+          <button
+            onClick={() => setIsAdmin(true)}
+            className={cn(
+              "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+              isAdmin ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/60"
+            )}
+          >
+            Admin
+          </button>
+          <button
+            onClick={() => setIsAdmin(false)}
+            className={cn(
+              "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+              !isAdmin ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/60"
+            )}
+          >
+            Member
+          </button>
+        </div>
+
         {/* Navigation */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              (item.href !== "/dashboard" && item.href !== "/dashboard/my-dashboard" && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.key}

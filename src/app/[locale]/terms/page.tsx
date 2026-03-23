@@ -1,6 +1,11 @@
+"use client";
+
 import { useTranslations } from "next-intl";
 import { Separator } from "@/components/ui/separator";
 import { ScrollText } from "lucide-react";
+import { BackButton } from "@/components/ui/back-button";
+import { BackToTop } from "@/components/ui/back-to-top";
+import { PublicNavbar } from "@/components/layout/public-navbar";
 
 const sectionKeys = [
   "acceptance",
@@ -19,12 +24,16 @@ const sectionKeys = [
 
 export default function TermsPage() {
   const t = useTranslations("terms");
+  const tc = useTranslations("common");
 
   return (
     <div className="min-h-screen bg-background">
+      <PublicNavbar heroOverlay={false} />
+
       {/* Header */}
-      <div className="border-b bg-muted/30 px-4 pb-10 pt-16 sm:pt-20">
+      <div className="border-b bg-muted/30 px-4 pb-10 pt-8 sm:pt-12">
         <div className="mx-auto max-w-4xl">
+          <BackButton href="/" label={tc("backToHome")} className="mb-6" />
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
               <ScrollText className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -45,7 +54,7 @@ export default function TermsPage() {
       <div className="mx-auto flex max-w-4xl gap-10 px-4 py-10">
         {/* TOC sidebar - desktop only */}
         <nav className="hidden w-56 shrink-0 lg:block">
-          <div className="sticky top-8 space-y-1">
+          <div className="sticky top-24 space-y-1">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Contents
             </p>
@@ -79,8 +88,8 @@ export default function TermsPage() {
         </div>
       </div>
 
-      {/* Footer spacing */}
       <div className="pb-12" />
+      <BackToTop />
     </div>
   );
 }

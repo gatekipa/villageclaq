@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PublicNavbar } from "@/components/layout/public-navbar";
+import { TwemojiFlag } from "@/components/ui/twemoji-flag";
 
 const features = [
   { key: "Membership", icon: Users },
@@ -347,9 +348,9 @@ export default function HomePage() {
             {countries.map((country) => (
               <div
                 key={country.name}
-                className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/30"
+                className="flex items-center gap-2.5 rounded-full border bg-card px-4 py-2 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/30"
               >
-                <span className="text-lg">{country.flag}</span>
+                <TwemojiFlag emoji={country.flag} alt={country.name} className="h-6 w-6" />
                 <span className="font-medium text-muted-foreground">{country.name}</span>
               </div>
             ))}

@@ -90,7 +90,7 @@ CREATE POLICY "Members can view group announcements" ON announcements
 
 CREATE POLICY "Admins can manage group announcements" ON announcements
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM memberships WHERE group_id = announcements.group_id AND user_id = auth.uid() AND role IN ('admin', 'president', 'secretary'))
+    EXISTS (SELECT 1 FROM memberships WHERE group_id = announcements.group_id AND user_id = auth.uid() AND role IN ('admin', 'owner', 'moderator'))
   );
 
 -- Announcement deliveries: members see their own, admins see all for their group
@@ -106,6 +106,6 @@ CREATE POLICY "Admins can manage deliveries" ON announcement_deliveries
       JOIN memberships m ON m.group_id = a.group_id
       WHERE a.id = announcement_deliveries.announcement_id
         AND m.user_id = auth.uid()
-        AND m.role IN ('admin', 'president', 'secretary')
+        AND m.role IN ('admin', 'owner', 'moderator')
     )
   );

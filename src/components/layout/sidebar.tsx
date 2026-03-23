@@ -28,6 +28,9 @@ import {
   PieChart,
   GitBranch,
   Megaphone,
+  RefreshCw,
+  Vote,
+  FolderLock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -49,11 +52,13 @@ const adminNavItems: NavItem[] = [
   { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck, adminOnly: true },
   { key: "hosting", href: "/dashboard/hosting", icon: Home, adminOnly: true },
   { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
+  { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw, adminOnly: true },
+  { key: "elections", href: "/dashboard/elections", icon: Vote, adminOnly: true },
   { key: "relief", href: "/dashboard/relief", icon: Heart, adminOnly: true },
   { key: "reports", href: "/dashboard/reports", icon: PieChart, adminOnly: true },
   { key: "announcements", href: "/dashboard/announcements", icon: Megaphone, adminOnly: true },
   { key: "enterprise", href: "/dashboard/enterprise", icon: GitBranch, adminOnly: true },
-  { key: "documents", href: "/dashboard/documents", icon: FileText },
+  { key: "documents", href: "/dashboard/documents", icon: FolderLock },
 ];
 
 const memberNavItems: NavItem[] = [

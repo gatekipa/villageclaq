@@ -6,6 +6,7 @@ import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LanguageToggle } from "@/components/layout/language-toggle";
+import { Logo } from "@/components/brand/logo";
 
 interface PublicNavbarProps {
   /** If true, text on navbar is white (for use over dark hero sections) */
@@ -25,7 +26,7 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
   }, []);
 
   // When over hero (not scrolled): white text, transparent bg
-  // When scrolled: normal text, blurred white bg
+  // When scrolled: normal text, blurred bg — use theme-aware logo
   const isTransparent = heroOverlay && !scrolled;
 
   return (
@@ -38,14 +39,13 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <img src="/logo-mark.svg" alt="VillageClaq" className="h-9 w-9" />
-          <span
-            className={`text-xl font-bold tracking-tight transition-colors duration-300 ${
-              isTransparent ? "text-white" : ""
-            }`}
-          >
-            {t("common.appName")}
-          </span>
+          {isTransparent ? (
+            /* On gradient hero: always white logo */
+            <Logo variant="horizontal" theme="light" size="sm" />
+          ) : (
+            /* Scrolled past hero: auto-switch dark/light based on app theme */
+            <Logo variant="horizontal" theme="auto" size="sm" />
+          )}
         </Link>
         <div className="flex items-center gap-1 sm:gap-2">
           <div className={isTransparent ? "[&_button]:text-white/80 [&_button:hover]:text-white [&_button:hover]:bg-white/10" : ""}>

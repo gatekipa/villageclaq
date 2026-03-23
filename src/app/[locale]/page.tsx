@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/brand/logo";
 import { PublicNavbar } from "@/components/layout/public-navbar";
 import { TwemojiFlag } from "@/components/ui/twemoji-flag";
 
@@ -592,8 +593,7 @@ export default function HomePage() {
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Link href="/" className="flex items-center gap-2.5">
-                <img src="/logo-mark.svg" alt="VillageClaq" className="h-9 w-9" />
-                <span className="text-lg font-bold tracking-tight">{t("common.appName")}</span>
+                <Logo variant="horizontal" theme="auto" size="sm" />
               </Link>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                 {t("landing.footerTagline")}

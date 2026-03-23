@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -6,7 +8,13 @@ type LogoTheme = "dark" | "light" | "auto";
 type LogoSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 interface LogoProps {
+  /** Which logo file to use */
   variant?: LogoVariant;
+  /**
+   * "dark"  → dark text (for light backgrounds)
+   * "light" → white text (for dark backgrounds)
+   * "auto"  → CSS-switched: dark text in light mode, white text in dark mode
+   */
   theme?: LogoTheme;
   size?: LogoSize;
   className?: string;
@@ -43,26 +51,26 @@ const sizeMap: Record<LogoVariant, Record<LogoSize, { width: number; height: num
   },
 };
 
-function getSrc(variant: LogoVariant, theme: LogoTheme): string {
+function getSrc(variant: LogoVariant, theme: "dark" | "light"): string {
   switch (variant) {
+    case "horizontal":
+      // "dark" theme prop = dark text variant (for light bgs)
+      // "light" theme prop = white text variant (for dark bgs)
+      return theme === "light" ? "/logo-horizontal-white.svg" : "/logo-horizontal-dark.svg";
     case "mark":
       return "/logo-mark.svg";
-    case "horizontal":
-      return theme === "light" ? "/logo-horizontal-white.svg" : "/logo-horizontal-dark.svg";
     case "icon":
       return "/app-icon.svg";
     case "simple":
       return "/logo-vc-simple.svg";
-    default:
-      return "/logo-mark.svg";
   }
 }
 
-export function Logo({ variant = "mark", theme = "dark", size = "md", className }: LogoProps) {
+export function Logo({ variant = "mark", theme = "auto", size = "md", className }: LogoProps) {
   const dimensions = sizeMap[variant][size];
-  const src = getSrc(variant, theme);
 
-  // For "auto" theme on horizontal variant, render both and toggle with CSS
+  // For horizontal variant with "auto" theme: render BOTH and toggle via CSS dark: class
+  // This avoids hydration mismatch since useTheme() can flash
   if (variant === "horizontal" && theme === "auto") {
     return (
       <>
@@ -86,6 +94,10 @@ export function Logo({ variant = "mark", theme = "dark", size = "md", className 
     );
   }
 
+  // For non-horizontal or forced theme: single image
+  const resolvedTheme = theme === "auto" ? "dark" : theme;
+  const src = getSrc(variant, resolvedTheme);
+
   return (
     <Image
       src={src}
@@ -98,11 +110,23 @@ export function Logo({ variant = "mark", theme = "dark", size = "md", className 
   );
 }
 
-// Inline simple mark for places that need a quick VC circle (no image load)
+/** Inline gradient VC circle — no image load, works everywhere */
 export function LogoMark({ size = "md", className }: { size?: LogoSize; className?: string }) {
-  const px = { xs: "h-6 w-6 text-[8px]", sm: "h-8 w-8 text-xs", md: "h-9 w-9 text-sm", lg: "h-12 w-12 text-base", xl: "h-16 w-16 text-xl" };
+  const px: Record<LogoSize, string> = {
+    xs: "h-6 w-6 text-[8px]",
+    sm: "h-8 w-8 text-xs",
+    md: "h-9 w-9 text-sm",
+    lg: "h-12 w-12 text-base",
+    xl: "h-16 w-16 text-xl",
+  };
   return (
-    <div className={cn("flex items-center justify-center rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-600 font-extrabold text-white", px[size], className)}>
+    <div
+      className={cn(
+        "flex items-center justify-center rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-600 font-extrabold text-white",
+        px[size],
+        className
+      )}
+    >
       VC
     </div>
   );

@@ -7,6 +7,7 @@ import { GroupProvider, useGroup } from "@/lib/group-context";
 import { useRouter } from "@/i18n/routing";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
+import { SupportWidget } from "@/components/ui/support-widget";
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
   const { loading, memberships } = useGroup();
@@ -50,6 +51,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <SupportWidget />
     </DashboardGuard>
   );
 }

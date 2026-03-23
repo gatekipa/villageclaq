@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   FolderKanban,
   Trophy,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -86,11 +87,13 @@ const memberNavItems: NavItem[] = [
 ];
 
 const adminBottomItems: NavItem[] = [
+  { key: "feedback", href: "/dashboard/feedback", icon: MessageSquare },
   { key: "settings", href: "/dashboard/settings", icon: Settings, adminOnly: true },
   { key: "help", href: "/dashboard/help", icon: HelpCircle },
 ];
 
 const memberBottomItems: NavItem[] = [
+  { key: "feedback", href: "/dashboard/feedback", icon: MessageSquare },
   { key: "profile", href: "/dashboard/my-profile", icon: UserCircle, memberOnly: true },
   { key: "help", href: "/dashboard/help", icon: HelpCircle },
 ];

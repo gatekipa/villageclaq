@@ -3,6 +3,7 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { Providers } from "@/lib/providers";
+import { CookieConsent } from "@/components/ui/cookie-consent";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "../globals.css";
@@ -107,7 +108,10 @@ export default async function LocaleLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <CookieConsent />
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

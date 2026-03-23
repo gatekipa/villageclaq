@@ -43,8 +43,10 @@ export async function updateSession(request: NextRequest) {
     ? pathname.replace(`/${pathnameLocale}`, "")
     : pathname;
 
-  // Protected routes: anything under /dashboard
-  const isProtectedRoute = pathWithoutLocale.startsWith("/dashboard");
+  // Protected routes: /dashboard and /admin
+  const isProtectedRoute =
+    pathWithoutLocale.startsWith("/dashboard") ||
+    pathWithoutLocale.startsWith("/admin");
   // Auth routes: login, signup
   const isAuthRoute =
     pathWithoutLocale.startsWith("/login") ||

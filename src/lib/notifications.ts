@@ -93,7 +93,8 @@ async function sendEmail(
   // 1. Fetch user's email from profiles table
   // 2. Select the appropriate email template from email-templates.ts
   // 3. Send via email API
-  console.log(`[Notification:Email] To user ${userId}: "${title}" — ${body}`, data);
+  // Stub: email integration pending (Resend/SendGrid)
+  void [userId, title, body, data];
 }
 
 async function sendSms(
@@ -106,7 +107,8 @@ async function sendSms(
   // 1. Fetch user's phone number from profiles table
   // 2. Select the appropriate SMS template from sms-templates.ts
   // 3. Send via SMS API
-  console.log(`[Notification:SMS] To user ${userId}: "${title}" — ${body}`, data);
+  // Stub: SMS integration pending (Africa's Talking/Twilio)
+  void [userId, title, body, data];
 }
 
 async function sendWhatsApp(
@@ -119,7 +121,8 @@ async function sendWhatsApp(
   // 1. Fetch user's WhatsApp number from profiles table
   // 2. Build message from whatsapp-templates.ts
   // 3. Send via WhatsApp Business API
-  console.log(`[Notification:WhatsApp] To user ${userId}: "${title}" — ${body}`, data);
+  // Stub: WhatsApp Business API integration pending
+  void [userId, title, body, data];
 }
 
 async function sendPush(
@@ -132,7 +135,8 @@ async function sendPush(
   // 1. Fetch user's device tokens from push_subscriptions table
   // 2. Build push payload
   // 3. Send via push API
-  console.log(`[Notification:Push] To user ${userId}: "${title}" — ${body}`, data);
+  // Stub: push notification integration pending (FCM/OneSignal)
+  void [userId, title, body, data];
 }
 
 // ─── Channel Dispatcher ─────────────────────────────────────────────────────

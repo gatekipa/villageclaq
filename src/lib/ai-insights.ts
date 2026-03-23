@@ -167,7 +167,7 @@ export function clearInsightsCache(reportId?: string, locale?: string): void {
 export function formatReportDataForAI(
   reportType: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any
+  data: Record<string, any>
 ): Record<string, unknown> {
   switch (reportType) {
     case 'who-hasnt-paid':

@@ -99,7 +99,10 @@
     "welcomeBack": "Welcome back",
     "createAccount": "Create your account",
     "loginSubtitle": "Sign in to manage your communities",
-    "signupSubtitle": "Join your village, alumni, or community group"
+    "signupSubtitle": "Join your village, alumni, or community group",
+    "allFieldsRequired": "All fields are required",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "passwordsMismatch": "Passwords do not match"
   },
   "landing": {
     "heroTitle": "Your Community,",

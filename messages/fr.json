@@ -99,7 +99,10 @@
     "welcomeBack": "Bon retour",
     "createAccount": "Créer votre compte",
     "loginSubtitle": "Connectez-vous pour gérer vos communautés",
-    "signupSubtitle": "Rejoignez votre village, association ou groupe communautaire"
+    "signupSubtitle": "Rejoignez votre village, association ou groupe communautaire",
+    "allFieldsRequired": "Tous les champs sont obligatoires",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordsMismatch": "Les mots de passe ne correspondent pas"
   },
   "landing": {
     "heroTitle": "Votre communauté,",

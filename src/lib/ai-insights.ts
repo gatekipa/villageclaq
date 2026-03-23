@@ -4,8 +4,7 @@
  * Caches results for 24 hours per report to minimize API costs.
  */
 
-// TODO: Install @anthropic-ai/sdk and add ANTHROPIC_API_KEY to .env.local
-// import Anthropic from '@anthropic-ai/sdk';
+import Anthropic from '@anthropic-ai/sdk';
 
 interface InsightRequest {
   reportId: string;
@@ -51,23 +50,26 @@ export async function generateReportInsights(
   }
 
   try {
-    // TODO: Replace with actual Anthropic API call when API key is configured
-    // const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    // const message = await anthropic.messages.create({
-    //   model: 'claude-3-haiku-20240307',
-    //   max_tokens: 300,
-    //   system: SYSTEM_PROMPT[request.locale],
-    //   messages: [{
-    //     role: 'user',
-    //     content: `Report: ${request.reportType} for ${request.groupName}\n\nData:\n${JSON.stringify(request.reportData, null, 2)}\n\nProvide insights in ${request.locale === 'fr' ? 'French' : 'English'}.`,
-    //   }],
-    // });
-    // const insights = message.content[0].type === 'text' ? message.content[0].text : '';
+    let insights: string;
 
-    // Placeholder response until API is wired up
-    const insights = request.locale === 'fr'
-      ? `📊 **Analyse en cours de développement**\n\nLes analyses IA pour ce rapport seront disponibles avec le plan Pro. Elles incluront des résumés automatiques, des alertes de tendance et des recommandations d'action personnalisées pour ${request.groupName}.`
-      : `📊 **Insights Coming Soon**\n\nAI-powered insights for this report will be available with the Pro plan. They'll include automatic summaries, trend alerts, and personalized action recommendations for ${request.groupName}.`;
+    if (process.env.ANTHROPIC_API_KEY) {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const message = await anthropic.messages.create({
+        model: 'claude-3-5-haiku-latest',
+        max_tokens: 300,
+        system: SYSTEM_PROMPT[request.locale],
+        messages: [{
+          role: 'user',
+          content: `Report: ${request.reportType} for ${request.groupName}\n\nData:\n${JSON.stringify(request.reportData, null, 2)}\n\nProvide insights in ${request.locale === 'fr' ? 'French' : 'English'}.`,
+        }],
+      });
+      insights = message.content[0].type === 'text' ? message.content[0].text : '';
+    } else {
+      // Fallback when API key is not configured
+      insights = request.locale === 'fr'
+        ? `📊 **Analyse IA**\n\nConfigurez ANTHROPIC_API_KEY pour activer les analyses IA pour ${request.groupName}.`
+        : `📊 **AI Insights**\n\nConfigure ANTHROPIC_API_KEY to enable AI-powered insights for ${request.groupName}.`;
+    }
 
     const generatedAt = new Date().toISOString();
 

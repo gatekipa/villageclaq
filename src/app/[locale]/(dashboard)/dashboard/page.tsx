@@ -151,10 +151,12 @@ export default function DashboardPage() {
                 <span className="text-xs">{t("dashboard.addMember")}</span>
               </Button>
             </Link>
-            <Button variant="outline" className="h-auto flex-col gap-2 py-4">
-              <CreditCard className="h-5 w-5 text-primary" />
-              <span className="text-xs">{t("dashboard.recordPayment")}</span>
-            </Button>
+            <Link href="/dashboard/contributions/record">
+              <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
+                <CreditCard className="h-5 w-5 text-primary" />
+                <span className="text-xs">{t("dashboard.recordPayment")}</span>
+              </Button>
+            </Link>
             <Button variant="outline" className="h-auto flex-col gap-2 py-4">
               <CalendarPlus className="h-5 w-5 text-primary" />
               <span className="text-xs">{t("dashboard.scheduleEvent")}</span>
@@ -173,10 +175,12 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">{t("dashboard.recentPayments")}</CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-primary">
-              {t("common.viewAll")}
-              <ArrowRight className="ml-1 h-3 w-3" />
-            </Button>
+            <Link href="/dashboard/contributions/history">
+              <Button variant="ghost" size="sm" className="text-xs text-primary">
+                {t("common.viewAll")}
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

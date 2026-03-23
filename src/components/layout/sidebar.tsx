@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
-  Coins,
   Calendar,
   FileText,
   Settings,
@@ -15,6 +14,7 @@ import {
   HandCoins,
   UserPlus,
   X,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -23,9 +23,8 @@ const navItems = [
   { key: "members", href: "/dashboard/members", icon: Users },
   { key: "invitations", href: "/dashboard/invitations", icon: UserPlus },
   { key: "contributions", href: "/dashboard/contributions", icon: HandCoins },
+  { key: "finances", href: "/dashboard/finances", icon: BarChart3 },
   { key: "events", href: "/dashboard/events", icon: Calendar },
-  { key: "meetings", href: "/dashboard/meetings", icon: Coins },
-  { key: "finances", href: "/dashboard/finances", icon: FileText },
   { key: "documents", href: "/dashboard/documents", icon: FileText },
 ] as const;
 

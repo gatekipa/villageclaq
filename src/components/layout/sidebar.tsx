@@ -27,6 +27,7 @@ import {
   Contact,
   PieChart,
   GitBranch,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -50,6 +51,7 @@ const adminNavItems: NavItem[] = [
   { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
   { key: "relief", href: "/dashboard/relief", icon: Heart, adminOnly: true },
   { key: "reports", href: "/dashboard/reports", icon: PieChart, adminOnly: true },
+  { key: "announcements", href: "/dashboard/announcements", icon: Megaphone, adminOnly: true },
   { key: "enterprise", href: "/dashboard/enterprise", icon: GitBranch, adminOnly: true },
   { key: "documents", href: "/dashboard/documents", icon: FileText },
 ];

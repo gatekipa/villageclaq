@@ -3,9 +3,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useState } from "react";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { useState, useEffect } from "react";
+import { registerServiceWorker } from "@/lib/offline";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -26,7 +32,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          {children}
+          <PwaInstallPrompt />
+        </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

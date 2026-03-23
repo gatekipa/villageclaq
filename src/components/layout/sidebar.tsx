@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   Home,
   BookOpen,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +32,7 @@ const navItems = [
   { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
   { key: "hosting", href: "/dashboard/hosting", icon: Home },
   { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
+  { key: "relief", href: "/dashboard/relief", icon: Heart },
   { key: "documents", href: "/dashboard/documents", icon: FileText },
 ] as const;
 

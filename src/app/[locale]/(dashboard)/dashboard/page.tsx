@@ -23,6 +23,9 @@ import {
   CheckCircle2,
   ListChecks,
   BarChart3,
+  Heart,
+  MapPin,
+  ExternalLink,
 } from "lucide-react";
 
 // Mock data
@@ -54,10 +57,17 @@ const nextEvent = {
 };
 
 const nextHosting = {
-  memberName: "Jean-Pierre Kamga",
+  coHosts: ["Jean-Pierre Kamga", "Sylvie Mbarga"],
   eventTitle: "April General Assembly",
   date: "2026-04-28",
+  location: "45 Rue de la Joie, Douala",
   daysUntil: 37,
+};
+
+const reliefSummary = {
+  activeFunds: 3,
+  totalBalance: 1850000,
+  pendingClaims: 2,
 };
 
 const recentMinutes = {
@@ -247,13 +257,22 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                 <Home className="h-6 w-6 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-sm">{nextHosting.memberName}</p>
+                <p className="truncate font-medium text-sm">{nextHosting.coHosts.join(", ")}</p>
                 <p className="text-xs text-muted-foreground">{nextHosting.eventTitle}</p>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(nextHosting.location)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <MapPin className="h-3 w-3" />
+                  {nextHosting.location}
+                </a>
                 <p className="mt-1 text-xs text-primary font-semibold">
                   {t("dashboard.hostingIn", { days: nextHosting.daysUntil })}
                 </p>
@@ -377,6 +396,38 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Relief Fund Summary */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">{t("dashboard.reliefSummary")}</CardTitle>
+          <Link href="/dashboard/relief">
+            <Button variant="ghost" size="sm" className="text-xs text-primary">
+              {t("common.viewAll")}
+              <ArrowRight className="ml-1 h-3 w-3" />
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1">
+                <Heart className="h-4 w-4 text-primary" />
+                <span className="text-2xl font-bold">{reliefSummary.activeFunds}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{t("relief.activePlans")}</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{formatCurrency(reliefSummary.totalBalance, "XAF")}</div>
+              <p className="text-xs text-muted-foreground">{t("relief.totalFundBalance")}</p>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-destructive">{reliefSummary.pendingClaims}</div>
+              <p className="text-xs text-muted-foreground">{t("dashboard.pendingClaimsCount", { count: reliefSummary.pendingClaims })}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

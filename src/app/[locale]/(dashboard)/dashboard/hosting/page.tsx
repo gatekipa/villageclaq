@@ -29,23 +29,21 @@ import {
   ShieldCheck,
   Calendar,
   Trophy,
-  AlertTriangle,
   CheckCircle2,
   XCircle,
   Clock,
-  ChevronRight,
-  Star,
-  Ban,
+  MapPin,
+  ExternalLink,
 } from "lucide-react";
 
 type HostingStatus = "upcoming" | "completed" | "missed" | "swapped" | "exempted";
 
 interface Assignment {
   id: string;
-  memberName: string;
-  memberInitials: string;
+  coHosts: { name: string; initials: string }[];
   eventTitle: string;
   date: string;
+  location: string;
   status: HostingStatus;
   exemptionReason?: string;
   swappedWith?: string;
@@ -58,25 +56,24 @@ interface MemberHostingStats {
   timesHosted: number;
   timesMissed: number;
   fairnessScore: number;
-  nextAssignment?: string;
   orderIndex: number;
 }
 
 const mockAssignments: Assignment[] = [
-  { id: "1", memberName: "Jean-Pierre Kamga", memberInitials: "JK", eventTitle: "April General Assembly", date: "2026-04-28", status: "upcoming" },
-  { id: "2", memberName: "Sylvie Mbarga", memberInitials: "SM", eventTitle: "May General Assembly", date: "2026-05-28", status: "upcoming" },
-  { id: "3", memberName: "Emmanuel Tabi", memberInitials: "ET", eventTitle: "June General Assembly", date: "2026-06-28", status: "upcoming" },
-  { id: "4", memberName: "Marie-Claire Fotso", memberInitials: "MF", eventTitle: "March General Assembly", date: "2026-03-28", status: "completed" },
-  { id: "5", memberName: "Paul Ngoumou", memberInitials: "PN", eventTitle: "February General Assembly", date: "2026-02-28", status: "completed" },
-  { id: "6", memberName: "Bernadette Atangana", memberInitials: "BA", eventTitle: "January General Assembly", date: "2026-01-28", status: "missed" },
-  { id: "7", memberName: "Georges Tchinda", memberInitials: "GT", eventTitle: "December General Assembly", date: "2025-12-20", status: "swapped", swappedWith: "Hélène Njike" },
-  { id: "8", memberName: "Hélène Njike", memberInitials: "HN", eventTitle: "November General Assembly", date: "2025-11-28", status: "exempted", exemptionReason: "Bereavement" },
+  { id: "1", coHosts: [{ name: "Jean-Pierre Kamga", initials: "JK" }, { name: "Sylvie Mbarga", initials: "SM" }], eventTitle: "April General Assembly", date: "2026-04-28", location: "45 Rue de la Joie, Douala", status: "upcoming" },
+  { id: "2", coHosts: [{ name: "Emmanuel Tabi", initials: "ET" }, { name: "Marie-Claire Fotso", initials: "MF" }, { name: "Paul Ngoumou", initials: "PN" }], eventTitle: "May General Assembly", date: "2026-05-28", location: "12 Avenue Ahmadou Ahidjo, Yaoundé", status: "upcoming" },
+  { id: "3", coHosts: [{ name: "Bernadette Atangana", initials: "BA" }, { name: "Georges Tchinda", initials: "GT" }], eventTitle: "June General Assembly", date: "2026-06-28", location: "78 Boulevard du 20 Mai, Douala", status: "upcoming" },
+  { id: "4", coHosts: [{ name: "Hélène Njike", initials: "HN" }, { name: "François Mbassi", initials: "FM" }], eventTitle: "March General Assembly", date: "2026-03-28", location: "45 Rue de la Joie, Douala", status: "completed" },
+  { id: "5", coHosts: [{ name: "Rosalie Edimo", initials: "RE" }, { name: "Patrick Biyick", initials: "PB" }], eventTitle: "February General Assembly", date: "2026-02-28", location: "Community Hall, Douala", status: "completed" },
+  { id: "6", coHosts: [{ name: "Yvonne Tchana", initials: "YT" }], eventTitle: "January General Assembly", date: "2026-01-28", location: "Town Hall, Bamenda", status: "missed" },
+  { id: "7", coHosts: [{ name: "Georges Tchinda", initials: "GT" }], eventTitle: "December General Assembly", date: "2025-12-20", location: "Community Center", status: "swapped", swappedWith: "Hélène Njike" },
+  { id: "8", coHosts: [{ name: "Hélène Njike", initials: "HN" }], eventTitle: "November General Assembly", date: "2025-11-28", location: "Online", status: "exempted", exemptionReason: "Bereavement" },
 ];
 
 const mockMemberStats: MemberHostingStats[] = [
-  { id: "1", name: "Jean-Pierre Kamga", initials: "JK", timesHosted: 3, timesMissed: 0, fairnessScore: 95, nextAssignment: "2026-04-28", orderIndex: 1 },
-  { id: "2", name: "Sylvie Mbarga", initials: "SM", timesHosted: 3, timesMissed: 0, fairnessScore: 95, nextAssignment: "2026-05-28", orderIndex: 2 },
-  { id: "3", name: "Emmanuel Tabi", initials: "ET", timesHosted: 2, timesMissed: 1, fairnessScore: 75, nextAssignment: "2026-06-28", orderIndex: 3 },
+  { id: "1", name: "Jean-Pierre Kamga", initials: "JK", timesHosted: 3, timesMissed: 0, fairnessScore: 95, orderIndex: 1 },
+  { id: "2", name: "Sylvie Mbarga", initials: "SM", timesHosted: 3, timesMissed: 0, fairnessScore: 95, orderIndex: 2 },
+  { id: "3", name: "Emmanuel Tabi", initials: "ET", timesHosted: 2, timesMissed: 1, fairnessScore: 75, orderIndex: 3 },
   { id: "4", name: "Marie-Claire Fotso", initials: "MF", timesHosted: 3, timesMissed: 0, fairnessScore: 100, orderIndex: 4 },
   { id: "5", name: "Paul Ngoumou", initials: "PN", timesHosted: 3, timesMissed: 0, fairnessScore: 100, orderIndex: 5 },
   { id: "6", name: "Bernadette Atangana", initials: "BA", timesHosted: 1, timesMissed: 2, fairnessScore: 45, orderIndex: 6 },
@@ -98,22 +95,34 @@ function getFairnessColor(score: number) {
   return "text-red-600 dark:text-red-400";
 }
 
+function mapsUrl(address: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 export default function HostingPage() {
   const t = useTranslations();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showSwapDialog, setShowSwapDialog] = useState(false);
   const [showExemptDialog, setShowExemptDialog] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [tab, setTab] = useState<"schedule" | "fairness">("schedule");
   const [hasRoster] = useState(true);
+  const [selectedCoHosts, setSelectedCoHosts] = useState<string[]>([]);
+  const [assignLocation, setAssignLocation] = useState("");
 
   const upcomingAssignments = mockAssignments.filter((a) => a.status === "upcoming");
   const pastAssignments = mockAssignments.filter((a) => a.status !== "upcoming");
 
-  // Next hosting for "current user"
   const myNextHosting = upcomingAssignments[0];
   const daysUntil = myNextHosting
     ? Math.ceil((new Date(myNextHosting.date).getTime() - new Date("2026-03-22").getTime()) / (1000 * 60 * 60 * 24))
     : null;
+
+  const toggleCoHost = (id: string) => {
+    setSelectedCoHosts((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 5 ? [...prev, id] : prev
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -124,7 +133,11 @@ export default function HostingPage() {
           <p className="text-muted-foreground">{t("hosting.subtitle")}</p>
         </div>
         {hasRoster && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setShowAssignDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("common.assign")}
+            </Button>
             <Button variant="outline" onClick={() => setShowSwapDialog(true)}>
               <ArrowRightLeft className="mr-2 h-4 w-4" />
               {t("hosting.swapHost")}
@@ -155,13 +168,30 @@ export default function HostingPage() {
           {myNextHosting && (
             <Card className="border-primary/30 bg-primary/5">
               <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10">
                     <Home className="h-7 w-7 text-primary" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{t("hosting.myAssignment")}</h3>
                     <p className="text-sm text-muted-foreground">{myNextHosting.eventTitle}</p>
+                    {/* Co-hosts */}
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {myNextHosting.coHosts.map((h) => (
+                        <Badge key={h.name} variant="secondary" className="text-xs">{h.name}</Badge>
+                      ))}
+                    </div>
+                    {/* Location */}
+                    <a
+                      href={mapsUrl(myNextHosting.location)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 flex items-center gap-1.5 text-sm text-primary hover:underline"
+                    >
+                      <MapPin className="h-4 w-4" />
+                      {myNextHosting.location}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                     <div className="mt-1 flex items-center gap-2 text-sm">
                       <Calendar className="h-4 w-4 text-primary" />
                       <span className="font-medium">{myNextHosting.date}</span>
@@ -172,7 +202,7 @@ export default function HostingPage() {
                       </span>
                     </div>
                   </div>
-                  <Button variant="outline" onClick={() => setShowSwapDialog(true)}>
+                  <Button variant="outline" className="shrink-0" onClick={() => setShowSwapDialog(true)}>
                     <ArrowRightLeft className="mr-2 h-4 w-4" />
                     {t("hosting.swapHost")}
                   </Button>
@@ -183,19 +213,11 @@ export default function HostingPage() {
 
           {/* Tabs */}
           <div className="flex gap-2">
-            <Button
-              variant={tab === "schedule" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTab("schedule")}
-            >
+            <Button variant={tab === "schedule" ? "default" : "outline"} size="sm" onClick={() => setTab("schedule")}>
               <Calendar className="mr-1 h-4 w-4" />
               {t("hosting.upcomingHosts")}
             </Button>
-            <Button
-              variant={tab === "fairness" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTab("fairness")}
-            >
+            <Button variant={tab === "fairness" ? "default" : "outline"} size="sm" onClick={() => setTab("fairness")}>
               <Trophy className="mr-1 h-4 w-4" />
               {t("hosting.fairnessScore")}
             </Button>
@@ -204,7 +226,6 @@ export default function HostingPage() {
           {/* Schedule Tab */}
           {tab === "schedule" && (
             <div className="space-y-4">
-              {/* Upcoming */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">{t("hosting.upcomingHosts")}</CardTitle>
@@ -215,23 +236,40 @@ export default function HostingPage() {
                       const config = hostingStatusConfig[assignment.status];
                       const StatusIcon = config.icon;
                       return (
-                        <div key={assignment.id} className="flex items-center gap-3 rounded-lg border p-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-bold">
-                            {index + 1}
+                        <div key={assignment.id} className="rounded-lg border p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex -space-x-2">
+                                  {assignment.coHosts.map((h) => (
+                                    <Avatar key={h.name} className="h-7 w-7 border-2 border-background">
+                                      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{h.initials}</AvatarFallback>
+                                    </Avatar>
+                                  ))}
+                                </div>
+                                <span className="text-sm font-medium">
+                                  {assignment.coHosts.map((h) => h.name).join(", ")}
+                                </span>
+                                <Badge className={config.color}>
+                                  <StatusIcon className="mr-1 h-3 w-3" />
+                                  {t(`hosting.hostingStatus.${assignment.status}`)}
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">{assignment.eventTitle} · {assignment.date}</p>
+                              <a
+                                href={mapsUrl(assignment.location)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-0.5 flex items-center gap-1 text-xs text-primary hover:underline"
+                              >
+                                <MapPin className="h-3 w-3" />
+                                {assignment.location}
+                              </a>
+                            </div>
                           </div>
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {assignment.memberInitials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{assignment.memberName}</p>
-                            <p className="text-xs text-muted-foreground">{assignment.eventTitle} · {assignment.date}</p>
-                          </div>
-                          <Badge className={config.color}>
-                            <StatusIcon className="mr-1 h-3 w-3" />
-                            {t(`hosting.hostingStatus.${assignment.status}`)}
-                          </Badge>
                         </div>
                       );
                     })}
@@ -239,7 +277,6 @@ export default function HostingPage() {
                 </CardContent>
               </Card>
 
-              {/* Past */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">{t("hosting.pastHosts")}</CardTitle>
@@ -251,13 +288,15 @@ export default function HostingPage() {
                       const StatusIcon = config.icon;
                       return (
                         <div key={assignment.id} className="flex items-center gap-3 rounded-lg border p-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {assignment.memberInitials}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="flex -space-x-2">
+                            {assignment.coHosts.map((h) => (
+                              <Avatar key={h.name} className="h-7 w-7 border-2 border-background">
+                                <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{h.initials}</AvatarFallback>
+                              </Avatar>
+                            ))}
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm">{assignment.memberName}</p>
+                            <p className="font-medium text-sm">{assignment.coHosts.map((h) => h.name).join(", ")}</p>
                             <p className="text-xs text-muted-foreground">
                               {assignment.eventTitle} · {assignment.date}
                               {assignment.swappedWith && ` · Swapped with ${assignment.swappedWith}`}
@@ -290,9 +329,7 @@ export default function HostingPage() {
                     .map((member) => (
                       <div key={member.id} className="flex items-center gap-3 rounded-lg border p-3">
                         <Avatar className="h-9 w-9">
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {member.initials}
-                          </AvatarFallback>
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs">{member.initials}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm">{member.name}</p>
@@ -302,21 +339,12 @@ export default function HostingPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`text-lg font-bold ${getFairnessColor(member.fairnessScore)}`}>
-                            {member.fairnessScore}%
-                          </div>
+                          <div className={`text-lg font-bold ${getFairnessColor(member.fairnessScore)}`}>{member.fairnessScore}%</div>
                           <div className="text-xs text-muted-foreground">{t("hosting.fairnessScore")}</div>
                         </div>
-                        {/* Fairness bar */}
                         <div className="hidden w-24 sm:block">
                           <div className="h-2 rounded-full bg-muted">
-                            <div
-                              className={`h-2 rounded-full transition-all ${
-                                member.fairnessScore >= 80 ? "bg-emerald-500" :
-                                member.fairnessScore >= 60 ? "bg-amber-500" : "bg-red-500"
-                              }`}
-                              style={{ width: `${member.fairnessScore}%` }}
-                            />
+                            <div className={`h-2 rounded-full transition-all ${member.fairnessScore >= 80 ? "bg-emerald-500" : member.fairnessScore >= 60 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${member.fairnessScore}%` }} />
                           </div>
                         </div>
                       </div>
@@ -328,24 +356,68 @@ export default function HostingPage() {
         </>
       )}
 
+      {/* Assign Co-Hosts Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("hosting.coHosts")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t("hosting.selectCoHosts")}</p>
+            <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+              {mockMemberStats.map((member) => {
+                const isSelected = selectedCoHosts.includes(member.id);
+                return (
+                  <button
+                    key={member.id}
+                    onClick={() => toggleCoHost(member.id)}
+                    className={`flex items-center gap-3 rounded-lg border p-2 text-left transition-colors ${isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                  >
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">{member.initials}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium flex-1">{member.name}</span>
+                    {isSelected && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {selectedCoHosts.map((id) => {
+                const m = mockMemberStats.find((s) => s.id === id);
+                return m ? <Badge key={id} variant="secondary">{m.name}</Badge> : null;
+              })}
+            </div>
+            <div className="space-y-2">
+              <Label>{t("hosting.hostingLocation")}</Label>
+              <Input
+                placeholder={t("hosting.locationPlaceholder")}
+                value={assignLocation}
+                onChange={(e) => setAssignLocation(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>{t("common.cancel")}</Button>
+            <Button onClick={() => setShowAssignDialog(false)} disabled={selectedCoHosts.length < 2}>
+              {t("common.assign")} ({selectedCoHosts.length}/5)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Swap Dialog */}
       <Dialog open={showSwapDialog} onOpenChange={setShowSwapDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("hosting.swapHost")}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{t("hosting.swapHost")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>{t("hosting.swapWith")}</Label>
               <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("minutes.selectMember")} />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("minutes.selectMember")} /></SelectTrigger>
                 <SelectContent>
                   {mockMemberStats.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
+                    <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -361,21 +433,15 @@ export default function HostingPage() {
       {/* Exempt Dialog */}
       <Dialog open={showExemptDialog} onOpenChange={setShowExemptDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("hosting.exemptMember")}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{t("hosting.exemptMember")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>{t("contributions.member")}</Label>
               <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("minutes.selectMember")} />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("minutes.selectMember")} /></SelectTrigger>
                 <SelectContent>
                   {mockMemberStats.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
+                    <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -383,14 +449,10 @@ export default function HostingPage() {
             <div className="space-y-2">
               <Label>{t("hosting.exemptionReason")}</Label>
               <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("hosting.exemptionReason")} />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("hosting.exemptionReason")} /></SelectTrigger>
                 <SelectContent>
                   {(["travel", "illness", "bereavement", "financial", "other"] as const).map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {t(`hosting.exemptionReasons.${reason}`)}
-                    </SelectItem>
+                    <SelectItem key={reason} value={reason}>{t(`hosting.exemptionReasons.${reason}`)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -406,9 +468,7 @@ export default function HostingPage() {
       {/* Create Roster Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("hosting.createRoster")}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{t("hosting.createRoster")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>{t("hosting.rosterName")}</Label>
@@ -418,10 +478,7 @@ export default function HostingPage() {
               <Label>{t("hosting.rotationType")}</Label>
               <div className="space-y-2">
                 {(["sequential", "random", "manual"] as const).map((type) => (
-                  <button
-                    key={type}
-                    className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
-                  >
+                  <button key={type} className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50">
                     <div className="font-medium text-sm">{t(`hosting.${type}`)}</div>
                     <div className="text-xs text-muted-foreground">{t(`hosting.${type}Desc`)}</div>
                   </button>

@@ -1,3 +1,5 @@
+"use client";
+
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import {
@@ -17,10 +19,11 @@ import {
   Globe,
   Shield,
   TrendingUp,
-  Calendar,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PublicNavbar } from "@/components/layout/public-navbar";
 
 const features = [
   { key: "Membership", icon: Users },
@@ -39,17 +42,17 @@ const phase9Features = [
 ] as const;
 
 const countries = [
-  { name: "Cameroon", flag: "\u{1F1E8}\u{1F1F2}" },
-  { name: "Nigeria", flag: "\u{1F1F3}\u{1F1EC}" },
-  { name: "Ghana", flag: "\u{1F1EC}\u{1F1ED}" },
-  { name: "Kenya", flag: "\u{1F1F0}\u{1F1EA}" },
-  { name: "South Africa", flag: "\u{1F1FF}\u{1F1E6}" },
-  { name: "Uganda", flag: "\u{1F1FA}\u{1F1EC}" },
-  { name: "Senegal", flag: "\u{1F1F8}\u{1F1F3}" },
-  { name: "USA", flag: "\u{1F1FA}\u{1F1F8}" },
-  { name: "UK", flag: "\u{1F1EC}\u{1F1E7}" },
-  { name: "Canada", flag: "\u{1F1E8}\u{1F1E6}" },
-  { name: "France", flag: "\u{1F1EB}\u{1F1F7}" },
+  { name: "Cameroon", flag: "🇨🇲" },
+  { name: "Nigeria", flag: "🇳🇬" },
+  { name: "Ghana", flag: "🇬🇭" },
+  { name: "Kenya", flag: "🇰🇪" },
+  { name: "South Africa", flag: "🇿🇦" },
+  { name: "Uganda", flag: "🇺🇬" },
+  { name: "Senegal", flag: "🇸🇳" },
+  { name: "USA", flag: "🇺🇸" },
+  { name: "UK", flag: "🇬🇧" },
+  { name: "Canada", flag: "🇨🇦" },
+  { name: "France", flag: "🇫🇷" },
 ];
 
 const testimonials = [
@@ -102,31 +105,10 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 font-bold text-white text-sm shadow-md">
-              VC
-            </div>
-            <span className="text-xl font-bold tracking-tight">{t("common.appName")}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" className="text-sm font-medium">
-                {t("auth.login")}
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button className="text-sm font-medium shadow-md shadow-primary/20">
-                {t("common.getStarted")}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <PublicNavbar heroOverlay />
 
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 dark:from-emerald-950 dark:via-gray-950 dark:to-teal-950">
+      <section className="relative -mt-16 overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 dark:from-emerald-950 dark:via-gray-950 dark:to-teal-950 pt-16">
         {/* Floating decorative shapes */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
@@ -134,11 +116,11 @@ export default function HomePage() {
           <div className="absolute bottom-20 left-1/4 h-64 w-64 rounded-full bg-emerald-300/10 blur-3xl" />
           <div className="absolute -bottom-10 right-1/3 h-40 w-40 rounded-full bg-teal-300/10 blur-2xl" />
           <div className="absolute left-1/2 top-1/3 h-32 w-32 -translate-x-1/2 rounded-full bg-white/5 blur-xl" />
-          {/* Subtle grid pattern */}
+          {/* Grid pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-20 sm:px-6 sm:pb-32 sm:pt-28 lg:pt-32">
+        <div className="relative mx-auto max-w-7xl px-4 pb-0 pt-20 sm:px-6 sm:pt-28 lg:pt-32">
           <div className="mx-auto max-w-3xl text-center">
             <Badge variant="secondary" className="mb-8 border-emerald-400/30 bg-white/10 text-white backdrop-blur-sm">
               <Globe className="mr-1.5 h-3.5 w-3.5" />
@@ -178,8 +160,8 @@ export default function HomePage() {
 
           {/* Mock Dashboard Preview */}
           <div className="mx-auto mt-16 max-w-4xl sm:mt-20">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-2 shadow-2xl shadow-black/40 backdrop-blur-md">
-              <div className="rounded-xl bg-gray-950/80 overflow-hidden">
+            <div className="rounded-t-2xl border border-b-0 border-white/10 bg-white/5 p-2 pb-0 shadow-2xl shadow-black/40 backdrop-blur-md">
+              <div className="rounded-t-xl bg-gray-950/80 overflow-hidden">
                 {/* Title bar */}
                 <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
                   <div className="flex gap-1.5">
@@ -208,30 +190,20 @@ export default function HomePage() {
                   </div>
                   {/* Main content mock */}
                   <div className="flex-1 p-4 sm:p-6">
-                    {/* Stat cards */}
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Members</div>
-                        <div className="mt-1 text-lg font-bold text-white">247</div>
-                        <div className="mt-0.5 text-[10px] text-emerald-400">+12%</div>
-                      </div>
-                      <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Balance</div>
-                        <div className="mt-1 text-lg font-bold text-white">$18.4K</div>
-                        <div className="mt-0.5 text-[10px] text-emerald-400">+8%</div>
-                      </div>
-                      <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Collected</div>
-                        <div className="mt-1 text-lg font-bold text-white">94%</div>
-                        <div className="mt-0.5 text-[10px] text-emerald-400">On track</div>
-                      </div>
-                      <div className="rounded-lg border border-white/5 bg-white/5 p-3">
-                        <div className="text-[10px] text-white/40 uppercase tracking-wider">Meetings</div>
-                        <div className="mt-1 text-lg font-bold text-white">12</div>
-                        <div className="mt-0.5 text-[10px] text-white/30">This year</div>
-                      </div>
+                      {[
+                        { label: "Members", value: "247", change: "+12%" },
+                        { label: "Balance", value: "$18.4K", change: "+8%" },
+                        { label: "Collected", value: "94%", change: "On track" },
+                        { label: "Meetings", value: "12", change: "This year" },
+                      ].map((s) => (
+                        <div key={s.label} className="rounded-lg border border-white/5 bg-white/5 p-3">
+                          <div className="text-[10px] text-white/40 uppercase tracking-wider">{s.label}</div>
+                          <div className="mt-1 text-lg font-bold text-white">{s.value}</div>
+                          <div className="mt-0.5 text-[10px] text-emerald-400">{s.change}</div>
+                        </div>
+                      ))}
                     </div>
-                    {/* Table mock */}
                     <div className="mt-4 rounded-lg border border-white/5 bg-white/5 overflow-hidden">
                       <div className="border-b border-white/5 px-4 py-2.5 text-xs font-medium text-white/60">Recent Contributions</div>
                       <div className="divide-y divide-white/5">
@@ -261,10 +233,13 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+
+        {/* Smooth gradient fade to stats section */}
+        <div className="h-24 bg-gradient-to-b from-transparent to-emerald-50 dark:to-emerald-950/50" />
       </section>
 
       {/* ── Stats Bar ── */}
-      <section className="relative -mt-1 border-b bg-background py-16 sm:py-20">
+      <section className="relative bg-emerald-50 dark:bg-emerald-950/50 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
             {[
@@ -274,7 +249,7 @@ export default function HomePage() {
               { value: "11", label: t("landing.statsCountries"), icon: Globe },
             ].map((stat) => (
               <div key={stat.label} className="group text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600/10 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400 transition-colors group-hover:bg-emerald-600 group-hover:text-white dark:group-hover:bg-emerald-500 dark:group-hover:text-white">
                   <stat.icon className="h-5 w-5" />
                 </div>
                 <div className="text-3xl font-extrabold tracking-tight sm:text-4xl">{stat.value}</div>
@@ -283,6 +258,8 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+        {/* Fade out from stats to features */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent to-background" />
       </section>
 
       {/* ── Core Features ── */}
@@ -316,7 +293,7 @@ export default function HomePage() {
       </section>
 
       {/* ── How It Works ── */}
-      <section className="bg-muted/30 dark:bg-muted/10 py-24 sm:py-32">
+      <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
@@ -328,9 +305,9 @@ export default function HomePage() {
           </div>
           <div className="mx-auto mt-20 max-w-4xl">
             <div className="relative grid gap-12 sm:grid-cols-3 sm:gap-8">
-              {/* Connecting line (hidden on mobile) */}
-              <div className="absolute left-0 right-0 top-10 hidden h-0.5 bg-gradient-to-r from-transparent via-primary/20 to-transparent sm:block" />
-              {steps.map(({ num, titleKey, descKey, icon: StepIcon }) => (
+              {/* Connecting line */}
+              <div className="absolute left-0 right-0 top-10 hidden h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent sm:block" />
+              {steps.map(({ num, titleKey, descKey }) => (
                 <div key={num} className="relative text-center">
                   <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center">
                     <div className="absolute inset-0 rounded-full bg-primary/10" />
@@ -366,20 +343,20 @@ export default function HomePage() {
           </div>
 
           {/* Country flag pills */}
-          <div className="mx-auto mt-10 flex max-w-3xl flex-wrap items-center justify-center gap-3">
+          <div className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-2.5">
             {countries.map((country) => (
               <div
                 key={country.name}
                 className="flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/30"
               >
-                <span className="text-xl">{country.flag}</span>
+                <span className="text-lg">{country.flag}</span>
                 <span className="font-medium text-muted-foreground">{country.name}</span>
               </div>
             ))}
           </div>
 
           {/* Phase 9 feature cards */}
-          <div className="mx-auto mt-16 grid max-w-5xl gap-6 sm:grid-cols-2">
+          <div className="mx-auto mt-14 grid max-w-5xl gap-6 sm:grid-cols-2">
             {phase9Features.map(({ titleKey, descKey, icon: Icon }) => (
               <div
                 key={titleKey}
@@ -399,7 +376,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Testimonials ── */}
-      <section className="bg-muted/30 dark:bg-muted/10 py-24 sm:py-32">
+      <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
@@ -414,7 +391,6 @@ export default function HomePage() {
                 key={person.name}
                 className="group relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
-                {/* Subtle gradient border effect */}
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <div className="relative">
                   <div className="flex gap-1">
@@ -442,7 +418,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* Bottom row: 2 cards, centered */}
+          {/* Bottom row: 2 cards */}
           <div className="mx-auto mt-6 grid max-w-4xl gap-6 sm:grid-cols-2">
             {testimonials.slice(3).map((person) => (
               <div
@@ -570,10 +546,11 @@ export default function HomePage() {
 
       {/* ── CTA ── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 dark:from-emerald-950 dark:via-gray-950 dark:to-teal-950 py-24 sm:py-32">
-        {/* Decorative shapes */}
+        {/* Decorative */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-20 top-10 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
           <div className="absolute -right-10 bottom-10 h-48 w-48 rounded-full bg-teal-400/10 blur-2xl" />
+          <div className="absolute left-1/2 top-0 h-40 w-96 -translate-x-1/2 rounded-full bg-emerald-300/5 blur-3xl" />
         </div>
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
@@ -585,7 +562,7 @@ export default function HomePage() {
           <p className="mt-3 text-sm text-emerald-200/50">
             {t("landing.trustedBy")}
           </p>
-          <div className="mt-10">
+          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link href="/signup">
               <Button
                 size="lg"
@@ -593,6 +570,15 @@ export default function HomePage() {
               >
                 {t("common.startFree")}
                 <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-white/30 bg-transparent text-white hover:bg-white/10 text-base px-8 py-6 font-medium"
+              >
+                {t("auth.login")}
               </Button>
             </Link>
           </div>
@@ -604,17 +590,17 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <div className="flex items-center gap-2.5">
+              <Link href="/" className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 font-bold text-white text-sm shadow-md">
                   VC
                 </div>
                 <span className="text-lg font-bold tracking-tight">{t("common.appName")}</span>
-              </div>
+              </Link>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                 {t("landing.footerTagline")}
               </p>
-              <p className="mt-4 text-sm text-muted-foreground">
-                {t("landing.footerBuiltWith")}
+              <p className="mt-3 flex items-center gap-1 text-sm text-muted-foreground">
+                {t("landing.footerBuiltWith")} <Heart className="inline h-3.5 w-3.5 fill-red-500 text-red-500" />
               </p>
             </div>
             <div>
@@ -622,12 +608,8 @@ export default function HomePage() {
                 {t("landing.footerProduct")}
               </h4>
               <ul className="mt-4 space-y-3 text-sm">
-                <li className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
-                  {t("landing.featuresTitle")}
-                </li>
-                <li className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
-                  {t("landing.pricingTitle")}
-                </li>
+                <li><span className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">{t("landing.featuresTitle")}</span></li>
+                <li><span className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">{t("landing.pricingTitle")}</span></li>
               </ul>
             </div>
             <div>
@@ -635,15 +617,9 @@ export default function HomePage() {
                 {t("landing.footerCompany")}
               </h4>
               <ul className="mt-4 space-y-3 text-sm">
-                <li className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
-                  {t("landing.footerAbout")}
-                </li>
-                <li className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
-                  {t("landing.footerBlog")}
-                </li>
-                <li className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
-                  {t("landing.footerCareers")}
-                </li>
+                <li><Link href="/about" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerAbout")}</Link></li>
+                <li><Link href="/contact" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerBlog")}</Link></li>
+                <li><span className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">{t("landing.footerCareers")}</span></li>
               </ul>
             </div>
             <div>
@@ -651,12 +627,8 @@ export default function HomePage() {
                 {t("landing.footerLegal")}
               </h4>
               <ul className="mt-4 space-y-3 text-sm">
-                <li className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
-                  {t("landing.footerPrivacy")}
-                </li>
-                <li className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">
-                  {t("landing.footerTerms")}
-                </li>
+                <li><Link href="/privacy" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerPrivacy")}</Link></li>
+                <li><Link href="/terms" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerTerms")}</Link></li>
               </ul>
             </div>
           </div>

@@ -37,6 +37,7 @@ import {
   FolderKanban,
   Trophy,
   MessageSquare,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -106,7 +107,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
-  const { isAdmin } = useGroup();
+  const { isAdmin, isPlatformStaff } = useGroup();
 
   const navItems = isAdmin ? adminNavItems : memberNavItems;
   const bottomItems = isAdmin ? adminBottomItems : memberBottomItems;
@@ -191,6 +192,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               </Link>
             );
           })}
+
+          {isPlatformStaff && (
+            <Link
+              href="/admin"
+              onClick={onClose}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-sidebar-foreground/40 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              {t("adminPanel")}
+            </Link>
+          )}
         </div>
       </aside>
     </>

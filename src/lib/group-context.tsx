@@ -48,6 +48,10 @@ interface GroupContextValue {
   groupId: string | null;
   /** Whether user is admin/owner in current group */
   isAdmin: boolean;
+  /** Whether user is a platform staff member */
+  isPlatformStaff: boolean;
+  /** Platform staff role if applicable */
+  platformRole: string | null;
   /** Loading state */
   loading: boolean;
   /** Switch to a different group */
@@ -63,6 +67,8 @@ const GroupContext = createContext<GroupContextValue>({
   currentGroup: null,
   groupId: null,
   isAdmin: false,
+  isPlatformStaff: false,
+  platformRole: null,
   loading: true,
   switchGroup: () => {},
   refresh: async () => {},
@@ -75,6 +81,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const [memberships, setMemberships] = useState<GroupMembership[]>([]);
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPlatformStaff, setIsPlatformStaff] = useState(false);
+  const [platformRole, setPlatformRole] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   const fetchData = useCallback(async () => {
@@ -114,6 +122,18 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(profile as UserProfile);
+      }
+
+      // Check if user is platform staff
+      const { data: staffRecord } = await supabase
+        .from("platform_staff")
+        .select("id, role")
+        .eq("user_id", authUser.id)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (staffRecord) {
+        setIsPlatformStaff(true);
+        setPlatformRole(staffRecord.role);
       }
 
       // Fetch all memberships with group data
@@ -178,6 +198,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         currentGroup,
         groupId: currentGroupId,
         isAdmin,
+        isPlatformStaff,
+        platformRole,
         loading,
         switchGroup,
         refresh,

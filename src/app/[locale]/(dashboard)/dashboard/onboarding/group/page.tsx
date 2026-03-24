@@ -68,6 +68,7 @@ export default function GroupOnboardingPage() {
   const { refresh } = useGroup();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     location: null,
     template: null,
@@ -89,6 +90,7 @@ export default function GroupOnboardingPage() {
   async function handleFinish() {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setError(null);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -167,8 +169,9 @@ export default function GroupOnboardingPage() {
       // Refresh context and go to dashboard
       await refresh();
       router.push("/dashboard");
-    } catch (err) {
-      console.error("Group creation failed:", err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -545,6 +548,13 @@ export default function GroupOnboardingPage() {
           </div>
         )}
       </div>
+
+      {/* Error display */}
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-6">

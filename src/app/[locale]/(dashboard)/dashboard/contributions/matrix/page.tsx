@@ -61,7 +61,7 @@ function useMatrixData(contributionTypeId: string | null) {
       // Fetch all members with profiles and joined_at
       const { data: members, error: memError } = await supabase
         .from("memberships")
-        .select("id, user_id, joined_at, standing, profiles!inner(id, full_name, avatar_url)")
+        .select("id, user_id, joined_at, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
       if (memError) throw memError;

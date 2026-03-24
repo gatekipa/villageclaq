@@ -57,7 +57,7 @@ function useMemberDetail(membershipId: string | null) {
       if (!membershipId) return null;
       const { data, error } = await supabase
         .from("memberships")
-        .select("*, profiles!inner(id, full_name, avatar_url, phone, preferred_locale)")
+        .select("*, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone, preferred_locale)")
         .eq("id", membershipId)
         .single();
       if (error) throw error;

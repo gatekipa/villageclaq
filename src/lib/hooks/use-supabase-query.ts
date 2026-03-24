@@ -50,7 +50,7 @@ export function useMembers() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("memberships")
-        .select("id, user_id, role, standing, display_name, joined_at, profiles!inner(id, full_name, avatar_url, phone)")
+        .select("id, user_id, role, standing, display_name, joined_at, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
       if (error) throw error;
@@ -70,7 +70,7 @@ export function useMember(membershipId: string | null) {
       if (!membershipId) return null;
       const { data, error } = await supabase
         .from("memberships")
-        .select("*, profiles!inner(id, full_name, avatar_url, phone, preferred_locale)")
+        .select("*, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone, preferred_locale)")
         .eq("id", membershipId)
         .single();
       if (error) throw error;
@@ -131,7 +131,7 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
       if (!groupId) return [];
       let q = supabase
         .from("contribution_obligations")
-        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, profiles!inner(id, full_name, avatar_url))")
+        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("group_id", groupId)
         .order("due_date", { ascending: false });
       if (filters?.status) q = q.eq("status", filters.status);
@@ -154,7 +154,7 @@ export function usePayments(limit = 50) {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("payments")
-        .select("*, membership:memberships!inner(id, user_id, profiles!inner(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
+        .select("*, membership:memberships!inner(id, user_id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
         .eq("group_id", groupId)
         .order("recorded_at", { ascending: false })
         .limit(limit);
@@ -244,7 +244,7 @@ export function useEventRsvps(eventId: string | null) {
       if (!eventId) return [];
       const { data, error } = await supabase
         .from("event_rsvps")
-        .select("*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url))")
+        .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event_id", eventId);
       if (error) throw error;
       return data || [];
@@ -262,7 +262,7 @@ export function useEventAttendance(eventId: string | null) {
       if (!eventId) return [];
       const { data, error } = await supabase
         .from("event_attendances")
-        .select("*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url))")
+        .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event_id", eventId);
       if (error) throw error;
       return data || [];
@@ -308,7 +308,7 @@ export function useHostingRosters() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("hosting_rosters")
-        .select("*, hosting_assignments(*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url)))")
+        .select("*, hosting_assignments(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)))")
         .eq("group_id", groupId);
       if (error) throw error;
       return data || [];
@@ -364,7 +364,7 @@ export function useReliefClaims() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("relief_claims")
-        .select("*, relief_plan:relief_plans(id, name, name_fr), membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url))")
+        .select("*, relief_plan:relief_plans(id, name, name_fr), membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("relief_plans.group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -384,7 +384,7 @@ export function useSavingsCycles() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("savings_cycles")
-        .select("*, savings_participants(*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url)))")
+        .select("*, savings_participants(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)))")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -404,7 +404,7 @@ export function useElections() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("elections")
-        .select("*, election_candidates(*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url))), election_options(*)")
+        .select("*, election_candidates(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), election_options(*)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -579,7 +579,7 @@ export function useGroupPositions() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("group_positions")
-        .select("*, position_assignments(*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url))), position_permissions(*)")
+        .select("*, position_assignments(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), position_permissions(*)")
         .eq("group_id", groupId)
         .order("sort_order", { ascending: true });
       if (error) throw error;
@@ -599,7 +599,7 @@ export function useActivityFeed(limit = 30) {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("activity_feed")
-        .select("*, actor:memberships!activity_feed_actor_membership_id_fkey(id, profiles!inner(id, full_name, avatar_url)), reactions:feed_reactions(id, membership_id, reaction)")
+        .select("*, actor:memberships!activity_feed_actor_membership_id_fkey(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), reactions:feed_reactions(id, membership_id, reaction)")
         .eq("group_id", groupId)
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false })
@@ -654,7 +654,7 @@ export function useFines() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("fines")
-        .select("*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url)), rule:fine_rules(id, description, trigger_type)")
+        .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), rule:fine_rules(id, description, trigger_type)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -674,7 +674,7 @@ export function useLoans() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("loan_requests")
-        .select("*, membership:memberships!inner(id, profiles!inner(id, full_name, avatar_url)), repayments:loan_repayments(*)")
+        .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), repayments:loan_repayments(*)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -743,7 +743,7 @@ export function useEventPhotos(eventId?: string | null) {
       if (!eventId) return [];
       const { data, error } = await supabase
         .from("event_photos")
-        .select("*, uploader:memberships!inner(id, profiles!inner(id, full_name, avatar_url))")
+        .select("*, uploader:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event_id", eventId)
         .order("created_at", { ascending: false });
       if (error) throw error;

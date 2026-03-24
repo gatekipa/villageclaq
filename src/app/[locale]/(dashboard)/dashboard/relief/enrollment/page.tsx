@@ -32,7 +32,7 @@ function useReliefEnrollments() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("relief_enrollments")
-        .select("*, plan:relief_plans!inner(id, name, name_fr, group_id, waiting_period_days), membership:memberships!inner(id, user_id, profiles!inner(id, full_name, avatar_url))")
+        .select("*, plan:relief_plans!inner(id, name, name_fr, group_id, waiting_period_days), membership:memberships!inner(id, user_id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("relief_plans.group_id", groupId)
         .order("enrolled_at", { ascending: false });
       if (error) throw error;

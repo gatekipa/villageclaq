@@ -4,7 +4,7 @@ import { useState, Suspense } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { GroupProvider, useGroup } from "@/lib/group-context";
-import { useRouter } from "@/i18n/routing";
+import { useRouter, usePathname } from "@/i18n/routing";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
 import { SupportWidget } from "@/components/ui/support-widget";
@@ -12,9 +12,13 @@ import { SupportWidget } from "@/components/ui/support-widget";
 function DashboardGuard({ children }: { children: React.ReactNode }) {
   const { loading, memberships } = useGroup();
   const router = useRouter();
+  const pathname = usePathname();
 
-  // Still loading — show skeleton
-  if (loading) {
+  // Allow onboarding pages to render without a group
+  const isOnboardingPage = pathname.startsWith("/dashboard/onboarding");
+
+  // Still loading — show skeleton (but not on onboarding pages)
+  if (loading && !isOnboardingPage) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -25,8 +29,8 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // User has no groups — redirect to onboarding
-  if (!loading && memberships.length === 0) {
+  // User has no groups — redirect to onboarding (unless already there)
+  if (!loading && memberships.length === 0 && !isOnboardingPage) {
     router.replace("/dashboard/onboarding/group");
     return null;
   }
@@ -36,6 +40,24 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { memberships, loading } = useGroup();
+  const pathname = usePathname();
+
+  const isOnboardingPage = pathname.startsWith("/dashboard/onboarding");
+
+  // Onboarding pages render WITHOUT sidebar/header (clean full-screen)
+  if (isOnboardingPage || (!loading && memberships.length === 0)) {
+    return (
+      <DashboardGuard>
+        <main className="min-h-screen bg-background">
+          <ScrollToTopOnNav />
+          <Suspense fallback={<DashboardSkeleton />}>
+            {children}
+          </Suspense>
+        </main>
+      </DashboardGuard>
+    );
+  }
 
   return (
     <DashboardGuard>

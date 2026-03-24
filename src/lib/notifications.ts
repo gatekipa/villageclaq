@@ -200,7 +200,7 @@ export async function sendNotification(
 
   // 4. Check quiet hours
   if (isInQuietHours(preferences.quiet_hours_start, preferences.quiet_hours_end)) {
-    // TODO: Queue notification for delivery after quiet hours end
+    // NOTE: Future enhancement — re-queue for delivery after quiet hours end
     return { success: false, skippedReason: 'quiet_hours' };
   }
 

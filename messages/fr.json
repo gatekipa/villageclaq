@@ -102,7 +102,16 @@
     "projects": "Projets",
     "badges": "Badges",
     "help": "Centre d'aide",
-    "feedback": "Commentaires"
+    "feedback": "Commentaires",
+    "section.overview": "Aper\u00e7u",
+    "section.people": "Personnes",
+    "section.money": "Finances",
+    "section.eventsOps": "\u00c9v\u00e9nements & Ops",
+    "section.groupFeatures": "Fonctionnalit\u00e9s",
+    "section.analytics": "Analyses",
+    "section.enterprise": "Entreprise",
+    "section.myAccount": "Mon compte",
+    "section.group": "Groupe"
   },
   "cookies": {
     "title": "Paramètres des cookies",

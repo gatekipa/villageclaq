@@ -69,6 +69,7 @@ export default function GroupOnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [setupProgress, setSetupProgress] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     location: null,
     template: null,
@@ -91,90 +92,128 @@ export default function GroupOnboardingPage() {
     if (isSubmitting) return;
     setIsSubmitting(true);
     setError(null);
-    try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+    setSetupProgress(null);
 
-      const slug = formData.groupName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "group";
-
-      // Map template to group_type
-      const typeMap: Record<string, string> = { savings: "njangi", church: "church", alumni: "alumni", women: "njangi", village: "village", professional: "professional" };
-      const groupType = formData.template ? typeMap[formData.template] || "general" : "general";
-
-      // 1. Create organization
-      const { data: org, error: orgErr } = await supabase.from("organizations").insert({
-        name: formData.groupName,
-        slug: `${slug}-${Date.now()}`,
-        owner_id: user.id,
-      }).select().single();
-      if (orgErr) throw orgErr;
-
-      // 2. Create group
-      const { data: group, error: groupErr } = await supabase.from("groups").insert({
-        organization_id: org.id,
-        name: formData.groupName,
-        slug: `${slug}-${Date.now()}`,
-        group_type: groupType,
-        currency: formData.currency || "XAF",
-        locale: "en",
-        created_by: user.id,
-        settings: {
-          location: formData.location,
-          meeting_schedule: formData.meetingSchedule,
-          savings_circle_label: formData.rotationLabel || "Savings Circle",
-        },
-      }).select().single();
-      if (groupErr) throw groupErr;
-
-      // 3. Create owner membership
-      const { error: memErr } = await supabase.from("memberships").insert({
-        user_id: user.id,
-        group_id: group.id,
-        role: "owner",
-        standing: "good",
-      });
-      if (memErr) throw memErr;
-
-      // 4. Create default positions
-      const positions = [
-        { title: "President", title_fr: "Président", sort_order: 1, is_executive: true, is_default: true },
-        { title: "Vice President", title_fr: "Vice-Président", sort_order: 2, is_executive: true, is_default: true },
-        { title: "Secretary", title_fr: "Secrétaire", sort_order: 3, is_executive: true, is_default: true },
-        { title: "Treasurer", title_fr: "Trésorier", sort_order: 4, is_executive: true, is_default: true },
-        { title: "Financial Secretary", title_fr: "Secrétaire Financier", sort_order: 5, is_executive: true, is_default: true },
-        { title: "Discipline Master", title_fr: "Maître de Discipline", sort_order: 6, is_executive: false, is_default: true },
-      ];
-      await supabase.from("group_positions").insert(positions.map((p) => ({ ...p, group_id: group.id })));
-
-      // 5. Create default join code
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      await supabase.from("join_codes").insert({ group_id: group.id, code, created_by: user.id, is_active: true });
-
-      // 6. Send invitations if provided
-      const validInvites = formData.invites.filter((i) => i.value.trim());
-      if (validInvites.length > 0) {
-        await supabase.from("invitations").insert(
-          validInvites.map((inv) => ({
-            group_id: group.id,
-            invited_by: user.id,
-            email: inv.value.includes("@") ? inv.value : null,
-            phone: !inv.value.includes("@") ? inv.value : null,
-            role: "member",
-            token: crypto.randomUUID(),
-          }))
-        );
-      }
-
-      // Refresh context and go to dashboard
-      await refresh();
-      router.push("/dashboard");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-    } finally {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setError("Not authenticated. Please log in again.");
       setIsSubmitting(false);
+      return;
     }
+
+    const slug = formData.groupName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "group";
+    const typeMap: Record<string, string> = { savings: "njangi", church: "church", alumni: "alumni", women: "njangi", village: "village", professional: "professional" };
+    const groupType = formData.template ? typeMap[formData.template] || "general" : "general";
+
+    // Step 1: Create organization
+    setSetupProgress(t("progressOrg"));
+    const { data: org, error: orgErr } = await supabase.from("organizations").insert({
+      name: formData.groupName,
+      slug: `${slug}-org-${Date.now()}`,
+      owner_id: user.id,
+    }).select().single();
+    if (orgErr) {
+      setError(`Organization: ${orgErr.message}`);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Step 2: Create group
+    setSetupProgress(t("progressGroup"));
+    const { data: group, error: groupErr } = await supabase.from("groups").insert({
+      organization_id: org.id,
+      name: formData.groupName,
+      slug: `${slug}-${Date.now()}`,
+      group_type: groupType,
+      currency: formData.currency || "XAF",
+      locale: "en",
+      created_by: user.id,
+      settings: {
+        location: formData.location,
+        meeting_schedule: formData.meetingSchedule,
+        savings_circle_label: formData.rotationLabel || "Savings Circle",
+      },
+    }).select().single();
+    if (groupErr) {
+      setError(`Group: ${groupErr.message}`);
+      await supabase.from("organizations").delete().eq("id", org.id);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Step 3: Create owner membership
+    setSetupProgress(t("progressMembership"));
+    const { error: memErr } = await supabase.from("memberships").insert({
+      user_id: user.id,
+      group_id: group.id,
+      role: "owner",
+      standing: "good",
+    });
+    if (memErr) {
+      setError(`Membership: ${memErr.message}`);
+      await supabase.from("groups").delete().eq("id", group.id);
+      await supabase.from("organizations").delete().eq("id", org.id);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Step 4: Create default positions (non-fatal)
+    setSetupProgress(t("progressPositions"));
+    const positionRows = [
+      { title: "President", title_fr: "Président", sort_order: 1, is_executive: true, is_default: true },
+      { title: "Vice President", title_fr: "Vice-Président", sort_order: 2, is_executive: true, is_default: true },
+      { title: "Secretary", title_fr: "Secrétaire", sort_order: 3, is_executive: true, is_default: true },
+      { title: "Treasurer", title_fr: "Trésorier", sort_order: 4, is_executive: true, is_default: true },
+      { title: "Financial Secretary", title_fr: "Secrétaire Financier", sort_order: 5, is_executive: true, is_default: true },
+      { title: "Discipline Master", title_fr: "Maître de Discipline", sort_order: 6, is_executive: false, is_default: true },
+    ];
+    const { data: positions } = await supabase.from("group_positions")
+      .insert(positionRows.map((p) => ({ ...p, group_id: group.id })))
+      .select();
+
+    // Step 5: Create permissions for positions (non-fatal)
+    if (positions && positions.length > 0) {
+      setSetupProgress(t("progressPermissions"));
+      const modules = ["members.view", "members.manage", "contributions.view", "contributions.manage", "events.view", "events.manage", "finances.view", "finances.manage", "settings.view", "settings.manage"];
+      const permsToInsert = positions.flatMap((pos) =>
+        modules
+          .filter((perm) => pos.is_executive || perm.endsWith(".view"))
+          .map((perm) => ({ position_id: pos.id, permission: perm }))
+      );
+      await supabase.from("position_permissions").insert(permsToInsert);
+    }
+
+    // Step 6: Create join code (non-fatal)
+    setSetupProgress(t("progressJoinCode"));
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    await supabase.from("join_codes").insert({
+      group_id: group.id,
+      code,
+      created_by: user.id,
+      is_active: true,
+    });
+
+    // Step 7: Send invitations if provided (non-fatal)
+    const validInvites = formData.invites.filter((i) => i.value.trim());
+    if (validInvites.length > 0) {
+      await supabase.from("invitations").insert(
+        validInvites.map((inv) => ({
+          group_id: group.id,
+          invited_by: user.id,
+          email: inv.value.includes("@") ? inv.value : null,
+          phone: !inv.value.includes("@") ? inv.value : null,
+          role: "member" as const,
+          token: crypto.randomUUID(),
+        }))
+      );
+    }
+
+    // Success — refresh context and navigate to dashboard
+    setSetupProgress(t("progressDone"));
+    await refresh();
+    router.push("/dashboard");
+    setIsSubmitting(false);
   }
 
   const addInviteRow = () => {
@@ -592,7 +631,7 @@ export default function GroupOnboardingPage() {
             ) : (
               <Check className="size-4" />
             )}
-            {isSubmitting ? t("next") : t("finish")}
+            {isSubmitting ? (setupProgress || t("next")) : t("finish")}
           </Button>
         )}
       </div>

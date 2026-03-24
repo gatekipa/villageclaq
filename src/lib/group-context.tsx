@@ -76,55 +76,71 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
 
   const fetchData = useCallback(async () => {
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // Get current auth user
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) {
+      // Get current auth user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch profile — if it doesn't exist (trigger failed), create it
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, full_name, display_name, avatar_url, phone, preferred_locale, preferred_theme")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      if (profileError) {
+        // Profile query failed — still set loading false so UI can show
+        setLoading(false);
+        return;
+      }
+
+      if (!profile) {
+        // Profile doesn't exist — handle_new_user trigger may have failed
+        // Create profile as fallback
+        const { data: newProfile } = await supabase
+          .from("profiles")
+          .insert({ id: authUser.id, full_name: "" })
+          .select("id, full_name, display_name, avatar_url, phone, preferred_locale, preferred_theme")
+          .single();
+        if (newProfile) {
+          setUser(newProfile as UserProfile);
+        }
+      } else {
+        setUser(profile as UserProfile);
+      }
+
+      // Fetch all memberships with group data
+      const { data: membershipData } = await supabase
+        .from("memberships")
+        .select(`
+          id, group_id, role, standing, display_name, joined_at,
+          group:groups!inner(id, name, slug, group_type, currency, locale, logo_url, settings)
+        `)
+        .eq("user_id", authUser.id)
+        .order("joined_at", { ascending: false });
+
+      if (membershipData) {
+        const normalized = membershipData.map((m: Record<string, unknown>) => ({
+          ...m,
+          group: Array.isArray(m.group) ? m.group[0] : m.group,
+        })) as GroupMembership[];
+        setMemberships(normalized);
+
+        const urlGroupId = searchParams.get("group");
+        const storedGroupId = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+        const targetGroupId = urlGroupId || storedGroupId || normalized[0]?.group_id || null;
+
+        const valid = normalized.find((m) => m.group_id === targetGroupId);
+        setCurrentGroupId(valid ? targetGroupId : normalized[0]?.group_id || null);
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Fetch profile
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, full_name, display_name, avatar_url, phone, preferred_locale, preferred_theme")
-      .eq("id", authUser.id)
-      .single();
-
-    if (profile) {
-      setUser(profile as UserProfile);
-    }
-
-    // Fetch all memberships with group data
-    const { data: membershipData } = await supabase
-      .from("memberships")
-      .select(`
-        id, group_id, role, standing, display_name, joined_at,
-        group:groups!inner(id, name, slug, group_type, currency, locale, logo_url, settings)
-      `)
-      .eq("user_id", authUser.id)
-      .order("joined_at", { ascending: false });
-
-    if (membershipData) {
-      // Normalize: Supabase returns group as object (not array) because of !inner
-      const normalized = membershipData.map((m: Record<string, unknown>) => ({
-        ...m,
-        group: Array.isArray(m.group) ? m.group[0] : m.group,
-      })) as GroupMembership[];
-      setMemberships(normalized);
-
-      // Determine current group: URL param > localStorage > first membership
-      const urlGroupId = searchParams.get("group");
-      const storedGroupId = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-      const targetGroupId = urlGroupId || storedGroupId || normalized[0]?.group_id || null;
-
-      // Validate the target exists in memberships
-      const valid = normalized.find((m) => m.group_id === targetGroupId);
-      setCurrentGroupId(valid ? targetGroupId : normalized[0]?.group_id || null);
-    }
-
-    setLoading(false);
   }, [searchParams]);
 
   useEffect(() => {

@@ -2,12 +2,20 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -15,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Search, UserPlus, UserMinus, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Users, Search, UserPlus, UserMinus, CheckCircle2, Clock, AlertTriangle, Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
-import { useReliefPlans } from "@/lib/hooks/use-supabase-query";
+import { useReliefPlans, useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
@@ -53,10 +61,56 @@ function getInitials(name: string) {
 
 export default function ReliefEnrollmentPage() {
   const t = useTranslations();
+  const { groupId } = useGroup();
+  const queryClient = useQueryClient();
   const { data: enrollments, isLoading, error, refetch } = useReliefEnrollments();
   const { data: plans } = useReliefPlans();
+  const { data: membersList } = useMembers();
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState("all");
+
+  // Enroll dialog state
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [enrollPlanId, setEnrollPlanId] = useState("");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [enrollSaving, setEnrollSaving] = useState(false);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+
+  function resetEnrollForm() {
+    setEnrollPlanId("");
+    setSelectedMemberIds([]);
+    setEnrollError(null);
+  }
+
+  function toggleMemberSelection(id: string) {
+    setSelectedMemberIds((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
+  }
+
+  async function handleEnrollMembers() {
+    if (!enrollPlanId || selectedMemberIds.length === 0) return;
+    setEnrollSaving(true);
+    setEnrollError(null);
+    try {
+      const supabase = createClient();
+      const rows = selectedMemberIds.map((membershipId) => ({
+        plan_id: enrollPlanId,
+        membership_id: membershipId,
+        is_active: true,
+        contribution_status: "up_to_date",
+      }));
+      const { error: insertError } = await supabase.from("relief_enrollments").insert(rows);
+      if (insertError) throw insertError;
+      await queryClient.invalidateQueries({ queryKey: ["relief-enrollments", groupId] });
+      setEnrollDialogOpen(false);
+      resetEnrollForm();
+    } catch (err) {
+      setEnrollError((err as Error).message);
+    } finally {
+      setEnrollSaving(false);
+    }
+  }
 
   if (isLoading) return <AdminGuard><ListSkeleton rows={6} /></AdminGuard>;
   if (error) return <AdminGuard><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></AdminGuard>;
@@ -100,7 +154,7 @@ export default function ReliefEnrollmentPage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("relief.enrollment")}</h1>
           <p className="text-muted-foreground">{t("relief.subtitle")}</p>
         </div>
-        <Button>
+        <Button onClick={() => setEnrollDialogOpen(true)}>
           <UserPlus className="mr-2 h-4 w-4" />{t("relief.enrollMember")}
         </Button>
       </div>
@@ -230,6 +284,64 @@ export default function ReliefEnrollmentPage() {
           </CardContent>
         </Card>
       )}
+      {/* Enroll Members Dialog */}
+      <Dialog open={enrollDialogOpen} onOpenChange={(open) => { setEnrollDialogOpen(open); if (!open) resetEnrollForm(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("relief.enrollMember")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("relief.selectPlan")}</Label>
+              <Select value={enrollPlanId} onValueChange={(v) => setEnrollPlanId(v || "")}>
+                <SelectTrigger><SelectValue placeholder={t("relief.selectPlan")} /></SelectTrigger>
+                <SelectContent>
+                  {(plans || []).map((plan: Record<string, unknown>) => (
+                    <SelectItem key={plan.id as string} value={plan.id as string}>
+                      {plan.name as string}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("relief.selectMembers")}</Label>
+              <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
+                {(membersList || []).map((m: Record<string, unknown>) => {
+                  const mId = m.id as string;
+                  const profile = m.profile as { full_name?: string } | undefined;
+                  const name = (m.display_name as string) || profile?.full_name || "—";
+                  const isSelected = selectedMemberIds.includes(mId);
+                  return (
+                    <button
+                      key={mId}
+                      type="button"
+                      onClick={() => toggleMemberSelection(mId)}
+                      className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors ${
+                        isSelected
+                          ? "bg-primary/10 text-primary border border-primary/30"
+                          : "hover:bg-muted border border-transparent"
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedMemberIds.length} {t("relief.selectedCount")}
+              </p>
+            </div>
+            {enrollError && <p className="text-sm text-destructive">{enrollError}</p>}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleEnrollMembers} disabled={enrollSaving || !enrollPlanId || selectedMemberIds.length === 0}>
+              {enrollSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("relief.enrollMember")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div></AdminGuard>
   );
 }

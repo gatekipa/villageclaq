@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   Mail,
@@ -40,7 +41,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
@@ -131,8 +134,12 @@ function formatDate(dateStr: string) {
 
 export default function AnnouncementsPage() {
   const t = useTranslations("communications");
+  const { groupId, user } = useGroup();
+  const queryClient = useQueryClient();
   const { data: announcements, isLoading, error, refetch } = useAnnouncements();
   const { data: membersList } = useMembers();
+  const [saving, setSaving] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [titleEn, setTitleEn] = useState("");
@@ -185,9 +192,42 @@ export default function AnnouncementsPage() {
     setScheduledDate("");
   }
 
-  function handleSend() {
-    setDialogOpen(false);
-    resetForm();
+  async function handleSend(asDraft = false) {
+    if (!titleEn.trim() || !groupId || !user) return;
+    setSaving(true);
+    setMutationError(null);
+    try {
+      const supabase = createClient();
+      const activeChannels = Object.entries(channels)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+      const audienceData =
+        audience === "all"
+          ? { type: "all" }
+          : audience === "roles"
+          ? { type: "roles", roles: selectedRoles }
+          : { type: "members", members: selectedMembers };
+      const { error: insertError } = await supabase.from("announcements").insert({
+        group_id: groupId,
+        title: titleEn,
+        title_fr: titleFr || null,
+        content: contentEn,
+        content_fr: contentFr || null,
+        channels: activeChannels,
+        audience: audienceData,
+        sent_at: asDraft ? null : schedule === "now" ? new Date().toISOString() : null,
+        scheduled_at: !asDraft && schedule === "later" && scheduledDate ? new Date(scheduledDate).toISOString() : null,
+        created_by: user.id,
+      });
+      if (insertError) throw insertError;
+      await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+      setDialogOpen(false);
+      resetForm();
+    } catch (err) {
+      setMutationError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   const memberNames = (membersList || []).map((m: Record<string, unknown>) => {
@@ -419,10 +459,18 @@ export default function AnnouncementsPage() {
               </div>
             </div>
 
-            <DialogFooter>
-              <Button onClick={handleSend}>
-                <Send className="size-4" data-icon="inline-start" />
-                {t("sendAnnouncement")}
+            {mutationError && (
+              <p className="text-sm text-destructive">{mutationError}</p>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => handleSend(true)} disabled={saving || !titleEn.trim()}>
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+                <span className="ml-1">{t("saveDraft")}</span>
+              </Button>
+              <Button onClick={() => handleSend(false)} disabled={saving || !titleEn.trim()}>
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                <span className="ml-1">{t("sendAnnouncement")}</span>
               </Button>
             </DialogFooter>
           </DialogContent>

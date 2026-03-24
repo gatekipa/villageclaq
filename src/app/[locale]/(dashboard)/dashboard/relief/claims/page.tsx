@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,9 @@ import {
   DollarSign,
   Eye,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import { useReliefClaims, useReliefPlans } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
@@ -55,7 +58,8 @@ function formatCurrency(amount: number, currency = "XAF") {
 
 export default function ReliefClaimsPage() {
   const t = useTranslations();
-  const { currentGroup } = useGroup();
+  const { currentGroup, groupId, currentMembership } = useGroup();
+  const queryClient = useQueryClient();
   const { data: claims, isLoading, error, refetch } = useReliefClaims();
   const { data: plans } = useReliefPlans();
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
@@ -63,6 +67,47 @@ export default function ReliefClaimsPage() {
   const [selectedClaim, setSelectedClaim] = useState<Record<string, unknown> | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+
+  // Claim form state
+  const [claimPlanId, setClaimPlanId] = useState("");
+  const [claimEventType, setClaimEventType] = useState<string>("");
+  const [claimDescription, setClaimDescription] = useState("");
+  const [claimAmount, setClaimAmount] = useState("");
+  const [claimSaving, setClaimSaving] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+
+  function resetClaimForm() {
+    setClaimPlanId("");
+    setClaimEventType("");
+    setClaimDescription("");
+    setClaimAmount("");
+    setClaimError(null);
+  }
+
+  async function handleSubmitClaim() {
+    if (!claimPlanId || !currentMembership) return;
+    setClaimSaving(true);
+    setClaimError(null);
+    try {
+      const supabase = createClient();
+      const { error: insertError } = await supabase.from("relief_claims").insert({
+        plan_id: claimPlanId,
+        membership_id: currentMembership.id,
+        event_type: claimEventType || null,
+        description: claimDescription || null,
+        amount: claimAmount ? Number(claimAmount) : null,
+        status: "submitted",
+      });
+      if (insertError) throw insertError;
+      await queryClient.invalidateQueries({ queryKey: ["relief-claims", groupId] });
+      setShowSubmitDialog(false);
+      resetClaimForm();
+    } catch (err) {
+      setClaimError((err as Error).message);
+    } finally {
+      setClaimSaving(false);
+    }
+  }
 
   if (isLoading) return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
   if (error) return <AdminGuard><ErrorState message={error.message} onRetry={() => refetch()} /></AdminGuard>;
@@ -169,13 +214,13 @@ export default function ReliefClaimsPage() {
       </div>
 
       {/* Submit Claim Dialog */}
-      <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+      <Dialog open={showSubmitDialog} onOpenChange={(open) => { setShowSubmitDialog(open); if (!open) resetClaimForm(); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{t("relief.submitClaim")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>{t("relief.selectPlan")}</Label>
-              <Select>
+              <Select value={claimPlanId} onValueChange={(v) => setClaimPlanId(v || "")}>
                 <SelectTrigger><SelectValue placeholder={t("relief.selectPlan")} /></SelectTrigger>
                 <SelectContent>
                   {(plans || []).map((plan: Record<string, unknown>) => (
@@ -188,7 +233,7 @@ export default function ReliefClaimsPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("relief.whatHappened")}</Label>
-              <Select>
+              <Select value={claimEventType} onValueChange={(v) => setClaimEventType(v || "")}>
                 <SelectTrigger><SelectValue placeholder={t("relief.whatHappened")} /></SelectTrigger>
                 <SelectContent>
                   {(["death", "illness", "wedding", "childbirth", "natural_disaster", "other"] as EventType[]).map((type) => (
@@ -199,7 +244,11 @@ export default function ReliefClaimsPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("relief.tellUsBriefly")}</Label>
-              <Textarea placeholder={t("relief.tellUsBrieflyPlaceholder")} rows={3} />
+              <Textarea value={claimDescription} onChange={(e) => setClaimDescription(e.target.value)} placeholder={t("relief.tellUsBrieflyPlaceholder")} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("relief.payoutAmount")}</Label>
+              <Input type="number" min={0} value={claimAmount} onChange={(e) => setClaimAmount(e.target.value)} placeholder="0" />
             </div>
             <div className="space-y-2">
               <Label>{t("relief.attachDocument")}</Label>
@@ -208,10 +257,14 @@ export default function ReliefClaimsPage() {
                 <span className="text-sm text-muted-foreground">{t("relief.attachOptional")}</span>
               </div>
             </div>
+            {claimError && <p className="text-sm text-destructive">{claimError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowSubmitDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={() => setShowSubmitDialog(false)}>{t("relief.submitClaim")}</Button>
+            <Button onClick={handleSubmitClaim} disabled={claimSaving || !claimPlanId}>
+              {claimSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("relief.submitClaim")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

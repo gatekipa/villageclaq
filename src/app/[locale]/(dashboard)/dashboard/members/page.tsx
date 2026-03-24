@@ -2,12 +2,21 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Users,
   UserPlus,
@@ -16,9 +25,11 @@ import {
   ShieldCheck,
   Crown,
   Calendar,
+  Loader2,
 } from "lucide-react";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 type Standing = "good" | "warning" | "suspended" | "banned";
@@ -40,9 +51,52 @@ const roleConfig: Record<string, { icon: typeof Shield; color: string }> = {
 export default function MembersPage() {
   const t = useTranslations("members");
   const router = useRouter();
-  const { isAdmin } = useGroup();
+  const { isAdmin, groupId } = useGroup();
+  const queryClient = useQueryClient();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
   const [search, setSearch] = useState("");
+
+  // Add member dialog state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newFullName, setNewFullName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newRole, setNewRole] = useState<"member" | "admin" | "moderator">("member");
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  function resetAddForm() {
+    setNewFullName("");
+    setNewEmail("");
+    setNewPhone("");
+    setNewRole("member");
+    setAddError(null);
+  }
+
+  async function handleAddMember() {
+    if (!newFullName.trim() || !groupId) return;
+    setAddSaving(true);
+    setAddError(null);
+    try {
+      const supabase = createClient();
+      const { error: insertError } = await supabase.from("memberships").insert({
+        group_id: groupId,
+        role: newRole,
+        standing: "good",
+        display_name: newFullName.trim(),
+        is_proxy: true,
+        joined_at: new Date().toISOString(),
+      });
+      if (insertError) throw insertError;
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      setAddDialogOpen(false);
+      resetAddForm();
+    } catch (err) {
+      setAddError((err as Error).message);
+    } finally {
+      setAddSaving(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     if (!members) return [];
@@ -106,12 +160,18 @@ export default function MembersPage() {
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         {isAdmin && (
-          <Link href="/dashboard/invitations">
-            <Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
               <UserPlus className="mr-2 h-4 w-4" />
-              {t("inviteMember")}
+              {t("addMember")}
             </Button>
-          </Link>
+            <Link href="/dashboard/invitations">
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                {t("inviteMember")}
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 
@@ -225,6 +285,49 @@ export default function MembersPage() {
           })}
         </div>
       )}
+
+      {/* Add Member Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) resetAddForm(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("addMember")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("displayName")}</Label>
+              <Input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder={t("displayName")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("email")}</Label>
+              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder={t("email")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("phone")}</Label>
+              <Input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder={t("phone")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("role")}</Label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value as "member" | "admin" | "moderator")}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
+                <option value="moderator">Moderator</option>
+              </select>
+            </div>
+            <p className="text-xs text-muted-foreground">{t("proxyHint")}</p>
+            {addError && <p className="text-sm text-destructive">{addError}</p>}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleAddMember} disabled={addSaving || !newFullName.trim()}>
+              {addSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("addMember")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

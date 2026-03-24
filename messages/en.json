@@ -365,7 +365,9 @@
     "meetingsAttended": "Meetings Attended",
     "contributionsPaid": "Contributions Paid",
     "outstandingBalance": "Outstanding Balance",
-    "memberSummary": "Member Summary"
+    "memberSummary": "Member Summary",
+    "proxyHint": "This creates a proxy member record. When they sign up and join via invite code, their account can be linked later.",
+    "fullName": "Full Name"
   },
   "settings": {
     "title": "Group Settings",
@@ -419,7 +421,8 @@
     "positionHolder": "Current holder",
     "vacant": "Vacant",
     "groupInfo": "Group Information",
-    "groupInfoDesc": "Basic details about your group"
+    "groupInfoDesc": "Basic details about your group",
+    "saveSettings": "Save Settings"
   },
   "contributions": {
     "title": "Contributions",
@@ -885,7 +888,9 @@
     "claimsThisYear": "Claims This Year",
     "selectPlan": "Select plan",
     "payoutMethod": "Payout Method",
-    "payoutReference": "Reference Number"
+    "payoutReference": "Reference Number",
+    "selectMembers": "Select Members",
+    "selectedCount": "selected"
   },
   "myDashboard": {
     "title": "My Dashboard",
@@ -1585,6 +1590,7 @@
     "noAnnouncementsDesc": "Create your first announcement to reach group members",
     "announcementSent": "Announcement sent successfully",
     "announcementScheduled": "Announcement scheduled",
+    "saveDraft": "Save Draft",
     "draft": "Draft",
     "scheduled": "Scheduled",
     "calendarSync": "Calendar Sync",

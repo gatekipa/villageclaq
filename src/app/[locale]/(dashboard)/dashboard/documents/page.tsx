@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   FileText,
   Image,
@@ -14,10 +24,14 @@ import {
   Eye,
   Download,
   FolderOpen,
+  Plus,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDocuments } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 type CategoryKey =
@@ -73,11 +87,82 @@ function formatDate(dateStr: string) {
   }
 }
 
+const CATEGORY_OPTIONS: CategoryKey[] = ["constitution", "financial", "certificate", "meeting", "photo", "other"];
+
 export default function DocumentVaultPage() {
   const t = useTranslations("documentVault");
-  useGroup();
+  const { groupId, user, isAdmin } = useGroup();
+  const queryClient = useQueryClient();
   const { data: documents, isLoading, isError, error, refetch } = useDocuments();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Upload dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [docTitle, setDocTitle] = useState("");
+  const [docCategory, setDocCategory] = useState<CategoryKey>("other");
+  const [docDescription, setDocDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function resetUploadForm() {
+    setDocTitle("");
+    setDocCategory("other");
+    setDocDescription("");
+    setSelectedFile(null);
+    setMutationError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleUpload() {
+    if (!docTitle.trim() || !groupId || !user) return;
+    setSaving(true);
+    setMutationError(null);
+    try {
+      const supabase = createClient();
+      let fileUrl = "";
+      let fileType = "";
+      let fileSize = 0;
+
+      if (selectedFile) {
+        fileType = selectedFile.name.split(".").pop()?.toUpperCase() || "";
+        fileSize = selectedFile.size;
+        const filePath = `${groupId}/${Date.now()}-${selectedFile.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("group-documents")
+          .upload(filePath, selectedFile);
+        if (uploadError) {
+          // Storage bucket might not exist — continue with empty file_url
+          console.warn("Storage upload failed:", uploadError.message);
+        } else {
+          const { data: urlData } = supabase.storage
+            .from("group-documents")
+            .getPublicUrl(filePath);
+          fileUrl = urlData?.publicUrl || "";
+        }
+      }
+
+      const { error: insertError } = await supabase.from("documents").insert({
+        group_id: groupId,
+        title: docTitle,
+        category: docCategory,
+        description: docDescription || null,
+        file_url: fileUrl,
+        file_type: fileType,
+        file_size: fileSize,
+        uploaded_by: user.id,
+      });
+      if (insertError) throw insertError;
+      await queryClient.invalidateQueries({ queryKey: ["documents", groupId] });
+      setDialogOpen(false);
+      resetUploadForm();
+    } catch (err) {
+      setMutationError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     if (!documents) return [];
@@ -100,7 +185,7 @@ export default function DocumentVaultPage() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      {/* Search */}
+      {/* Search + Upload */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -111,7 +196,67 @@ export default function DocumentVaultPage() {
             className="pl-9"
           />
         </div>
+        {isAdmin && (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("uploadDocument")}
+          </Button>
+        )}
       </div>
+
+      {/* Upload Document Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetUploadForm(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("uploadDocument")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("documentTitle")}</Label>
+              <Input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} placeholder={t("documentTitle")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("category")}</Label>
+              <select
+                value={docCategory}
+                onChange={(e) => setDocCategory(e.target.value as CategoryKey)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {t(`categories.${cat}` as Parameters<typeof t>[0])}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("description")}</Label>
+              <Textarea value={docDescription} onChange={(e) => setDocDescription(e.target.value)} placeholder={t("description")} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("selectFile")}</Label>
+              <div className="flex items-center gap-2 rounded-lg border border-dashed p-4">
+                <Upload className="h-5 w-5 text-muted-foreground" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  className="text-sm"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">{t("supportedFormats")}</p>
+            </div>
+            {mutationError && <p className="text-sm text-destructive">{mutationError}</p>}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleUpload} disabled={saving || !docTitle.trim()}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+              {t("upload")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Document Grid or Empty State */}
       {filtered.length === 0 ? (

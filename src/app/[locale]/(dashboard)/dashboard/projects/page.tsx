@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,10 @@ import {
   Circle,
   Receipt,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useProjects } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import {
   CardGridSkeleton,
   EmptyState,
@@ -76,10 +79,13 @@ function formatDate(dateStr: string) {
 
 export default function ProjectsPage() {
   const t = useTranslations("projects");
-  const { isAdmin, currentGroup } = useGroup();
+  const { isAdmin, currentGroup, groupId, user } = useGroup();
+  const queryClient = useQueryClient();
   const { data: projects, isLoading, isError, error, refetch } = useProjects();
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -90,6 +96,44 @@ export default function ProjectsPage() {
     currentGroup?.currency || "XAF"
   );
   const [formDeadline, setFormDeadline] = useState("");
+
+  function resetForm() {
+    setFormName("");
+    setFormNameFr("");
+    setFormDescription("");
+    setFormTarget("");
+    setFormCurrency(currentGroup?.currency || "XAF");
+    setFormDeadline("");
+    setMutationError(null);
+  }
+
+  async function handleCreateProject() {
+    if (!formName.trim() || !groupId || !user) return;
+    setSaving(true);
+    setMutationError(null);
+    try {
+      const supabase = createClient();
+      const { error: insertError } = await supabase.from("projects").insert({
+        group_id: groupId,
+        name: formName.trim(),
+        name_fr: formNameFr.trim() || null,
+        description: formDescription.trim() || null,
+        target_amount: formTarget ? Number(formTarget) : null,
+        currency: formCurrency,
+        deadline: formDeadline || null,
+        status: "planning",
+        created_by: user.id,
+      });
+      if (insertError) throw insertError;
+      await queryClient.invalidateQueries({ queryKey: ["projects", groupId] });
+      setDialogOpen(false);
+      resetForm();
+    } catch (err) {
+      setMutationError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const stats = useMemo(() => {
     if (!projects || projects.length === 0)
@@ -209,7 +253,9 @@ export default function ProjectsPage() {
                     onChange={(e) => setFormDeadline(e.target.value)}
                   />
                 </div>
-                <Button className="w-full" disabled={!formName.trim()}>
+                {mutationError && <p className="text-sm text-destructive">{mutationError}</p>}
+                <Button className="w-full" disabled={saving || !formName.trim()} onClick={handleCreateProject}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {t("createProject")}
                 </Button>
               </div>

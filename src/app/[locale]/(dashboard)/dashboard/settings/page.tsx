@@ -1,8 +1,14 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -10,9 +16,12 @@ import {
   Shield,
   Users,
   Settings2,
+  Loader2,
+  Save,
 } from "lucide-react";
 import { useGroupSettings, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
@@ -27,12 +36,60 @@ function getInitials(name: string) {
 
 export default function GroupSettingsPage() {
   const t = useTranslations("settings");
-  const { isAdmin } = useGroup();
+  const { isAdmin, groupId } = useGroup();
+  const queryClient = useQueryClient();
   const { data: group, isLoading: groupLoading, isError: groupError, error: groupErr, refetch: refetchGroup } = useGroupSettings();
   const { data: positions, isLoading: posLoading, isError: posError, error: posErr, refetch: refetchPos } = useGroupPositions();
 
   const isLoading = groupLoading || posLoading;
   const isError = groupError || posError;
+
+  // Editable form state
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCurrency, setEditCurrency] = useState("");
+  const [editLocale, setEditLocale] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Populate form when data loads
+  useEffect(() => {
+    if (group) {
+      const g = group as Record<string, unknown>;
+      setEditName((g.name as string) || "");
+      setEditDescription((g.description as string) || "");
+      setEditCurrency((g.currency as string) || "");
+      setEditLocale((g.locale as string) || "");
+    }
+  }, [group]);
+
+  async function handleSaveSettings() {
+    if (!groupId) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+    try {
+      const supabase = createClient();
+      const { error: updateError } = await supabase
+        .from("groups")
+        .update({
+          name: editName.trim(),
+          description: editDescription.trim() || null,
+          currency: editCurrency,
+          locale: editLocale,
+        })
+        .eq("id", groupId);
+      if (updateError) throw updateError;
+      await queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setSaveError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (isLoading) {
     return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
@@ -92,9 +149,18 @@ export default function GroupSettingsPage() {
                         getInitials((groupData.name as string) || "G")
                       )}
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{groupData.name as string}</h3>
-                      <p className="text-sm text-muted-foreground">{(groupData.group_type as string) || "general"}</p>
+                    <div className="flex-1">
+                      {isAdmin ? (
+                        <div className="space-y-1">
+                          <Label className="text-xs">{t("groupName")}</Label>
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                        </div>
+                      ) : (
+                        <>
+                          <h3 className="text-lg font-semibold">{groupData.name as string}</h3>
+                          <p className="text-sm text-muted-foreground">{(groupData.group_type as string) || "general"}</p>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -105,12 +171,40 @@ export default function GroupSettingsPage() {
                       <p className="mt-1 text-sm font-medium capitalize">{(groupData.group_type as string) || "—"}</p>
                     </div>
                     <div className="rounded-lg border p-3">
-                      <p className="text-xs font-medium text-muted-foreground">{t("currency")}</p>
-                      <p className="mt-1 text-sm font-medium">{(groupData.currency as string) || "—"}</p>
+                      <Label className="text-xs font-medium text-muted-foreground">{t("currency")}</Label>
+                      {isAdmin ? (
+                        <select
+                          value={editCurrency}
+                          onChange={(e) => setEditCurrency(e.target.value)}
+                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <option value="XAF">XAF</option>
+                          <option value="XOF">XOF</option>
+                          <option value="NGN">NGN</option>
+                          <option value="KES">KES</option>
+                          <option value="GHS">GHS</option>
+                          <option value="USD">USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                        </select>
+                      ) : (
+                        <p className="mt-1 text-sm font-medium">{(groupData.currency as string) || "—"}</p>
+                      )}
                     </div>
                     <div className="rounded-lg border p-3">
-                      <p className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</p>
-                      <p className="mt-1 text-sm font-medium">{(groupData.locale as string) || "—"}</p>
+                      <Label className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</Label>
+                      {isAdmin ? (
+                        <select
+                          value={editLocale}
+                          onChange={(e) => setEditLocale(e.target.value)}
+                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <option value="en">English</option>
+                          <option value="fr">Francais</option>
+                        </select>
+                      ) : (
+                        <p className="mt-1 text-sm font-medium">{(groupData.locale as string) || "—"}</p>
+                      )}
                     </div>
                     <div className="rounded-lg border p-3">
                       <p className="text-xs font-medium text-muted-foreground">{t("status")}</p>
@@ -119,12 +213,26 @@ export default function GroupSettingsPage() {
                   </div>
 
                   {/* Description */}
-                  {(groupData.description as string) ? (
-                    <div className="rounded-lg border p-3">
-                      <p className="text-xs font-medium text-muted-foreground">{t("groupDescription")}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{groupData.description as string}</p>
+                  <div className="rounded-lg border p-3">
+                    <Label className="text-xs font-medium text-muted-foreground">{t("groupDescription")}</Label>
+                    {isAdmin ? (
+                      <Textarea className="mt-1" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
+                    ) : (
+                      <p className="mt-1 text-sm text-muted-foreground">{(groupData.description as string) || "—"}</p>
+                    )}
+                  </div>
+
+                  {/* Save Button */}
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+                      {saveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("saved")}</p>}
+                      <Button onClick={handleSaveSettings} disabled={saving || !editName.trim()}>
+                        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {t("saveSettings")}
+                      </Button>
                     </div>
-                  ) : null}
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">—</p>

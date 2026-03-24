@@ -365,7 +365,9 @@
     "meetingsAttended": "Réunions assistées",
     "contributionsPaid": "Cotisations payées",
     "outstandingBalance": "Solde impayé",
-    "memberSummary": "Résumé du membre"
+    "memberSummary": "Résumé du membre",
+    "proxyHint": "Ceci crée un membre par procuration. Quand la personne s'inscrit et rejoint via le code d'invitation, son compte pourra être lié ultérieurement.",
+    "fullName": "Nom complet"
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -419,7 +421,8 @@
     "positionHolder": "Titulaire actuel",
     "vacant": "Vacant",
     "groupInfo": "Informations du groupe",
-    "groupInfoDesc": "Détails de base sur votre groupe"
+    "groupInfoDesc": "Détails de base sur votre groupe",
+    "saveSettings": "Enregistrer les paramètres"
   },
   "contributions": {
     "title": "Cotisations",
@@ -885,7 +888,9 @@
     "claimsThisYear": "Demandes cette année",
     "selectPlan": "Sélectionner un plan",
     "payoutMethod": "Méthode de versement",
-    "payoutReference": "Numéro de référence"
+    "payoutReference": "Numéro de référence",
+    "selectMembers": "Sélectionner les membres",
+    "selectedCount": "sélectionné(s)"
   },
   "myDashboard": {
     "title": "Bienvenue, {name}",
@@ -1542,6 +1547,7 @@
     "noAnnouncementsDesc": "Créez votre première annonce pour joindre les membres du groupe",
     "announcementSent": "Annonce envoyée avec succès",
     "announcementScheduled": "Annonce planifiée",
+    "saveDraft": "Enregistrer le brouillon",
     "draft": "Brouillon",
     "scheduled": "Planifié",
     "calendarSync": "Synchro calendrier",

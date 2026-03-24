@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
@@ -8,23 +8,25 @@ import { useGroup } from "@/lib/group-context";
 import {
   Globe,
   Plane,
-  PiggyBank,
-  Church,
+  RefreshCw,
   GraduationCap,
-  Users,
-  Building2,
+  Home,
+  Heart,
   Briefcase,
-  HelpCircle,
+  Users,
+  Smile,
+  MoreHorizontal,
   Plus,
   ArrowLeft,
   ArrowRight,
   Check,
+  Camera,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -34,16 +36,17 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-const TOTAL_STEPS = 5;
+/* ───────────────────────── types ───────────────────────── */
 
 type GroupLocation = "africa" | "diaspora" | "both" | null;
 type GroupTemplate =
   | "savings"
-  | "church"
   | "alumni"
-  | "women"
   | "village"
+  | "church"
   | "professional"
+  | "family"
+  | "social"
   | "other"
   | null;
 
@@ -52,42 +55,226 @@ interface InviteRow {
   value: string;
 }
 
-interface FormData {
-  location: GroupLocation;
-  template: GroupTemplate;
-  groupName: string;
-  currency: string;
-  meetingSchedule: string;
-  rotationLabel: string;
-  invites: InviteRow[];
-}
+/* ───────────────────────── country / currency maps ───────────────────────── */
+
+const AFRICA_COUNTRIES = [
+  { value: "CM", label: "Cameroon", currency: "XAF" },
+  { value: "NG", label: "Nigeria", currency: "NGN" },
+  { value: "GH", label: "Ghana", currency: "GHS" },
+  { value: "KE", label: "Kenya", currency: "KES" },
+  { value: "ZA", label: "South Africa", currency: "ZAR" },
+  { value: "SN", label: "Senegal", currency: "XOF" },
+  { value: "CI", label: "Cote d'Ivoire", currency: "XOF" },
+  { value: "CD", label: "DR Congo", currency: "CDF" },
+  { value: "ET", label: "Ethiopia", currency: "ETB" },
+  { value: "TZ", label: "Tanzania", currency: "TZS" },
+  { value: "UG", label: "Uganda", currency: "UGX" },
+  { value: "RW", label: "Rwanda", currency: "RWF" },
+];
+
+const DIASPORA_COUNTRIES = [
+  { value: "US", label: "USA", currency: "USD" },
+  { value: "CA", label: "Canada", currency: "CAD" },
+  { value: "GB", label: "United Kingdom", currency: "GBP" },
+  { value: "FR", label: "France", currency: "EUR" },
+  { value: "DE", label: "Germany", currency: "EUR" },
+  { value: "BE", label: "Belgium", currency: "EUR" },
+];
+
+const ALL_COUNTRIES = [...AFRICA_COUNTRIES, ...DIASPORA_COUNTRIES].sort((a, b) =>
+  a.label.localeCompare(b.label)
+);
+
+const CURRENCIES = [
+  { value: "XAF", labelKey: "currencyXAF" },
+  { value: "NGN", labelKey: "currencyNGN" },
+  { value: "GHS", labelKey: "currencyGHS" },
+  { value: "KES", labelKey: "currencyKES" },
+  { value: "ZAR", labelKey: "currencyZAR" },
+  { value: "USD", labelKey: "currencyUSD" },
+  { value: "GBP", labelKey: "currencyGBP" },
+  { value: "EUR", labelKey: "currencyEUR" },
+  { value: "XOF", labelKey: "currencyXOF" },
+  { value: "CAD", labelKey: "currencyCAD" },
+  { value: "CDF", labelKey: "currencyCDF" },
+  { value: "ETB", labelKey: "currencyETB" },
+  { value: "TZS", labelKey: "currencyTZS" },
+  { value: "UGX", labelKey: "currencyUGX" },
+  { value: "RWF", labelKey: "currencyRWF" },
+];
+
+const SAVINGS_SUGGESTIONS = [
+  "Njangi",
+  "Tontine",
+  "Ajo",
+  "Susu",
+  "Stokvel",
+  "Chama",
+  "Contribution",
+];
+
+/* ───────────────────────── component ───────────────────────── */
 
 export default function GroupOnboardingPage() {
   const t = useTranslations("onboarding");
   const router = useRouter();
   const { refresh } = useGroup();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setupProgress, setSetupProgress] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormData>({
-    location: null,
-    template: null,
-    groupName: "",
-    currency: "",
-    meetingSchedule: "",
-    rotationLabel: "",
-    invites: [
-      { id: 1, value: "" },
-      { id: 2, value: "" },
-      { id: 3, value: "" },
-    ],
-  });
 
-  const goNext = () => setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
+  // Step 1: Profile
+  const [fullName, setFullName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [preferredLocale, setPreferredLocale] = useState<"en" | "fr">("en");
+
+  // Step 2: Location
+  const [locationType, setLocationType] = useState<GroupLocation>(null);
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [city, setCity] = useState("");
+  const [autoCurrency, setAutoCurrency] = useState("");
+
+  // Step 3: Group type
+  const [selectedType, setSelectedType] = useState<GroupTemplate>(null);
+
+  // Step 4: Group details
+  const [groupName, setGroupName] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [groupDescription, setGroupDescription] = useState("");
+  const [groupLocale, setGroupLocale] = useState<"en" | "fr">("en");
+
+  // Step 5: Savings label
+  const [savingsLabel, setSavingsLabel] = useState("");
+
+  // Step 6: Invites
+  const [invites, setInvites] = useState<InviteRow[]>([
+    { id: 1, value: "" },
+    { id: 2, value: "" },
+    { id: 3, value: "" },
+  ]);
+
+  // Pre-fill profile from existing user data
+  useEffect(() => {
+    async function loadUser() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, display_name, phone, preferred_locale")
+          .eq("id", user.id)
+          .single();
+        if (profile) {
+          if (profile.full_name) setFullName(profile.full_name);
+          if (profile.display_name) setDisplayName(profile.display_name);
+          if (profile.phone) setPhone(profile.phone);
+          if (profile.preferred_locale)
+            setPreferredLocale(profile.preferred_locale as "en" | "fr");
+        }
+      }
+    }
+    loadUser();
+  }, []);
+
+  // Auto-detect currency when country changes
+  useEffect(() => {
+    if (!selectedCountry) return;
+    const country = ALL_COUNTRIES.find((c) => c.value === selectedCountry);
+    if (country) {
+      setAutoCurrency(country.currency);
+      if (!currency) setCurrency(country.currency);
+    }
+  }, [selectedCountry, currency]);
+
+  /* ─── whether savings step applies ─── */
+  const isSavingsType = selectedType === "savings";
+
+  /* ─── compute effective steps (skip savings step if not savings type) ─── */
+  const stepKeys = isSavingsType
+    ? ["profile", "location", "type", "details", "savings", "invite"] as const
+    : ["profile", "location", "type", "details", "invite"] as const;
+  const totalSteps = stepKeys.length;
+
+  /* ─── map logical step index to step key ─── */
+  const currentStepKey = stepKeys[currentStep - 1];
+
+  /* ─── navigation ─── */
+  const goNext = () => setCurrentStep((s) => Math.min(s + 1, totalSteps));
   const goBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
-  const skipStep = () => goNext();
 
+  /* ─── step label translation keys ─── */
+  const stepLabelKeys: Record<string, string> = {
+    profile: "stepProfile",
+    location: "stepLocation",
+    type: "stepType",
+    details: "stepDetails",
+    savings: "stepSavings",
+    invite: "stepInvite",
+  };
+
+  /* ─── countries list based on location type ─── */
+  function getCountryList() {
+    if (locationType === "africa") return AFRICA_COUNTRIES;
+    if (locationType === "diaspora") return DIASPORA_COUNTRIES;
+    return ALL_COUNTRIES;
+  }
+
+  /* ─── can proceed from current step? ─── */
+  function canProceed(): boolean {
+    switch (currentStepKey) {
+      case "profile":
+        return fullName.trim().length > 0;
+      case "location":
+        return locationType !== null && selectedCountry !== "";
+      case "type":
+        return selectedType !== null;
+      case "details":
+        return groupName.trim().length > 0;
+      case "savings":
+        return true; // optional
+      case "invite":
+        return true; // optional
+      default:
+        return true;
+    }
+  }
+
+  /* ─── handle profile save (Step 1 Next) ─── */
+  async function handleProfileSave() {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase
+      .from("profiles")
+      .update({
+        full_name: fullName.trim(),
+        display_name: displayName.trim() || null,
+        phone: phone.trim() || null,
+        preferred_locale: preferredLocale,
+      })
+      .eq("id", user.id);
+    goNext();
+  }
+
+  /* ─── invite helpers ─── */
+  const addInviteRow = () => {
+    setInvites((prev) => [...prev, { id: Date.now(), value: "" }]);
+  };
+
+  const updateInvite = (id: number, value: string) => {
+    setInvites((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, value } : row))
+    );
+  };
+
+  /* ─── SUBMIT HANDLER — kept exactly as-is ─── */
   async function handleFinish() {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -95,22 +282,39 @@ export default function GroupOnboardingPage() {
     setSetupProgress(null);
 
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       setError("Not authenticated. Please log in again.");
       setIsSubmitting(false);
       return;
     }
 
-    const typeMap: Record<string, string> = { savings: "njangi", church: "church", alumni: "alumni", women: "njangi", village: "village", professional: "professional" };
-    const groupType = formData.template ? typeMap[formData.template] || "general" : "general";
+    const typeMap: Record<string, string> = {
+      savings: "njangi",
+      church: "church",
+      alumni: "alumni",
+      village: "village",
+      professional: "professional",
+      family: "general",
+      social: "general",
+      other: "general",
+    };
+    const groupType = selectedType
+      ? typeMap[selectedType] || "general"
+      : "general";
 
     // Step 1: Create organization
     setSetupProgress(t("progressOrg"));
-    const { data: org, error: orgErr } = await supabase.from("organizations").insert({
-      name: formData.groupName,
-      created_by: user.id,
-    }).select().single();
+    const { data: org, error: orgErr } = await supabase
+      .from("organizations")
+      .insert({
+        name: groupName,
+        created_by: user.id,
+      })
+      .select()
+      .single();
     if (orgErr) {
       setError(`Organization: ${orgErr.message}`);
       setIsSubmitting(false);
@@ -119,19 +323,25 @@ export default function GroupOnboardingPage() {
 
     // Step 2: Create group
     setSetupProgress(t("progressGroup"));
-    const { data: group, error: groupErr } = await supabase.from("groups").insert({
-      organization_id: org.id,
-      name: formData.groupName,
-      group_type: groupType,
-      currency: formData.currency || "XAF",
-      locale: "en",
-      created_by: user.id,
-      settings: {
-        location: formData.location,
-        meeting_schedule: formData.meetingSchedule,
-        savings_circle_label: formData.rotationLabel || "Savings Circle",
-      },
-    }).select().single();
+    const { data: group, error: groupErr } = await supabase
+      .from("groups")
+      .insert({
+        organization_id: org.id,
+        name: groupName,
+        group_type: groupType,
+        currency: currency || "XAF",
+        locale: groupLocale,
+        created_by: user.id,
+        description: groupDescription || null,
+        savings_circle_label: savingsLabel || null,
+        settings: {
+          country: selectedCountry,
+          city: city,
+          location_type: locationType,
+        },
+      })
+      .select()
+      .single();
     if (groupErr) {
       setError(`Group: ${groupErr.message}`);
       await supabase.from("organizations").delete().eq("id", org.id);
@@ -158,21 +368,69 @@ export default function GroupOnboardingPage() {
     // Step 4: Create default positions (non-fatal)
     setSetupProgress(t("progressPositions"));
     const positionRows = [
-      { title: "President", title_fr: "Président", sort_order: 1, is_executive: true, is_default: true },
-      { title: "Vice President", title_fr: "Vice-Président", sort_order: 2, is_executive: true, is_default: true },
-      { title: "Secretary", title_fr: "Secrétaire", sort_order: 3, is_executive: true, is_default: true },
-      { title: "Treasurer", title_fr: "Trésorier", sort_order: 4, is_executive: true, is_default: true },
-      { title: "Financial Secretary", title_fr: "Secrétaire Financier", sort_order: 5, is_executive: true, is_default: true },
-      { title: "Discipline Master", title_fr: "Maître de Discipline", sort_order: 6, is_executive: false, is_default: true },
+      {
+        title: "President",
+        title_fr: "Président",
+        sort_order: 1,
+        is_executive: true,
+        is_default: true,
+      },
+      {
+        title: "Vice President",
+        title_fr: "Vice-Président",
+        sort_order: 2,
+        is_executive: true,
+        is_default: true,
+      },
+      {
+        title: "Secretary",
+        title_fr: "Secrétaire",
+        sort_order: 3,
+        is_executive: true,
+        is_default: true,
+      },
+      {
+        title: "Treasurer",
+        title_fr: "Trésorier",
+        sort_order: 4,
+        is_executive: true,
+        is_default: true,
+      },
+      {
+        title: "Financial Secretary",
+        title_fr: "Secrétaire Financier",
+        sort_order: 5,
+        is_executive: true,
+        is_default: true,
+      },
+      {
+        title: "Discipline Master",
+        title_fr: "Maître de Discipline",
+        sort_order: 6,
+        is_executive: false,
+        is_default: true,
+      },
     ];
-    const { data: positions } = await supabase.from("group_positions")
+    const { data: positions } = await supabase
+      .from("group_positions")
       .insert(positionRows.map((p) => ({ ...p, group_id: group.id })))
       .select();
 
     // Step 5: Create permissions for positions (non-fatal)
     if (positions && positions.length > 0) {
       setSetupProgress(t("progressPermissions"));
-      const modules = ["members.view", "members.manage", "contributions.view", "contributions.manage", "events.view", "events.manage", "finances.view", "finances.manage", "settings.view", "settings.manage"];
+      const modules = [
+        "members.view",
+        "members.manage",
+        "contributions.view",
+        "contributions.manage",
+        "events.view",
+        "events.manage",
+        "finances.view",
+        "finances.manage",
+        "settings.view",
+        "settings.manage",
+      ];
       const permsToInsert = positions.flatMap((pos) =>
         modules
           .filter((perm) => pos.is_executive || perm.endsWith(".view"))
@@ -192,7 +450,7 @@ export default function GroupOnboardingPage() {
     });
 
     // Step 7: Send invitations if provided (non-fatal)
-    const validInvites = formData.invites.filter((i) => i.value.trim());
+    const validInvites = invites.filter((i) => i.value.trim());
     if (validInvites.length > 0) {
       await supabase.from("invitations").insert(
         validInvites.map((inv) => ({
@@ -213,44 +471,83 @@ export default function GroupOnboardingPage() {
     setIsSubmitting(false);
   }
 
-  const addInviteRow = () => {
-    setFormData((prev) => ({
-      ...prev,
-      invites: [
-        ...prev.invites,
-        { id: Date.now(), value: "" },
-      ],
-    }));
-  };
-
-  const updateInvite = (id: number, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      invites: prev.invites.map((row) =>
-        row.id === id ? { ...row, value } : row
-      ),
-    }));
-  };
-
-  const locationOptions: {
-    key: GroupLocation;
+  /* ─── template options ─── */
+  const templateOptions: {
+    key: NonNullable<GroupTemplate>;
     labelKey: string;
-    icons: React.ReactNode;
+    descKey: string;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      key: "savings",
+      labelKey: "templateSavings",
+      descKey: "templateSavingsDesc",
+      icon: <RefreshCw className="size-6" />,
+    },
+    {
+      key: "alumni",
+      labelKey: "templateAlumni",
+      descKey: "templateAlumniDesc",
+      icon: <GraduationCap className="size-6" />,
+    },
+    {
+      key: "village",
+      labelKey: "templateVillage",
+      descKey: "templateVillageDesc",
+      icon: <Home className="size-6" />,
+    },
+    {
+      key: "church",
+      labelKey: "templateChurch",
+      descKey: "templateChurchDesc",
+      icon: <Heart className="size-6" />,
+    },
+    {
+      key: "professional",
+      labelKey: "templateProfessional",
+      descKey: "templateProfessionalDesc",
+      icon: <Briefcase className="size-6" />,
+    },
+    {
+      key: "family",
+      labelKey: "templateFamily",
+      descKey: "templateFamilyDesc",
+      icon: <Users className="size-6" />,
+    },
+    {
+      key: "social",
+      labelKey: "templateSocial",
+      descKey: "templateSocialDesc",
+      icon: <Smile className="size-6" />,
+    },
+    {
+      key: "other",
+      labelKey: "templateOther",
+      descKey: "templateOtherDesc",
+      icon: <MoreHorizontal className="size-6" />,
+    },
+  ];
+
+  /* ─── location options ─── */
+  const locationOptions: {
+    key: NonNullable<GroupLocation>;
+    labelKey: string;
+    icon: React.ReactNode;
   }[] = [
     {
       key: "africa",
       labelKey: "locationAfrica",
-      icons: <Globe className="size-8 text-emerald-600 dark:text-emerald-400" />,
+      icon: <Globe className="size-8 text-emerald-600 dark:text-emerald-400" />,
     },
     {
       key: "diaspora",
       labelKey: "locationDiaspora",
-      icons: <Plane className="size-8 text-emerald-600 dark:text-emerald-400" />,
+      icon: <Plane className="size-8 text-emerald-600 dark:text-emerald-400" />,
     },
     {
       key: "both",
       labelKey: "locationBoth",
-      icons: (
+      icon: (
         <div className="flex gap-1">
           <Globe className="size-6 text-emerald-600 dark:text-emerald-400" />
           <Plane className="size-6 text-emerald-600 dark:text-emerald-400" />
@@ -259,87 +556,32 @@ export default function GroupOnboardingPage() {
     },
   ];
 
-  const templateOptions: {
-    key: NonNullable<GroupTemplate>;
-    labelKey: string;
-    icon: React.ReactNode;
-  }[] = [
-    {
-      key: "savings",
-      labelKey: "templateSavings",
-      icon: <PiggyBank className="size-6" />,
-    },
-    {
-      key: "church",
-      labelKey: "templateChurch",
-      icon: <Church className="size-6" />,
-    },
-    {
-      key: "alumni",
-      labelKey: "templateAlumni",
-      icon: <GraduationCap className="size-6" />,
-    },
-    {
-      key: "women",
-      labelKey: "templateWomen",
-      icon: <Users className="size-6" />,
-    },
-    {
-      key: "village",
-      labelKey: "templateVillage",
-      icon: <Building2 className="size-6" />,
-    },
-    {
-      key: "professional",
-      labelKey: "templateProfessional",
-      icon: <Briefcase className="size-6" />,
-    },
-    {
-      key: "other",
-      labelKey: "templateOther",
-      icon: <HelpCircle className="size-6" />,
-    },
-  ];
-
-  const rotationSuggestions = [
-    "Njangi",
-    "Ajo",
-    "Susu",
-    "Stokvel",
-    "Chama",
-    "Contribution",
-    "Rotation",
-    "Tontine",
-    "Sou-sou",
-  ];
-
-  const currencies = [
-    { value: "XAF", labelKey: "currencyXAF" },
-    { value: "NGN", labelKey: "currencyNGN" },
-    { value: "GHS", labelKey: "currencyGHS" },
-    { value: "KES", labelKey: "currencyKES" },
-    { value: "ZAR", labelKey: "currencyZAR" },
-    { value: "USD", labelKey: "currencyUSD" },
-    { value: "GBP", labelKey: "currencyGBP" },
-    { value: "EUR", labelKey: "currencyEUR" },
-  ];
-
-  const schedules = [
-    { value: "weekly", labelKey: "scheduleWeekly" },
-    { value: "biweekly", labelKey: "scheduleBiweekly" },
-    { value: "monthly", labelKey: "scheduleMonthly" },
-    { value: "quarterly", labelKey: "scheduleQuarterly" },
-  ];
+  /* ═══════════════════════════════════ RENDER ═══════════════════════════════════ */
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-6 sm:py-10">
-      {/* Progress bar */}
-      <div className="mb-8">
-        <p className="mb-3 text-center text-sm font-medium text-muted-foreground">
-          {t("step", { current: currentStep, total: TOTAL_STEPS })}
-        </p>
+    <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center px-4 py-8 sm:py-12">
+      {/* Logo */}
+      <img src="/logo-mark.svg" className="h-12 w-12 mx-auto mb-6" alt="" />
+
+      {/* Progress bar with step names */}
+      <div className="mb-8 w-full">
+        <div className="flex justify-between mb-2">
+          {stepKeys.map((key, i) => (
+            <span
+              key={key}
+              className={cn(
+                "text-xs font-medium transition-colors",
+                i < currentStep
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-muted-foreground"
+              )}
+            >
+              {t(stepLabelKeys[key])}
+            </span>
+          ))}
+        </div>
         <div className="flex gap-1.5">
-          {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+          {stepKeys.map((_, i) => (
             <div
               key={i}
               className={cn(
@@ -353,57 +595,198 @@ export default function GroupOnboardingPage() {
         </div>
       </div>
 
-      {/* Step content */}
-      <div className="flex-1">
-        {/* Step 1: Location */}
-        {currentStep === 1 && (
+      {/* Card container */}
+      <div className="w-full rounded-2xl bg-card shadow-lg p-8">
+        {/* ───── STEP: PROFILE ───── */}
+        {currentStepKey === "profile" && (
           <div className="space-y-6">
-            <h2 className="text-center text-xl font-semibold sm:text-2xl">
-              {t("step1Title")}
-            </h2>
-            <div className="grid gap-4">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold sm:text-2xl">
+                {t("profileStepTitle")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("profileStepSubtitle")}
+              </p>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              {t("profileWelcome")}
+            </p>
+
+            {/* Photo placeholder */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+                <Camera className="size-8 text-muted-foreground" />
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {t("photoSkip")}
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {/* Full Name */}
+              <div className="space-y-2">
+                <Label htmlFor="fullName">{t("fullNameLabel")}</Label>
+                <Input
+                  id="fullName"
+                  placeholder={t("fullNamePlaceholder")}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Display Name */}
+              <div className="space-y-2">
+                <Label htmlFor="displayName">{t("displayNameLabel")}</Label>
+                <Input
+                  id="displayName"
+                  placeholder={t("displayNamePlaceholder")}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("displayNameHint")}
+                </p>
+              </div>
+
+              {/* Phone */}
+              <div className="space-y-2">
+                <Label htmlFor="phone">{t("phoneLabel")}</Label>
+                <Input
+                  id="phone"
+                  placeholder={t("phonePlaceholder")}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("phoneHint")}
+                </p>
+              </div>
+
+              {/* Language preference */}
+              <div className="space-y-2">
+                <Label>{t("languageLabel")}</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["en", "fr"] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setPreferredLocale(lang)}
+                      className={cn(
+                        "rounded-xl border-2 p-4 text-center font-medium transition-all",
+                        preferredLocale === lang
+                          ? "border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/30"
+                          : "border-transparent ring-1 ring-foreground/10 hover:ring-foreground/20"
+                      )}
+                    >
+                      {lang === "en" ? t("languageEn") : t("languageFr")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ───── STEP: LOCATION ───── */}
+        {currentStepKey === "location" && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold sm:text-2xl">
+                {t("step1Title")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("locationStepSubtitle")}
+              </p>
+            </div>
+
+            {/* Location type cards */}
+            <div className="grid gap-3">
               {locationOptions.map((opt) => (
                 <button
                   key={opt.key}
                   type="button"
-                  onClick={() =>
-                    setFormData((prev) => ({ ...prev, location: opt.key }))
-                  }
+                  onClick={() => {
+                    setLocationType(opt.key);
+                    setSelectedCountry("");
+                  }}
                   className={cn(
                     "flex items-center gap-4 rounded-xl border-2 bg-card p-5 text-left transition-all hover:shadow-md",
-                    formData.location === opt.key
+                    locationType === opt.key
                       ? "border-emerald-600 shadow-md dark:border-emerald-500"
                       : "border-transparent ring-1 ring-foreground/10 hover:ring-foreground/20"
                   )}
                 >
-                  {opt.icons}
-                  <span className="text-base font-medium">{t(opt.labelKey)}</span>
-                  {formData.location === opt.key && (
+                  {opt.icon}
+                  <span className="text-base font-medium">
+                    {t(opt.labelKey)}
+                  </span>
+                  {locationType === opt.key && (
                     <Check className="ml-auto size-5 text-emerald-600 dark:text-emerald-500" />
                   )}
                 </button>
               ))}
             </div>
+
+            {/* Country dropdown — visible once location type selected */}
+            {locationType && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{t("countryLabel")}</Label>
+                  <Select
+                    value={selectedCountry}
+                    onValueChange={(val) => setSelectedCountry(val ?? "")}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("countryLabel")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getCountryList().map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* City */}
+                <div className="space-y-2">
+                  <Label htmlFor="city">{t("cityLabel")}</Label>
+                  <Input
+                    id="city"
+                    placeholder={t("cityPlaceholder")}
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Step 2: Group type */}
-        {currentStep === 2 && (
+        {/* ───── STEP: GROUP TYPE ───── */}
+        {currentStepKey === "type" && (
           <div className="space-y-6">
-            <h2 className="text-center text-xl font-semibold sm:text-2xl">
-              {t("step2Title")}
-            </h2>
+            <div className="text-center">
+              <h2 className="text-xl font-semibold sm:text-2xl">
+                {t("step2Title")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("typeStepSubtitle")}
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               {templateOptions.map((opt) => (
                 <button
                   key={opt.key}
                   type="button"
-                  onClick={() =>
-                    setFormData((prev) => ({ ...prev, template: opt.key }))
-                  }
+                  onClick={() => setSelectedType(opt.key)}
                   className={cn(
                     "flex flex-col items-center gap-2 rounded-xl border-2 bg-card p-4 text-center transition-all hover:shadow-md",
-                    formData.template === opt.key
+                    selectedType === opt.key
                       ? "border-emerald-600 shadow-md dark:border-emerald-500"
                       : "border-transparent ring-1 ring-foreground/10 hover:ring-foreground/20"
                   )}
@@ -411,7 +794,7 @@ export default function GroupOnboardingPage() {
                   <div
                     className={cn(
                       "text-muted-foreground transition-colors",
-                      formData.template === opt.key &&
+                      selectedType === opt.key &&
                         "text-emerald-600 dark:text-emerald-500"
                     )}
                   >
@@ -420,120 +803,143 @@ export default function GroupOnboardingPage() {
                   <span className="text-sm font-medium leading-tight">
                     {t(opt.labelKey)}
                   </span>
+                  <span className="text-xs text-muted-foreground leading-tight">
+                    {t(opt.descKey)}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Step 3: Group details */}
-        {currentStep === 3 && (
+        {/* ───── STEP: GROUP DETAILS ───── */}
+        {currentStepKey === "details" && (
           <div className="space-y-6">
-            <h2 className="text-center text-xl font-semibold sm:text-2xl">
-              {t("step3Title")}
-            </h2>
+            <div className="text-center">
+              <h2 className="text-xl font-semibold sm:text-2xl">
+                {t("step3Title")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("detailsStepSubtitle")}
+              </p>
+            </div>
+
             <div className="space-y-4">
+              {/* Group Name */}
               <div className="space-y-2">
                 <Label htmlFor="groupName">{t("groupNameLabel")}</Label>
                 <Input
                   id="groupName"
                   placeholder={t("groupNamePlaceholder")}
-                  value={formData.groupName}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      groupName: e.target.value,
-                    }))
-                  }
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  required
                 />
               </div>
 
+              {/* Currency — auto-detected + override */}
               <div className="space-y-2">
                 <Label>{t("currencyLabel")}</Label>
-                <Select
-                  value={formData.currency}
-                  onValueChange={(val) =>
-                    setFormData((prev) => ({ ...prev, currency: val ?? "" }))
-                  }
-                >
+                {autoCurrency && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("currencyAutoDetected", {
+                      country:
+                        ALL_COUNTRIES.find((c) => c.value === selectedCountry)
+                          ?.label || selectedCountry,
+                    })}
+                  </p>
+                )}
+                <Select value={currency} onValueChange={(val) => setCurrency(val ?? "XAF")}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder={t("currencyLabel")} />
                   </SelectTrigger>
                   <SelectContent>
-                    {currencies.map((c) => (
+                    {CURRENCIES.map((c) => (
                       <SelectItem key={c.value} value={c.value}>
-                        {t(c.labelKey)}
+                        {c.value}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Description */}
               <div className="space-y-2">
-                <Label>{t("meetingScheduleLabel")}</Label>
-                <Select
-                  value={formData.meetingSchedule}
-                  onValueChange={(val) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      meetingSchedule: val ?? "",
-                    }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t("meetingScheduleLabel")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schedules.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {t(s.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="groupDesc">{t("groupDescLabel")}</Label>
+                <Textarea
+                  id="groupDesc"
+                  placeholder={t("groupDescPlaceholder")}
+                  value={groupDescription}
+                  onChange={(e) => setGroupDescription(e.target.value)}
+                  rows={3}
+                />
               </div>
+
+              {/* Group Language */}
+              <div className="space-y-2">
+                <Label>{t("groupLangLabel")}</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["en", "fr"] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setGroupLocale(lang)}
+                      className={cn(
+                        "rounded-xl border-2 p-3 text-center text-sm font-medium transition-all",
+                        groupLocale === lang
+                          ? "border-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/30"
+                          : "border-transparent ring-1 ring-foreground/10 hover:ring-foreground/20"
+                      )}
+                    >
+                      {lang === "en" ? t("languageEn") : t("languageFr")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {t("changeableHint")}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Step 4: Rotation label */}
-        {currentStep === 4 && (
+        {/* ───── STEP: SAVINGS LABEL ───── */}
+        {currentStepKey === "savings" && (
           <div className="space-y-6">
-            <h2 className="text-center text-xl font-semibold sm:text-2xl">
-              {t("step4Title")}
-            </h2>
+            <div className="text-center">
+              <h2 className="text-xl font-semibold sm:text-2xl">
+                {t("step4Title")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("savingsStepSubtitle")}
+              </p>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              {t("savingsStepExplain")}
+            </p>
+
             <div className="space-y-4">
               <Input
                 placeholder={t("rotationLabelPlaceholder")}
-                value={formData.rotationLabel}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    rotationLabel: e.target.value,
-                  }))
-                }
+                value={savingsLabel}
+                onChange={(e) => setSavingsLabel(e.target.value)}
               />
               <div className="flex flex-wrap gap-2">
-                {rotationSuggestions.map((suggestion) => (
+                {SAVINGS_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}
                     type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        rotationLabel: suggestion,
-                      }))
-                    }
+                    onClick={() => setSavingsLabel(suggestion)}
                   >
                     <Badge
                       variant={
-                        formData.rotationLabel === suggestion
-                          ? "default"
-                          : "outline"
+                        savingsLabel === suggestion ? "default" : "outline"
                       }
                       className={cn(
                         "cursor-pointer px-3 py-1.5 text-sm transition-colors",
-                        formData.rotationLabel === suggestion &&
+                        savingsLabel === suggestion &&
                           "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600"
                       )}
                     >
@@ -546,17 +952,24 @@ export default function GroupOnboardingPage() {
           </div>
         )}
 
-        {/* Step 5: Invite members */}
-        {currentStep === 5 && (
+        {/* ───── STEP: INVITE ───── */}
+        {currentStepKey === "invite" && (
           <div className="space-y-6">
-            <h2 className="text-center text-xl font-semibold sm:text-2xl">
-              {t("step5Title")}
-            </h2>
-            <p className="text-center text-sm text-muted-foreground">
-              {t("inviteByEmail")}
+            <div className="text-center">
+              <h2 className="text-xl font-semibold sm:text-2xl">
+                {t("step5Title")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("inviteStepSubtitle")}
+              </p>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              {t("inviteOptional")}
             </p>
+
             <div className="space-y-3">
-              {formData.invites.map((row) => (
+              {invites.map((row) => (
                 <Input
                   key={row.id}
                   placeholder={t("emailOrPhonePlaceholder")}
@@ -574,9 +987,10 @@ export default function GroupOnboardingPage() {
                 {t("addAnother")}
               </Button>
             </div>
+
             <button
               type="button"
-              onClick={skipStep}
+              onClick={handleFinish}
               className="block w-full text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
             >
               {t("doLater")}
@@ -587,13 +1001,13 @@ export default function GroupOnboardingPage() {
 
       {/* Error display */}
       {error && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400">
+        <div className="mt-4 w-full rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400">
           {error}
         </div>
       )}
 
       {/* Navigation */}
-      <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-6">
+      <div className="mt-8 flex w-full items-center justify-between gap-3 border-t border-border pt-6">
         {currentStep > 1 ? (
           <Button variant="outline" size="lg" onClick={goBack}>
             <ArrowLeft className="size-4" />
@@ -603,20 +1017,7 @@ export default function GroupOnboardingPage() {
           <div />
         )}
 
-        <button
-          type="button"
-          onClick={skipStep}
-          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-        >
-          {t("skip")}
-        </button>
-
-        {currentStep < TOTAL_STEPS ? (
-          <Button size="lg" onClick={goNext}>
-            {t("next")}
-            <ArrowRight className="size-4" />
-          </Button>
-        ) : (
+        {currentStepKey === "invite" ? (
           <Button
             size="lg"
             className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
@@ -628,7 +1029,21 @@ export default function GroupOnboardingPage() {
             ) : (
               <Check className="size-4" />
             )}
-            {isSubmitting ? (setupProgress || t("next")) : t("finish")}
+            {isSubmitting ? setupProgress || t("finish") : t("finish")}
+          </Button>
+        ) : currentStepKey === "profile" ? (
+          <Button
+            size="lg"
+            onClick={handleProfileSave}
+            disabled={!canProceed()}
+          >
+            {t("next")}
+            <ArrowRight className="size-4" />
+          </Button>
+        ) : (
+          <Button size="lg" onClick={goNext} disabled={!canProceed()}>
+            {t("next")}
+            <ArrowRight className="size-4" />
           </Button>
         )}
       </div>

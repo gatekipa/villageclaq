@@ -82,35 +82,84 @@ export default function DashboardPage() {
     (!payments || payments.length === 0);
 
   if (isNewGroup) {
+    const tasks = [
+      { key: "createGroup", done: true, icon: CheckCircle2, href: "" },
+      { key: "addMember", done: (stats?.totalMembers ?? 0) > 1, icon: UserPlus, href: "/dashboard/invitations" },
+      { key: "createContribution", done: false, icon: CreditCard, href: "/dashboard/contributions" },
+      { key: "scheduleEvent", done: (stats?.upcomingEvents ?? 0) > 0, icon: CalendarPlus, href: "/dashboard/events" },
+      { key: "recordPayment", done: (payments && payments.length > 0), icon: HandCoins, href: "/dashboard/contributions/record" },
+    ];
+
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {t("dashboard.welcome", { name: user?.full_name || user?.display_name || "" })}
+            {t("dashboard.welcome", { name: user?.full_name || user?.display_name || "" })} 🎉
           </h1>
-          <p className="text-muted-foreground">{t("dashboard.overview")}</p>
+          <p className="text-muted-foreground">{t("dashboard.emptyDescription")}</p>
         </div>
-        <EmptyState
-          icon={Rocket}
-          title={t("dashboard.welcome", { name: user?.full_name || "" })}
-          description={t("dashboard.emptyDescription")}
-          action={
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link href="/dashboard/invitations">
-                <Button>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  {t("dashboard.addMember")}
-                </Button>
-              </Link>
-              <Link href="/dashboard/contributions">
-                <Button variant="outline">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  {t("dashboard.totalContributions")}
-                </Button>
-              </Link>
-            </div>
-          }
-        />
+
+        {/* Getting Started Checklist */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-primary" />
+              {t("onboarding.gettingStarted")}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">{t("onboarding.gettingStartedSubtitle")}</p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.map((task) => (
+              <div key={task.key} className="flex items-center gap-3 rounded-lg border bg-card p-3">
+                {task.done ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                ) : (
+                  <div className="h-5 w-5 shrink-0 rounded-full border-2 border-muted-foreground/30" />
+                )}
+                <span className={task.done ? "flex-1 text-sm line-through text-muted-foreground" : "flex-1 text-sm font-medium"}>
+                  {t(`onboarding.task${task.key.charAt(0).toUpperCase() + task.key.slice(1)}` as Parameters<typeof t>[0])}
+                </span>
+                {task.done ? (
+                  <Badge variant="secondary" className="text-xs">{t("onboarding.taskCreateGroupDone")}</Badge>
+                ) : task.href ? (
+                  <Link href={task.href}>
+                    <Button size="sm" variant="outline" className="gap-1">
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                ) : null}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Link href="/dashboard/invitations">
+            <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
+              <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
+                <UserPlus className="h-8 w-8 text-primary" />
+                <span className="text-sm font-medium">{t("dashboard.addMember")}</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/dashboard/events">
+            <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
+              <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
+                <CalendarPlus className="h-8 w-8 text-primary" />
+                <span className="text-sm font-medium">{t("dashboard.scheduleEvent")}</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/dashboard/contributions/record">
+            <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
+              <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
+                <HandCoins className="h-8 w-8 text-primary" />
+                <span className="text-sm font-medium">{t("dashboard.recordPayment")}</span>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
     );
   }

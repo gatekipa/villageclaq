@@ -88,6 +88,7 @@
     "myHosting": "Mon hébergement",
     "myRelief": "Mon entraide",
     "myFamily": "Ma famille",
+    "membershipCard": "Carte de membre",
     "directory": "Annuaire",
     "profile": "Profil",
     "notifications": "Notifications",
@@ -2307,5 +2308,18 @@
     "noLogsDesc": "Les actions et modifications au sein de votre groupe appara\u00eetront ici.",
     "filterAction": "Filtrer par action",
     "filterDate": "Filtrer par date"
+  },
+  "membershipCard": {
+    "title": "Carte de membre numérique",
+    "subtitle": "Votre carte officielle de membre VillageClaq",
+    "downloadCard": "Télécharger la carte",
+    "shareCard": "Partager la carte",
+    "verifyText": "Scannez le code QR pour vérifier le statut d'adhésion",
+    "memberSince": "Membre depuis",
+    "memberId": "ID Membre",
+    "cardBack": "Verso de la carte",
+    "verifiedBy": "Vérifié par VillageClaq",
+    "propertyOf": "Cette carte est la propriété de",
+    "comingSoon": "Bientôt disponible"
   }
 }

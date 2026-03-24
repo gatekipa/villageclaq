@@ -34,6 +34,7 @@ import {
   Trophy,
   MessageSquare,
   ShieldCheck,
+  IdCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
@@ -124,6 +125,7 @@ const memberSections: NavSection[] = [
       { key: "myHosting", href: "/dashboard/my-hosting", icon: Home },
       { key: "myRelief", href: "/dashboard/relief/my", icon: Heart },
       { key: "myFamily", href: "/dashboard/my-family", icon: Contact },
+      { key: "membershipCard", href: "/dashboard/membership-card", icon: IdCard },
     ],
   },
   {

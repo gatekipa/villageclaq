@@ -88,6 +88,7 @@
     "myHosting": "My Hosting",
     "myRelief": "My Relief",
     "myFamily": "My Family",
+    "membershipCard": "Membership Card",
     "directory": "Directory",
     "profile": "Profile",
     "notifications": "Notifications",
@@ -2350,5 +2351,18 @@
     "noLogsDesc": "Actions and changes within your group will appear here.",
     "filterAction": "Filter by action",
     "filterDate": "Filter by date"
+  },
+  "membershipCard": {
+    "title": "Digital Membership Card",
+    "subtitle": "Your official VillageClaq membership card",
+    "downloadCard": "Download Card",
+    "shareCard": "Share Card",
+    "verifyText": "Scan QR code to verify membership status",
+    "memberSince": "Member Since",
+    "memberId": "Member ID",
+    "cardBack": "Card Back",
+    "verifiedBy": "Verified by VillageClaq",
+    "propertyOf": "This card is the property of",
+    "comingSoon": "Coming soon"
   }
 }

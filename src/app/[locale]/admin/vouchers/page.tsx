@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Ticket,
@@ -11,12 +11,11 @@ import {
   Calendar,
   Hash,
   Layers,
+  Loader2,
 } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/client";
 
 type DiscountType = "percent" | "flat";
 type VoucherStatus = "active" | "expired" | "used_up";
@@ -45,78 +45,16 @@ type VoucherStatus = "active" | "expired" | "used_up";
 interface Voucher {
   id: string;
   code: string;
-  discountType: DiscountType;
-  value: number;
-  validFrom: string;
-  validUntil: string;
-  maxUses: number;
-  currentUses: number;
+  discount_type: DiscountType;
+  discount_value: number;
+  valid_from: string;
+  valid_until: string;
+  max_uses: number;
+  current_uses: number;
   status: VoucherStatus;
-  applicablePlans: string[];
+  applicable_plans: string[];
+  created_at: string;
 }
-
-const mockVouchers: Voucher[] = [
-  {
-    id: "1",
-    code: "WELCOME2026",
-    discountType: "percent",
-    value: 20,
-    validFrom: "2026-01-01",
-    validUntil: "2026-06-30",
-    maxUses: 500,
-    currentUses: 187,
-    status: "active",
-    applicablePlans: ["Starter", "Pro"],
-  },
-  {
-    id: "2",
-    code: "NJANGI50",
-    discountType: "flat",
-    value: 5,
-    validFrom: "2026-02-01",
-    validUntil: "2026-04-30",
-    maxUses: 200,
-    currentUses: 143,
-    status: "active",
-    applicablePlans: ["Starter"],
-  },
-  {
-    id: "3",
-    code: "ALUMNI10",
-    discountType: "percent",
-    value: 10,
-    validFrom: "2025-09-01",
-    validUntil: "2025-12-31",
-    maxUses: 100,
-    currentUses: 100,
-    status: "used_up",
-    applicablePlans: ["Starter", "Pro", "Enterprise"],
-  },
-  {
-    id: "4",
-    code: "CHURCH25",
-    discountType: "percent",
-    value: 25,
-    validFrom: "2025-06-01",
-    validUntil: "2025-08-31",
-    maxUses: 300,
-    currentUses: 89,
-    status: "expired",
-    applicablePlans: ["Pro"],
-  },
-  {
-    id: "5",
-    code: "FREEMONTH",
-    discountType: "flat",
-    value: 10,
-    validFrom: "2026-03-01",
-    validUntil: "2026-12-31",
-    maxUses: 1000,
-    currentUses: 42,
-    status: "active",
-    applicablePlans: ["Starter", "Pro"],
-  },
-];
 
 const statusColors: Record<VoucherStatus, string> = {
   active: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -128,6 +66,77 @@ export default function VouchersPage() {
   const t = useTranslations("admin");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Create voucher form state
+  const [newCode, setNewCode] = useState("");
+  const [newDiscountType, setNewDiscountType] = useState<DiscountType>("percent");
+  const [newDiscountValue, setNewDiscountValue] = useState("");
+  const [newValidFrom, setNewValidFrom] = useState("");
+  const [newValidUntil, setNewValidUntil] = useState("");
+  const [newMaxUses, setNewMaxUses] = useState("");
+  const [newApplicablePlans, setNewApplicablePlans] = useState<string[]>(["Starter", "Pro", "Enterprise"]);
+
+  const supabase = createClient();
+
+  const fetchVouchers = useCallback(async () => {
+    setLoading(true);
+
+    const { data } = await supabase
+      .from("vouchers")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setVouchers(data as unknown as Voucher[]);
+    }
+
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchVouchers();
+  }, [fetchVouchers]);
+
+  const handleCreateVoucher = async () => {
+    if (!newCode || !newDiscountValue || !newValidFrom || !newValidUntil || !newMaxUses) return;
+    setSubmitting(true);
+
+    const { error } = await supabase.from("vouchers").insert({
+      code: newCode.toUpperCase(),
+      discount_type: newDiscountType,
+      discount_value: parseFloat(newDiscountValue),
+      valid_from: newValidFrom,
+      valid_until: newValidUntil,
+      max_uses: parseInt(newMaxUses),
+      current_uses: 0,
+      status: "active",
+      applicable_plans: newApplicablePlans,
+    });
+
+    if (!error) {
+      setCreateDialogOpen(false);
+      setNewCode("");
+      setNewDiscountType("percent");
+      setNewDiscountValue("");
+      setNewValidFrom("");
+      setNewValidUntil("");
+      setNewMaxUses("");
+      setNewApplicablePlans(["Starter", "Pro", "Enterprise"]);
+      fetchVouchers();
+    }
+
+    setSubmitting(false);
+  };
+
+  const togglePlan = (plan: string) => {
+    setNewApplicablePlans((prev) =>
+      prev.includes(plan) ? prev.filter((p) => p !== plan) : [...prev, plan]
+    );
+  };
 
   const statusLabel = (status: VoucherStatus) => {
     switch (status) {
@@ -139,6 +148,20 @@ export default function VouchersPage() {
         return t("voucherUsedUp");
     }
   };
+
+  const computeStatus = (voucher: Voucher): VoucherStatus => {
+    if (voucher.current_uses >= voucher.max_uses) return "used_up";
+    if (new Date(voucher.valid_until) < new Date()) return "expired";
+    return voucher.status || "active";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -244,12 +267,19 @@ export default function VouchersPage() {
               <div className="space-y-4 py-2">
                 <div className="space-y-2">
                   <Label>{t("voucherCode")}</Label>
-                  <Input placeholder={t("codeGenPlaceholder")} />
+                  <Input
+                    placeholder={t("codeGenPlaceholder")}
+                    value={newCode}
+                    onChange={(e) => setNewCode(e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>{t("discountType")}</Label>
-                    <Select defaultValue="percent">
+                    <Select
+                      value={newDiscountType}
+                      onValueChange={(val) => setNewDiscountType((val as DiscountType) ?? "percent")}
+                    >
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
@@ -265,22 +295,40 @@ export default function VouchersPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>{t("discountValue")}</Label>
-                    <Input type="number" placeholder="10" />
+                    <Input
+                      type="number"
+                      placeholder="10"
+                      value={newDiscountValue}
+                      onChange={(e) => setNewDiscountValue(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>{t("validFrom")}</Label>
-                    <Input type="date" />
+                    <Input
+                      type="date"
+                      value={newValidFrom}
+                      onChange={(e) => setNewValidFrom(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("validUntil")}</Label>
-                    <Input type="date" />
+                    <Input
+                      type="date"
+                      value={newValidUntil}
+                      onChange={(e) => setNewValidUntil(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>{t("maxUses")}</Label>
-                  <Input type="number" placeholder="100" />
+                  <Input
+                    type="number"
+                    placeholder="100"
+                    value={newMaxUses}
+                    onChange={(e) => setNewMaxUses(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t("applicablePlans")}</Label>
@@ -293,7 +341,8 @@ export default function VouchersPage() {
                         <input
                           type="checkbox"
                           className="h-4 w-4 rounded border-input accent-emerald-600"
-                          defaultChecked={plan !== "Free"}
+                          checked={newApplicablePlans.includes(plan)}
+                          onChange={() => togglePlan(plan)}
                         />
                         {plan}
                       </label>
@@ -302,7 +351,11 @@ export default function VouchersPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={() => setCreateDialogOpen(false)}>
+                <Button
+                  onClick={handleCreateVoucher}
+                  disabled={submitting || !newCode || !newDiscountValue}
+                >
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   {t("createVoucher")}
                 </Button>
               </DialogFooter>
@@ -313,73 +366,88 @@ export default function VouchersPage() {
 
       {/* Voucher List */}
       <div className="grid gap-4">
-        {mockVouchers.map((voucher) => (
-          <Card key={voucher.id}>
-            <CardContent className="p-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                {/* Code + type */}
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                    <Ticket className="h-5 w-5 text-muted-foreground" />
+        {vouchers.map((voucher) => {
+          const displayStatus = computeStatus(voucher);
+          const discountType = voucher.discount_type || "percent";
+          const discountValue = voucher.discount_value || 0;
+          const applicablePlans: string[] = Array.isArray(voucher.applicable_plans)
+            ? voucher.applicable_plans
+            : [];
+
+          return (
+            <Card key={voucher.id}>
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  {/* Code + type */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                      <Ticket className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <code className="rounded bg-slate-100 px-2 py-0.5 text-sm font-semibold dark:bg-slate-800">
+                          {voucher.code}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => navigator.clipboard.writeText(voucher.code)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        {discountType === "percent" ? (
+                          <Percent className="h-3 w-3" />
+                        ) : (
+                          <DollarSign className="h-3 w-3" />
+                        )}
+                        {discountType === "percent"
+                          ? `${discountValue}% off`
+                          : `$${discountValue} off`}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <code className="rounded bg-slate-100 px-2 py-0.5 text-sm font-semibold dark:bg-slate-800">
-                        {voucher.code}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
+
+                  {/* Details */}
+                  <div className="flex flex-wrap items-center gap-3 text-sm lg:gap-6">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span>
+                        {voucher.valid_from} — {voucher.valid_until}
+                      </span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                      {voucher.discountType === "percent" ? (
-                        <Percent className="h-3 w-3" />
-                      ) : (
-                        <DollarSign className="h-3 w-3" />
-                      )}
-                      {voucher.discountType === "percent"
-                        ? `${voucher.value}% off`
-                        : `$${voucher.value} off`}
+
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Hash className="h-3.5 w-3.5" />
+                      <span>
+                        {voucher.current_uses}/{voucher.max_uses}
+                      </span>
                     </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {applicablePlans.map((plan) => (
+                        <Badge key={plan} variant="secondary" className="text-xs">
+                          {plan}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <Badge className={statusColors[displayStatus]}>
+                      {statusLabel(displayStatus)}
+                    </Badge>
                   </div>
                 </div>
-
-                {/* Details */}
-                <div className="flex flex-wrap items-center gap-3 text-sm lg:gap-6">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>
-                      {voucher.validFrom} — {voucher.validUntil}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Hash className="h-3.5 w-3.5" />
-                    <span>
-                      {voucher.currentUses}/{voucher.maxUses}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1">
-                    {voucher.applicablePlans.map((plan) => (
-                      <Badge key={plan} variant="secondary" className="text-xs">
-                        {plan}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <Badge className={statusColors[voucher.status]}>
-                    {statusLabel(voucher.status)}
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
+        {vouchers.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t("noVouchers")}
+          </p>
+        )}
       </div>
     </div>
   );

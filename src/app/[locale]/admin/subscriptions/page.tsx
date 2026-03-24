@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   CreditCard,
@@ -13,6 +13,7 @@ import {
   Zap,
   Crown,
   Rocket,
+  Loader2,
 } from "lucide-react";
 import {
   Card,
@@ -43,102 +44,117 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/client";
 
-interface Plan {
+interface SubscriptionPlan {
   id: string;
   name: string;
-  nameKey: string;
-  price: number | null;
-  billingPeriod: string;
+  slug: string;
+  price_monthly: number | null;
+  price_yearly: number | null;
+  billing_period: string;
   features: string[];
-  memberLimit: number | null;
-  groupLimit: number | null;
-  subscribers: number;
-  icon: typeof Sparkles;
-  accent: string;
+  member_limit: number | null;
+  group_limit: number | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
 }
 
-const mockPlans: Plan[] = [
-  {
-    id: "1",
-    name: "Free",
-    nameKey: "planFree",
-    price: 0,
-    billingPeriod: "monthly",
-    features: ["Basic dashboard", "Meeting scheduler", "Contribution tracking"],
-    memberLimit: 15,
-    groupLimit: 1,
-    subscribers: 1243,
-    icon: Sparkles,
-    accent: "border-slate-300 dark:border-slate-600",
-  },
-  {
-    id: "2",
-    name: "Starter",
-    nameKey: "planStarter",
-    price: 10,
-    billingPeriod: "monthly",
-    features: [
-      "Everything in Free",
-      "Financial reports",
-      "SMS notifications",
-      "Event management",
-      "File storage (1GB)",
-    ],
-    memberLimit: 100,
-    groupLimit: 3,
-    subscribers: 587,
-    icon: Zap,
-    accent: "border-blue-400 dark:border-blue-500",
-  },
-  {
-    id: "3",
-    name: "Pro",
-    nameKey: "planPro",
-    price: 25,
-    billingPeriod: "monthly",
-    features: [
-      "Everything in Starter",
-      "Branch management",
-      "Custom roles & permissions",
-      "Advanced analytics",
-      "Bulk operations",
-      "File storage (10GB)",
-      "Priority support",
-    ],
-    memberLimit: 500,
-    groupLimit: 10,
-    subscribers: 234,
-    icon: Crown,
-    accent: "border-emerald-400 dark:border-emerald-500",
-  },
-  {
-    id: "4",
-    name: "Enterprise",
-    nameKey: "planEnterprise",
-    price: null,
-    billingPeriod: "custom",
-    features: [
-      "Everything in Pro",
-      "Unlimited members",
-      "Unlimited groups",
-      "Dedicated support",
-      "Custom integrations",
-      "SLA guarantee",
-      "White-label option",
-      "API access",
-    ],
-    memberLimit: null,
-    groupLimit: null,
-    subscribers: 18,
-    icon: Rocket,
-    accent: "border-purple-400 dark:border-purple-500",
-  },
-];
+const planIcons: Record<string, typeof Sparkles> = {
+  free: Sparkles,
+  starter: Zap,
+  pro: Crown,
+  enterprise: Rocket,
+};
+
+const planAccents: Record<string, string> = {
+  free: "border-slate-300 dark:border-slate-600",
+  starter: "border-blue-400 dark:border-blue-500",
+  pro: "border-emerald-400 dark:border-emerald-500",
+  enterprise: "border-purple-400 dark:border-purple-500",
+};
 
 export default function SubscriptionsPage() {
   const t = useTranslations("admin");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Create plan form state
+  const [newName, setNewName] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [newBilling, setNewBilling] = useState("monthly");
+  const [newFeatures, setNewFeatures] = useState("");
+  const [newMemberLimit, setNewMemberLimit] = useState("");
+  const [newGroupLimit, setNewGroupLimit] = useState("");
+
+  const supabase = createClient();
+
+  const fetchPlans = useCallback(async () => {
+    setLoading(true);
+
+    const { data } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .order("sort_order");
+
+    if (data) {
+      setPlans(data as SubscriptionPlan[]);
+    }
+
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchPlans();
+  }, [fetchPlans]);
+
+  const handleCreatePlan = async () => {
+    if (!newName) return;
+    setSubmitting(true);
+
+    const slug = newName.toLowerCase().replace(/\s+/g, "_");
+    const featuresArray = newFeatures
+      .split("\n")
+      .map((f) => f.trim())
+      .filter(Boolean);
+
+    const { error } = await supabase.from("subscription_plans").insert({
+      name: newName,
+      slug,
+      price_monthly: newPrice ? parseFloat(newPrice) : null,
+      billing_period: newBilling,
+      features: featuresArray,
+      member_limit: newMemberLimit ? parseInt(newMemberLimit) : null,
+      group_limit: newGroupLimit ? parseInt(newGroupLimit) : null,
+      sort_order: plans.length + 1,
+      is_active: true,
+    });
+
+    if (!error) {
+      setCreateDialogOpen(false);
+      setNewName("");
+      setNewPrice("");
+      setNewBilling("monthly");
+      setNewFeatures("");
+      setNewMemberLimit("");
+      setNewGroupLimit("");
+      fetchPlans();
+    }
+
+    setSubmitting(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -171,16 +187,25 @@ export default function SubscriptionsPage() {
             <div className="space-y-4 py-2">
               <div className="space-y-2">
                 <Label>{t("planName")}</Label>
-                <Input placeholder="e.g. Business" />
+                <Input
+                  placeholder="e.g. Business"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("planPrice")}</Label>
-                  <Input type="number" placeholder="0.00" />
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t("billingPeriod")}</Label>
-                  <Select defaultValue="monthly">
+                  <Select value={newBilling} onValueChange={(val) => setNewBilling(val ?? "monthly")}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -196,21 +221,37 @@ export default function SubscriptionsPage() {
                 <Textarea
                   placeholder={t("featuresPlaceholder")}
                   rows={4}
+                  value={newFeatures}
+                  onChange={(e) => setNewFeatures(e.target.value)}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>{t("memberLimit")}</Label>
-                  <Input type="number" placeholder="100" />
+                  <Input
+                    type="number"
+                    placeholder="100"
+                    value={newMemberLimit}
+                    onChange={(e) => setNewMemberLimit(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>{t("groupLimit")}</Label>
-                  <Input type="number" placeholder="5" />
+                  <Input
+                    type="number"
+                    placeholder="5"
+                    value={newGroupLimit}
+                    onChange={(e) => setNewGroupLimit(e.target.value)}
+                  />
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={() => setCreateDialogOpen(false)}>
+              <Button
+                onClick={handleCreatePlan}
+                disabled={submitting || !newName}
+              >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 {t("createPlan")}
               </Button>
             </DialogFooter>
@@ -220,19 +261,24 @@ export default function SubscriptionsPage() {
 
       {/* Plan Cards */}
       <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {mockPlans.map((plan) => {
-          const PlanIcon = plan.icon;
+        {plans.map((plan) => {
+          const slug = plan.slug || plan.name.toLowerCase();
+          const PlanIcon = planIcons[slug] || Sparkles;
+          const accent = planAccents[slug] || "border-slate-300 dark:border-slate-600";
+          const nameKey = `plan${plan.name.charAt(0).toUpperCase()}${plan.name.slice(1)}`;
+          const features: string[] = Array.isArray(plan.features) ? plan.features : [];
+
           return (
             <Card
               key={plan.id}
-              className={`relative flex flex-col border-t-4 ${plan.accent}`}
+              className={`relative flex flex-col border-t-4 ${accent}`}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <PlanIcon className="h-5 w-5 text-muted-foreground" />
                     <CardTitle className="text-lg">
-                      {t(plan.nameKey)}
+                      {t(nameKey)}
                     </CardTitle>
                   </div>
                   <Button variant="ghost" size="icon">
@@ -240,9 +286,9 @@ export default function SubscriptionsPage() {
                   </Button>
                 </div>
                 <CardDescription>
-                  {plan.price !== null ? (
+                  {plan.price_monthly !== null ? (
                     <span className="text-2xl font-bold text-foreground">
-                      ${plan.price}
+                      ${plan.price_monthly}
                       <span className="text-sm font-normal text-muted-foreground">
                         {t("perMonth")}
                       </span>
@@ -258,10 +304,10 @@ export default function SubscriptionsPage() {
               <CardContent className="flex-1 space-y-4">
                 {/* Limits */}
                 <div className="flex gap-3">
-                  {plan.memberLimit !== null ? (
+                  {plan.member_limit !== null ? (
                     <Badge variant="secondary" className="gap-1">
                       <Users className="h-3 w-3" />
-                      {plan.memberLimit} {t("members")}
+                      {plan.member_limit} {t("members")}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="gap-1">
@@ -269,10 +315,10 @@ export default function SubscriptionsPage() {
                       Unlimited
                     </Badge>
                   )}
-                  {plan.groupLimit !== null ? (
+                  {plan.group_limit !== null ? (
                     <Badge variant="secondary" className="gap-1">
                       <Building2 className="h-3 w-3" />
-                      {plan.groupLimit} {t("groups")}
+                      {plan.group_limit} {t("groups")}
                     </Badge>
                   ) : (
                     <Badge variant="secondary" className="gap-1">
@@ -284,7 +330,7 @@ export default function SubscriptionsPage() {
 
                 {/* Features */}
                 <ul className="space-y-2">
-                  {plan.features.map((feature, idx) => (
+                  {features.map((feature, idx) => (
                     <li
                       key={idx}
                       className="flex items-start gap-2 text-sm text-muted-foreground"
@@ -301,7 +347,7 @@ export default function SubscriptionsPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CreditCard className="h-4 w-4" />
                     <span className="font-semibold text-foreground">
-                      {plan.subscribers.toLocaleString()}
+                      0
                     </span>{" "}
                     {t("activeSubscribers")}
                   </div>
@@ -310,6 +356,11 @@ export default function SubscriptionsPage() {
             </Card>
           );
         })}
+        {plans.length === 0 && (
+          <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
+            {t("noPlans")}
+          </p>
+        )}
       </div>
     </div>
   );

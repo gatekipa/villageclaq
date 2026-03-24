@@ -1359,6 +1359,7 @@
     "noVouchers": "Aucun bon créé",
     "noEnquiries": "Aucune demande",
     "noAuditLogs": "Aucun journal d'audit",
+    "noDataYet": "Aucune donnée disponible",
     "dashboardSubtitle": "Aperçu de la plateforme et métriques clés",
     "openTickets": "{count} ouverts",
     "planFree": "Gratuit",

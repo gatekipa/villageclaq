@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Shield,
@@ -15,6 +15,7 @@ import {
   Ban,
   Clock,
   Activity,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,25 +44,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
 
 type StaffRole = "super_admin" | "admin" | "support" | "sales" | "finance";
 
 interface StaffMember {
   id: string;
-  name: string;
-  email: string;
+  user_id: string;
   role: StaffRole;
-  joinedAt: string;
-  lastActive: string;
-  avatar: string;
+  is_active: boolean;
+  created_at: string;
+  profiles: {
+    full_name: string | null;
+    email: string;
+    avatar_url: string | null;
+  } | null;
 }
 
 interface ActivityLog {
   id: string;
-  staffName: string;
   action: string;
-  target: string;
-  timestamp: string;
+  target_type: string | null;
+  target_id: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
+  platform_staff: {
+    profiles: {
+      full_name: string | null;
+    } | null;
+  } | null;
 }
 
 const roleColors: Record<StaffRole, string> = {
@@ -80,97 +91,97 @@ const roleIcons: Record<StaffRole, typeof Shield> = {
   finance: Wallet,
 };
 
-const mockStaff: StaffMember[] = [
-  {
-    id: "1",
-    name: "Jude Anyere",
-    email: "jude@villageclaq.com",
-    role: "super_admin",
-    joinedAt: "2024-01-15",
-    lastActive: "2026-03-23",
-    avatar: "JA",
-  },
-  {
-    id: "2",
-    name: "Marie Nguemo",
-    email: "marie@villageclaq.com",
-    role: "admin",
-    joinedAt: "2024-06-01",
-    lastActive: "2026-03-22",
-    avatar: "MN",
-  },
-  {
-    id: "3",
-    name: "Samuel Fon",
-    email: "samuel@villageclaq.com",
-    role: "support",
-    joinedAt: "2025-01-10",
-    lastActive: "2026-03-23",
-    avatar: "SF",
-  },
-  {
-    id: "4",
-    name: "Grace Tabi",
-    email: "grace@villageclaq.com",
-    role: "sales",
-    joinedAt: "2025-03-20",
-    lastActive: "2026-03-21",
-    avatar: "GT",
-  },
-  {
-    id: "5",
-    name: "Emmanuel Nkeng",
-    email: "emmanuel@villageclaq.com",
-    role: "finance",
-    joinedAt: "2025-07-05",
-    lastActive: "2026-03-23",
-    avatar: "EN",
-  },
-];
-
-const mockActivityLogs: ActivityLog[] = [
-  {
-    id: "1",
-    staffName: "Jude Anyere",
-    action: "Changed plan for group",
-    target: "Bamenda Alumni Union",
-    timestamp: "2026-03-23 14:30",
-  },
-  {
-    id: "2",
-    staffName: "Marie Nguemo",
-    action: "Suspended user",
-    target: "john.doe@email.com",
-    timestamp: "2026-03-23 11:15",
-  },
-  {
-    id: "3",
-    staffName: "Samuel Fon",
-    action: "Resolved enquiry",
-    target: "Ticket #1042",
-    timestamp: "2026-03-22 16:45",
-  },
-  {
-    id: "4",
-    staffName: "Grace Tabi",
-    action: "Created voucher",
-    target: "WELCOME2026",
-    timestamp: "2026-03-22 09:20",
-  },
-  {
-    id: "5",
-    staffName: "Emmanuel Nkeng",
-    action: "Exported revenue report",
-    target: "Q1 2026",
-    timestamp: "2026-03-21 17:00",
-  },
-];
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "??";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export default function StaffPage() {
   const t = useTranslations("admin");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<string>("");
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const supabase = createClient();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+
+    const [staffResult, logsResult] = await Promise.all([
+      supabase
+        .from("platform_staff")
+        .select("id, user_id, role, is_active, created_at, profiles(full_name, email, avatar_url)")
+        .eq("is_active", true),
+      supabase
+        .from("platform_audit_logs")
+        .select("id, action, target_type, target_id, details, created_at, platform_staff(profiles(full_name))")
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
+
+    if (staffResult.data) {
+      setStaff(staffResult.data as unknown as StaffMember[]);
+    }
+    if (logsResult.data) {
+      setActivityLogs(logsResult.data as unknown as ActivityLog[]);
+    }
+
+    setLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAddStaff = async () => {
+    if (!newEmail || !newRole) return;
+    setSubmitting(true);
+
+    // Look up user by email in profiles
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", newEmail)
+      .single();
+
+    if (!profile) {
+      setSubmitting(false);
+      return;
+    }
+
+    const { error } = await supabase.from("platform_staff").insert({
+      user_id: profile.id,
+      role: newRole,
+      is_active: true,
+    });
+
+    if (!error) {
+      setAddDialogOpen(false);
+      setNewEmail("");
+      setNewRole("");
+      fetchData();
+    }
+
+    setSubmitting(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -221,9 +232,11 @@ export default function StaffPage() {
             </div>
             <DialogFooter>
               <Button
-                onClick={() => setAddDialogOpen(false)}
+                onClick={handleAddStaff}
+                disabled={submitting || !newEmail || !newRole}
                 className="gap-2"
               >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t("invite")}
               </Button>
             </DialogFooter>
@@ -233,37 +246,39 @@ export default function StaffPage() {
 
       {/* Staff list */}
       <div className="grid gap-4">
-        {mockStaff.map((staff) => {
-          const RoleIcon = roleIcons[staff.role];
+        {staff.map((member) => {
+          const RoleIcon = roleIcons[member.role] || Shield;
+          const name = member.profiles?.full_name || member.profiles?.email || "Unknown";
+          const email = member.profiles?.email || "";
+          const avatar = getInitials(member.profiles?.full_name);
+          const joinedDate = new Date(member.created_at).toLocaleDateString();
+
           return (
-            <Card key={staff.id}>
+            <Card key={member.id}>
               <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                    {staff.avatar}
+                    {avatar}
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium truncate">{staff.name}</p>
+                    <p className="font-medium truncate">{name}</p>
                     <p className="text-sm text-muted-foreground truncate">
-                      {staff.email}
+                      {email}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                   <Badge
-                    className={`gap-1.5 ${roleColors[staff.role]}`}
+                    className={`gap-1.5 ${roleColors[member.role] || ""}`}
                   >
                     <RoleIcon className="h-3 w-3" />
-                    {t(`roles.${staff.role}`)}
+                    {t(`roles.${member.role}`)}
                   </Badge>
 
                   <div className="hidden text-right text-xs text-muted-foreground md:block">
                     <p>
-                      {t("staffJoined")}: {staff.joinedAt}
-                    </p>
-                    <p>
-                      {t("staffLastActive")}: {staff.lastActive}
+                      {t("staffJoined")}: {joinedDate}
                     </p>
                   </div>
 
@@ -295,6 +310,11 @@ export default function StaffPage() {
             </Card>
           );
         })}
+        {staff.length === 0 && (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {t("noStaff")}
+          </p>
+        )}
       </div>
 
       {/* Activity Log */}
@@ -307,29 +327,41 @@ export default function StaffPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockActivityLogs.map((log) => (
-              <div
-                key={log.id}
-                className="flex flex-col gap-1 border-b border-border pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-start gap-3">
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm">
-                      <span className="font-medium">{log.staffName}</span>
-                      {" — "}
-                      {log.action}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {log.target}
-                    </p>
+            {activityLogs.map((log) => {
+              const staffName =
+                log.platform_staff?.profiles?.full_name || "Unknown";
+              const timestamp = new Date(log.created_at).toLocaleString();
+
+              return (
+                <div
+                  key={log.id}
+                  className="flex flex-col gap-1 border-b border-border pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex items-start gap-3">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm">
+                        <span className="font-medium">{staffName}</span>
+                        {" — "}
+                        {log.action}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {log.target_type}
+                        {log.target_id ? `: ${log.target_id}` : ""}
+                      </p>
+                    </div>
                   </div>
+                  <p className="pl-7 text-xs text-muted-foreground sm:pl-0">
+                    {timestamp}
+                  </p>
                 </div>
-                <p className="pl-7 text-xs text-muted-foreground sm:pl-0">
-                  {log.timestamp}
-                </p>
-              </div>
-            ))}
+              );
+            })}
+            {activityLogs.length === 0 && (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                {t("noActivity")}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

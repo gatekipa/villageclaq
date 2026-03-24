@@ -1402,6 +1402,7 @@
     "noVouchers": "No vouchers created",
     "noEnquiries": "No enquiries",
     "noAuditLogs": "No audit logs",
+    "noDataYet": "No data available yet",
     "dashboardSubtitle": "Platform overview and key metrics",
     "openTickets": "{count} open",
     "planFree": "Free",

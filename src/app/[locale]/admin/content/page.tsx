@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   MessageSquareQuote,
@@ -8,6 +8,7 @@ import {
   Plus,
   Star,
   GripVertical,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,103 +34,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { createClient } from "@/lib/supabase/client";
 
 interface Testimonial {
   id: string;
   name: string;
   role: string;
-  group: string;
+  group_name: string;
   quote: string;
   featured: boolean;
+  sort_order: number;
 }
 
 interface Faq {
   id: string;
-  questionEn: string;
-  answerPreview: string;
+  question_en: string;
+  question_fr: string;
+  answer_en: string;
+  answer_fr: string;
   category: string;
-  sortOrder: number;
+  sort_order: number;
 }
-
-const mockTestimonials: Testimonial[] = [
-  {
-    id: "1",
-    name: "Marie Tabi",
-    role: "President",
-    group: "Bamenda Alumni Union",
-    quote: "VillageClaq transformed how we manage our njangi contributions. Everything is transparent and members trust the system.",
-    featured: true,
-  },
-  {
-    id: "2",
-    name: "Emmanuel Fon",
-    role: "Treasurer",
-    group: "Douala Business Network",
-    quote: "The financial tracking is exactly what our group needed. We reduced disputes by 90% in the first month.",
-    featured: true,
-  },
-  {
-    id: "3",
-    name: "Grace Nkembe",
-    role: "Secretary",
-    group: "Buea Tech Community",
-    quote: "Managing events and member communications used to take hours. Now it takes minutes with VillageClaq.",
-    featured: false,
-  },
-  {
-    id: "4",
-    name: "Samuel Ngwa",
-    role: "Member",
-    group: "Limbe Fishermen Njangi",
-    quote: "I can finally see all my contributions and savings in one place. The mobile experience is fantastic.",
-    featured: false,
-  },
-];
-
-const mockFaqs: Faq[] = [
-  {
-    id: "1",
-    questionEn: "How do I create a group on VillageClaq?",
-    answerPreview: "Sign up, click Create Group, fill in details...",
-    category: "General",
-    sortOrder: 1,
-  },
-  {
-    id: "2",
-    questionEn: "What payment methods are supported?",
-    answerPreview: "We support Mobile Money, bank transfers...",
-    category: "Billing",
-    sortOrder: 2,
-  },
-  {
-    id: "3",
-    questionEn: "Is my financial data secure?",
-    answerPreview: "All data is encrypted at rest and in transit...",
-    category: "Security",
-    sortOrder: 3,
-  },
-  {
-    id: "4",
-    questionEn: "Can I belong to multiple groups?",
-    answerPreview: "Yes, VillageClaq supports multi-group membership...",
-    category: "Features",
-    sortOrder: 4,
-  },
-  {
-    id: "5",
-    questionEn: "How do I upgrade my group's plan?",
-    answerPreview: "Go to Settings > Subscription and select a new plan...",
-    category: "Billing",
-    sortOrder: 5,
-  },
-  {
-    id: "6",
-    questionEn: "What happens when a member misses a contribution?",
-    answerPreview: "The system flags the missed payment and notifies...",
-    category: "Features",
-    sortOrder: 6,
-  },
-];
 
 const categoryColors: Record<string, string> = {
   General: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
@@ -142,6 +67,130 @@ export default function ContentPage() {
   const t = useTranslations("admin");
   const [testimonialDialogOpen, setTestimonialDialogOpen] = useState(false);
   const [faqDialogOpen, setFaqDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Testimonial form state
+  const [tName, setTName] = useState("");
+  const [tRole, setTRole] = useState("");
+  const [tGroup, setTGroup] = useState("");
+  const [tQuote, setTQuote] = useState("");
+  const [tFeatured, setTFeatured] = useState(false);
+
+  // FAQ form state
+  const [fQuestionEn, setFQuestionEn] = useState("");
+  const [fQuestionFr, setFQuestionFr] = useState("");
+  const [fAnswerEn, setFAnswerEn] = useState("");
+  const [fAnswerFr, setFAnswerFr] = useState("");
+  const [fCategory, setFCategory] = useState("General");
+  const [fSortOrder, setFSortOrder] = useState(1);
+
+  const fetchData = useCallback(async () => {
+    const supabase = createClient();
+    setLoading(true);
+    try {
+      const [testimonialsRes, faqsRes] = await Promise.all([
+        supabase.from("testimonials").select("*").order("sort_order"),
+        supabase.from("faqs").select("*").order("sort_order"),
+      ]);
+      setTestimonials(testimonialsRes.data || []);
+      setFaqs(faqsRes.data || []);
+    } catch (err) {
+      console.error("Error fetching content:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAddTestimonial = async () => {
+    if (!tName.trim() || !tQuote.trim()) return;
+    const supabase = createClient();
+    setSaving(true);
+    try {
+      const maxSort = testimonials.length > 0
+        ? Math.max(...testimonials.map((t) => t.sort_order || 0))
+        : 0;
+      const { error } = await supabase.from("testimonials").insert({
+        name: tName.trim(),
+        role: tRole.trim(),
+        group_name: tGroup.trim(),
+        quote: tQuote.trim(),
+        featured: tFeatured,
+        sort_order: maxSort + 1,
+      });
+      if (error) throw error;
+      setTestimonialDialogOpen(false);
+      setTName("");
+      setTRole("");
+      setTGroup("");
+      setTQuote("");
+      setTFeatured(false);
+      await fetchData();
+    } catch (err) {
+      console.error("Error adding testimonial:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleFeatured = async (id: string, current: boolean) => {
+    const supabase = createClient();
+    try {
+      const { error } = await supabase
+        .from("testimonials")
+        .update({ featured: !current })
+        .eq("id", id);
+      if (error) throw error;
+      setTestimonials((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, featured: !current } : t))
+      );
+    } catch (err) {
+      console.error("Error toggling featured:", err);
+    }
+  };
+
+  const handleAddFaq = async () => {
+    if (!fQuestionEn.trim() || !fAnswerEn.trim()) return;
+    const supabase = createClient();
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("faqs").insert({
+        question_en: fQuestionEn.trim(),
+        question_fr: fQuestionFr.trim(),
+        answer_en: fAnswerEn.trim(),
+        answer_fr: fAnswerFr.trim(),
+        category: fCategory,
+        sort_order: fSortOrder,
+      });
+      if (error) throw error;
+      setFaqDialogOpen(false);
+      setFQuestionEn("");
+      setFQuestionFr("");
+      setFAnswerEn("");
+      setFAnswerFr("");
+      setFCategory("General");
+      setFSortOrder(1);
+      await fetchData();
+    } catch (err) {
+      console.error("Error adding FAQ:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -185,28 +234,48 @@ export default function ContentPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>{t("testimonialName")}</Label>
-                      <Input placeholder="John Doe" />
+                      <Input
+                        placeholder="John Doe"
+                        value={tName}
+                        onChange={(e) => setTName(e.target.value)}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label>{t("testimonialRole")}</Label>
-                      <Input placeholder="President" />
+                      <Input
+                        placeholder="President"
+                        value={tRole}
+                        onChange={(e) => setTRole(e.target.value)}
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>{t("testimonialGroup")}</Label>
-                    <Input placeholder="Group name" />
+                    <Input
+                      placeholder="Group name"
+                      value={tGroup}
+                      onChange={(e) => setTGroup(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("testimonialQuote")}</Label>
-                    <Textarea rows={4} />
+                    <Textarea
+                      rows={4}
+                      value={tQuote}
+                      onChange={(e) => setTQuote(e.target.value)}
+                    />
                   </div>
                   <div className="flex items-center gap-3">
-                    <Switch />
+                    <Switch
+                      checked={tFeatured}
+                      onCheckedChange={setTFeatured}
+                    />
                     <Label>{t("featuredToggle")}</Label>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={() => setTestimonialDialogOpen(false)}>
+                  <Button onClick={handleAddTestimonial} disabled={saving}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {t("addTestimonial")}
                   </Button>
                 </DialogFooter>
@@ -214,31 +283,50 @@ export default function ContentPage() {
             </Dialog>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {mockTestimonials.map((item) => (
-              <Card key={item.id}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{item.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {item.role} &middot; {item.group}
-                      </p>
+          {testimonials.length === 0 ? (
+            <Card>
+              <CardContent className="flex items-center justify-center p-8 text-muted-foreground">
+                {t("noDataYet")}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {testimonials.map((item) => (
+                <Card key={item.id}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{item.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {item.role} &middot; {item.group_name}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFeatured(item.id, item.featured)}
+                        className="shrink-0"
+                      >
+                        {item.featured ? (
+                          <Badge className="gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 cursor-pointer">
+                            <Star className="h-3 w-3" />
+                            {t("featured")}
+                          </Badge>
+                        ) : (
+                          <Badge className="gap-1 bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 cursor-pointer">
+                            <Star className="h-3 w-3" />
+                            {t("featured")}
+                          </Badge>
+                        )}
+                      </button>
                     </div>
-                    {item.featured && (
-                      <Badge className="shrink-0 gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        <Star className="h-3 w-3" />
-                        {t("featured")}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    &ldquo;{item.quote}&rdquo;
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      &ldquo;{item.quote}&rdquo;
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* FAQs Tab */}
@@ -261,24 +349,38 @@ export default function ContentPage() {
                 <div className="space-y-4 py-2">
                   <div className="space-y-2">
                     <Label>{t("questionEn")}</Label>
-                    <Input />
+                    <Input
+                      value={fQuestionEn}
+                      onChange={(e) => setFQuestionEn(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("questionFr")}</Label>
-                    <Input />
+                    <Input
+                      value={fQuestionFr}
+                      onChange={(e) => setFQuestionFr(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("answerEn")}</Label>
-                    <Textarea rows={3} />
+                    <Textarea
+                      rows={3}
+                      value={fAnswerEn}
+                      onChange={(e) => setFAnswerEn(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>{t("answerFr")}</Label>
-                    <Textarea rows={3} />
+                    <Textarea
+                      rows={3}
+                      value={fAnswerFr}
+                      onChange={(e) => setFAnswerFr(e.target.value)}
+                    />
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>{t("category")}</Label>
-                      <Select>
+                      <Select value={fCategory} onValueChange={(val) => val && setFCategory(val)}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder={t("category")} />
                         </SelectTrigger>
@@ -292,12 +394,18 @@ export default function ContentPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>{t("sortOrder")}</Label>
-                      <Input type="number" min={1} />
+                      <Input
+                        type="number"
+                        min={1}
+                        value={fSortOrder}
+                        onChange={(e) => setFSortOrder(Number(e.target.value))}
+                      />
                     </div>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={() => setFaqDialogOpen(false)}>
+                  <Button onClick={handleAddFaq} disabled={saving}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {t("addFaq")}
                   </Button>
                 </DialogFooter>
@@ -305,31 +413,39 @@ export default function ContentPage() {
             </Dialog>
           </div>
 
-          <div className="space-y-3">
-            {mockFaqs.map((faq) => (
-              <Card key={faq.id}>
-                <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{faq.questionEn}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {faq.answerPreview}
-                      </p>
+          {faqs.length === 0 ? (
+            <Card>
+              <CardContent className="flex items-center justify-center p-8 text-muted-foreground">
+                {t("noDataYet")}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {faqs.map((faq) => (
+                <Card key={faq.id}>
+                  <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{faq.question_en}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {faq.answer_en}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 pl-7 sm:pl-0">
-                    <Badge className={categoryColors[faq.category]}>
-                      {t(`faq${faq.category}`)}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      #{faq.sortOrder}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <div className="flex items-center gap-3 pl-7 sm:pl-0">
+                      <Badge className={categoryColors[faq.category] || categoryColors.General}>
+                        {t(`faq${faq.category}`)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        #{faq.sort_order}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

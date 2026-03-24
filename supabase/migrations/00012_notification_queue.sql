@@ -9,7 +9,7 @@ CREATE TYPE notification_queue_status AS ENUM ('queued', 'sent', 'failed');
 
 CREATE TABLE notifications_queue (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   channel notification_channel NOT NULL,
   template TEXT NOT NULL,
   data JSONB NOT NULL DEFAULT '{}',

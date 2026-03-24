@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   Mail,
   ChevronDown,
   ChevronUp,
   Clock,
-  User,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/client";
 
 type EnquiryStatus = "new" | "in_progress" | "resolved";
 
@@ -29,9 +30,11 @@ interface Enquiry {
   name: string;
   email: string;
   subject: string;
-  date: string;
+  created_at: string;
   status: EnquiryStatus;
   message: string;
+  reply: string | null;
+  assigned_to: string | null;
 }
 
 const statusColors: Record<EnquiryStatus, string> = {
@@ -46,79 +49,97 @@ const statusKeys: Record<EnquiryStatus, string> = {
   resolved: "statusResolved",
 };
 
-const mockEnquiries: Enquiry[] = [
-  {
-    id: "1",
-    name: "Pierre Kamga",
-    email: "pierre.kamga@gmail.com",
-    subject: "Unable to create a new group",
-    date: "2026-03-23",
-    status: "new",
-    message: "I signed up yesterday and when I try to create a new group, I get an error message saying 'Something went wrong'. I have tried multiple browsers but the issue persists. Please help.",
-  },
-  {
-    id: "2",
-    name: "Aisha Bello",
-    email: "aisha.bello@yahoo.com",
-    subject: "Question about Enterprise pricing",
-    date: "2026-03-22",
-    status: "in_progress",
-    message: "We are a large alumni association with over 500 members. We would like to know more about the Enterprise plan and whether you offer custom pricing for organizations of our size.",
-  },
-  {
-    id: "3",
-    name: "Jean-Paul Mbarga",
-    email: "jpmbarga@outlook.com",
-    subject: "Feature request: SMS notifications",
-    date: "2026-03-21",
-    status: "new",
-    message: "Many of our members in rural areas do not have reliable internet. It would be great if VillageClaq could send SMS reminders for contribution deadlines and meeting announcements.",
-  },
-  {
-    id: "4",
-    name: "Comfort Adeola",
-    email: "comfort.adeola@gmail.com",
-    subject: "Payment not reflecting in dashboard",
-    date: "2026-03-20",
-    status: "resolved",
-    message: "I made a Mobile Money payment of 15,000 FCFA on March 18th but it still does not show up in our group dashboard. The transaction reference is MM20260318-4521.",
-  },
-  {
-    id: "5",
-    name: "Bertrand Njoh",
-    email: "bertrand.njoh@gmail.com",
-    subject: "How to export member list?",
-    date: "2026-03-19",
-    status: "resolved",
-    message: "I am the secretary of our village development union. How can I export the full member list with phone numbers and email addresses to an Excel file?",
-  },
-  {
-    id: "6",
-    name: "Fatou Diallo",
-    email: "fatou.diallo@hotmail.com",
-    subject: "Bug: Calendar events showing wrong time",
-    date: "2026-03-18",
-    status: "in_progress",
-    message: "Events scheduled in the WAT timezone are displaying one hour early for all members. This started happening after the last update. It is causing confusion for our weekly meeting schedule.",
-  },
-];
-
-const staffMembers = [
-  "Jude Anyere",
-  "Marie Nguemo",
-  "Samuel Fon",
-  "Grace Tabi",
-  "Emmanuel Nkeng",
-];
-
 export default function EnquiriesPage() {
   const t = useTranslations("admin");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
+  const [statusChanges, setStatusChanges] = useState<Record<string, EnquiryStatus>>({});
+  const [saving, setSaving] = useState<string | null>(null);
 
-  const filtered = statusFilter === "all"
-    ? mockEnquiries
-    : mockEnquiries.filter((e) => e.status === statusFilter);
+  const fetchEnquiries = useCallback(async () => {
+    const supabase = createClient();
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("contact_enquiries")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setEnquiries(data || []);
+    } catch (err) {
+      console.error("Error fetching enquiries:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEnquiries();
+  }, [fetchEnquiries]);
+
+  const handleUpdateEnquiry = async (id: string) => {
+    const supabase = createClient();
+    setSaving(id);
+    try {
+      const updates: Record<string, unknown> = {};
+      if (replyTexts[id] !== undefined && replyTexts[id].trim()) {
+        updates.reply = replyTexts[id].trim();
+      }
+      if (statusChanges[id]) {
+        updates.status = statusChanges[id];
+      }
+      if (Object.keys(updates).length === 0) return;
+
+      const { error } = await supabase
+        .from("contact_enquiries")
+        .update(updates)
+        .eq("id", id);
+      if (error) throw error;
+
+      // Update local state
+      setEnquiries((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                ...(updates.reply ? { reply: updates.reply as string } : {}),
+                ...(updates.status ? { status: updates.status as EnquiryStatus } : {}),
+              }
+            : e
+        )
+      );
+      setReplyTexts((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setStatusChanges((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err) {
+      console.error("Error updating enquiry:", err);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const filtered =
+    statusFilter === "all"
+      ? enquiries
+      : enquiries.filter((e) => e.status === statusFilter);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -154,6 +175,9 @@ export default function EnquiriesPage() {
 
         {filtered.map((enquiry) => {
           const isExpanded = expandedId === enquiry.id;
+          const displayDate = enquiry.created_at
+            ? new Date(enquiry.created_at).toISOString().split("T")[0]
+            : "";
           return (
             <Card key={enquiry.id}>
               <CardContent className="p-4">
@@ -177,7 +201,7 @@ export default function EnquiriesPage() {
                   <div className="flex items-center gap-3 pl-12 sm:pl-0">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      {enquiry.date}
+                      {displayDate}
                     </div>
                     <Badge className={statusColors[enquiry.status]}>
                       {t(statusKeys[enquiry.status])}
@@ -202,18 +226,44 @@ export default function EnquiriesPage() {
                       </p>
                     </div>
 
+                    {enquiry.reply && (
+                      <div>
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                          {t("reply")}
+                        </Label>
+                        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                          {enquiry.reply}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>{t("reply")}</Label>
                       <Textarea
                         rows={3}
                         placeholder={t("replyPlaceholder")}
+                        value={replyTexts[enquiry.id] || ""}
+                        onChange={(e) =>
+                          setReplyTexts((prev) => ({
+                            ...prev,
+                            [enquiry.id]: e.target.value,
+                          }))
+                        }
                       />
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row">
                       <div className="space-y-1 flex-1">
                         <Label className="text-xs">{t("changeStatus")}</Label>
-                        <Select defaultValue={enquiry.status}>
+                        <Select
+                          value={statusChanges[enquiry.id] || enquiry.status}
+                          onValueChange={(val) =>
+                            setStatusChanges((prev) => ({
+                              ...prev,
+                              [enquiry.id]: val as EnquiryStatus,
+                            }))
+                          }
+                        >
                           <SelectTrigger className="w-full">
                             <SelectValue />
                           </SelectTrigger>
@@ -224,28 +274,19 @@ export default function EnquiriesPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1 flex-1">
-                        <Label className="text-xs">{t("assignTo")}</Label>
-                        <Select>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={t("assignTo")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {staffMembers.map((name) => (
-                              <SelectItem key={name} value={name}>
-                                <span className="flex items-center gap-2">
-                                  <User className="h-3 w-3" />
-                                  {name}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
                     </div>
 
                     <div className="flex justify-end">
-                      <Button size="sm">{t("reply")}</Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleUpdateEnquiry(enquiry.id)}
+                        disabled={saving === enquiry.id}
+                      >
+                        {saving === enquiry.id && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {t("reply")}
+                      </Button>
                     </div>
                   </div>
                 )}

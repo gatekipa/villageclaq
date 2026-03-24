@@ -4,8 +4,8 @@
 // Template names and structures follow WhatsApp's template message format.
 // Parameters use {{1}}, {{2}}, etc. as WhatsApp placeholders.
 //
-// TODO: Register these templates via the WhatsApp Business API or Meta Business Manager.
-// TODO: Set WHATSAPP_BUSINESS_PHONE_ID and WHATSAPP_ACCESS_TOKEN env vars.
+// NOTE: Templates must be registered via Meta Business Manager before use.
+// NOTE: Set WHATSAPP_API_TOKEN and WHATSAPP_PHONE_ID env vars to enable sending.
 
 type Locale = 'en' | 'fr';
 

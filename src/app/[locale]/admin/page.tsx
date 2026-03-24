@@ -1,8 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { createClient } from "@/lib/supabase/client";
 import {
   DollarSign,
   TrendingUp,
@@ -16,29 +19,13 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-// Mock data
+// Revenue stats remain static (no billing tables yet)
 const revenueStats = {
   mrr: 2450,
   arr: 29400,
   revenueThisMonth: 3200,
   revenueGrowth: 12,
 };
-
-const usageStats = {
-  totalGroups: 156,
-  totalUsers: 4230,
-  paymentsRecorded: 12847,
-  eventsCreated: 892,
-};
-
-const recentSignups = [
-  { id: "1", name: "Bamenda Cultural Association", plan: "Pro", members: 84, date: "2026-03-22" },
-  { id: "2", name: "Douala Alumni Network", plan: "Starter", members: 32, date: "2026-03-21" },
-  { id: "3", name: "Bafoussam Njangi Circle", plan: "Free", members: 12, date: "2026-03-20" },
-  { id: "4", name: "Lagos Igbo Community Union", plan: "Enterprise", members: 210, date: "2026-03-19" },
-  { id: "5", name: "Kumba Women Development Fund", plan: "Pro", members: 56, date: "2026-03-18" },
-  { id: "6", name: "Accra Ewe Heritage Society", plan: "Starter", members: 27, date: "2026-03-17" },
-];
 
 const systemHealth = {
   uptime: 99.97,
@@ -54,38 +41,56 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-function getPlanBadgeVariant(plan: string) {
-  switch (plan) {
-    case "Free":
-      return "secondary" as const;
-    case "Starter":
-      return "default" as const;
-    case "Pro":
-      return "default" as const;
-    case "Enterprise":
-      return "outline" as const;
-    default:
-      return "secondary" as const;
-  }
-}
-
-function getPlanBadgeClass(plan: string) {
-  switch (plan) {
-    case "Free":
-      return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
-    case "Starter":
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300";
-    case "Pro":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
-    case "Enterprise":
-      return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
-    default:
-      return "";
-  }
+interface RecentGroup {
+  id: string;
+  name: string;
+  created_at: string;
 }
 
 export default function AdminDashboardPage() {
   const t = useTranslations("admin");
+  const [loading, setLoading] = useState(true);
+  const [totalGroups, setTotalGroups] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPayments, setTotalPayments] = useState(0);
+  const [totalEvents, setTotalEvents] = useState(0);
+  const [recentSignups, setRecentSignups] = useState<RecentGroup[]>([]);
+
+  useEffect(() => {
+    async function fetchData() {
+      const supabase = createClient();
+
+      const [groupsRes, usersRes, paymentsRes, eventsRes, recentRes] =
+        await Promise.all([
+          supabase
+            .from("groups")
+            .select("id", { count: "exact", head: true }),
+          supabase
+            .from("profiles")
+            .select("id", { count: "exact", head: true }),
+          supabase
+            .from("payments")
+            .select("id", { count: "exact", head: true }),
+          supabase
+            .from("events")
+            .select("id", { count: "exact", head: true }),
+          supabase
+            .from("groups")
+            .select("id, name, created_at")
+            .order("created_at", { ascending: false })
+            .limit(10),
+        ]);
+
+      setTotalGroups(groupsRes.count ?? 0);
+      setTotalUsers(usersRes.count ?? 0);
+      setTotalPayments(paymentsRes.count ?? 0);
+      setTotalEvents(eventsRes.count ?? 0);
+      setRecentSignups(recentRes.data ?? []);
+      setLoading(false);
+    }
+
+    fetchData();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -169,9 +174,13 @@ export default function AdminDashboardPage() {
             <Layers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold sm:text-3xl">
-              {usageStats.totalGroups.toLocaleString()}
-            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <div className="text-2xl font-bold sm:text-3xl">
+                {totalGroups.toLocaleString()}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -183,9 +192,13 @@ export default function AdminDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold sm:text-3xl">
-              {usageStats.totalUsers.toLocaleString()}
-            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <div className="text-2xl font-bold sm:text-3xl">
+                {totalUsers.toLocaleString()}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -197,9 +210,13 @@ export default function AdminDashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold sm:text-3xl">
-              {usageStats.paymentsRecorded.toLocaleString()}
-            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <div className="text-2xl font-bold sm:text-3xl">
+                {totalPayments.toLocaleString()}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -211,9 +228,13 @@ export default function AdminDashboardPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold sm:text-3xl">
-              {usageStats.eventsCreated.toLocaleString()}
-            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <div className="text-2xl font-bold sm:text-3xl">
+                {totalEvents.toLocaleString()}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -227,28 +248,37 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentSignups.map((group) => (
-                <div
-                  key={group.id}
-                  className="flex items-center gap-3"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <Layers className="h-4 w-4 text-primary" />
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-lg" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{group.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("membersCount", { count: group.members })} &middot; {group.date}
-                    </p>
+                ))
+              ) : recentSignups.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("noGroups")}
+                </p>
+              ) : (
+                recentSignups.map((group) => (
+                  <div key={group.id} className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <Layers className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {group.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(group.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                  <Badge
-                    variant={getPlanBadgeVariant(group.plan)}
-                    className={getPlanBadgeClass(group.plan)}
-                  >
-                    {t(`plan${group.plan}` as "planFree" | "planStarter" | "planPro" | "planEnterprise")}
-                  </Badge>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

@@ -102,7 +102,6 @@ export default function GroupOnboardingPage() {
       return;
     }
 
-    const slug = formData.groupName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "group";
     const typeMap: Record<string, string> = { savings: "njangi", church: "church", alumni: "alumni", women: "njangi", village: "village", professional: "professional" };
     const groupType = formData.template ? typeMap[formData.template] || "general" : "general";
 
@@ -110,8 +109,7 @@ export default function GroupOnboardingPage() {
     setSetupProgress(t("progressOrg"));
     const { data: org, error: orgErr } = await supabase.from("organizations").insert({
       name: formData.groupName,
-      slug: `${slug}-org-${Date.now()}`,
-      owner_id: user.id,
+      created_by: user.id,
     }).select().single();
     if (orgErr) {
       setError(`Organization: ${orgErr.message}`);
@@ -124,7 +122,6 @@ export default function GroupOnboardingPage() {
     const { data: group, error: groupErr } = await supabase.from("groups").insert({
       organization_id: org.id,
       name: formData.groupName,
-      slug: `${slug}-${Date.now()}`,
       group_type: groupType,
       currency: formData.currency || "XAF",
       locale: "en",

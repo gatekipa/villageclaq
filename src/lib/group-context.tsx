@@ -11,15 +11,17 @@ export interface GroupMembership {
   standing: "good" | "warning" | "suspended" | "banned";
   display_name: string | null;
   joined_at: string;
+  privacy_settings: Record<string, boolean> | null;
   group: {
     id: string;
     name: string;
-    slug: string;
     group_type: string;
     currency: string;
     locale: string;
     logo_url: string | null;
     settings: Record<string, unknown>;
+    is_active: boolean;
+    created_by: string | null;
   };
 }
 
@@ -118,8 +120,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       const { data: membershipData } = await supabase
         .from("memberships")
         .select(`
-          id, group_id, role, standing, display_name, joined_at,
-          group:groups!inner(id, name, slug, group_type, currency, locale, logo_url, settings)
+          id, group_id, role, standing, display_name, joined_at, privacy_settings,
+          group:groups!inner(id, name, group_type, currency, locale, logo_url, settings, is_active, created_by)
         `)
         .eq("user_id", authUser.id)
         .order("joined_at", { ascending: false });

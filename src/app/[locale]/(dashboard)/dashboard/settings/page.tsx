@@ -94,7 +94,7 @@ export default function GroupSettingsPage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold">{groupData.name as string}</h3>
-                      <p className="text-sm text-muted-foreground">/{groupData.slug as string}</p>
+                      <p className="text-sm text-muted-foreground">{(groupData.group_type as string) || "general"}</p>
                     </div>
                   </div>
 
@@ -113,8 +113,8 @@ export default function GroupSettingsPage() {
                       <p className="mt-1 text-sm font-medium">{(groupData.locale as string) || "—"}</p>
                     </div>
                     <div className="rounded-lg border p-3">
-                      <p className="text-xs font-medium text-muted-foreground">{t("groupSlug")}</p>
-                      <p className="mt-1 text-sm font-medium">{(groupData.slug as string) || "—"}</p>
+                      <p className="text-xs font-medium text-muted-foreground">{t("status")}</p>
+                      <p className="mt-1 text-sm font-medium">{(groupData.is_active as boolean) ? "Active" : "Inactive"}</p>
                     </div>
                   </div>
 

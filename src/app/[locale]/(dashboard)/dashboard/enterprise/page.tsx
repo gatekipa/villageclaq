@@ -51,7 +51,7 @@ function useEnterpriseBranches() {
       if (!user) return [];
       const { data, error } = await supabase
         .from("memberships")
-        .select("group_id, role, group:groups!inner(id, name, slug, group_type, currency, locale, logo_url, settings, sharing_controls)")
+        .select("group_id, role, group:groups!inner(id, name, group_type, currency, locale, logo_url, settings, sharing_controls)")
         .eq("user_id", user.id)
         .order("joined_at", { ascending: false });
       if (error) throw error;

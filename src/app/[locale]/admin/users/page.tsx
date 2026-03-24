@@ -27,7 +27,6 @@ type UserStatus = "active" | "suspended";
 interface AdminUser {
   id: string;
   full_name: string;
-  email: string;
   phone: string | null;
   avatar_url: string | null;
   created_at: string;
@@ -52,7 +51,7 @@ export default function AdminUsersPage() {
 
       const { data: profilesData } = await supabase
         .from("profiles")
-        .select("id, full_name, email, phone, avatar_url, created_at")
+        .select("id, full_name, phone, avatar_url, created_at")
         .order("created_at", { ascending: false });
 
       if (!profilesData) {
@@ -77,7 +76,6 @@ export default function AdminUsersPage() {
       const mapped: AdminUser[] = profilesData.map((u) => ({
         id: u.id,
         full_name: u.full_name ?? "",
-        email: u.email ?? "",
         phone: u.phone ?? null,
         avatar_url: u.avatar_url ?? null,
         created_at: u.created_at,
@@ -94,7 +92,6 @@ export default function AdminUsersPage() {
   const filtered = users.filter((u) => {
     const matchesSearch =
       u.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
       (u.phone && u.phone.includes(search));
     // No suspended column in profiles yet, treat all as active
     const matchesStatus = statusFilter === "all" || statusFilter === "active";
@@ -198,7 +195,7 @@ export default function AdminUsersPage() {
                       </div>
                       <p className="truncate text-xs text-muted-foreground flex items-center gap-1">
                         <Mail className="h-3 w-3 shrink-0" />
-                        {user.email}
+                        {user.id.substring(0, 8)}...
                       </p>
                     </div>
                   </div>

@@ -55,8 +55,8 @@ interface StaffMember {
   is_active: boolean;
   created_at: string;
   profiles: {
+    id: string;
     full_name: string | null;
-    email: string;
     avatar_url: string | null;
   } | null;
 }
@@ -119,7 +119,7 @@ export default function StaffPage() {
     const [staffResult, logsResult] = await Promise.all([
       supabase
         .from("platform_staff")
-        .select("id, user_id, role, is_active, created_at, profiles(full_name, email, avatar_url)")
+        .select("id, user_id, role, is_active, created_at, profiles(id, full_name, avatar_url)")
         .eq("is_active", true),
       supabase
         .from("platform_audit_logs")
@@ -147,12 +147,13 @@ export default function StaffPage() {
     if (!newEmail || !newRole) return;
     setSubmitting(true);
 
-    // Look up user by email in profiles
+    // Look up user by name or ID in profiles
     const { data: profile } = await supabase
       .from("profiles")
       .select("id")
-      .eq("email", newEmail)
-      .single();
+      .or(`full_name.ilike.%${newEmail}%,id.eq.${newEmail}`)
+      .limit(1)
+      .maybeSingle();
 
     if (!profile) {
       setSubmitting(false);
@@ -248,8 +249,8 @@ export default function StaffPage() {
       <div className="grid gap-4">
         {staff.map((member) => {
           const RoleIcon = roleIcons[member.role] || Shield;
-          const name = member.profiles?.full_name || member.profiles?.email || "Unknown";
-          const email = member.profiles?.email || "";
+          const name = member.profiles?.full_name || "Unknown";
+          const staffUserId = member.user_id || "";
           const avatar = getInitials(member.profiles?.full_name);
           const joinedDate = new Date(member.created_at).toLocaleDateString();
 
@@ -263,7 +264,7 @@ export default function StaffPage() {
                   <div className="min-w-0">
                     <p className="font-medium truncate">{name}</p>
                     <p className="text-sm text-muted-foreground truncate">
-                      {email}
+                      {staffUserId}
                     </p>
                   </div>
                 </div>

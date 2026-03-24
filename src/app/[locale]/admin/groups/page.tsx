@@ -50,7 +50,7 @@ export default function AdminGroupsPage() {
 
       const { data: groupsData } = await supabase
         .from("groups")
-        .select("id, name, slug, group_type, currency, is_active, created_at, organization_id, organizations(name)")
+        .select("id, name, group_type, currency, is_active, created_at, organization_id, organizations(name)")
         .order("created_at", { ascending: false });
 
       if (!groupsData) {

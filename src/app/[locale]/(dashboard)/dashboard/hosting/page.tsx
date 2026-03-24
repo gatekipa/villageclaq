@@ -5,7 +5,23 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Home,
   Calendar,
@@ -15,8 +31,10 @@ import {
   ArrowRightLeft,
   ShieldCheck,
   Trophy,
+  Plus,
+  Loader2,
 } from "lucide-react";
-import { useHostingRosters } from "@/lib/hooks/use-supabase-query";
+import { useHostingRosters, useCreateHostingRoster } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
@@ -54,8 +72,41 @@ function formatDate(dateStr: string) {
 
 export default function HostingPage() {
   const t = useTranslations("hosting");
+  const tc = useTranslations("common");
+  const { isAdmin } = useGroup();
   const { data: rosters, isLoading, isError, error, refetch } = useHostingRosters();
+  const createRoster = useCreateHostingRoster();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+
+  // Create dialog state
+  const [showCreate, setShowCreate] = useState(false);
+  const [rosterName, setRosterName] = useState("");
+  const [rotationType, setRotationType] = useState("sequential");
+  const [createError, setCreateError] = useState("");
+
+  const resetCreateForm = () => {
+    setRosterName("");
+    setRotationType("sequential");
+    setCreateError("");
+  };
+
+  const handleCreateRoster = async () => {
+    if (!rosterName.trim()) {
+      setCreateError(tc("required"));
+      return;
+    }
+    setCreateError("");
+    try {
+      await createRoster.mutateAsync({
+        name: rosterName.trim(),
+        rotation_type: rotationType,
+      });
+      setShowCreate(false);
+      resetCreateForm();
+    } catch (err) {
+      setCreateError((err as Error).message || tc("error"));
+    }
+  };
 
   if (isLoading) {
     return <AdminGuard><ListSkeleton rows={6} /></AdminGuard>;
@@ -82,15 +133,67 @@ export default function HostingPage() {
   if (allAssignments.length === 0 && (!rosters || rosters.length === 0)) {
     return (
       <AdminGuard><div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("subtitle")}</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+            <p className="text-muted-foreground">{t("subtitle")}</p>
+          </div>
+          {isAdmin && (
+            <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("createRoster")}
+            </Button>
+          )}
         </div>
         <EmptyState
           icon={Home}
           title={t("noRoster")}
           description={t("noRosterDesc")}
         />
+
+        {/* Create Roster Dialog */}
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t("createRoster")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>{t("rosterName")}</Label>
+                <Input
+                  value={rosterName}
+                  onChange={(e) => setRosterName(e.target.value)}
+                  placeholder={t("rosterName")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("rotationType")}</Label>
+                <Select value={rotationType} onValueChange={(v) => setRotationType(v ?? "sequential")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sequential">{t("sequential")}</SelectItem>
+                    <SelectItem value="random">{t("random")}</SelectItem>
+                    <SelectItem value="manual">{t("manual")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {createError && (
+                <p className="text-sm text-destructive">{createError}</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCreate(false)}>
+                {tc("cancel")}
+              </Button>
+              <Button onClick={handleCreateRoster} disabled={createRoster.isPending}>
+                {createRoster.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {tc("create")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div></AdminGuard>
     );
   }
@@ -127,6 +230,12 @@ export default function HostingPage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
+        {isAdmin && (
+          <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("createRoster")}
+          </Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -198,6 +307,50 @@ export default function HostingPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Roster Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("createRoster")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("rosterName")}</Label>
+              <Input
+                value={rosterName}
+                onChange={(e) => setRosterName(e.target.value)}
+                placeholder={t("rosterName")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("rotationType")}</Label>
+              <Select value={rotationType} onValueChange={(v) => setRotationType(v ?? "sequential")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sequential">{t("sequential")}</SelectItem>
+                  <SelectItem value="random">{t("random")}</SelectItem>
+                  <SelectItem value="manual">{t("manual")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={handleCreateRoster} disabled={createRoster.isPending}>
+              {createRoster.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div></AdminGuard>
   );
 }

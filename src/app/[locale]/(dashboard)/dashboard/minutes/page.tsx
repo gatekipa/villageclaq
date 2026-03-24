@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +15,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   FileText,
   Search,
@@ -25,8 +34,10 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronUp,
+  Plus,
+  Loader2,
 } from "lucide-react";
-import { useMeetingMinutes } from "@/lib/hooks/use-supabase-query";
+import { useMeetingMinutes, useCreateMeetingMinutes, useEvents } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
@@ -45,11 +56,49 @@ function formatDate(dateStr: string) {
 export default function MinutesPage() {
   const t = useTranslations("minutes");
   const tc = useTranslations("common");
+  const { isAdmin, user } = useGroup();
   const { data: minutes, isLoading, isError, error, refetch } = useMeetingMinutes();
+  const { data: events } = useEvents();
+  const createMinutes = useCreateMeetingMinutes();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedMinutes, setSelectedMinutes] = useState<Record<string, unknown> | null>(null);
+
+  // Create dialog state
+  const [showCreate, setShowCreate] = useState(false);
+  const [createEventId, setCreateEventId] = useState("");
+  const [createTitle, setCreateTitle] = useState("");
+  const [createContent, setCreateContent] = useState("");
+  const [createError, setCreateError] = useState("");
+
+  const resetCreateForm = () => {
+    setCreateEventId("");
+    setCreateTitle("");
+    setCreateContent("");
+    setCreateError("");
+  };
+
+  const handleCreate = async (status: "draft" | "published") => {
+    if (!createEventId || !createTitle.trim()) {
+      setCreateError(tc("required"));
+      return;
+    }
+    setCreateError("");
+    try {
+      await createMinutes.mutateAsync({
+        event_id: createEventId,
+        title: createTitle.trim(),
+        content_json: [{ text: createContent }],
+        status,
+        ...(status === "published" ? { published_at: new Date().toISOString(), published_by: user?.id } : {}),
+      });
+      setShowCreate(false);
+      resetCreateForm();
+    } catch (err) {
+      setCreateError((err as Error).message || tc("error"));
+    }
+  };
 
   if (isLoading) {
     return <ListSkeleton rows={5} />;
@@ -92,6 +141,8 @@ export default function MinutesPage() {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  const eventsList = (events || []) as Record<string, unknown>[];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -100,6 +151,12 @@ export default function MinutesPage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
+        {isAdmin && (
+          <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("createMinutes")}
+          </Button>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -319,6 +376,72 @@ export default function MinutesPage() {
           })}
         </div>
       )}
+
+      {/* Create Minutes Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("createMinutes")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("selectEvent")}</Label>
+              <Select value={createEventId} onValueChange={(v) => setCreateEventId(v ?? "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("selectEvent")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {eventsList.map((event) => (
+                    <SelectItem key={event.id as string} value={event.id as string}>
+                      {event.title as string}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{tc("title")}</Label>
+              <Input
+                value={createTitle}
+                onChange={(e) => setCreateTitle(e.target.value)}
+                placeholder={tc("title")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("discussionSummary")}</Label>
+              <Textarea
+                value={createContent}
+                onChange={(e) => setCreateContent(e.target.value)}
+                placeholder={t("discussionPlaceholder")}
+                rows={6}
+              />
+            </div>
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => setShowCreate(false)}>
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => handleCreate("draft")}
+              disabled={createMinutes.isPending}
+            >
+              {createMinutes.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("saveDraft")}
+            </Button>
+            <Button
+              onClick={() => handleCreate("published")}
+              disabled={createMinutes.isPending}
+            >
+              {createMinutes.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("publishMinutes")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

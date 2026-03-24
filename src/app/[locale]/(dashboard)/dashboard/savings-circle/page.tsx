@@ -1,18 +1,38 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   CircleDollarSign,
   Users,
   Repeat,
   Shuffle,
   Gavel,
+  Plus,
+  Loader2,
 } from "lucide-react";
-import { useSavingsCycles } from "@/lib/hooks/use-supabase-query";
+import { useSavingsCycles, useCreateSavingsCycle } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
@@ -44,36 +64,158 @@ const rotationIcons: Record<RotationType, typeof Repeat> = {
 
 export default function SavingsCirclePage() {
   const t = useTranslations("savingsCircle");
-  const { currentGroup } = useGroup();
+  const tc = useTranslations("common");
+  const { currentGroup, isAdmin } = useGroup();
   const { data: cycles, isLoading, isError, error, refetch } = useSavingsCycles();
+  const createCycle = useCreateSavingsCycle();
+
+  // Create dialog state
+  const [showCreate, setShowCreate] = useState(false);
+  const [cycleName, setCycleName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [frequency, setFrequency] = useState<string>("monthly");
+  const [totalRounds, setTotalRounds] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [rotationType, setRotationType] = useState<string>("sequential");
+  const [createError, setCreateError] = useState("");
+
+  const resetCreateForm = () => {
+    setCycleName("");
+    setAmount("");
+    setFrequency("monthly");
+    setTotalRounds("");
+    setStartDate("");
+    setRotationType("sequential");
+    setCreateError("");
+  };
+
+  const handleCreateCycle = async () => {
+    if (!cycleName.trim() || !amount || !totalRounds || !startDate) {
+      setCreateError(tc("required"));
+      return;
+    }
+    setCreateError("");
+    try {
+      await createCycle.mutateAsync({
+        name: cycleName.trim(),
+        amount: Number(amount),
+        currency: currentGroup?.currency || "XAF",
+        frequency,
+        total_rounds: Number(totalRounds),
+        rotation_type: rotationType,
+        start_date: startDate,
+      });
+      setShowCreate(false);
+      resetCreateForm();
+    } catch (err) {
+      setCreateError((err as Error).message || tc("error"));
+    }
+  };
 
   if (isLoading) return <CardGridSkeleton cards={2} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;
 
+  const groupCurrency = currentGroup?.currency || "XAF";
+
   if (!cycles || cycles.length === 0) {
     return (
       <div className="space-y-6 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+          </div>
+          {isAdmin && (
+            <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("createCycle")}
+            </Button>
+          )}
         </div>
         <EmptyState
           icon={CircleDollarSign}
           title={t("noCycles")}
           description={t("noCyclesDesc")}
         />
+
+        {/* Create Dialog rendered in empty state too */}
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("createCycle")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>{t("cycleName")}</Label>
+                <Input value={cycleName} onChange={(e) => setCycleName(e.target.value)} placeholder={t("cycleName")} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("amount")}</Label>
+                  <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("frequency")}</Label>
+                  <Select value={frequency} onValueChange={(v) => setFrequency(v ?? "monthly")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">{t("weekly")}</SelectItem>
+                      <SelectItem value="biweekly">{t("biweekly")}</SelectItem>
+                      <SelectItem value="monthly">{t("monthly")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("totalRounds")}</Label>
+                  <Input type="number" value={totalRounds} onChange={(e) => setTotalRounds(e.target.value)} placeholder="12" />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("startDate")}</Label>
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>{t("rotationType")}</Label>
+                <Select value={rotationType} onValueChange={(v) => setRotationType(v ?? "sequential")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sequential">{t("sequential")}</SelectItem>
+                    <SelectItem value="random">{t("random")}</SelectItem>
+                    <SelectItem value="auction">{t("auction")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {createError && <p className="text-sm text-destructive">{createError}</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCreate(false)}>{tc("cancel")}</Button>
+              <Button onClick={handleCreateCycle} disabled={createCycle.isPending}>
+                {createCycle.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {tc("create")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
 
-  const groupCurrency = currentGroup?.currency || "XAF";
-
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        {isAdmin && (
+          <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("createCycle")}
+          </Button>
+        )}
       </div>
 
       {/* Stats Row */}
@@ -116,18 +258,18 @@ export default function SavingsCirclePage() {
         {cycles.map((cycle: Record<string, unknown>) => {
           const id = cycle.id as string;
           const name = (cycle.name as string) || "";
-          const frequency = (cycle.frequency as Frequency) || "monthly";
-          const rotationType = (cycle.rotation_type as RotationType) || "sequential";
+          const freq = (cycle.frequency as Frequency) || "monthly";
+          const rotType = (cycle.rotation_type as RotationType) || "sequential";
           const currentRound = (cycle.current_round as number) || 1;
-          const totalRounds = (cycle.total_rounds as number) || 1;
-          const amount = Number(cycle.amount) || 0;
+          const totalRnds = (cycle.total_rounds as number) || 1;
+          const amt = Number(cycle.amount) || 0;
           const currency = (cycle.currency as string) || groupCurrency;
           const status = (cycle.status as string) || "active";
           const participants = (cycle.savings_participants as Record<string, unknown>[]) || [];
           const totalMembers = participants.length;
-          const potSize = amount * totalMembers;
+          const potSize = amt * totalMembers;
 
-          const RotationIcon = rotationIcons[rotationType] || Repeat;
+          const RotationIcon = rotationIcons[rotType] || Repeat;
 
           const statusColor =
             status === "active"
@@ -145,10 +287,10 @@ export default function SavingsCirclePage() {
                     <Badge variant="default" className={statusColor}>
                       {t(`status${status.charAt(0).toUpperCase() + status.slice(1)}` as Parameters<typeof t>[0])}
                     </Badge>
-                    <Badge variant="outline">{t(frequency)}</Badge>
+                    <Badge variant="outline">{t(freq)}</Badge>
                     <Badge variant="secondary" className="gap-1">
                       <RotationIcon className="size-3" />
-                      {t(rotationType)}
+                      {t(rotType)}
                     </Badge>
                   </div>
                 </div>
@@ -159,7 +301,7 @@ export default function SavingsCirclePage() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t("currentRound")}</p>
                     <p className="text-lg font-semibold text-foreground">
-                      {currentRound} {t("of")} {totalRounds}
+                      {currentRound} {t("of")} {totalRnds}
                     </p>
                   </div>
                   <div>
@@ -168,7 +310,7 @@ export default function SavingsCirclePage() {
                       {formatCurrency(potSize, currency)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {totalMembers} members x {formatCurrency(amount, currency)}
+                      {totalMembers} members x {formatCurrency(amt, currency)}
                     </p>
                   </div>
                   <div>
@@ -180,7 +322,7 @@ export default function SavingsCirclePage() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t("amount")}</p>
                     <p className="text-lg font-semibold text-foreground">
-                      {formatCurrency(amount, currency)}
+                      {formatCurrency(amt, currency)}
                     </p>
                   </div>
                 </div>
@@ -189,13 +331,13 @@ export default function SavingsCirclePage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
-                      {t("round")} {currentRound} {t("of")} {totalRounds}
+                      {t("round")} {currentRound} {t("of")} {totalRnds}
                     </span>
                     <span className="font-medium text-foreground">
-                      {Math.round((currentRound / totalRounds) * 100)}%
+                      {Math.round((currentRound / totalRnds) * 100)}%
                     </span>
                   </div>
-                  <Progress value={currentRound} max={totalRounds} />
+                  <Progress value={currentRound} max={totalRnds} />
                 </div>
 
                 {/* Participants list */}
@@ -253,6 +395,67 @@ export default function SavingsCirclePage() {
           );
         })}
       </div>
+
+      {/* Create Cycle Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("createCycle")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("cycleName")}</Label>
+              <Input value={cycleName} onChange={(e) => setCycleName(e.target.value)} placeholder={t("cycleName")} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t("amount")}</Label>
+                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("frequency")}</Label>
+                <Select value={frequency} onValueChange={(v) => setFrequency(v ?? "monthly")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">{t("weekly")}</SelectItem>
+                    <SelectItem value="biweekly">{t("biweekly")}</SelectItem>
+                    <SelectItem value="monthly">{t("monthly")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t("totalRounds")}</Label>
+                <Input type="number" value={totalRounds} onChange={(e) => setTotalRounds(e.target.value)} placeholder="12" />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("startDate")}</Label>
+                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("rotationType")}</Label>
+              <Select value={rotationType} onValueChange={(v) => setRotationType(v ?? "sequential")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sequential">{t("sequential")}</SelectItem>
+                  <SelectItem value="random">{t("random")}</SelectItem>
+                  <SelectItem value="auction">{t("auction")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleCreateCycle} disabled={createCycle.isPending}>
+              {createCycle.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

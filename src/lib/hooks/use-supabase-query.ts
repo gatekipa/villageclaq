@@ -317,7 +317,50 @@ export function useHostingRosters() {
   });
 }
 
+// ─── Hosting Mutations ────────────────────────────────────────────────────
+
+export function useCreateHostingRoster() {
+  const queryClient = useQueryClient();
+  const { groupId, user } = useGroup();
+  return useMutation({
+    mutationFn: async (values: { name: string; name_fr?: string; rotation_type: string }) => {
+      if (!groupId || !user) throw new Error("No group/user");
+      const { data, error } = await supabase.from("hosting_rosters").insert({
+        ...values,
+        group_id: groupId,
+        is_active: true,
+        created_by: user.id,
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hosting-rosters", groupId] });
+    },
+  });
+}
+
 // ─── Meeting Minutes ───────────────────────────────────────────────────────
+
+export function useCreateMeetingMinutes() {
+  const queryClient = useQueryClient();
+  const { groupId, user } = useGroup();
+  return useMutation({
+    mutationFn: async (values: { event_id: string; title: string; content_json: unknown; status: string; published_at?: string; published_by?: string }) => {
+      if (!groupId || !user) throw new Error("No group/user");
+      const { data, error } = await supabase.from("meeting_minutes").insert({
+        ...values,
+        group_id: groupId,
+        created_by: user.id,
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
+    },
+  });
+}
 
 export function useMeetingMinutes() {
   const { groupId } = useGroup();
@@ -374,7 +417,52 @@ export function useReliefClaims() {
   });
 }
 
+// ─── Relief Mutations ─────────────────────────────────────────────────────
+
+export function useCreateReliefPlan() {
+  const queryClient = useQueryClient();
+  const { groupId, user } = useGroup();
+  return useMutation({
+    mutationFn: async (values: { name: string; name_fr?: string; description?: string; description_fr?: string; qualifying_events?: string[]; contribution_amount: number; contribution_frequency: string; payout_rules?: Record<string, number>; waiting_period_days?: number; auto_enroll?: boolean }) => {
+      if (!groupId || !user) throw new Error("No group/user");
+      const { data, error } = await supabase.from("relief_plans").insert({
+        ...values,
+        group_id: groupId,
+        is_active: true,
+        created_by: user.id,
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["relief-plans", groupId] });
+    },
+  });
+}
+
 // ─── Savings Circle ────────────────────────────────────────────────────────
+
+export function useCreateSavingsCycle() {
+  const queryClient = useQueryClient();
+  const { groupId, user } = useGroup();
+  return useMutation({
+    mutationFn: async (values: { name: string; name_fr?: string; amount: number; currency?: string; frequency: string; total_rounds: number; rotation_type: string; start_date: string }) => {
+      if (!groupId || !user) throw new Error("No group/user");
+      const { data, error } = await supabase.from("savings_cycles").insert({
+        ...values,
+        group_id: groupId,
+        status: "active",
+        current_round: 1,
+        created_by: user.id,
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
+    },
+  });
+}
 
 export function useSavingsCycles() {
   const { groupId } = useGroup();
@@ -395,6 +483,27 @@ export function useSavingsCycles() {
 }
 
 // ─── Elections ─────────────────────────────────────────────────────────────
+
+export function useCreateElection() {
+  const queryClient = useQueryClient();
+  const { groupId, user } = useGroup();
+  return useMutation({
+    mutationFn: async (values: { title: string; title_fr?: string; description?: string; description_fr?: string; election_type: string; starts_at: string; ends_at: string }) => {
+      if (!groupId || !user) throw new Error("No group/user");
+      const { data, error } = await supabase.from("elections").insert({
+        ...values,
+        group_id: groupId,
+        status: "draft",
+        created_by: user.id,
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
+    },
+  });
+}
 
 export function useElections() {
   const { groupId } = useGroup();

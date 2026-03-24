@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Card,
@@ -9,15 +10,35 @@ import {
   CardDescription,
   CardFooter,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Vote,
   Users,
   Calendar,
   Trophy,
+  Plus,
+  Loader2,
 } from "lucide-react";
-import { useElections } from "@/lib/hooks/use-supabase-query";
+import { useElections, useCreateElection } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
@@ -60,8 +81,49 @@ function formatDate(dateStr: string) {
 
 export default function ElectionsPage() {
   const t = useTranslations("elections");
-  useGroup();
+  const tc = useTranslations("common");
+  const { isAdmin } = useGroup();
   const { data: elections, isLoading, isError, error, refetch } = useElections();
+  const createElection = useCreateElection();
+
+  // Create dialog state
+  const [showCreate, setShowCreate] = useState(false);
+  const [elTitle, setElTitle] = useState("");
+  const [elDescription, setElDescription] = useState("");
+  const [elType, setElType] = useState<string>("poll");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
+  const [createError, setCreateError] = useState("");
+
+  const resetCreateForm = () => {
+    setElTitle("");
+    setElDescription("");
+    setElType("poll");
+    setStartsAt("");
+    setEndsAt("");
+    setCreateError("");
+  };
+
+  const handleCreateElection = async () => {
+    if (!elTitle.trim() || !startsAt || !endsAt) {
+      setCreateError(tc("required"));
+      return;
+    }
+    setCreateError("");
+    try {
+      await createElection.mutateAsync({
+        title: elTitle.trim(),
+        description: elDescription.trim() || undefined,
+        election_type: elType,
+        starts_at: new Date(startsAt).toISOString(),
+        ends_at: new Date(endsAt).toISOString(),
+      });
+      setShowCreate(false);
+      resetCreateForm();
+    } catch (err) {
+      setCreateError((err as Error).message || tc("error"));
+    }
+  };
 
   if (isLoading) return <CardGridSkeleton cards={3} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;
@@ -69,15 +131,71 @@ export default function ElectionsPage() {
   if (!elections || elections.length === 0) {
     return (
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+          </div>
+          {isAdmin && (
+            <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("createElection")}
+            </Button>
+          )}
         </div>
         <EmptyState
           icon={Vote}
           title={t("noElections")}
           description={t("noElectionsDesc")}
         />
+
+        {/* Create Dialog in empty state */}
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("createElection")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>{t("electionTitle")}</Label>
+                <Input value={elTitle} onChange={(e) => setElTitle(e.target.value)} placeholder={t("electionTitle")} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("description")}</Label>
+                <Textarea value={elDescription} onChange={(e) => setElDescription(e.target.value)} rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("electionType")}</Label>
+                <Select value={elType} onValueChange={(v) => setElType(v ?? "poll")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="officer_election">{t("officerElection")}</SelectItem>
+                    <SelectItem value="motion">{t("motion")}</SelectItem>
+                    <SelectItem value="poll">{t("poll")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("startsAt")}</Label>
+                  <Input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("endsAt")}</Label>
+                  <Input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+                </div>
+              </div>
+              {createError && <p className="text-sm text-destructive">{createError}</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCreate(false)}>{tc("cancel")}</Button>
+              <Button onClick={handleCreateElection} disabled={createElection.isPending}>
+                {createElection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {tc("create")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -88,9 +206,17 @@ export default function ElectionsPage() {
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        {isAdmin && (
+          <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("createElection")}
+          </Button>
+        )}
       </div>
 
       {/* Active Elections */}
@@ -106,8 +232,8 @@ export default function ElectionsPage() {
             const title = (election.title as string) || "";
             const electionType = (election.election_type as ElectionType) || "poll";
             const status = (election.status as ElectionStatus) || "open";
-            const startsAt = (election.starts_at as string) || "";
-            const endsAt = (election.ends_at as string) || "";
+            const elStartsAt = (election.starts_at as string) || "";
+            const elEndsAt = (election.ends_at as string) || "";
             const candidates = (election.election_candidates as Record<string, unknown>[]) || [];
             const options = (election.election_options as Record<string, unknown>[]) || [];
 
@@ -119,7 +245,7 @@ export default function ElectionsPage() {
                       <CardTitle className="flex items-center gap-2">{title}</CardTitle>
                       <CardDescription className="flex items-center gap-2">
                         <Calendar className="size-3.5" />
-                        {t("votingPeriod")}: {formatDate(startsAt)} — {formatDate(endsAt)}
+                        {t("votingPeriod")}: {formatDate(elStartsAt)} — {formatDate(elEndsAt)}
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
@@ -265,6 +391,54 @@ export default function ElectionsPage() {
           })}
         </section>
       )}
+
+      {/* Create Election Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("createElection")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("electionTitle")}</Label>
+              <Input value={elTitle} onChange={(e) => setElTitle(e.target.value)} placeholder={t("electionTitle")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("description")}</Label>
+              <Textarea value={elDescription} onChange={(e) => setElDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("electionType")}</Label>
+              <Select value={elType} onValueChange={(v) => setElType(v ?? "poll")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="officer_election">{t("officerElection")}</SelectItem>
+                  <SelectItem value="motion">{t("motion")}</SelectItem>
+                  <SelectItem value="poll">{t("poll")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t("startsAt")}</Label>
+                <Input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("endsAt")}</Label>
+                <Input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
+              </div>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleCreateElection} disabled={createElection.isPending}>
+              {createElection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

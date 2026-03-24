@@ -808,6 +808,7 @@
     "waitingPeriodHint": "Members must be enrolled this many days before becoming eligible",
     "autoEnroll": "Auto-enroll all members",
     "autoEnrollDesc": "Automatically enroll all current and new members",
+    "selectEventsFirst": "Select qualifying events first",
     "savePlan": "Save Plan",
     "planSaved": "Relief plan saved successfully",
     "noPlans": "No relief plans created",

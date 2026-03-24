@@ -23,9 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Heart, Plus, Users, DollarSign, Clock, Settings, CheckCircle2 } from "lucide-react";
+import { Heart, Plus, Users, DollarSign, Clock, Settings, CheckCircle2, Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
-import { useReliefPlans } from "@/lib/hooks/use-supabase-query";
+import { useReliefPlans, useCreateReliefPlan } from "@/lib/hooks/use-supabase-query";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
@@ -38,16 +38,75 @@ function formatCurrency(amount: number, currency = "XAF") {
 
 export default function ReliefPlansPage() {
   const t = useTranslations();
-  const { currentGroup } = useGroup();
+  const tc = useTranslations("common");
+  const { currentGroup, isAdmin } = useGroup();
   const { data: plans, isLoading, error, refetch } = useReliefPlans();
+  const createPlan = useCreateReliefPlan();
+
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedEvents, setSelectedEvents] = useState<ReliefEventType[]>([]);
   const [autoEnroll, setAutoEnroll] = useState(true);
+
+  // Form fields
+  const [planName, setPlanName] = useState("");
+  const [planNameFr, setPlanNameFr] = useState("");
+  const [planDescription, setPlanDescription] = useState("");
+  const [contributionAmount, setContributionAmount] = useState("");
+  const [contributionFrequency, setContributionFrequency] = useState("monthly");
+  const [waitingPeriodDays, setWaitingPeriodDays] = useState("180");
+  const [payoutAmounts, setPayoutAmounts] = useState<Record<string, string>>({});
+  const [createError, setCreateError] = useState("");
 
   const toggleEvent = (event: ReliefEventType) => {
     setSelectedEvents((prev) =>
       prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event]
     );
+  };
+
+  const resetForm = () => {
+    setPlanName("");
+    setPlanNameFr("");
+    setPlanDescription("");
+    setContributionAmount("");
+    setContributionFrequency("monthly");
+    setWaitingPeriodDays("180");
+    setSelectedEvents([]);
+    setAutoEnroll(true);
+    setPayoutAmounts({});
+    setCreateError("");
+  };
+
+  const handleCreate = async () => {
+    if (!planName.trim() || !contributionAmount) {
+      setCreateError(tc("required"));
+      return;
+    }
+    setCreateError("");
+
+    // Build payout rules from the amounts
+    const payoutRules: Record<string, number> = {};
+    for (const event of selectedEvents) {
+      const val = Number(payoutAmounts[event]);
+      if (val > 0) payoutRules[event] = val;
+    }
+
+    try {
+      await createPlan.mutateAsync({
+        name: planName.trim(),
+        name_fr: planNameFr.trim() || undefined,
+        description: planDescription.trim() || undefined,
+        qualifying_events: selectedEvents,
+        contribution_amount: Number(contributionAmount),
+        contribution_frequency: contributionFrequency,
+        payout_rules: payoutRules,
+        waiting_period_days: Number(waitingPeriodDays) || 180,
+        auto_enroll: autoEnroll,
+      });
+      setShowCreateDialog(false);
+      resetForm();
+    } catch (err) {
+      setCreateError((err as Error).message || tc("error"));
+    }
   };
 
   if (isLoading) return <AdminGuard><CardGridSkeleton cards={3} /></AdminGuard>;
@@ -63,7 +122,7 @@ export default function ReliefPlansPage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("relief.plans")}</h1>
           <p className="text-muted-foreground">{t("relief.subtitle")}</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
+        <Button onClick={() => { resetForm(); setShowCreateDialog(true); }}>
           <Plus className="mr-2 h-4 w-4" />{t("relief.createPlan")}
         </Button>
       </div>
@@ -74,7 +133,7 @@ export default function ReliefPlansPage() {
           title={t("relief.noPlans")}
           description={t("relief.noPlansDesc")}
           action={
-            <Button onClick={() => setShowCreateDialog(true)}>
+            <Button onClick={() => { resetForm(); setShowCreateDialog(true); }}>
               <Plus className="mr-2 h-4 w-4" />{t("relief.createPlan")}
             </Button>
           }
@@ -84,9 +143,9 @@ export default function ReliefPlansPage() {
           {plansList.map((plan: Record<string, unknown>) => {
             const qualifyingEvents = (plan.qualifying_events as string[]) || [];
             const payoutRules = (plan.payout_rules as Record<string, number>) || {};
-            const contributionAmount = Number(plan.contribution_amount || 0);
-            const contributionFrequency = (plan.contribution_frequency as string) || "monthly";
-            const waitingPeriodDays = (plan.waiting_period_days as number) || 180;
+            const contribAmount = Number(plan.contribution_amount || 0);
+            const contribFrequency = (plan.contribution_frequency as string) || "monthly";
+            const waitPeriod = (plan.waiting_period_days as number) || 180;
             const isActive = plan.is_active as boolean;
 
             return (
@@ -113,18 +172,18 @@ export default function ReliefPlansPage() {
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <DollarSign className="h-3 w-3" />{t("relief.contributionAmount")}
                       </div>
-                      <p className="mt-1 font-semibold text-sm">{formatCurrency(contributionAmount, currency)}</p>
+                      <p className="mt-1 font-semibold text-sm">{formatCurrency(contribAmount, currency)}</p>
                     </div>
                     <div className="rounded-lg bg-muted p-2">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />{t("relief.waitingPeriod")}
                       </div>
-                      <p className="mt-1 font-semibold text-sm">{waitingPeriodDays}d</p>
+                      <p className="mt-1 font-semibold text-sm">{waitPeriod}d</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(contributionAmount, currency)}/{contributionFrequency}</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{waitingPeriodDays}d {t("relief.waiting").toLowerCase()}</span>
+                    <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{formatCurrency(contribAmount, currency)}/{contribFrequency}</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{waitPeriod}d {t("relief.waiting").toLowerCase()}</span>
                   </div>
                   <div className="pt-2 border-t">
                     <p className="text-xs font-medium text-muted-foreground">{t("relief.payoutPerEvent")}:</p>
@@ -157,16 +216,28 @@ export default function ReliefPlansPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("relief.planName")}</Label>
-                <Input placeholder="Bereavement Fund" />
+                <Input
+                  placeholder="Bereavement Fund"
+                  value={planName}
+                  onChange={(e) => setPlanName(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>{t("relief.planNameFr")}</Label>
-                <Input placeholder="Fonds de deuil" />
+                <Input
+                  placeholder="Fonds de deuil"
+                  value={planNameFr}
+                  onChange={(e) => setPlanNameFr(e.target.value)}
+                />
               </div>
             </div>
             <div className="space-y-2">
               <Label>{t("relief.planDescription")}</Label>
-              <Textarea rows={2} />
+              <Textarea
+                rows={2}
+                value={planDescription}
+                onChange={(e) => setPlanDescription(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("relief.qualifyingEvents")}</Label>
@@ -186,11 +257,16 @@ export default function ReliefPlansPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("relief.contributionAmount")}</Label>
-                <Input type="number" placeholder="5000" />
+                <Input
+                  type="number"
+                  placeholder="5000"
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>{t("relief.contributionFrequency")}</Label>
-                <Select>
+                <Select value={contributionFrequency} onValueChange={(v) => setContributionFrequency(v ?? "monthly")}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="monthly">{t("relief.frequencyMonthly")}</SelectItem>
@@ -205,14 +281,25 @@ export default function ReliefPlansPage() {
               {selectedEvents.map((event) => (
                 <div key={event} className="flex items-center gap-2">
                   <span className="text-xs min-w-[120px]">{t(`relief.eventTypes.${event}`)}</span>
-                  <Input type="number" placeholder="250000" className="flex-1" />
+                  <Input
+                    type="number"
+                    placeholder="250000"
+                    className="flex-1"
+                    value={payoutAmounts[event] || ""}
+                    onChange={(e) => setPayoutAmounts((prev) => ({ ...prev, [event]: e.target.value }))}
+                  />
                 </div>
               ))}
-              {selectedEvents.length === 0 && <p className="text-xs text-muted-foreground">Select qualifying events first</p>}
+              {selectedEvents.length === 0 && <p className="text-xs text-muted-foreground">{t("relief.selectEventsFirst")}</p>}
             </div>
             <div className="space-y-2">
               <Label>{t("relief.waitingPeriod")}</Label>
-              <Input type="number" placeholder="180" />
+              <Input
+                type="number"
+                placeholder="180"
+                value={waitingPeriodDays}
+                onChange={(e) => setWaitingPeriodDays(e.target.value)}
+              />
               <p className="text-xs text-muted-foreground">{t("relief.waitingPeriodHint")}</p>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-3">
@@ -222,10 +309,14 @@ export default function ReliefPlansPage() {
               </div>
               <Switch checked={autoEnroll} onCheckedChange={setAutoEnroll} />
             </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={() => setShowCreateDialog(false)}>{t("relief.savePlan")}</Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleCreate} disabled={createPlan.isPending}>
+              {createPlan.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("relief.savePlan")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

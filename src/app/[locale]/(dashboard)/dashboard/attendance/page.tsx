@@ -14,6 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   ClipboardCheck,
   Users,
   UserCheck,
@@ -22,6 +29,8 @@ import {
   XCircle,
   AlertCircle,
   Clock,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import {
   useEvents,
@@ -62,6 +71,12 @@ export default function AttendancePage() {
   const { data: attendance, isLoading: attendanceLoading } = useEventAttendance(selectedEventId);
   const bulkCreate = useBulkCreateAttendance();
 
+  // Dialog state
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogEventId, setDialogEventId] = useState("");
+  const [memberStatuses, setMemberStatuses] = useState<Record<string, AttendanceStatus>>({});
+  const [dialogError, setDialogError] = useState("");
+
   // Past events sorted by most recent first
   const pastEvents = useMemo(() => {
     if (!events) return [];
@@ -72,6 +87,8 @@ export default function AttendancePage() {
         (b.starts_at as string).localeCompare(a.starts_at as string)
       );
   }, [events]);
+
+  const allEvents = (events || []) as Record<string, unknown>[];
 
   // Build attendance map: membership_id -> status
   const attendanceMap = useMemo(() => {
@@ -110,6 +127,48 @@ export default function AttendancePage() {
     await bulkCreate.mutateAsync(records);
   };
 
+  const openRecordDialog = () => {
+    setDialogEventId("");
+    setDialogError("");
+    // Initialize all members as present
+    const statuses: Record<string, AttendanceStatus> = {};
+    if (members) {
+      for (const m of members as Record<string, unknown>[]) {
+        statuses[m.id as string] = "present";
+      }
+    }
+    setMemberStatuses(statuses);
+    setShowDialog(true);
+  };
+
+  const cycleStatus = (memberId: string) => {
+    const order: AttendanceStatus[] = ["present", "absent", "late", "excused"];
+    const current = memberStatuses[memberId] || "present";
+    const next = order[(order.indexOf(current) + 1) % order.length];
+    setMemberStatuses((prev) => ({ ...prev, [memberId]: next }));
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!dialogEventId) {
+      setDialogError(tc("required"));
+      return;
+    }
+    setDialogError("");
+    try {
+      const records = Object.entries(memberStatuses).map(([membershipId, status]) => ({
+        event_id: dialogEventId,
+        membership_id: membershipId,
+        status,
+        checked_in_via: "manual",
+      }));
+      await bulkCreate.mutateAsync(records);
+      setShowDialog(false);
+      setSelectedEventId(dialogEventId);
+    } catch (err) {
+      setDialogError((err as Error).message || tc("error"));
+    }
+  };
+
   if (eventsLoading || membersLoading) {
     return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
   }
@@ -126,6 +185,12 @@ export default function AttendancePage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
+        {isAdmin && (
+          <Button onClick={openRecordDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("recordAttendance")}
+          </Button>
+        )}
       </div>
 
       {/* Event Selection */}
@@ -322,6 +387,83 @@ export default function AttendancePage() {
           )}
         </>
       )}
+
+      {/* Record Attendance Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("recordAttendance")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t("selectEvent")}</label>
+              <Select value={dialogEventId} onValueChange={(v) => setDialogEventId(v ?? "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("selectEvent")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {allEvents.map((event) => (
+                    <SelectItem key={event.id as string} value={event.id as string}>
+                      {event.title as string} — {new Date(event.starts_at as string).toLocaleDateString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              {members && (members as Record<string, unknown>[]).map((member) => {
+                const profile = member.profile as Record<string, unknown> | undefined;
+                const name = (member.display_name as string) || (profile?.full_name as string) || "—";
+                const initials = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                const avatarUrl = profile?.avatar_url as string | undefined;
+                const memberId = member.id as string;
+                const status = memberStatuses[memberId] || "present";
+                const StatusIcon = statusIcons[status];
+
+                return (
+                  <div
+                    key={memberId}
+                    className="flex items-center justify-between rounded-lg border p-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7">
+                        {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">{name}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => cycleStatus(memberId)}
+                      className="h-7 px-2"
+                    >
+                      <Badge className={statusColors[status]} variant="secondary">
+                        <StatusIcon className="mr-1 h-3 w-3" />
+                        {tc(status)}
+                      </Badge>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            {dialogError && (
+              <p className="text-sm text-destructive">{dialogError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={handleSaveAttendance} disabled={bulkCreate.isPending}>
+              {bulkCreate.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("saveAttendance")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div></AdminGuard>
   );
 }

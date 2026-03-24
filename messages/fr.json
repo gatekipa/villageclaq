@@ -808,6 +808,7 @@
     "waitingPeriodHint": "Les membres doivent être inscrits ce nombre de jours avant d'être éligibles",
     "autoEnroll": "Inscription automatique de tous les membres",
     "autoEnrollDesc": "Inscrire automatiquement tous les membres actuels et nouveaux",
+    "selectEventsFirst": "Veuillez d'abord choisir les types d'evenements",
     "savePlan": "Enregistrer le plan",
     "planSaved": "Plan de secours enregistré avec succès",
     "noPlans": "Aucun plan de secours créé",

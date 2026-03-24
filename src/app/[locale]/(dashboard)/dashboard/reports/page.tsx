@@ -114,7 +114,7 @@ export default function ReportsHubPage() {
           </div>
           <div className="flex-1">
             <h3 className="font-semibold">{t("reports.aiInsights")}</h3>
-            <p className="text-sm text-muted-foreground">{t("reports.aiComingSoon")}</p>
+            <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
           </div>
         </CardContent>
       </Card>

@@ -173,7 +173,7 @@ export default function ReportDetailPage() {
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="flex items-center gap-3 pt-6">
           <Sparkles className="h-5 w-5 text-primary shrink-0" />
-          <p className="text-sm text-muted-foreground">{t("reports.aiComingSoon")}</p>
+          <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
         </CardContent>
       </Card>
 

@@ -93,11 +93,23 @@ export default function MembershipCardPage() {
   const currency = currentGroup?.currency || "—";
 
   function handleDownload() {
-    alert(t("comingSoon"));
+    const card = document.getElementById("membership-card");
+    if (!card) return;
+    // Use browser print as fallback for now
+    window.print();
   }
 
-  function handleShare() {
-    alert(t("comingSoon"));
+  async function handleShare() {
+    const shareData = {
+      title: `${fullName} - ${groupName}`,
+      text: `${fullName} is a member of ${groupName} on VillageClaq`,
+      url: `https://villageclaq.vercel.app/verify/${currentMembership?.id || ""}`,
+    };
+    if (navigator.share) {
+      await navigator.share(shareData);
+    } else {
+      await navigator.clipboard.writeText(shareData.url);
+    }
   }
 
   return (

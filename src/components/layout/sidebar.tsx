@@ -52,28 +52,28 @@ interface NavSection {
 
 const adminSections: NavSection[] = [
   {
-    labelKey: "section.overview",
+    labelKey: "sectionOverview",
     items: [
       { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
     ],
   },
   {
-    labelKey: "section.people",
+    labelKey: "sectionPeople",
     items: [
       { key: "members", href: "/dashboard/members", icon: Users },
       { key: "invitations", href: "/dashboard/invitations", icon: UserPlus },
     ],
   },
   {
-    labelKey: "section.money",
+    labelKey: "sectionMoney",
     items: [
       { key: "contributions", href: "/dashboard/contributions", icon: HandCoins },
       { key: "finances", href: "/dashboard/finances", icon: CreditCard },
     ],
   },
   {
-    labelKey: "section.eventsOps",
+    labelKey: "sectionEventsOps",
     items: [
       { key: "events", href: "/dashboard/events", icon: Calendar },
       { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
@@ -82,7 +82,7 @@ const adminSections: NavSection[] = [
     ],
   },
   {
-    labelKey: "section.groupFeatures",
+    labelKey: "sectionGroupFeatures",
     items: [
       { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw },
       { key: "elections", href: "/dashboard/elections", icon: Vote },
@@ -93,7 +93,7 @@ const adminSections: NavSection[] = [
     ],
   },
   {
-    labelKey: "section.analytics",
+    labelKey: "sectionAnalytics",
     items: [
       { key: "reports", href: "/dashboard/reports", icon: PieChart },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },
@@ -102,7 +102,7 @@ const adminSections: NavSection[] = [
 ];
 
 const adminEnterprise: NavSection = {
-  labelKey: "section.enterprise",
+  labelKey: "sectionEnterprise",
   items: [
     { key: "enterprise", href: "/dashboard/enterprise", icon: GitBranch },
   ],
@@ -110,14 +110,14 @@ const adminEnterprise: NavSection = {
 
 const memberSections: NavSection[] = [
   {
-    labelKey: "section.overview",
+    labelKey: "sectionOverview",
     items: [
       { key: "dashboard", href: "/dashboard/my-dashboard", icon: LayoutDashboard },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
     ],
   },
   {
-    labelKey: "section.myAccount",
+    labelKey: "sectionMyAccount",
     items: [
       { key: "myPayments", href: "/dashboard/my-payments", icon: CreditCard },
       { key: "myEvents", href: "/dashboard/my-events", icon: Calendar },
@@ -129,7 +129,7 @@ const memberSections: NavSection[] = [
     ],
   },
   {
-    labelKey: "section.group",
+    labelKey: "sectionGroup",
     items: [
       { key: "directory", href: "/dashboard/directory", icon: Users },
       { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },

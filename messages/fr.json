@@ -104,15 +104,15 @@
     "badges": "Badges",
     "help": "Centre d'aide",
     "feedback": "Commentaires",
-    "section.overview": "Aper\u00e7u",
-    "section.people": "Personnes",
-    "section.money": "Finances",
-    "section.eventsOps": "\u00c9v\u00e9nements & Ops",
-    "section.groupFeatures": "Fonctionnalit\u00e9s",
-    "section.analytics": "Analyses",
-    "section.enterprise": "Entreprise",
-    "section.myAccount": "Mon compte",
-    "section.group": "Groupe"
+    "sectionOverview": "Aperçu",
+    "sectionPeople": "Personnes",
+    "sectionMoney": "Argent",
+    "sectionEventsOps": "Événements & Ops",
+    "sectionGroupFeatures": "Fonctionnalités",
+    "sectionAnalytics": "Analytique",
+    "sectionEnterprise": "Entreprise",
+    "sectionMyAccount": "Mon compte",
+    "sectionGroup": "Communauté"
   },
   "cookies": {
     "title": "Paramètres des cookies",
@@ -1138,6 +1138,7 @@
     "print": "Imprimer",
     "aiInsights": "Analyses IA",
     "aiComingSoon": "Analyses IA bientôt disponibles. Passez à Pro pour des résumés en langage naturel de vos rapports.",
+    "aiDesc": "Les résumés IA analysent les données de votre groupe et mettent en évidence les tendances, préoccupations et recommandations clés.",
     "generatedBy": "Généré par VillageClaq",
     "generatedOn": "Généré le {date}",
     "categories": {

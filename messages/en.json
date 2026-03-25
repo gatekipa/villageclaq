@@ -726,6 +726,8 @@
     "activeRoster": "Active Roster",
     "noRoster": "No hosting roster created",
     "noRosterDesc": "Create a roster to start managing hosting assignments",
+    "noRosters": "No hosting rosters created",
+    "noRostersDesc": "Create a roster to organize hosting rotation",
     "upcomingHosts": "Upcoming Hosts",
     "pastHosts": "Past Hosts",
     "myAssignment": "My Next Hosting",
@@ -782,9 +784,17 @@
     "complianceRate": "Compliance %",
     "markCompleted": "Mark Completed",
     "markMissed": "Mark Missed",
+    "markComplete": "Mark Complete",
     "assignHost": "Assign Host",
+    "assignHosts": "Assign Hosts",
+    "assignedHost": "Assigned Host",
     "noMembers": "Add members before creating a roster",
-    "memberName": "Member"
+    "memberName": "Member",
+    "selectMembers": "Select Members",
+    "selectedCount": "{count} of {total} selected",
+    "selectAll": "Select All",
+    "monthlySchedule": "Monthly Schedule",
+    "assignmentsCount": "assignments"
   },
   "minutes": {
     "title": "Meeting Minutes",

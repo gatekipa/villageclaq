@@ -81,36 +81,16 @@ export default function MembersPage() {
     try {
       const supabase = createClient();
 
-      // Step 1: Create a proxy profile record for this member
-      const { data: proxyProfile, error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          full_name: newFullName.trim(),
-          display_name: newFullName.trim(),
-          phone: newPhone || null,
-        })
-        .select("id")
-        .single();
-
-      if (profileError) throw new Error(`Profile creation failed: ${profileError.message}`);
-
-      // Step 2: Create membership linking proxy profile to group
-      const { error: membershipError } = await supabase.from("memberships").insert({
-        user_id: proxyProfile.id,
-        group_id: groupId,
-        role: newRole,
-        standing: "good",
-        display_name: newFullName.trim(),
-        is_proxy: true,
-        proxy_manager_id: user.id,
-        joined_at: new Date().toISOString(),
+      // Use the SECURITY DEFINER function to create proxy member
+      // This bypasses RLS safely — the function verifies the caller is a group member
+      const { data, error: rpcError } = await supabase.rpc("create_proxy_member", {
+        p_group_id: groupId,
+        p_display_name: newFullName.trim(),
+        p_phone: newPhone || null,
+        p_role: newRole,
       });
 
-      if (membershipError) {
-        // Cleanup: remove the proxy profile we just created
-        await supabase.from("profiles").delete().eq("id", proxyProfile.id);
-        throw new Error(`Membership creation failed: ${membershipError.message}`);
-      }
+      if (rpcError) throw new Error(rpcError.message);
 
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setAddDialogOpen(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -86,6 +86,13 @@ export function PhoneInput({
   const parsed = parsePhone(value);
   const [countryCode, setCountryCode] = useState(parsed.code);
   const [phoneNumber, setPhoneNumber] = useState(parsed.number);
+
+  // Update country code if defaultCountryCode changes (e.g., group context loads async)
+  useEffect(() => {
+    if (!value && defaultCountryCode) {
+      setCountryCode(defaultCountryCode);
+    }
+  }, [defaultCountryCode, value]);
 
   const handleCodeChange = (newCode: string) => {
     if (!newCode) return;

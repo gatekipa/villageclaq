@@ -803,7 +803,7 @@ export function useProjects() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("projects")
-        .select("*, contributions:project_contributions(id, amount), expenses:project_expenses(id, amount), milestones:project_milestones(*)")
+        .select("*, contributions:project_contributions(id, membership_id, amount, payment_method, reference, paid_at), expenses:project_expenses(id, description, amount, receipt_url, approved_by, spent_at), milestones:project_milestones(*)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +52,7 @@ const roleConfig: Record<string, { icon: typeof Shield; color: string }> = {
 export default function MembersPage() {
   const t = useTranslations("members");
   const router = useRouter();
-  const { isAdmin, groupId } = useGroup();
+  const { isAdmin, groupId, user, currentGroup } = useGroup();
   const queryClient = useQueryClient();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
   const [search, setSearch] = useState("");
@@ -74,20 +75,43 @@ export default function MembersPage() {
   }
 
   async function handleAddMember() {
-    if (!newFullName.trim() || !groupId) return;
+    if (!newFullName.trim() || !groupId || !user) return;
     setAddSaving(true);
     setAddError(null);
     try {
       const supabase = createClient();
-      const { error: insertError } = await supabase.from("memberships").insert({
+
+      // Step 1: Create a proxy profile record for this member
+      const { data: proxyProfile, error: profileError } = await supabase
+        .from("profiles")
+        .insert({
+          full_name: newFullName.trim(),
+          display_name: newFullName.trim(),
+          phone: newPhone || null,
+        })
+        .select("id")
+        .single();
+
+      if (profileError) throw new Error(`Profile creation failed: ${profileError.message}`);
+
+      // Step 2: Create membership linking proxy profile to group
+      const { error: membershipError } = await supabase.from("memberships").insert({
+        user_id: proxyProfile.id,
         group_id: groupId,
         role: newRole,
         standing: "good",
         display_name: newFullName.trim(),
         is_proxy: true,
+        proxy_manager_id: user.id,
         joined_at: new Date().toISOString(),
       });
-      if (insertError) throw insertError;
+
+      if (membershipError) {
+        // Cleanup: remove the proxy profile we just created
+        await supabase.from("profiles").delete().eq("id", proxyProfile.id);
+        throw new Error(`Membership creation failed: ${membershipError.message}`);
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setAddDialogOpen(false);
       resetAddForm();
@@ -303,7 +327,11 @@ export default function MembersPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("phone")}</Label>
-              <Input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder={t("phone")} />
+              <PhoneInput
+                value={newPhone}
+                onChange={setNewPhone}
+                defaultCountryCode={getDefaultCountryCode(currentGroup?.currency)}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("role")}</Label>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +78,10 @@ export default function EventsPage() {
   const [formStartsAt, setFormStartsAt] = useState("");
   const [formEndsAt, setFormEndsAt] = useState("");
   const [formLocation, setFormLocation] = useState("");
+  const [formIsRecurring, setFormIsRecurring] = useState(false);
+  const [formRecurrenceRule, setFormRecurrenceRule] = useState<string>("monthly");
+  const [formAttendanceRequired, setFormAttendanceRequired] = useState(true);
+  const [formEnableRsvp, setFormEnableRsvp] = useState(true);
 
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -117,6 +122,10 @@ export default function EventsPage() {
     setFormStartsAt("");
     setFormEndsAt("");
     setFormLocation("");
+    setFormIsRecurring(false);
+    setFormRecurrenceRule("monthly");
+    setFormAttendanceRequired(true);
+    setFormEnableRsvp(true);
   };
 
   const handleCreateEvent = async () => {
@@ -130,6 +139,8 @@ export default function EventsPage() {
         starts_at: new Date(formStartsAt).toISOString(),
         ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : null,
         location: formLocation || null,
+        is_recurring: formIsRecurring,
+        recurrence_rule: formIsRecurring ? formRecurrenceRule : null,
       });
       setShowCreateDialog(false);
       resetForm();
@@ -354,11 +365,11 @@ export default function EventsPage() {
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>{t("titleEn")}</Label>
+                <Label>{t("titleEn")} <span className="text-red-500">*</span></Label>
                 <Input
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Monthly General Assembly"
+                  placeholder={t("titlePlaceholderEn")}
                 />
               </div>
               <div className="space-y-2">
@@ -366,7 +377,7 @@ export default function EventsPage() {
                 <Input
                   value={formTitleFr}
                   onChange={(e) => setFormTitleFr(e.target.value)}
-                  placeholder="Assemblee generale mensuelle"
+                  placeholder={t("titlePlaceholderFr")}
                 />
               </div>
             </div>
@@ -376,7 +387,7 @@ export default function EventsPage() {
               <Textarea
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
-                placeholder={t("description")}
+                placeholder={t("descriptionPlaceholder")}
                 rows={3}
               />
             </div>
@@ -399,7 +410,7 @@ export default function EventsPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>{t("startDateTime")}</Label>
+                <Label>{t("startDateTime")} <span className="text-red-500">*</span></Label>
                 <Input
                   type="datetime-local"
                   value={formStartsAt}
@@ -421,8 +432,75 @@ export default function EventsPage() {
               <Input
                 value={formLocation}
                 onChange={(e) => setFormLocation(e.target.value)}
-                placeholder="Community Hall, Douala"
+                placeholder={t("locationPlaceholder")}
               />
+            </div>
+
+            {/* Recurring toggle */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">{t("recurring")}</p>
+                <p className="text-xs text-muted-foreground">{t("recurringHint")}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formIsRecurring}
+                onClick={() => setFormIsRecurring(!formIsRecurring)}
+                className={cn("relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors", formIsRecurring ? "bg-primary" : "bg-muted")}
+              >
+                <span className={cn("pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform", formIsRecurring ? "translate-x-5" : "translate-x-0")} />
+              </button>
+            </div>
+
+            {formIsRecurring && (
+              <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                <Label>{t("recurrenceRule")}</Label>
+                <Select value={formRecurrenceRule} onValueChange={(v) => v && setFormRecurrenceRule(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weekly">{t("weekly")}</SelectItem>
+                    <SelectItem value="biweekly">{t("biweekly")}</SelectItem>
+                    <SelectItem value="monthly">{t("monthly")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Attendance required */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">{t("attendanceRequired")}</p>
+                <p className="text-xs text-muted-foreground">{t("attendanceRequiredHint")}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formAttendanceRequired}
+                onClick={() => setFormAttendanceRequired(!formAttendanceRequired)}
+                className={cn("relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors", formAttendanceRequired ? "bg-primary" : "bg-muted")}
+              >
+                <span className={cn("pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform", formAttendanceRequired ? "translate-x-5" : "translate-x-0")} />
+              </button>
+            </div>
+
+            {/* Enable RSVP */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">{t("enableRsvp")}</p>
+                <p className="text-xs text-muted-foreground">{t("enableRsvpHint")}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formEnableRsvp}
+                onClick={() => setFormEnableRsvp(!formEnableRsvp)}
+                className={cn("relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors", formEnableRsvp ? "bg-primary" : "bg-muted")}
+              >
+                <span className={cn("pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform", formEnableRsvp ? "translate-x-5" : "translate-x-0")} />
+              </button>
             </div>
           </div>
           <DialogFooter>

@@ -422,7 +422,11 @@
     "vacant": "Vacant",
     "groupInfo": "Group Information",
     "groupInfoDesc": "Basic details about your group",
-    "saveSettings": "Save Settings"
+    "saveSettings": "Save Settings",
+    "positionNamePlaceholder": "New position name...",
+    "defaultLocale": "Default Language",
+    "currency": "Currency",
+    "localizationTab": "Localization"
   },
   "contributions": {
     "title": "Contributions",

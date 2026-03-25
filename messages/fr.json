@@ -422,7 +422,11 @@
     "vacant": "Vacant",
     "groupInfo": "Informations du groupe",
     "groupInfoDesc": "Détails de base sur votre groupe",
-    "saveSettings": "Enregistrer les paramètres"
+    "saveSettings": "Enregistrer les paramètres",
+    "positionNamePlaceholder": "Nom du nouveau poste...",
+    "defaultLocale": "Langue par défaut",
+    "currency": "Devise",
+    "localizationTab": "Localisation"
   },
   "contributions": {
     "title": "Cotisations",

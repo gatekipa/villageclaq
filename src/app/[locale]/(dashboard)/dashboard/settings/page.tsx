@@ -18,8 +18,10 @@ import {
   Settings2,
   Loader2,
   Save,
+  Plus,
+  UserPlus,
 } from "lucide-react";
-import { useGroupSettings, useGroupPositions } from "@/lib/hooks/use-supabase-query";
+import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -52,6 +54,10 @@ export default function GroupSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [assignPositionId, setAssignPositionId] = useState<string | null>(null);
+  const [newPositionTitle, setNewPositionTitle] = useState("");
+  const [addingPosition, setAddingPosition] = useState(false);
+  const { data: members } = useMembers();
 
   // Populate form when data loads
   useEffect(() => {
@@ -89,6 +95,40 @@ export default function GroupSettingsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleAssignPosition(positionId: string, membershipId: string) {
+    const supabase = createClient();
+    const { error } = await supabase.from("position_assignments").insert({
+      position_id: positionId,
+      membership_id: membershipId,
+    });
+    if (error) {
+      setSaveError(error.message);
+    } else {
+      setAssignPositionId(null);
+      await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
+    }
+  }
+
+  async function handleAddPosition() {
+    if (!groupId || !newPositionTitle.trim()) return;
+    setAddingPosition(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("group_positions").insert({
+      group_id: groupId,
+      title: newPositionTitle.trim(),
+      is_executive: false,
+      is_default: false,
+      sort_order: positionsData.length + 1,
+    });
+    if (error) {
+      setSaveError(error.message);
+    } else {
+      setNewPositionTitle("");
+      await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
+    }
+    setAddingPosition(false);
   }
 
   if (isLoading) {
@@ -252,21 +292,50 @@ export default function GroupSettingsPage() {
             </CardHeader>
             <CardContent>
               {groupData ? (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</p>
-                    <p className="mt-1 text-sm font-medium">
-                      {(groupData.locale as string) === "fr" ? "Francais" : "English"}
-                    </p>
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</Label>
+                      {isAdmin ? (
+                        <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editLocale} onChange={(e) => setEditLocale(e.target.value)}>
+                          <option value="en">English</option>
+                          <option value="fr">Français</option>
+                        </select>
+                      ) : (
+                        <p className="mt-1 text-sm font-medium">{editLocale === "fr" ? "Français" : "English"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">{t("currency")}</Label>
+                      {isAdmin ? (
+                        <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editCurrency} onChange={(e) => setEditCurrency(e.target.value)}>
+                          <option value="XAF">XAF (CFA Franc BEAC)</option>
+                          <option value="XOF">XOF (CFA Franc BCEAO)</option>
+                          <option value="NGN">NGN (Nigerian Naira)</option>
+                          <option value="GHS">GHS (Ghanaian Cedi)</option>
+                          <option value="KES">KES (Kenyan Shilling)</option>
+                          <option value="ZAR">ZAR (South African Rand)</option>
+                          <option value="USD">USD (US Dollar)</option>
+                          <option value="EUR">EUR (Euro)</option>
+                          <option value="GBP">GBP (British Pound)</option>
+                          <option value="CAD">CAD (Canadian Dollar)</option>
+                          <option value="CHF">CHF (Swiss Franc)</option>
+                        </select>
+                      ) : (
+                        <p className="mt-1 text-sm font-medium">{editCurrency || "—"}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">{t("currency")}</p>
-                    <p className="mt-1 text-sm font-medium">{(groupData.currency as string) || "—"}</p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs font-medium text-muted-foreground">{t("timezone")}</p>
-                    <p className="mt-1 text-sm font-medium">{(groupData.timezone as string) || "—"}</p>
-                  </div>
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+                      {saveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("saved")}</p>}
+                      <Button onClick={handleSaveSettings} disabled={saving}>
+                        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        {t("saveSettings")}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">—</p>
@@ -295,8 +364,8 @@ export default function GroupSettingsPage() {
                 <div className="space-y-3">
                   {positionsData.map((pos) => {
                     const posId = pos.id as string;
-                    const posName = (pos.name as string) || "—";
-                    const posNameFr = pos.name_fr as string | null;
+                    const posName = (pos.title as string) || "—";
+                    const posNameFr = pos.title_fr as string | null;
                     const assignments = (pos.position_assignments || []) as Record<string, unknown>[];
 
                     // Get current holders (active assignments)
@@ -315,7 +384,30 @@ export default function GroupSettingsPage() {
                             )}
                           </div>
                           {activeHolders.length === 0 ? (
-                            <Badge variant="secondary">{t("vacant")}</Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{t("vacant")}</Badge>
+                              {isAdmin && (
+                                assignPositionId === posId ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {(members || []).slice(0, 10).map((m: Record<string, unknown>) => {
+                                      const mp = m.profile as { full_name?: string } | undefined;
+                                      return (
+                                        <Button key={m.id as string} variant="outline" size="sm" className="h-7 text-xs"
+                                          onClick={() => handleAssignPosition(posId, m.id as string)}>
+                                          {mp?.full_name || (m.display_name as string) || "—"}
+                                        </Button>
+                                      );
+                                    })}
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAssignPositionId(null)}>✕</Button>
+                                  </div>
+                                ) : (
+                                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setAssignPositionId(posId)}>
+                                    <UserPlus className="h-3 w-3" />
+                                    Assign
+                                  </Button>
+                                )
+                              )}
+                            </div>
                           ) : (
                             <div className="flex flex-wrap gap-2">
                               {activeHolders.map((holder, i) => {
@@ -346,6 +438,20 @@ export default function GroupSettingsPage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+              {isAdmin && (
+                <div className="mt-4 flex gap-2">
+                  <Input
+                    placeholder={t("positionNamePlaceholder") || "New position name..."}
+                    value={newPositionTitle}
+                    onChange={(e) => setNewPositionTitle(e.target.value)}
+                    className="max-w-xs"
+                    onKeyDown={(e) => e.key === "Enter" && handleAddPosition()}
+                  />
+                  <Button onClick={handleAddPosition} disabled={addingPosition || !newPositionTitle.trim()} size="sm">
+                    {addingPosition ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  </Button>
                 </div>
               )}
             </CardContent>

@@ -44,6 +44,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
+import { QRCodeSVG } from "qrcode.react";
 
 type AttendanceStatus = "present" | "absent" | "excused" | "late";
 
@@ -119,6 +120,7 @@ export default function AttendancePage() {
   const [memberStatuses, setMemberStatuses] = useState<Record<string, AttendanceStatus>>({});
   const [dialogError, setDialogError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [checkedInCount, setCheckedInCount] = useState(0);
   const [successMessage, setSuccessMessage] = useState("");
   const [dialogTab, setDialogTab] = useState("rollcall");
 
@@ -693,19 +695,50 @@ export default function AttendancePage() {
 
                 {/* QR Check-in Tab */}
                 <TabsContent value="qr" className="mt-4">
-                  <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed p-8 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-                      <QrCode className="h-8 w-8 text-muted-foreground" />
+                  <div className="flex flex-col items-center gap-6 rounded-lg border p-8 text-center">
+                    <div className="rounded-xl bg-white p-4">
+                      <QRCodeSVG
+                        value={`${typeof window !== "undefined" ? window.location.origin : "https://villageclaq.vercel.app"}/checkin/${dialogEventId}`}
+                        size={200}
+                        level="M"
+                        includeMargin
+                      />
                     </div>
-                    <p className="text-sm text-muted-foreground">{t("shareQrCode")}</p>
-                    <div className="rounded-lg bg-muted px-6 py-3">
-                      <p className="text-xs text-muted-foreground">{t("eventId")}</p>
-                      <p className="mt-1 font-mono text-lg font-bold tracking-wider">
-                        {dialogEventId.slice(0, 8).toUpperCase()}
+                    <div>
+                      <p className="text-sm font-medium">{t("shareQrCode")}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{t("qrScanHint")}</p>
+                    </div>
+                    <div className="w-full rounded-lg bg-muted px-4 py-3">
+                      <p className="text-xs text-muted-foreground">{t("eventCode")}</p>
+                      <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-primary">
+                        {dialogEventId.slice(0, 6).toUpperCase()}
                       </p>
                     </div>
-                    <p className="max-w-xs text-xs text-muted-foreground">
-                      {dialogEventId}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/checkin/${dialogEventId}`
+                          );
+                        }}
+                      >
+                        {t("copyLink")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const el = document.querySelector(".qr-fullscreen-target");
+                          if (el) (el as HTMLElement).requestFullscreen?.();
+                        }}
+                      >
+                        {t("fullScreen")}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {checkedInCount} {t("membersCheckedIn")}
                     </p>
                   </div>
                 </TabsContent>

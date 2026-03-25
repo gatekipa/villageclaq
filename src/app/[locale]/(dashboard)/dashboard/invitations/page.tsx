@@ -36,7 +36,12 @@ import {
   MoreVertical,
   XCircle,
   RotateCw,
+  Share2,
+  MessageCircle,
+  QrCode,
+  Loader2,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,7 +60,7 @@ const statusStyles: Record<string, string> = {
 
 export default function InvitationsPage() {
   const t = useTranslations();
-  const { groupId, user, isAdmin, loading: groupLoading } = useGroup();
+  const { groupId, user, isAdmin, currentGroup, loading: groupLoading } = useGroup();
   const queryClient = useQueryClient();
 
   const {
@@ -73,15 +78,55 @@ export default function InvitationsPage() {
   } = useJoinCodes();
 
   const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [showQR, setShowQR] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
-  function copyToClipboard(text: string) {
+  function copyCode(text: string) {
     navigator.clipboard.writeText(text);
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 2000);
+  }
+
+  function copyLink(text: string) {
+    navigator.clipboard.writeText(text);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }
+
+  function getJoinLink(code: string) {
+    return `https://villageclaq.vercel.app/join/${code}`;
+  }
+
+  function shareWhatsApp(code: string) {
+    const link = getJoinLink(code);
+    const groupName = currentGroup?.name || "our group";
+    const msg = encodeURIComponent(`Join ${groupName} on VillageClaq: ${link}`);
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  }
+
+  function shareEmail(code: string) {
+    const link = getJoinLink(code);
+    const groupName = currentGroup?.name || "our group";
+    const subject = encodeURIComponent(`Join ${groupName} on VillageClaq`);
+    const body = encodeURIComponent(`You've been invited to join ${groupName} on VillageClaq.\n\nClick this link to join: ${link}\n\nOr use join code: ${code}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  }
+
+  async function regenerateCode() {
+    if (!groupId || !user) return;
+    setRegenerating(true);
+    const supabase = createClient();
+    // Deactivate old codes
+    await supabase.from("join_codes").update({ is_active: false }).eq("group_id", groupId);
+    // Create new code
+    await supabase.from("join_codes").insert({ group_id: groupId, created_by: user.id, is_active: true });
+    queryClient.invalidateQueries({ queryKey: ["join-codes", groupId] });
+    setRegenerating(false);
   }
 
   const handleSendInvitation = async () => {
@@ -144,61 +189,89 @@ export default function InvitationsPage() {
         <p className="text-muted-foreground">{t("invitations.subtitle")}</p>
       </div>
 
-      {/* Join Code Section */}
-      {activeCode && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Link2 className="h-4 w-4" />
-              {t("invitations.joinCode")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-6">
-              <span className="text-2xl font-mono font-bold tracking-widest text-primary">
-                {(activeCode as Record<string, unknown>).code as string}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() =>
-                copyToClipboard(
-                  (activeCode as Record<string, unknown>).code as string
-                )
-              }
-            >
-              {codeCopied ? (
-                <Check className="mr-2 h-4 w-4 text-primary" />
-              ) : (
-                <Copy className="mr-2 h-4 w-4" />
-              )}
-              {codeCopied
-                ? t("common.copied")
-                : t("invitations.copyCode")}
-            </Button>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                {t("invitations.usedCount", {
-                  count:
-                    ((activeCode as Record<string, unknown>)
-                      .uses_count as number) || 0,
-                })}
-              </span>
-              {(activeCode as Record<string, unknown>).max_uses ? (
-                <span>
-                  {t("invitations.maxUses", {
-                    max: (activeCode as Record<string, unknown>)
-                      .max_uses as number,
-                  })}
+      {/* Join Code + Shareable Link */}
+      {activeCode && (() => {
+        const code = (activeCode as Record<string, unknown>).code as string;
+        const joinLink = getJoinLink(code);
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Link2 className="h-4 w-4" />
+                {t("invitations.joinCode")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Join Code Display */}
+              <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-6">
+                <span className="text-2xl font-mono font-bold tracking-widest text-primary">
+                  {code}
                 </span>
-              ) : (
-                <span>{t("invitations.unlimitedUses")}</span>
+              </div>
+
+              {/* Shareable Link */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-muted-foreground">{t("invitations.shareableLink")}</Label>
+                <div className="flex gap-2">
+                  <Input value={joinLink} readOnly className="flex-1 font-mono text-xs bg-muted/30" />
+                  <Button variant="outline" size="icon" onClick={() => copyLink(joinLink)}>
+                    {linkCopied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Share Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => copyCode(code)} className="gap-1.5">
+                  {codeCopied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                  {codeCopied ? t("common.copied") : t("invitations.copyCode")}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => shareWhatsApp(code)} className="gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  WhatsApp
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => shareEmail(code)} className="gap-1.5">
+                  <Mail className="h-3.5 w-3.5" />
+                  Email
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowQR(!showQR)} className="gap-1.5">
+                  <QrCode className="h-3.5 w-3.5" />
+                  QR Code
+                </Button>
+              </div>
+
+              {/* QR Code (toggled) */}
+              {showQR && (
+                <div className="flex flex-col items-center gap-3 rounded-xl border bg-white p-6 dark:bg-white">
+                  <QRCodeSVG value={joinLink} size={200} level="M" includeMargin />
+                  <p className="text-xs text-gray-500">{t("invitations.scanToJoin")}</p>
+                </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
+              {/* Stats + Regenerate */}
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                  <span>
+                    {t("invitations.usedCount", {
+                      count: ((activeCode as Record<string, unknown>).use_count as number) || 0,
+                    })}
+                  </span>
+                  {" · "}
+                  {(activeCode as Record<string, unknown>).max_uses ? (
+                    <span>{t("invitations.maxUses", { max: (activeCode as Record<string, unknown>).max_uses as number })}</span>
+                  ) : (
+                    <span>{t("invitations.unlimitedUses")}</span>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={regenerateCode} disabled={regenerating} className="gap-1.5 text-xs">
+                  {regenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
+                  {t("invitations.regenerateCode")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Invite by Email */}
       <Card>

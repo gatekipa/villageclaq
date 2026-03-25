@@ -577,7 +577,10 @@
     "roleMember": "Membre",
     "roleAdmin": "Administrateur",
     "noInvitationsDesc": "Envoyez une invitation par e-mail pour ajouter de nouveaux membres.",
-    "unknown": "Inconnu"
+    "unknown": "Inconnu",
+    "shareableLink": "Lien d'adhésion partageable",
+    "scanToJoin": "Scannez pour rejoindre ce groupe",
+    "regenerateCode": "Nouveau code"
   },
   "events": {
     "title": "Événements",

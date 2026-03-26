@@ -1,7 +1,7 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,8 @@ import {
   MoreVertical,
   Edit,
   XCircle,
+  CheckCircle,
+  ChevronRight,
 } from "lucide-react";
 import { useSavingsCycles, useCreateSavingsCycle } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -62,6 +64,215 @@ function getInitials(name: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function RoundManagement({
+  cycleId,
+  currentRound,
+  totalRounds,
+  cycleAmount,
+  currency,
+  participants,
+  expanded,
+  onToggle,
+  roundContribs,
+  setRoundContribs,
+  queryClient,
+  t,
+  tc,
+}: {
+  cycleId: string;
+  currentRound: number;
+  totalRounds: number;
+  cycleAmount: number;
+  currency: string;
+  participants: Record<string, unknown>[];
+  expanded: boolean;
+  onToggle: () => void;
+  roundContribs: Record<string, unknown>[];
+  setRoundContribs: (v: Record<string, unknown>[]) => void;
+  queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>;
+  t: ReturnType<typeof import("next-intl").useTranslations>;
+  tc: ReturnType<typeof import("next-intl").useTranslations>;
+}) {
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const supabase = createClient();
+    supabase
+      .from("savings_contributions")
+      .select("*")
+      .eq("cycle_id", cycleId)
+      .eq("round_number", currentRound)
+      .then(({ data }) => setRoundContribs(data || []));
+  }, [expanded, cycleId, currentRound, setRoundContribs]);
+
+  const handleMarkPaid = async (participantMembershipId: string) => {
+    setMarkingPaid(participantMembershipId);
+    const supabase = createClient();
+    await supabase.from("savings_contributions").upsert(
+      {
+        cycle_id: cycleId,
+        membership_id: participantMembershipId,
+        round_number: currentRound,
+        amount: cycleAmount,
+        paid_at: new Date().toISOString(),
+        status: "paid",
+      },
+      { onConflict: "cycle_id,membership_id,round_number" }
+    );
+    queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+    // Refresh contributions
+    const { data } = await createClient()
+      .from("savings_contributions")
+      .select("*")
+      .eq("cycle_id", cycleId)
+      .eq("round_number", currentRound);
+    setRoundContribs(data || []);
+    setMarkingPaid(null);
+  };
+
+  const handleAdvanceRound = async () => {
+    setAdvancing(true);
+    const supabase = createClient();
+    await supabase
+      .from("savings_cycles")
+      .update({ current_round: currentRound + 1 })
+      .eq("id", cycleId);
+    queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+    setAdvancing(false);
+  };
+
+  const collectorParticipant = participants.find(
+    (p) => (p.collection_round as number) === currentRound
+  );
+  const collectorMembership = collectorParticipant?.membership as Record<string, unknown> | undefined;
+  const collectorProfile = collectorMembership
+    ? (Array.isArray(collectorMembership.profiles)
+        ? collectorMembership.profiles[0]
+        : collectorMembership.profiles) as Record<string, unknown> | undefined
+    : undefined;
+  const collectorName = (collectorProfile?.full_name as string) || "";
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4 dark:bg-muted/5">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={onToggle}
+      >
+        <h4 className="text-sm font-semibold text-foreground">{t("roundManagement")}</h4>
+        <ChevronRight
+          className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-90" : ""}`}
+        />
+      </button>
+
+      {expanded && (
+        <div className="space-y-4">
+          {/* Round indicator */}
+          <p className="text-lg font-bold text-foreground">
+            {t("roundOf", { current: currentRound, total: totalRounds })}
+          </p>
+
+          {/* Collector for this round */}
+          {collectorName && (
+            <div className="flex items-center gap-2">
+              <Badge className="bg-amber-500 text-white dark:bg-amber-600">
+                {t("collector")}
+              </Badge>
+              <span className="text-sm font-medium text-foreground">{collectorName}</span>
+            </div>
+          )}
+
+          {/* Per-participant contribution status */}
+          <div className="space-y-2">
+            {participants.map((p) => {
+              const membership = p.membership as Record<string, unknown> | undefined;
+              const membershipId = (p.membership_id as string) || (membership?.id as string) || "";
+              const profile = membership
+                ? (Array.isArray(membership.profiles)
+                    ? membership.profiles[0]
+                    : membership.profiles) as Record<string, unknown> | undefined
+                : undefined;
+              const fullName = (profile?.full_name as string) || "Member";
+              const avatarUrl = (profile?.avatar_url as string) || "";
+              const isCollector = (p.collection_round as number) === currentRound;
+
+              const contrib = roundContribs.find(
+                (c) => (c.membership_id as string) === membershipId
+              );
+              const isPaid = contrib && (contrib.status as string) === "paid";
+
+              return (
+                <div
+                  key={p.id as string}
+                  className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={avatarUrl || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {getInitials(fullName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-foreground">{fullName}</span>
+                    {isCollector && (
+                      <Badge className="bg-amber-500 text-white dark:bg-amber-600 text-[10px] px-1.5 py-0">
+                        {t("collector")}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {formatCurrency(cycleAmount, currency)}
+                    </span>
+                    {isPaid ? (
+                      <Badge className="bg-emerald-600 text-white dark:bg-emerald-500 text-xs">
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        {t("statusPaid")}
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="destructive" className="text-xs">
+                          {t("unpaid")}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={markingPaid === membershipId}
+                          onClick={() => handleMarkPaid(membershipId)}
+                        >
+                          {markingPaid === membershipId && (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          )}
+                          {t("markPaid")}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Advance Round button */}
+          {currentRound < totalRounds && (
+            <Button
+              onClick={handleAdvanceRound}
+              disabled={advancing}
+              className="w-full sm:w-auto"
+            >
+              {advancing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("advanceRound")}
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const rotationIcons: Record<RotationType, typeof Repeat> = {
@@ -90,6 +301,8 @@ export default function SavingsCirclePage() {
   const [createError, setCreateError] = useState("");
   const [editCycleId, setEditCycleId] = useState<string | null>(null);
   const [endingCycleId, setEndingCycleId] = useState<string | null>(null);
+  const [expandedCycleId, setExpandedCycleId] = useState<string | null>(null);
+  const [roundContribs, setRoundContribs] = useState<Record<string, unknown>[]>([]);
 
   const resetCreateForm = () => {
     setCycleName("");
@@ -450,6 +663,25 @@ export default function SavingsCirclePage() {
                       })}
                     </div>
                   </div>
+                )}
+
+                {/* Round Management (admin only) */}
+                {isAdmin && status === "active" && (
+                  <RoundManagement
+                    cycleId={id}
+                    currentRound={currentRound}
+                    totalRounds={totalRnds}
+                    cycleAmount={amt}
+                    currency={currency}
+                    participants={participants}
+                    expanded={expandedCycleId === id}
+                    onToggle={() => setExpandedCycleId(expandedCycleId === id ? null : id)}
+                    roundContribs={roundContribs}
+                    setRoundContribs={setRoundContribs}
+                    queryClient={queryClient}
+                    t={t}
+                    tc={tc}
+                  />
                 )}
               </CardContent>
             </Card>

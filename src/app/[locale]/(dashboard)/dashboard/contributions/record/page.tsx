@@ -21,7 +21,6 @@ import {
   AlertTriangle,
   BarChart3,
   X,
-  Share2,
   Loader2,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";

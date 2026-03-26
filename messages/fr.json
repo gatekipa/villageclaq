@@ -1798,7 +1798,11 @@
     "current": "Actuel",
     "future": "Futur",
     "endCycle": "Terminer le cycle",
-    "endCycleConfirm": "Êtes-vous sûr de vouloir terminer ce cycle ? Il sera marqué comme terminé."
+    "endCycleConfirm": "Êtes-vous sûr de vouloir terminer ce cycle ? Il sera marqué comme terminé.",
+    "advanceRound": "Avancer au tour suivant",
+    "roundOf": "Tour {current} sur {total}",
+    "unpaid": "Impayé",
+    "roundManagement": "Gestion des tours"
   },
   "elections": {
     "title": "Élections et votes",

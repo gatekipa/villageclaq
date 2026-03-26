@@ -25,6 +25,7 @@ import {
   AlertCircle,
   Search,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes } from "@/lib/hooks/use-supabase-query";
@@ -66,6 +67,9 @@ export default function ReportDetailPage() {
   const { currentGroup } = useGroup();
   const currency = currentGroup?.currency || "XAF";
   const [minutesSearch, setMinutesSearch] = useState("");
+  const [aiInsights, setAiInsights] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const reportName = t(`reports.${reportKey}.name`);
   const reportDesc = t(`reports.${reportKey}.desc`);
@@ -366,13 +370,56 @@ export default function ReportDetailPage() {
         </div>
       </div>
 
-      {/* AI Insights placeholder */}
-      <Card className="border-primary/20 bg-primary/5 print:hidden">
-        <CardContent className="flex items-center gap-3 pt-6">
-          <Sparkles className="h-5 w-5 text-primary shrink-0" />
-          <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
-        </CardContent>
-      </Card>
+      {/* AI Insights */}
+      {!isPlaceholder && (
+        <Card className="border-emerald-200 dark:border-emerald-800 print:hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Sparkles className="h-4 w-4 text-emerald-600" />
+              {t("reports.aiInsights")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {aiInsights ? (
+              <div className="text-sm whitespace-pre-wrap">{aiInsights}</div>
+            ) : aiError ? (
+              <p className="text-sm text-red-500">{aiError}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full"
+              onClick={async () => {
+                setAiLoading(true);
+                setAiError(null);
+                try {
+                  const res = await fetch("/api/ai-insights", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reportType: reportKey, reportData: { members: members?.length || 0, payments: payments?.length || 0, obligations: obligations?.length || 0, currency }, locale: currentGroup?.locale || "en" }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || "Failed");
+                  setAiInsights(data.insights);
+                } catch (err: unknown) {
+                  setAiError(err instanceof Error ? err.message : "AI insights unavailable");
+                } finally {
+                  setAiLoading(false);
+                }
+              }}
+              disabled={aiLoading}
+            >
+              {aiLoading ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("common.loading")}</>
+              ) : (
+                <><Sparkles className="h-4 w-4 mr-2" />{t("reports.aiInsights")}</>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Placeholder reports: 5, 17, 18, 19 */}
       {isPlaceholder && (
@@ -384,7 +431,7 @@ export default function ReportDetailPage() {
               {reportId === "5" && "Create a savings circle and complete at least one round to see this report."}
               {reportId === "17" && "Create multiple branches in the Enterprise section to compare their performance."}
               {reportId === "18" && "Run at least one election and close voting to see results archived here."}
-              {reportId === "19" && "No dispute records available. This feature will be available in a future update."}
+              {reportId === "19" && "Dispute tracking is not yet available. Member standing issues can be reviewed in the Members section."}
             </p>
           </CardContent>
         </Card>

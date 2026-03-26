@@ -379,6 +379,15 @@ export default function DocumentVaultPage() {
                 setDeleting(true);
                 try {
                   const supabase = createClient();
+                  // Remove file from storage first
+                  const docToDelete = documents?.find((d: Record<string, unknown>) => d.id === deleteDocId);
+                  const fileUrl = docToDelete?.file_url as string;
+                  if (fileUrl) {
+                    const pathPart = fileUrl.split("/storage/v1/object/public/group-documents/")[1];
+                    if (pathPart) {
+                      await supabase.storage.from("group-documents").remove([decodeURIComponent(pathPart)]);
+                    }
+                  }
                   const { error } = await supabase.from('documents').delete().eq('id', deleteDocId);
                   if (error) throw error;
                   await queryClient.invalidateQueries({ queryKey: ['documents', groupId] });

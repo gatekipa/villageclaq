@@ -1841,7 +1841,11 @@
     "current": "Current",
     "future": "Future",
     "endCycle": "End Cycle",
-    "endCycleConfirm": "Are you sure you want to end this cycle? This will mark it as completed."
+    "endCycleConfirm": "Are you sure you want to end this cycle? This will mark it as completed.",
+    "advanceRound": "Advance Round",
+    "roundOf": "Round {current} of {total}",
+    "unpaid": "Unpaid",
+    "roundManagement": "Round Management"
   },
   "elections": {
     "title": "Elections & Voting",

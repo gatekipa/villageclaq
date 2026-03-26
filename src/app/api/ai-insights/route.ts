@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { groupStats, locale } = await req.json();
+    const { reportType, reportData, locale } = await req.json();
+
+    if (!reportData || !reportType) {
+      return NextResponse.json({ error: "Missing reportType or reportData" }, { status: 400 });
+    }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ insight: "AI insights require configuration." }, { status: 200 });
+      return NextResponse.json({ error: "AI service not configured" }, { status: 500 });
     }
+
+    const langInstruction = locale === "fr"
+      ? "Respond entirely in French."
+      : "Respond entirely in English.";
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -17,23 +25,26 @@ export async function POST(req: NextRequest) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-20241022",
-        max_tokens: 300,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
         messages: [{
           role: "user",
-          content: `You are a financial analyst for an African community group. Analyze this data and provide 3-4 key insights in plain language. Mention specific numbers. Flag concerns. Suggest actions. Keep it under 150 words. Respond in ${locale === 'fr' ? 'French' : 'English'}.\n\nGroup Stats:\n${JSON.stringify(groupStats, null, 2)}`
+          content: `You are a financial analyst for an African community group (njangi/alumni union/village association). Analyze this "${reportType}" report data and provide 3-5 actionable insights. Be specific with numbers. Flag concerns. Suggest actions. Keep it under 200 words. ${langInstruction}\n\nReport data:\n${JSON.stringify(reportData, null, 2)}`
         }]
       })
     });
 
     if (!response.ok) {
-      return NextResponse.json({ insight: "AI insights temporarily unavailable." }, { status: 200 });
+      const errorText = await response.text();
+      console.error("Anthropic API error:", errorText);
+      return NextResponse.json({ error: "AI service unavailable" }, { status: 502 });
     }
 
     const data = await response.json();
-    const insight = data.content?.[0]?.text || "No insights generated.";
-    return NextResponse.json({ insight });
-  } catch {
-    return NextResponse.json({ insight: "AI insights temporarily unavailable." }, { status: 200 });
+    const insights = data.content?.[0]?.text || "No insights generated.";
+    return NextResponse.json({ insights });
+  } catch (error) {
+    console.error("AI Insights error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

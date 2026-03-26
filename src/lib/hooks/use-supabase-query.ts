@@ -50,7 +50,7 @@ export function useMembers() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("memberships")
-        .select("id, user_id, role, standing, display_name, joined_at, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone)")
+        .select("id, user_id, role, standing, display_name, joined_at, is_proxy, proxy_manager_id, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
       if (error) throw error;

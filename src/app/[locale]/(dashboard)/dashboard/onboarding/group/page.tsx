@@ -356,6 +356,7 @@ export default function GroupOnboardingPage() {
       group_id: group.id,
       role: "owner",
       standing: "good",
+      display_name: fullName.trim() || user.email?.split("@")[0] || "Owner",
     });
     if (memErr) {
       setError(`Membership: ${memErr.message}`);

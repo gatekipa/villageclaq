@@ -27,6 +27,7 @@ import {
   Crown,
   Calendar,
   Loader2,
+  Phone,
 } from "lucide-react";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -132,7 +133,17 @@ export default function MembersPage() {
 
   const getName = (member: Record<string, unknown>) => {
     const profile = member.profile as { full_name?: string } | undefined;
-    return (member.display_name as string) || profile?.full_name || "—";
+    return (member.display_name as string) || profile?.full_name || t("unnamed");
+  };
+
+  const getPhone = (member: Record<string, unknown>) => {
+    const profile = member.profile as { phone?: string } | undefined;
+    const privacySettings = member.privacy_settings as Record<string, unknown> | null;
+    // For proxy members, phone is in privacy_settings.proxy_phone
+    if (member.is_proxy && privacySettings?.proxy_phone) {
+      return privacySettings.proxy_phone as string;
+    }
+    return profile?.phone || null;
   };
 
   const getInitials = (name: string) =>
@@ -216,6 +227,8 @@ export default function MembersPage() {
               phone?: string;
             } | undefined;
             const name = getName(member);
+            const phone = getPhone(member);
+            const isProxy = member.is_proxy as boolean;
             const standingStyle = standingConfig[standing] || standingConfig.good;
             const roleStyle = roleConfig[role] || roleConfig.member;
             const RoleIcon = roleStyle.icon;
@@ -274,12 +287,27 @@ export default function MembersPage() {
                         </span>
                       </div>
 
+                      {/* Phone */}
+                      {phone ? (
+                        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          <span>{String(phone)}</span>
+                        </div>
+                      ) : null}
+
                       {/* Joined date */}
                       {joinedAt && (
-                        <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDate(joinedAt)}</span>
                         </div>
+                      )}
+
+                      {/* Proxy badge */}
+                      {isProxy && (
+                        <Badge variant="outline" className="mt-1.5 text-[10px] px-1.5 py-0 text-muted-foreground">
+                          {t("proxyMember")}
+                        </Badge>
                       )}
                     </div>
                   </div>

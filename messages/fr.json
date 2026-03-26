@@ -386,7 +386,10 @@
     "outstandingBalance": "Solde impayé",
     "memberSummary": "Résumé du membre",
     "proxyHint": "Ceci crée un membre par procuration. Quand la personne s'inscrit et rejoint via le code d'invitation, son compte pourra être lié ultérieurement.",
-    "fullName": "Nom complet"
+    "fullName": "Nom complet",
+    "unnamed": "Membre sans nom",
+    "proxyMember": "Membre par procuration",
+    "noContributions": "Aucune contribution pour le moment"
   },
   "settings": {
     "title": "Paramètres du groupe",

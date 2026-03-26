@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -39,13 +40,7 @@ const methodColors: Record<string, string> = {
   online: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
 };
 
-function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
+function formatCurrency(amount: number, currency: string) { return formatAmount(amount, typeof currency === "string" ? currency : "XAF"); }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {

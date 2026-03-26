@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { formatAmount } from "@/lib/currencies";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,15 +43,10 @@ export default function DashboardPage() {
 
   const isLoading = statsLoading || paymentsLoading || eventsLoading || minutesLoading;
 
+  const groupCurrency = currentGroup?.currency || "XAF";
   const formatCurrency = useMemo(() => {
-    const currency = currentGroup?.currency || "XAF";
-    return (amount: number) =>
-      new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency,
-        minimumFractionDigits: 0,
-      }).format(amount);
-  }, [currentGroup?.currency]);
+    return (amount: number) => formatAmount(amount, groupCurrency);
+  }, [groupCurrency]);
 
   const nextEvent = useMemo(() => {
     if (!events || events.length === 0) return null;

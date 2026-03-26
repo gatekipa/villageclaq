@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -32,12 +33,7 @@ import {
 } from "lucide-react";
 
 function formatCurrency(amount: number, currency = "XAF") {
-  return new Intl.NumberFormat("fr-CM", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 function getDaysUntilDue(dueDate: string): number {

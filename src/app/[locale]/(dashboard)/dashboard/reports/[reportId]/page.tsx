@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -26,7 +27,7 @@ import { useMembers, usePayments, useObligations, useEvents, useEventAttendance,
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 
 function formatCurrency(amount: number, currency = "XAF") {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 function TrendIcon({ trend }: { trend: string }) {

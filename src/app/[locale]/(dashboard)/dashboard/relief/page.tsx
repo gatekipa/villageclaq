@@ -7,13 +7,10 @@ import { Heart, DollarSign, Clock, Shield } from "lucide-react";
 import { useReliefPlans } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { formatAmount } from "@/lib/currencies";
 
 function formatCurrency(amount: number, currency = "XAF") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 export default function ReliefPage() {

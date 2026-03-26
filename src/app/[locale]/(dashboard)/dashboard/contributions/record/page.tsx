@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
@@ -32,13 +33,7 @@ import {
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
-function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
+function formatCurrency(amount: number, currency: string) { return formatAmount(amount, typeof currency === "string" ? currency : "XAF"); }
 
 export default function RecordPaymentPage() {
   const t = useTranslations();

@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -36,7 +37,7 @@ import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-
 import { AdminGuard } from "@/components/ui/admin-guard";
 
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 function formatCompact(amount: number) {

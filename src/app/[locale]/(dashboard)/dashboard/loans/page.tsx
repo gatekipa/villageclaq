@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -58,7 +59,7 @@ function getInitials(name: string) {
 
 function formatCurrency(amount: number, currency = "XAF") {
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+    return formatAmount(amount, currency || "XAF");
   } catch {
     return `${currency} ${amount.toLocaleString()}`;
   }

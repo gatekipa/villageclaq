@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -36,7 +37,7 @@ const cellConfig: Record<CellStatus, { icon: typeof Check; color: string; bg: st
 };
 
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 function useMatrixData(contributionTypeId: string | null) {

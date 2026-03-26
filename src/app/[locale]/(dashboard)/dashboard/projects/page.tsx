@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -72,16 +73,7 @@ const PROJECT_TYPES = [
 const PAYMENT_METHODS = ["cash", "mobile_money", "bank_transfer", "card"] as const;
 
 function formatCurrency(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${currency} ${amount.toLocaleString()}`;
-  }
+  return formatAmount(amount, currency);
 }
 
 function formatDate(dateStr: string) {

@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
@@ -34,11 +35,7 @@ const systemHealth = {
 };
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(amount);
+  return formatAmount(amount, "USD");
 }
 
 interface RecentGroup {

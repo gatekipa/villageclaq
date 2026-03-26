@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -40,7 +41,7 @@ interface UnpaidMember {
 }
 
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 const standingColors: Record<string, string> = {

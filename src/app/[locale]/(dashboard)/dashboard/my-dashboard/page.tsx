@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -34,14 +35,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return new Intl.NumberFormat("fr-CM", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+function formatCurrency(amount: number, currency = "XAF") { return formatAmount(amount, typeof currency === "string" ? currency : "XAF"); }
 
 function getUrgency(dueDate: string): "overdue" | "due_soon" | "upcoming" {
   const now = new Date();

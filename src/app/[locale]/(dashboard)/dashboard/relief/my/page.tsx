@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -80,7 +81,7 @@ const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof Check
 };
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "XAF", minimumFractionDigits: 0 }).format(amount);
+  return formatAmount(amount, "XAF");
 }
 
 export default function MyReliefPage() {

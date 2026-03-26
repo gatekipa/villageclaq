@@ -1,4 +1,5 @@
 "use client";
+import { formatAmount } from "@/lib/currencies";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -40,11 +41,7 @@ type RotationType = "sequential" | "random" | "auction";
 type Frequency = "weekly" | "biweekly" | "monthly";
 
 function formatCurrency(amount: number, currency = "XAF") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 function getInitials(name: string) {

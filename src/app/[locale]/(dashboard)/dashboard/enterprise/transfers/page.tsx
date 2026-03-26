@@ -70,9 +70,6 @@ function useTransfers() {
   });
 }
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 export default function TransfersPage() {
   const t = useTranslations();
@@ -189,7 +186,7 @@ export default function TransfersPage() {
                     {Object.entries(summary).map(([key, value]) => (
                       <div key={key} className="flex justify-between">
                         <span className="text-muted-foreground">{key}</span>
-                        <span className="font-medium">{typeof value === "number" ? formatCurrency(value, currency) : String(value)}</span>
+                        <span className="font-medium">{typeof value === "number" ? formatAmount(value, currency) : String(value)}</span>
                       </div>
                     ))}
                   </CardContent></Card>

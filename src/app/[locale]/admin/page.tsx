@@ -34,9 +34,6 @@ const systemHealth = {
   openTickets: 3,
 };
 
-function formatCurrency(amount: number) {
-  return formatAmount(amount, "USD");
-}
 
 interface RecentGroup {
   id: string;
@@ -110,7 +107,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold sm:text-3xl">
-              {formatCurrency(revenueStats.mrr)}
+              {formatAmount(revenueStats.mrr, "USD")}
             </div>
           </CardContent>
         </Card>
@@ -124,7 +121,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold sm:text-3xl">
-              {formatCurrency(revenueStats.arr)}
+              {formatAmount(revenueStats.arr, "USD")}
             </div>
           </CardContent>
         </Card>
@@ -138,7 +135,7 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold sm:text-3xl">
-              {formatCurrency(revenueStats.revenueThisMonth)}
+              {formatAmount(revenueStats.revenueThisMonth, "USD")}
             </div>
           </CardContent>
         </Card>

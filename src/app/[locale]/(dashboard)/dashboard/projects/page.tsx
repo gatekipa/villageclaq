@@ -72,9 +72,6 @@ const PROJECT_TYPES = [
 
 const PAYMENT_METHODS = ["cash", "mobile_money", "bank_transfer", "card"] as const;
 
-function formatCurrency(amount: number, currency: string) {
-  return formatAmount(amount, currency);
-}
 
 function formatDate(dateStr: string) {
   try {
@@ -597,19 +594,19 @@ function ProjectDetail({
             <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-900/10 p-3 text-center">
               <p className="text-xs text-muted-foreground">{t("raised")}</p>
               <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
-                {formatCurrency(totalRaised, currency)}
+                {formatAmount(totalRaised, currency)}
               </p>
             </div>
             <div className="rounded-lg border bg-red-50 dark:bg-red-900/10 p-3 text-center">
               <p className="text-xs text-muted-foreground">{t("spent")}</p>
               <p className="text-lg font-bold text-red-700 dark:text-red-400">
-                {formatCurrency(totalSpent, currency)}
+                {formatAmount(totalSpent, currency)}
               </p>
             </div>
             <div className="rounded-lg border bg-blue-50 dark:bg-blue-900/10 p-3 text-center">
               <p className="text-xs text-muted-foreground">{t("balance")}</p>
               <p className={`text-lg font-bold ${balance >= 0 ? "text-blue-700 dark:text-blue-400" : "text-red-700 dark:text-red-400"}`}>
-                {formatCurrency(balance, currency)}
+                {formatAmount(balance, currency)}
               </p>
             </div>
           </div>
@@ -650,7 +647,7 @@ function ProjectDetail({
                       {contributions.map((c) => (
                         <tr key={c.id} className="hover:bg-muted/30">
                           <td className="p-2">{memberNameMap[c.membership_id] || t("unknownMember")}</td>
-                          <td className="p-2 text-right font-medium">{formatCurrency(Number(c.amount), currency)}</td>
+                          <td className="p-2 text-right font-medium">{formatAmount(Number(c.amount), currency)}</td>
                           <td className="p-2 hidden sm:table-cell">
                             {c.payment_method ? t(`method_${c.payment_method}`) : "-"}
                           </td>
@@ -701,7 +698,7 @@ function ProjectDetail({
                       {expenses.map((e) => (
                         <tr key={e.id} className="hover:bg-muted/30">
                           <td className="p-2">{e.description}</td>
-                          <td className="p-2 text-right font-medium">{formatCurrency(Number(e.amount), currency)}</td>
+                          <td className="p-2 text-right font-medium">{formatAmount(Number(e.amount), currency)}</td>
                           <td className="p-2 hidden sm:table-cell text-muted-foreground">
                             {e.spent_at ? formatDate(e.spent_at) : "-"}
                           </td>
@@ -1102,7 +1099,7 @@ export default function ProjectsPage() {
                   {t("totalBudget")}
                 </p>
                 <p className="text-xl font-bold">
-                  {formatCurrency(stats.totalBudget, groupCurrency)}
+                  {formatAmount(stats.totalBudget, groupCurrency)}
                 </p>
               </div>
             </CardContent>
@@ -1117,7 +1114,7 @@ export default function ProjectsPage() {
                   {t("totalRaised")}
                 </p>
                 <p className="text-xl font-bold">
-                  {formatCurrency(stats.totalRaised, groupCurrency)}
+                  {formatAmount(stats.totalRaised, groupCurrency)}
                 </p>
               </div>
             </CardContent>
@@ -1132,7 +1129,7 @@ export default function ProjectsPage() {
                   {t("totalSpent")}
                 </p>
                 <p className="text-xl font-bold">
-                  {formatCurrency(stats.totalSpent, groupCurrency)}
+                  {formatAmount(stats.totalSpent, groupCurrency)}
                 </p>
               </div>
             </CardContent>
@@ -1249,8 +1246,8 @@ export default function ProjectsPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {t("raised")}: {formatCurrency(totalContributions, currency)}{" "}
-                        {t("ofTarget")} {formatCurrency(targetAmount, currency)}
+                        {t("raised")}: {formatAmount(totalContributions, currency)}{" "}
+                        {t("ofTarget")} {formatAmount(targetAmount, currency)}
                       </span>
                       <span className="font-medium">{progressPct}%</span>
                     </div>
@@ -1265,7 +1262,7 @@ export default function ProjectsPage() {
                         {t("raised")}
                       </div>
                       <p className="text-sm font-semibold mt-0.5">
-                        {formatCurrency(totalContributions, currency)}
+                        {formatAmount(totalContributions, currency)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
@@ -1274,7 +1271,7 @@ export default function ProjectsPage() {
                         {t("target")}
                       </div>
                       <p className="text-sm font-semibold mt-0.5">
-                        {formatCurrency(targetAmount, currency)}
+                        {formatAmount(targetAmount, currency)}
                       </p>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2">
@@ -1283,7 +1280,7 @@ export default function ProjectsPage() {
                         {t("spent")}
                       </div>
                       <p className="text-sm font-semibold mt-0.5">
-                        {formatCurrency(totalExpenses, currency)}
+                        {formatAmount(totalExpenses, currency)}
                       </p>
                     </div>
                   </div>

@@ -28,12 +28,9 @@ import {
   Loader2,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
-import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes } from "@/lib/hooks/use-supabase-query";
+import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton } from "@/components/ui/page-skeleton";
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 function standingColor(s: string) {
   if (s === "good" || s === "Good") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
@@ -84,6 +81,8 @@ export default function ReportDetailPage() {
   const { data: reliefClaims } = useReliefClaims();
   const { data: hostingRosters, isLoading: hostingLoading } = useHostingRosters();
   const { data: meetingMinutes, isLoading: minutesLoading } = useMeetingMinutes();
+  const { data: savingsCycles } = useSavingsCycles();
+  const { data: elections } = useElections();
 
   // Determine loading based on report type
   const financialReports = ["1", "2", "3", "4"];
@@ -327,6 +326,19 @@ export default function ReportDetailPage() {
     } else if (reportId === "14") {
       data = filteredMinutes.map((m: Record<string, unknown>) => ({ Event: ((m.event as Record<string, unknown>)?.title as string) || "", Date: m.created_at, Status: m.status }));
       filename = "minutes_archive";
+    } else if (reportId === "5") {
+      data = savingsCycleData.map(r => ({ Name: r.name, Status: r.status, Participants: r.participants, CurrentRound: r.currentRound, TotalRounds: r.totalRounds, Amount: r.amount, Frequency: r.frequency, StartDate: r.startDate }));
+      filename = "savings_cycles";
+    } else if (reportId === "7") {
+      data = Object.entries(matrixByMember).map(([name, yearData]) => {
+        const row: Record<string, unknown> = { Member: name };
+        sortedMatrixYears.forEach(y => { row[`${y}_Paid`] = yearData[y]?.paid || 0; row[`${y}_Due`] = yearData[y]?.due || 0; });
+        return row;
+      });
+      filename = "yoy_dues_matrix";
+    } else if (reportId === "18") {
+      data = electionResultsData.map(r => ({ Title: r.title, Type: r.type, Date: r.date, Winner: r.winner, WinnerVotes: r.winnerVotes, WinnerPct: `${r.winnerPct}%`, TotalVotes: r.totalVotes }));
+      filename = "election_results";
     } else if (reportId === "16" || reportId === "20") {
       data = [{ Members: boardStats.totalMembers, Collected: boardStats.totalCollected, Expected: boardStats.totalExpected, CollectionRate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents, AvgAttendance: `${boardStats.avgAttendanceRate}%` }];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
@@ -339,9 +351,64 @@ export default function ReportDetailPage() {
     window.print();
   }
 
-  // Placeholder report IDs
-  const placeholderReports = ["5", "17", "18", "19"];
+  // Placeholder report IDs — only reports with no backing data model
+  const placeholderReports = ["17", "19"];
   const isPlaceholder = placeholderReports.includes(reportId);
+
+  // Report 5: Savings Cycles
+  const savingsCycleData = (savingsCycles || []).map((c: Record<string, unknown>) => ({
+    name: (c.name as string) || "Untitled",
+    status: (c.status as string) || "active",
+    participants: ((c.savings_participants as unknown[]) || []).length,
+    currentRound: (c.current_round as number) || 1,
+    totalRounds: (c.total_rounds as number) || 0,
+    amount: Number(c.amount) || 0,
+    frequency: (c.frequency as string) || "monthly",
+    startDate: (c.start_date as string) || "",
+  }));
+
+  // Report 18: Election Results
+  const closedElections = (elections || []).filter((e: Record<string, unknown>) => (e.status as string) === "closed");
+  const electionResultsData = closedElections.map((e: Record<string, unknown>) => {
+    const candidates = (e.election_candidates as Record<string, unknown>[]) || [];
+    const votes = (e.election_votes as Record<string, unknown>[]) || [];
+    const totalVotes = votes.length;
+    const voteCounts: Record<string, number> = {};
+    votes.forEach((v: Record<string, unknown>) => {
+      const cid = (v.candidate_id || v.option_id) as string;
+      if (cid) voteCounts[cid] = (voteCounts[cid] || 0) + 1;
+    });
+    const candidateResults = candidates.map((c: Record<string, unknown>) => ({
+      name: getMemberName(c),
+      votes: voteCounts[c.id as string] || 0,
+      pct: totalVotes > 0 ? Math.round(((voteCounts[c.id as string] || 0) / totalVotes) * 100) : 0,
+    })).sort((a, b) => b.votes - a.votes);
+    return {
+      title: (e.title as string) || "Untitled",
+      type: (e.election_type as string) || "poll",
+      date: (e.ends_at as string) || "",
+      totalVotes,
+      winner: candidateResults[0]?.name || "N/A",
+      winnerVotes: candidateResults[0]?.votes || 0,
+      winnerPct: candidateResults[0]?.pct || 0,
+    };
+  });
+
+  // Report 7: YoY Dues Matrix (inline)
+  const matrixByMember: Record<string, Record<string, { paid: number; due: number }>> = {};
+  const matrixYears = new Set<string>();
+  (obligations || []).forEach((ob: Record<string, unknown>) => {
+    const name = getMemberName(ob);
+    const dueDate = (ob.due_date as string) || (ob.created_at as string) || "";
+    const year = dueDate ? new Date(dueDate).getFullYear().toString() : "";
+    if (!year) return;
+    matrixYears.add(year);
+    if (!matrixByMember[name]) matrixByMember[name] = {};
+    if (!matrixByMember[name][year]) matrixByMember[name][year] = { paid: 0, due: 0 };
+    matrixByMember[name][year].paid += Number(ob.amount_paid || 0);
+    matrixByMember[name][year].due += Number(ob.amount || 0);
+  });
+  const sortedMatrixYears = Array.from(matrixYears).sort();
 
   return (
     <div className="space-y-6">
@@ -428,9 +495,7 @@ export default function ReportDetailPage() {
             <Clock className="h-12 w-12 text-muted-foreground/50" />
             <h3 className="mt-4 text-lg font-semibold">{t("reports.notEnoughData")}</h3>
             <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
-              {reportId === "5" && "Create a savings circle and complete at least one round to see this report."}
-              {reportId === "17" && "Create multiple branches in the Enterprise section to compare their performance."}
-              {reportId === "18" && "Run at least one election and close voting to see results archived here."}
+              {reportId === "17" && "Branch comparison is available for Enterprise plans with multiple branches."}
               {reportId === "19" && "Dispute tracking is not yet available. Member standing issues can be reviewed in the Members section."}
             </p>
           </CardContent>
@@ -455,7 +520,7 @@ export default function ReportDetailPage() {
                       <Badge variant={row.days > 60 ? "destructive" : row.days > 30 ? "secondary" : "outline"}>
                         {t("reports.daysOverdue", { days: row.days })}
                       </Badge>
-                      <span className="font-bold text-destructive">{formatCurrency(row.amount, currency)}</span>
+                      <span className="font-bold text-destructive">{formatAmount(row.amount, currency)}</span>
                       <Button size="sm" variant="outline"><Send className="mr-1 h-3 w-3" />{t("reports.sendReminder")}</Button>
                     </div>
                   </div>
@@ -471,11 +536,11 @@ export default function ReportDetailPage() {
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-primary">{formatCurrency(totalCollected, currency)}</p>
+              <p className="text-2xl font-bold text-primary">{formatAmount(totalCollected, currency)}</p>
               <p className="text-xs text-muted-foreground">{t("reports.collected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold">{formatCurrency(totalExpected, currency)}</p>
+              <p className="text-2xl font-bold">{formatAmount(totalExpected, currency)}</p>
               <p className="text-xs text-muted-foreground">{t("reports.expected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
@@ -513,7 +578,7 @@ export default function ReportDetailPage() {
                         <p className="text-xs text-muted-foreground">{date} · {typeName} · {method} {ref ? `· ${ref}` : ""}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-sm text-primary">+{formatCurrency(Number(row.amount || 0), currency)}</p>
+                        <p className="font-semibold text-sm text-primary">+{formatAmount(Number(row.amount || 0), currency)}</p>
                       </div>
                     </div>
                   );
@@ -533,7 +598,7 @@ export default function ReportDetailPage() {
                 <CardContent className="pt-6 text-center">
                   <div className={`mx-auto mb-2 h-3 w-full rounded-full ${agingColor(bucket)}`} />
                   <p className="text-xs font-medium text-muted-foreground">{bucket} days</p>
-                  <p className="text-2xl font-bold">{formatCurrency(data.amount, currency)}</p>
+                  <p className="text-2xl font-bold">{formatAmount(data.amount, currency)}</p>
                   <p className="text-xs text-muted-foreground">{data.count} members</p>
                 </CardContent>
               </Card>
@@ -560,14 +625,42 @@ export default function ReportDetailPage() {
         </CardContent></Card>
       )}
 
-      {/* Report 7: YoY Dues Matrix - link to contributions matrix */}
+      {/* Report 7: YoY Dues Matrix - inline */}
       {reportId === "7" && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground mb-4">{t("reports.viewInContributions")}</p>
-          <Link href="/dashboard/contributions/matrix">
-            <Button>{t("reports.goToMatrix")}</Button>
-          </Link>
-        </div>
+        <Card><CardContent className="pt-6">
+          {sortedMatrixYears.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">No contribution data yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-semibold">Member</th>
+                    {sortedMatrixYears.map(y => (
+                      <th key={y} className="text-center py-2 px-3 font-semibold">{y}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(matrixByMember).map(([name, yearData], i) => (
+                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="py-2 px-3 font-medium">{name}</td>
+                      {sortedMatrixYears.map(y => {
+                        const cell = yearData[y] || { paid: 0, due: 0 };
+                        const isPaid = cell.paid >= cell.due && cell.due > 0;
+                        return (
+                          <td key={y} className={`text-center py-2 px-3 ${isPaid ? "text-emerald-600 dark:text-emerald-400" : cell.due > 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                            {cell.due > 0 ? `${formatAmount(cell.paid, currency)} / ${formatAmount(cell.due, currency)}` : "—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent></Card>
       )}
 
       {/* Report 8: Membership Roster */}
@@ -823,8 +916,8 @@ export default function ReportDetailPage() {
                   <h3 className="font-semibold mb-3">{plan.name as string}</h3>
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <div><p className="text-xs text-muted-foreground">Plan</p><p className="font-bold text-primary">{plan.name as string}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Contribution</p><p className="font-bold">{formatCurrency(Number(plan.contribution_amount || 0), currency)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">YTD Payouts</p><p className="font-bold text-destructive">{formatCurrency(ytdPayouts, currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Contribution</p><p className="font-bold">{formatAmount(Number(plan.contribution_amount || 0), currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">YTD Payouts</p><p className="font-bold text-destructive">{formatAmount(ytdPayouts, currency)}</p></div>
                     <div><p className="text-xs text-muted-foreground">Pending</p><p className="font-bold">{pending}</p></div>
                   </div>
                 </CardContent>
@@ -843,7 +936,7 @@ export default function ReportDetailPage() {
               <p className="text-xs text-muted-foreground">{t("members.title")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold">{formatCurrency(boardStats.totalCollected, currency)}</p>
+              <p className="text-2xl font-bold">{formatAmount(boardStats.totalCollected, currency)}</p>
               <p className="text-xs text-muted-foreground">{t("reports.collected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
@@ -889,8 +982,8 @@ export default function ReportDetailPage() {
             </CardContent></Card>
             <Card><CardContent className="pt-6">
               <h3 className="font-semibold mb-2">{t("reports.report2.name")}</h3>
-              <p className="text-lg">{t("reports.collected")}: <strong>{formatCurrency(boardStats.totalCollected, currency)}</strong></p>
-              <p className="text-lg">{t("reports.expected")}: <strong>{formatCurrency(boardStats.totalExpected, currency)}</strong></p>
+              <p className="text-lg">{t("reports.collected")}: <strong>{formatAmount(boardStats.totalCollected, currency)}</strong></p>
+              <p className="text-lg">{t("reports.expected")}: <strong>{formatAmount(boardStats.totalExpected, currency)}</strong></p>
               <p className="text-lg">{t("reports.collectionRate")}: <strong className="text-emerald-600">{boardStats.collectionRate}%</strong></p>
             </CardContent></Card>
             <Card><CardContent className="pt-6">
@@ -903,7 +996,7 @@ export default function ReportDetailPage() {
               {Object.entries(arBuckets).map(([bucket, data]) => (
                 <div key={bucket} className="flex justify-between text-sm">
                   <span>{bucket} days</span>
-                  <span className="font-medium">{formatCurrency(data.amount, currency)} ({data.count})</span>
+                  <span className="font-medium">{formatAmount(data.amount, currency)} ({data.count})</span>
                 </div>
               ))}
             </CardContent></Card>
@@ -920,6 +1013,82 @@ export default function ReportDetailPage() {
             <p className="mt-1 text-sm text-muted-foreground">{t("reports.noData")}</p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Report 5: Savings Cycles */}
+      {reportId === "5" && (
+        <Card><CardContent className="pt-6">
+          {savingsCycleData.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">No savings cycles found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-semibold">Cycle Name</th>
+                    <th className="text-left py-2 px-3 font-semibold">Status</th>
+                    <th className="text-center py-2 px-3 font-semibold">Participants</th>
+                    <th className="text-center py-2 px-3 font-semibold">Round</th>
+                    <th className="text-right py-2 px-3 font-semibold">Amount</th>
+                    <th className="text-left py-2 px-3 font-semibold">Frequency</th>
+                    <th className="text-left py-2 px-3 font-semibold">Start Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savingsCycleData.map((row, i) => (
+                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="py-2 px-3 font-medium">{row.name}</td>
+                      <td className="py-2 px-3"><Badge variant={row.status === "active" ? "default" : "secondary"}>{row.status}</Badge></td>
+                      <td className="text-center py-2 px-3">{row.participants}</td>
+                      <td className="text-center py-2 px-3">{row.currentRound} / {row.totalRounds}</td>
+                      <td className="text-right py-2 px-3">{formatAmount(row.amount, currency)}</td>
+                      <td className="py-2 px-3">{row.frequency}</td>
+                      <td className="py-2 px-3">{row.startDate ? new Date(row.startDate).toLocaleDateString() : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent></Card>
+      )}
+
+      {/* Report 18: Election Results */}
+      {reportId === "18" && (
+        <Card><CardContent className="pt-6">
+          {electionResultsData.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">No completed elections found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-semibold">Election</th>
+                    <th className="text-left py-2 px-3 font-semibold">Type</th>
+                    <th className="text-left py-2 px-3 font-semibold">Date</th>
+                    <th className="text-left py-2 px-3 font-semibold">Winner</th>
+                    <th className="text-center py-2 px-3 font-semibold">Votes</th>
+                    <th className="text-center py-2 px-3 font-semibold">%</th>
+                    <th className="text-center py-2 px-3 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {electionResultsData.map((row, i) => (
+                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="py-2 px-3 font-medium">{row.title}</td>
+                      <td className="py-2 px-3"><Badge variant="outline">{row.type}</Badge></td>
+                      <td className="py-2 px-3">{row.date ? new Date(row.date).toLocaleDateString() : "—"}</td>
+                      <td className="py-2 px-3 font-semibold text-emerald-600 dark:text-emerald-400">{row.winner}</td>
+                      <td className="text-center py-2 px-3">{row.winnerVotes}</td>
+                      <td className="text-center py-2 px-3">{row.winnerPct}%</td>
+                      <td className="text-center py-2 px-3">{row.totalVotes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent></Card>
       )}
 
       {/* PDF Footer branding */}

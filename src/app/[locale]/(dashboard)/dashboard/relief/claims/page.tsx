@@ -53,9 +53,6 @@ const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof Check
   denied: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
 };
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 export default function ReliefClaimsPage() {
   const t = useTranslations();
@@ -199,7 +196,7 @@ export default function ReliefClaimsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-lg font-bold text-primary">{formatCurrency(amount, currency)}</span>
+                      <span className="text-lg font-bold text-primary">{formatAmount(amount, currency)}</span>
                       {(status === "submitted" || status === "reviewing") && (
                         <Button size="sm" variant="outline" onClick={() => { setSelectedClaim(claim); setShowReviewDialog(true); }}>
                           <Eye className="mr-1 h-3.5 w-3.5" />{t("relief.reviewClaim")}
@@ -291,7 +288,7 @@ export default function ReliefClaimsPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{t("relief.payoutAmount")}</span>
-                  <span className="font-bold text-primary">{formatCurrency(Number(selectedClaim.payout_amount || selectedClaim.amount || 0), currency)}</span>
+                  <span className="font-bold text-primary">{formatAmount(Number(selectedClaim.payout_amount || selectedClaim.amount || 0), currency)}</span>
                 </div>
                 {selectedClaim.description ? (
                   <div className="pt-2 border-t">

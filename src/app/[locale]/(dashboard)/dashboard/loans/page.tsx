@@ -57,13 +57,6 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-function formatCurrency(amount: number, currency = "XAF") {
-  try {
-    return formatAmount(amount, currency || "XAF");
-  } catch {
-    return `${currency} ${amount.toLocaleString()}`;
-  }
-}
 
 function formatDate(dateStr: string) {
   try {
@@ -205,7 +198,7 @@ export default function LoansPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t("activeLoans")}</p>
-                <p className="text-lg font-bold">{formatCurrency(activeAmount, currency)}</p>
+                <p className="text-lg font-bold">{formatAmount(activeAmount, currency)}</p>
               </div>
             </div>
           </CardContent>
@@ -231,7 +224,7 @@ export default function LoansPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t("totalRepaid")}</p>
-                <p className="text-lg font-bold">{formatCurrency(totalRepaid, currency)}</p>
+                <p className="text-lg font-bold">{formatAmount(totalRepaid, currency)}</p>
               </div>
             </div>
           </CardContent>
@@ -286,7 +279,7 @@ export default function LoansPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 pl-13 sm:pl-0">
-                      <span className="text-lg font-bold">{formatCurrency(amount, currency)}</span>
+                      <span className="text-lg font-bold">{formatAmount(amount, currency)}</span>
                       <Badge className={statusColors[status]}>
                         {t(`status_${status}` as Parameters<typeof t>[0])}
                       </Badge>
@@ -324,7 +317,7 @@ export default function LoansPage() {
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">{t("repaymentProgress")}</span>
                         <span className="font-medium">
-                          {formatCurrency(amountPaid, currency)} / {formatCurrency(totalDue, currency)} ({progressPercent}%)
+                          {formatAmount(amountPaid, currency)} / {formatAmount(totalDue, currency)} ({progressPercent}%)
                         </span>
                       </div>
                       <Progress value={progressPercent} className="h-2" />

@@ -134,9 +134,6 @@ interface Payout {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 function formatDate(dateStr: string) {
   try {
@@ -557,7 +554,7 @@ export default function ReliefPlansPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">{t("ytdPayouts")}</p>
-                <p className="text-2xl font-bold">{formatCurrency(stats?.totalPaidOut ?? 0, currency)}</p>
+                <p className="text-2xl font-bold">{formatAmount(stats?.totalPaidOut ?? 0, currency)}</p>
               </div>
             </CardContent>
           </Card>
@@ -644,14 +641,14 @@ export default function ReliefPlansPage() {
                           <DollarSign className="h-3 w-3" />{t("contributionAmount")}
                         </div>
                         <p className="mt-1 font-semibold text-sm">
-                          {formatCurrency(plan.contribution_amount, currency)} / {t(`frequency${plan.contribution_frequency === "monthly" ? "Monthly" : plan.contribution_frequency === "per_event" ? "PerEvent" : "Annual"}`)}
+                          {formatAmount(plan.contribution_amount, currency)} / {t(`frequency${plan.contribution_frequency === "monthly" ? "Monthly" : plan.contribution_frequency === "per_event" ? "PerEvent" : "Annual"}`)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-muted p-2">
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <DollarSign className="h-3 w-3" />{t("maxPayout")}
                         </div>
-                        <p className="mt-1 font-semibold text-sm">{formatCurrency(maxPayoutAmount, currency)}</p>
+                        <p className="mt-1 font-semibold text-sm">{formatAmount(maxPayoutAmount, currency)}</p>
                       </div>
                       <div className="rounded-lg bg-muted p-2">
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -1050,7 +1047,7 @@ function PlanDetailTabs({
                 <div key={claim.id} className="grid grid-cols-5 gap-2 p-3 text-sm items-center">
                   <span className="truncate">{getMemberName(claim.membership as { display_name: string | null; profiles?: { full_name: string | null } | null })}</span>
                   <Badge variant="outline" className="w-fit text-xs">{t(`eventTypes.${claim.event_type}`)}</Badge>
-                  <span className="font-medium">{formatCurrency(claim.amount, currency)}</span>
+                  <span className="font-medium">{formatAmount(claim.amount, currency)}</span>
                   <Badge variant={cfg.variant} className={`w-fit text-xs ${cfg.className || ""}`}>
                     {t(`claimStatus.${claim.status}`)}
                   </Badge>
@@ -1118,7 +1115,7 @@ function PlanDetailTabs({
                 <span className="truncate">
                   {getMemberName(payout.claim?.membership as { display_name: string | null; profiles?: { full_name: string | null } | null })}
                 </span>
-                <span className="font-medium">{formatCurrency(payout.amount, currency)}</span>
+                <span className="font-medium">{formatAmount(payout.amount, currency)}</span>
                 <span className="text-muted-foreground text-xs">{payout.payment_method || "—"}</span>
                 <span className="text-muted-foreground text-xs">{payout.paid_at ? formatDate(payout.paid_at) : "—"}</span>
                 <span className="text-muted-foreground text-xs truncate">{(payout.recorder as { full_name: string | null } | null)?.full_name || "—"}</span>

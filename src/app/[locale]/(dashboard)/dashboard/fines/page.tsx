@@ -44,13 +44,6 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-function formatCurrency(amount: number, currency = "XAF") {
-  try {
-    return formatAmount(amount, currency || "XAF");
-  } catch {
-    return `${currency} ${amount.toLocaleString()}`;
-  }
-}
 
 export default function FinesPage() {
   const t = useTranslations("fines");
@@ -124,7 +117,7 @@ export default function FinesPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t("totalPending")}</p>
-                <p className="text-lg font-bold">{formatCurrency(totalPending, currency)}</p>
+                <p className="text-lg font-bold">{formatAmount(totalPending, currency)}</p>
               </div>
             </div>
           </CardContent>
@@ -137,7 +130,7 @@ export default function FinesPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t("totalCollected")}</p>
-                <p className="text-lg font-bold">{formatCurrency(totalCollected, currency)}</p>
+                <p className="text-lg font-bold">{formatAmount(totalCollected, currency)}</p>
               </div>
             </div>
           </CardContent>
@@ -150,7 +143,7 @@ export default function FinesPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">{t("totalDisputed")}</p>
-                <p className="text-lg font-bold">{formatCurrency(totalDisputed, currency)}</p>
+                <p className="text-lg font-bold">{formatAmount(totalDisputed, currency)}</p>
               </div>
             </div>
           </CardContent>
@@ -205,7 +198,7 @@ export default function FinesPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3 pl-13 sm:pl-0">
-                          <span className="font-semibold text-sm">{formatCurrency(amount, currency)}</span>
+                          <span className="font-semibold text-sm">{formatAmount(amount, currency)}</span>
                           <Badge className={statusColors[status]}>
                             {t(`status_${status}` as Parameters<typeof t>[0])}
                           </Badge>
@@ -258,7 +251,7 @@ export default function FinesPage() {
                             </Badge>
                             <span className="font-medium text-sm">
                               {amount != null
-                                ? formatCurrency(amount, currency)
+                                ? formatAmount(amount, currency)
                                 : percentage != null
                                   ? `${percentage}%`
                                   : ""}

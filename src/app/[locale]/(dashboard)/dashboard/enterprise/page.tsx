@@ -80,9 +80,6 @@ function useEnterpriseBranches() {
   });
 }
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 export default function EnterpriseDashboardPage() {
   const t = useTranslations();

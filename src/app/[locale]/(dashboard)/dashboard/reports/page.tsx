@@ -51,10 +51,10 @@ const reports: ReportDef[] = [
   { id: "2", key: "report2", icon: BarChart3, category: "financial" },
   { id: "3", key: "report3", icon: FileText, category: "financial" },
   { id: "4", key: "report4", icon: TrendingUp, category: "financial" },
-  { id: "5", key: "report5", icon: PieChart, category: "financial", isPlaceholder: true },
+  { id: "5", key: "report5", icon: PieChart, category: "financial" },
   // Membership
   { id: "6", key: "report6", icon: Shield, category: "membership" },
-  { id: "7", key: "report7", icon: BarChart3, category: "membership", linkOverride: "/dashboard/contributions/matrix" },
+  { id: "7", key: "report7", icon: BarChart3, category: "membership" },
   { id: "8", key: "report8", icon: Users, category: "membership" },
   { id: "9", key: "report9", icon: TrendingUp, category: "membership" },
   { id: "10", key: "report10", icon: Award, category: "membership" },
@@ -67,7 +67,7 @@ const reports: ReportDef[] = [
   // Executive
   { id: "16", key: "report16", icon: Briefcase, category: "executive" },
   { id: "17", key: "report17", icon: GitBranch, category: "executive", isPlaceholder: true },
-  { id: "18", key: "report18", icon: Vote, category: "executive", isPlaceholder: true },
+  { id: "18", key: "report18", icon: Vote, category: "executive" },
   { id: "19", key: "report19", icon: Scale, category: "executive", isPlaceholder: true },
   { id: "20", key: "report20", icon: FileText, category: "executive" },
 ];

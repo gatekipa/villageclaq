@@ -32,9 +32,6 @@ import {
   Building2,
 } from "lucide-react";
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 function getDaysUntilDue(dueDate: string): number {
   const now = new Date();
@@ -229,7 +226,7 @@ export default function MyPaymentsPage() {
                   {t("totalPaidThisYear")}
                 </p>
                 <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                  {formatCurrency(totalPaidThisYear, currency)}
+                  {formatAmount(totalPaidThisYear, currency)}
                 </p>
               </div>
             </div>
@@ -246,7 +243,7 @@ export default function MyPaymentsPage() {
                   {t("totalOutstanding")}
                 </p>
                 <p className="text-2xl font-bold text-red-700 dark:text-red-400">
-                  {formatCurrency(totalOutstanding, currency)}
+                  {formatAmount(totalOutstanding, currency)}
                 </p>
               </div>
             </div>
@@ -322,7 +319,7 @@ export default function MyPaymentsPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-xl font-bold">
-                          {formatCurrency(remaining, currency)}
+                          {formatAmount(remaining, currency)}
                         </p>
                       </div>
                     </div>
@@ -371,7 +368,7 @@ export default function MyPaymentsPage() {
                           </p>
                         </div>
                         <p className="text-sm font-bold shrink-0">
-                          {formatCurrency(Number(item.amount), currency)}
+                          {formatAmount(Number(item.amount), currency)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -400,7 +397,7 @@ export default function MyPaymentsPage() {
                         {name}
                       </span>
                       <span className="col-span-2 text-sm font-semibold text-right">
-                        {formatCurrency(Number(item.amount), currency)}
+                        {formatAmount(Number(item.amount), currency)}
                       </span>
                       <span className="col-span-2 text-sm inline-flex items-center gap-1.5">
                         {methodIcon(method)}

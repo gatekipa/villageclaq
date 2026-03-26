@@ -65,9 +65,6 @@ const standingStyles = {
 
 import { formatAmount } from "@/lib/currencies";
 
-function formatCurrency(amount: number, currency: string) {
-  return formatAmount(amount, currency);
-}
 
 function useMemberDetail(membershipId: string | null) {
   return useQuery({
@@ -340,7 +337,7 @@ export default function MemberDetailPage() {
             </div>
             <div>
               <p className={`text-2xl font-bold ${outstandingBalance > 0 ? "text-destructive" : ""}`}>
-                {formatCurrency(outstandingBalance, currency)}
+                {formatAmount(outstandingBalance, currency)}
               </p>
               <p className="text-xs text-muted-foreground">{t("members.outstandingBalance")}</p>
             </div>
@@ -384,7 +381,7 @@ export default function MemberDetailPage() {
                           </div>
                         </div>
                         <span className="text-sm font-semibold text-primary">
-                          {formatCurrency(Number(item.amount), (item.currency as string) || currency)}
+                          {formatAmount(Number(item.amount), (item.currency as string) || currency)}
                         </span>
                       </div>
                     );

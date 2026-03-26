@@ -33,7 +33,6 @@ import {
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
-function formatCurrency(amount: number, currency: string) { return formatAmount(amount, typeof currency === "string" ? currency : "XAF"); }
 
 export default function RecordPaymentPage() {
   const t = useTranslations();
@@ -306,7 +305,7 @@ export default function RecordPaymentPage() {
                 <option value="">{t("contributions.selectType")}</option>
                 {types.map((type: Record<string, unknown>) => (
                   <option key={type.id as string} value={type.id as string}>
-                    {type.name as string} — {formatCurrency(Number(type.amount), (type.currency as string) || currency)}
+                    {type.name as string} — {formatAmount(Number(type.amount), (type.currency as string) || currency)}
                   </option>
                 ))}
               </select>
@@ -327,7 +326,7 @@ export default function RecordPaymentPage() {
                 {selectedType && amount && Number(amount) !== Number(selectedType.amount) && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     {t("contributions.amountDiffers", {
-                      expected: formatCurrency(Number(selectedType.amount), (selectedType.currency as string) || currency),
+                      expected: formatAmount(Number(selectedType.amount), (selectedType.currency as string) || currency),
                     })}
                   </p>
                 )}

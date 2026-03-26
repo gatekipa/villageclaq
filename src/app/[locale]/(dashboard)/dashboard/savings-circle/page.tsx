@@ -53,9 +53,6 @@ import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-s
 type RotationType = "sequential" | "random" | "auction";
 type Frequency = "weekly" | "biweekly" | "monthly";
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 function getInitials(name: string) {
   return name
@@ -226,7 +223,7 @@ function RoundManagement({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
-                      {formatCurrency(cycleAmount, currency)}
+                      {formatAmount(cycleAmount, currency)}
                     </span>
                     {isPaid ? (
                       <Badge className="bg-emerald-600 text-white dark:bg-emerald-500 text-xs">
@@ -581,10 +578,10 @@ export default function SavingsCirclePage() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t("potSize")}</p>
                     <p className="text-lg font-semibold text-foreground">
-                      {formatCurrency(potSize, currency)}
+                      {formatAmount(potSize, currency)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {totalMembers} members x {formatCurrency(amt, currency)}
+                      {totalMembers} members x {formatAmount(amt, currency)}
                     </p>
                   </div>
                   <div>
@@ -596,7 +593,7 @@ export default function SavingsCirclePage() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t("amount")}</p>
                     <p className="text-lg font-semibold text-foreground">
-                      {formatCurrency(amt, currency)}
+                      {formatAmount(amt, currency)}
                     </p>
                   </div>
                 </div>

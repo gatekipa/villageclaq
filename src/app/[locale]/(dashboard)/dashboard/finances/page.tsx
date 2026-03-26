@@ -36,9 +36,6 @@ import { useGroup } from "@/lib/group-context";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
-function formatCurrency(amount: number, currency: string) {
-  return formatAmount(amount, currency);
-}
 
 function formatCompact(amount: number) {
   if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
@@ -239,7 +236,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {formatCurrency(stats.collectedThisMonth, currency)}
+              {formatAmount(stats.collectedThisMonth, currency)}
             </div>
             <div className="mt-1 flex items-center gap-1 text-xs">
               {monthOverMonthChange >= 0 ? (
@@ -264,7 +261,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {formatCurrency(stats.totalOutstanding, currency)}
+              {formatAmount(stats.totalOutstanding, currency)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {topOverdue.length} {t("finances.membersOverdue")}
@@ -320,7 +317,7 @@ export default function FinancesPage() {
                     tickFormatter={(v) => formatCompact(v)}
                   />
                   <Tooltip
-                    formatter={(value) => [formatCurrency(Number(value), currency), t("finances.collected")]}
+                    formatter={(value) => [formatAmount(Number(value), currency), t("finances.collected")]}
                     contentStyle={{
                       backgroundColor: "hsl(var(--popover))",
                       border: "1px solid hsl(var(--border))",
@@ -375,7 +372,7 @@ export default function FinancesPage() {
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-destructive">
-                      {formatCurrency(member.amount, currency)}
+                      {formatAmount(member.amount, currency)}
                     </span>
                   </div>
                 ))}
@@ -405,8 +402,8 @@ export default function FinancesPage() {
                     </div>
                     <Progress value={type.rate} />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{formatCurrency(type.collected, currency)} {t("finances.collected")}</span>
-                      <span>{t("finances.target")}: {formatCurrency(type.target, currency)}</span>
+                      <span>{formatAmount(type.collected, currency)} {t("finances.collected")}</span>
+                      <span>{t("finances.target")}: {formatAmount(type.target, currency)}</span>
                     </div>
                   </div>
                 ))}
@@ -444,7 +441,7 @@ export default function FinancesPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-primary">
-                        +{formatCurrency(payment.amount, currency)}
+                        +{formatAmount(payment.amount, currency)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">{payment.date}</p>
                     </div>

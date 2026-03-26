@@ -42,7 +42,6 @@ const methodColors: Record<string, string> = {
   online: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
 };
 
-function formatCurrency(amount: number, currency: string) { return formatAmount(amount, typeof currency === "string" ? currency : "XAF"); }
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -252,7 +251,7 @@ export default function PaymentHistoryPage() {
       <div className="flex flex-wrap gap-4">
         <div className="rounded-lg bg-primary/10 px-4 py-2">
           <span className="text-xs text-muted-foreground">{t("contributions.totalFiltered")}</span>
-          <p className="text-lg font-bold text-primary">{formatCurrency(totalAmount, currency)}</p>
+          <p className="text-lg font-bold text-primary">{formatAmount(totalAmount, currency)}</p>
         </div>
         <div className="rounded-lg bg-muted px-4 py-2">
           <span className="text-xs text-muted-foreground">{t("contributions.paymentsCount")}</span>
@@ -330,7 +329,7 @@ export default function PaymentHistoryPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <span className="font-semibold">
-                          {formatCurrency(payment.amount, payment.currency)}
+                          {formatAmount(payment.amount, payment.currency)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 hidden md:table-cell">

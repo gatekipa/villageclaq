@@ -37,9 +37,6 @@ const cellConfig: Record<CellStatus, { icon: typeof Check; color: string; bg: st
   waived: { icon: Check, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
 };
 
-function formatCurrency(amount: number, currency: string) {
-  return formatAmount(amount, currency);
-}
 
 function useMatrixData(contributionTypeId: string | null) {
   const { groupId } = useGroup();
@@ -241,7 +238,7 @@ export default function DuesMatrixPage() {
               const status = member.cells[col] || "not_member";
               const amountData = member.amounts[col];
               row[columnLabels[i]] = amountData
-                ? `${formatCurrency(amountData.paid, currency)} / ${formatCurrency(amountData.total, currency)} (${status})`
+                ? `${formatAmount(amountData.paid, currency)} / ${formatAmount(amountData.total, currency)} (${status})`
                 : status;
             });
             return row;
@@ -373,7 +370,7 @@ export default function DuesMatrixPage() {
                           <td key={col} className="px-3 py-2.5 text-center">
                             <div
                               className="flex flex-col items-center"
-                              title={amountData ? `${formatCurrency(amountData.paid, currency)} / ${formatCurrency(amountData.total, currency)}` : undefined}
+                              title={amountData ? `${formatAmount(amountData.paid, currency)} / ${formatAmount(amountData.total, currency)}` : undefined}
                             >
                               <span className={`flex h-7 w-7 items-center justify-center rounded ${config.bg}`}>
                                 <Icon className={`h-3.5 w-3.5 ${config.color}`} />

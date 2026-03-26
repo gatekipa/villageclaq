@@ -9,9 +9,6 @@ import { useGroup } from "@/lib/group-context";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { formatAmount } from "@/lib/currencies";
 
-function formatCurrency(amount: number, currency = "XAF") {
-  return formatAmount(amount, currency);
-}
 
 export default function ReliefPage() {
   const t = useTranslations("relief");
@@ -119,7 +116,7 @@ export default function ReliefPage() {
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold">{formatCurrency(contributionAmount, currency)}</p>
+                    <p className="text-sm font-semibold">{formatAmount(contributionAmount, currency)}</p>
                     <p className="text-xs text-muted-foreground capitalize">{contributionFrequency}</p>
                   </div>
                 </div>
@@ -136,7 +133,7 @@ export default function ReliefPage() {
                           <span className="text-muted-foreground">
                             {t(`eventTypes.${eventType}` as Parameters<typeof t>[0])}
                           </span>
-                          <span className="font-medium">{formatCurrency(Number(amount), currency)}</span>
+                          <span className="font-medium">{formatAmount(Number(amount), currency)}</span>
                         </div>
                       ))}
                     </div>

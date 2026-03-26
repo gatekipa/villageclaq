@@ -56,9 +56,6 @@ import { AdminGuard } from "@/components/ui/admin-guard";
 
 import { formatAmount, CURRENCIES } from "@/lib/currencies";
 
-function formatCurrency(amount: number, currency: string) {
-  return formatAmount(amount, currency);
-}
 
 const frequencyLabels: Record<string, string> = {
   one_time: "One-time",
@@ -441,7 +438,7 @@ export default function ContributionsPage() {
                   <div className="rounded-lg bg-muted/50 p-2.5">
                     <p className="text-xs text-muted-foreground">{t("contributions.amount")}</p>
                     <p className="text-sm font-semibold">
-                      {formatCurrency(Number(type.amount), type.currency || currency)}
+                      {formatAmount(Number(type.amount), type.currency || currency)}
                     </p>
                   </div>
                   <div className="rounded-lg bg-muted/50 p-2.5">

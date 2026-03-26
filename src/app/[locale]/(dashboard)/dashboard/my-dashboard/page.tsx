@@ -35,7 +35,6 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 
-function formatCurrency(amount: number, currency = "XAF") { return formatAmount(amount, typeof currency === "string" ? currency : "XAF"); }
 
 function getUrgency(dueDate: string): "overdue" | "due_soon" | "upcoming" {
   const now = new Date();
@@ -306,7 +305,7 @@ export default function MyDashboardPage() {
                         <span
                           className={`font-semibold ${urgencyTextStyles[urgency]}`}
                         >
-                          {formatCurrency(amount, currency)}
+                          {formatAmount(amount, currency)}
                         </span>
                         <span className="text-muted-foreground">
                           {t("dueBy", { date: obl.due_date as string })}

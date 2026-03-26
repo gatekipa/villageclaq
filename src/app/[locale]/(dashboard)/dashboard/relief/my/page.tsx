@@ -61,9 +61,6 @@ export default function MyReliefPage() {
   const [showClaimDialog, setShowClaimDialog] = useState(false);
   const [claimPlanId, setClaimPlanId] = useState<string | null>(null);
 
-  function formatCurrency(amount: number) {
-    return formatAmount(amount, currency);
-  }
 
   // Fetch enrollments with plan details
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
@@ -213,7 +210,7 @@ export default function MyReliefPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-muted-foreground"><DollarSign className="h-3 w-3" />{t("relief.contributionAmount")}</span>
-                      <span className="font-medium">{formatCurrency(plan.contributionAmount)}/mo</span>
+                      <span className="font-medium">{formatAmount(plan.contributionAmount, currency)}/mo</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">{t("relief.contributionStatus")}</span>
@@ -271,7 +268,7 @@ export default function MyReliefPage() {
                         <p className="text-xs text-muted-foreground">{claim.planName} · {claim.date}</p>
                         {claim.description && <p className="text-xs text-muted-foreground mt-1">{claim.description}</p>}
                       </div>
-                      <span className="text-lg font-bold text-primary">{formatCurrency(claim.amount)}</span>
+                      <span className="text-lg font-bold text-primary">{formatAmount(claim.amount, currency)}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -311,7 +308,7 @@ export default function MyReliefPage() {
             <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{t("relief.estimatedPayout")}</span>
-                <span className="text-lg font-bold text-primary">{formatCurrency(250000)}</span>
+                <span className="text-lg font-bold text-primary">{formatAmount(250000, currency)}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{t("relief.autoFilled")}</p>
             </div>

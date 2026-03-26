@@ -43,9 +43,6 @@ interface UnpaidMember {
   }[];
 }
 
-function formatCurrency(amount: number, currency: string) {
-  return formatAmount(amount, currency);
-}
 
 const standingColors: Record<string, string> = {
   good: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
@@ -124,7 +121,7 @@ export default function UnpaidReportPage() {
         group_id: groupId!,
         type: "payment_reminder",
         title: "Payment Reminder",
-        body: `You have an outstanding balance of ${formatCurrency(m.totalOutstanding, currency)}.`,
+        body: `You have an outstanding balance of ${formatAmount(m.totalOutstanding, currency)}.`,
         is_read: false,
       }));
       await supabase.from("notifications").insert(notifications);
@@ -142,7 +139,7 @@ export default function UnpaidReportPage() {
       group_id: groupId,
       type: "payment_reminder",
       title: "Payment Reminder",
-      body: `You have an outstanding balance of ${formatCurrency(member.totalOutstanding, currency)}.`,
+      body: `You have an outstanding balance of ${formatAmount(member.totalOutstanding, currency)}.`,
       is_read: false,
     });
     setRemindersSentCount(1);
@@ -233,7 +230,7 @@ export default function UnpaidReportPage() {
             <Card>
               <CardContent className="py-4">
                 <p className="text-xs text-muted-foreground">{t("contributions.totalOutstanding")}</p>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(totalOutstanding, currency)}</p>
+                <p className="text-2xl font-bold text-destructive">{formatAmount(totalOutstanding, currency)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -246,7 +243,7 @@ export default function UnpaidReportPage() {
               <CardContent className="py-4">
                 <p className="text-xs text-muted-foreground">{t("contributions.avgOutstanding")}</p>
                 <p className="text-2xl font-bold">
-                  {formatCurrency(Math.round(totalOutstanding / sorted.length), currency)}
+                  {formatAmount(Math.round(totalOutstanding / sorted.length), currency)}
                 </p>
               </CardContent>
             </Card>
@@ -297,7 +294,7 @@ export default function UnpaidReportPage() {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-destructive">{formatCurrency(member.totalOutstanding, currency)}</p>
+                      <p className="text-lg font-bold text-destructive">{formatAmount(member.totalOutstanding, currency)}</p>
                     </div>
                   </button>
 
@@ -316,11 +313,11 @@ export default function UnpaidReportPage() {
                             </div>
                             <div className="text-right">
                               <p className="font-semibold text-destructive">
-                                {formatCurrency(obl.amount - obl.amountPaid, currency)}
+                                {formatAmount(obl.amount - obl.amountPaid, currency)}
                               </p>
                               {obl.amountPaid > 0 && (
                                 <p className="text-[10px] text-muted-foreground">
-                                  {t("contributions.paidSoFar")}: {formatCurrency(obl.amountPaid, currency)}
+                                  {t("contributions.paidSoFar")}: {formatAmount(obl.amountPaid, currency)}
                                 </p>
                               )}
                             </div>

@@ -1356,7 +1356,13 @@
     "medium": "Moyen",
     "low": "Faible",
     "placeholder": "Bientôt disponible",
-    "noData": "Aucune donnée disponible pour ce rapport"
+    "noData": "Aucune donnée disponible pour ce rapport",
+    "viewInContributions": "Voir dans la page Cotisations",
+    "goToMatrix": "Aller à la matrice des cotisations",
+    "comingInFuture": "Ce rapport arrive dans une prochaine mise à jour",
+    "notEnoughData": "Pas assez de données pour générer ce rapport",
+    "aiLoading": "Génération des analyses...",
+    "aiUnavailable": "Analyses IA temporairement indisponibles"
   },
   "enterprise": {
     "title": "Tableau de bord entreprise",

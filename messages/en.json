@@ -1399,7 +1399,13 @@
     "medium": "Medium",
     "low": "Low",
     "placeholder": "Coming soon",
-    "noData": "No data available for this report"
+    "noData": "No data available for this report",
+    "viewInContributions": "View in Contributions page",
+    "goToMatrix": "Go to Dues Matrix",
+    "comingInFuture": "This report is coming in a future update",
+    "notEnoughData": "Not enough data to generate this report",
+    "aiLoading": "Generating insights...",
+    "aiUnavailable": "AI insights temporarily unavailable"
   },
   "enterprise": {
     "title": "Enterprise Dashboard",

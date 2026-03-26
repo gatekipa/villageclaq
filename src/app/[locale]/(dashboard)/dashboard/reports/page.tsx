@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DollarSign,
   Users,
@@ -27,7 +29,10 @@ import {
   Search,
   Sparkles,
   ArrowRight,
+  Printer,
+  RefreshCw,
 } from "lucide-react";
+import { useDashboardStats } from "@/lib/hooks/use-supabase-query";
 
 type ReportCategory = "financial" | "membership" | "operations" | "executive";
 
@@ -57,7 +62,7 @@ const reports: ReportDef[] = [
   { id: "11", key: "report11", icon: ClipboardCheck, category: "operations" },
   { id: "12", key: "report12", icon: Calendar, category: "operations" },
   { id: "13", key: "report13", icon: Shield, category: "operations" },
-  { id: "14", key: "report14", icon: BookOpen, category: "operations", linkOverride: "/dashboard/minutes" },
+  { id: "14", key: "report14", icon: BookOpen, category: "operations" },
   { id: "15", key: "report15", icon: Heart, category: "operations" },
   // Executive
   { id: "16", key: "report16", icon: Briefcase, category: "executive" },
@@ -83,8 +88,46 @@ const categoryIconColors: Record<ReportCategory, string> = {
 
 export default function ReportsHubPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ReportCategory | "all">("all");
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const { data: stats } = useDashboardStats();
+
+  const fetchAiInsights = useCallback(async () => {
+    if (!stats) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/ai-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupStats: {
+            memberCount: stats.totalMembers,
+            totalCollected: stats.totalCollected,
+            collectionRate: stats.collectionRate,
+            outstandingBalance: stats.outstanding,
+            upcomingEvents: stats.upcomingEvents,
+          },
+          locale,
+        }),
+      });
+      const data = await res.json();
+      setAiInsight(data.insight || t("reports.aiUnavailable"));
+    } catch {
+      setAiInsight(t("reports.aiUnavailable"));
+    } finally {
+      setAiLoading(false);
+    }
+  }, [stats, locale, t]);
+
+  useEffect(() => {
+    if (stats && !aiInsight && !aiLoading) {
+      fetchAiInsights();
+    }
+  }, [stats, aiInsight, aiLoading, fetchAiInsights]);
 
   const categories: ReportCategory[] = ["financial", "membership", "operations", "executive"];
 
@@ -101,26 +144,49 @@ export default function ReportsHubPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("reports.title")}</h1>
-        <p className="text-muted-foreground">{t("reports.subtitle")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("reports.title")}</h1>
+          <p className="text-muted-foreground">{t("reports.subtitle")}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+          <Printer className="mr-1 h-3.5 w-3.5" />{t("reports.print")}
+        </Button>
       </div>
 
-      {/* AI Insights Promo */}
+      {/* AI Insights Card */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-        <CardContent className="flex items-center gap-4 pt-6">
+        <CardContent className="flex items-start gap-4 pt-6">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
             <Sparkles className="h-6 w-6 text-primary" />
           </div>
-          <div className="flex-1">
-            <h3 className="font-semibold">{t("reports.aiInsights")}</h3>
-            <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold">{t("reports.aiInsights")}</h3>
+              {!aiLoading && (
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={fetchAiInsights}>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+            {aiLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <p className="text-xs text-muted-foreground mt-1">{t("reports.aiLoading")}</p>
+              </div>
+            ) : aiInsight ? (
+              <p className="text-sm text-muted-foreground whitespace-pre-line">{aiInsight}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Search + Category Filter */}
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3 sm:flex-row print:hidden">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder={t("common.search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />

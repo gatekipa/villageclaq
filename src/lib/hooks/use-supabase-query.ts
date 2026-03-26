@@ -298,6 +298,23 @@ export function useBulkCreateAttendance() {
   });
 }
 
+export function useAllEventAttendances() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["all-event-attendances", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("event_attendances")
+        .select("*, event:events!inner(id, title, title_fr, starts_at, group_id), membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .eq("event.group_id", groupId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
 // ─── Hosting ───────────────────────────────────────────────────────────────
 
 export function useHostingRosters() {

@@ -132,6 +132,7 @@ function RoundManagement({
   };
 
   const handleAdvanceRound = async () => {
+    if (currentRound >= totalRounds) return; // Guard: cannot advance past total
     setAdvancing(true);
     const supabase = createClient();
     await supabase

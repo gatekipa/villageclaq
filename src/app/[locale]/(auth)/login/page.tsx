@@ -133,13 +133,13 @@ export default function LoginPage() {
             )}
 
             <div className="grid gap-2.5">
-              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">
                 <GoogleIcon /> {t("auth.continueWithGoogle")}
               </Button>
-              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">
                 <AppleIcon /> {t("auth.continueWithApple")}
               </Button>
-              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">
                 <PhoneIcon /> {t("auth.continueWithPhone")}
               </Button>
             </div>

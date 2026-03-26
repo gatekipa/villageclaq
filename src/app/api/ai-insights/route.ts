@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         max_tokens: 1024,
         messages: [{
           role: "user",
-          content: `You are a financial analyst for an African community group (njangi/alumni union/village association). Analyze this "${reportType}" report data and provide 3-5 actionable insights. Be specific with numbers. Flag concerns. Suggest actions. Keep it under 200 words. ${langInstruction}\n\nReport data:\n${JSON.stringify(reportData, null, 2)}`
+          content: `You are a financial analyst for an African community group (njangi/alumni union/village association). Analyze this "${reportType}" report data and provide 3-5 actionable insights. Be specific with numbers. Flag concerns. Suggest actions. Keep it under 200 words. ${langInstruction}\n\nReport data:\n${JSON.stringify(reportData, null, 2).slice(0, 8000)}`
         }]
       })
     });

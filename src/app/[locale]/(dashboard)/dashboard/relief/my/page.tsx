@@ -3,9 +3,13 @@ import { formatAmount } from "@/lib/currencies";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { useGroup } from "@/lib/group-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -33,45 +37,11 @@ import {
   DollarSign,
   Calendar,
   Shield,
+  Loader2,
 } from "lucide-react";
 
 type EventType = "death" | "illness" | "wedding" | "childbirth" | "natural_disaster" | "other";
 type ClaimStatus = "submitted" | "reviewing" | "approved" | "denied";
-
-interface MyPlan {
-  id: string;
-  planName: string;
-  planNameFr: string;
-  enrolledAt: string;
-  eligibleFrom: string;
-  isEligible: boolean;
-  isWaiting: boolean;
-  contributionStatus: "up_to_date" | "behind";
-  contributionAmount: number;
-  qualifyingEvents: EventType[];
-  payoutRules: Record<string, number>;
-}
-
-interface MyClaim {
-  id: string;
-  planName: string;
-  eventType: EventType;
-  amount: number;
-  status: ClaimStatus;
-  date: string;
-  description: string;
-  reviewNotes?: string;
-}
-
-const myPlans: MyPlan[] = [
-  { id: "1", planName: "Bereavement Fund", planNameFr: "Fonds de deuil", enrolledAt: "2025-06-01", eligibleFrom: "2025-12-01", isEligible: true, isWaiting: false, contributionStatus: "up_to_date", contributionAmount: 5000, qualifyingEvents: ["death"], payoutRules: { death: 250000 } },
-  { id: "2", planName: "Health Emergency Fund", planNameFr: "Fonds d'urgence santé", enrolledAt: "2025-08-01", eligibleFrom: "2025-11-01", isEligible: true, isWaiting: false, contributionStatus: "up_to_date", contributionAmount: 3000, qualifyingEvents: ["illness"], payoutRules: { illness: 150000 } },
-  { id: "3", planName: "Life Events Fund", planNameFr: "Fonds événements de vie", enrolledAt: "2026-01-15", eligibleFrom: "2026-07-15", isEligible: false, isWaiting: true, contributionStatus: "up_to_date", contributionAmount: 2000, qualifyingEvents: ["wedding", "childbirth"], payoutRules: { wedding: 100000, childbirth: 100000 } },
-];
-
-const myClaims: MyClaim[] = [
-  { id: "1", planName: "Life Events Fund", eventType: "wedding", amount: 100000, status: "approved", date: "2025-11-15", description: "Wedding ceremony" },
-];
 
 const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof CheckCircle2 }> = {
   submitted: { color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", icon: Clock },
@@ -80,19 +50,118 @@ const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof Check
   denied: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
 };
 
-function formatCurrency(amount: number) {
-  return formatAmount(amount, "XAF");
-}
+const supabase = createClient();
 
 export default function MyReliefPage() {
   const t = useTranslations();
+  const { currentMembership, currentGroup } = useGroup();
+  const membershipId = currentMembership?.id;
+  const currency = currentGroup?.currency || "XAF";
+
   const [showClaimDialog, setShowClaimDialog] = useState(false);
   const [claimPlanId, setClaimPlanId] = useState<string | null>(null);
+
+  function formatCurrency(amount: number) {
+    return formatAmount(amount, currency);
+  }
+
+  // Fetch enrollments with plan details
+  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
+    queryKey: ['my-relief-enrollments', membershipId],
+    queryFn: async () => {
+      if (!membershipId) return [];
+      const { data, error } = await supabase
+        .from('relief_enrollments')
+        .select('*, plan:relief_plans!inner(id, name, name_fr, qualifying_events, contribution_amount, contribution_frequency, payout_rules, waiting_period_days)')
+        .eq('membership_id', membershipId)
+        .eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!membershipId,
+  });
+
+  // Fetch claims
+  const { data: claims = [], isLoading: claimsLoading } = useQuery({
+    queryKey: ['my-relief-claims', membershipId],
+    queryFn: async () => {
+      if (!membershipId) return [];
+      const { data, error } = await supabase
+        .from('relief_claims')
+        .select('*, plan:relief_plans(id, name, name_fr)')
+        .eq('membership_id', membershipId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!membershipId,
+  });
+
+  // Transform enrollments into the shape the UI expects
+  const myPlans = enrollments.map((enrollment: Record<string, unknown>) => {
+    const plan = enrollment.plan as Record<string, unknown>;
+    const enrolledAt = new Date(enrollment.enrolled_at as string);
+    const waitingDays = (plan.waiting_period_days as number) || 180;
+    const eligibleFrom = new Date(enrolledAt.getTime() + waitingDays * 86400000);
+    const now = new Date();
+    const isEligible = now >= eligibleFrom;
+    const isWaiting = !isEligible;
+    const qualifyingEvents = (plan.qualifying_events as EventType[]) || [];
+    const payoutRules = (plan.payout_rules as Record<string, number>) || {};
+
+    return {
+      id: enrollment.id as string,
+      planId: plan.id as string,
+      planName: (plan.name as string) || '',
+      planNameFr: (plan.name_fr as string) || '',
+      enrolledAt: enrolledAt.toLocaleDateString(),
+      eligibleFrom: eligibleFrom.toLocaleDateString(),
+      isEligible,
+      isWaiting,
+      contributionStatus: (enrollment.contribution_status as string) || 'up_to_date',
+      contributionAmount: Number(plan.contribution_amount) || 0,
+      qualifyingEvents,
+      payoutRules,
+    };
+  });
+
+  // Transform claims
+  const myClaims = claims.map((claim: Record<string, unknown>) => {
+    const plan = claim.plan as Record<string, unknown> | null;
+    return {
+      id: claim.id as string,
+      planName: (plan?.name as string) || '',
+      eventType: claim.event_type as EventType,
+      amount: Number(claim.amount) || 0,
+      status: claim.status as ClaimStatus,
+      date: new Date(claim.created_at as string).toLocaleDateString(),
+      description: (claim.description as string) || '',
+      reviewNotes: claim.review_notes as string | undefined,
+    };
+  });
 
   const openClaimDialog = (planId: string) => {
     setClaimPlanId(planId);
     setShowClaimDialog(true);
   };
+
+  // Loading state
+  if (enrollmentsLoading || claimsLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="mt-2 h-4 w-64" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-48 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-32 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -162,7 +231,7 @@ export default function MyReliefPage() {
                     </div>
                   </div>
                   {plan.isEligible && (
-                    <Button className="w-full" size="sm" onClick={() => openClaimDialog(plan.id)}>
+                    <Button className="w-full" size="sm" onClick={() => openClaimDialog(plan.planId)}>
                       <Plus className="mr-1 h-3.5 w-3.5" />{t("relief.submitClaim")}
                     </Button>
                   )}

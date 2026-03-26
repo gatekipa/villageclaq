@@ -392,7 +392,16 @@
     "noContributions": "Aucune contribution pour le moment",
     "memberTitle": "Titre (Optionnel)",
     "titlePlaceholder": "ex: Chef, Nchinda, Pasteur, Dr., Alhaji, Mama",
-    "titleHint": "Titre traditionnel, religieux ou honorifique"
+    "titleHint": "Titre traditionnel, religieux ou honorifique",
+    "roleUpdated": "Rôle mis à jour avec succès",
+    "standingUpdated": "Statut mis à jour avec succès",
+    "positionAssigned": "Position assignée avec succès",
+    "memberRemoved": "Membre retiré avec succès",
+    "confirmRemoveMember": "Êtes-vous sûr de vouloir retirer {name} de ce groupe ? Cette action est irréversible.",
+    "selectRole": "Sélectionner le rôle",
+    "selectStanding": "Sélectionner le statut",
+    "selectPosition": "Sélectionner la position",
+    "noPositionsAvailable": "Aucune position disponible"
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -1870,7 +1879,10 @@
     "clickToUpload": "Cliquez pour téléverser ou glisser-déposer",
     "supportedFormats": "PDF, DOCX, images jusqu'à 10 Mo",
     "upload": "Téléverser",
-    "documentTitleEn": "Titre (Anglais)"
+    "documentTitleEn": "Titre (Anglais)",
+    "deleteDocument": "Supprimer le document",
+    "confirmDeleteDocument": "Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.",
+    "documentDeleted": "Document supprimé avec succès"
   },
   "memberCard": {
     "title": "Carte de membre numérique",

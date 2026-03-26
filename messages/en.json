@@ -392,7 +392,16 @@
     "noContributions": "No contributions yet",
     "memberTitle": "Title (Optional)",
     "titlePlaceholder": "e.g., Chief, Nchinda, Pastor, Dr., Alhaji, Mama",
-    "titleHint": "Traditional, religious, or honorary title"
+    "titleHint": "Traditional, religious, or honorary title",
+    "roleUpdated": "Role updated successfully",
+    "standingUpdated": "Standing updated successfully",
+    "positionAssigned": "Position assigned successfully",
+    "memberRemoved": "Member removed successfully",
+    "confirmRemoveMember": "Are you sure you want to remove {name} from this group? This action cannot be undone.",
+    "selectRole": "Select role",
+    "selectStanding": "Select standing",
+    "selectPosition": "Select position",
+    "noPositionsAvailable": "No positions available"
   },
   "settings": {
     "title": "Group Settings",
@@ -1913,7 +1922,10 @@
     "clickToUpload": "Click to upload or drag and drop",
     "supportedFormats": "PDF, DOCX, images up to 10MB",
     "upload": "Upload",
-    "documentTitleEn": "Title (English)"
+    "documentTitleEn": "Title (English)",
+    "deleteDocument": "Delete Document",
+    "confirmDeleteDocument": "Are you sure you want to delete this document? This action cannot be undone.",
+    "documentDeleted": "Document deleted successfully"
   },
   "memberCard": {
     "title": "Digital Membership Card",

@@ -23,6 +23,7 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { useContributionTypes } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
+import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
@@ -233,7 +234,20 @@ export default function DuesMatrixPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.matrix")}</h1>
           <p className="text-muted-foreground">{t("contributions.matrixDesc")}</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" disabled={memberRows.length === 0} onClick={() => {
+          const data = memberRows.map((member) => {
+            const row: Record<string, unknown> = { Member: member.name };
+            columns.forEach((col, i) => {
+              const status = member.cells[col] || "not_member";
+              const amountData = member.amounts[col];
+              row[columnLabels[i]] = amountData
+                ? `${formatCurrency(amountData.paid, currency)} / ${formatCurrency(amountData.total, currency)} (${status})`
+                : status;
+            });
+            return row;
+          });
+          exportCSV(data, "dues_matrix");
+        }}>
           <Download className="mr-2 h-4 w-4" />
           {t("contributions.exportCSV")}
         </Button>

@@ -20,6 +20,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
@@ -66,7 +68,19 @@ export default function PaymentHistoryPage() {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [sortField, setSortField] = useState<string>("recorded_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const perPage = 10;
+
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+    setPage(1);
+  }
 
   // Normalize payment data from Supabase joins
   const normalizedPayments = useMemo(() => {
@@ -99,9 +113,32 @@ export default function PaymentHistoryPage() {
     );
   }, [normalizedPayments, search]);
 
-  const totalPages = Math.ceil(filtered.length / perPage);
-  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
-  const totalAmount = filtered.reduce((sum, p) => sum + p.amount, 0);
+  const sortedPayments = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "recorded_at":
+          cmp = a.recordedAt.localeCompare(b.recordedAt);
+          break;
+        case "amount":
+          cmp = a.amount - b.amount;
+          break;
+        case "member":
+          cmp = a.memberName.localeCompare(b.memberName);
+          break;
+        case "method":
+          cmp = a.paymentMethod.localeCompare(b.paymentMethod);
+          break;
+        default:
+          cmp = 0;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [filtered, sortField, sortDir]);
+
+  const totalPages = Math.ceil(sortedPayments.length / perPage);
+  const paginated = sortedPayments.slice((page - 1) * perPage, page * perPage);
+  const totalAmount = sortedPayments.reduce((sum, p) => sum + p.amount, 0);
 
   function handleExportCSV() {
     const headers = ["Date", "Member", "Type", "Amount", "Currency", "Method", "Reference"];
@@ -177,7 +214,7 @@ export default function PaymentHistoryPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.history")}</h1>
           <p className="text-muted-foreground">{t("contributions.historyDesc")}</p>
         </div>
-        <Button variant="outline" onClick={handleExportCSV} disabled={filtered.length === 0}>
+        <Button variant="outline" onClick={handleExportCSV} disabled={sortedPayments.length === 0}>
           <Download className="mr-2 h-4 w-4" />
           {t("contributions.exportCSV")}
         </Button>
@@ -219,7 +256,7 @@ export default function PaymentHistoryPage() {
         </div>
         <div className="rounded-lg bg-muted px-4 py-2">
           <span className="text-xs text-muted-foreground">{t("contributions.paymentsCount")}</span>
-          <p className="text-lg font-bold">{filtered.length}</p>
+          <p className="text-lg font-bold">{sortedPayments.length}</p>
         </div>
       </div>
 
@@ -238,8 +275,8 @@ export default function PaymentHistoryPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">
-                      <button className="flex items-center gap-1 hover:text-foreground">
-                        {t("contributions.date")} <ArrowUpDown className="h-3 w-3" />
+                      <button className="flex items-center gap-1 hover:text-foreground" onClick={() => handleSort("recorded_at")}>
+                        {t("contributions.date")} {sortField === "recorded_at" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                       </button>
                     </th>
                     <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">
@@ -249,8 +286,8 @@ export default function PaymentHistoryPage() {
                       {t("contributions.contributionType")}
                     </th>
                     <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-muted-foreground">
-                      <button className="flex items-center gap-1 ml-auto hover:text-foreground">
-                        {t("contributions.amount")} <ArrowUpDown className="h-3 w-3" />
+                      <button className="flex items-center gap-1 ml-auto hover:text-foreground" onClick={() => handleSort("amount")}>
+                        {t("contributions.amount")} {sortField === "amount" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                       </button>
                     </th>
                     <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">
@@ -322,8 +359,8 @@ export default function PaymentHistoryPage() {
                 <p className="text-xs text-muted-foreground">
                   {t("contributions.showing", {
                     from: (page - 1) * perPage + 1,
-                    to: Math.min(page * perPage, filtered.length),
-                    total: filtered.length,
+                    to: Math.min(page * perPage, sortedPayments.length),
+                    total: sortedPayments.length,
                   })}
                 </p>
                 <div className="flex items-center gap-1">

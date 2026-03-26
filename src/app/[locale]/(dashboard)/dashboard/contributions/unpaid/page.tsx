@@ -22,11 +22,14 @@ import {
 } from "lucide-react";
 import { useObligations } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
+import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
 interface UnpaidMember {
   id: string;
+  userId: string | null;
   name: string;
   avatarUrl: string | null;
   standing: string;
@@ -53,10 +56,11 @@ const standingColors: Record<string, string> = {
 
 export default function UnpaidReportPage() {
   const t = useTranslations();
-  const { currentGroup } = useGroup();
+  const { currentGroup, groupId } = useGroup();
   const currency = currentGroup?.currency || "XAF";
   const [sortBy, setSortBy] = useState<"amount" | "name">("amount");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   const { data: pendingObligations, isLoading, isError, refetch } = useObligations({ status: "pending" });
 
@@ -74,6 +78,7 @@ export default function UnpaidReportPage() {
       if (!memberMap.has(membershipId)) {
         memberMap.set(membershipId, {
           id: membershipId,
+          userId: membership.user_id || null,
           name: profile?.full_name || "Unknown",
           avatarUrl: profile?.avatar_url || null,
           standing: "good",
@@ -107,6 +112,53 @@ export default function UnpaidReportPage() {
 
   const totalOutstanding = sorted.reduce((sum, m) => sum + m.totalOutstanding, 0);
 
+  async function handleSendAllReminders() {
+    const supabase = createClient();
+    const validMembers = sorted.filter((m) => m.userId);
+    if (validMembers.length === 0) return;
+    setSendingReminders(true);
+    try {
+      const notifications = validMembers.map((m) => ({
+        user_id: m.userId!,
+        group_id: groupId!,
+        type: "payment_reminder",
+        title: "Payment Reminder",
+        body: `You have an outstanding balance of ${formatCurrency(m.totalOutstanding, currency)}.`,
+        is_read: false,
+      }));
+      await supabase.from("notifications").insert(notifications);
+      alert(`${validMembers.length} reminder(s) sent.`);
+    } finally {
+      setSendingReminders(false);
+    }
+  }
+
+  async function handleSendReminder(member: UnpaidMember) {
+    if (!member.userId || !groupId) return;
+    const supabase = createClient();
+    await supabase.from("notifications").insert({
+      user_id: member.userId,
+      group_id: groupId,
+      type: "payment_reminder",
+      title: "Payment Reminder",
+      body: `You have an outstanding balance of ${formatCurrency(member.totalOutstanding, currency)}.`,
+      is_read: false,
+    });
+    alert(`Reminder sent to ${member.name}.`);
+  }
+
+  function handleExportCSV() {
+    const data = sorted.map((m) => ({
+      Member: m.name,
+      Standing: m.standing,
+      "Total Outstanding": m.totalOutstanding,
+      Currency: currency,
+      "Outstanding Items": m.obligations.length,
+      Details: m.obligations.map((o) => `${o.type} ${o.period}: ${o.amount - o.amountPaid}`).join("; "),
+    }));
+    exportCSV(data, "unpaid_members");
+  }
+
   const subNavItems = [
     { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
     { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
@@ -129,11 +181,11 @@ export default function UnpaidReportPage() {
           <p className="text-muted-foreground">{t("contributions.unpaidDesc")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportCSV} disabled={sorted.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             {t("contributions.exportCSV")}
           </Button>
-          <Button variant="default">
+          <Button variant="default" onClick={handleSendAllReminders} disabled={sendingReminders || sorted.length === 0}>
             <Send className="mr-2 h-4 w-4" />
             {t("contributions.sendAllReminders")}
           </Button>
@@ -270,7 +322,7 @@ export default function UnpaidReportPage() {
                             {t("contributions.recordPayment")}
                           </Button>
                         </Link>
-                        <Button size="sm">
+                        <Button size="sm" onClick={() => handleSendReminder(member)} disabled={!member.userId}>
                           <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
                           {t("contributions.sendReminder")}
                         </Button>

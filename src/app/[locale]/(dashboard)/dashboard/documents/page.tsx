@@ -27,6 +27,7 @@ import {
   Plus,
   Upload,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDocuments } from "@/lib/hooks/use-supabase-query";
@@ -105,6 +106,11 @@ export default function DocumentVaultPage() {
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   function resetUploadForm() {
     setDocTitle("");
@@ -332,14 +338,20 @@ export default function DocumentVaultPage() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-1">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => { if (doc.file_url) window.open(doc.file_url as string, '_blank'); }}>
                           <Eye className="mr-1.5 h-3.5 w-3.5" />
                           {t("preview")}
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => { if (doc.file_url) window.open(doc.file_url as string, '_blank'); }}>
                           <Download className="mr-1.5 h-3.5 w-3.5" />
                           {t("download")}
                         </Button>
+                        {isAdmin && (
+                          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteDocId(id); setDeleteDialogOpen(true); }}>
+                            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                            {t("deleteDocument")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -349,6 +361,42 @@ export default function DocumentVaultPage() {
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("deleteDocument")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("confirmDeleteDocument")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>{t("cancel" as Parameters<typeof t>[0])}</Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={async () => {
+                if (!deleteDocId) return;
+                setDeleting(true);
+                try {
+                  const supabase = createClient();
+                  const { error } = await supabase.from('documents').delete().eq('id', deleteDocId);
+                  if (error) throw error;
+                  await queryClient.invalidateQueries({ queryKey: ['documents', groupId] });
+                  setDeleteDialogOpen(false);
+                  setDeleteDocId(null);
+                } catch (err) {
+                  console.error('Failed to delete document:', err);
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("deleteDocument")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

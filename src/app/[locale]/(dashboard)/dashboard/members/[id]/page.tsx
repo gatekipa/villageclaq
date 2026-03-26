@@ -1,17 +1,33 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
-import { Link } from "@/i18n/routing";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useRouter } from "@/i18n/routing";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   Mail,
@@ -28,6 +44,7 @@ import {
   Edit,
   UserMinus,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -145,8 +162,19 @@ export default function MemberDetailPage() {
   const t = useTranslations();
   const params = useParams();
   const membershipId = params.id as string;
-  const { groupId, isAdmin, currentGroup } = useGroup();
+  const { groupId, isAdmin, currentGroup, user } = useGroup();
   const currency = currentGroup?.currency || "XAF";
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showStandingDialog, setShowStandingDialog] = useState(false);
+  const [showPositionDialog, setShowPositionDialog] = useState(false);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [newRole, setNewRole] = useState('');
+  const [newStanding, setNewStanding] = useState('');
+  const [selectedPositionId, setSelectedPositionId] = useState('');
+  const [actionSaving, setActionSaving] = useState(false);
 
   const { data: member, isLoading: memberLoading, error: memberError } = useMemberDetail(membershipId);
   const { data: payments = [], isLoading: paymentsLoading } = useMemberPayments(membershipId, groupId);
@@ -214,17 +242,17 @@ export default function MemberDetailPage() {
               <MoreVertical className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="flex items-center gap-2">
+              <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewRole(member.role as string); setShowRoleDialog(true); }}>
                 <Edit className="h-4 w-4" /> {t("members.editRole")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2">
+              <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewStanding(member.standing as string || 'good'); setShowStandingDialog(true); }}>
                 <Shield className="h-4 w-4" /> {t("members.changeStanding")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2">
+              <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowPositionDialog(true)}>
                 <Shield className="h-4 w-4" /> {t("members.assignPosition")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex items-center gap-2 text-destructive">
+              <DropdownMenuItem className="flex items-center gap-2 text-destructive" onClick={() => setShowRemoveDialog(true)}>
                 <UserMinus className="h-4 w-4" /> {t("members.removeMember")}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -452,6 +480,208 @@ export default function MemberDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("members.editRole")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={newRole} onValueChange={(v) => setNewRole(v || '')}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("members.selectRole")} />
+              </SelectTrigger>
+              <SelectContent>
+                {["owner", "admin", "moderator", "member"].map((role) => (
+                  <SelectItem key={role} value={role}>{t(`roles.${role}` as "roles.admin")}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRoleDialog(false)}>{t("common.cancel")}</Button>
+            <Button
+              disabled={actionSaving}
+              onClick={async () => {
+                setActionSaving(true);
+                try {
+                  const { error } = await supabase.from('memberships').update({ role: newRole }).eq('id', membershipId);
+                  if (error) throw error;
+                  await queryClient.invalidateQueries({ queryKey: ['member-detail', membershipId] });
+                  setShowRoleDialog(false);
+                } catch (err) {
+                  console.error('Failed to update role:', err);
+                } finally {
+                  setActionSaving(false);
+                }
+              }}
+            >
+              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Standing Dialog */}
+      <Dialog open={showStandingDialog} onOpenChange={setShowStandingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("members.changeStanding")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={newStanding} onValueChange={(v) => setNewStanding(v || '')}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("members.selectStanding")} />
+              </SelectTrigger>
+              <SelectContent>
+                {["good", "warning", "suspended", "banned"].map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {t(`members.standing${s.charAt(0).toUpperCase() + s.slice(1)}` as "members.standingGood")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStandingDialog(false)}>{t("common.cancel")}</Button>
+            <Button
+              disabled={actionSaving}
+              onClick={async () => {
+                setActionSaving(true);
+                try {
+                  const { error } = await supabase.from('memberships').update({ standing: newStanding }).eq('id', membershipId);
+                  if (error) throw error;
+                  await queryClient.invalidateQueries({ queryKey: ['member-detail', membershipId] });
+                  setShowStandingDialog(false);
+                } catch (err) {
+                  console.error('Failed to update standing:', err);
+                } finally {
+                  setActionSaving(false);
+                }
+              }}
+            >
+              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Position Dialog */}
+      <Dialog open={showPositionDialog} onOpenChange={setShowPositionDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("members.assignPosition")}</DialogTitle>
+          </DialogHeader>
+          <PositionSelector
+            groupId={groupId}
+            selectedPositionId={selectedPositionId}
+            onSelect={setSelectedPositionId}
+            t={t}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPositionDialog(false)}>{t("common.cancel")}</Button>
+            <Button
+              disabled={actionSaving || !selectedPositionId}
+              onClick={async () => {
+                setActionSaving(true);
+                try {
+                  const { error } = await supabase.from('position_assignments').insert({
+                    position_id: selectedPositionId,
+                    membership_id: membershipId,
+                    assigned_by: user?.id,
+                  });
+                  if (error) throw error;
+                  await queryClient.invalidateQueries({ queryKey: ['member-positions', membershipId] });
+                  setShowPositionDialog(false);
+                  setSelectedPositionId('');
+                } catch (err) {
+                  console.error('Failed to assign position:', err);
+                } finally {
+                  setActionSaving(false);
+                }
+              }}
+            >
+              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Member Dialog */}
+      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("members.removeMember")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("members.confirmRemoveMember", { name: memberName })}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRemoveDialog(false)}>{t("common.cancel")}</Button>
+            <Button
+              variant="destructive"
+              disabled={actionSaving}
+              onClick={async () => {
+                setActionSaving(true);
+                try {
+                  const { error } = await supabase.from('memberships').delete().eq('id', membershipId);
+                  if (error) throw error;
+                  await queryClient.invalidateQueries({ queryKey: ['members'] });
+                  router.push('/dashboard/members');
+                } catch (err) {
+                  console.error('Failed to remove member:', err);
+                } finally {
+                  setActionSaving(false);
+                }
+              }}
+            >
+              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("members.removeMember")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function PositionSelector({ groupId, selectedPositionId, onSelect, t }: {
+  groupId: string | null;
+  selectedPositionId: string;
+  onSelect: (id: string) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const { data: positions, isLoading } = useQuery({
+    queryKey: ['group-positions', groupId],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('group_positions')
+        .select('id, title, title_fr')
+        .eq('group_id', groupId!);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+
+  if (isLoading) return <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+  if (!positions || positions.length === 0) return <p className="text-sm text-muted-foreground">{t("members.noPositionsAvailable")}</p>;
+
+  return (
+    <Select value={selectedPositionId} onValueChange={(v) => onSelect(v || '')}>
+      <SelectTrigger>
+        <SelectValue placeholder={t("members.selectPosition")} />
+      </SelectTrigger>
+      <SelectContent>
+        {positions.map((pos) => (
+          <SelectItem key={pos.id} value={pos.id}>{pos.title}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

@@ -9,32 +9,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Check } from "lucide-react";
 
-const COUNTRY_CODES = [
-  { code: "+237", country: "CM", label: "Cameroon", flag: "🇨🇲", digits: 9, placeholder: "6 77 12 34 56" },
-  { code: "+234", country: "NG", label: "Nigeria", flag: "🇳🇬", digits: 10, placeholder: "801 234 5678" },
-  { code: "+233", country: "GH", label: "Ghana", flag: "🇬🇭", digits: 9, placeholder: "24 123 4567" },
-  { code: "+254", country: "KE", label: "Kenya", flag: "🇰🇪", digits: 9, placeholder: "712 345 678" },
-  { code: "+27", country: "ZA", label: "South Africa", flag: "🇿🇦", digits: 9, placeholder: "71 123 4567" },
-  { code: "+221", country: "SN", label: "Senegal", flag: "🇸🇳", digits: 9, placeholder: "77 123 45 67" },
-  { code: "+225", country: "CI", label: "Côte d'Ivoire", flag: "🇨🇮", digits: 10, placeholder: "07 12 34 56 78" },
-  { code: "+243", country: "CD", label: "DR Congo", flag: "🇨🇩", digits: 9, placeholder: "81 234 5678" },
-  { code: "+251", country: "ET", label: "Ethiopia", flag: "🇪🇹", digits: 9, placeholder: "91 234 5678" },
-  { code: "+255", country: "TZ", label: "Tanzania", flag: "🇹🇿", digits: 9, placeholder: "71 234 5678" },
-  { code: "+256", country: "UG", label: "Uganda", flag: "🇺🇬", digits: 9, placeholder: "77 123 4567" },
-  { code: "+250", country: "RW", label: "Rwanda", flag: "🇷🇼", digits: 9, placeholder: "78 123 4567" },
-  { code: "+1", country: "US", label: "USA/Canada", flag: "🇺🇸", digits: 10, placeholder: "301 433 5857" },
-  { code: "+44", country: "GB", label: "UK", flag: "🇬🇧", digits: 10, placeholder: "7911 123456" },
-  { code: "+33", country: "FR", label: "France", flag: "🇫🇷", digits: 9, placeholder: "6 12 34 56 78" },
-  { code: "+49", country: "DE", label: "Germany", flag: "🇩🇪", digits: 10, placeholder: "170 1234567" },
-  { code: "+32", country: "BE", label: "Belgium", flag: "🇧🇪", digits: 9, placeholder: "470 12 34 56" },
-  { code: "+41", country: "CH", label: "Switzerland", flag: "🇨🇭", digits: 9, placeholder: "76 123 45 67" },
-  { code: "+31", country: "NL", label: "Netherlands", flag: "🇳🇱", digits: 9, placeholder: "6 12345678" },
-  { code: "+39", country: "IT", label: "Italy", flag: "🇮🇹", digits: 10, placeholder: "312 345 6789" },
-  { code: "+34", country: "ES", label: "Spain", flag: "🇪🇸", digits: 9, placeholder: "612 34 56 78" },
-  { code: "+61", country: "AU", label: "Australia", flag: "🇦🇺", digits: 9, placeholder: "412 345 678" },
-  { code: "+971", country: "AE", label: "UAE", flag: "🇦🇪", digits: 9, placeholder: "50 123 4567" },
-] as const;
+interface CountryDef {
+  code: string;
+  country: string;
+  label: string;
+  flag: string;
+  digits: number;
+  placeholder: string;
+  // Format pattern: array of group sizes e.g. [3,3,4] means "301 433 5857"
+  groups: number[];
+}
+
+const COUNTRY_CODES: CountryDef[] = [
+  { code: "+237", country: "CM", label: "Cameroon", flag: "🇨🇲", digits: 9, placeholder: "6 77 12 34 56", groups: [1, 2, 2, 2, 2] },
+  { code: "+234", country: "NG", label: "Nigeria", flag: "🇳🇬", digits: 10, placeholder: "801 234 5678", groups: [3, 3, 4] },
+  { code: "+233", country: "GH", label: "Ghana", flag: "🇬🇭", digits: 9, placeholder: "24 123 4567", groups: [2, 3, 4] },
+  { code: "+254", country: "KE", label: "Kenya", flag: "🇰🇪", digits: 9, placeholder: "712 345 678", groups: [3, 3, 3] },
+  { code: "+27", country: "ZA", label: "South Africa", flag: "🇿🇦", digits: 9, placeholder: "71 123 4567", groups: [2, 3, 4] },
+  { code: "+221", country: "SN", label: "Senegal", flag: "🇸🇳", digits: 9, placeholder: "77 123 45 67", groups: [2, 3, 2, 2] },
+  { code: "+225", country: "CI", label: "Côte d'Ivoire", flag: "🇨🇮", digits: 10, placeholder: "07 12 34 56 78", groups: [2, 2, 2, 2, 2] },
+  { code: "+243", country: "CD", label: "DR Congo", flag: "🇨🇩", digits: 9, placeholder: "81 234 5678", groups: [2, 3, 4] },
+  { code: "+251", country: "ET", label: "Ethiopia", flag: "🇪🇹", digits: 9, placeholder: "91 234 5678", groups: [2, 3, 4] },
+  { code: "+255", country: "TZ", label: "Tanzania", flag: "🇹🇿", digits: 9, placeholder: "71 234 5678", groups: [2, 3, 4] },
+  { code: "+256", country: "UG", label: "Uganda", flag: "🇺🇬", digits: 9, placeholder: "77 123 4567", groups: [2, 3, 4] },
+  { code: "+250", country: "RW", label: "Rwanda", flag: "🇷🇼", digits: 9, placeholder: "78 123 4567", groups: [2, 3, 4] },
+  { code: "+1", country: "US", label: "USA/Canada", flag: "🇺🇸", digits: 10, placeholder: "(301) 433-5857", groups: [3, 3, 4] },
+  { code: "+44", country: "GB", label: "UK", flag: "🇬🇧", digits: 10, placeholder: "7911 123 456", groups: [4, 3, 3] },
+  { code: "+33", country: "FR", label: "France", flag: "🇫🇷", digits: 9, placeholder: "6 12 34 56 78", groups: [1, 2, 2, 2, 2] },
+  { code: "+49", country: "DE", label: "Germany", flag: "🇩🇪", digits: 10, placeholder: "170 123 4567", groups: [3, 3, 4] },
+  { code: "+32", country: "BE", label: "Belgium", flag: "🇧🇪", digits: 9, placeholder: "470 12 34 56", groups: [3, 2, 2, 2] },
+  { code: "+41", country: "CH", label: "Switzerland", flag: "🇨🇭", digits: 9, placeholder: "76 123 45 67", groups: [2, 3, 2, 2] },
+  { code: "+31", country: "NL", label: "Netherlands", flag: "🇳🇱", digits: 9, placeholder: "6 1234 5678", groups: [1, 4, 4] },
+  { code: "+39", country: "IT", label: "Italy", flag: "🇮🇹", digits: 10, placeholder: "312 345 6789", groups: [3, 3, 4] },
+  { code: "+34", country: "ES", label: "Spain", flag: "🇪🇸", digits: 9, placeholder: "612 34 56 78", groups: [3, 2, 2, 2] },
+  { code: "+61", country: "AU", label: "Australia", flag: "🇦🇺", digits: 9, placeholder: "412 345 678", groups: [3, 3, 3] },
+  { code: "+971", country: "AE", label: "UAE", flag: "🇦🇪", digits: 9, placeholder: "50 123 4567", groups: [2, 3, 4] },
+];
 
 const CURRENCY_TO_CODE: Record<string, string> = {
   XAF: "+237", XOF: "+221", NGN: "+234", GHS: "+233", KES: "+254",
@@ -44,6 +56,36 @@ const CURRENCY_TO_CODE: Record<string, string> = {
 export function getDefaultCountryCode(currency?: string | null): string {
   if (currency && CURRENCY_TO_CODE[currency]) return CURRENCY_TO_CODE[currency];
   return "+237";
+}
+
+/** Format digits into groups with spaces (or US format with parens/dash) */
+function formatDigits(digits: string, country: CountryDef): string {
+  if (!digits) return "";
+
+  // Special US/Canada formatting: (301) 433-5857
+  if (country.code === "+1" && digits.length >= 1) {
+    const area = digits.slice(0, 3);
+    const mid = digits.slice(3, 6);
+    const last = digits.slice(6, 10);
+    if (digits.length <= 3) return `(${area}`;
+    if (digits.length <= 6) return `(${area}) ${mid}`;
+    return `(${area}) ${mid}-${last}`;
+  }
+
+  // General formatting: apply group sizes
+  let result = "";
+  let pos = 0;
+  for (const size of country.groups) {
+    if (pos >= digits.length) break;
+    if (pos > 0) result += " ";
+    result += digits.slice(pos, pos + size);
+    pos += size;
+  }
+  // Any remaining digits
+  if (pos < digits.length) {
+    result += " " + digits.slice(pos);
+  }
+  return result;
 }
 
 interface PhoneInputProps {
@@ -56,7 +98,6 @@ interface PhoneInputProps {
 export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disabled = false }: PhoneInputProps) {
   const parsePhone = (phone: string) => {
     if (!phone) return { code: defaultCountryCode, number: "" };
-    // Try longest codes first to avoid +2 matching before +237
     const sorted = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
     for (const cc of sorted) {
       if (phone.startsWith(cc.code)) {
@@ -81,29 +122,27 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
 
   const digitCount = rawDigits.length;
   const expectedDigits = currentCountry.digits;
-  const isValid = digitCount === 0 || digitCount === expectedDigits;
-  const validationMsg = !isValid
-    ? `${currentCountry.label}: ${expectedDigits} digits expected (${digitCount} entered)`
-    : "";
+  const isComplete = digitCount === expectedDigits;
+  const isOverflow = digitCount > expectedDigits;
+  const isEmpty = digitCount === 0;
+  const isValid = isEmpty || isComplete;
 
   const handleCodeChange = (newCode: string) => {
     if (!newCode) return;
     setCountryCode(newCode);
-    onChange(rawDigits ? `${newCode}${rawDigits}` : "");
+    setRawDigits(""); // Reset digits when changing country
+    onChange("");
   };
 
   const handleNumberChange = (input: string) => {
     const cleaned = input.replace(/[^\d]/g, "");
-    setRawDigits(cleaned);
-    onChange(cleaned ? `${countryCode}${cleaned}` : "");
+    // Cap at max digits for this country
+    const capped = cleaned.slice(0, expectedDigits);
+    setRawDigits(capped);
+    onChange(capped ? `${countryCode}${capped}` : "");
   };
 
-  // Format display: insert spaces for readability
-  const formatDisplay = (digits: string): string => {
-    if (!digits) return "";
-    // Simple grouping: groups of 3 from the left
-    return digits.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
-  };
+  const formatted = formatDigits(rawDigits, currentCountry);
 
   return (
     <div className="space-y-1">
@@ -122,17 +161,30 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
             ))}
           </SelectContent>
         </Select>
-        <Input
-          type="tel"
-          value={formatDisplay(rawDigits)}
-          onChange={(e) => handleNumberChange(e.target.value)}
-          placeholder={currentCountry.placeholder}
-          disabled={disabled}
-          className={`flex-1 ${!isValid ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-        />
+        <div className="relative flex-1">
+          <Input
+            type="tel"
+            value={formatted}
+            onChange={(e) => handleNumberChange(e.target.value)}
+            placeholder={currentCountry.placeholder}
+            disabled={disabled}
+            className={
+              isOverflow || (!isEmpty && !isComplete && digitCount > 3)
+                ? "border-red-500 focus-visible:ring-red-500 pr-8"
+                : isComplete
+                  ? "border-emerald-500 focus-visible:ring-emerald-500 pr-8"
+                  : "pr-2"
+            }
+          />
+          {isComplete && (
+            <Check className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
+          )}
+        </div>
       </div>
-      {validationMsg && (
-        <p className="text-xs text-red-500">{validationMsg}</p>
+      {!isEmpty && !isValid && (
+        <p className="text-xs text-red-500">
+          {currentCountry.label}: {expectedDigits} digits required ({digitCount} entered)
+        </p>
       )}
     </div>
   );

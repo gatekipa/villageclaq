@@ -389,7 +389,10 @@
     "fullName": "Full Name",
     "unnamed": "Unnamed Member",
     "proxyMember": "Proxy Member",
-    "noContributions": "No contributions yet"
+    "noContributions": "No contributions yet",
+    "memberTitle": "Title (Optional)",
+    "titlePlaceholder": "e.g., Chief, Nchinda, Pastor, Dr., Alhaji, Mama",
+    "titleHint": "Traditional, religious, or honorary title"
   },
   "settings": {
     "title": "Group Settings",

@@ -389,7 +389,10 @@
     "fullName": "Nom complet",
     "unnamed": "Membre sans nom",
     "proxyMember": "Membre par procuration",
-    "noContributions": "Aucune contribution pour le moment"
+    "noContributions": "Aucune contribution pour le moment",
+    "memberTitle": "Titre (Optionnel)",
+    "titlePlaceholder": "ex: Chef, Nchinda, Pasteur, Dr., Alhaji, Mama",
+    "titleHint": "Titre traditionnel, religieux ou honorifique"
   },
   "settings": {
     "title": "Paramètres du groupe",

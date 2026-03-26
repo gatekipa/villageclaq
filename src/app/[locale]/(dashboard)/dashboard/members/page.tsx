@@ -61,6 +61,7 @@ export default function MembersPage() {
   // Add member dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newFullName, setNewFullName] = useState("");
+  const [newTitle, setNewTitle] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newRole, setNewRole] = useState<"member" | "admin" | "moderator">("member");
@@ -69,6 +70,7 @@ export default function MembersPage() {
 
   function resetAddForm() {
     setNewFullName("");
+    setNewTitle("");
     setNewEmail("");
     setNewPhone("");
     setNewRole("member");
@@ -84,9 +86,12 @@ export default function MembersPage() {
 
       // Use the SECURITY DEFINER function to create proxy member
       // This bypasses RLS safely — the function verifies the caller is a group member
+      const displayName = newTitle.trim()
+        ? `${newTitle.trim()} ${newFullName.trim()}`
+        : newFullName.trim();
       const { data, error: rpcError } = await supabase.rpc("create_proxy_member", {
         p_group_id: groupId,
-        p_display_name: newFullName.trim(),
+        p_display_name: displayName,
         p_phone: newPhone || null,
         p_role: newRole,
       });
@@ -326,8 +331,13 @@ export default function MembersPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>{t("displayName")}</Label>
-              <Input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder={t("displayName")} />
+              <Label>{t("displayName")} <span className="text-red-500">*</span></Label>
+              <Input value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder={t("displayName")} autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("memberTitle")}</Label>
+              <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t("titlePlaceholder")} />
+              <p className="text-[11px] text-muted-foreground">{t("titleHint")}</p>
             </div>
             <div className="space-y-2">
               <Label>{t("email")}</Label>

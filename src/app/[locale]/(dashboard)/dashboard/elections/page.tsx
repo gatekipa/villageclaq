@@ -33,6 +33,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Vote,
   Users,
   Calendar,
@@ -46,6 +52,8 @@ import {
   ListPlus,
   Trash2,
   BarChart3,
+  MoreVertical,
+  Edit,
 } from "lucide-react";
 import { useElections, useCreateElection, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -178,6 +186,9 @@ export default function ElectionsPage() {
   const [endsAt, setEndsAt] = useState("");
   const [createError, setCreateError] = useState("");
 
+  const [editElectionId, setEditElectionId] = useState<string | null>(null);
+  const [deletingElectionId, setDeletingElectionId] = useState<string | null>(null);
+
   const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null);
 
   // Add candidate dialog
@@ -275,6 +286,28 @@ export default function ElectionsPage() {
       return;
     }
     setCreateError("");
+
+    // Edit mode
+    if (editElectionId) {
+      try {
+        const { error } = await supabase.from('elections').update({
+          title: elTitle.trim(),
+          description: elDescription.trim() || null,
+          election_type: elType,
+          starts_at: new Date(startsAt).toISOString(),
+          ends_at: new Date(endsAt).toISOString(),
+        }).eq('id', editElectionId);
+        if (error) { setCreateError(error.message); return; }
+        queryClient.invalidateQueries({ queryKey: ["elections"] });
+        setShowCreate(false);
+        setEditElectionId(null);
+        resetCreateForm();
+      } catch (err) {
+        setCreateError((err as Error).message || tc("error"));
+      }
+      return;
+    }
+
     try {
       await createElection.mutateAsync({
         title: elTitle.trim(),
@@ -515,6 +548,31 @@ export default function ElectionsPage() {
                         )}
                         {t(`status${election.status.charAt(0).toUpperCase() + election.status.slice(1)}` as Parameters<typeof t>[0])}
                       </Badge>
+                      {isAdmin && election.status === "draft" && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none">
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setElTitle(election.title || "");
+                              setElDescription(election.description || "");
+                              setElType(election.election_type);
+                              setStartsAt(election.starts_at ? new Date(election.starts_at).toISOString().slice(0,16) : "");
+                              setEndsAt(election.ends_at ? new Date(election.ends_at).toISOString().slice(0,16) : "");
+                              setEditElectionId(election.id);
+                              setShowCreate(true);
+                            }}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              {tc("edit")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => setDeletingElectionId(election.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {tc("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -945,6 +1003,25 @@ export default function ElectionsPage() {
               {optionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("addOption")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Delete Election Confirmation Dialog ──────────────────────────────── */}
+      <Dialog open={!!deletingElectionId} onOpenChange={() => setDeletingElectionId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tc("delete")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("deleteElectionConfirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingElectionId(null)}>{tc("cancel")}</Button>
+            <Button variant="destructive" onClick={async () => {
+              if (!deletingElectionId) return;
+              await supabase.from('elections').delete().eq('id', deletingElectionId);
+              queryClient.invalidateQueries({ queryKey: ["elections"] });
+              setDeletingElectionId(null);
+            }}>{tc("delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

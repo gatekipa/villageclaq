@@ -1839,7 +1839,9 @@
     "deadline": "Deadline",
     "past": "Past",
     "current": "Current",
-    "future": "Future"
+    "future": "Future",
+    "endCycle": "End Cycle",
+    "endCycleConfirm": "Are you sure you want to end this cycle? This will mark it as completed."
   },
   "elections": {
     "title": "Elections & Voting",
@@ -1918,7 +1920,8 @@
     "voteNow": "Vote Now",
     "manageElection": "Manage",
     "confirmVote": "Confirm your vote",
-    "noVotes": "No votes yet"
+    "noVotes": "No votes yet",
+    "deleteElectionConfirm": "Delete this draft election? This cannot be undone."
   },
   "documentVault": {
     "title": "Document Vault",

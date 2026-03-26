@@ -25,6 +25,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   CircleDollarSign,
   Users,
   Repeat,
@@ -32,9 +38,14 @@ import {
   Gavel,
   Plus,
   Loader2,
+  MoreVertical,
+  Edit,
+  XCircle,
 } from "lucide-react";
 import { useSavingsCycles, useCreateSavingsCycle } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 type RotationType = "sequential" | "random" | "auction";
@@ -66,6 +77,8 @@ export default function SavingsCirclePage() {
   const { data: cycles, isLoading, isError, error, refetch } = useSavingsCycles();
   const createCycle = useCreateSavingsCycle();
 
+  const queryClient = useQueryClient();
+
   // Create dialog state
   const [showCreate, setShowCreate] = useState(false);
   const [cycleName, setCycleName] = useState("");
@@ -75,6 +88,8 @@ export default function SavingsCirclePage() {
   const [startDate, setStartDate] = useState("");
   const [rotationType, setRotationType] = useState<string>("sequential");
   const [createError, setCreateError] = useState("");
+  const [editCycleId, setEditCycleId] = useState<string | null>(null);
+  const [endingCycleId, setEndingCycleId] = useState<string | null>(null);
 
   const resetCreateForm = () => {
     setCycleName("");
@@ -92,6 +107,26 @@ export default function SavingsCirclePage() {
       return;
     }
     setCreateError("");
+
+    // Edit mode
+    if (editCycleId) {
+      const supabase = createClient();
+      const { error } = await supabase.from('savings_cycles').update({
+        name: cycleName.trim(),
+        amount: Number(amount),
+        frequency,
+        total_rounds: Number(totalRounds),
+        start_date: startDate,
+        rotation_type: rotationType,
+      }).eq('id', editCycleId);
+      if (error) { setCreateError(error.message); return; }
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      setShowCreate(false);
+      setEditCycleId(null);
+      resetCreateForm();
+      return;
+    }
+
     try {
       await createCycle.mutateAsync({
         name: cycleName.trim(),
@@ -280,7 +315,7 @@ export default function SavingsCirclePage() {
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle className="text-lg">{name}</CardTitle>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="default" className={statusColor}>
                       {t(`status${status.charAt(0).toUpperCase() + status.slice(1)}` as Parameters<typeof t>[0])}
                     </Badge>
@@ -289,6 +324,35 @@ export default function SavingsCirclePage() {
                       <RotationIcon className="size-3" />
                       {t(rotType)}
                     </Badge>
+                    {isAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none">
+                          <MoreVertical className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setCycleName(name);
+                            setAmount(String(amt));
+                            setFrequency(freq);
+                            setTotalRounds(String(totalRnds));
+                            setStartDate((cycle.start_date as string) || "");
+                            setRotationType(rotType);
+                            setEditCycleId(id);
+                            setShowCreate(true);
+                          }}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            {tc("edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setEndingCycleId(id)}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            {t("endCycle")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -450,6 +514,26 @@ export default function SavingsCirclePage() {
               {createCycle.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {tc("create")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* End Cycle Confirmation Dialog */}
+      <Dialog open={!!endingCycleId} onOpenChange={() => setEndingCycleId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("endCycle")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("endCycleConfirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEndingCycleId(null)}>{tc("cancel")}</Button>
+            <Button variant="destructive" onClick={async () => {
+              if (!endingCycleId) return;
+              const supabase = createClient();
+              await supabase.from('savings_cycles').update({ status: 'completed' }).eq('id', endingCycleId);
+              queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+              setEndingCycleId(null);
+            }}>{tc("confirm")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -20,6 +20,7 @@ import {
   Save,
   Plus,
   UserPlus,
+  Camera,
 } from "lucide-react";
 import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -54,6 +55,7 @@ export default function GroupSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [assignPositionId, setAssignPositionId] = useState<string | null>(null);
   const [newPositionTitle, setNewPositionTitle] = useState("");
   const [addingPosition, setAddingPosition] = useState(false);
@@ -178,15 +180,46 @@ export default function GroupSettingsPage() {
                 <div className="space-y-4">
                   {/* Logo + Name */}
                   <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-xl font-bold text-primary">
-                      {groupData.logo_url ? (
-                        <img
-                          src={groupData.logo_url as string}
-                          alt=""
-                          className="h-16 w-16 rounded-2xl object-cover"
-                        />
-                      ) : (
-                        getInitials((groupData.name as string) || "G")
+                    <div className="relative">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-xl font-bold text-primary overflow-hidden">
+                        {groupData.logo_url ? (
+                          <img src={groupData.logo_url as string} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+                        ) : (
+                          getInitials((groupData.name as string) || "G")
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <>
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            id="logo-upload"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !groupId) return;
+                              if (file.size > 2 * 1024 * 1024) return;
+                              setUploadingLogo(true);
+                              try {
+                                const supabase = createClient();
+                                const path = `logos/${groupId}/${Date.now()}-${file.name}`;
+                                const { error: upErr } = await supabase.storage.from("group-documents").upload(path, file, { upsert: true });
+                                if (!upErr) {
+                                  const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
+                                  await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId);
+                                  queryClient.invalidateQueries({ queryKey: ["group-settings"] });
+                                }
+                              } catch {} finally { setUploadingLogo(false); }
+                            }}
+                          />
+                          <button
+                            className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white text-xs shadow-sm hover:bg-emerald-700 dark:border-slate-900"
+                            onClick={() => document.getElementById("logo-upload")?.click()}
+                            disabled={uploadingLogo}
+                          >
+                            {uploadingLogo ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                          </button>
+                        </>
                       )}
                     </div>
                     <div className="flex-1">

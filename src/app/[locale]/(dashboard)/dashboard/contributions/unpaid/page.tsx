@@ -61,6 +61,7 @@ export default function UnpaidReportPage() {
   const [sortBy, setSortBy] = useState<"amount" | "name">("amount");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sendingReminders, setSendingReminders] = useState(false);
+  const [remindersSentCount, setRemindersSentCount] = useState(0);
 
   const { data: pendingObligations, isLoading, isError, refetch } = useObligations({ status: "pending" });
 
@@ -127,7 +128,7 @@ export default function UnpaidReportPage() {
         is_read: false,
       }));
       await supabase.from("notifications").insert(notifications);
-      alert(`${validMembers.length} reminder(s) sent.`);
+      setRemindersSentCount(validMembers.length);
     } finally {
       setSendingReminders(false);
     }
@@ -144,7 +145,7 @@ export default function UnpaidReportPage() {
       body: `You have an outstanding balance of ${formatCurrency(member.totalOutstanding, currency)}.`,
       is_read: false,
     });
-    alert(`Reminder sent to ${member.name}.`);
+    setRemindersSentCount(1);
   }
 
   function handleExportCSV() {
@@ -174,6 +175,17 @@ export default function UnpaidReportPage() {
 
   return (
     <AdminGuard><div className="space-y-6">
+      {/* Success banner */}
+      {remindersSentCount > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            ✅ {remindersSentCount} reminder(s) sent successfully
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => setRemindersSentCount(0)} className="h-7 text-xs">
+            {t("common.close")}
+          </Button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

@@ -46,8 +46,10 @@ const standingStyles = {
   banned: { bg: "bg-red-900/10", text: "text-red-900 dark:text-red-300", dot: "bg-red-900" },
 };
 
+import { formatAmount } from "@/lib/currencies";
+
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 0 }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 function useMemberDetail(membershipId: string | null) {
@@ -256,12 +258,21 @@ export default function MemberDetailPage() {
               </div>
               {/* Contact info - respect privacy */}
               <div className="mt-4 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-4">
-                {privacySettings.show_phone && profile?.phone ? (
-                  <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{profile.phone as string}</span>
-                ) : null}
+                {(() => {
+                  // Show proxy phone or regular phone based on privacy
+                  const proxyPhone = (member.privacy_settings as Record<string, string> | null)?.proxy_phone;
+                  const regularPhone = privacySettings.show_phone && profile?.phone;
+                  const phoneToShow = member.is_proxy ? proxyPhone : regularPhone;
+                  return phoneToShow ? (
+                    <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{String(phoneToShow)}</span>
+                  ) : null;
+                })()}
+                {member.is_proxy && (
+                  <Badge variant="outline" className="text-xs">{t("members.proxy")}</Badge>
+                )}
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5" />
-                  {t("members.joinedDate")}: {new Date(member.joined_at).toLocaleDateString()}
+                  {t("members.joinedDate")}: {new Date(member.joined_at as string).toLocaleDateString()}
                 </span>
               </div>
             </div>

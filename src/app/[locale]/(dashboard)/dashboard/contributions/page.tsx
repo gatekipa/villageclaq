@@ -40,12 +40,10 @@ import {
 } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
+import { formatAmount, CURRENCIES } from "@/lib/currencies";
+
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount);
+  return formatAmount(amount, currency);
 }
 
 const frequencyLabels: Record<string, string> = {
@@ -222,11 +220,11 @@ export default function ContributionsPage() {
                       onChange={(e) => setFormCurrency(e.target.value)}
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
                     >
-                      <option value="XAF">XAF (FCFA)</option>
-                      <option value="USD">USD ($)</option>
-                      <option value="EUR">EUR (&euro;)</option>
-                      <option value="GBP">GBP (&pound;)</option>
-                      <option value="CAD">CAD ($)</option>
+                      {CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code} ({c.symbol})
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="space-y-2">

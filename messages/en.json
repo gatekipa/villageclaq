@@ -65,7 +65,13 @@
     "assignee": "Assignee",
     "notesOptional": "Optional notes...",
     "saving": "Saving...",
-    "saved": "Saved!"
+    "saved": "Saved!",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "confirmDeleteTitle": "Confirm Delete",
+    "confirmDeleteDesc": "This action cannot be undone. Are you sure?",
+    "unpublish": "Unpublish",
+    "cancelled": "Cancelled"
   },
   "checkin": {
     "verifying": "Verifying your membership...",
@@ -549,7 +555,12 @@
     "paidSoFar": "Paid so far",
     "sendReminder": "Send Reminder",
     "sendAllReminders": "Send All Reminders",
-    "financeDashboard": "Finance Dashboard"
+    "financeDashboard": "Finance Dashboard",
+    "editType": "Edit Contribution Type",
+    "editTypeDesc": "Update this contribution type",
+    "updateType": "Update Type",
+    "deleteType": "Delete Type",
+    "deleteTypeConfirm": "This will permanently delete this contribution type. Are you sure?"
   },
   "finances": {
     "title": "Financial Dashboard",
@@ -686,7 +697,10 @@
     "eventCreated": "Event created successfully",
     "eventUpdated": "Event updated successfully",
     "eventDeleted": "Event deleted",
-    "rsvpUpdated": "RSVP updated"
+    "rsvpUpdated": "RSVP updated",
+    "deleteEventConfirm": "This will permanently delete this event. Are you sure?",
+    "eventCancelled": "Event cancelled",
+    "updateEvent": "Update Event"
   },
   "attendance": {
     "title": "Attendance",
@@ -1721,6 +1735,11 @@
     "noAnnouncementsDesc": "Create your first announcement to reach group members",
     "announcementSent": "Announcement sent successfully",
     "announcementScheduled": "Announcement scheduled",
+    "editAnnouncement": "Edit Announcement",
+    "updateAnnouncement": "Update Announcement",
+    "unpublishAnnouncement": "Unpublish",
+    "deleteAnnouncement": "Delete Announcement",
+    "deleteAnnouncementConfirm": "This will permanently delete this announcement. Are you sure?",
     "saveDraft": "Save Draft",
     "draft": "Draft",
     "scheduled": "Scheduled",
@@ -1883,7 +1902,17 @@
     "selectType": "Select type",
     "selectPosition": "Select position",
     "motionAutoOptions": "Yes / No / Abstain options will be added automatically",
-    "forPosition": "for {position}"
+    "forPosition": "for {position}",
+    "submitVote": "Submit Vote",
+    "voteRecorded": "Your vote has been recorded",
+    "voterTurnout": "Voter Turnout",
+    "selectMember": "Select member",
+    "totalElections": "Total Elections",
+    "completed": "Completed",
+    "voteNow": "Vote Now",
+    "manageElection": "Manage",
+    "confirmVote": "Confirm your vote",
+    "noVotes": "No votes yet"
   },
   "documentVault": {
     "title": "Document Vault",

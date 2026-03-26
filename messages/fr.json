@@ -65,7 +65,13 @@
     "assignee": "Responsable",
     "notesOptional": "Notes optionnelles...",
     "saving": "Enregistrement...",
-    "saved": "Enregistré !"
+    "saved": "Enregistré !",
+    "deactivate": "Désactiver",
+    "activate": "Activer",
+    "confirmDeleteTitle": "Confirmer la suppression",
+    "confirmDeleteDesc": "Cette action est irréversible. Êtes-vous sûr ?",
+    "unpublish": "Dépublier",
+    "cancelled": "Annulé"
   },
   "checkin": {
     "verifying": "Vérification de votre adhésion...",
@@ -549,7 +555,12 @@
     "paidSoFar": "Payé jusqu'ici",
     "sendReminder": "Envoyer un rappel",
     "sendAllReminders": "Envoyer tous les rappels",
-    "financeDashboard": "Tableau de bord financier"
+    "financeDashboard": "Tableau de bord financier",
+    "editType": "Modifier le type de cotisation",
+    "editTypeDesc": "Mettre à jour ce type de cotisation",
+    "updateType": "Mettre à jour",
+    "deleteType": "Supprimer le type",
+    "deleteTypeConfirm": "Ceci supprimera définitivement ce type de cotisation. Êtes-vous sûr ?"
   },
   "finances": {
     "title": "Tableau de bord financier",
@@ -686,7 +697,10 @@
     "eventCreated": "Événement créé avec succès",
     "eventUpdated": "Événement mis à jour avec succès",
     "eventDeleted": "Événement supprimé",
-    "rsvpUpdated": "RSVP mis à jour"
+    "rsvpUpdated": "RSVP mis à jour",
+    "deleteEventConfirm": "Ceci supprimera définitivement cet événement. Êtes-vous sûr ?",
+    "eventCancelled": "Événement annulé",
+    "updateEvent": "Mettre à jour"
   },
   "attendance": {
     "title": "Présence",
@@ -1678,6 +1692,11 @@
     "noAnnouncementsDesc": "Créez votre première annonce pour joindre les membres du groupe",
     "announcementSent": "Annonce envoyée avec succès",
     "announcementScheduled": "Annonce planifiée",
+    "editAnnouncement": "Modifier l'annonce",
+    "updateAnnouncement": "Mettre à jour l'annonce",
+    "unpublishAnnouncement": "Dépublier",
+    "deleteAnnouncement": "Supprimer l'annonce",
+    "deleteAnnouncementConfirm": "Ceci supprimera définitivement cette annonce. Êtes-vous sûr ?",
     "saveDraft": "Enregistrer le brouillon",
     "draft": "Brouillon",
     "scheduled": "Planifié",
@@ -1840,7 +1859,17 @@
     "selectType": "Sélectionner le type",
     "selectPosition": "Sélectionner le poste",
     "motionAutoOptions": "Les options Oui / Non / Abstention seront ajoutées automatiquement",
-    "forPosition": "pour {position}"
+    "forPosition": "pour {position}",
+    "submitVote": "Soumettre le vote",
+    "voteRecorded": "Votre vote a été enregistré",
+    "voterTurnout": "Taux de participation",
+    "selectMember": "Sélectionner un membre",
+    "totalElections": "Total des élections",
+    "completed": "Terminé",
+    "voteNow": "Voter maintenant",
+    "manageElection": "Gérer",
+    "confirmVote": "Confirmez votre vote",
+    "noVotes": "Aucun vote encore"
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

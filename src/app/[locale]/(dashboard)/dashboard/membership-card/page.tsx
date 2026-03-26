@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Share2, QrCode, Calendar, Shield } from "lucide-react";
+import { Download, Share2, QrCode, Calendar, Shield, Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import html2canvas from "html2canvas";
 import { DashboardSkeleton, EmptyState } from "@/components/ui/page-skeleton";
 
 /** Decorative QR code placeholder using a CSS grid of small squares */
@@ -92,23 +94,51 @@ export default function MembershipCardPage() {
   const groupType = currentGroup?.group_type || "—";
   const currency = currentGroup?.currency || "—";
 
-  function handleDownload() {
+  const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  async function handleDownload() {
     const card = document.getElementById("membership-card");
     if (!card) return;
-    // Use browser print as fallback for now
-    window.print();
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(card, { scale: 2, backgroundColor: null, useCORS: true });
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `VillageClaq_Card_${fullName.replace(/\s+/g, "_")}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      // Fallback to print
+      window.print();
+    } finally {
+      setDownloading(false);
+    }
   }
 
   async function handleShare() {
-    const shareData = {
-      title: `${fullName} - ${groupName}`,
-      text: `${fullName} is a member of ${groupName} on VillageClaq`,
-      url: `https://villageclaq.vercel.app/verify/${currentMembership?.id || ""}`,
-    };
-    if (navigator.share) {
-      await navigator.share(shareData);
-    } else {
-      await navigator.clipboard.writeText(shareData.url);
+    const card = document.getElementById("membership-card");
+    setSharing(true);
+    try {
+      if (card && navigator.share) {
+        const canvas = await html2canvas(card, { scale: 2, backgroundColor: null });
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+        if (blob) {
+          await navigator.share({
+            title: `${fullName} - ${groupName}`,
+            text: `${fullName} is a member of ${groupName} on VillageClaq`,
+            files: [new File([blob], "membership-card.png", { type: "image/png" })],
+          });
+          return;
+        }
+      }
+      // Fallback: copy verification URL
+      const url = `https://villageclaq.vercel.app/verify/${currentMembership?.id || ""}`;
+      await navigator.clipboard.writeText(url);
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -199,12 +229,12 @@ export default function MembershipCardPage() {
 
         {/* Action buttons */}
         <div className="mt-4 space-y-2">
-          <Button className="w-full" onClick={handleDownload}>
-            <Download className="mr-2 h-4 w-4" />
+          <Button className="w-full" onClick={handleDownload} disabled={downloading}>
+            {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             {t("downloadCard")}
           </Button>
-          <Button variant="outline" className="w-full" onClick={handleShare}>
-            <Share2 className="mr-2 h-4 w-4" />
+          <Button variant="outline" className="w-full" onClick={handleShare} disabled={sharing}>
+            {sharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Share2 className="mr-2 h-4 w-4" />}
             {t("shareCard")}
           </Button>
         </div>

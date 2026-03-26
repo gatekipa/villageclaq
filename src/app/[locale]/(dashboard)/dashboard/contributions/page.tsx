@@ -27,7 +27,21 @@ import {
   AlertTriangle,
   Calendar,
   BarChart3,
+  MoreVertical,
+  Edit,
+  Trash2,
+  XCircle,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useGroup } from "@/lib/group-context";
 import {
   useContributionTypes,
@@ -58,8 +72,14 @@ export default function ContributionsPage() {
   const { currentGroup, isAdmin } = useGroup();
   const { data: contributionTypes, isLoading, isError, refetch } = useContributionTypes();
   const createMutation = useCreateContributionType();
+  const queryClient = useQueryClient();
 
   const [showCreate, setShowCreate] = useState(false);
+  const [editTypeId, setEditTypeId] = useState<string | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formNameFr, setFormNameFr] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -109,6 +129,69 @@ export default function ContributionsPage() {
       resetForm();
     } catch {
       // error is available via createMutation.error
+    }
+  }
+
+  function openEdit(type: Record<string, unknown>) {
+    setEditTypeId(type.id as string);
+    setFormName(type.name as string);
+    setFormNameFr((type.name_fr as string) || "");
+    setFormDescription((type.description as string) || "");
+    setFormAmount(String(type.amount));
+    setFormCurrency((type.currency as string) || currentGroup?.currency || "XAF");
+    setFormFrequency((type.frequency as string) || "monthly");
+    setFormDueDay(type.due_day ? String(type.due_day) : "");
+    setShowEditDialog(true);
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTypeId || !formName || !formAmount) return;
+    setEditSaving(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("contribution_types")
+        .update({
+          name: formName,
+          name_fr: formNameFr || null,
+          description: formDescription || null,
+          amount: Number(formAmount),
+          currency: formCurrency,
+          frequency: formFrequency,
+          due_day: formDueDay ? Number(formDueDay) : null,
+        })
+        .eq("id", editTypeId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+      setShowEditDialog(false);
+      resetForm();
+      setEditTypeId(null);
+    } catch {
+      // error handled
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleToggleActive(typeId: string, currentActive: boolean) {
+    const supabase = createClient();
+    await supabase
+      .from("contribution_types")
+      .update({ is_active: !currentActive })
+      .eq("id", typeId);
+    await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+  }
+
+  async function handleDelete(typeId: string) {
+    setDeletingId(typeId);
+    try {
+      const supabase = createClient();
+      await supabase.from("contribution_types").delete().eq("id", typeId);
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+    } finally {
+      setDeletingId(null);
+      setShowDeleteConfirm(null);
     }
   }
 
@@ -324,6 +407,30 @@ export default function ContributionsPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">{type.name_fr}</p>
                   )}
                 </div>
+                {isAdmin && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" />}>
+                      <MoreVertical className="h-4 w-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(type)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        {t("common.edit")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleToggleActive(type.id, type.is_active)}>
+                        {type.is_active ? (
+                          <><XCircle className="mr-2 h-4 w-4" />{t("common.deactivate")}</>
+                        ) : (
+                          <><CheckCircle2 className="mr-2 h-4 w-4" />{t("common.activate")}</>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowDeleteConfirm(type.id)} className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t("common.delete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
                 {type.description && (
@@ -358,6 +465,78 @@ export default function ContributionsPage() {
           ))}
         </div>
       )}
+      {/* Edit Type Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) { resetForm(); setEditTypeId(null); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogTitle>{t("contributions.editType")}</DialogTitle>
+          <DialogDescription>{t("contributions.editTypeDesc")}</DialogDescription>
+          <form className="mt-4 space-y-4" onSubmit={handleEditSave}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">{t("contributions.nameEn")}</Label>
+                <Input id="edit-name" required value={formName} onChange={(e) => setFormName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-nameFr">{t("contributions.nameFr")}</Label>
+                <Input id="edit-nameFr" value={formNameFr} onChange={(e) => setFormNameFr(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">{t("contributions.description")}</Label>
+              <Textarea id="edit-description" rows={2} value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-amount">{t("contributions.amount")}</Label>
+                <Input id="edit-amount" type="number" min="0" step="100" required value={formAmount} onChange={(e) => setFormAmount(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-currency">{t("contributions.currency")}</Label>
+                <select id="edit-currency" value={formCurrency} onChange={(e) => setFormCurrency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-frequency">{t("contributions.frequency")}</Label>
+                <select id="edit-frequency" value={formFrequency} onChange={(e) => setFormFrequency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
+                  <option value="one_time">{t("contributions.oneTime")}</option>
+                  <option value="monthly">{t("contributions.monthly")}</option>
+                  <option value="quarterly">{t("contributions.quarterly")}</option>
+                  <option value="annual">{t("contributions.annual")}</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-dueDay">{t("contributions.dueDay")}</Label>
+              <Input id="edit-dueDay" type="number" min="1" max="31" value={formDueDay} onChange={(e) => setFormDueDay(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
+              <Button type="submit" disabled={editSaving}>
+                {editSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {t("contributions.updateType")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) setShowDeleteConfirm(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("common.confirmDeleteTitle")}</DialogTitle>
+          <DialogDescription>{t("contributions.deleteTypeConfirm")}</DialogDescription>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
+            <Button variant="destructive" disabled={!!deletingId} onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}>
+              {deletingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div></AdminGuard>
   );
 }

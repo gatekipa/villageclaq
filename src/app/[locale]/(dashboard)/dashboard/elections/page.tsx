@@ -888,7 +888,7 @@ export default function ElectionsPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>{t("selectMember")}</Label>
-              <Select value={candidateMembershipId} onValueChange={setCandidateMembershipId}>
+              <Select value={candidateMembershipId} onValueChange={(v) => setCandidateMembershipId(v ?? "")}>
                 <SelectTrigger><SelectValue placeholder={t("selectMember")} /></SelectTrigger>
                 <SelectContent>
                   {(members || []).map((member: Record<string, unknown>) => {

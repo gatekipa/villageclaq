@@ -18,7 +18,17 @@ import {
   Eye,
   CheckCheck,
   Search,
+  MoreVertical,
+  Edit,
+  Trash2,
+  EyeOff,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Card,
   CardContent,
@@ -134,12 +144,18 @@ function formatDate(dateStr: string) {
 
 export default function AnnouncementsPage() {
   const t = useTranslations("communications");
+  const tc = useTranslations("common");
   const { groupId, user } = useGroup();
   const queryClient = useQueryClient();
   const { data: announcements, isLoading, error, refetch } = useAnnouncements();
   const { data: membersList } = useMembers();
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+
+  const [editAnnId, setEditAnnId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [titleEn, setTitleEn] = useState("");
@@ -230,6 +246,60 @@ export default function AnnouncementsPage() {
     }
   }
 
+  function openEditAnnouncement(ann: Record<string, unknown>) {
+    setEditAnnId(ann.id as string);
+    setTitleEn((ann.title as string) || "");
+    setTitleFr((ann.title_fr as string) || "");
+    setContentEn((ann.content as string) || "");
+    setContentFr((ann.content_fr as string) || "");
+    setDialogOpen(true);
+  }
+
+  async function handleEditSave(asDraft = false) {
+    if (!editAnnId || !titleEn.trim() || !groupId) return;
+    setEditSaving(true);
+    setMutationError(null);
+    try {
+      const supabase = createClient();
+      const { error: updateError } = await supabase
+        .from("announcements")
+        .update({
+          title: titleEn,
+          title_fr: titleFr || null,
+          content: contentEn,
+          content_fr: contentFr || null,
+        })
+        .eq("id", editAnnId);
+      if (updateError) throw updateError;
+      await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+      setDialogOpen(false);
+      resetForm();
+      setEditAnnId(null);
+    } catch (err) {
+      setMutationError((err as Error).message);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleUnpublish(annId: string) {
+    const supabase = createClient();
+    await supabase.from("announcements").update({ sent_at: null }).eq("id", annId);
+    await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+  }
+
+  async function handleDeleteAnnouncement(annId: string) {
+    setDeletingId(annId);
+    try {
+      const supabase = createClient();
+      await supabase.from("announcements").delete().eq("id", annId);
+      await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+    } finally {
+      setDeletingId(null);
+      setShowDeleteConfirm(null);
+    }
+  }
+
   const memberNames = (membersList || []).map((m: Record<string, unknown>) => {
     const profile = (m.profile || m.profiles) as Record<string, unknown> | undefined;
     return (profile?.full_name as string) || (m.display_name as string) || "Unknown";
@@ -255,7 +325,7 @@ export default function AnnouncementsPage() {
             {t("announcementsSubtitle")}
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { resetForm(); setEditAnnId(null); } }}>
           <DialogTrigger
             render={
               <Button>
@@ -266,7 +336,7 @@ export default function AnnouncementsPage() {
           />
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{t("createAnnouncement")}</DialogTitle>
+              <DialogTitle>{editAnnId ? t("editAnnouncement") : t("createAnnouncement")}</DialogTitle>
               <DialogDescription>
                 {t("announcementsSubtitle")}
               </DialogDescription>
@@ -464,14 +534,23 @@ export default function AnnouncementsPage() {
             )}
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => handleSend(true)} disabled={saving || !titleEn.trim()}>
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
-                <span className="ml-1">{t("saveDraft")}</span>
-              </Button>
-              <Button onClick={() => handleSend(false)} disabled={saving || !titleEn.trim()}>
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                <span className="ml-1">{t("sendAnnouncement")}</span>
-              </Button>
+              {editAnnId ? (
+                <Button onClick={() => handleEditSave()} disabled={editSaving || !titleEn.trim()}>
+                  {editSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+                  <span className="ml-1">{t("updateAnnouncement")}</span>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => handleSend(true)} disabled={saving || !titleEn.trim()}>
+                    {saving ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+                    <span className="ml-1">{t("saveDraft")}</span>
+                  </Button>
+                  <Button onClick={() => handleSend(false)} disabled={saving || !titleEn.trim()}>
+                    {saving ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                    <span className="ml-1">{t("sendAnnouncement")}</span>
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -508,8 +587,29 @@ export default function AnnouncementsPage() {
                         {announcement.content as string}
                       </CardDescription>
                     </div>
-                    <div className="shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       {getStatusBadge(announcement, t)}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+                          <MoreVertical className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditAnnouncement(announcement)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            {t("editAnnouncement")}
+                          </DropdownMenuItem>
+                          {(announcement.sent_at as string | null) && (
+                            <DropdownMenuItem onClick={() => handleUnpublish(announcement.id as string)}>
+                              <EyeOff className="mr-2 h-4 w-4" />
+                              {t("unpublishAnnouncement")}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => setShowDeleteConfirm(announcement.id as string)} className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("deleteAnnouncement")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </CardHeader>
@@ -544,6 +644,25 @@ export default function AnnouncementsPage() {
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) setShowDeleteConfirm(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("deleteAnnouncement")}</DialogTitle>
+            <DialogDescription>{t("deleteAnnouncementConfirm")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" disabled={!!deletingId} onClick={() => showDeleteConfirm && handleDeleteAnnouncement(showDeleteConfirm)}>
+              {deletingId ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              {t("deleteAnnouncement")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div></AdminGuard>
   );
 }

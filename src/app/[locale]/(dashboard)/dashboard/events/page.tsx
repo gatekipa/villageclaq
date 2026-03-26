@@ -32,7 +32,20 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  MoreVertical,
+  Edit,
+  Trash2,
+  XCircle,
+  Loader2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEvents, useCreateEvent } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -64,8 +77,13 @@ export default function EventsPage() {
   const { isAdmin } = useGroup();
   const { data: events, isLoading, isError, error, refetch } = useEvents();
   const createEvent = useCreateEvent();
+  const queryClient = useQueryClient();
 
   const [view, setView] = useState<"calendar" | "list">("list");
+  const [editEventId, setEditEventId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
@@ -148,6 +166,75 @@ export default function EventsPage() {
       // error handled by mutation state
     }
   };
+
+  function openEditEvent(event: Record<string, unknown>) {
+    setEditEventId(event.id as string);
+    setFormTitle(event.title as string);
+    setFormTitleFr((event.title_fr as string) || "");
+    setFormDescription((event.description as string) || "");
+    setFormEventType((event.event_type as EventType) || "meeting");
+    const startsAtDate = new Date(event.starts_at as string);
+    setFormStartsAt(startsAtDate.toISOString().slice(0, 16));
+    if (event.ends_at) {
+      const endsAtDate = new Date(event.ends_at as string);
+      setFormEndsAt(endsAtDate.toISOString().slice(0, 16));
+    } else {
+      setFormEndsAt("");
+    }
+    setFormLocation((event.location as string) || "");
+    setFormIsRecurring(!!(event.is_recurring));
+    setFormRecurrenceRule((event.recurrence_rule as string) || "monthly");
+    setShowCreateDialog(true);
+  }
+
+  async function handleEditEvent() {
+    if (!editEventId || !formTitle || !formStartsAt) return;
+    setEditSaving(true);
+    try {
+      const supabase = createClient();
+      const { error: updateError } = await supabase
+        .from("events")
+        .update({
+          title: formTitle,
+          title_fr: formTitleFr || null,
+          description: formDescription || null,
+          event_type: formEventType,
+          starts_at: new Date(formStartsAt).toISOString(),
+          ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : null,
+          location: formLocation || null,
+          is_recurring: formIsRecurring,
+          recurrence_rule: formIsRecurring ? formRecurrenceRule : null,
+        })
+        .eq("id", editEventId);
+      if (updateError) throw updateError;
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      setShowCreateDialog(false);
+      resetForm();
+      setEditEventId(null);
+    } catch {
+      // error handled
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleCancelEvent(eventId: string) {
+    const supabase = createClient();
+    await supabase.from("events").update({ status: "cancelled" }).eq("id", eventId);
+    await queryClient.invalidateQueries({ queryKey: ["events"] });
+  }
+
+  async function handleDeleteEvent(eventId: string) {
+    setDeletingId(eventId);
+    try {
+      const supabase = createClient();
+      await supabase.from("events").delete().eq("id", eventId);
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+    } finally {
+      setDeletingId(null);
+      setShowDeleteConfirm(null);
+    }
+  }
 
   if (isLoading) {
     return <ListSkeleton rows={5} />;
@@ -306,7 +393,7 @@ export default function EventsPage() {
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       {/* Date block + info */}
-                      <div className="flex gap-4">
+                      <div className="flex gap-4 flex-1 min-w-0">
                         <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                           <span className="text-xs font-medium text-primary">
                             {startsAt.toLocaleDateString("en", { month: "short" })}
@@ -324,6 +411,11 @@ export default function EventsPage() {
                             {isPast && (
                               <Badge variant="outline" className="text-muted-foreground">
                                 {tc("completed")}
+                              </Badge>
+                            )}
+                            {(event.status as string) === "cancelled" && (
+                              <Badge variant="destructive">
+                                {tc("cancelled")}
                               </Badge>
                             )}
                           </div>
@@ -347,6 +439,29 @@ export default function EventsPage() {
                           </div>
                         </div>
                       </div>
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" />}>
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditEvent(event)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              {tc("edit")}
+                            </DropdownMenuItem>
+                            {(event.status as string) !== "cancelled" && (
+                              <DropdownMenuItem onClick={() => handleCancelEvent(event.id as string)}>
+                                <XCircle className="mr-2 h-4 w-4" />
+                                {t("cancelEvent")}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => setShowDeleteConfirm(event.id as string)} className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {tc("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -356,11 +471,30 @@ export default function EventsPage() {
         </div>
       )}
 
-      {/* Create Event Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      {/* Delete Event Confirmation Dialog */}
+      <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) setShowDeleteConfirm(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{tc("confirmDeleteTitle")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("deleteEventConfirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" disabled={!!deletingId} onClick={() => showDeleteConfirm && handleDeleteEvent(showDeleteConfirm)}>
+              {deletingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {tc("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create/Edit Event Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => { setShowCreateDialog(open); if (!open) { resetForm(); setEditEventId(null); } }}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("createEvent")}</DialogTitle>
+            <DialogTitle>{editEventId ? t("editEvent") : t("createEvent")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -504,15 +638,25 @@ export default function EventsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
+            <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); setEditEventId(null); }}>
               {tc("cancel")}
             </Button>
-            <Button
-              onClick={handleCreateEvent}
-              disabled={!formTitle || !formStartsAt || createEvent.isPending}
-            >
-              {createEvent.isPending ? tc("loading") : t("saveEvent")}
-            </Button>
+            {editEventId ? (
+              <Button
+                onClick={handleEditEvent}
+                disabled={!formTitle || !formStartsAt || editSaving}
+              >
+                {editSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {t("updateEvent")}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleCreateEvent}
+                disabled={!formTitle || !formStartsAt || createEvent.isPending}
+              >
+                {createEvent.isPending ? tc("loading") : t("saveEvent")}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

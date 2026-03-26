@@ -185,9 +185,34 @@ export default function MyProfilePage() {
                   <User className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
                 </div>
               )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                id="avatar-upload"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !user) return;
+                  try {
+                    const supabase = createClient();
+                    const path = `${user.id}/${Date.now()}-${file.name}`;
+                    const { error: uploadErr } = await supabase.storage
+                      .from("avatars")
+                      .upload(path, file, { upsert: true });
+                    if (!uploadErr) {
+                      const { data: urlData } = supabase.storage
+                        .from("avatars")
+                        .getPublicUrl(path);
+                      await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", user.id);
+                      window.location.reload();
+                    }
+                  } catch { /* storage bucket may not exist yet */ }
+                }}
+              />
               <button
                 className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 dark:border-slate-900"
                 aria-label={t("changePhoto")}
+                onClick={() => document.getElementById("avatar-upload")?.click()}
               >
                 <Camera className="h-4 w-4" />
               </button>

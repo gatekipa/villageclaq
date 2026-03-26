@@ -169,7 +169,7 @@ export function useRecordPayment() {
   const queryClient = useQueryClient();
   const { groupId, user } = useGroup();
   return useMutation({
-    mutationFn: async (values: { membership_id: string; obligation_id?: string; contribution_type_id?: string; amount: number; currency: string; payment_method: string; reference_number?: string; notes?: string }) => {
+    mutationFn: async (values: { membership_id: string; obligation_id?: string; contribution_type_id?: string; amount: number; currency: string; payment_method: string; reference_number?: string; receipt_url?: string; notes?: string }) => {
       if (!groupId || !user) throw new Error("No group/user");
       const { data, error } = await supabase.from("payments").insert({
         ...values,

@@ -379,8 +379,13 @@ export default function ReportDetailPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Clock className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold">{t("reports.placeholder")}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{t("reports.comingInFuture")}</p>
+            <h3 className="mt-4 text-lg font-semibold">{t("reports.notEnoughData")}</h3>
+            <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
+              {reportId === "5" && "Create a savings circle and complete at least one round to see this report."}
+              {reportId === "17" && "Create multiple branches in the Enterprise section to compare their performance."}
+              {reportId === "18" && "Run at least one election and close voting to see results archived here."}
+              {reportId === "19" && "No dispute records available. This feature will be available in a future update."}
+            </p>
           </CardContent>
         </Card>
       )}

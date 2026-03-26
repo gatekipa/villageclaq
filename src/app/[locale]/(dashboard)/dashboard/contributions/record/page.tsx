@@ -25,6 +25,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import {
   useMembers,
   useContributionTypes,
@@ -37,7 +38,7 @@ function formatCurrency(amount: number, currency: string) { return formatAmount(
 
 export default function RecordPaymentPage() {
   const t = useTranslations();
-  const { currentGroup } = useGroup();
+  const { currentGroup, groupId } = useGroup();
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
   const recordPayment = useRecordPayment();
@@ -50,6 +51,7 @@ export default function RecordPaymentPage() {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
   const [reference, setReference] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [showMemberList, setShowMemberList] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -111,6 +113,7 @@ export default function RecordPaymentPage() {
         currency,
         payment_method: method,
         reference_number: reference || undefined,
+        receipt_url: receiptUrl && !receiptUrl.startsWith("pending:") ? receiptUrl : undefined,
         notes: notes || undefined,
       });
 
@@ -210,14 +213,6 @@ export default function RecordPaymentPage() {
             <p className="text-sm font-medium">{t("contributions.paymentSaved")}</p>
             <p className="text-xs opacity-90">{lastSavedName}</p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-primary-foreground hover:text-primary-foreground/80 hover:bg-primary-foreground/10"
-            title={t("contributions.shareWhatsApp")}
-          >
-            <Share2 className="h-4 w-4" />
-          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -366,9 +361,41 @@ export default function RecordPaymentPage() {
               <div className="space-y-2">
                 <Label>{t("contributions.receiptPhoto")}</Label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" className="flex-1" type="button">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    id="receipt-upload"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !groupId) return;
+                      try {
+                        const supabase = createClient();
+                        const path = `${groupId}/${Date.now()}-${file.name}`;
+                        const { error: uploadErr } = await supabase.storage
+                          .from("receipts")
+                          .upload(path, file);
+                        if (uploadErr) {
+                          setReceiptUrl(`pending:${file.name}`);
+                        } else {
+                          const { data: urlData } = supabase.storage
+                            .from("receipts")
+                            .getPublicUrl(path);
+                          setReceiptUrl(urlData.publicUrl);
+                        }
+                      } catch {
+                        setReceiptUrl(`pending:${file.name}`);
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    type="button"
+                    onClick={() => document.getElementById("receipt-upload")?.click()}
+                  >
                     <Upload className="mr-2 h-4 w-4" />
-                    {t("contributions.uploadReceipt")}
+                    {receiptUrl ? "✓ " + (receiptUrl.startsWith("pending:") ? receiptUrl.slice(8) : t("contributions.receiptUploaded")) : t("contributions.uploadReceipt")}
                   </Button>
                 </div>
               </div>

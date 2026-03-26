@@ -35,6 +35,7 @@ import {
   MessageSquare,
   ShieldCheck,
   IdCard,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
@@ -90,6 +91,7 @@ const adminSections: NavSection[] = [
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
       { key: "projects", href: "/dashboard/projects", icon: FolderKanban },
+      { key: "disputes", href: "/dashboard/disputes", icon: Scale },
     ],
   },
   {
@@ -135,6 +137,7 @@ const memberSections: NavSection[] = [
       { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },
+      { key: "disputes", href: "/dashboard/disputes", icon: Scale },
       { key: "notifications", href: "/dashboard/notifications", icon: Bell },
     ],
   },

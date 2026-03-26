@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { exportCSV } from "@/lib/export";
+import { exportPDF } from "@/lib/export-pdf";
 
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -29,6 +30,8 @@ import {
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections } from "@/lib/hooks/use-supabase-query";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton } from "@/components/ui/page-skeleton";
 
 
@@ -61,7 +64,7 @@ export default function ReportDetailPage() {
   const params = useParams();
   const reportId = params.reportId as string;
   const reportKey = `report${reportId}`;
-  const { currentGroup } = useGroup();
+  const { currentGroup, groupId } = useGroup();
   const currency = currentGroup?.currency || "XAF";
   const [minutesSearch, setMinutesSearch] = useState("");
   const [aiInsights, setAiInsights] = useState<string | null>(null);
@@ -83,6 +86,18 @@ export default function ReportDetailPage() {
   const { data: meetingMinutes, isLoading: minutesLoading } = useMeetingMinutes();
   const { data: savingsCycles } = useSavingsCycles();
   const { data: elections } = useElections();
+
+  const { data: disputes } = useQuery({
+    queryKey: ["disputes-report", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase.from("disputes").select("*").eq("group_id", groupId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
 
   // Determine loading based on report type
   const financialReports = ["1", "2", "3", "4"];
@@ -281,6 +296,23 @@ export default function ReportDetailPage() {
     badStanding: memberList.filter((m: Record<string, unknown>) => (m.standing as string) !== "good" && (m.standing as string) !== "warning").length,
   };
 
+  // Report 19: Dispute Log
+  const disputeData = (disputes || []).map((d: Record<string, unknown>) => ({
+    title: (d.title as string) || "",
+    category: (d.category as string) || "other",
+    priority: (d.priority as string) || "medium",
+    status: (d.status as string) || "open",
+    filedDate: (d.created_at as string) || "",
+    resolvedDate: (d.resolved_at as string) || "",
+    resolution: (d.resolution as string) || "",
+  }));
+  const disputeStats = {
+    total: disputeData.length,
+    open: disputeData.filter(d => d.status === "open").length,
+    resolved: disputeData.filter(d => d.status === "resolved").length,
+    resolutionRate: disputeData.length > 0 ? Math.round((disputeData.filter(d => d.status === "resolved").length / disputeData.length) * 100) : 0,
+  };
+
   // CSV export helper for current report
   function handleExportCSV() {
     let data: Record<string, unknown>[] = [];
@@ -339,6 +371,9 @@ export default function ReportDetailPage() {
     } else if (reportId === "18") {
       data = electionResultsData.map(r => ({ Title: r.title, Type: r.type, Date: r.date, Winner: r.winner, WinnerVotes: r.winnerVotes, WinnerPct: `${r.winnerPct}%`, TotalVotes: r.totalVotes }));
       filename = "election_results";
+    } else if (reportId === "19") {
+      data = disputeData.map(r => ({ Title: r.title, Category: r.category, Priority: r.priority, Status: r.status, Filed: r.filedDate, Resolved: r.resolvedDate }));
+      filename = "dispute_log";
     } else if (reportId === "16" || reportId === "20") {
       data = [{ Members: boardStats.totalMembers, Collected: boardStats.totalCollected, Expected: boardStats.totalExpected, CollectionRate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents, AvgAttendance: `${boardStats.avgAttendanceRate}%` }];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
@@ -348,11 +383,92 @@ export default function ReportDetailPage() {
   }
 
   function handleExportPDF() {
-    window.print();
+    // Build the same data as CSV export, then convert to PDF format
+    let data: Record<string, unknown>[] = [];
+    let filename = `report_${reportId}`;
+
+    if (reportId === "1") {
+      data = whoHasntPaid.map(r => ({ Name: r.name, Amount: r.amount, DaysOverdue: r.days, Items: r.items }));
+      filename = "who_hasnt_paid";
+    } else if (reportId === "2") {
+      data = [{ Collected: totalCollected, Expected: totalExpected, CollectionRate: `${collectionRate}%` }];
+      filename = "financial_summary";
+    } else if (reportId === "3") {
+      data = ledgerPayments.map((r: Record<string, unknown>) => {
+        const membership = r.membership as Record<string, unknown>;
+        const profile = (membership?.profiles as Record<string, unknown>) || {};
+        return { Name: (profile.full_name as string) || "", Amount: r.amount, Date: r.recorded_at, Method: r.payment_method };
+      });
+      filename = "contribution_ledger";
+    } else if (reportId === "4") {
+      data = Object.entries(arBuckets).map(([bucket, d]) => ({ Bucket: bucket, Amount: d.amount, Count: d.count }));
+      filename = "ar_aging";
+    } else if (reportId === "5") {
+      data = savingsCycleData.map(r => ({ Name: r.name, Status: r.status, Participants: r.participants, Round: `${r.currentRound}/${r.totalRounds}`, Amount: r.amount, Frequency: r.frequency }));
+      filename = "savings_cycles";
+    } else if (reportId === "6") {
+      data = standingData.map(r => ({ Name: r.name, Standing: r.standing }));
+      filename = "member_standing";
+    } else if (reportId === "7") {
+      data = Object.entries(matrixByMember).map(([name, yearData]) => {
+        const row: Record<string, unknown> = { Member: name };
+        sortedMatrixYears.forEach(y => { row[y] = `${(yearData[y]?.paid || 0)} / ${(yearData[y]?.due || 0)}`; });
+        return row;
+      });
+      filename = "yoy_dues_matrix";
+    } else if (reportId === "8") {
+      data = rosterData.map(r => ({ Name: r.name, Phone: r.phone, Joined: r.joined, Role: r.role, Standing: r.standing }));
+      filename = "membership_roster";
+    } else if (reportId === "9") {
+      data = renewalData.map(r => ({ Name: r.name, Joined: r.joined, Days: r.daysSinceJoin, Status: r.status }));
+      filename = "renewal_lapse";
+    } else if (reportId === "10") {
+      data = engagementData.map(r => ({ Name: r.name, Payments: r.paymentCount, Attendance: r.attendCount, Score: r.score, Level: r.level }));
+      filename = "engagement_scorecard";
+    } else if (reportId === "11") {
+      data = attendanceSummary.map(r => ({ Event: r.title, Date: r.date, Present: r.present, Total: r.total, Rate: `${r.rate}%` }));
+      filename = "attendance_summary";
+    } else if (reportId === "12") {
+      data = eventAttendanceLog.flatMap(e => e.attendees.map(a => ({ Event: e.title, Date: e.date, Member: a.name, Status: a.status })));
+      filename = "event_attendance_log";
+    } else if (reportId === "13") {
+      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total }));
+      filename = "hosting_compliance";
+    } else if (reportId === "14") {
+      data = filteredMinutes.map((m: Record<string, unknown>) => ({ Event: ((m.event as Record<string, unknown>)?.title as string) || "", Date: m.created_at, Status: m.status }));
+      filename = "minutes_archive";
+    } else if (reportId === "18") {
+      data = electionResultsData.map(r => ({ Title: r.title, Type: r.type, Date: r.date, Winner: r.winner, Votes: r.winnerVotes, Pct: `${r.winnerPct}%` }));
+      filename = "election_results";
+    } else if (reportId === "19") {
+      data = disputeData.map(r => ({ Title: r.title, Category: r.category, Priority: r.priority, Status: r.status, Filed: r.filedDate }));
+      filename = "dispute_log";
+    } else if (reportId === "16" || reportId === "20") {
+      data = [{ Members: boardStats.totalMembers, Collected: boardStats.totalCollected, Expected: boardStats.totalExpected, Rate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents }];
+      filename = reportId === "16" ? "board_packet" : "meeting_pack";
+    }
+
+    if (data.length === 0) return;
+
+    const columns = Object.keys(data[0]);
+    const rows = data.map(row => columns.map(col => {
+      const val = row[col];
+      if (val === null || val === undefined) return "-";
+      return String(val);
+    }));
+
+    exportPDF({
+      title: reportName,
+      columns,
+      rows,
+      fileName: `${filename}_${new Date().toISOString().slice(0, 10)}`,
+      groupName: currentGroup?.name || "",
+      locale: currentGroup?.locale || "en",
+    });
   }
 
   // Placeholder report IDs — only reports with no backing data model
-  const placeholderReports = ["17", "19"];
+  const placeholderReports = ["17"];
   const isPlaceholder = placeholderReports.includes(reportId);
 
   // Report 5: Savings Cycles
@@ -496,7 +612,6 @@ export default function ReportDetailPage() {
             <h3 className="mt-4 text-lg font-semibold">{t("reports.notEnoughData")}</h3>
             <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
               {reportId === "17" && "Branch comparison is available for Enterprise plans with multiple branches."}
-              {reportId === "19" && "Dispute tracking is not yet available. Member standing issues can be reviewed in the Members section."}
             </p>
           </CardContent>
         </Card>
@@ -1086,6 +1201,60 @@ export default function ReportDetailPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </CardContent></Card>
+      )}
+
+      {/* Report 19: Dispute Log */}
+      {reportId === "19" && (
+        <Card><CardContent className="pt-6">
+          {disputeData.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">No disputes found.</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold">{disputeStats.total}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-600">{disputeStats.open}</p>
+                  <p className="text-xs text-muted-foreground">Open</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-600">{disputeStats.resolved}</p>
+                  <p className="text-xs text-muted-foreground">Resolved</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold">{disputeStats.resolutionRate}%</p>
+                  <p className="text-xs text-muted-foreground">Resolution Rate</p>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b">
+                    <th className="text-left py-2 px-3 font-semibold">Title</th>
+                    <th className="text-left py-2 px-3 font-semibold">Category</th>
+                    <th className="text-left py-2 px-3 font-semibold">Priority</th>
+                    <th className="text-left py-2 px-3 font-semibold">Status</th>
+                    <th className="text-left py-2 px-3 font-semibold">Filed</th>
+                    <th className="text-left py-2 px-3 font-semibold">Resolved</th>
+                  </tr></thead>
+                  <tbody>
+                    {disputeData.map((d, i) => (
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="py-2 px-3 font-medium">{d.title}</td>
+                        <td className="py-2 px-3"><Badge variant="outline">{d.category}</Badge></td>
+                        <td className="py-2 px-3"><Badge variant={d.priority === "urgent" ? "destructive" : "secondary"}>{d.priority}</Badge></td>
+                        <td className="py-2 px-3"><Badge variant={d.status === "resolved" ? "default" : "outline"}>{d.status}</Badge></td>
+                        <td className="py-2 px-3">{d.filedDate ? new Date(d.filedDate).toLocaleDateString() : "—"}</td>
+                        <td className="py-2 px-3">{d.resolvedDate ? new Date(d.resolvedDate).toLocaleDateString() : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </CardContent></Card>

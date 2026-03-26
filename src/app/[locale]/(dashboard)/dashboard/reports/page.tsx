@@ -68,7 +68,7 @@ const reports: ReportDef[] = [
   { id: "16", key: "report16", icon: Briefcase, category: "executive" },
   { id: "17", key: "report17", icon: GitBranch, category: "executive", isPlaceholder: true },
   { id: "18", key: "report18", icon: Vote, category: "executive" },
-  { id: "19", key: "report19", icon: Scale, category: "executive", isPlaceholder: true },
+  { id: "19", key: "report19", icon: Scale, category: "executive" },
   { id: "20", key: "report20", icon: FileText, category: "executive" },
 ];
 

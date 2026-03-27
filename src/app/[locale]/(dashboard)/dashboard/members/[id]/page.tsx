@@ -818,6 +818,12 @@ export default function MemberDetailPage() {
                   {ts("changeStandingOverride")}
                 </Button>
               </PermissionGate>
+              <Link href="/dashboard/membership-card">
+                <Button variant="outline" size="sm">
+                  <CreditCard className="mr-2 h-3.5 w-3.5" />
+                  {t("membershipCard.viewCard")}
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>

@@ -65,6 +65,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  ArrowRightLeft,
 } from "lucide-react";
 import Papa from "papaparse";
 import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
@@ -107,8 +108,9 @@ const VIEW_PREFERENCE_KEY = "villageclaq-members-view";
 export default function MembersPage() {
   const t = useTranslations("members");
   const tr = useTranslations("roles");
+  const tt = useTranslations("transfers");
   const router = useRouter();
-  const { isAdmin, groupId, user, currentGroup } = useGroup();
+  const { isAdmin, groupId, user, currentGroup, currentMembership } = useGroup();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
@@ -136,6 +138,16 @@ export default function MembersPage() {
   const [newRole, setNewRole] = useState<"member" | "admin" | "moderator">("member");
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+
+  // Transfer member state
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferMember, setTransferMember] = useState<Record<string, unknown> | null>(null);
+  const [transferToId, setTransferToId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferPreserve, setTransferPreserve] = useState(true);
+  const [transferSaving, setTransferSaving] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [subGroupsList, setSubGroupsList] = useState<Array<{ id: string; name: string }>>([]);
 
   // Bulk import state
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -181,6 +193,44 @@ export default function MembersPage() {
     setNewPhone("");
     setNewRole("member");
     setAddError(null);
+  }
+
+  async function openTransferMember(member: Record<string, unknown>) {
+    setTransferMember(member);
+    setTransferToId("");
+    setTransferReason("");
+    setTransferPreserve(true);
+    setTransferError(null);
+    // Fetch sub-groups for this group
+    if (groupId) {
+      const supabase = createClient();
+      const { data } = await supabase.from("committees").select("id, name").eq("group_id", groupId).eq("is_active", true);
+      setSubGroupsList((data || []) as Array<{ id: string; name: string }>);
+    }
+    setTransferDialogOpen(true);
+  }
+
+  async function handleTransfer() {
+    if (!transferMember || !transferToId || !groupId) return;
+    setTransferSaving(true);
+    setTransferError(null);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.from("sub_group_transfers").insert({
+        group_id: groupId,
+        membership_id: transferMember.id as string,
+        to_subgroup_id: transferToId,
+        reason: transferReason.trim() || null,
+        preserve_standing: transferPreserve,
+        requested_by: currentMembership?.id,
+      });
+      if (err) throw new Error(err.message);
+      setTransferDialogOpen(false);
+    } catch (err) {
+      setTransferError((err as Error).message);
+    } finally {
+      setTransferSaving(false);
+    }
   }
 
   function openEditMember(member: Record<string, unknown>) {
@@ -784,6 +834,12 @@ export default function MembersPage() {
                             >
                               <Shield className="h-4 w-4" /> {t("assignPosition")}
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex items-center gap-2"
+                              onClick={(e) => { e.stopPropagation(); openTransferMember(member); }}
+                            >
+                              <ArrowRightLeft className="h-4 w-4" /> {tt("transferMember")}
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="flex items-center gap-2 text-destructive"
@@ -975,6 +1031,52 @@ export default function MembersPage() {
             <Button onClick={handleAddMember} disabled={addSaving || !newFullName.trim()}>
               {addSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("addMember")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Member Dialog */}
+      <Dialog open={transferDialogOpen} onOpenChange={(o) => { setTransferDialogOpen(o); if (!o) setTransferError(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{tt("transferMember")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{tt("memberName")}</Label>
+              <Input value={transferMember ? getName(transferMember) : ""} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label>{tt("to")}</Label>
+              <select
+                value={transferToId}
+                onChange={(e) => setTransferToId(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">{tt("selectSubGroup")}</option>
+                {subGroupsList.map((sg) => (
+                  <option key={sg.id} value={sg.id}>{sg.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>{tt("reason")}</Label>
+              <Input value={transferReason} onChange={(e) => setTransferReason(e.target.value)} placeholder={tt("reason")} />
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="checkbox" checked={transferPreserve} onChange={(e) => setTransferPreserve(e.target.checked)} className="rounded" />
+              <div>
+                <Label>{tt("preserveStanding")}</Label>
+                <p className="text-xs text-muted-foreground">{tt("preserveStandingHelp")}</p>
+              </div>
+            </div>
+            {transferError && <p className="text-sm text-destructive">{transferError}</p>}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleTransfer} disabled={transferSaving || !transferToId}>
+              {transferSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tt("transferMember")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -64,6 +64,7 @@ const adminSections: NavSection[] = [
     items: [
       { key: "members", href: "/dashboard/members", icon: Users },
       { key: "roles", href: "/dashboard/roles", icon: ShieldCheck },
+      { key: "subGroups", href: "/dashboard/sub-groups", icon: GitBranch },
       { key: "invitations", href: "/dashboard/invitations", icon: UserPlus },
     ],
   },

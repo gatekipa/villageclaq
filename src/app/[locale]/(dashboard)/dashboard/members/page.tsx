@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -59,7 +59,14 @@ import {
   Eye,
   Edit,
   UserMinus,
+  FileUp,
+  Download,
+  Upload,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
+import Papa from "papaparse";
 import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useGroup } from "@/lib/group-context";
@@ -81,6 +88,18 @@ const roleConfig: Record<string, { icon: typeof Shield; color: string }> = {
   moderator: { icon: Shield, color: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20" },
   member: { icon: Users, color: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20" },
 };
+
+interface CsvRow {
+  display_name: string;
+  title: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: "valid" | "error" | "warning";
+  statusMsg: string;
+}
+
+const VALID_ROLES = ["member", "admin", "moderator"];
 
 const ITEMS_PER_PAGE = 25;
 const VIEW_PREFERENCE_KEY = "villageclaq-members-view";
@@ -118,6 +137,16 @@ export default function MembersPage() {
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
+  // Bulk import state
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkStep, setBulkStep] = useState<1 | 2 | 3>(1);
+  const [csvRows, setCsvRows] = useState<CsvRow[]>([]);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importTotal, setImportTotal] = useState(0);
+  const [importResults, setImportResults] = useState<{ succeeded: number; failed: { name: string; error: string }[] }>({ succeeded: 0, failed: [] });
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Auto-open proxy member dialog when navigated with ?addProxy=true
   useEffect(() => {
     if (searchParams.get("addProxy") === "true" && isAdmin) {
@@ -138,6 +167,130 @@ export default function MembersPage() {
     setNewPhone("");
     setNewRole("member");
     setAddError(null);
+  }
+
+  function resetBulkImport() {
+    setBulkStep(1);
+    setCsvRows([]);
+    setImportProgress(0);
+    setImportTotal(0);
+    setImportResults({ succeeded: 0, failed: [] });
+    setIsImporting(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function downloadTemplate() {
+    const csv = `display_name,title,email,phone,role\n"John Doe","","john@email.com","+13014335857","member"\n"Mama Grace","Chief","","","member"`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "villageclaq-member-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleCsvFile(file: File) {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows: CsvRow[] = (results.data as Record<string, string>[]).map((raw) => {
+          const displayName = (raw.display_name || raw.name || "").trim();
+          const title = (raw.title || "").trim();
+          const email = (raw.email || "").trim();
+          const phone = (raw.phone || "").trim();
+          const role = (raw.role || "member").trim().toLowerCase();
+
+          let status: CsvRow["status"] = "valid";
+          let statusMsg = "";
+
+          if (!displayName) {
+            status = "error";
+            statusMsg = t("nameRequired");
+          } else if (role && !VALID_ROLES.includes(role)) {
+            status = "warning";
+            statusMsg = t("invalidRole");
+          }
+
+          return { display_name: displayName, title, email, phone, role: role || "member", status, statusMsg };
+        });
+        setCsvRows(rows);
+        setBulkStep(2);
+      },
+    });
+  }
+
+  function updateCsvRow(index: number, field: keyof CsvRow, value: string) {
+    setCsvRows((prev) => {
+      const next = [...prev];
+      const row = { ...next[index], [field]: value };
+      // Re-validate
+      if (!row.display_name.trim()) {
+        row.status = "error";
+        row.statusMsg = t("nameRequired");
+      } else if (row.role && !VALID_ROLES.includes(row.role.toLowerCase())) {
+        row.status = "warning";
+        row.statusMsg = t("invalidRole");
+      } else {
+        row.status = "valid";
+        row.statusMsg = "";
+      }
+      next[index] = row;
+      return next;
+    });
+  }
+
+  const bulkCounts = useMemo(() => {
+    const valid = csvRows.filter((r) => r.status === "valid").length;
+    const errors = csvRows.filter((r) => r.status === "error").length;
+    const warnings = csvRows.filter((r) => r.status === "warning").length;
+    return { valid, errors, warnings };
+  }, [csvRows]);
+
+  async function handleBulkImport() {
+    if (!groupId) return;
+    const validRows = csvRows.filter((r) => r.status !== "error");
+    setImportTotal(validRows.length);
+    setImportProgress(0);
+    setIsImporting(true);
+    setBulkStep(3);
+
+    const failed: { name: string; error: string }[] = [];
+    let succeeded = 0;
+    const supabase = createClient();
+
+    for (let i = 0; i < validRows.length; i++) {
+      const row = validRows[i];
+      const displayName = row.title
+        ? `${row.title} ${row.display_name}`
+        : row.display_name;
+      const role = VALID_ROLES.includes(row.role) ? row.role : "member";
+
+      try {
+        const { error: rpcError } = await supabase.rpc("create_proxy_member", {
+          p_group_id: groupId,
+          p_display_name: displayName,
+          p_phone: row.phone || null,
+          p_role: role,
+        });
+        if (rpcError) throw new Error(rpcError.message);
+        succeeded++;
+      } catch (err) {
+        failed.push({ name: row.display_name, error: (err as Error).message });
+      }
+      setImportProgress(i + 1);
+      // Small delay to avoid overwhelming Supabase
+      if (i < validRows.length - 1) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+
+    setImportResults({ succeeded, failed });
+    setIsImporting(false);
+    await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
   }
 
   async function handleAddMember() {
@@ -320,6 +473,10 @@ export default function MembersPage() {
           </div>
           {canManageMembers && (
             <>
+              <Button variant="outline" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }}>
+                <FileUp className="mr-2 h-4 w-4" />
+                {t("bulkImport")}
+              </Button>
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 {t("addMember")}
@@ -731,6 +888,229 @@ export default function MembersPage() {
               {t("addMember")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Import Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={(open) => { setBulkDialogOpen(open); if (!open) resetBulkImport(); }}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="h-5 w-5" />
+              {t("bulkImport")}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              {t("step", { current: bulkStep, total: 3 })}
+            </p>
+          </DialogHeader>
+
+          {/* Step 1: Upload CSV */}
+          {bulkStep === 1 && (
+            <div className="space-y-4">
+              <div
+                className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.name.endsWith(".csv")) handleCsvFile(file);
+                }}
+              >
+                <Upload className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                <p className="text-sm font-medium">{t("uploadCsv")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("dragOrClick")}</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleCsvFile(file);
+                  }}
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={downloadTemplate}>
+                <Download className="mr-2 h-4 w-4" />
+                {t("downloadTemplate")}
+              </Button>
+            </div>
+          )}
+
+          {/* Step 2: Preview & Validate */}
+          {bulkStep === 2 && (
+            <div className="flex-1 flex flex-col min-h-0 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  {t("validRows", { count: bulkCounts.valid })}
+                </Badge>
+                {bulkCounts.errors > 0 && (
+                  <Badge className="bg-red-500/10 text-red-700 dark:text-red-400">
+                    <XCircle className="mr-1 h-3 w-3" />
+                    {t("errorRows", { count: bulkCounts.errors })}
+                  </Badge>
+                )}
+                {bulkCounts.warnings > 0 && (
+                  <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
+                    <AlertTriangle className="mr-1 h-3 w-3" />
+                    {t("warningRows", { count: bulkCounts.warnings })}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex-1 overflow-auto rounded-md border min-h-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[30px]">#</TableHead>
+                      <TableHead>{t("displayName")}</TableHead>
+                      <TableHead>{t("memberTitle")}</TableHead>
+                      <TableHead className="hidden sm:table-cell">{t("email")}</TableHead>
+                      <TableHead className="hidden sm:table-cell">{t("phone")}</TableHead>
+                      <TableHead>{t("role")}</TableHead>
+                      <TableHead>{t("columnStatus")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {csvRows.map((row, i) => (
+                      <TableRow
+                        key={i}
+                        className={
+                          row.status === "error"
+                            ? "bg-red-500/5"
+                            : row.status === "warning"
+                            ? "bg-yellow-500/5"
+                            : ""
+                        }
+                      >
+                        <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
+                        <TableCell>
+                          <Input
+                            value={row.display_name}
+                            onChange={(e) => updateCsvRow(i, "display_name", e.target.value)}
+                            className="h-7 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={row.title}
+                            onChange={(e) => updateCsvRow(i, "title", e.target.value)}
+                            className="h-7 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Input
+                            value={row.email}
+                            onChange={(e) => updateCsvRow(i, "email", e.target.value)}
+                            className="h-7 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <Input
+                            value={row.phone}
+                            onChange={(e) => updateCsvRow(i, "phone", e.target.value)}
+                            className="h-7 text-xs"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <select
+                            value={row.role}
+                            onChange={(e) => updateCsvRow(i, "role", e.target.value)}
+                            className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
+                          >
+                            <option value="member">member</option>
+                            <option value="admin">admin</option>
+                            <option value="moderator">moderator</option>
+                          </select>
+                        </TableCell>
+                        <TableCell>
+                          {row.status === "error" ? (
+                            <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                              <XCircle className="h-3 w-3" />
+                              {row.statusMsg}
+                            </span>
+                          ) : row.status === "warning" ? (
+                            <span className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
+                              <AlertTriangle className="h-3 w-3" />
+                              {row.statusMsg}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 className="h-3 w-3" />
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setBulkStep(1); setCsvRows([]); }}>
+                  {t("previous")}
+                </Button>
+                <Button onClick={handleBulkImport} disabled={bulkCounts.valid === 0}>
+                  {t("importAllValid")} ({bulkCounts.valid})
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Step 3: Import Progress */}
+          {bulkStep === 3 && (
+            <div className="space-y-4">
+              {isImporting ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-sm font-medium">{t("importing")}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2.5">
+                    <div
+                      className="bg-primary h-2.5 rounded-full transition-all duration-300"
+                      style={{ width: `${importTotal > 0 ? (importProgress / importTotal) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {importProgress} / {importTotal}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                    <span className="text-lg font-semibold">{t("importComplete")}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                      {t("imported", { count: importResults.succeeded })}
+                    </p>
+                    {importResults.failed.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                          {t("failed", { count: importResults.failed.length })}
+                        </p>
+                        <div className="max-h-40 overflow-y-auto rounded-md border p-2 space-y-1">
+                          {importResults.failed.map((f, i) => (
+                            <p key={i} className="text-xs text-muted-foreground">
+                              {t("rowFailed", { name: f.name, error: f.error })}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={() => { setBulkDialogOpen(false); resetBulkImport(); }}>
+                      {t("next") === "Next" ? "Done" : "Terminé"}
+                    </Button>
+                  </DialogFooter>
+                </>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

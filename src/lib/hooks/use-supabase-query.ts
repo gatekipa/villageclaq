@@ -207,10 +207,14 @@ export function useRecordPayment() {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
       queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
+      // Invalidate standing cache so it recalculates on next view
+      if (variables.membership_id) {
+        queryClient.invalidateQueries({ queryKey: ["member-standing", variables.membership_id, groupId] });
+      }
     },
   });
 }
@@ -291,7 +295,7 @@ export function useEventAttendance(eventId: string | null) {
 
 export function useBulkCreateAttendance() {
   const queryClient = useQueryClient();
-  const { user } = useGroup();
+  const { user, groupId } = useGroup();
   return useMutation({
     mutationFn: async (records: { event_id: string; membership_id: string; status: string; checked_in_via?: string }[]) => {
       if (!user) throw new Error("No user");
@@ -311,6 +315,12 @@ export function useBulkCreateAttendance() {
       const eventId = variables[0]?.event_id;
       if (eventId) {
         queryClient.invalidateQueries({ queryKey: ["event-attendance", eventId] });
+      }
+      // Invalidate standing cache for all affected members
+      for (const v of variables) {
+        if (v.membership_id) {
+          queryClient.invalidateQueries({ queryKey: ["member-standing", v.membership_id, groupId] });
+        }
       }
     },
   });

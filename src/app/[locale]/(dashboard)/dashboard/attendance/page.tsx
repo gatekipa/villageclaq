@@ -318,6 +318,11 @@ export default function AttendancePage() {
       queryClient.invalidateQueries({ queryKey: ["event-attendance", dialogEventId] });
       queryClient.invalidateQueries({ queryKey: ["events", groupId] });
 
+      // Invalidate standing cache for all affected members
+      for (const r of records) {
+        queryClient.invalidateQueries({ queryKey: ["member-standing", r.membership_id, groupId] });
+      }
+
       // Refresh all attendance data
       const eventIds = ((events || []) as Record<string, unknown>[]).map((e) => e.id as string);
       const { data: refreshed } = await supabase

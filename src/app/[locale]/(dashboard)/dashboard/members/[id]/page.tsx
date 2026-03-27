@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -30,8 +30,12 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 import { useMemberStanding } from "@/lib/hooks/use-member-standing";
+import { calculateStanding } from "@/lib/calculate-standing";
+import { PermissionGate } from "@/components/ui/permission-gate";
+import { formatAmount } from "@/lib/currencies";
 import {
   ArrowLeft,
   Mail,
@@ -50,6 +54,13 @@ import {
   AlertCircle,
   Loader2,
   Pencil,
+  RefreshCw,
+  CreditCard,
+  Bell,
+  History,
+  Home,
+  Heart,
+  Activity,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -62,14 +73,37 @@ import {
 const supabase = createClient();
 
 const standingStyles = {
-  good: { bg: "bg-emerald-500/10", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
-  warning: { bg: "bg-yellow-500/10", text: "text-yellow-700 dark:text-yellow-400", dot: "bg-yellow-500" },
-  suspended: { bg: "bg-red-500/10", text: "text-red-700 dark:text-red-400", dot: "bg-red-500" },
-  banned: { bg: "bg-red-900/10", text: "text-red-900 dark:text-red-300", dot: "bg-red-900" },
+  good: {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-700 dark:text-emerald-400",
+    dot: "bg-emerald-500",
+    banner: "bg-emerald-500/15 border-emerald-500/30",
+    bannerText: "text-emerald-700 dark:text-emerald-300",
+  },
+  warning: {
+    bg: "bg-yellow-500/10",
+    text: "text-yellow-700 dark:text-yellow-400",
+    dot: "bg-yellow-500",
+    banner: "bg-yellow-500/15 border-yellow-500/30",
+    bannerText: "text-yellow-700 dark:text-yellow-300",
+  },
+  suspended: {
+    bg: "bg-red-500/10",
+    text: "text-red-700 dark:text-red-400",
+    dot: "bg-red-500",
+    banner: "bg-red-500/15 border-red-500/30",
+    bannerText: "text-red-700 dark:text-red-300",
+  },
+  banned: {
+    bg: "bg-red-900/10",
+    text: "text-red-900 dark:text-red-300",
+    dot: "bg-red-900",
+    banner: "bg-red-900/15 border-red-900/30",
+    bannerText: "text-red-900 dark:text-red-300",
+  },
 };
 
-import { formatAmount } from "@/lib/currencies";
-
+// ─── Data hooks ──────────────────────────────────────────────────────────────
 
 function useMemberDetail(membershipId: string | null) {
   return useQuery({
@@ -150,9 +184,10 @@ function useMemberObligations(membershipId: string | null, groupId: string | nul
       if (!membershipId || !groupId) return [];
       const { data, error } = await supabase
         .from("contribution_obligations")
-        .select("amount, amount_paid, status")
+        .select("*, contribution_type:contribution_types(id, name, name_fr)")
         .eq("membership_id", membershipId)
-        .eq("group_id", groupId);
+        .eq("group_id", groupId)
+        .order("due_date", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -160,8 +195,44 @@ function useMemberObligations(membershipId: string | null, groupId: string | nul
   });
 }
 
+function useMemberHosting(membershipId: string | null) {
+  return useQuery({
+    queryKey: ["member-hosting", membershipId],
+    queryFn: async () => {
+      if (!membershipId) return [];
+      const { data, error } = await supabase
+        .from("hosting_assignments")
+        .select("id, status, scheduled_date, roster:hosting_rosters(name)")
+        .eq("membership_id", membershipId)
+        .order("scheduled_date", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!membershipId,
+  });
+}
+
+function useMemberRelief(membershipId: string | null) {
+  return useQuery({
+    queryKey: ["member-relief", membershipId],
+    queryFn: async () => {
+      if (!membershipId) return [];
+      const { data, error } = await supabase
+        .from("relief_enrollments")
+        .select("id, contribution_status, eligibility_status, relief_plan:relief_plans(id, name, name_fr)")
+        .eq("membership_id", membershipId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!membershipId,
+  });
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
+
 export default function MemberDetailPage() {
   const t = useTranslations();
+  const ts = useTranslations("standing");
   const params = useParams();
   const membershipId = params.id as string;
   const { groupId, isAdmin, currentGroup, user } = useGroup();
@@ -169,17 +240,19 @@ export default function MemberDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [showRoleDialog, setShowRoleDialog] = useState(false);
-  const [showStandingDialog, setShowStandingDialog] = useState(false);
-  const [showPositionDialog, setShowPositionDialog] = useState(false);
-  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [newRole, setNewRole] = useState('');
-  const [newStanding, setNewStanding] = useState('');
-  const [selectedPositionId, setSelectedPositionId] = useState('');
+  const [showStandingDialog, setShowStandingDialog] = useState(false);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showPositionDialog, setShowPositionDialog] = useState(false);
+  const [newRole, setNewRole] = useState("");
+  const [newStanding, setNewStanding] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [selectedPositionId, setSelectedPositionId] = useState("");
   const [actionSaving, setActionSaving] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
 
-  // Edit member form state
+  // Edit form state
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -188,18 +261,23 @@ export default function MemberDetailPage() {
   const [editStanding, setEditStanding] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Data queries
   const { data: member, isLoading: memberLoading, error: memberError } = useMemberDetail(membershipId);
-  const { data: standingData } = useMemberStanding(membershipId, groupId);
-  const { data: payments = [], isLoading: paymentsLoading } = useMemberPayments(membershipId, groupId);
-  const { data: attendances = [], isLoading: attendanceLoading } = useMemberAttendance(membershipId);
-  const { data: positions = [], isLoading: positionsLoading } = useMemberPositions(membershipId);
+  const { data: standingData, refetch: refetchStanding } = useMemberStanding(membershipId, groupId);
+  const { data: payments = [] } = useMemberPayments(membershipId, groupId);
+  const { data: attendances = [] } = useMemberAttendance(membershipId);
+  const { data: positions = [] } = useMemberPositions(membershipId);
   const { data: obligations = [] } = useMemberObligations(membershipId, groupId);
+  const { data: hostingAssignments = [] } = useMemberHosting(membershipId);
+  const { data: reliefEnrollments = [] } = useMemberRelief(membershipId);
+
+  // ─── Handlers ────────────────────────────────────────────────────────────
 
   function openEditDialog() {
     if (!member) return;
     const prof = member.profile as Record<string, unknown> | undefined;
-    const privSettings = member.privacy_settings as Record<string, unknown> | null;
     const isProxy = member.is_proxy as boolean;
+    const privSettings = member.privacy_settings as Record<string, unknown> | null;
     setEditDisplayName((member.display_name as string) || (prof?.full_name as string) || "");
     setEditTitle("");
     setEditEmail("");
@@ -262,32 +340,98 @@ export default function MemberDetailPage() {
     }
   }
 
-  // Compute stats from real data
+  async function handleRecalculate() {
+    if (!membershipId || !groupId) return;
+    setRecalculating(true);
+    try {
+      await calculateStanding(membershipId, groupId, { updateDb: true });
+      await refetchStanding();
+      await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
+  async function handleStandingOverride() {
+    if (!newStanding) return;
+    setActionSaving(true);
+    try {
+      const { error } = await supabase.from("memberships").update({ standing: newStanding }).eq("id", membershipId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
+      await queryClient.invalidateQueries({ queryKey: ["member-standing", membershipId, groupId] });
+      setShowStandingDialog(false);
+    } catch (err) {
+      console.error("Failed to update standing:", err);
+    } finally {
+      setActionSaving(false);
+    }
+  }
+
+  // ─── Computed stats ──────────────────────────────────────────────────────
+
   const totalAttendances = attendances.length;
   const presentCount = attendances.filter((a: Record<string, unknown>) => a.status === "present" || a.status === "late").length;
+  const absentCount = attendances.filter((a: Record<string, unknown>) => a.status === "absent").length;
+  const excusedCount = attendances.filter((a: Record<string, unknown>) => a.status === "excused").length;
   const attendanceRate = totalAttendances > 0 ? Math.round((presentCount / totalAttendances) * 100) : 0;
 
-  const totalObligations = obligations.length;
-  const paidObligations = obligations.filter((o: Record<string, unknown>) => o.status === "paid").length;
-  const outstandingBalance = obligations.reduce((sum: number, o: Record<string, unknown>) => sum + (Number(o.amount) - Number(o.amount_paid)), 0);
+  // Current streak
+  let currentStreak = 0;
+  const sortedAttendances = [...attendances].sort(
+    (a: Record<string, unknown>, b: Record<string, unknown>) =>
+      new Date(b.checked_in_at as string).getTime() - new Date(a.checked_in_at as string).getTime()
+  );
+  for (const a of sortedAttendances) {
+    const att = a as Record<string, unknown>;
+    if (att.status === "present" || att.status === "late") currentStreak++;
+    else break;
+  }
 
-  // Loading state
+  const totalOutstandingAmount = obligations.reduce((sum: number, o: Record<string, unknown>) => {
+    if (o.status === "paid" || o.status === "waived") return sum;
+    return sum + (Number(o.amount) - Number(o.amount_paid));
+  }, 0);
+
+  const totalPaidAllTime = payments.reduce((sum: number, p: Record<string, unknown>) => sum + Number(p.amount), 0);
+  const lastPayment = payments[0] as Record<string, unknown> | undefined;
+
+  // Hosting stats
+  const timesHosted = hostingAssignments.filter((h: Record<string, unknown>) => h.status === "completed").length;
+  const timesMissed = hostingAssignments.filter((h: Record<string, unknown>) => h.status === "missed").length;
+  const hostingTotal = timesHosted + timesMissed;
+  const complianceScore = hostingTotal > 0 ? Math.round((timesHosted / hostingTotal) * 100) : 100;
+  const nextHosting = hostingAssignments.find((h: Record<string, unknown>) => h.status === "upcoming") as Record<string, unknown> | undefined;
+
+  // Year-over-year mini matrix
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear - 2, currentYear - 1, currentYear];
+  const oblsByTypeAndYear = new Map<string, Map<number, { status: string }>>();
+  for (const obl of obligations as Array<Record<string, unknown>>) {
+    const ct = obl.contribution_type as Record<string, unknown> | null;
+    const typeName = (ct?.name as string) || "Other";
+    const dueYear = new Date(obl.due_date as string).getFullYear();
+    if (!years.includes(dueYear)) continue;
+    if (!oblsByTypeAndYear.has(typeName)) oblsByTypeAndYear.set(typeName, new Map());
+    oblsByTypeAndYear.get(typeName)!.set(dueYear, { status: obl.status as string });
+  }
+
+  // ─── Loading / Error states ──────────────────────────────────────────────
+
   if (memberLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-48 w-full rounded-xl" />
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" />
         </div>
-        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
     );
   }
 
-  // Error state
   if (memberError || !member) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -303,163 +447,140 @@ export default function MemberDetailPage() {
 
   const profile = member.profile as Record<string, unknown> | undefined;
   const memberName = (member.display_name || (profile?.full_name as string) || "?") as string;
-  const standing = (member.standing || "good") as keyof typeof standingStyles;
+  const standing = (standingData?.standing || member.standing || "good") as keyof typeof standingStyles;
   const style = standingStyles[standing] || standingStyles.good;
-  const privacySettings = (member.privacy_settings || {}) as Record<string, boolean>;
-  const activePosition = positions.find((p: Record<string, unknown>) => !p.ended_at);
+  const activePositions = positions.filter((p: Record<string, unknown>) => !p.ended_at);
+  const joinedAt = member.joined_at as string;
+  const yearsOfMembership = joinedAt ? Math.floor((Date.now() - new Date(joinedAt).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       {/* Back + Actions */}
       <div className="flex items-center justify-between">
         <Link href="/dashboard/members" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" />
           {t("common.back")}
         </Link>
-        {isAdmin && (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent focus:outline-none">
-              <MoreVertical className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem className="flex items-center gap-2" onClick={() => openEditDialog()}>
-                <Pencil className="h-4 w-4" /> {t("members.editMember")}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewRole(member.role as string); setShowRoleDialog(true); }}>
-                <Edit className="h-4 w-4" /> {t("members.editRole")}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewStanding(member.standing as string || 'good'); setShowStandingDialog(true); }}>
-                <Shield className="h-4 w-4" /> {t("members.changeStanding")}
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowPositionDialog(true)}>
-                <Shield className="h-4 w-4" /> {t("members.assignPosition")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex items-center gap-2 text-destructive" onClick={() => setShowRemoveDialog(true)}>
-                <UserMinus className="h-4 w-4" /> {t("members.removeMember")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRecalculate}
+            disabled={recalculating}
+          >
+            {recalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+            {ts("recalculateStanding")}
+          </Button>
+          {isAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent focus:outline-none">
+                <MoreVertical className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="flex items-center gap-2" onClick={() => openEditDialog()}>
+                  <Pencil className="h-4 w-4" /> {t("members.editMember")}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewRole(member.role as string); setShowRoleDialog(true); }}>
+                  <Edit className="h-4 w-4" /> {t("members.editRole")}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewStanding(member.standing as string || "good"); setOverrideReason(""); setShowStandingDialog(true); }}>
+                  <Shield className="h-4 w-4" /> {ts("changeStandingOverride")}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="flex items-center gap-2" onClick={() => setShowPositionDialog(true)}>
+                  <Shield className="h-4 w-4" /> {t("members.assignPosition")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="flex items-center gap-2 text-destructive" onClick={() => setShowRemoveDialog(true)}>
+                  <UserMinus className="h-4 w-4" /> {t("members.removeMember")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
-      {/* Member Header Card */}
+      {/* ═══════════════════════ SECTION 1: HEADER ═══════════════════════ */}
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             <Avatar className="h-20 w-20">
               {profile?.avatar_url ? <AvatarImage src={profile.avatar_url as string} alt={memberName} /> : null}
               <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
-                {memberName.split(" ").map((n: string) => n[0]).join("")}
+                {memberName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 text-center sm:text-left">
-              <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <h1 className="text-xl font-bold">{memberName}</h1>
-                {isAdmin && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog()}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-              {activePosition && (
-                <p className="text-sm font-medium text-primary">
-                  {((activePosition.position as Record<string, unknown>)?.title as string) || ""}
-                </p>
+              <h1 className="text-xl font-bold">{memberName}</h1>
+              {/* Position badges */}
+              {activePositions.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
+                  {activePositions.map((p: Record<string, unknown>) => {
+                    const pos = p.position as Record<string, unknown>;
+                    return (
+                      <Badge key={p.id as string} variant="default" className="text-xs">
+                        {pos?.title as string}
+                      </Badge>
+                    );
+                  })}
+                </div>
               )}
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${style.bg} ${style.text}`}>
-                  <span className={`h-2 w-2 rounded-full ${style.dot}`} />
-                  {t(`members.standing${standing.charAt(0).toUpperCase() + standing.slice(1)}` as "members.standingGood")}
-                </span>
                 <Badge variant="secondary">{t(`roles.${member.role}` as "roles.admin")}</Badge>
+                {member.is_proxy && (
+                  <Badge variant="outline" className="text-xs">{t("members.proxy")}</Badge>
+                )}
               </div>
-              {/* Contact info - respect privacy */}
-              <div className="mt-4 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:gap-4">
+              <div className="mt-3 flex flex-col gap-1.5 text-sm text-muted-foreground sm:flex-row sm:gap-4">
                 {(() => {
-                  // Show proxy phone or regular phone based on privacy
                   const proxyPhone = (member.privacy_settings as Record<string, string> | null)?.proxy_phone;
-                  const regularPhone = privacySettings.show_phone && profile?.phone;
+                  const privSettings = (member.privacy_settings || {}) as Record<string, boolean>;
+                  const regularPhone = privSettings.show_phone && profile?.phone;
                   const phoneToShow = member.is_proxy ? proxyPhone : regularPhone;
                   return phoneToShow ? (
                     <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" />{String(phoneToShow)}</span>
                   ) : null;
                 })()}
-                {member.is_proxy && (
-                  <Badge variant="outline" className="text-xs">{t("members.proxy")}</Badge>
+                {joinedAt && (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {ts("memberSince", { date: new Date(joinedAt).toLocaleDateString() })}
+                    {yearsOfMembership > 0 && (
+                      <span className="text-xs">({ts("yearsOfMembership", { count: yearsOfMembership })})</span>
+                    )}
+                  </span>
                 )}
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {t("members.joinedDate")}: {new Date(member.joined_at as string).toLocaleDateString()}
-                </span>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Summary Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <Users className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{attendanceRate}%</p>
-              <p className="text-xs text-muted-foreground">{t("members.meetingsAttended")}</p>
-              <p className="text-[11px] text-muted-foreground">{presentCount}/{totalAttendances}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <HandCoins className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{paidObligations}/{totalObligations}</p>
-              <p className="text-xs text-muted-foreground">{t("members.contributionsPaid")}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${outstandingBalance > 0 ? "bg-destructive/10" : "bg-primary/10"}`}>
-              <AlertTriangle className={`h-5 w-5 ${outstandingBalance > 0 ? "text-destructive" : "text-primary"}`} />
-            </div>
-            <div>
-              <p className={`text-2xl font-bold ${outstandingBalance > 0 ? "text-destructive" : ""}`}>
-                {formatAmount(outstandingBalance, currency)}
-              </p>
-              <p className="text-xs text-muted-foreground">{t("members.outstandingBalance")}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Standing Breakdown */}
+      {/* ═══════════════════════ SECTION 2: STANDING STATUS ═══════════════════════ */}
       {standingData && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                standingData.standing === "good"
-                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                  : standingData.standing === "warning"
-                  ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
-                  : "bg-red-500/10 text-red-700 dark:text-red-400"
-              }`}>
-                {standingData.standing === "good"
-                  ? t("standing.goodStanding")
-                  : standingData.standing === "warning"
-                  ? t("standing.atRisk")
-                  : t("standing.notInGoodStanding")}
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {t("standing.standingBreakdown")}
+        <Card className="overflow-hidden">
+          <div className={`border-b px-6 py-4 ${style.banner}`}>
+            <div className="flex items-center gap-3">
+              {standing === "good" ? (
+                <CheckCircle2 className={`h-6 w-6 ${style.bannerText}`} />
+              ) : standing === "warning" ? (
+                <AlertTriangle className={`h-6 w-6 ${style.bannerText}`} />
+              ) : (
+                <XCircle className={`h-6 w-6 ${style.bannerText}`} />
+              )}
+              <span className={`text-lg font-bold ${style.bannerText}`}>
+                {standing === "good"
+                  ? ts("goodStanding")
+                  : standing === "warning"
+                  ? ts("atRisk")
+                  : ts("notInGoodStanding")}
+              </span>
+              <span className={`ml-auto text-sm font-medium ${style.bannerText}`}>
+                {standingData.score}%
               </span>
             </div>
+          </div>
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-3">{ts("standingBreakdown")}</p>
             <div className="space-y-2">
               {standingData.reasons.map((reason, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
@@ -478,138 +599,306 @@ export default function MemberDetailPage() {
         </Card>
       )}
 
-      {/* History Tabs */}
-      <Tabs defaultValue="contributions">
-        <TabsList className="w-full justify-start">
-          <TabsTrigger value="contributions">{t("members.contributionHistory")}</TabsTrigger>
-          <TabsTrigger value="attendance">{t("members.attendanceRecord")}</TabsTrigger>
-          <TabsTrigger value="positions">{t("members.positionHistory")}</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="contributions" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {paymentsLoading ? (
-                <div className="space-y-2 p-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
+      {/* ═══════════════════════ SECTION 3: YEAR-OVER-YEAR MINI MATRIX ═══════════════════════ */}
+      {oblsByTypeAndYear.size > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <HandCoins className="h-4 w-4 text-primary" />
+              {ts("paymentMiniMatrix")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{t("contributions.type")}</th>
+                    {years.map((y) => (
+                      <th key={y} className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{y}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from(oblsByTypeAndYear.entries()).map(([typeName, yearMap]) => (
+                    <tr key={typeName} className="border-b last:border-0">
+                      <td className="px-4 py-2 text-xs font-medium">{typeName}</td>
+                      {years.map((y) => {
+                        const obl = yearMap.get(y);
+                        if (!obl) return <td key={y} className="px-3 py-2 text-center text-muted-foreground">—</td>;
+                        return (
+                          <td key={y} className="px-3 py-2 text-center">
+                            {obl.status === "paid" ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 mx-auto" />
+                            ) : obl.status === "partial" ? (
+                              <AlertTriangle className="h-4 w-4 text-yellow-500 mx-auto" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-500 mx-auto" />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
                   ))}
-                </div>
-              ) : payments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <HandCoins className="h-10 w-10 text-muted-foreground/50" />
-                  <p className="mt-4 text-sm text-muted-foreground">{t("members.noContributions")}</p>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {payments.map((item: Record<string, unknown>) => {
-                    const contribType = item.contribution_type as Record<string, unknown> | null;
-                    return (
-                      <div key={item.id as string} className="flex items-center justify-between px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="h-4 w-4 text-primary" />
-                          <div>
-                            <p className="text-sm font-medium">{(contribType?.name as string) || t("members.contributionHistory")}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(item.recorded_at as string).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                        <span className="text-sm font-semibold text-primary">
-                          {formatAmount(Number(item.amount), (item.currency as string) || currency)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        <TabsContent value="attendance" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {attendanceLoading ? (
-                <div className="space-y-2 p-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
+      {/* ═══════════════════════ SECTION 4: FINANCIAL SUMMARY ═══════════════════════ */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-primary" />
+            {ts("financialSummary")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("totalPaid")}</p>
+              <p className="text-lg font-bold text-primary">{formatAmount(totalPaidAllTime, currency)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("totalOutstanding")}</p>
+              <p className={`text-lg font-bold ${totalOutstandingAmount > 0 ? "text-destructive" : ""}`}>
+                {formatAmount(totalOutstandingAmount, currency)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("lastPaymentDate")}</p>
+              <p className="text-sm font-medium">
+                {lastPayment ? new Date(lastPayment.recorded_at as string).toLocaleDateString() : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("lastPaymentAmount")}</p>
+              <p className="text-sm font-medium">
+                {lastPayment ? formatAmount(Number(lastPayment.amount), (lastPayment.currency as string) || currency) : "—"}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ═══════════════════════ SECTION 5: ATTENDANCE SUMMARY ═══════════════════════ */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            {ts("attendanceSummary")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-muted-foreground">{ts("attendanceRate")}</span>
+              <span className="text-sm font-bold">{attendanceRate}%</span>
+            </div>
+            <Progress value={attendanceRate} className="h-2" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("totalEvents")}</p>
+              <p className="text-lg font-bold">{totalAttendances}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("presentCount")}</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{presentCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("absentCount")}</p>
+              <p className="text-lg font-bold text-red-600 dark:text-red-400">{absentCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("excusedCount")}</p>
+              <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{excusedCount}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{ts("currentStreak")}</p>
+              <p className="text-lg font-bold">{currentStreak}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ═══════════════════════ SECTION 6: HOSTING COMPLIANCE ═══════════════════════ */}
+      {hostingAssignments.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Home className="h-4 w-4 text-primary" />
+              {ts("hostingSummary")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div>
+                <p className="text-xs text-muted-foreground">{ts("timesHosted")}</p>
+                <p className="text-lg font-bold">{timesHosted}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{ts("timesMissed")}</p>
+                <p className="text-lg font-bold text-red-600 dark:text-red-400">{timesMissed}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{ts("complianceScore")}</p>
+                <p className="text-lg font-bold">{complianceScore}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{ts("nextHosting")}</p>
+                <p className="text-sm font-medium">
+                  {nextHosting ? new Date(nextHosting.scheduled_date as string).toLocaleDateString() : "—"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ═══════════════════════ SECTION 7: RELIEF PLAN STATUS ═══════════════════════ */}
+      {reliefEnrollments.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Heart className="h-4 w-4 text-primary" />
+              {ts("reliefPlanStatus")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {reliefEnrollments.map((enrollment: Record<string, unknown>) => {
+                const plan = enrollment.relief_plan as Record<string, unknown> | null;
+                const contribStatus = enrollment.contribution_status as string;
+                const isBehind = contribStatus === "behind" || contribStatus === "overdue";
+                return (
+                  <div key={enrollment.id as string} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{(plan?.name as string) || "—"}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{enrollment.eligibility_status as string || "—"}</p>
+                    </div>
+                    <Badge variant={isBehind ? "destructive" : "secondary"} className="text-xs capitalize">
+                      {contribStatus || "—"}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ═══════════════════════ SECTION 8: QUICK ACTIONS ═══════════════════════ */}
+      <PermissionGate anyOf={["finances.record", "members.manage"]}>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">{ts("quickActions")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              <PermissionGate permission="finances.record">
+                <Link href={`/dashboard/contributions/record?member=${membershipId}`}>
+                  <Button variant="outline" size="sm">
+                    <CreditCard className="mr-2 h-3.5 w-3.5" />
+                    {ts("recordPayment")}
+                  </Button>
+                </Link>
+              </PermissionGate>
+              <PermissionGate permission="members.manage">
+                <Button variant="outline" size="sm" onClick={() => openEditDialog()}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                  {ts("editMember")}
+                </Button>
+              </PermissionGate>
+              <PermissionGate permission="members.manage">
+                <Button variant="outline" size="sm" onClick={() => { setNewStanding(member.standing as string || "good"); setOverrideReason(""); setShowStandingDialog(true); }}>
+                  <Shield className="mr-2 h-3.5 w-3.5" />
+                  {ts("changeStandingOverride")}
+                </Button>
+              </PermissionGate>
+            </div>
+          </CardContent>
+        </Card>
+      </PermissionGate>
+
+      {/* ═══════════════════════ SECTION 9: ACTIVITY TIMELINE ═══════════════════════ */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            {ts("activityTimeline")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {(() => {
+            // Build unified timeline from payments + attendances
+            const timeline: Array<{ type: string; date: Date; label: string; detail: string }> = [];
+
+            for (const p of payments.slice(0, 10) as Array<Record<string, unknown>>) {
+              const ct = p.contribution_type as Record<string, unknown> | null;
+              timeline.push({
+                type: "payment",
+                date: new Date(p.recorded_at as string),
+                label: (ct?.name as string) || t("members.contributionHistory"),
+                detail: formatAmount(Number(p.amount), (p.currency as string) || currency),
+              });
+            }
+
+            for (const a of attendances.slice(0, 10) as Array<Record<string, unknown>>) {
+              const ev = a.event as Record<string, unknown> | null;
+              timeline.push({
+                type: "attendance",
+                date: new Date(a.checked_in_at as string || (ev?.starts_at as string)),
+                label: (ev?.title as string) || "",
+                detail: (a.status as string) || "",
+              });
+            }
+
+            timeline.sort((a, b) => b.date.getTime() - a.date.getTime());
+            const top10 = timeline.slice(0, 10);
+
+            if (top10.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Activity className="h-8 w-8 text-muted-foreground/50" />
+                  <p className="mt-2 text-sm text-muted-foreground">{t("members.noHistory")}</p>
                 </div>
-              ) : attendances.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Users className="h-10 w-10 text-muted-foreground/50" />
-                  <p className="mt-4 text-sm text-muted-foreground">{t("members.noAttendance")}</p>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {attendances.map((item: Record<string, unknown>) => {
-                    const event = item.event as Record<string, unknown> | null;
-                    const isPresent = item.status === "present" || item.status === "late";
-                    return (
-                      <div key={item.id as string} className="flex items-center justify-between px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {isPresent ? (
-                            <CheckCircle2 className="h-4 w-4 text-primary" />
-                          ) : (
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          )}
-                          <div>
-                            <p className="text-sm font-medium">{(event?.title as string) || ""}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {event?.starts_at ? new Date(event.starts_at as string).toLocaleDateString() : ""}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant={isPresent ? "secondary" : "destructive"}>
-                          {t(`myAttendance.status.${item.status as string}` as "myAttendance.status.present")}
+              );
+            }
+
+            return (
+              <div className="divide-y">
+                {top10.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    {item.type === "payment" ? (
+                      <CreditCard className="h-4 w-4 text-primary shrink-0" />
+                    ) : (
+                      <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.label}</p>
+                      <p className="text-xs text-muted-foreground">{item.date.toLocaleDateString()}</p>
+                    </div>
+                    <span className="text-xs font-medium shrink-0">
+                      {item.type === "payment" ? (
+                        <span className="text-primary">{item.detail}</span>
+                      ) : (
+                        <Badge variant={item.detail === "present" || item.detail === "late" ? "secondary" : "destructive"} className="text-[10px]">
+                          {item.detail}
                         </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
-        <TabsContent value="positions" className="mt-4">
-          <Card>
-            <CardContent className="p-0">
-              {positionsLoading ? (
-                <div className="space-y-2 p-4">
-                  {Array.from({ length: 2 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : positions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Shield className="h-10 w-10 text-muted-foreground/50" />
-                  <p className="mt-4 text-sm text-muted-foreground">{t("members.noPositions")}</p>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {positions.map((item: Record<string, unknown>) => {
-                    const pos = item.position as Record<string, unknown> | null;
-                    return (
-                      <div key={item.id as string} className="flex items-center justify-between px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-sm font-medium">{(pos?.title as string) || ""}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(item.started_at as string).toLocaleDateString()} — {item.ended_at ? new Date(item.ended_at as string).toLocaleDateString() : t("common.active")}
-                            </p>
-                          </div>
-                        </div>
-                        {!item.ended_at && <Badge>{t("common.active")}</Badge>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* ═══════════════════════ DIALOGS ═══════════════════════ */}
 
       {/* Edit Member Dialog */}
       <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) setEditError(null); }}>
@@ -654,24 +943,45 @@ export default function MemberDetailPage() {
                 <option value="member">Member</option>
               </select>
             </div>
-            <div className="space-y-2">
-              <Label>{t("members.standing")}</Label>
-              <select
-                value={editStanding}
-                onChange={(e) => setEditStanding(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="good">{t("members.standingGood")}</option>
-                <option value="warning">{t("members.standingWarning")}</option>
-                <option value="suspended">{t("members.standingSuspended")}</option>
-                <option value="banned">{t("members.standingBanned")}</option>
-              </select>
-            </div>
             {editError && <p className="text-sm text-destructive">{editError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleEditMember} disabled={actionSaving || !editDisplayName.trim()}>
+              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Standing Override Dialog */}
+      <Dialog open={showStandingDialog} onOpenChange={setShowStandingDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{ts("changeStandingOverride")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select value={newStanding} onValueChange={(v) => setNewStanding(v || "")}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("members.selectStanding")} />
+              </SelectTrigger>
+              <SelectContent>
+                {["good", "warning", "suspended", "banned"].map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {t(`members.standing${s.charAt(0).toUpperCase() + s.slice(1)}` as "members.standingGood")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="space-y-2">
+              <Label>{ts("overrideReason")}</Label>
+              <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder={ts("overrideReason")} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStandingDialog(false)}>{t("common.cancel")}</Button>
+            <Button disabled={actionSaving} onClick={handleStandingOverride}>
               {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("common.save")}
             </Button>
@@ -686,7 +996,7 @@ export default function MemberDetailPage() {
             <DialogTitle>{t("members.editRole")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Select value={newRole} onValueChange={(v) => setNewRole(v || '')}>
+            <Select value={newRole} onValueChange={(v) => setNewRole(v || "")}>
               <SelectTrigger>
                 <SelectValue placeholder={t("members.selectRole")} />
               </SelectTrigger>
@@ -704,57 +1014,12 @@ export default function MemberDetailPage() {
               onClick={async () => {
                 setActionSaving(true);
                 try {
-                  const { error } = await supabase.from('memberships').update({ role: newRole }).eq('id', membershipId);
+                  const { error } = await supabase.from("memberships").update({ role: newRole }).eq("id", membershipId);
                   if (error) throw error;
-                  await queryClient.invalidateQueries({ queryKey: ['member-detail', membershipId] });
+                  await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
                   setShowRoleDialog(false);
                 } catch (err) {
-                  console.error('Failed to update role:', err);
-                } finally {
-                  setActionSaving(false);
-                }
-              }}
-            >
-              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("common.save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Change Standing Dialog */}
-      <Dialog open={showStandingDialog} onOpenChange={setShowStandingDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("members.changeStanding")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Select value={newStanding} onValueChange={(v) => setNewStanding(v || '')}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("members.selectStanding")} />
-              </SelectTrigger>
-              <SelectContent>
-                {["good", "warning", "suspended", "banned"].map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {t(`members.standing${s.charAt(0).toUpperCase() + s.slice(1)}` as "members.standingGood")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowStandingDialog(false)}>{t("common.cancel")}</Button>
-            <Button
-              disabled={actionSaving}
-              onClick={async () => {
-                setActionSaving(true);
-                try {
-                  const { error } = await supabase.from('memberships').update({ standing: newStanding }).eq('id', membershipId);
-                  if (error) throw error;
-                  await queryClient.invalidateQueries({ queryKey: ['member-detail', membershipId] });
-                  setShowStandingDialog(false);
-                } catch (err) {
-                  console.error('Failed to update standing:', err);
+                  console.error("Failed to update role:", err);
                 } finally {
                   setActionSaving(false);
                 }
@@ -786,17 +1051,17 @@ export default function MemberDetailPage() {
               onClick={async () => {
                 setActionSaving(true);
                 try {
-                  const { error } = await supabase.from('position_assignments').insert({
+                  const { error } = await supabase.from("position_assignments").insert({
                     position_id: selectedPositionId,
                     membership_id: membershipId,
                     assigned_by: user?.id,
                   });
                   if (error) throw error;
-                  await queryClient.invalidateQueries({ queryKey: ['member-positions', membershipId] });
+                  await queryClient.invalidateQueries({ queryKey: ["member-positions", membershipId] });
                   setShowPositionDialog(false);
-                  setSelectedPositionId('');
+                  setSelectedPositionId("");
                 } catch (err) {
-                  console.error('Failed to assign position:', err);
+                  console.error("Failed to assign position:", err);
                 } finally {
                   setActionSaving(false);
                 }
@@ -826,12 +1091,12 @@ export default function MemberDetailPage() {
               onClick={async () => {
                 setActionSaving(true);
                 try {
-                  const { error } = await supabase.from('memberships').delete().eq('id', membershipId);
+                  const { error } = await supabase.from("memberships").delete().eq("id", membershipId);
                   if (error) throw error;
-                  await queryClient.invalidateQueries({ queryKey: ['members'] });
-                  router.push('/dashboard/members');
+                  await queryClient.invalidateQueries({ queryKey: ["members"] });
+                  router.push("/dashboard/members");
                 } catch (err) {
-                  console.error('Failed to remove member:', err);
+                  console.error("Failed to remove member:", err);
                 } finally {
                   setActionSaving(false);
                 }
@@ -854,13 +1119,13 @@ function PositionSelector({ groupId, selectedPositionId, onSelect, t }: {
   t: ReturnType<typeof useTranslations>;
 }) {
   const { data: positions, isLoading } = useQuery({
-    queryKey: ['group-positions', groupId],
+    queryKey: ["group-positions", groupId],
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
-        .from('group_positions')
-        .select('id, title, title_fr')
-        .eq('group_id', groupId!);
+        .from("group_positions")
+        .select("id, title, title_fr")
+        .eq("group_id", groupId!);
       if (error) throw error;
       return data || [];
     },
@@ -871,7 +1136,7 @@ function PositionSelector({ groupId, selectedPositionId, onSelect, t }: {
   if (!positions || positions.length === 0) return <p className="text-sm text-muted-foreground">{t("members.noPositionsAvailable")}</p>;
 
   return (
-    <Select value={selectedPositionId} onValueChange={(v) => onSelect(v || '')}>
+    <Select value={selectedPositionId} onValueChange={(v) => onSelect(v || "")}>
       <SelectTrigger>
         <SelectValue placeholder={t("members.selectPosition")} />
       </SelectTrigger>

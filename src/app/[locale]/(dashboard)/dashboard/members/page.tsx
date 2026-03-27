@@ -73,6 +73,8 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { calculateStanding } from "@/lib/calculate-standing";
+import { RefreshCw } from "lucide-react";
 
 type Standing = "good" | "warning" | "suspended" | "banned";
 
@@ -172,6 +174,32 @@ export default function MembersPage() {
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Recalculate all standing state
+  const [recalcAllLoading, setRecalcAllLoading] = useState(false);
+  const ts = useTranslations("standing");
+
+  async function handleRecalculateAll() {
+    if (!groupId || !members || recalcAllLoading) return;
+    setRecalcAllLoading(true);
+    try {
+      const activeMembers = members.filter((m: Record<string, unknown>) => {
+        const standing = m.standing as string;
+        return standing !== "banned";
+      });
+      for (let i = 0; i < activeMembers.length; i++) {
+        const m = activeMembers[i] as Record<string, unknown>;
+        await calculateStanding(m.id as string, groupId, { updateDb: true });
+        // Small delay to avoid overwhelming Supabase
+        if (i < activeMembers.length - 1) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+    } finally {
+      setRecalcAllLoading(false);
+    }
+  }
 
   // Auto-open proxy member dialog when navigated with ?addProxy=true
   useEffect(() => {
@@ -612,6 +640,10 @@ export default function MembersPage() {
           </div>
           {canManageMembers && (
             <>
+              <Button variant="outline" size="sm" onClick={handleRecalculateAll} disabled={recalcAllLoading}>
+                {recalcAllLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                {ts("recalculateAll")}
+              </Button>
               <Button variant="outline" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }}>
                 <FileUp className="mr-2 h-4 w-4" />
                 {t("bulkImport")}

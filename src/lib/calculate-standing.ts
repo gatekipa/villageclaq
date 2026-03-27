@@ -22,7 +22,8 @@ const ATTENDANCE_THRESHOLD = 60;
  * Rules:
  * 1. Dues: any overdue obligation → FAIL
  * 2. Attendance: below 60% in last 12 months → FAIL
- * 3. Disputes: any open dispute → soft FAIL (warning only)
+ * 3. Relief contributions: behind on any plan → FAIL
+ * 4. Disputes: any open dispute → soft FAIL (warning only)
  *
  * Scoring:
  * - All pass → "good"
@@ -32,6 +33,7 @@ const ATTENDANCE_THRESHOLD = 60;
 export async function calculateStanding(
   membershipId: string,
   groupId: string,
+  options?: { updateDb?: boolean },
 ): Promise<StandingResult> {
   const supabase = createClient();
   const reasons: StandingReason[] = [];
@@ -98,7 +100,31 @@ export async function calculateStanding(
         : `Présence: ${rate}% (en dessous du seuil de ${ATTENDANCE_THRESHOLD}%)`,
   });
 
-  // Rule 3: Disputes
+  // Rule 3: Relief contributions
+  const { data: enrollments } = await supabase
+    .from("relief_enrollments")
+    .select("id, contribution_status, relief_plan_id")
+    .eq("membership_id", membershipId);
+
+  const behindPlans = (enrollments || []).filter(
+    (e) => e.contribution_status === "behind" || e.contribution_status === "overdue"
+  );
+  const reliefPassed = behindPlans.length === 0;
+
+  reasons.push({
+    category: "relief",
+    passed: reliefPassed,
+    label_en: "Relief Contributions",
+    label_fr: "Cotisations de secours",
+    detail_en: reliefPassed
+      ? "Relief contributions: Up to date"
+      : `Relief: Behind on ${behindPlans.length} plans`,
+    detail_fr: reliefPassed
+      ? "Cotisations de secours: À jour"
+      : `Secours: En retard sur ${behindPlans.length} plans`,
+  });
+
+  // Rule 4: Disputes
   const { data: disputes } = await supabase
     .from("disputes")
     .select("id, status")
@@ -129,6 +155,14 @@ export async function calculateStanding(
     standing = "suspended";
   } else {
     standing = "warning";
+  }
+
+  // Optionally update DB
+  if (options?.updateDb) {
+    await supabase
+      .from("memberships")
+      .update({ standing })
+      .eq("id", membershipId);
   }
 
   return { standing, reasons, score };

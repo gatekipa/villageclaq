@@ -60,18 +60,21 @@ function useMatrixData(contributionTypeId: string | null) {
       // Fetch all members with profiles and joined_at
       const { data: members, error: memError } = await supabase
         .from("memberships")
-        .select("id, user_id, display_name, is_proxy, joined_at, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url)")
+        .select("id, user_id, display_name, is_proxy, joined_at, standing, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, display_name, avatar_url)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
       if (memError) throw memError;
 
       return {
         obligations: obligations || [],
-        members: (members || []).map((m: { id: string; user_id: string; joined_at: string; standing: string; profiles: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[] }) => ({
+        members: (members || []).map((m: { id: string; user_id: string; display_name: string | null; is_proxy: boolean; joined_at: string; standing: string; privacy_settings?: Record<string, unknown>; profiles: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[] }) => ({
           id: m.id,
           user_id: m.user_id,
+          display_name: m.display_name,
+          is_proxy: m.is_proxy,
           joined_at: m.joined_at,
           standing: m.standing,
+          privacy_settings: m.privacy_settings,
           profile: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
         })),
       };

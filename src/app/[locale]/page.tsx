@@ -20,7 +20,16 @@ import {
   Shield,
   TrendingUp,
   Heart,
+  AlertTriangle,
+  Home,
+  ChevronDown,
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/brand/logo";
@@ -264,8 +273,42 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent to-background" />
       </section>
 
-      {/* ── Core Features ── */}
+      {/* ── Pain Points ── */}
       <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              {t("landing.painPointsTitle")}
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
+              {t("landing.painPointsSubtitle")}
+            </p>
+          </div>
+          <div className="mx-auto mt-16 grid max-w-5xl gap-6 sm:grid-cols-2">
+            {([
+              { num: "1", icon: HandCoins },
+              { num: "2", icon: FileText },
+              { num: "3", icon: Home },
+              { num: "4", icon: Shield },
+            ] as const).map(({ num, icon: Icon }) => (
+              <div key={num} className="group rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 transition-colors group-hover:bg-primary/10 group-hover:text-primary">
+                  <Icon className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-bold">{t(`landing.painPoint${num}Title`)}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{t(`landing.painPoint${num}Problem`)}</p>
+                <p className="mt-3 flex items-start gap-2 text-sm font-medium text-primary">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0" />
+                  {t(`landing.painPoint${num}Solution`)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Core Features ── */}
+      <section className="py-24 sm:py-32 bg-slate-50 dark:bg-slate-900/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
@@ -546,6 +589,32 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── FAQ ── */}
+      <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              {t("landing.faqTitle")}
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground">
+              {t("landing.faqSubtitle")}
+            </p>
+          </div>
+          <Accordion className="mt-12">
+            {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
+              <AccordionItem key={n} value={`faq-${n}`}>
+                <AccordionTrigger className="text-left text-base font-medium">
+                  {t(`landing.faq${n}Q`)}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  {t(`landing.faq${n}A`)}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </section>
+
       {/* ── CTA ── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 dark:from-emerald-950 dark:via-gray-950 dark:to-teal-950 py-24 sm:py-32">
         {/* Decorative */}
@@ -608,7 +677,7 @@ export default function HomePage() {
               </h4>
               <ul className="mt-4 space-y-3 text-sm">
                 <li><span className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">{t("landing.featuresTitle")}</span></li>
-                <li><span className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">{t("landing.pricingTitle")}</span></li>
+                <li><Link href="/pricing" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.pricingTitle")}</Link></li>
               </ul>
             </div>
             <div>

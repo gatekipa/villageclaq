@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter, usePathname } from "@/i18n/routing";
 import {
   Camera,
   Sun,
@@ -17,20 +18,26 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 import { cn } from "@/lib/utils";
+import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 
 const TOTAL_STEPS = 4;
 
 interface FormData {
   name: string;
+  displayName: string;
   phone: string;
-  photo: File | null;
+  photoUrl: string | null;
   language: "en" | "fr";
   theme: "light" | "dark" | "system";
   notifications: {
@@ -41,13 +48,28 @@ interface FormData {
   };
 }
 
+interface FieldErrors {
+  name?: string;
+  phone?: string;
+}
+
 export default function MemberOnboardingPage() {
   const t = useTranslations("onboarding");
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, currentGroup } = useGroup();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [currentStep, setCurrentStep] = useState(1);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState<FormData>({
-    name: "Cyril",
-    phone: "",
-    photo: null,
+    name: user?.full_name || "",
+    displayName: "",
+    phone: user?.phone || "",
+    photoUrl: user?.avatar_url || null,
     language: "en",
     theme: "system",
     notifications: {
@@ -58,11 +80,93 @@ export default function MemberOnboardingPage() {
     },
   });
 
-  const goNext = () => setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
-  const goBack = () => setCurrentStep((s) => Math.max(s - 1, 1));
-  const skipStep = () => goNext();
+  // ─── Validation ────────────────────────────────────────────────────────
 
-  const toggleNotification = (channel: keyof FormData["notifications"]) => {
+  function validateStep1(): boolean {
+    const newErrors: FieldErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = t("nameRequired");
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = t("nameMin");
+    }
+
+    // Extract digits from phone to validate
+    const phoneDigits = formData.phone.replace(/\D/g, "");
+    if (!formData.phone.trim() || phoneDigits.length < 7) {
+      newErrors.phone = t("phoneRequired");
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function goNext() {
+    if (currentStep === 1 && !validateStep1()) return;
+    setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
+  }
+
+  function goBack() {
+    setCurrentStep((s) => Math.max(s - 1, 1));
+  }
+
+  // ─── Language Switch ───────────────────────────────────────────────────
+
+  function handleLanguageSwitch(lang: "en" | "fr") {
+    setFormData((prev) => ({ ...prev, language: lang }));
+    // Actually switch the app locale
+    router.replace(pathname, { locale: lang });
+    // Save preference to profile
+    const supabase = createClient();
+    if (user?.id) {
+      supabase.from("profiles").update({ preferred_locale: lang }).eq("id", user.id).then(() => {});
+    }
+  }
+
+  // ─── Photo Upload ──────────────────────────────────────────────────────
+
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      setPhotoError(t("photoTooLarge"));
+      return;
+    }
+    setPhotoError(null);
+
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const userId = user?.id;
+      if (!userId) return;
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `avatars/${userId}/${Date.now()}.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+
+      // Update profile
+      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", userId);
+
+      setFormData((prev) => ({ ...prev, photoUrl: publicUrl }));
+    } catch {
+      setPhotoError("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // ─── Notification toggle ───────────────────────────────────────────────
+
+  function toggleNotification(channel: keyof FormData["notifications"]) {
     setFormData((prev) => ({
       ...prev,
       notifications: {
@@ -70,71 +174,34 @@ export default function MemberOnboardingPage() {
         [channel]: !prev.notifications[channel],
       },
     }));
-  };
+  }
 
-  const languageOptions: {
-    key: "en" | "fr";
-    labelKey: string;
-    flag: string;
-  }[] = [
-    { key: "en", labelKey: "languageEn", flag: "EN" },
-    { key: "fr", labelKey: "languageFr", flag: "FR" },
+  // ─── Options ───────────────────────────────────────────────────────────
+
+  const languageOptions = [
+    { key: "en" as const, labelKey: "languageEn", flag: "EN" },
+    { key: "fr" as const, labelKey: "languageFr", flag: "FR" },
   ];
 
-  const themeOptions: {
-    key: "light" | "dark" | "system";
-    labelKey: string;
-    icon: React.ReactNode;
-  }[] = [
-    {
-      key: "light",
-      labelKey: "themeLight",
-      icon: <Sun className="size-6" />,
-    },
-    {
-      key: "dark",
-      labelKey: "themeDark",
-      icon: <Moon className="size-6" />,
-    },
-    {
-      key: "system",
-      labelKey: "themeSystem",
-      icon: <Monitor className="size-6" />,
-    },
+  const themeOptions = [
+    { key: "light" as const, labelKey: "themeLight", icon: <Sun className="size-6" /> },
+    { key: "dark" as const, labelKey: "themeDark", icon: <Moon className="size-6" /> },
+    { key: "system" as const, labelKey: "themeSystem", icon: <Monitor className="size-6" /> },
   ];
 
-  const notificationChannels: {
-    key: keyof FormData["notifications"];
-    labelKey: string;
-    icon: React.ReactNode;
-  }[] = [
-    {
-      key: "email",
-      labelKey: "channelEmail",
-      icon: <Mail className="size-5" />,
-    },
-    {
-      key: "sms",
-      labelKey: "channelSms",
-      icon: <Smartphone className="size-5" />,
-    },
-    {
-      key: "whatsapp",
-      labelKey: "channelWhatsapp",
-      icon: <MessageSquare className="size-5" />,
-    },
-    {
-      key: "push",
-      labelKey: "channelPush",
-      icon: <Bell className="size-5" />,
-    },
+  const notificationChannels = [
+    { key: "email" as const, labelKey: "channelEmail", icon: <Mail className="size-5" /> },
+    { key: "sms" as const, labelKey: "channelSms", icon: <Smartphone className="size-5" /> },
+    { key: "whatsapp" as const, labelKey: "channelWhatsapp", icon: <MessageSquare className="size-5" /> },
+    { key: "push" as const, labelKey: "channelPush", icon: <Bell className="size-5" /> },
   ];
 
-  const summaryRules = [
-    t("summaryRule1"),
-    t("summaryRule2"),
-    t("summaryRule3"),
-  ];
+  const summaryRules = [t("summaryRule1"), t("summaryRule2"), t("summaryRule3")];
+
+  // ─── Welcome text ──────────────────────────────────────────────────────
+  const welcomeText = formData.name.trim()
+    ? t("welcomeName", { name: formData.name.trim().split(" ")[0] })
+    : t("welcomeTo");
 
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-6 sm:py-10">
@@ -149,9 +216,7 @@ export default function MemberOnboardingPage() {
               key={i}
               className={cn(
                 "h-2 flex-1 rounded-full transition-colors",
-                i < currentStep
-                  ? "bg-emerald-600 dark:bg-emerald-500"
-                  : "bg-muted"
+                i < currentStep ? "bg-emerald-600 dark:bg-emerald-500" : "bg-muted"
               )}
             />
           ))}
@@ -160,56 +225,111 @@ export default function MemberOnboardingPage() {
 
       {/* Step content */}
       <div className="flex-1">
-        {/* Step 1: Quick Profile */}
+        {/* ═══ Step 1: Quick Profile ═══ */}
         {currentStep === 1 && (
           <div className="space-y-6">
             <h2 className="text-center text-xl font-semibold sm:text-2xl">
-              {t("memberStep1")}
+              {welcomeText}
             </h2>
+            <p className="text-center text-sm text-muted-foreground">{t("memberStep1")}</p>
 
             {/* Photo upload */}
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
               <button
                 type="button"
-                className="group relative flex size-24 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/40 bg-muted/50 transition-colors hover:border-emerald-600 hover:bg-muted dark:hover:border-emerald-500"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="group relative flex size-24 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/40 bg-muted/50 transition-colors hover:border-emerald-600 hover:bg-muted dark:hover:border-emerald-500 cursor-pointer overflow-hidden"
               >
-                <Camera className="size-8 text-muted-foreground transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-500" />
-                <span className="absolute -bottom-6 text-xs text-muted-foreground">
-                  {t("photoUploadHint")}
-                </span>
+                {formData.photoUrl ? (
+                  <>
+                    <img src={formData.photoUrl} alt="" className="h-full w-full object-cover rounded-full" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                      <Camera className="size-6 text-white" />
+                    </div>
+                    {/* Success indicator */}
+                    <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white border-2 border-background">
+                      <Check className="h-3 w-3" />
+                    </div>
+                  </>
+                ) : uploading ? (
+                  <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                ) : (
+                  <Camera className="size-8 text-muted-foreground transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-500" />
+                )}
               </button>
+              <span className="text-[11px] text-muted-foreground text-center max-w-[250px]">
+                {t("photoSkip")}
+              </span>
+              {photoError && (
+                <span className="text-xs text-destructive">{photoError}</span>
+              )}
             </div>
 
-            <div className="mt-4 space-y-4">
+            <div className="space-y-4">
+              {/* Full Name — REQUIRED */}
               <div className="space-y-2">
-                <Label htmlFor="memberName">{t("nameLabel")}</Label>
+                <Label htmlFor="memberName">
+                  {t("nameLabel")} <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="memberName"
                   placeholder={t("namePlaceholder")}
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, name: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setFormData((prev) => ({ ...prev, name: e.target.value }));
+                    if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                  }}
+                  className={errors.name ? "border-red-500 focus-visible:ring-red-500" : ""}
                 />
+                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
               </div>
 
+              {/* Display Name — optional */}
               <div className="space-y-2">
-                <Label htmlFor="memberPhone">{t("phoneLabel")}</Label>
+                <Label htmlFor="displayName">{t("displayNameLabel")}</Label>
                 <Input
-                  id="memberPhone"
-                  type="tel"
-                  placeholder={t("phonePlaceholder")}
-                  value={formData.phone}
+                  id="displayName"
+                  placeholder={t("displayNameLabel")}
+                  value={formData.displayName}
                   onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, phone: e.target.value }))
+                    setFormData((prev) => ({ ...prev, displayName: e.target.value }))
                   }
                 />
+                <p className="text-[11px] text-muted-foreground">{t("displayNameHelp")}</p>
+              </div>
+
+              {/* Phone Number — REQUIRED with PhoneInput component */}
+              <div className="space-y-2">
+                <Label htmlFor="memberPhone">
+                  {t("phoneLabel")} <span className="text-red-500">*</span>
+                </Label>
+                <PhoneInput
+                  value={formData.phone}
+                  onChange={(phone) => {
+                    setFormData((prev) => ({ ...prev, phone }));
+                    if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                  }}
+                  defaultCountryCode={getDefaultCountryCode(currentGroup?.currency)}
+                />
+                {errors.phone ? (
+                  <p className="text-xs text-destructive">{errors.phone}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">{t("phoneHelp")}</p>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 2: Language & Theme */}
+        {/* ═══ Step 2: Language & Theme ═══ */}
         {currentStep === 2 && (
           <div className="space-y-6">
             <h2 className="text-center text-xl font-semibold sm:text-2xl">
@@ -224,9 +344,7 @@ export default function MemberOnboardingPage() {
                   <button
                     key={opt.key}
                     type="button"
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, language: opt.key }))
-                    }
+                    onClick={() => handleLanguageSwitch(opt.key)}
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-xl border-2 bg-card p-5 transition-all hover:shadow-md",
                       formData.language === opt.key
@@ -264,8 +382,7 @@ export default function MemberOnboardingPage() {
                     <div
                       className={cn(
                         "text-muted-foreground transition-colors",
-                        formData.theme === opt.key &&
-                          "text-emerald-600 dark:text-emerald-500"
+                        formData.theme === opt.key && "text-emerald-600 dark:text-emerald-500"
                       )}
                     >
                       {opt.icon}
@@ -278,7 +395,7 @@ export default function MemberOnboardingPage() {
           </div>
         )}
 
-        {/* Step 3: Notifications */}
+        {/* ═══ Step 3: Notifications ═══ */}
         {currentStep === 3 && (
           <div className="space-y-6">
             <h2 className="text-center text-xl font-semibold sm:text-2xl">
@@ -303,8 +420,7 @@ export default function MemberOnboardingPage() {
                     <div
                       className={cn(
                         "text-muted-foreground",
-                        formData.notifications[ch.key] &&
-                          "text-emerald-600 dark:text-emerald-500"
+                        formData.notifications[ch.key] && "text-emerald-600 dark:text-emerald-500"
                       )}
                     >
                       {ch.icon}
@@ -321,7 +437,7 @@ export default function MemberOnboardingPage() {
           </div>
         )}
 
-        {/* Step 4: Group at a Glance */}
+        {/* ═══ Step 4: Group at a Glance ═══ */}
         {currentStep === 4 && (
           <div className="space-y-6">
             <h2 className="text-center text-xl font-semibold sm:text-2xl">
@@ -329,7 +445,6 @@ export default function MemberOnboardingPage() {
             </h2>
 
             <div className="space-y-4">
-              {/* Next meeting */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -339,13 +454,10 @@ export default function MemberOnboardingPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="font-medium">{t("summaryMeetingDate")}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t("summaryMeetingLocation")}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("summaryMeetingLocation")}</p>
                 </CardContent>
               </Card>
 
-              {/* First contribution */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -355,13 +467,10 @@ export default function MemberOnboardingPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="font-medium">{t("summaryContributionAmount")}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t("summaryContributionDate")}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("summaryContributionDate")}</p>
                 </CardContent>
               </Card>
 
-              {/* Group rules */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -372,10 +481,7 @@ export default function MemberOnboardingPage() {
                 <CardContent>
                   <ul className="space-y-1.5">
                     {summaryRules.map((rule, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-2 text-sm text-muted-foreground"
-                      >
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
                         <span className="mt-0.5 block size-1.5 shrink-0 rounded-full bg-emerald-600 dark:bg-emerald-500" />
                         {rule}
                       </li>
@@ -399,10 +505,10 @@ export default function MemberOnboardingPage() {
           <div />
         )}
 
-        {currentStep < TOTAL_STEPS && (
+        {currentStep < TOTAL_STEPS && currentStep > 1 && (
           <button
             type="button"
-            onClick={skipStep}
+            onClick={() => setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS))}
             className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
             {t("skip")}

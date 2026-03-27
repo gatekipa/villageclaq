@@ -427,6 +427,8 @@
     "showingRange": "Affichage {from}-{to} sur {total} membres",
     "previous": "Précédent",
     "next": "Suivant",
+    "editMember": "Modifier le membre",
+    "memberUpdated": "Membre mis à jour avec succès",
     "bulkImport": "Import en masse",
     "downloadTemplate": "Télécharger le modèle",
     "uploadCsv": "Télécharger un fichier CSV",

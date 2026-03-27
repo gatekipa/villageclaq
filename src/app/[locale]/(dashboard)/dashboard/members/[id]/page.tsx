@@ -28,6 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 import {
   ArrowLeft,
   Mail,
@@ -45,6 +48,7 @@ import {
   UserMinus,
   AlertCircle,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -168,16 +172,93 @@ export default function MemberDetailPage() {
   const [showStandingDialog, setShowStandingDialog] = useState(false);
   const [showPositionDialog, setShowPositionDialog] = useState(false);
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [newRole, setNewRole] = useState('');
   const [newStanding, setNewStanding] = useState('');
   const [selectedPositionId, setSelectedPositionId] = useState('');
   const [actionSaving, setActionSaving] = useState(false);
+
+  // Edit member form state
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editStanding, setEditStanding] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   const { data: member, isLoading: memberLoading, error: memberError } = useMemberDetail(membershipId);
   const { data: payments = [], isLoading: paymentsLoading } = useMemberPayments(membershipId, groupId);
   const { data: attendances = [], isLoading: attendanceLoading } = useMemberAttendance(membershipId);
   const { data: positions = [], isLoading: positionsLoading } = useMemberPositions(membershipId);
   const { data: obligations = [] } = useMemberObligations(membershipId, groupId);
+
+  function openEditDialog() {
+    if (!member) return;
+    const prof = member.profile as Record<string, unknown> | undefined;
+    const privSettings = member.privacy_settings as Record<string, unknown> | null;
+    const isProxy = member.is_proxy as boolean;
+    setEditDisplayName((member.display_name as string) || (prof?.full_name as string) || "");
+    setEditTitle("");
+    setEditEmail("");
+    setEditPhone(isProxy ? ((privSettings?.proxy_phone as string) || "") : ((prof?.phone as string) || ""));
+    setEditRole((member.role as string) || "member");
+    setEditStanding((member.standing as string) || "good");
+    setEditError(null);
+    setShowEditDialog(true);
+  }
+
+  async function handleEditMember() {
+    if (!member || !editDisplayName.trim()) return;
+    setActionSaving(true);
+    setEditError(null);
+    try {
+      const isProxy = member.is_proxy as boolean;
+      const prof = member.profile as Record<string, unknown> | undefined;
+      const userId = prof?.id as string | undefined;
+
+      const membershipUpdate: Record<string, unknown> = {
+        role: editRole,
+        standing: editStanding,
+        display_name: editDisplayName.trim(),
+      };
+
+      if (isProxy) {
+        membershipUpdate.privacy_settings = {
+          proxy_phone: editPhone || "",
+          proxy_name: editDisplayName.trim(),
+          show_phone: false,
+          show_email: false,
+        };
+      }
+
+      const { error: membershipErr } = await supabase
+        .from("memberships")
+        .update(membershipUpdate)
+        .eq("id", membershipId);
+      if (membershipErr) throw new Error(membershipErr.message);
+
+      if (!isProxy && userId) {
+        const profileUpdate: Record<string, unknown> = {
+          full_name: editDisplayName.trim(),
+        };
+        if (editPhone !== undefined) profileUpdate.phone = editPhone || null;
+        const { error: profileErr } = await supabase
+          .from("profiles")
+          .update(profileUpdate)
+          .eq("id", userId);
+        if (profileErr) throw new Error(profileErr.message);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
+      await queryClient.invalidateQueries({ queryKey: ["members"] });
+      setShowEditDialog(false);
+    } catch (err) {
+      setEditError((err as Error).message);
+    } finally {
+      setActionSaving(false);
+    }
+  }
 
   // Compute stats from real data
   const totalAttendances = attendances.length;
@@ -239,6 +320,9 @@ export default function MemberDetailPage() {
               <MoreVertical className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem className="flex items-center gap-2" onClick={() => openEditDialog()}>
+                <Pencil className="h-4 w-4" /> {t("members.editMember")}
+              </DropdownMenuItem>
               <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewRole(member.role as string); setShowRoleDialog(true); }}>
                 <Edit className="h-4 w-4" /> {t("members.editRole")}
               </DropdownMenuItem>
@@ -268,7 +352,14 @@ export default function MemberDetailPage() {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-xl font-bold">{memberName}</h1>
+              <div className="flex items-center gap-2 justify-center sm:justify-start">
+                <h1 className="text-xl font-bold">{memberName}</h1>
+                {isAdmin && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog()}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
               {activePosition && (
                 <p className="text-sm font-medium text-primary">
                   {((activePosition.position as Record<string, unknown>)?.title as string) || ""}
@@ -477,6 +568,74 @@ export default function MemberDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) setEditError(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("members.editMember")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("members.displayName")} <span className="text-red-500">*</span></Label>
+              <Input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} placeholder={t("members.displayName")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("members.memberTitle")}</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder={t("members.titlePlaceholder")} />
+              <p className="text-[11px] text-muted-foreground">{t("members.titleHint")}</p>
+            </div>
+            {!member?.is_proxy && (
+              <div className="space-y-2">
+                <Label>{t("members.email")}</Label>
+                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder={t("members.email")} />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>{t("members.phone")}</Label>
+              <PhoneInput
+                value={editPhone}
+                onChange={setEditPhone}
+                defaultCountryCode={getDefaultCountryCode(currentGroup?.currency)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("members.role")}</Label>
+              <select
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="owner">Owner</option>
+                <option value="admin">Admin</option>
+                <option value="moderator">Moderator</option>
+                <option value="member">Member</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("members.standing")}</Label>
+              <select
+                value={editStanding}
+                onChange={(e) => setEditStanding(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="good">{t("members.standingGood")}</option>
+                <option value="warning">{t("members.standingWarning")}</option>
+                <option value="suspended">{t("members.standingSuspended")}</option>
+                <option value="banned">{t("members.standingBanned")}</option>
+              </select>
+            </div>
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleEditMember} disabled={actionSaving || !editDisplayName.trim()}>
+              {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Role Dialog */}
       <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>

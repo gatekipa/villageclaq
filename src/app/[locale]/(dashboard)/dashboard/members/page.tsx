@@ -147,6 +147,20 @@ export default function MembersPage() {
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit member dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editMemberId, setEditMemberId] = useState<string | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editStanding, setEditStanding] = useState("");
+  const [editIsProxy, setEditIsProxy] = useState(false);
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   // Auto-open proxy member dialog when navigated with ?addProxy=true
   useEffect(() => {
     if (searchParams.get("addProxy") === "true" && isAdmin) {
@@ -167,6 +181,81 @@ export default function MembersPage() {
     setNewPhone("");
     setNewRole("member");
     setAddError(null);
+  }
+
+  function openEditMember(member: Record<string, unknown>) {
+    const profile = member.profile as { full_name?: string; phone?: string; id?: string } | undefined;
+    const privacySettings = member.privacy_settings as Record<string, unknown> | null;
+    const isProxy = member.is_proxy as boolean;
+
+    // For display name: proxy members have display_name on membership; real members use profile.full_name
+    const name = (member.display_name as string) || profile?.full_name || "";
+    // Extract title if display_name contains a title prefix (e.g., "Chief John Doe")
+    // We store title in privacy_settings.proxy_name for proxy members, but there's no separate title field
+    // So we just use the full display name
+    setEditDisplayName(name);
+    setEditTitle("");
+    setEditEmail("");
+    setEditPhone(isProxy ? ((privacySettings?.proxy_phone as string) || "") : (profile?.phone || ""));
+    setEditRole((member.role as string) || "member");
+    setEditStanding((member.standing as string) || "good");
+    setEditIsProxy(isProxy);
+    setEditUserId(isProxy ? null : (profile?.id as string || null));
+    setEditMemberId(member.id as string);
+    setEditError(null);
+    setEditDialogOpen(true);
+  }
+
+  async function handleEditMember() {
+    if (!editMemberId || !editDisplayName.trim()) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const supabase = createClient();
+
+      // Update membership fields (role, standing, display_name)
+      const membershipUpdate: Record<string, unknown> = {
+        role: editRole,
+        standing: editStanding,
+        display_name: editDisplayName.trim(),
+      };
+
+      if (editIsProxy) {
+        // For proxy members, update phone in privacy_settings
+        membershipUpdate.privacy_settings = {
+          proxy_phone: editPhone || "",
+          proxy_name: editDisplayName.trim(),
+          show_phone: false,
+          show_email: false,
+        };
+      }
+
+      const { error: membershipErr } = await supabase
+        .from("memberships")
+        .update(membershipUpdate)
+        .eq("id", editMemberId);
+      if (membershipErr) throw new Error(membershipErr.message);
+
+      // For real (non-proxy) members, also update profile
+      if (!editIsProxy && editUserId) {
+        const profileUpdate: Record<string, unknown> = {
+          full_name: editDisplayName.trim(),
+        };
+        if (editPhone !== undefined) profileUpdate.phone = editPhone || null;
+        const { error: profileErr } = await supabase
+          .from("profiles")
+          .update(profileUpdate)
+          .eq("id", editUserId);
+        if (profileErr) throw new Error(profileErr.message);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      setEditDialogOpen(false);
+    } catch (err) {
+      setEditError((err as Error).message);
+    } finally {
+      setEditSaving(false);
+    }
   }
 
   function resetBulkImport() {
@@ -673,15 +762,15 @@ export default function MembersPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
                               className="flex items-center gap-2"
-                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                              onClick={(e) => { e.stopPropagation(); openEditMember(member); }}
                             >
-                              <Eye className="h-4 w-4" /> {t("viewDetails")}
+                              <Edit className="h-4 w-4" /> {t("editMember")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="flex items-center gap-2"
                               onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
                             >
-                              <Edit className="h-4 w-4" /> {t("editRole")}
+                              <Eye className="h-4 w-4" /> {t("viewDetails")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="flex items-center gap-2"
@@ -886,6 +975,76 @@ export default function MembersPage() {
             <Button onClick={handleAddMember} disabled={addSaving || !newFullName.trim()}>
               {addSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("addMember")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={(open) => { setEditDialogOpen(open); if (!open) setEditError(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("editMember")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("displayName")} <span className="text-red-500">*</span></Label>
+              <Input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} placeholder={t("displayName")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("memberTitle")}</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder={t("titlePlaceholder")} />
+              <p className="text-[11px] text-muted-foreground">{t("titleHint")}</p>
+            </div>
+            {!editIsProxy && (
+              <div className="space-y-2">
+                <Label>{t("email")}</Label>
+                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder={t("email")} />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>{t("phone")}</Label>
+              <PhoneInput
+                value={editPhone}
+                onChange={setEditPhone}
+                defaultCountryCode={getDefaultCountryCode(currentGroup?.currency)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("role")}</Label>
+              <select
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="owner">Owner</option>
+                <option value="admin">Admin</option>
+                <option value="moderator">Moderator</option>
+                <option value="member">Member</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("standing")}</Label>
+              <select
+                value={editStanding}
+                onChange={(e) => setEditStanding(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="good">{t("standingGood")}</option>
+                <option value="warning">{t("standingWarning")}</option>
+                <option value="suspended">{t("standingSuspended")}</option>
+                <option value="banned">{t("standingBanned")}</option>
+              </select>
+            </div>
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              {t("previous") === "Previous" ? "Cancel" : "Annuler"}
+            </Button>
+            <Button onClick={handleEditMember} disabled={editSaving || !editDisplayName.trim()}>
+              {editSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("previous") === "Previous" ? "Save" : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>

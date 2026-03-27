@@ -48,10 +48,11 @@ import {
   FileText,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useReliefPlans, useCreateReliefPlan, useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { PermissionGate } from "@/components/ui/permission-gate";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -257,7 +258,9 @@ function usePlanPayouts(planId: string | null) {
 export default function ReliefPlansPage() {
   const t = useTranslations("relief");
   const tc = useTranslations("common");
-  const { currentGroup, isAdmin, groupId, user } = useGroup();
+  const { currentGroup, groupId, user } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("relief.manage");
   const queryClient = useQueryClient();
   const { data: plans, isLoading, error, refetch } = useReliefPlans();
   const { data: members } = useMembers();
@@ -493,11 +496,11 @@ export default function ReliefPlansPage() {
 
   // ─── Loading / Error States ───────────────────────────────────────────
 
-  if (isLoading) return <AdminGuard><CardGridSkeleton cards={3} /></AdminGuard>;
-  if (error) return <AdminGuard><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></AdminGuard>;
+  if (isLoading) return <PermissionGate permission="relief.manage"><CardGridSkeleton cards={3} /></PermissionGate>;
+  if (error) return <PermissionGate permission="relief.manage"><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></PermissionGate>;
 
   return (
-    <AdminGuard>
+    <PermissionGate permission="relief.manage">
       <div className="space-y-6">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -937,7 +940,7 @@ export default function ReliefPlansPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminGuard>
+    </PermissionGate>
   );
 }
 

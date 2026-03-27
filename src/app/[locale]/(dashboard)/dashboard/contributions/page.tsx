@@ -52,7 +52,7 @@ import {
   EmptyState,
   ErrorState,
 } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
 import { formatAmount, CURRENCIES } from "@/lib/currencies";
@@ -69,7 +69,7 @@ export default function ContributionsPage() {
   const t = useTranslations();
   const { currentGroup, isAdmin } = useGroup();
   const { hasPermission } = usePermissions();
-  const canManageContributions = hasPermission("manage_contributions");
+  const canManageContributions = hasPermission("contributions.manage");
   const { data: contributionTypes, isLoading, isError, refetch } = useContributionTypes();
   const createMutation = useCreateContributionType();
   const queryClient = useQueryClient();
@@ -197,7 +197,7 @@ export default function ContributionsPage() {
 
   if (isLoading) {
     return (
-      <AdminGuard><div className="space-y-6">
+      <RequirePermission anyOf={["contributions.manage", "finances.view"]}><div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
@@ -215,26 +215,26 @@ export default function ContributionsPage() {
           ))}
         </div>
         <CardGridSkeleton cards={4} />
-      </div></AdminGuard>
+      </div></RequirePermission>
     );
   }
 
   if (isError) {
     return (
-      <AdminGuard><div className="space-y-6">
+      <RequirePermission anyOf={["contributions.manage", "finances.view"]}><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
           <p className="text-muted-foreground">{t("contributions.subtitle")}</p>
         </div>
         <ErrorState onRetry={() => refetch()} />
-      </div></AdminGuard>
+      </div></RequirePermission>
     );
   }
 
   const types = contributionTypes || [];
 
   return (
-    <AdminGuard><div className="space-y-6">
+    <RequirePermission anyOf={["contributions.manage", "finances.view"]}><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -537,6 +537,6 @@ export default function ContributionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

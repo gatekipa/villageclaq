@@ -31,7 +31,7 @@ import {
   useRecordPayment,
 } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { Shield } from "lucide-react";
 
@@ -40,7 +40,7 @@ export default function RecordPaymentPage() {
   const t = useTranslations();
   const { currentGroup, groupId } = useGroup();
   const { hasPermission } = usePermissions();
-  const canRecord = hasPermission("record_payments") || hasPermission("manage_finances");
+  const canRecord = hasPermission("finances.record") || hasPermission("finances.manage");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
   const recordPayment = useRecordPayment();
@@ -153,7 +153,7 @@ export default function RecordPaymentPage() {
 
   if (isLoading) {
     return (
-      <AdminGuard><div className="space-y-6">
+      <RequirePermission anyOf={["finances.record", "finances.manage"]}><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
@@ -169,19 +169,19 @@ export default function RecordPaymentPage() {
           ))}
         </div>
         <ListSkeleton rows={4} />
-      </div></AdminGuard>
+      </div></RequirePermission>
     );
   }
 
   if (isError) {
     return (
-      <AdminGuard><div className="space-y-6">
+      <RequirePermission anyOf={["finances.record", "finances.manage"]}><div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
         </div>
         <ErrorState onRetry={() => { refetchMembers(); refetchTypes(); }} />
-      </div></AdminGuard>
+      </div></RequirePermission>
     );
   }
 
@@ -198,7 +198,7 @@ export default function RecordPaymentPage() {
   }
 
   return (
-    <AdminGuard><div className="space-y-6">
+    <RequirePermission anyOf={["finances.record", "finances.manage"]}><div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
@@ -472,6 +472,6 @@ export default function RecordPaymentPage() {
           </ul>
         </CardContent>
       </Card>
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

@@ -116,7 +116,7 @@ export default function MembersPage() {
   const { data: members, isLoading, isError, error, refetch } = useMembers();
   const { data: positions } = useGroupPositions();
   const { hasPermission } = usePermissions();
-  const canManageMembers = hasPermission("manage_members");
+  const canManageMembers = hasPermission("members.manage");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [standingFilter, setStandingFilter] = useState("all");

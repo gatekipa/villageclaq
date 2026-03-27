@@ -42,10 +42,11 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useHostingRosters, useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn } from "@/lib/utils";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -177,7 +178,9 @@ function groupByMonth(assignments: Assignment[]): Record<string, Assignment[]> {
 export default function HostingPage() {
   const t = useTranslations("hosting");
   const tc = useTranslations("common");
-  const { isAdmin, groupId, user } = useGroup();
+  const { groupId, user } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("hosting.manage");
   const queryClient = useQueryClient();
   const { data: rostersRaw, isLoading, isError, error, refetch } = useHostingRosters();
   const { data: membersRaw } = useMembers();
@@ -269,23 +272,23 @@ export default function HostingPage() {
 
   if (isLoading) {
     return (
-      <AdminGuard>
+      <PermissionGate permission="hosting.manage">
         <ListSkeleton rows={6} />
-      </AdminGuard>
+      </PermissionGate>
     );
   }
 
   if (isError) {
     return (
-      <AdminGuard>
+      <PermissionGate permission="hosting.manage">
         <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />
-      </AdminGuard>
+      </PermissionGate>
     );
   }
 
   if (rosters.length === 0) {
     return (
-      <AdminGuard>
+      <PermissionGate permission="hosting.manage">
         <div className="space-y-6">
           <PageHeader
             t={t}
@@ -304,12 +307,12 @@ export default function HostingPage() {
             onSuccess={invalidateRosters}
           />
         </div>
-      </AdminGuard>
+      </PermissionGate>
     );
   }
 
   return (
-    <AdminGuard>
+    <PermissionGate permission="hosting.manage">
       <div className="space-y-6">
         {/* Header */}
         <PageHeader
@@ -440,7 +443,7 @@ export default function HostingPage() {
           onSuccess={invalidateRosters}
         />
       </div>
-    </AdminGuard>
+    </PermissionGate>
   );
 }
 

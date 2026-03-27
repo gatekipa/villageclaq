@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useMeetingMinutes, useEvents } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -134,7 +135,9 @@ function formatDateTime(dateStr: string) {
 export default function MinutesPage() {
   const t = useTranslations("minutes");
   const tc = useTranslations("common");
-  const { groupId, isAdmin, user } = useGroup();
+  const { groupId, user } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("minutes.manage");
   const queryClient = useQueryClient();
   const supabase = createClient();
 

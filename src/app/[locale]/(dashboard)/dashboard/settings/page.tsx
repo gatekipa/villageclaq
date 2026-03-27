@@ -26,7 +26,7 @@ import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
 function getInitials(name: string) {
@@ -42,7 +42,7 @@ export default function GroupSettingsPage() {
   const t = useTranslations("settings");
   const { isAdmin, groupId } = useGroup();
   const { hasPermission } = usePermissions();
-  const canManageSettings = hasPermission("manage_settings");
+  const canManageSettings = hasPermission("settings.manage");
   const queryClient = useQueryClient();
   const { data: group, isLoading: groupLoading, isError: groupError, error: groupErr, refetch: refetchGroup } = useGroupSettings();
   const { data: positions, isLoading: posLoading, isError: posError, error: posErr, refetch: refetchPos } = useGroupPositions();
@@ -137,18 +137,18 @@ export default function GroupSettingsPage() {
   }
 
   if (isLoading) {
-    return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
+    return <RequirePermission permission="settings.manage"><ListSkeleton rows={5} /></RequirePermission>;
   }
 
   if (isError) {
     return (
-      <AdminGuard><ErrorState
+      <RequirePermission permission="settings.manage"><ErrorState
         message={(groupErr as Error)?.message || (posErr as Error)?.message}
         onRetry={() => {
           refetchGroup();
           refetchPos();
         }}
-      /></AdminGuard>
+      /></RequirePermission>
     );
   }
 
@@ -156,7 +156,7 @@ export default function GroupSettingsPage() {
   const positionsData = (positions || []) as Record<string, unknown>[];
 
   return (
-    <AdminGuard><div className="space-y-6">
+    <RequirePermission permission="settings.manage"><div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
@@ -494,6 +494,6 @@ export default function GroupSettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

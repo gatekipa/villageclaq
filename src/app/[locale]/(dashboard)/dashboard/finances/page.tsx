@@ -34,7 +34,7 @@ import {
 import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 
 
 function formatCompact(amount: number) {
@@ -197,12 +197,12 @@ export default function FinancesPage() {
     { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
   ];
 
-  if (isLoading) return <AdminGuard><DashboardSkeleton /></AdminGuard>;
+  if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><DashboardSkeleton /></RequirePermission>;
 
-  if (isError) return <AdminGuard><ErrorState message="Failed to load financial data." onRetry={() => oblRefetch()} /></AdminGuard>;
+  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message="Failed to load financial data." onRetry={() => oblRefetch()} /></RequirePermission>;
 
   return (
-    <AdminGuard><div className="space-y-6">
+    <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("finances.title")}</h1>
@@ -452,6 +452,6 @@ export default function FinancesPage() {
           </CardContent>
         </Card>
       </div>
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

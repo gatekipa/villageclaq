@@ -508,6 +508,8 @@
     "permRecordPaymentsDesc": "Enregistrer les paiements hors ligne",
     "permManageFinances": "Gérer les finances",
     "permManageFinancesDesc": "Accès financier complet et rapports",
+    "permViewFinances": "Voir les finances",
+    "permViewFinancesDesc": "Voir les données financières et l'historique des paiements",
     "permManageContributions": "Gérer les cotisations",
     "permManageContributionsDesc": "Créer et modifier les types de cotisations",
     "permViewReports": "Voir les rapports",

@@ -25,7 +25,7 @@ import { useContributionTypes } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 
 type CellStatus = "paid" | "partial" | "unpaid" | "not_member" | "waived";
 
@@ -219,12 +219,12 @@ export default function DuesMatrixPage() {
     { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
   ];
 
-  if (isLoading) return <AdminGuard><ListSkeleton rows={8} /></AdminGuard>;
+  if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ListSkeleton rows={8} /></RequirePermission>;
 
-  if (isError) return <AdminGuard><ErrorState message="Failed to load matrix data." onRetry={() => refetch()} /></AdminGuard>;
+  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message="Failed to load matrix data." onRetry={() => refetch()} /></RequirePermission>;
 
   return (
-    <AdminGuard><div className="space-y-6">
+    <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -408,6 +408,6 @@ export default function DuesMatrixPage() {
           </CardContent>
         </Card>
       )}
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

@@ -40,10 +40,11 @@ import {
 } from "lucide-react";
 import { useEvents, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { PermissionGate } from "@/components/ui/permission-gate";
 import { QRCodeSVG } from "qrcode.react";
 
 type AttendanceStatus = "present" | "absent" | "excused" | "late";
@@ -97,7 +98,9 @@ const statusConfig: Record<AttendanceStatus, { color: string; activeColor: strin
 export default function AttendancePage() {
   const t = useTranslations("attendance");
   const tc = useTranslations("common");
-  const { groupId, user, isAdmin } = useGroup();
+  const { groupId, user } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("attendance.manage");
   const queryClient = useQueryClient();
 
   const {
@@ -344,24 +347,24 @@ export default function AttendancePage() {
 
   if (eventsLoading || membersLoading || statsLoading) {
     return (
-      <AdminGuard>
+      <PermissionGate permission="attendance.manage">
         <ListSkeleton rows={5} />
-      </AdminGuard>
+      </PermissionGate>
     );
   }
 
   if (eventsError) {
     return (
-      <AdminGuard>
+      <PermissionGate permission="attendance.manage">
         <ErrorState message={(eventsErr as Error)?.message} onRetry={() => refetchEvents()} />
-      </AdminGuard>
+      </PermissionGate>
     );
   }
 
   const allEvents = (events || []) as Record<string, unknown>[];
 
   return (
-    <AdminGuard>
+    <PermissionGate permission="attendance.manage">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -768,6 +771,6 @@ export default function AttendancePage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminGuard>
+    </PermissionGate>
   );
 }

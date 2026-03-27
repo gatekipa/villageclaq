@@ -53,10 +53,11 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 
 type AudienceType = "all" | "roles" | "members";
 type ScheduleType = "now" | "later";
@@ -308,13 +309,13 @@ export default function AnnouncementsPage() {
     m.toLowerCase().includes(memberSearch.toLowerCase())
   );
 
-  if (isLoading) return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
-  if (error) return <AdminGuard><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></AdminGuard>;
+  if (isLoading) return <RequirePermission permission="announcements.manage"><ListSkeleton rows={5} /></RequirePermission>;
+  if (error) return <RequirePermission permission="announcements.manage"><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></RequirePermission>;
 
   const announcementList = announcements || [];
 
   return (
-    <AdminGuard><div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
+    <RequirePermission permission="announcements.manage"><div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -663,6 +664,6 @@ export default function AnnouncementsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

@@ -38,12 +38,17 @@ import {
   Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
   key: string;
   href: string;
   icon: LucideIcon;
+  /** If set, only show this link when user has this permission (or is admin/owner) */
+  permission?: string;
+  /** If set, show when user has ANY of these permissions */
+  anyPermission?: string[];
 }
 
 interface NavSection {
@@ -63,16 +68,16 @@ const adminSections: NavSection[] = [
     labelKey: "sectionPeople",
     items: [
       { key: "members", href: "/dashboard/members", icon: Users },
-      { key: "roles", href: "/dashboard/roles", icon: ShieldCheck },
-      { key: "subGroups", href: "/dashboard/sub-groups", icon: GitBranch },
-      { key: "invitations", href: "/dashboard/invitations", icon: UserPlus },
+      { key: "roles", href: "/dashboard/roles", icon: ShieldCheck, permission: "roles.manage" },
+      { key: "subGroups", href: "/dashboard/sub-groups", icon: GitBranch, permission: "members.manage" },
+      { key: "invitations", href: "/dashboard/invitations", icon: UserPlus, anyPermission: ["members.manage", "members.invite"] },
     ],
   },
   {
     labelKey: "sectionMoney",
     items: [
-      { key: "contributions", href: "/dashboard/contributions", icon: HandCoins },
-      { key: "finances", href: "/dashboard/finances", icon: CreditCard },
+      { key: "contributions", href: "/dashboard/contributions", icon: HandCoins, anyPermission: ["contributions.manage", "finances.view", "finances.manage", "finances.record"] },
+      { key: "finances", href: "/dashboard/finances", icon: CreditCard, anyPermission: ["finances.manage", "finances.view"] },
     ],
   },
   {
@@ -99,7 +104,7 @@ const adminSections: NavSection[] = [
   {
     labelKey: "sectionAnalytics",
     items: [
-      { key: "reports", href: "/dashboard/reports", icon: PieChart },
+      { key: "reports", href: "/dashboard/reports", icon: PieChart, anyPermission: ["reports.view", "reports.export"] },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },
     ],
   },
@@ -147,7 +152,7 @@ const memberSections: NavSection[] = [
 
 const adminBottomItems: NavItem[] = [
   { key: "feedback", href: "/dashboard/feedback", icon: MessageSquare },
-  { key: "settings", href: "/dashboard/settings", icon: Settings },
+  { key: "settings", href: "/dashboard/settings", icon: Settings, permission: "settings.manage" },
   { key: "help", href: "/dashboard/help", icon: HelpCircle },
 ];
 
@@ -166,16 +171,25 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const { isAdmin, isPlatformStaff } = useGroup();
+  const { hasPermission, hasAnyPermission, userPermissions } = usePermissions();
 
-  const sections = isAdmin ? adminNavSections(isAdmin) : memberSections;
-  const bottomItems = isAdmin ? adminBottomItems : memberBottomItems;
+  // Show admin nav if user is admin/owner OR has any position-based permissions
+  const showAdminNav = isAdmin || userPermissions.length > 0;
+  const sections = showAdminNav ? adminNavSections() : memberSections;
+  const bottomItems = showAdminNav ? adminBottomItems : memberBottomItems;
 
-  function adminNavSections(admin: boolean): NavSection[] {
+  function adminNavSections(): NavSection[] {
     const base = [...adminSections];
-    if (admin) {
-      base.push(adminEnterprise);
-    }
+    if (isAdmin) base.push(adminEnterprise);
     return base;
+  }
+
+  function itemVisible(item: NavItem): boolean {
+    if (isAdmin) return true; // Owner/admin see everything
+    if (!item.permission && !item.anyPermission) return true; // No permission required
+    if (item.permission) return hasPermission(item.permission);
+    if (item.anyPermission) return hasAnyPermission(...item.anyPermission);
+    return true;
   }
 
   function isActive(href: string): boolean {
@@ -232,7 +246,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {t(section.labelKey)}
               </p>
               <div className="space-y-1">
-                {section.items.map((item) => (
+                {section.items.filter(itemVisible).map((item) => (
                   <Link
                     key={item.key + item.href}
                     href={item.href}
@@ -255,7 +269,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Bottom nav */}
         <div className="border-t border-sidebar-border px-3 py-4 space-y-1">
-          {bottomItems.map((item) => (
+          {bottomItems.filter(itemVisible).map((item) => (
             <Link
               key={item.key}
               href={item.href}

@@ -48,6 +48,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEvents, useCreateEvent } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 type EventType = "meeting" | "social" | "fundraiser" | "agm" | "emergency" | "other";
@@ -74,7 +75,9 @@ function getFirstDayOfMonth(year: number, month: number) {
 export default function EventsPage() {
   const t = useTranslations("events");
   const tc = useTranslations("common");
-  const { isAdmin } = useGroup();
+  useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("events.manage");
   const { data: events, isLoading, isError, error, refetch } = useEvents();
   const createEvent = useCreateEvent();
   const queryClient = useQueryClient();

@@ -25,7 +25,7 @@ import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 
 interface UnpaidMember {
   id: string;
@@ -166,12 +166,12 @@ export default function UnpaidReportPage() {
     { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
   ];
 
-  if (isLoading) return <AdminGuard><ListSkeleton rows={6} /></AdminGuard>;
+  if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ListSkeleton rows={6} /></RequirePermission>;
 
-  if (isError) return <AdminGuard><ErrorState message="Failed to load unpaid obligations." onRetry={() => refetch()} /></AdminGuard>;
+  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message="Failed to load unpaid obligations." onRetry={() => refetch()} /></RequirePermission>;
 
   return (
-    <AdminGuard><div className="space-y-6">
+    <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
       {/* Success banner */}
       {remindersSentCount > 0 && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
@@ -344,6 +344,6 @@ export default function UnpaidReportPage() {
           </div>
         </>
       )}
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

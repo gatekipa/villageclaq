@@ -48,7 +48,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
@@ -163,17 +163,17 @@ export default function InvitationsPage() {
 
   const isLoading = groupLoading || invLoading || codesLoading;
 
-  if (isLoading) return <AdminGuard><ListSkeleton rows={5} /></AdminGuard>;
+  if (isLoading) return <RequirePermission anyOf={["members.manage", "members.invite"]}><ListSkeleton rows={5} /></RequirePermission>;
 
   if (invError || codesError) {
     return (
-      <AdminGuard><ErrorState
+      <RequirePermission anyOf={["members.manage", "members.invite"]}><ErrorState
         message={(invError || codesError)?.message}
         onRetry={() => {
           refetchInv();
           refetchCodes();
         }}
-      /></AdminGuard>
+      /></RequirePermission>
     );
   }
 
@@ -181,7 +181,7 @@ export default function InvitationsPage() {
   const allInvitations = invitations || [];
 
   return (
-    <AdminGuard><div className="space-y-6">
+    <RequirePermission anyOf={["members.manage", "members.invite"]}><div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           {t("invitations.title")}
@@ -413,6 +413,6 @@ export default function InvitationsPage() {
           )}
         </CardContent>
       </Card>
-    </div></AdminGuard>
+    </div></RequirePermission>
   );
 }

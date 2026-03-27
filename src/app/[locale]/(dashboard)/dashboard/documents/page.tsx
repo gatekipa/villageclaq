@@ -32,6 +32,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useDocuments } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
@@ -92,7 +93,9 @@ const CATEGORY_OPTIONS: CategoryKey[] = ["constitution", "financial", "certifica
 
 export default function DocumentVaultPage() {
   const t = useTranslations("documentVault");
-  const { groupId, user, isAdmin } = useGroup();
+  const { groupId, user } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("documents.manage");
   const queryClient = useQueryClient();
   const { data: documents, isLoading, isError, error, refetch } = useDocuments();
   const [searchQuery, setSearchQuery] = useState("");

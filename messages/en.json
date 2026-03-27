@@ -508,6 +508,8 @@
     "permRecordPaymentsDesc": "Record offline payments and contributions",
     "permManageFinances": "Manage Finances",
     "permManageFinancesDesc": "Full financial access and reports",
+    "permViewFinances": "View Finances",
+    "permViewFinancesDesc": "View financial data and payment history",
     "permManageContributions": "Manage Contributions",
     "permManageContributionsDesc": "Create and edit contribution types",
     "permViewReports": "View Reports",

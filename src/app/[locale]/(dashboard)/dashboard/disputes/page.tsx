@@ -41,8 +41,9 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { PermissionGate } from "@/components/ui/permission-gate";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 type DisputeStatus = "open" | "under_review" | "mediation" | "resolved" | "dismissed";
@@ -85,7 +86,9 @@ function getMemberName(m: Record<string, unknown>): string {
 export default function DisputesPage() {
   const t = useTranslations("disputes");
   const tc = useTranslations("common");
-  const { groupId, isAdmin, currentMembership } = useGroup();
+  const { groupId, currentMembership } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("disputes.manage");
   const { data: membersList } = useMembers();
   const queryClient = useQueryClient();
 
@@ -399,7 +402,7 @@ export default function DisputesPage() {
                         <span>{createdAt}</span>
                       </div>
                     </div>
-                    <AdminGuard>
+                    <PermissionGate permission="disputes.manage">
                       <DropdownMenu>
                         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" />}>
                           <MoreVertical className="h-4 w-4" />
@@ -423,7 +426,7 @@ export default function DisputesPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </AdminGuard>
+                    </PermissionGate>
                   </div>
                 </CardContent>
               </Card>

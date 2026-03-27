@@ -57,9 +57,10 @@ import {
 } from "lucide-react";
 import { useElections, useCreateElection, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -168,7 +169,9 @@ function isWithinVotingPeriod(election: Election): boolean {
 export default function ElectionsPage() {
   const t = useTranslations("elections");
   const tc = useTranslations("common");
-  const { groupId, user, isAdmin, currentMembership } = useGroup();
+  const { groupId, user, currentMembership } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("elections.manage");
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -613,7 +616,7 @@ export default function ElectionsPage() {
                   <CardContent className="border-t pt-4">
                     {/* Admin Controls */}
                     {isAdmin && (
-                      <AdminGuard>
+                      <PermissionGate permission="elections.manage">
                         <div className="mb-4 flex flex-wrap gap-2">
                           {election.status === "draft" && (
                             <Button
@@ -654,7 +657,7 @@ export default function ElectionsPage() {
                             </Button>
                           )}
                         </div>
-                      </AdminGuard>
+                      </PermissionGate>
                     )}
 
                     {/* Candidates list (officer_election) */}

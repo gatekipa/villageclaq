@@ -91,8 +91,8 @@ export default function ReportsHubPage() {
   const t = useTranslations();
   const locale = useLocale();
   const { hasPermission } = usePermissions();
-  const canViewReports = hasPermission("view_reports");
-  const canExport = hasPermission("export_data");
+  const canViewReports = hasPermission("reports.view");
+  const canExport = hasPermission("reports.export");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ReportCategory | "all">("all");
   const [aiInsight, setAiInsight] = useState<string | null>(null);

@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { useSavingsCycles, useCreateSavingsCycle } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -282,7 +283,9 @@ const rotationIcons: Record<RotationType, typeof Repeat> = {
 export default function SavingsCirclePage() {
   const t = useTranslations("savingsCircle");
   const tc = useTranslations("common");
-  const { currentGroup, isAdmin } = useGroup();
+  const { currentGroup } = useGroup();
+  const { hasPermission } = usePermissions();
+  const isAdmin = hasPermission("savings.manage");
   const { data: cycles, isLoading, isError, error, refetch } = useSavingsCycles();
   const createCycle = useCreateSavingsCycle();
 

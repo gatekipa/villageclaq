@@ -64,7 +64,7 @@ import {
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 const supabase = createClient();
@@ -323,8 +323,8 @@ export default function SubGroupsPage() {
     };
   }, [subGroups]);
 
-  if (isLoading) return <AdminGuard><ListSkeleton rows={6} /></AdminGuard>;
-  if (isError) return <AdminGuard><ErrorState message={(error as Error)?.message} onRetry={() => refetch()} /></AdminGuard>;
+  if (isLoading) return <RequirePermission permission="members.manage"><ListSkeleton rows={6} /></RequirePermission>;
+  if (isError) return <RequirePermission permission="members.manage"><ErrorState message={(error as Error)?.message} onRetry={() => refetch()} /></RequirePermission>;
 
   // Form dialog content (shared between create and edit)
   const formContent = (
@@ -373,7 +373,7 @@ export default function SubGroupsPage() {
   );
 
   return (
-    <AdminGuard>
+    <RequirePermission permission="members.manage">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -753,6 +753,6 @@ export default function SubGroupsPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminGuard>
+    </RequirePermission>
   );
 }

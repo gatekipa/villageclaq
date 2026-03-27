@@ -57,7 +57,7 @@ import {
 import { useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
-import { AdminGuard } from "@/components/ui/admin-guard";
+import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 // ─── Permission Modules Definition ───────────────────────────────────────────
@@ -74,112 +74,81 @@ interface PermissionCategory {
   permissions: PermissionDef[];
 }
 
+// Each UI toggle key maps 1:1 to a DB permission key (dot-notation).
+// These are stored directly in position_permissions.permission column.
 const PERMISSION_MODULES: PermissionCategory[] = [
   {
     labelKey: "categoryMemberManagement",
     icon: Users,
     permissions: [
-      { key: "manage_members", labelKey: "permManageMembers", descKey: "permManageMembersDesc" },
-      { key: "invite_members", labelKey: "permInviteMembers", descKey: "permInviteMembersDesc" },
+      { key: "members.manage", labelKey: "permManageMembers", descKey: "permManageMembersDesc" },
+      { key: "members.invite", labelKey: "permInviteMembers", descKey: "permInviteMembersDesc" },
     ],
   },
   {
     labelKey: "categoryEventManagement",
     icon: Calendar,
     permissions: [
-      { key: "manage_events", labelKey: "permManageEvents", descKey: "permManageEventsDesc" },
-      { key: "manage_attendance", labelKey: "permManageAttendance", descKey: "permManageAttendanceDesc" },
+      { key: "events.manage", labelKey: "permManageEvents", descKey: "permManageEventsDesc" },
+      { key: "attendance.manage", labelKey: "permManageAttendance", descKey: "permManageAttendanceDesc" },
     ],
   },
   {
     labelKey: "categoryFinancialManagement",
     icon: HandCoins,
     permissions: [
-      { key: "record_payments", labelKey: "permRecordPayments", descKey: "permRecordPaymentsDesc" },
-      { key: "manage_finances", labelKey: "permManageFinances", descKey: "permManageFinancesDesc" },
-      { key: "manage_contributions", labelKey: "permManageContributions", descKey: "permManageContributionsDesc" },
+      { key: "finances.record", labelKey: "permRecordPayments", descKey: "permRecordPaymentsDesc" },
+      { key: "finances.manage", labelKey: "permManageFinances", descKey: "permManageFinancesDesc" },
+      { key: "finances.view", labelKey: "permViewFinances", descKey: "permViewFinancesDesc" },
+      { key: "contributions.manage", labelKey: "permManageContributions", descKey: "permManageContributionsDesc" },
     ],
   },
   {
     labelKey: "categoryReportsData",
     icon: BarChart3,
     permissions: [
-      { key: "view_reports", labelKey: "permViewReports", descKey: "permViewReportsDesc" },
-      { key: "export_data", labelKey: "permExportData", descKey: "permExportDataDesc" },
+      { key: "reports.view", labelKey: "permViewReports", descKey: "permViewReportsDesc" },
+      { key: "reports.export", labelKey: "permExportData", descKey: "permExportDataDesc" },
     ],
   },
   {
     labelKey: "categoryReliefPlans",
     icon: Heart,
     permissions: [
-      { key: "manage_relief", labelKey: "permManageRelief", descKey: "permManageReliefDesc" },
+      { key: "relief.manage", labelKey: "permManageRelief", descKey: "permManageReliefDesc" },
     ],
   },
   {
     labelKey: "categoryCommunications",
     icon: Megaphone,
     permissions: [
-      { key: "send_notifications", labelKey: "permSendNotifications", descKey: "permSendNotificationsDesc" },
-      { key: "manage_announcements", labelKey: "permManageAnnouncements", descKey: "permManageAnnouncementsDesc" },
+      { key: "notifications.send", labelKey: "permSendNotifications", descKey: "permSendNotificationsDesc" },
+      { key: "announcements.manage", labelKey: "permManageAnnouncements", descKey: "permManageAnnouncementsDesc" },
     ],
   },
   {
     labelKey: "categoryAdministration",
     icon: Settings,
     permissions: [
-      { key: "manage_roles", labelKey: "permManageRoles", descKey: "permManageRolesDesc" },
-      { key: "manage_settings", labelKey: "permManageSettings", descKey: "permManageSettingsDesc" },
-      { key: "manage_disputes", labelKey: "permManageDisputes", descKey: "permManageDisputesDesc" },
-      { key: "manage_documents", labelKey: "permManageDocuments", descKey: "permManageDocumentsDesc" },
-      { key: "manage_elections", labelKey: "permManageElections", descKey: "permManageElectionsDesc" },
-      { key: "manage_savings", labelKey: "permManageSavings", descKey: "permManageSavingsDesc" },
-      { key: "manage_hosting", labelKey: "permManageHosting", descKey: "permManageHostingDesc" },
-      { key: "manage_minutes", labelKey: "permManageMinutes", descKey: "permManageMinutesDesc" },
+      { key: "roles.manage", labelKey: "permManageRoles", descKey: "permManageRolesDesc" },
+      { key: "settings.manage", labelKey: "permManageSettings", descKey: "permManageSettingsDesc" },
+      { key: "disputes.manage", labelKey: "permManageDisputes", descKey: "permManageDisputesDesc" },
+      { key: "documents.manage", labelKey: "permManageDocuments", descKey: "permManageDocumentsDesc" },
+      { key: "elections.manage", labelKey: "permManageElections", descKey: "permManageElectionsDesc" },
+      { key: "savings.manage", labelKey: "permManageSavings", descKey: "permManageSavingsDesc" },
+      { key: "hosting.manage", labelKey: "permManageHosting", descKey: "permManageHostingDesc" },
+      { key: "minutes.manage", labelKey: "permManageMinutes", descKey: "permManageMinutesDesc" },
     ],
   },
 ];
 
-// Map simplified permission keys to dot-notation for DB storage
-const PERMISSION_DB_MAP: Record<string, string> = {
-  manage_members: "members.manage",
-  invite_members: "members.manage",
-  manage_events: "events.manage",
-  manage_attendance: "events.manage",
-  record_payments: "contributions.manage",
-  manage_finances: "finances.manage",
-  manage_contributions: "contributions.manage",
-  view_reports: "finances.view",
-  export_data: "finances.manage",
-  manage_relief: "finances.manage",
-  send_notifications: "settings.manage",
-  manage_announcements: "settings.manage",
-  manage_roles: "settings.manage",
-  manage_settings: "settings.manage",
-  manage_disputes: "settings.manage",
-  manage_documents: "settings.manage",
-  manage_elections: "settings.manage",
-  manage_savings: "finances.manage",
-  manage_hosting: "events.manage",
-  manage_minutes: "events.manage",
-};
-
-// Reverse map: from DB permission to all UI keys it enables
+// 1:1 mapping — UI key IS the DB key. No lossy collapsing.
 function dbPermsToUiKeys(dbPerms: string[]): Set<string> {
-  const enabled = new Set<string>();
-  for (const [uiKey, dbKey] of Object.entries(PERMISSION_DB_MAP)) {
-    if (dbPerms.includes(dbKey)) enabled.add(uiKey);
-  }
-  return enabled;
+  return new Set(dbPerms);
 }
 
-// Convert UI keys to unique DB permissions
 function uiKeysToDbPerms(uiKeys: Set<string>): string[] {
-  const dbPerms = new Set<string>();
-  for (const key of uiKeys) {
-    const dbKey = PERMISSION_DB_MAP[key];
-    if (dbKey) dbPerms.add(dbKey);
-  }
-  return [...dbPerms];
+  return [...uiKeys];
 }
 
 function getInitials(name: string) {
@@ -427,13 +396,13 @@ export default function RolesPage() {
     }
   }
 
-  if (isLoading) return <AdminGuard><ListSkeleton rows={6} /></AdminGuard>;
-  if (isError) return <AdminGuard><ErrorState message={(error as Error)?.message} onRetry={() => refetch()} /></AdminGuard>;
+  if (isLoading) return <RequirePermission permission="roles.manage"><ListSkeleton rows={6} /></RequirePermission>;
+  if (isError) return <RequirePermission permission="roles.manage"><ErrorState message={(error as Error)?.message} onRetry={() => refetch()} /></RequirePermission>;
 
   const positionsList = positions || [];
 
   return (
-    <AdminGuard>
+    <RequirePermission permission="roles.manage">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -765,6 +734,6 @@ export default function RolesPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </AdminGuard>
+    </RequirePermission>
   );
 }

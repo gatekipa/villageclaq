@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Share2, Calendar, Shield, Loader2, MessageCircle } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { DashboardSkeleton, EmptyState } from "@/components/ui/page-skeleton";
@@ -29,14 +32,43 @@ const standingConfig = {
   banned: { label: "suspended", color: "bg-red-400/30 text-red-100 border-red-300/40", dot: "bg-red-400" },
 } as const;
 
+/**
+ * Hook to fetch a specific member's data by membership ID.
+ * Used when admin views another member's card via ?memberId=xxx
+ */
+function useTargetMember(membershipId: string | null) {
+  return useQuery({
+    queryKey: ["card-member", membershipId],
+    queryFn: async () => {
+      if (!membershipId) return null;
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("memberships")
+        .select("id, role, standing, display_name, joined_at, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, display_name, avatar_url)")
+        .eq("id", membershipId)
+        .single();
+      if (error) throw error;
+      const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+      return { ...data, profile };
+    },
+    enabled: !!membershipId,
+  });
+}
+
 export default function MembershipCardPage() {
   const t = useTranslations("membershipCard");
+  const searchParams = useSearchParams();
+  const targetMemberId = searchParams.get("memberId");
   const { user, currentMembership, currentGroup, loading } = useGroup();
+  const { data: targetMember, isLoading: targetLoading } = useTargetMember(targetMemberId);
+
   const [side, setSide] = useState<"front" | "back">("front");
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
 
-  if (loading) {
+  const isLoading = loading || (!!targetMemberId && targetLoading);
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
@@ -60,20 +92,37 @@ export default function MembershipCardPage() {
     );
   }
 
-  const fullName = user?.full_name || user?.display_name || "Member";
-  const avatarUrl = user?.avatar_url;
-  const role = currentMembership.role;
-  const standing = (currentMembership.standing || "good") as keyof typeof standingConfig;
+  // Determine whose card to show:
+  // - If ?memberId is set (admin viewing another member), use target member data
+  // - Otherwise, show the current user's own card
+  const isViewingOther = !!targetMemberId && !!targetMember;
+  const membership = isViewingOther ? targetMember : currentMembership;
+  const profile = isViewingOther
+    ? (targetMember.profile as Record<string, unknown> | undefined)
+    : null;
+
+  // Resolve name and avatar from the correct source
+  const fullName = isViewingOther
+    ? ((membership.display_name as string) || (profile?.full_name as string) || (profile?.display_name as string) || "Member")
+    : (currentMembership.display_name || user?.full_name || user?.display_name || "Member");
+  const avatarUrl = isViewingOther
+    ? (profile?.avatar_url as string | null)
+    : (user?.avatar_url || null);
+
+  const role = (membership.role as string) || "member";
+  const standing = ((membership.standing as string) || "good") as keyof typeof standingConfig;
   const standingCfg = standingConfig[standing] || standingConfig.good;
   const isActive = standing === "good" || standing === "warning";
-  const memberId = `${currentMembership.id.slice(0, 4).toUpperCase()}-${currentMembership.id.slice(4, 8).toUpperCase()}`;
-  const memberSince = currentMembership.joined_at
-    ? new Date(currentMembership.joined_at).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+  const membershipId = membership.id as string;
+  const memberId = `${membershipId.slice(0, 4).toUpperCase()}-${membershipId.slice(4, 8).toUpperCase()}`;
+  const joinedAt = (membership.joined_at as string) || null;
+  const memberSince = joinedAt
+    ? new Date(joinedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })
     : "—";
   const groupName = currentGroup?.name || "—";
   const verifyUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/verify/${currentMembership.id}`
-    : `https://villageclaq.vercel.app/verify/${currentMembership.id}`;
+    ? `${window.location.origin}/verify/${membershipId}`
+    : `https://villageclaq.vercel.app/verify/${membershipId}`;
 
   async function handleDownload() {
     const card = document.getElementById("membership-card");
@@ -126,7 +175,9 @@ export default function MembershipCardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("subtitle")}</p>
+        <p className="text-muted-foreground">
+          {isViewingOther ? fullName : t("subtitle")}
+        </p>
       </div>
 
       {/* Side toggle */}

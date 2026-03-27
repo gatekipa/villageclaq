@@ -33,6 +33,7 @@ import {
   XCircle,
   Loader2,
   CheckCircle2,
+  Users,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -67,7 +68,7 @@ const frequencyLabels: Record<string, string> = {
 
 export default function ContributionsPage() {
   const t = useTranslations();
-  const { currentGroup, isAdmin } = useGroup();
+  const { currentGroup, isAdmin, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageContributions = hasPermission("contributions.manage");
   const { data: contributionTypes, isLoading, isError, refetch } = useContributionTypes();
@@ -181,6 +182,52 @@ export default function ContributionsPage() {
       .update({ is_active: !currentActive })
       .eq("id", typeId);
     await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+  }
+
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+
+  async function handleEnrollAll(typeId: string, amount: number, currency: string) {
+    if (!groupId) return;
+    setEnrollingId(typeId);
+    try {
+      const supabase = createClient();
+      const currentYear = new Date().getFullYear();
+
+      const { data: members } = await supabase
+        .from("memberships")
+        .select("id")
+        .eq("group_id", groupId);
+
+      const { data: existing } = await supabase
+        .from("contribution_obligations")
+        .select("membership_id")
+        .eq("contribution_type_id", typeId)
+        .eq("period_label", String(currentYear));
+
+      const existingIds = new Set((existing || []).map((e) => e.membership_id));
+      const missing = (members || []).filter((m) => !existingIds.has(m.id));
+
+      if (missing.length > 0) {
+        const obligations = missing.map((m) => ({
+          group_id: groupId,
+          membership_id: m.id,
+          contribution_type_id: typeId,
+          amount,
+          amount_paid: 0,
+          currency,
+          due_date: new Date(`${currentYear}-12-31`).toISOString(),
+          status: "pending" as const,
+          period_label: String(currentYear),
+        }));
+        await supabase.from("contribution_obligations").insert(obligations);
+      }
+      await queryClient.invalidateQueries({ queryKey: ["obligations"] });
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+    } catch (err) {
+      console.error("Enroll error:", err);
+    } finally {
+      setEnrollingId(null);
+    }
   }
 
   async function handleDelete(typeId: string) {
@@ -423,6 +470,11 @@ export default function ContributionsPage() {
                         ) : (
                           <><CheckCircle2 className="mr-2 h-4 w-4" />{t("common.activate")}</>
                         )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEnrollAll(type.id, Number(type.amount), type.currency || currentGroup?.currency || "XAF")} disabled={enrollingId === type.id}>
+                        <Users className="mr-2 h-4 w-4" />
+                        {enrollingId === type.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {t("standing.enrollAll")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setShowDeleteConfirm(type.id)} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />

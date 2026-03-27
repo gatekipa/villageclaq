@@ -178,13 +178,31 @@ export function useRecordPayment() {
       }).select().single();
       if (error) throw error;
 
-      // If linked to an obligation, update it
-      if (values.obligation_id) {
-        const { data: obl } = await supabase.from("contribution_obligations").select("amount, amount_paid").eq("id", values.obligation_id).single();
+      // Update matching obligation
+      let oblId = values.obligation_id;
+
+      // If no explicit obligation_id, try to find one by member + type + current year
+      if (!oblId && values.contribution_type_id && values.membership_id) {
+        const currentYear = String(new Date().getFullYear());
+        const { data: matchedObl } = await supabase
+          .from("contribution_obligations")
+          .select("id")
+          .eq("membership_id", values.membership_id)
+          .eq("contribution_type_id", values.contribution_type_id)
+          .eq("group_id", groupId)
+          .neq("status", "paid")
+          .order("due_date", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (matchedObl) oblId = matchedObl.id;
+      }
+
+      if (oblId) {
+        const { data: obl } = await supabase.from("contribution_obligations").select("amount, amount_paid").eq("id", oblId).single();
         if (obl) {
           const newPaid = Number(obl.amount_paid) + values.amount;
           const newStatus = newPaid >= Number(obl.amount) ? "paid" : "partial";
-          await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", values.obligation_id);
+          await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", oblId);
         }
       }
       return data;

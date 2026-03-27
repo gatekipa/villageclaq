@@ -31,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
+import { useMemberStanding } from "@/lib/hooks/use-member-standing";
 import {
   ArrowLeft,
   Mail,
@@ -188,6 +189,7 @@ export default function MemberDetailPage() {
   const [editError, setEditError] = useState<string | null>(null);
 
   const { data: member, isLoading: memberLoading, error: memberError } = useMemberDetail(membershipId);
+  const { data: standingData } = useMemberStanding(membershipId, groupId);
   const { data: payments = [], isLoading: paymentsLoading } = useMemberPayments(membershipId, groupId);
   const { data: attendances = [], isLoading: attendanceLoading } = useMemberAttendance(membershipId);
   const { data: positions = [], isLoading: positionsLoading } = useMemberPositions(membershipId);
@@ -435,6 +437,46 @@ export default function MemberDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Standing Breakdown */}
+      {standingData && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                standingData.standing === "good"
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : standingData.standing === "warning"
+                  ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+                  : "bg-red-500/10 text-red-700 dark:text-red-400"
+              }`}>
+                {standingData.standing === "good"
+                  ? t("standing.goodStanding")
+                  : standingData.standing === "warning"
+                  ? t("standing.atRisk")
+                  : t("standing.notInGoodStanding")}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {t("standing.standingBreakdown")}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {standingData.reasons.map((reason, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  {reason.passed ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                  )}
+                  <span className={reason.passed ? "text-muted-foreground" : "text-foreground font-medium"}>
+                    {reason.detail_en}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* History Tabs */}
       <Tabs defaultValue="contributions">

@@ -218,7 +218,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Logo */}
         <div className="flex h-16 items-center justify-between px-6">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <img src="/logo-mark.svg" alt="VillageClaq" className="h-10 w-10" />
+            <img src="/logo-mark.svg" alt="VillageClaq" className="h-[60px] w-[60px]" />
             <span className="text-xl font-bold text-sidebar-primary">
               VillageClaq
             </span>

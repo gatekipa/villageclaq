@@ -35,9 +35,9 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center">
           {isTransparent ? (
-            <Logo variant="horizontal" textColor="light" size="sm" />
+            <Logo variant="horizontal" textColor="light" size="md" />
           ) : (
-            <Logo variant="horizontal" textColor="dark" size="sm" />
+            <Logo variant="horizontal" textColor="dark" size="md" />
           )}
         </Link>
         <div className="flex items-center gap-1 sm:gap-2">

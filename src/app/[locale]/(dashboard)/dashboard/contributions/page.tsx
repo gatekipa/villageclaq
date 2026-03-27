@@ -427,8 +427,8 @@ export default function ContributionsPage() {
       {types.length === 0 ? (
         <EmptyState
           icon={HandCoins}
-          title={t("contributions.title")}
-          description={t("contributions.subtitle")}
+          title={t("contributions.typesEmptyTitle")}
+          description={t("contributions.typesEmptyDesc")}
           action={
             isAdmin ? (
               <Button onClick={() => setShowCreate(true)}>

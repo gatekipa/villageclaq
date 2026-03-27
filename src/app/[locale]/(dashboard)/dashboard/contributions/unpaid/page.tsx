@@ -231,8 +231,8 @@ export default function UnpaidReportPage() {
       {sorted.length === 0 ? (
         <EmptyState
           icon={AlertTriangle}
-          title="No unpaid obligations"
-          description="All members are up to date with their contributions."
+          title={t("contributions.unpaidEmptyTitle")}
+          description={t("contributions.unpaidEmptyDesc")}
         />
       ) : (
         <>

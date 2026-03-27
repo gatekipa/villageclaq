@@ -742,7 +742,16 @@
     "editTypeDesc": "Mettre à jour ce type de cotisation",
     "updateType": "Mettre à jour",
     "deleteType": "Supprimer le type",
-    "deleteTypeConfirm": "Ceci supprimera définitivement ce type de cotisation. Êtes-vous sûr ?"
+    "deleteTypeConfirm": "Ceci supprimera définitivement ce type de cotisation. Êtes-vous sûr ?",
+    "matrixEmptyTitle": "Aucune donnée de cotisation",
+    "matrixEmptyDesc": "La matrice des cotisations affiche le statut de paiement de chaque membre. Créez un type de cotisation et inscrivez les membres pour voir la matrice.",
+    "unpaidEmptyTitle": "Tout le monde est à jour !",
+    "unpaidEmptyDesc": "Aucun solde impayé. Tous les membres inscrits ont payé leurs obligations.",
+    "unpaidNoTypesDesc": "Créez un type de cotisation et inscrivez les membres pour suivre les impayés.",
+    "historyEmptyTitle": "Aucun paiement enregistré",
+    "historyEmptyDesc": "Lorsque vous enregistrez des paiements, ils apparaîtront ici avec la date, le montant, la méthode et le nom du membre.",
+    "typesEmptyTitle": "Aucun type de cotisation",
+    "typesEmptyDesc": "Créez des types de cotisation comme 'Cotisation annuelle', 'Levée spéciale' ou 'Fonds de construction'. Les membres seront inscrits automatiquement."
   },
   "finances": {
     "title": "Tableau de bord financier",

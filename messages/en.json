@@ -742,7 +742,16 @@
     "editTypeDesc": "Update this contribution type",
     "updateType": "Update Type",
     "deleteType": "Delete Type",
-    "deleteTypeConfirm": "This will permanently delete this contribution type. Are you sure?"
+    "deleteTypeConfirm": "This will permanently delete this contribution type. Are you sure?",
+    "matrixEmptyTitle": "No contribution data yet",
+    "matrixEmptyDesc": "The Dues Matrix shows every member's payment status at a glance. Create a contribution type and enroll members to see the matrix.",
+    "unpaidEmptyTitle": "Everyone is up to date!",
+    "unpaidEmptyDesc": "No outstanding balances. All enrolled members have paid their obligations.",
+    "unpaidNoTypesDesc": "Create a contribution type and enroll members to track who hasn't paid.",
+    "historyEmptyTitle": "No payments recorded yet",
+    "historyEmptyDesc": "When you record payments for members, they'll appear here with date, amount, method, and member name.",
+    "typesEmptyTitle": "No contribution types",
+    "typesEmptyDesc": "Create contribution types like 'Annual Dues', 'Special Levy', or 'Building Fund'. Members will be enrolled automatically."
   },
   "finances": {
     "title": "Financial Dashboard",

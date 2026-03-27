@@ -332,8 +332,13 @@ export default function DuesMatrixPage() {
       {memberRows.length === 0 || columns.length === 0 ? (
         <EmptyState
           icon={Grid3X3}
-          title="No obligation data"
-          description="Create contribution types and generate obligations to see the matrix."
+          title={t("contributions.matrixEmptyTitle")}
+          description={t("contributions.matrixEmptyDesc")}
+          action={
+            <Link href="/dashboard/contributions">
+              <Button size="sm">{t("contributions.types")}</Button>
+            </Link>
+          }
         />
       ) : (
         /* Matrix Table */

@@ -264,8 +264,13 @@ export default function PaymentHistoryPage() {
       {normalizedPayments.length === 0 ? (
         <EmptyState
           icon={History}
-          title={t("contributions.history")}
-          description={t("contributions.historyDesc")}
+          title={t("contributions.historyEmptyTitle")}
+          description={t("contributions.historyEmptyDesc")}
+          action={
+            <Link href="/dashboard/contributions/record">
+              <Button size="sm">{t("contributions.recordPayment")}</Button>
+            </Link>
+          }
         />
       ) : (
         <Card>

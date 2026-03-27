@@ -446,7 +446,17 @@ export default function SubGroupsPage() {
 
         {/* Sub-Groups */}
         {filtered.length === 0 ? (
-          <EmptyState icon={Layers} title={t("noSubGroups")} description={t("description")} />
+          <EmptyState
+            icon={Layers}
+            title={t("noSubGroups")}
+            description={t("description")}
+            action={
+              <Button onClick={() => { resetForm(); setShowCreateDialog(true); }}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("create")}
+              </Button>
+            }
+          />
         ) : viewMode === "table" ? (
           <div className="rounded-md border">
             <Table>

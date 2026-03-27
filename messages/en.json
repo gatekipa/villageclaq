@@ -382,6 +382,7 @@
   "header": {
     "notifications": "Notifications",
     "noNotifications": "No new notifications",
+    "allCaughtUp": "All caught up!",
     "markAllRead": "Mark all as read",
     "profile": "Profile",
     "settings": "Settings",

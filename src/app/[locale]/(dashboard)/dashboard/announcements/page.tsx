@@ -563,6 +563,12 @@ export default function AnnouncementsPage() {
           icon={Megaphone}
           title={t("noAnnouncements")}
           description={t("noAnnouncementsDesc")}
+          action={
+            <Button onClick={() => setDialogOpen(true)}>
+              <Megaphone className="mr-2 h-4 w-4" />
+              {t("create")}
+            </Button>
+          }
         />
       ) : (
         <div className="space-y-4">

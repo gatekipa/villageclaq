@@ -273,6 +273,14 @@ export default function DocumentVaultPage() {
           icon={FolderOpen}
           title={t("noDocuments")}
           description={t("noDocumentsDesc")}
+          action={
+            isAdmin ? (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                {t("upload")}
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

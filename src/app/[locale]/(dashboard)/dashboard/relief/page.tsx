@@ -2,8 +2,10 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, DollarSign, Clock, Shield } from "lucide-react";
+import { Heart, DollarSign, Clock, Shield, Plus } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { useReliefPlans } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -31,6 +33,14 @@ export default function ReliefPage() {
           icon={Heart}
           title={t("noPlans")}
           description={t("noPlansDesc")}
+          action={
+            <Link href="/dashboard/relief/plans">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("createPlan")}
+              </Button>
+            </Link>
+          }
         />
       </div>
     );

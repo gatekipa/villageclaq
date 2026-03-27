@@ -94,8 +94,10 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                      No notifications yet
+                    <div className="flex flex-col items-center px-4 py-8 text-center">
+                      <Bell className="mb-2 h-8 w-8 text-muted-foreground/40" />
+                      <p className="text-sm font-medium">{t("allCaughtUp")}</p>
+                      <p className="text-xs text-muted-foreground">{t("noNotifications")}</p>
                     </div>
                   ) : (
                     notifications.map((notification: Record<string, unknown>) => {

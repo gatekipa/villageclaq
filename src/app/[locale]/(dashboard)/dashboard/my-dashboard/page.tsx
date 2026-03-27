@@ -19,6 +19,7 @@ import {
   useEvents,
   useUnreadNotificationCount,
 } from "@/lib/hooks/use-supabase-query";
+import { useMemberStanding } from "@/lib/hooks/use-member-standing";
 import {
   ShieldCheck,
   AlertTriangle,
@@ -96,8 +97,11 @@ const standingStyles: Record<string, { bg: string; text: string; icon: typeof Sh
 export default function MyDashboardPage() {
   const t = useTranslations("myDashboard");
   const tCommon = useTranslations("common");
-  const { user, currentMembership, currentGroup, loading: groupLoading } = useGroup();
+  const tStanding = useTranslations("standing");
+  const { user, currentMembership, currentGroup, groupId, loading: groupLoading } = useGroup();
   const [explainerDismissed, setExplainerDismissed] = useState(false);
+
+  const { data: standingData } = useMemberStanding(currentMembership?.id || null, groupId);
 
   const {
     data: pendingObligations,
@@ -156,7 +160,7 @@ export default function MyDashboardPage() {
     );
   }
 
-  const standing = currentMembership?.standing || "good";
+  const standing = standingData?.standing || currentMembership?.standing || "good";
   const standingStyle = standingStyles[standing] || standingStyles.good;
   const StandingIcon = standingStyle.icon;
   const currency = currentGroup?.currency || "XAF";
@@ -176,26 +180,45 @@ export default function MyDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Standing Badge Card */}
         <Card>
-          <CardContent className="flex items-center gap-4 pt-2">
-            <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${standingStyle.bg}`}
-            >
-              <StandingIcon
-                className={`h-6 w-6 ${isGoodStanding ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
-              />
+          <CardContent className="pt-2">
+            <div className="flex items-center gap-4">
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${standingStyle.bg}`}
+              >
+                <StandingIcon
+                  className={`h-6 w-6 ${isGoodStanding ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <Badge className={`${standingStyle.text} border-0`}>
+                  {isGoodStanding
+                    ? t("goodStanding")
+                    : t("actionNeeded")}
+                </Badge>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {isGoodStanding
+                    ? t("goodStandingDesc")
+                    : t("actionNeededDesc")}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <Badge className={`${standingStyle.text} border-0`}>
-                {isGoodStanding
-                  ? t("goodStanding")
-                  : t("actionNeeded")}
-              </Badge>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {isGoodStanding
-                  ? t("goodStandingDesc")
-                  : t("actionNeededDesc")}
-              </p>
-            </div>
+            {/* Standing Breakdown */}
+            {standingData && standingData.reasons.length > 0 && (
+              <div className="mt-3 space-y-1.5 border-t pt-3">
+                {standingData.reasons.map((reason, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    {reason.passed ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                    )}
+                    <span className={reason.passed ? "text-muted-foreground" : "text-foreground font-medium"}>
+                      {reason.detail_en}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

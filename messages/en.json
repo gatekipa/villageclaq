@@ -1254,25 +1254,6 @@
     "recordedBy": "Recorded By",
     "noPlansCreated": "No relief plans created yet"
   },
-  "myDashboard": {
-    "title": "My Dashboard",
-    "standingGood": "You're in good standing",
-    "standingAction": "Action needed",
-    "outstandingPayments": "Outstanding Payments",
-    "noOutstanding": "All payments up to date!",
-    "payNow": "Pay Now",
-    "dueIn": "Due in {days} days",
-    "overdue": "Overdue",
-    "dueSoon": "Due soon",
-    "nextEvents": "Next Events",
-    "nextHostingAssignment": "Next Hosting",
-    "profileCompletion": "Profile Completion",
-    "completeProfile": "Complete your profile",
-    "welcomeTitle": "What VillageClaq does for you",
-    "welcomeBody": "Track your payments, RSVP to events, view meeting minutes, and stay connected with your group — all from your phone.",
-    "dismiss": "Got it!",
-    "unreadNotifications": "Unread Notifications"
-  },
   "myPayments": {
     "title": "My Payments",
     "subtitle": "Track your contributions and payment history",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
@@ -39,11 +39,21 @@ import {
   useMeetingMinutes,
 } from "@/lib/hooks/use-supabase-query";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function DashboardPage() {
   const t = useTranslations();
   const router = useRouter();
   const { currentGroup, user, isAdmin } = useGroup();
+  const { userPermissions } = usePermissions();
+
+  // Redirect non-admin members to their personal dashboard
+  const showAdminNav = isAdmin || userPermissions.length > 0;
+  useEffect(() => {
+    if (!showAdminNav && user) {
+      router.replace("/dashboard/my-dashboard");
+    }
+  }, [showAdminNav, user, router]);
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);

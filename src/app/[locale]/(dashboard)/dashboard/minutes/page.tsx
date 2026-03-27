@@ -158,6 +158,9 @@ export default function MinutesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [standaloneMode, setStandaloneMode] = useState(false);
+  const [standaloneTitle, setStandaloneTitle] = useState("");
+  const [selectedStandaloneId, setSelectedStandaloneId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionTrackerFilter, setActionTrackerFilter] = useState<
@@ -165,7 +168,7 @@ export default function MinutesPage() {
   >("all");
 
   // Editor state
-  const [editorTab, setEditorTab] = useState<"rich" | "plain" | "upload">(
+  const [editorTab, setEditorTab] = useState<"rich" | "template" | "plain" | "upload">(
     "rich"
   );
   const [editorLocation, setEditorLocation] = useState("");
@@ -214,10 +217,15 @@ export default function MinutesPage() {
     return list;
   }, [events, isAdmin, minutesByEventId, searchQuery]);
 
+  // Standalone minutes (no event_id)
+  const standaloneMinutes = useMemo(() => {
+    return minutes.filter((m) => !m.event_id);
+  }, [minutes]);
+
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
-  const selectedMinutes = selectedEventId
-    ? minutesByEventId[selectedEventId] || null
-    : null;
+  const selectedMinutes = standaloneMode
+    ? (selectedStandaloneId ? minutes.find((m) => m.id === selectedStandaloneId) || null : null)
+    : (selectedEventId ? minutesByEventId[selectedEventId] || null : null);
 
   // Set rich text content via textContent when initializing editor
   useEffect(() => {
@@ -278,7 +286,9 @@ export default function MinutesPage() {
   // ─── Save / Publish ─────────────────────────────────────────────────────
 
   const handleSave = async (status: "draft" | "published") => {
-    if (!selectedEvent || !groupId || !user) return;
+    if (!groupId || !user) return;
+    if (!standaloneMode && !selectedEvent) return;
+    if (standaloneMode && !standaloneTitle.trim() && !selectedStandaloneId) return;
     setSaving(true);
 
     const textContent =
@@ -287,10 +297,9 @@ export default function MinutesPage() {
         : editorPlainText;
 
     const payload: Record<string, unknown> = {
-      event_id: selectedEvent.id,
       group_id: groupId,
-      title: selectedEvent.title,
-      title_fr: selectedEvent.title_fr || null,
+      title: standaloneMode ? standaloneTitle.trim() : selectedEvent!.title,
+      title_fr: standaloneMode ? null : (selectedEvent!.title_fr || null),
       content_json: {
         text: textContent,
         chaired_by: editorChairedBy,
@@ -302,20 +311,81 @@ export default function MinutesPage() {
       created_by: user.id,
     };
 
+    if (!standaloneMode && selectedEvent) {
+      payload.event_id = selectedEvent.id;
+    }
+
     if (status === "published") {
       payload.published_at = new Date().toISOString();
       payload.published_by = user.id;
     }
 
     try {
-      const { error } = await supabase
-        .from("meeting_minutes")
-        .upsert(payload, { onConflict: "event_id" });
-      if (error) throw error;
+      if (selectedMinutes?.id && (standaloneMode || selectedMinutes.event_id === selectedEvent?.id)) {
+        // Update existing
+        const { error } = await supabase
+          .from("meeting_minutes")
+          .update(payload)
+          .eq("id", selectedMinutes.id);
+        if (error) throw error;
+      } else if (!standaloneMode) {
+        // Upsert by event_id
+        const { error } = await supabase
+          .from("meeting_minutes")
+          .upsert(payload, { onConflict: "event_id" });
+        if (error) throw error;
+      } else {
+        // Insert standalone
+        const { error } = await supabase
+          .from("meeting_minutes")
+          .insert(payload);
+        if (error) throw error;
+      }
+
+      // Notify members on publish
+      if (status === "published") {
+        try {
+          const { data: allMembers } = await supabase
+            .from("memberships")
+            .select("id")
+            .eq("group_id", groupId);
+          if (allMembers && allMembers.length > 0) {
+            const minutesTitle = payload.title as string;
+            const notifications = allMembers.map((m) => ({
+              group_id: groupId,
+              membership_id: m.id,
+              type: "minutes_published",
+              title: "Minutes Published",
+              message: `Meeting minutes "${minutesTitle}" have been published.`,
+              is_read: false,
+            }));
+            await supabase.from("notifications").insert(notifications);
+          }
+        } catch { /* notification failure shouldn't block save */ }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
       setEditMode(false);
+      setStandaloneMode(false);
     } catch (err) {
       console.error("Save error:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUnpublish = async () => {
+    if (!selectedMinutes || !groupId) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("meeting_minutes")
+        .update({ status: "draft", published_at: null, published_by: null })
+        .eq("id", selectedMinutes.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
+    } catch (err) {
+      console.error("Unpublish error:", err);
     } finally {
       setSaving(false);
     }
@@ -427,23 +497,7 @@ export default function MinutesPage() {
     );
   }
 
-  if (events.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {t("title")}
-          </h1>
-          <p className="text-muted-foreground">{t("subtitle")}</p>
-        </div>
-        <EmptyState
-          icon={FileText}
-          title={t("noMinutes")}
-          description={t("createEventFirst")}
-        />
-      </div>
-    );
-  }
+  // Removed: no longer require events to exist. Admins can create standalone minutes.
 
   // ─── Status badge helper ────────────────────────────────────────────────
 
@@ -514,9 +568,67 @@ export default function MinutesPage() {
             />
           </div>
 
+          {/* New Standalone Minutes button */}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setSelectedEventId(null);
+                setStandaloneMode(true);
+                setSelectedStandaloneId(null);
+                setStandaloneTitle("");
+                initEditor(null, null);
+                setEditMode(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("newStandalone")}
+            </Button>
+          )}
+
+          {/* Standalone minutes in list */}
+          {standaloneMinutes.length > 0 && (
+            <div className="space-y-2">
+              {standaloneMinutes
+                .filter((m) => isAdmin || m.status === "published")
+                .map((m) => (
+                <Card
+                  key={m.id}
+                  className={cn(
+                    "cursor-pointer transition-all hover:shadow-md",
+                    selectedStandaloneId === m.id && "border-primary ring-1 ring-primary"
+                  )}
+                  onClick={() => {
+                    setSelectedEventId(null);
+                    setStandaloneMode(true);
+                    setSelectedStandaloneId(m.id);
+                    setStandaloneTitle(m.title || "");
+                    setEditMode(false);
+                  }}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-sm font-semibold">{m.title || t("newStandalone")}</h3>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDate(m.created_at)}</span>
+                        </div>
+                      </div>
+                      <Badge variant={m.status === "published" ? "default" : "secondary"} className={m.status === "published" ? "bg-emerald-600 text-white" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}>
+                        {m.status === "published" ? t("published") : t("draft")}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
           {/* Event list */}
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
-            {filteredEvents.length === 0 ? (
+            {filteredEvents.length === 0 && standaloneMinutes.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {tc("noResults")}
               </p>
@@ -561,7 +673,7 @@ export default function MinutesPage() {
 
         {/* RIGHT COLUMN: Minutes view/editor */}
         <div className="w-full lg:w-2/3">
-          {!selectedEvent ? (
+          {!selectedEvent && !standaloneMode ? (
             /* No event selected */
             <Card className="flex min-h-[400px] items-center justify-center">
               <div className="text-center">
@@ -581,6 +693,18 @@ export default function MinutesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Standalone title */}
+                {standaloneMode && (
+                  <div className="space-y-2">
+                    <Label>{t("standaloneTitle")}</Label>
+                    <Input
+                      value={standaloneTitle}
+                      onChange={(e) => setStandaloneTitle(e.target.value)}
+                      placeholder={t("standaloneTitle")}
+                    />
+                  </div>
+                )}
+
                 {/* Meeting Details */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold">
@@ -593,7 +717,7 @@ export default function MinutesPage() {
                         {tc("date")}
                       </Label>
                       <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
-                        {formatDateTime(selectedEvent.starts_at)}
+                        {selectedEvent ? formatDateTime(selectedEvent.starts_at) : formatDate(new Date().toISOString())}
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -626,16 +750,17 @@ export default function MinutesPage() {
                   <Tabs
                     value={editorTab}
                     onValueChange={(v) =>
-                      setEditorTab(v as "rich" | "plain" | "upload")
+                      setEditorTab(v as "rich" | "template" | "plain" | "upload")
                     }
                   >
                     <TabsList>
                       <TabsTrigger value="rich">{t("richText")}</TabsTrigger>
+                      <TabsTrigger value="template">{t("template")}</TabsTrigger>
                       <TabsTrigger value="plain">
                         {t("plainText")}
                       </TabsTrigger>
                       <TabsTrigger value="upload">
-                        {t("uploadFile")}
+                        {t("uploadOnly")}
                       </TabsTrigger>
                     </TabsList>
 
@@ -731,6 +856,47 @@ export default function MinutesPage() {
                           }
                         }}
                       />
+                    </TabsContent>
+
+                    <TabsContent value="template" className="space-y-3">
+                      {[
+                        { key: "callToOrder", label: t("callToOrder") },
+                        { key: "rollCall", label: t("rollCall") },
+                        { key: "previousMinutes", label: t("previousMinutes") },
+                        { key: "treasurerReport", label: t("treasurerReport") },
+                        { key: "oldBusiness", label: t("oldBusiness") },
+                        { key: "newBusiness", label: t("newBusiness") },
+                        { key: "announcements", label: tc("announcements") || "Announcements" },
+                        { key: "nextMeetingDate", label: t("nextMeetingDate") },
+                        { key: "adjournment", label: t("adjournment") },
+                      ].map((section) => (
+                        <Card key={section.key}>
+                          <CardHeader className="p-3 pb-0">
+                            <CardTitle className="text-sm">{section.label}</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-3 pt-2">
+                            <Textarea
+                              rows={3}
+                              className="text-sm"
+                              placeholder={section.label}
+                              defaultValue=""
+                              onChange={(e) => {
+                                // Aggregate all template sections into editorPlainText
+                                const allSections = document.querySelectorAll('[data-template-section]');
+                                let combined = "";
+                                allSections.forEach((el) => {
+                                  const textarea = el as HTMLTextAreaElement;
+                                  if (textarea.value.trim()) {
+                                    combined += `## ${textarea.getAttribute('data-template-section')}\n${textarea.value.trim()}\n\n`;
+                                  }
+                                });
+                                setEditorPlainText(combined);
+                              }}
+                              data-template-section={section.label}
+                            />
+                          </CardContent>
+                        </Card>
+                      ))}
                     </TabsContent>
 
                     <TabsContent value="plain">
@@ -948,7 +1114,7 @@ export default function MinutesPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
                     <CardTitle className="flex items-center gap-2">
-                      {selectedMinutes.title || selectedEvent.title}
+                      {selectedMinutes.title || selectedEvent?.title || t("newStandalone")}
                       <Badge
                         variant="default"
                         className={cn(
@@ -971,14 +1137,26 @@ export default function MinutesPage() {
                     )}
                   </div>
                   {isAdmin && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleStartEdit}
-                    >
-                      <Pencil className="mr-1 h-3.5 w-3.5" />
-                      {tc("edit")}
-                    </Button>
+                    <div className="flex gap-2">
+                      {selectedMinutes.status === "published" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleUnpublish}
+                          disabled={saving}
+                        >
+                          {t("unpublish")}
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleStartEdit}
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        {tc("edit")}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -987,15 +1165,15 @@ export default function MinutesPage() {
                 <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{formatDateTime(selectedEvent.starts_at)}</span>
+                    <span>{selectedEvent ? formatDateTime(selectedEvent.starts_at) : formatDate(selectedMinutes.created_at)}</span>
                   </div>
                   {(selectedMinutes.content_json?.location ||
-                    selectedEvent.location) && (
+                    selectedEvent?.location) && (
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
                       <span>
                         {selectedMinutes.content_json?.location ||
-                          selectedEvent.location}
+                          selectedEvent?.location}
                       </span>
                     </div>
                   )}

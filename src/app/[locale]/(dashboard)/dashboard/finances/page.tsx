@@ -1,7 +1,7 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,8 @@ import {
   DollarSign,
   Clock,
   ArrowRight,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import {
   BarChart,
@@ -33,6 +35,8 @@ import {
 } from "recharts";
 import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
@@ -46,8 +50,11 @@ function formatCompact(amount: number) {
 
 export default function FinancesPage() {
   const t = useTranslations();
-  const { currentGroup } = useGroup();
+  const { currentGroup, groupId, isAdmin } = useGroup();
+  const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
 
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
   const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(200);
@@ -189,6 +196,74 @@ export default function FinancesPage() {
     ? Math.round(((stats.collectedThisMonth - stats.collectedLastMonth) / stats.collectedLastMonth) * 100)
     : stats.collectedThisMonth > 0 ? 100 : 0;
 
+  async function handleSyncPayments() {
+    if (!groupId || syncing) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const supabase = createClient();
+      // Get all payments for this group
+      const { data: payments } = await supabase
+        .from("payments")
+        .select("id, membership_id, contribution_type_id, amount, group_id, recorded_at")
+        .eq("group_id", groupId);
+
+      if (!payments || payments.length === 0) {
+        setSyncResult("No payments to sync");
+        return;
+      }
+
+      // Group payments by member + contribution type
+      const paymentMap = new Map<string, number>();
+      for (const p of payments) {
+        if (!p.contribution_type_id) continue;
+        const key = `${p.membership_id}__${p.contribution_type_id}`;
+        paymentMap.set(key, (paymentMap.get(key) || 0) + Number(p.amount));
+      }
+
+      let updated = 0;
+      for (const [key, totalPaid] of paymentMap.entries()) {
+        const [membershipId, contributionTypeId] = key.split("__");
+
+        // Find matching obligation(s)
+        const { data: obligations } = await supabase
+          .from("contribution_obligations")
+          .select("id, amount, amount_paid")
+          .eq("membership_id", membershipId)
+          .eq("contribution_type_id", contributionTypeId)
+          .eq("group_id", groupId)
+          .order("due_date", { ascending: false })
+          .limit(1);
+
+        if (obligations && obligations.length > 0) {
+          const ob = obligations[0];
+          const amountDue = Number(ob.amount) || 0;
+          let newStatus: string = "pending";
+          if (totalPaid >= amountDue && amountDue > 0) newStatus = "paid";
+          else if (totalPaid > 0) newStatus = "partial";
+
+          await supabase
+            .from("contribution_obligations")
+            .update({ amount_paid: totalPaid, status: newStatus })
+            .eq("id", ob.id);
+          updated++;
+        }
+        // Small delay to not overwhelm Supabase
+        await new Promise((r) => setTimeout(r, 30));
+      }
+
+      setSyncResult(`Synced ${updated} obligations from ${payments.length} payments`);
+      queryClient.invalidateQueries({ queryKey: ["obligations"] });
+      queryClient.invalidateQueries({ queryKey: ["matrix-data"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["aggregated-feed"] });
+    } catch (err) {
+      setSyncResult(`Error: ${(err as Error).message}`);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const subNavItems = [
     { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
     { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
@@ -225,6 +300,17 @@ export default function FinancesPage() {
           </Link>
         ))}
       </div>
+
+      {/* Sync Payments (admin only) */}
+      {isAdmin && (
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={handleSyncPayments} disabled={syncing}>
+            {syncing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+            {t("finances.syncPayments")}
+          </Button>
+          {syncResult && <span className="text-xs text-muted-foreground">{syncResult}</span>}
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -760,7 +760,8 @@
     "topOverdue": "Membres les plus en retard",
     "items": "éléments",
     "byType": "Collecte par type",
-    "recentPayments": "Paiements récents"
+    "recentPayments": "Paiements récents",
+    "syncPayments": "Synchroniser les paiements"
   },
   "invitations": {
     "title": "Invitations",

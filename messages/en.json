@@ -760,7 +760,8 @@
     "topOverdue": "Top Overdue Members",
     "items": "items",
     "byType": "Collection by Type",
-    "recentPayments": "Recent Payments"
+    "recentPayments": "Recent Payments",
+    "syncPayments": "Sync Payments to Obligations"
   },
   "invitations": {
     "title": "Invitations",

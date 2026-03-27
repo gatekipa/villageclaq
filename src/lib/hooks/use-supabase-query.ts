@@ -178,19 +178,19 @@ export function useRecordPayment() {
       }).select().single();
       if (error) throw error;
 
-      // Update matching obligation
+      // Update matching obligation — this is CRITICAL for the financial pipeline
       let oblId = values.obligation_id;
 
-      // If no explicit obligation_id, try to find one by member + type + current year
+      // If no explicit obligation_id, try to find one by member + type (unpaid first, then any)
       if (!oblId && values.contribution_type_id && values.membership_id) {
-        const currentYear = String(new Date().getFullYear());
+        // First try: find an unpaid obligation for this member + type
         const { data: matchedObl } = await supabase
           .from("contribution_obligations")
           .select("id")
           .eq("membership_id", values.membership_id)
           .eq("contribution_type_id", values.contribution_type_id)
           .eq("group_id", groupId)
-          .neq("status", "paid")
+          .in("status", ["pending", "partial", "overdue"])
           .order("due_date", { ascending: true })
           .limit(1)
           .maybeSingle();
@@ -198,19 +198,50 @@ export function useRecordPayment() {
       }
 
       if (oblId) {
+        // Update existing obligation
         const { data: obl } = await supabase.from("contribution_obligations").select("amount, amount_paid").eq("id", oblId).single();
         if (obl) {
           const newPaid = Number(obl.amount_paid) + values.amount;
-          const newStatus = newPaid >= Number(obl.amount) ? "paid" : "partial";
+          const amountDue = Number(obl.amount);
+          const newStatus = (amountDue > 0 && newPaid >= amountDue) ? "paid" : newPaid > 0 ? "partial" : "pending";
           await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", oblId);
         }
+      } else if (values.contribution_type_id && values.membership_id) {
+        // No obligation exists — create one and mark it paid/partial
+        const { data: contribType } = await supabase
+          .from("contribution_types")
+          .select("amount, currency")
+          .eq("id", values.contribution_type_id)
+          .single();
+
+        const amountDue = Number(contribType?.amount) || values.amount;
+        const amountPaid = values.amount;
+        const currentYear = new Date().getFullYear();
+
+        await supabase.from("contribution_obligations").insert({
+          group_id: groupId,
+          membership_id: values.membership_id,
+          contribution_type_id: values.contribution_type_id,
+          amount: amountDue,
+          amount_paid: amountPaid,
+          currency: contribType?.currency || values.currency || "XAF",
+          status: amountPaid >= amountDue ? "paid" : "partial",
+          period_label: String(currentYear),
+          due_date: new Date(currentYear, 11, 31).toISOString(),
+        });
       }
       return data;
     },
     onSuccess: (_data, variables) => {
+      // Invalidate ALL financial queries so every page shows fresh data
       queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
       queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["member-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["member-obligations"] });
       // Invalidate standing cache so it recalculates on next view
       if (variables.membership_id) {
         queryClient.invalidateQueries({ queryKey: ["member-standing", variables.membership_id, groupId] });

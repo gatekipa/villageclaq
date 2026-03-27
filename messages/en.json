@@ -410,7 +410,22 @@
     "selectRole": "Select role",
     "selectStanding": "Select standing",
     "selectPosition": "Select position",
-    "noPositionsAvailable": "No positions available"
+    "noPositionsAvailable": "No positions available",
+    "tableView": "Table view",
+    "gridView": "Grid view",
+    "columnName": "Name",
+    "columnStatus": "Status",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "viewDetails": "View Details",
+    "filterAll": "All",
+    "filterOwner": "Owner",
+    "filterAdmin": "Admin",
+    "filterModerator": "Moderator",
+    "filterMember": "Member",
+    "showingRange": "Showing {from}-{to} of {total} members",
+    "previous": "Previous",
+    "next": "Next"
   },
   "settings": {
     "title": "Group Settings",

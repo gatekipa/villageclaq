@@ -13,12 +13,34 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Users,
   UserPlus,
@@ -29,6 +51,14 @@ import {
   Calendar,
   Loader2,
   Phone,
+  MoreVertical,
+  List,
+  LayoutGrid,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Edit,
+  UserMinus,
 } from "lucide-react";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -51,6 +81,9 @@ const roleConfig: Record<string, { icon: typeof Shield; color: string }> = {
   member: { icon: Users, color: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20" },
 };
 
+const ITEMS_PER_PAGE = 25;
+const VIEW_PREFERENCE_KEY = "villageclaq-members-view";
+
 export default function MembersPage() {
   const t = useTranslations("members");
   const router = useRouter();
@@ -59,6 +92,15 @@ export default function MembersPage() {
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [standingFilter, setStandingFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"table" | "grid">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem(VIEW_PREFERENCE_KEY) as "table" | "grid") || "table";
+    }
+    return "table";
+  });
 
   // Add member dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -74,10 +116,14 @@ export default function MembersPage() {
   useEffect(() => {
     if (searchParams.get("addProxy") === "true" && isAdmin) {
       setAddDialogOpen(true);
-      // Clean up the URL without triggering a navigation
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [searchParams, isAdmin]);
+
+  function handleViewChange(mode: "table" | "grid") {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_PREFERENCE_KEY, mode);
+  }
 
   function resetAddForm() {
     setNewFullName("");
@@ -94,9 +140,6 @@ export default function MembersPage() {
     setAddError(null);
     try {
       const supabase = createClient();
-
-      // Use the SECURITY DEFINER function to create proxy member
-      // This bypasses RLS safely — the function verifies the caller is a group member
       const displayName = newTitle.trim()
         ? `${newTitle.trim()} ${newFullName.trim()}`
         : newFullName.trim();
@@ -121,18 +164,49 @@ export default function MembersPage() {
 
   const filtered = useMemo(() => {
     if (!members) return [];
-    if (!search.trim()) return members;
-    const q = search.toLowerCase();
-    return members.filter((m: Record<string, unknown>) => {
-      const profile = m.profile as { full_name?: string } | undefined;
-      const displayName = (m.display_name as string) || "";
-      const fullName = profile?.full_name || "";
-      return (
-        fullName.toLowerCase().includes(q) ||
-        displayName.toLowerCase().includes(q)
-      );
-    });
-  }, [members, search]);
+    let result = members;
+
+    // Search filter
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((m: Record<string, unknown>) => {
+        const profile = m.profile as { full_name?: string; phone?: string } | undefined;
+        const displayName = (m.display_name as string) || "";
+        const fullName = profile?.full_name || "";
+        const phone = profile?.phone || "";
+        const privacySettings = m.privacy_settings as Record<string, unknown> | null;
+        const proxyPhone = (privacySettings?.proxy_phone as string) || "";
+        return (
+          fullName.toLowerCase().includes(q) ||
+          displayName.toLowerCase().includes(q) ||
+          phone.includes(q) ||
+          proxyPhone.includes(q)
+        );
+      });
+    }
+
+    // Role filter
+    if (roleFilter !== "all") {
+      result = result.filter((m: Record<string, unknown>) => m.role === roleFilter);
+    }
+
+    // Standing filter
+    if (standingFilter !== "all") {
+      result = result.filter((m: Record<string, unknown>) => m.standing === standingFilter);
+    }
+
+    return result;
+  }, [members, search, roleFilter, standingFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, roleFilter, standingFilter]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const showingFrom = filtered.length === 0 ? 0 : (page - 1) * ITEMS_PER_PAGE + 1;
+  const showingTo = Math.min(page * ITEMS_PER_PAGE, filtered.length);
 
   if (isLoading) {
     return <ListSkeleton rows={6} />;
@@ -155,7 +229,6 @@ export default function MembersPage() {
   const getPhone = (member: Record<string, unknown>) => {
     const profile = member.profile as { phone?: string } | undefined;
     const privacySettings = member.privacy_settings as Record<string, unknown> | null;
-    // For proxy members, phone is in privacy_settings.proxy_phone
     if (member.is_proxy && privacySettings?.proxy_phone) {
       return privacySettings.proxy_phone as string;
     }
@@ -190,32 +263,83 @@ export default function MembersPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
-        {isAdmin && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              {t("addMember")}
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex items-center rounded-md border">
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="icon"
+              className="h-8 w-8 rounded-r-none"
+              onClick={() => handleViewChange("table")}
+              aria-label={t("tableView")}
+            >
+              <List className="h-4 w-4" />
             </Button>
-            <Link href="/dashboard/invitations">
-              <Button>
-                <UserPlus className="mr-2 h-4 w-4" />
-                {t("inviteMember")}
-              </Button>
-            </Link>
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="icon"
+              className="h-8 w-8 rounded-l-none"
+              onClick={() => handleViewChange("grid")}
+              aria-label={t("gridView")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
           </div>
-        )}
+          {isAdmin && (
+            <>
+              <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                {t("addMember")}
+              </Button>
+              <Link href="/dashboard/invitations">
+                <Button>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {t("inviteMember")}
+                </Button>
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Search + Count */}
+      {/* Search + Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={t("searchMembers")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t("searchMembers")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v ?? "all")}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder={t("role")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("filterAll")}</SelectItem>
+                <SelectItem value="owner">{t("filterOwner")}</SelectItem>
+                <SelectItem value="admin">{t("filterAdmin")}</SelectItem>
+                <SelectItem value="moderator">{t("filterModerator")}</SelectItem>
+                <SelectItem value="member">{t("filterMember")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={standingFilter} onValueChange={(v) => setStandingFilter(v ?? "all")}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder={t("standing")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("filterAll")}</SelectItem>
+                <SelectItem value="good">{t("standingGood")}</SelectItem>
+                <SelectItem value="warning">{t("standingWarning")}</SelectItem>
+                <SelectItem value="suspended">{t("standingSuspended")}</SelectItem>
+                <SelectItem value="banned">{t("standingBanned")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           {t("totalCount", { count: filtered.length })}
@@ -229,9 +353,150 @@ export default function MembersPage() {
           title={t("noMembers")}
           description={t("searchMembers")}
         />
+      ) : viewMode === "table" ? (
+        /* Table View */
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("columnName")}</TableHead>
+                <TableHead>{t("role")}</TableHead>
+                <TableHead>{t("standing")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("phone")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("joinedDate")}</TableHead>
+                <TableHead>{t("columnStatus")}</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginated.map((member: Record<string, unknown>) => {
+                const id = member.id as string;
+                const role = (member.role as string) || "member";
+                const standing = (member.standing as Standing) || "good";
+                const joinedAt = member.joined_at as string;
+                const profile = member.profile as {
+                  id?: string;
+                  full_name?: string;
+                  avatar_url?: string;
+                  phone?: string;
+                } | undefined;
+                const name = getName(member);
+                const phone = getPhone(member);
+                const isProxy = member.is_proxy as boolean;
+                const standingStyle = standingConfig[standing] || standingConfig.good;
+                const roleStyle = roleConfig[role] || roleConfig.member;
+                const isActive = standing === "good" || standing === "warning";
+
+                return (
+                  <TableRow
+                    key={id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/dashboard/members/${id}`)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={profile?.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                            {getInitials(name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium">{name}</span>
+                          {isProxy && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                              {t("proxyMember")}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`text-xs capitalize ${roleStyle.color}`}>
+                        {role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${standingStyle.color}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${standingStyle.dotColor}`} />
+                        {t(
+                          `standing${standing.charAt(0).toUpperCase() + standing.slice(1)}` as
+                            | "standingGood"
+                            | "standingWarning"
+                            | "standingSuspended"
+                            | "standingBanned"
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {phone ? String(phone) : "—"}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {joinedAt ? formatDate(joinedAt) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${isActive ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+                        <span className="text-xs text-muted-foreground">
+                          {isActive ? t("statusActive") : t("statusInactive")}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent focus:outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="flex items-center gap-2"
+                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                            >
+                              <Eye className="h-4 w-4" /> {t("viewDetails")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex items-center gap-2"
+                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                            >
+                              <Edit className="h-4 w-4" /> {t("editRole")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex items-center gap-2"
+                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                            >
+                              <Shield className="h-4 w-4" /> {t("changeStanding")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex items-center gap-2"
+                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                            >
+                              <Shield className="h-4 w-4" /> {t("assignPosition")}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="flex items-center gap-2 text-destructive"
+                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                            >
+                              <UserMinus className="h-4 w-4" /> {t("removeMember")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
+        /* Grid View */
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((member: Record<string, unknown>) => {
+          {paginated.map((member: Record<string, unknown>) => {
             const id = member.id as string;
             const role = (member.role as string) || "member";
             const standing = (member.standing as Standing) || "good";
@@ -257,7 +522,6 @@ export default function MembersPage() {
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    {/* Avatar */}
                     <div className="relative shrink-0">
                       <Avatar className="h-12 w-12">
                         <AvatarImage src={profile?.avatar_url || undefined} />
@@ -269,8 +533,6 @@ export default function MembersPage() {
                         className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${standingStyle.dotColor}`}
                       />
                     </div>
-
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="truncate text-sm font-semibold group-hover:text-primary transition-colors">
@@ -278,8 +540,6 @@ export default function MembersPage() {
                         </p>
                         <RoleIcon className="h-3.5 w-3.5 shrink-0 text-primary" />
                       </div>
-
-                      {/* Role + Standing badges */}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <Badge
                           variant="outline"
@@ -302,24 +562,18 @@ export default function MembersPage() {
                           )}
                         </span>
                       </div>
-
-                      {/* Phone */}
                       {phone ? (
                         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Phone className="h-3 w-3" />
                           <span>{String(phone)}</span>
                         </div>
                       ) : null}
-
-                      {/* Joined date */}
                       {joinedAt && (
                         <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDate(joinedAt)}</span>
                         </div>
                       )}
-
-                      {/* Proxy badge */}
                       {isProxy && (
                         <Badge variant="outline" className="mt-1.5 text-[10px] px-1.5 py-0 text-muted-foreground">
                           {t("proxyMember")}
@@ -331,6 +585,38 @@ export default function MembersPage() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {filtered.length > ITEMS_PER_PAGE && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {t("showingRange", { from: showingFrom, to: showingTo, total: filtered.length })}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              {t("previous")}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              {t("next")}
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 

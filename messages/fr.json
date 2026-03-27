@@ -410,7 +410,22 @@
     "selectRole": "Sélectionner le rôle",
     "selectStanding": "Sélectionner le statut",
     "selectPosition": "Sélectionner la position",
-    "noPositionsAvailable": "Aucune position disponible"
+    "noPositionsAvailable": "Aucune position disponible",
+    "tableView": "Vue tableau",
+    "gridView": "Vue grille",
+    "columnName": "Nom",
+    "columnStatus": "Statut",
+    "statusActive": "Actif",
+    "statusInactive": "Inactif",
+    "viewDetails": "Voir les détails",
+    "filterAll": "Tous",
+    "filterOwner": "Propriétaire",
+    "filterAdmin": "Admin",
+    "filterModerator": "Modérateur",
+    "filterMember": "Membre",
+    "showingRange": "Affichage {from}-{to} sur {total} membres",
+    "previous": "Précédent",
+    "next": "Suivant"
   },
   "settings": {
     "title": "Paramètres du groupe",

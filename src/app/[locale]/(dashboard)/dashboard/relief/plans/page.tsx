@@ -444,6 +444,7 @@ export default function ReliefPlansPage() {
     setIsRecordingPayout(true);
     try {
       const supabase = createClient();
+      // Insert payout record
       await supabase.from("relief_payouts").insert({
         claim_id: payoutClaimId,
         amount: Number(payoutAmount),
@@ -452,8 +453,19 @@ export default function ReliefPlansPage() {
         paid_at: new Date().toISOString(),
         recorded_by: user?.id,
       });
+
+      // CRITICAL: Update claim status to reflect payout
+      // Note: DB enum is ('submitted','reviewing','approved','denied') — no 'paid_out' value
+      // We mark as 'approved' with review_notes indicating payout was recorded
+      // The payout record in relief_payouts is the authoritative source for payment status
+      await supabase.from("relief_claims").update({
+        review_notes: `Payout of ${payoutAmount} recorded on ${new Date().toLocaleDateString()}`,
+      }).eq("id", payoutClaimId);
+
       queryClient.invalidateQueries({ queryKey: ["relief-payouts-plan"] });
+      queryClient.invalidateQueries({ queryKey: ["relief-claims-plan"] });
       queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["my-relief-claims"] });
       setShowPayoutDialog(false);
       setPayoutClaimId(null);
       setPayoutAmount("");

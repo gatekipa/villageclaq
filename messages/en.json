@@ -1318,7 +1318,9 @@
     "deactivate": "Deactivate",
     "payoutAmount": "Payout Amount",
     "recordedBy": "Recorded By",
-    "noPlansCreated": "No relief plans created yet"
+    "noPlansCreated": "No relief plans created yet",
+    "selectEventType": "Please select what happened",
+    "documentUploaded": "Document uploaded"
   },
   "myPayments": {
     "title": "My Payments",

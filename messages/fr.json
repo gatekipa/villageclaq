@@ -1318,7 +1318,9 @@
     "deactivate": "Désactiver",
     "payoutAmount": "Montant du paiement",
     "recordedBy": "Enregistré par",
-    "noPlansCreated": "Aucun plan de secours créé"
+    "noPlansCreated": "Aucun plan de secours créé",
+    "selectEventType": "Veuillez sélectionner ce qui s'est passé",
+    "documentUploaded": "Document téléchargé"
   },
   "myDashboard": {
     "title": "Bienvenue, {name}",

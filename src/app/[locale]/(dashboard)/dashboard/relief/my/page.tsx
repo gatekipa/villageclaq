@@ -3,7 +3,7 @@ import { formatAmount } from "@/lib/currencies";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,24 +54,31 @@ const supabase = createClient();
 
 export default function MyReliefPage() {
   const t = useTranslations();
-  const { currentMembership, currentGroup } = useGroup();
+  const { currentMembership, currentGroup, groupId } = useGroup();
+  const queryClient = useQueryClient();
   const membershipId = currentMembership?.id;
   const currency = currentGroup?.currency || "XAF";
 
+  // Claim form state
   const [showClaimDialog, setShowClaimDialog] = useState(false);
   const [claimPlanId, setClaimPlanId] = useState<string | null>(null);
-
+  const [claimPlanPayout, setClaimPlanPayout] = useState(0);
+  const [claimEventType, setClaimEventType] = useState<EventType | "">("");
+  const [claimDescription, setClaimDescription] = useState("");
+  const [claimDocUrl, setClaimDocUrl] = useState("");
+  const [claimSubmitting, setClaimSubmitting] = useState(false);
+  const [claimError, setClaimError] = useState("");
 
   // Fetch enrollments with plan details
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ['my-relief-enrollments', membershipId],
+    queryKey: ["my-relief-enrollments", membershipId],
     queryFn: async () => {
       if (!membershipId) return [];
       const { data, error } = await supabase
-        .from('relief_enrollments')
-        .select('*, plan:relief_plans!inner(id, name, name_fr, qualifying_events, contribution_amount, contribution_frequency, payout_rules, waiting_period_days)')
-        .eq('membership_id', membershipId)
-        .eq('is_active', true);
+        .from("relief_enrollments")
+        .select("*, plan:relief_plans!inner(id, name, name_fr, qualifying_events, contribution_amount, contribution_frequency, payout_rules, waiting_period_days)")
+        .eq("membership_id", membershipId)
+        .eq("is_active", true);
       if (error) throw error;
       return data || [];
     },
@@ -80,45 +87,54 @@ export default function MyReliefPage() {
 
   // Fetch claims
   const { data: claims = [], isLoading: claimsLoading } = useQuery({
-    queryKey: ['my-relief-claims', membershipId],
+    queryKey: ["my-relief-claims", membershipId],
     queryFn: async () => {
       if (!membershipId) return [];
       const { data, error } = await supabase
-        .from('relief_claims')
-        .select('*, plan:relief_plans(id, name, name_fr)')
-        .eq('membership_id', membershipId)
-        .order('created_at', { ascending: false });
+        .from("relief_claims")
+        .select("*, plan:relief_plans(id, name, name_fr)")
+        .eq("membership_id", membershipId)
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
     enabled: !!membershipId,
   });
 
-  // Transform enrollments into the shape the UI expects
+  const frequencyLabels: Record<string, string> = {
+    monthly: t("relief.frequencyMonthly"),
+    per_event: t("relief.frequencyPerEvent"),
+    annual: t("relief.frequencyAnnual"),
+  };
+
+  // Transform enrollments
   const myPlans = enrollments.map((enrollment: Record<string, unknown>) => {
     const plan = enrollment.plan as Record<string, unknown>;
     const enrolledAt = new Date(enrollment.enrolled_at as string);
     const waitingDays = (plan.waiting_period_days as number) || 180;
     const eligibleFrom = new Date(enrolledAt.getTime() + waitingDays * 86400000);
     const now = new Date();
-    const isEligible = now >= eligibleFrom;
-    const isWaiting = !isEligible;
+    const contribStatus = (enrollment.contribution_status as string) || "up_to_date";
+    const isEligible = now >= eligibleFrom && contribStatus === "up_to_date";
+    const isWaiting = now < eligibleFrom;
     const qualifyingEvents = (plan.qualifying_events as EventType[]) || [];
     const payoutRules = (plan.payout_rules as Record<string, number>) || {};
+    const maxPayout = Number(payoutRules.max_amount) || Number(plan.contribution_amount) || 0;
 
     return {
       id: enrollment.id as string,
       planId: plan.id as string,
-      planName: (plan.name as string) || '',
-      planNameFr: (plan.name_fr as string) || '',
+      planName: (plan.name as string) || "",
+      planNameFr: (plan.name_fr as string) || "",
       enrolledAt: enrolledAt.toLocaleDateString(),
       eligibleFrom: eligibleFrom.toLocaleDateString(),
       isEligible,
       isWaiting,
-      contributionStatus: (enrollment.contribution_status as string) || 'up_to_date',
+      contributionStatus: contribStatus,
       contributionAmount: Number(plan.contribution_amount) || 0,
+      contributionFrequency: (plan.contribution_frequency as string) || "monthly",
       qualifyingEvents,
-      payoutRules,
+      maxPayout,
     };
   });
 
@@ -127,19 +143,68 @@ export default function MyReliefPage() {
     const plan = claim.plan as Record<string, unknown> | null;
     return {
       id: claim.id as string,
-      planName: (plan?.name as string) || '',
+      planName: (plan?.name as string) || "",
       eventType: claim.event_type as EventType,
       amount: Number(claim.amount) || 0,
       status: claim.status as ClaimStatus,
       date: new Date(claim.created_at as string).toLocaleDateString(),
-      description: (claim.description as string) || '',
+      description: (claim.description as string) || "",
       reviewNotes: claim.review_notes as string | undefined,
     };
   });
 
-  const openClaimDialog = (planId: string) => {
+  const openClaimDialog = (planId: string, maxPayout: number) => {
     setClaimPlanId(planId);
+    setClaimPlanPayout(maxPayout);
+    setClaimEventType("");
+    setClaimDescription("");
+    setClaimDocUrl("");
+    setClaimError("");
     setShowClaimDialog(true);
+  };
+
+  const handleSubmitClaim = async () => {
+    if (!claimPlanId || !claimEventType || !membershipId) {
+      setClaimError(t("relief.selectEventType"));
+      return;
+    }
+    setClaimSubmitting(true);
+    setClaimError("");
+    try {
+      const { error } = await supabase.from("relief_claims").insert({
+        plan_id: claimPlanId,
+        membership_id: membershipId,
+        event_type: claimEventType,
+        description: claimDescription.trim() || null,
+        supporting_doc_url: claimDocUrl || null,
+        amount: claimPlanPayout,
+        status: "submitted",
+      });
+      if (error) throw error;
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["my-relief-claims", membershipId] });
+      queryClient.invalidateQueries({ queryKey: ["relief-claims"] });
+      queryClient.invalidateQueries({ queryKey: ["relief-stats"] });
+      setShowClaimDialog(false);
+    } catch (err) {
+      setClaimError((err as Error).message);
+    } finally {
+      setClaimSubmitting(false);
+    }
+  };
+
+  const handleDocUpload = async (file: File) => {
+    if (!groupId || !membershipId) return;
+    try {
+      const path = `relief-claims/${groupId}/${membershipId}/${Date.now()}-${file.name}`;
+      const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file);
+      if (uploadErr) return;
+      const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
+      setClaimDocUrl(urlData.publicUrl);
+    } catch {
+      // Non-blocking
+    }
   };
 
   // Loading state
@@ -210,7 +275,7 @@ export default function MyReliefPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-muted-foreground"><DollarSign className="h-3 w-3" />{t("relief.contributionAmount")}</span>
-                      <span className="font-medium">{formatAmount(plan.contributionAmount, currency)}/mo</span>
+                      <span className="font-medium">{formatAmount(plan.contributionAmount, currency)}/{frequencyLabels[plan.contributionFrequency] || plan.contributionFrequency}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">{t("relief.contributionStatus")}</span>
@@ -228,7 +293,7 @@ export default function MyReliefPage() {
                     </div>
                   </div>
                   {plan.isEligible && (
-                    <Button className="w-full" size="sm" onClick={() => openClaimDialog(plan.planId)}>
+                    <Button className="w-full" size="sm" onClick={() => openClaimDialog(plan.planId, plan.maxPayout)}>
                       <Plus className="mr-1 h-3.5 w-3.5" />{t("relief.submitClaim")}
                     </Button>
                   )}
@@ -267,6 +332,9 @@ export default function MyReliefPage() {
                         </div>
                         <p className="text-xs text-muted-foreground">{claim.planName} · {claim.date}</p>
                         {claim.description && <p className="text-xs text-muted-foreground mt-1">{claim.description}</p>}
+                        {claim.status === "denied" && claim.reviewNotes && (
+                          <p className="text-xs text-destructive mt-1">{t("relief.denyReason")}: {claim.reviewNotes}</p>
+                        )}
                       </div>
                       <span className="text-lg font-bold text-primary">{formatAmount(claim.amount, currency)}</span>
                     </div>
@@ -279,13 +347,13 @@ export default function MyReliefPage() {
       </div>
 
       {/* Submit Claim Dialog */}
-      <Dialog open={showClaimDialog} onOpenChange={setShowClaimDialog}>
+      <Dialog open={showClaimDialog} onOpenChange={(open) => { setShowClaimDialog(open); if (!open) setClaimError(""); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{t("relief.submitClaim")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>{t("relief.whatHappened")}</Label>
-              <Select>
+              <Label>{t("relief.whatHappened")} *</Label>
+              <Select value={claimEventType} onValueChange={(v) => setClaimEventType((v || "") as EventType | "")}>
                 <SelectTrigger><SelectValue placeholder={t("relief.whatHappened")} /></SelectTrigger>
                 <SelectContent>
                   {(["death", "illness", "wedding", "childbirth", "natural_disaster", "other"] as EventType[]).map((type) => (
@@ -296,26 +364,52 @@ export default function MyReliefPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("relief.tellUsBriefly")}</Label>
-              <Textarea placeholder={t("relief.tellUsBrieflyPlaceholder")} rows={3} />
+              <Textarea
+                placeholder={t("relief.tellUsBrieflyPlaceholder")}
+                rows={3}
+                value={claimDescription}
+                onChange={(e) => setClaimDescription(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("relief.attachDocument")}</Label>
-              <div className="flex items-center gap-2 rounded-lg border border-dashed p-4">
-                <Upload className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{t("relief.attachOptional")}</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  id="claim-doc-upload"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleDocUpload(file);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  type="button"
+                  onClick={() => document.getElementById("claim-doc-upload")?.click()}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {claimDocUrl ? "✓ " + t("relief.documentUploaded") : t("relief.attachOptional")}
+                </Button>
               </div>
             </div>
             <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{t("relief.estimatedPayout")}</span>
-                <span className="text-lg font-bold text-primary">{formatAmount(250000, currency)}</span>
+                <span className="text-lg font-bold text-primary">{formatAmount(claimPlanPayout, currency)}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{t("relief.autoFilled")}</p>
             </div>
+            {claimError && <p className="text-sm text-destructive">{claimError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowClaimDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={() => setShowClaimDialog(false)}>{t("relief.submitClaim")}</Button>
+            <Button onClick={handleSubmitClaim} disabled={claimSubmitting || !claimEventType}>
+              {claimSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("relief.submitClaim")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

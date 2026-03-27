@@ -63,6 +63,7 @@ const adminSections: NavSection[] = [
     labelKey: "sectionPeople",
     items: [
       { key: "members", href: "/dashboard/members", icon: Users },
+      { key: "roles", href: "/dashboard/roles", icon: ShieldCheck },
       { key: "invitations", href: "/dashboard/invitations", icon: UserPlus },
     ],
   },

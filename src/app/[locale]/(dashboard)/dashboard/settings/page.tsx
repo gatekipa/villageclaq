@@ -27,6 +27,7 @@ import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 function getInitials(name: string) {
   return name
@@ -40,6 +41,8 @@ function getInitials(name: string) {
 export default function GroupSettingsPage() {
   const t = useTranslations("settings");
   const { isAdmin, groupId } = useGroup();
+  const { hasPermission } = usePermissions();
+  const canManageSettings = hasPermission("manage_settings");
   const queryClient = useQueryClient();
   const { data: group, isLoading: groupLoading, isError: groupError, error: groupErr, refetch: refetchGroup } = useGroupSettings();
   const { data: positions, isLoading: posLoading, isError: posError, error: posErr, refetch: refetchPos } = useGroupPositions();
@@ -300,7 +303,7 @@ export default function GroupSettingsPage() {
                     <div className="space-y-2">
                       {saveError && <p className="text-sm text-destructive">{saveError}</p>}
                       {saveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("saved")}</p>}
-                      <Button onClick={handleSaveSettings} disabled={saving || !editName.trim()}>
+                      <Button onClick={handleSaveSettings} disabled={saving || !editName.trim() || !canManageSettings}>
                         {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         {t("saveSettings")}
                       </Button>
@@ -363,7 +366,7 @@ export default function GroupSettingsPage() {
                     <div className="space-y-2">
                       {saveError && <p className="text-sm text-destructive">{saveError}</p>}
                       {saveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("saved")}</p>}
-                      <Button onClick={handleSaveSettings} disabled={saving}>
+                      <Button onClick={handleSaveSettings} disabled={saving || !canManageSettings}>
                         {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         {t("saveSettings")}
                       </Button>

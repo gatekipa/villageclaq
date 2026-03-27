@@ -33,6 +33,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useDashboardStats } from "@/lib/hooks/use-supabase-query";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 type ReportCategory = "financial" | "membership" | "operations" | "executive";
 
@@ -89,6 +90,9 @@ const categoryIconColors: Record<ReportCategory, string> = {
 export default function ReportsHubPage() {
   const t = useTranslations();
   const locale = useLocale();
+  const { hasPermission } = usePermissions();
+  const canViewReports = hasPermission("view_reports");
+  const canExport = hasPermission("export_data");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ReportCategory | "all">("all");
   const [aiInsight, setAiInsight] = useState<string | null>(null);
@@ -149,9 +153,11 @@ export default function ReportsHubPage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("reports.title")}</h1>
           <p className="text-muted-foreground">{t("reports.subtitle")}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
-          <Printer className="mr-1 h-3.5 w-3.5" />{t("reports.print")}
-        </Button>
+        {canExport && (
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
+            <Printer className="mr-1 h-3.5 w-3.5" />{t("reports.print")}
+          </Button>
+        )}
       </div>
 
       {/* AI Insights Card */}
@@ -239,7 +245,7 @@ export default function ReportsHubPage() {
                         </div>
                         <div className="mt-3 flex justify-end">
                           <Link href={href}>
-                            <Button size="sm" variant={report.isPlaceholder ? "outline" : "default"} disabled={report.isPlaceholder} className="h-7 text-xs">
+                            <Button size="sm" variant={report.isPlaceholder ? "outline" : "default"} disabled={report.isPlaceholder || !canViewReports} className="h-7 text-xs">
                               {t("reports.generate")}
                               <ArrowRight className="ml-1 h-3 w-3" />
                             </Button>

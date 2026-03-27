@@ -53,6 +53,7 @@ import {
   ErrorState,
 } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 
 import { formatAmount, CURRENCIES } from "@/lib/currencies";
 
@@ -67,6 +68,8 @@ const frequencyLabels: Record<string, string> = {
 export default function ContributionsPage() {
   const t = useTranslations();
   const { currentGroup, isAdmin } = useGroup();
+  const { hasPermission } = usePermissions();
+  const canManageContributions = hasPermission("manage_contributions");
   const { data: contributionTypes, isLoading, isError, refetch } = useContributionTypes();
   const createMutation = useCreateContributionType();
   const queryClient = useQueryClient();
@@ -238,7 +241,7 @@ export default function ContributionsPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
           <p className="text-muted-foreground">{t("contributions.subtitle")}</p>
         </div>
-        {isAdmin && (
+        {canManageContributions && (
           <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) resetForm(); }}>
             <DialogTrigger render={<Button />}>
               <Plus className="mr-2 h-4 w-4" />
@@ -404,7 +407,7 @@ export default function ContributionsPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">{type.name_fr}</p>
                   )}
                 </div>
-                {isAdmin && (
+                {canManageContributions && (
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" />}>
                       <MoreVertical className="h-4 w-4" />

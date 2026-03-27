@@ -32,11 +32,15 @@ import {
 } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
+import { usePermissions } from "@/lib/hooks/use-permissions";
+import { Shield } from "lucide-react";
 
 
 export default function RecordPaymentPage() {
   const t = useTranslations();
   const { currentGroup, groupId } = useGroup();
+  const { hasPermission } = usePermissions();
+  const canRecord = hasPermission("record_payments") || hasPermission("manage_finances");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
   const recordPayment = useRecordPayment();
@@ -182,6 +186,16 @@ export default function RecordPaymentPage() {
   }
 
   const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && !recordPayment.isPending;
+
+  if (!canRecord) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <Shield className="h-12 w-12 text-muted-foreground/50 mb-4" />
+        <h2 className="text-lg font-semibold">{t("roles.accessDenied")}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{t("roles.accessDeniedDesc")}</p>
+      </div>
+    );
+  }
 
   return (
     <AdminGuard><div className="space-y-6">

@@ -60,7 +60,8 @@ import {
   Edit,
   UserMinus,
 } from "lucide-react";
-import { useMembers } from "@/lib/hooks/use-supabase-query";
+import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -86,14 +87,19 @@ const VIEW_PREFERENCE_KEY = "villageclaq-members-view";
 
 export default function MembersPage() {
   const t = useTranslations("members");
+  const tr = useTranslations("roles");
   const router = useRouter();
   const { isAdmin, groupId, user, currentGroup } = useGroup();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
+  const { data: positions } = useGroupPositions();
+  const { hasPermission } = usePermissions();
+  const canManageMembers = hasPermission("manage_members");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [standingFilter, setStandingFilter] = useState("all");
+  const [positionFilter, setPositionFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"table" | "grid">(() => {
     if (typeof window !== "undefined") {
@@ -195,13 +201,40 @@ export default function MembersPage() {
       result = result.filter((m: Record<string, unknown>) => m.standing === standingFilter);
     }
 
+    // Position filter
+    if (positionFilter !== "all" && positions) {
+      const pos = positions.find((p: Record<string, unknown>) => p.id === positionFilter);
+      if (pos) {
+        const assignments = (pos.position_assignments as Array<{ membership: { id: string } }>) || [];
+        const assignedIds = new Set(assignments.map((a) => a.membership?.id).filter(Boolean));
+        result = result.filter((m: Record<string, unknown>) => assignedIds.has(m.id as string));
+      }
+    }
+
     return result;
-  }, [members, search, roleFilter, standingFilter]);
+  }, [members, search, roleFilter, standingFilter, positionFilter, positions]);
+
+  // Build membership → position titles map
+  const memberPositionMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!positions) return map;
+    for (const pos of positions as Array<Record<string, unknown>>) {
+      const title = pos.title as string;
+      const assignments = (pos.position_assignments as Array<{ membership: { id: string } }>) || [];
+      for (const a of assignments) {
+        if (!a.membership?.id) continue;
+        const existing = map.get(a.membership.id) || [];
+        existing.push(title);
+        map.set(a.membership.id, existing);
+      }
+    }
+    return map;
+  }, [positions]);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, roleFilter, standingFilter]);
+  }, [search, roleFilter, standingFilter, positionFilter]);
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -285,7 +318,7 @@ export default function MembersPage() {
               <LayoutGrid className="h-4 w-4" />
             </Button>
           </div>
-          {isAdmin && (
+          {canManageMembers && (
             <>
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -339,6 +372,19 @@ export default function MembersPage() {
                 <SelectItem value="banned">{t("standingBanned")}</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={positionFilter} onValueChange={(v) => setPositionFilter(v ?? "all")}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder={tr("position")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{tr("allPositions")}</SelectItem>
+                {(positions || []).map((pos: Record<string, unknown>) => (
+                  <SelectItem key={pos.id as string} value={pos.id as string}>
+                    {pos.title as string}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -362,6 +408,7 @@ export default function MembersPage() {
                 <TableHead>{t("columnName")}</TableHead>
                 <TableHead>{t("role")}</TableHead>
                 <TableHead>{t("standing")}</TableHead>
+                <TableHead className="hidden lg:table-cell">{tr("position")}</TableHead>
                 <TableHead className="hidden md:table-cell">{t("phone")}</TableHead>
                 <TableHead className="hidden md:table-cell">{t("joinedDate")}</TableHead>
                 <TableHead>{t("columnStatus")}</TableHead>
@@ -428,6 +475,21 @@ export default function MembersPage() {
                         )}
                       </span>
                     </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {(() => {
+                        const titles = memberPositionMap.get(id);
+                        if (!titles || titles.length === 0) return "—";
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {titles.map((title, i) => (
+                              <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">
+                                {title}
+                              </Badge>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {phone ? String(phone) : "—"}
                     </TableCell>
@@ -443,7 +505,7 @@ export default function MembersPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {isAdmin && (
+                      {canManageMembers && (
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent focus:outline-none"

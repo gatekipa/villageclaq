@@ -108,7 +108,7 @@ export default function RecordPaymentPage() {
     if (!selectedMembership || !selectedTypeId || !amount) return;
 
     try {
-      await recordPayment.mutateAsync({
+      const paymentResult = await recordPayment.mutateAsync({
         membership_id: selectedMembership.id,
         contribution_type_id: selectedTypeId,
         amount: Number(amount),
@@ -118,6 +118,31 @@ export default function RecordPaymentPage() {
         receipt_url: receiptUrl && !receiptUrl.startsWith("pending:") ? receiptUrl : undefined,
         notes: notes || undefined,
       });
+
+      // Send payment receipt notification to the member
+      const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === selectedTypeId)?.name as string || "";
+      try {
+        const supabase = createClient();
+        // Find the user_id for this membership
+        const { data: membership } = await supabase
+          .from("memberships")
+          .select("user_id")
+          .eq("id", selectedMembership.id)
+          .single();
+        if (membership?.user_id) {
+          await supabase.from("notifications").insert({
+            user_id: membership.user_id,
+            group_id: groupId,
+            type: "contribution_received",
+            title: `Payment of ${formatAmount(Number(amount), currency)} received`,
+            body: `Payment of ${formatAmount(Number(amount), currency)} received for ${typeName}. Method: ${method}. Reference: ${reference || "N/A"}.`,
+            is_read: false,
+            data: { amount: Number(amount), currency, contribution_type: typeName, method, reference: reference || null },
+          });
+        }
+      } catch {
+        // Non-critical — don't block the payment flow
+      }
 
       setLastSavedName(selectedMembership.name);
       setShowSuccess(true);

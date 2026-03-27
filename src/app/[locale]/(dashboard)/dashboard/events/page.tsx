@@ -37,6 +37,7 @@ import {
   Trash2,
   XCircle,
   Loader2,
+  Copy,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -103,6 +104,7 @@ export default function EventsPage() {
   const [formRecurrenceRule, setFormRecurrenceRule] = useState<string>("monthly");
   const [formAttendanceRequired, setFormAttendanceRequired] = useState(true);
   const [formEnableRsvp, setFormEnableRsvp] = useState(true);
+  const [preFilledBanner, setPreFilledBanner] = useState<string | null>(null);
 
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -147,6 +149,61 @@ export default function EventsPage() {
     setFormRecurrenceRule("monthly");
     setFormAttendanceRequired(true);
     setFormEnableRsvp(true);
+    setPreFilledBanner(null);
+  };
+
+  const handleRepeatLastMeeting = () => {
+    if (!events || events.length === 0) return;
+
+    // Find the most recent event
+    const sorted = [...events].sort(
+      (a: Record<string, unknown>, b: Record<string, unknown>) =>
+        new Date(b.starts_at as string).getTime() - new Date(a.starts_at as string).getTime()
+    );
+    const lastEvent = sorted[0] as Record<string, unknown>;
+    if (!lastEvent) return;
+
+    // Pre-fill form fields
+    setFormTitle(lastEvent.title as string || "");
+    setFormTitleFr(lastEvent.title_fr as string || "");
+    setFormDescription(lastEvent.description as string || "");
+    setFormEventType((lastEvent.event_type as EventType) || "meeting");
+    setFormLocation(lastEvent.location as string || "");
+    setFormIsRecurring(!!lastEvent.is_recurring);
+    setFormRecurrenceRule((lastEvent.recurrence_rule as string) || "monthly");
+
+    // Advance the date
+    const lastDate = new Date(lastEvent.starts_at as string);
+    const rule = (lastEvent.recurrence_rule as string) || "monthly";
+    if (rule === "weekly") {
+      lastDate.setDate(lastDate.getDate() + 7);
+    } else if (rule === "biweekly") {
+      lastDate.setDate(lastDate.getDate() + 14);
+    } else {
+      lastDate.setMonth(lastDate.getMonth() + 1);
+    }
+
+    // Format for datetime-local input
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const dateStr = `${lastDate.getFullYear()}-${pad(lastDate.getMonth() + 1)}-${pad(lastDate.getDate())}T${pad(lastDate.getHours())}:${pad(lastDate.getMinutes())}`;
+    setFormStartsAt(dateStr);
+
+    if (lastEvent.ends_at) {
+      const lastEnd = new Date(lastEvent.ends_at as string);
+      const duration = lastEnd.getTime() - new Date(lastEvent.starts_at as string).getTime();
+      const newEnd = new Date(lastDate.getTime() + duration);
+      const endStr = `${newEnd.getFullYear()}-${pad(newEnd.getMonth() + 1)}-${pad(newEnd.getDate())}T${pad(newEnd.getHours())}:${pad(newEnd.getMinutes())}`;
+      setFormEndsAt(endStr);
+    }
+
+    setPreFilledBanner(
+      t("preFilledFrom", {
+        title: lastEvent.title as string,
+        date: new Date(lastEvent.starts_at as string).toLocaleDateString(),
+      })
+    );
+    setEditEventId(null);
+    setShowCreateDialog(true);
   };
 
   const handleCreateEvent = async () => {
@@ -256,10 +313,16 @@ export default function EventsPage() {
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t("createEvent")}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleRepeatLastMeeting} disabled={!events || events.length === 0}>
+              <Copy className="mr-2 h-4 w-4" />
+              {t("repeatLastMeeting")}
+            </Button>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("createEvent")}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -499,6 +562,12 @@ export default function EventsPage() {
           <DialogHeader>
             <DialogTitle>{editEventId ? t("editEvent") : t("createEvent")}</DialogTitle>
           </DialogHeader>
+          {preFilledBanner && (
+            <div className="rounded-md bg-primary/10 px-3 py-2 text-xs text-primary">
+              <Copy className="inline-block mr-1.5 h-3.5 w-3.5" />
+              {preFilledBanner}
+            </div>
+          )}
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

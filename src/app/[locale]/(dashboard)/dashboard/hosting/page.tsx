@@ -48,6 +48,15 @@ import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn } from "@/lib/utils";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -245,8 +254,32 @@ export default function HostingPage() {
       fairnessLabel = "Good";
     }
 
-    return { nextHostName, nextHostDate, missedCount, complianceRate, fairnessLabel };
+    return { nextHostName, nextHostDate, missedCount, complianceRate, fairnessLabel, memberCounts };
   }, [allAssignments, t]);
+
+  // Fairness dashboard data
+  const fairnessData = useMemo(() => {
+    if (!stats.memberCounts || Object.keys(stats.memberCounts).length === 0) return null;
+    const counts = Object.entries(stats.memberCounts);
+    const values = counts.map(([, c]) => c);
+    const avg = values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+    const variance = values.length > 0 ? values.reduce((s, v) => s + (v - avg) ** 2, 0) / values.length : 0;
+    const stdDev = Math.sqrt(variance);
+
+    // Build chart data
+    const chartData = counts.map(([mid, count]) => {
+      // Find member name from assignments
+      const assignment = allAssignments.find((a) => a.membership_id === mid);
+      const name = assignment ? getHostName(assignment) : mid.slice(0, 8);
+      const fairScore = avg > 0 ? Math.max(0, Math.round(100 - Math.abs(count - avg) / avg * 100)) : 100;
+      return { name, count, fairScore };
+    }).sort((a, b) => b.count - a.count);
+
+    const most = chartData[0];
+    const least = chartData[chartData.length - 1];
+
+    return { chartData, avg: Math.round(avg * 10) / 10, stdDev: Math.round(stdDev * 100) / 100, most, least };
+  }, [stats.memberCounts, allAssignments]);
 
   // ── Handlers ───────────────────────────────────────────────────────────
 
@@ -405,6 +438,62 @@ export default function HostingPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Fairness Dashboard */}
+        {fairnessData && fairnessData.chartData.length > 1 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                {t("fairnessDashboard")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-4 mb-6">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("averageHosted")}</p>
+                  <p className="text-lg font-bold">{fairnessData.avg}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("mostHosted")}</p>
+                  <p className="text-sm font-medium">{fairnessData.most?.name}</p>
+                  <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{fairnessData.most?.count}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("leastHosted")}</p>
+                  <p className="text-sm font-medium">{fairnessData.least?.name}</p>
+                  <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{fairnessData.least?.count}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("fairnessScore")}</p>
+                  <p className={cn(
+                    "text-lg font-bold",
+                    fairnessData.stdDev <= 1 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                  )}>
+                    {fairnessData.stdDev <= 1 ? "Good" : fairnessData.stdDev.toFixed(1)}
+                  </p>
+                </div>
+              </div>
+              <div className="h-[200px] sm:h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={fairnessData.chartData} layout="vertical" margin={{ left: 0, right: 16, top: 0, bottom: 0 }}>
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(value) => [String(value), t("timesHosted")]} />
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                      {fairnessData.chartData.map((entry, index) => (
+                        <Cell
+                          key={index}
+                          fill={entry.fairScore >= 80 ? "#10b981" : entry.fairScore >= 50 ? "#f59e0b" : "#ef4444"}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Roster Cards */}
         <div className="space-y-4">

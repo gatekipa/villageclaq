@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Activity, Pin, ThumbsUp, Heart, PartyPopper } from "lucide-react";
 import { useActivityFeed, useAddFeedReaction } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -49,6 +56,8 @@ export default function FeedPage() {
   const { data: feedItems, isLoading, isError, error, refetch } = useActivityFeed();
   const addReaction = useAddFeedReaction();
   const [pinningId, setPinningId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [visibleCount, setVisibleCount] = useState(30);
 
   const handlePin = async (itemId: string, currentlyPinned: boolean) => {
     setPinningId(itemId);
@@ -87,15 +96,45 @@ export default function FeedPage() {
     );
   }
 
-  const pinnedItems = feedItems.filter((item: Record<string, unknown>) => item.pinned);
-  const regularItems = feedItems.filter((item: Record<string, unknown>) => !item.pinned);
+  const ENTITY_FILTERS: { key: string; labelKey: string }[] = [
+    { key: "all", labelKey: "filterAll" },
+    { key: "payment", labelKey: "filterPayments" },
+    { key: "membership", labelKey: "filterMembers" },
+    { key: "event", labelKey: "filterEvents" },
+    { key: "meeting_minutes", labelKey: "filterMinutes" },
+    { key: "election", labelKey: "filterElections" },
+    { key: "dispute", labelKey: "filterDisputes" },
+  ];
+
+  const filteredFeed = useMemo(() => {
+    if (!feedItems) return [];
+    if (typeFilter === "all") return feedItems;
+    return feedItems.filter((item: Record<string, unknown>) => item.entity_type === typeFilter);
+  }, [feedItems, typeFilter]);
+
+  const pinnedItems = filteredFeed.filter((item: Record<string, unknown>) => item.pinned);
+  const regularItems = filteredFeed.filter((item: Record<string, unknown>) => !item.pinned);
+  const visibleRegularItems = regularItems.slice(0, visibleCount);
+  const hasMore = regularItems.length > visibleCount;
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+      {/* Header + Filter */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v ?? "all"); setVisibleCount(30); }}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ENTITY_FILTERS.map((f) => (
+              <SelectItem key={f.key} value={f.key}>{t(f.labelKey as "filterAll")}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Pinned Items */}
@@ -119,20 +158,33 @@ export default function FeedPage() {
 
       {/* Timeline */}
       <section className="flex flex-col gap-3">
-        {regularItems.map((item: Record<string, unknown>) => (
-          <FeedItem
-            key={item.id as string}
-            item={item}
-            isPinned={false}
-            isAdmin={isAdmin}
-            currentMembershipId={currentMembership?.id || null}
-            onPin={handlePin}
-            onReaction={handleReaction}
-            pinningId={pinningId}
-            t={t}
-          />
-        ))}
+        {visibleRegularItems.length === 0 && pinnedItems.length === 0 ? (
+          <EmptyState icon={Activity} title={t("noActivity")} description={t("noActivityDesc")} />
+        ) : (
+          visibleRegularItems.map((item: Record<string, unknown>) => (
+            <FeedItem
+              key={item.id as string}
+              item={item}
+              isPinned={false}
+              isAdmin={isAdmin}
+              currentMembershipId={currentMembership?.id || null}
+              onPin={handlePin}
+              onReaction={handleReaction}
+              pinningId={pinningId}
+              t={t}
+            />
+          ))
+        )}
       </section>
+
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => setVisibleCount((c) => c + 30)}>
+            {t("loadMore")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

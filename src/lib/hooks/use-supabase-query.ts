@@ -131,7 +131,7 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
       if (!groupId) return [];
       let q = supabase
         .from("contribution_obligations")
-        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("group_id", groupId)
         .order("due_date", { ascending: false });
       if (filters?.status) q = q.eq("status", filters.status);
@@ -154,7 +154,7 @@ export function usePayments(limit = 50) {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("payments")
-        .select("*, membership:memberships!inner(id, user_id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
+        .select("*, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
         .eq("group_id", groupId)
         .order("recorded_at", { ascending: false })
         .limit(limit);
@@ -306,7 +306,7 @@ export function useAllEventAttendances() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("event_attendances")
-        .select("*, event:events!inner(id, title, title_fr, starts_at, group_id), membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .select("*, event:events!inner(id, title, title_fr, starts_at, group_id), membership:memberships!inner(id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event.group_id", groupId);
       if (error) throw error;
       return data || [];
@@ -325,7 +325,7 @@ export function useHostingRosters() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("hosting_rosters")
-        .select("*, hosting_assignments(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)))")
+        .select("*, hosting_assignments(*, membership:memberships!inner(id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)))")
         .eq("group_id", groupId);
       if (error) throw error;
       return data || [];

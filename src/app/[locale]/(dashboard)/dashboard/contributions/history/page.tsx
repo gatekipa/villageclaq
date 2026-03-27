@@ -27,6 +27,7 @@ import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
+import { getMemberName } from "@/lib/get-member-name";
 
 const methodLabels: Record<string, string> = {
   cash: "Cash",
@@ -91,7 +92,7 @@ export default function PaymentHistoryPage() {
 
       return {
         id: p.id as string,
-        memberName: (profile?.full_name as string) || "Unknown",
+        memberName: getMemberName(membership as Record<string, unknown>),
         contributionTypeName: contributionType?.name || "-",
         amount: Number(p.amount),
         currency: (p.currency as string) || currency,

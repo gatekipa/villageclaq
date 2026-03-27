@@ -60,7 +60,7 @@ function useMatrixData(contributionTypeId: string | null) {
       // Fetch all members with profiles and joined_at
       const { data: members, error: memError } = await supabase
         .from("memberships")
-        .select("id, user_id, joined_at, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url)")
+        .select("id, user_id, display_name, is_proxy, joined_at, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
       if (memError) throw memError;
@@ -79,6 +79,8 @@ function useMatrixData(contributionTypeId: string | null) {
     enabled: !!groupId,
   });
 }
+
+import { getMemberName } from "@/lib/get-member-name";
 
 interface MemberRow {
   id: string;
@@ -132,7 +134,7 @@ export default function DuesMatrixPage() {
       const profile = member.profile;
       memberMap.set(member.id, {
         id: member.id,
-        name: profile?.full_name || "Unknown",
+        name: getMemberName(member),
         joinedAt: member.joined_at,
         cells: {},
         amounts: {},

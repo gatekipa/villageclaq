@@ -54,10 +54,7 @@ function engagementColor(level: string) {
   return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
 }
 
-function getMemberName(m: Record<string, unknown>): string {
-  const profile = (m.profile || m.profiles) as Record<string, unknown>;
-  return (profile?.full_name as string) || (m.display_name as string) || "Unknown";
-}
+import { getMemberName } from "@/lib/get-member-name";
 
 export default function ReportDetailPage() {
   const t = useTranslations();
@@ -128,8 +125,7 @@ export default function ReportDetailPage() {
     .filter((o: Record<string, unknown>) => (o.status as string) !== "paid")
     .forEach((o: Record<string, unknown>) => {
       const membership = o.membership as Record<string, unknown>;
-      const profile = (membership?.profiles as Record<string, unknown>) || {};
-      const name = (profile.full_name as string) || "Unknown";
+      const name = getMemberName(membership);
       const amount = Number(o.amount || 0) - Number(o.amount_paid || 0);
       const dueDate = new Date(o.due_date as string);
       const days = Math.max(0, Math.floor((Date.now() - dueDate.getTime()) / 86400000));
@@ -235,9 +231,8 @@ export default function ReportDetailPage() {
       return ae?.id === eventId;
     }).map((a: Record<string, unknown>) => {
       const am = a.membership as Record<string, unknown>;
-      const prof = (am?.profiles as Record<string, unknown>) || {};
       return {
-        name: (prof.full_name as string) || "Unknown",
+        name: getMemberName(am),
         status: (a.status as string) || "absent",
       };
     });
@@ -256,8 +251,7 @@ export default function ReportDetailPage() {
     const memberMap: Record<string, { name: string; completed: number; missed: number; total: number }> = {};
     assignments.forEach((a: Record<string, unknown>) => {
       const membership = a.membership as Record<string, unknown>;
-      const prof = (membership?.profiles as Record<string, unknown>) || {};
-      const name = (prof.full_name as string) || "Unknown";
+      const name = getMemberName(membership);
       if (!memberMap[name]) memberMap[name] = { name, completed: 0, missed: 0, total: 0 };
       memberMap[name].total += 1;
       if ((a.status as string) === "completed") memberMap[name].completed += 1;
@@ -327,8 +321,7 @@ export default function ReportDetailPage() {
     } else if (reportId === "3") {
       data = ledgerPayments.map((r: Record<string, unknown>) => {
         const membership = r.membership as Record<string, unknown>;
-        const profile = (membership?.profiles as Record<string, unknown>) || {};
-        return { Name: (profile.full_name as string) || "", Amount: r.amount, Date: r.recorded_at, Method: r.payment_method };
+        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method };
       });
       filename = "contribution_ledger";
     } else if (reportId === "4") {
@@ -396,8 +389,7 @@ export default function ReportDetailPage() {
     } else if (reportId === "3") {
       data = ledgerPayments.map((r: Record<string, unknown>) => {
         const membership = r.membership as Record<string, unknown>;
-        const profile = (membership?.profiles as Record<string, unknown>) || {};
-        return { Name: (profile.full_name as string) || "", Amount: r.amount, Date: r.recorded_at, Method: r.payment_method };
+        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method };
       });
       filename = "contribution_ledger";
     } else if (reportId === "4") {
@@ -679,8 +671,7 @@ export default function ReportDetailPage() {
               <div className="space-y-2">
                 {ledgerPayments.map((row: Record<string, unknown>, i: number) => {
                   const membership = row.membership as Record<string, unknown>;
-                  const profile = (membership?.profiles as Record<string, unknown>) || {};
-                  const memberName = (profile.full_name as string) || "Unknown";
+                  const memberName = getMemberName(membership);
                   const contribType = row.contribution_type as Record<string, unknown>;
                   const typeName = (contribType?.name as string) || "";
                   const method = (row.payment_method as string) || "";

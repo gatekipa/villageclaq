@@ -120,8 +120,9 @@ export default function ReliefEnrollmentPage() {
   const filtered = enrollmentList.filter((e: Record<string, unknown>) => {
     const plan = e.plan as Record<string, unknown>;
     const planName = plan?.name as string || "";
-    const profile = ((e.membership as Record<string, unknown>)?.profiles as Record<string, unknown>) || {};
-    const memberName = (profile.full_name as string) || "";
+    const membership = e.membership as Record<string, unknown>;
+    const profile = (membership?.profiles as Record<string, unknown>) || {};
+    const memberName = (membership?.display_name as string) || (profile.full_name as string) || "";
     if (planFilter !== "all" && planName !== planFilter) return false;
     if (search && !memberName.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -228,8 +229,9 @@ export default function ReliefEnrollmentPage() {
             <div className="space-y-2">
               {filtered.map((enrollment: Record<string, unknown>) => {
                 const plan = enrollment.plan as Record<string, unknown>;
-                const profile = ((enrollment.membership as Record<string, unknown>)?.profiles as Record<string, unknown>) || {};
-                const memberName = (profile.full_name as string) || "Unknown";
+                const membership = enrollment.membership as Record<string, unknown>;
+                const profile = (membership?.profiles as Record<string, unknown>) || {};
+                const memberName = (membership?.display_name as string) || (profile.full_name as string) || "Unknown";
                 const planName = (plan?.name as string) || "";
                 const enrolledAt = (enrollment.enrolled_at as string) || "";
                 const isActive = enrollment.is_active as boolean;

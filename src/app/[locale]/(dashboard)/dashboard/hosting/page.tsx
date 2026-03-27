@@ -65,6 +65,8 @@ interface Assignment {
   swapped_with: string | null;
   membership?: {
     id: string;
+    display_name?: string;
+    is_proxy?: boolean;
     profiles?: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[];
   };
 }
@@ -138,6 +140,9 @@ function getProfileFromAssignment(a: Assignment) {
 }
 
 function getHostName(a: Assignment) {
+  // Prefer membership.display_name for proxy members, then profile.full_name
+  const membership = a.membership;
+  if (membership?.display_name) return membership.display_name;
   return getProfileFromAssignment(a)?.full_name || "\u2014";
 }
 

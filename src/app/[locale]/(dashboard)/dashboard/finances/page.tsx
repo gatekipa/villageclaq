@@ -35,6 +35,7 @@ import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/u
 import { useGroup } from "@/lib/group-context";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
+import { getMemberName } from "@/lib/get-member-name";
 
 
 function formatCompact(amount: number) {
@@ -130,7 +131,7 @@ export default function FinancesPage() {
       const outstanding = Number(obl.amount) - Number(obl.amount_paid);
 
       if (!memberMap.has(mid)) {
-        memberMap.set(mid, { name: profile?.full_name || "Unknown", amount: 0, obligations: 0 });
+        memberMap.set(mid, { name: getMemberName(obl.membership as Record<string, unknown>), amount: 0, obligations: 0 });
       }
       const entry = memberMap.get(mid)!;
       entry.amount += outstanding;
@@ -175,7 +176,7 @@ export default function FinancesPage() {
       const shortDate = date ? new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
       return {
         id: p.id,
-        name: profile?.full_name || "Unknown",
+        name: getMemberName(p.membership as Record<string, unknown>),
         type: ct?.name || "Payment",
         amount: Number(p.amount),
         method: p.payment_method || "cash",

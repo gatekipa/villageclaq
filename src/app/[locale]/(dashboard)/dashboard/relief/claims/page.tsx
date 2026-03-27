@@ -161,8 +161,9 @@ export default function ReliefClaimsPage() {
             const status = (claim.status as ClaimStatus) || "submitted";
             const config = claimStatusConfig[status] || claimStatusConfig.submitted;
             const StatusIcon = config.icon;
-            const profile = ((claim.membership as Record<string, unknown>)?.profiles as Record<string, unknown>) || {};
-            const memberName = (profile.full_name as string) || "Unknown";
+            const membership = claim.membership as Record<string, unknown>;
+            const profile = (membership?.profiles as Record<string, unknown>) || {};
+            const memberName = (membership?.display_name as string) || (profile.full_name as string) || "Unknown";
             const plan = (claim.relief_plan as Record<string, unknown>) || {};
             const planName = (plan.name as string) || "";
             const amount = Number(claim.payout_amount || claim.amount || 0);
@@ -276,7 +277,7 @@ export default function ReliefClaimsPage() {
               <div className="rounded-lg border p-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{t("contributions.member")}</span>
-                  <span className="font-medium">{((selectedClaim.membership as Record<string, unknown>)?.profiles as Record<string, unknown>)?.full_name as string || "Unknown"}</span>
+                  <span className="font-medium">{((selectedClaim.membership as Record<string, unknown>)?.display_name as string) || (((selectedClaim.membership as Record<string, unknown>)?.profiles as Record<string, unknown>)?.full_name as string) || "Unknown"}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{t("relief.whatHappened")}</span>

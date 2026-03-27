@@ -303,7 +303,7 @@ export default function AnnouncementsPage() {
 
   const memberNames = (membersList || []).map((m: Record<string, unknown>) => {
     const profile = (m.profile || m.profiles) as Record<string, unknown> | undefined;
-    return (profile?.full_name as string) || (m.display_name as string) || "Unknown";
+    return (m.display_name as string) || (profile?.full_name as string) || "Unknown";
   });
   const filteredMembers = memberNames.filter((m: string) =>
     m.toLowerCase().includes(memberSearch.toLowerCase())

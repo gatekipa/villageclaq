@@ -78,9 +78,10 @@ const categoryColors: Record<string, string> = {
   other: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
 };
 
-function getMemberName(m: Record<string, unknown>): string {
+function getDisputeMemberName(m: Record<string, unknown>): string {
+  if (m.display_name) return m.display_name as string;
   const profile = m.profiles as Record<string, unknown>;
-  return (profile?.full_name as string) || (m.display_name as string) || "Unknown";
+  return (profile?.full_name as string) || "Unknown";
 }
 
 export default function DisputesPage() {
@@ -365,8 +366,8 @@ export default function DisputesPage() {
           {filteredDisputes.map((dispute: Record<string, unknown>) => {
             const filedMember = dispute.filed_member as Record<string, unknown> | null;
             const assignedMember = dispute.assigned_member as Record<string, unknown> | null;
-            const filedName = filedMember ? getMemberName(filedMember) : "Unknown";
-            const assignedName = assignedMember ? getMemberName(assignedMember) : null;
+            const filedName = filedMember ? getDisputeMemberName(filedMember) : "Unknown";
+            const assignedName = assignedMember ? getDisputeMemberName(assignedMember) : null;
             const status = (dispute.status as string) || "open";
             const priority = (dispute.priority as string) || "medium";
             const category = (dispute.category as string) || "other";
@@ -518,7 +519,7 @@ export default function DisputesPage() {
                 <SelectContent>
                   {(membersList || []).map((m: Record<string, unknown>) => (
                     <SelectItem key={m.id as string} value={m.id as string}>
-                      {getMemberName(m)}
+                      {getDisputeMemberName(m)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -25,6 +25,7 @@ import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { getMemberName } from "@/lib/get-member-name";
 import { RequirePermission } from "@/components/ui/permission-gate";
 
 interface UnpaidMember {
@@ -77,7 +78,7 @@ export default function UnpaidReportPage() {
         memberMap.set(membershipId, {
           id: membershipId,
           userId: membership.user_id || null,
-          name: profile?.full_name || "Unknown",
+          name: getMemberName(obl.membership as Record<string, unknown>),
           avatarUrl: profile?.avatar_url || null,
           standing: "good",
           totalOutstanding: 0,

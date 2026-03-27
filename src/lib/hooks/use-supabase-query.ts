@@ -131,7 +131,7 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
       if (!groupId) return [];
       let q = supabase
         .from("contribution_obligations")
-        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("group_id", groupId)
         .order("due_date", { ascending: false });
       if (filters?.status) q = q.eq("status", filters.status);

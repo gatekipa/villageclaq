@@ -76,6 +76,50 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { calculateStanding } from "@/lib/calculate-standing";
 import { RefreshCw } from "lucide-react";
 
+/**
+ * Auto-enroll a new member in all active contribution types for the current year.
+ */
+async function autoEnrollMember(supabase: ReturnType<typeof createClient>, groupId: string, membershipId: string) {
+  try {
+    const currentYear = new Date().getFullYear();
+    const { data: types } = await supabase
+      .from("contribution_types")
+      .select("id, amount, currency")
+      .eq("group_id", groupId)
+      .eq("is_active", true);
+
+    if (!types || types.length === 0) return;
+
+    // Check which types this member already has obligations for
+    const { data: existing } = await supabase
+      .from("contribution_obligations")
+      .select("contribution_type_id")
+      .eq("membership_id", membershipId)
+      .eq("period_label", String(currentYear));
+
+    const existingTypeIds = new Set((existing || []).map((e) => e.contribution_type_id));
+    const missing = types.filter((t) => !existingTypeIds.has(t.id));
+
+    if (missing.length > 0) {
+      const obligations = missing.map((ct) => ({
+        group_id: groupId,
+        membership_id: membershipId,
+        contribution_type_id: ct.id,
+        amount: ct.amount || 0,
+        amount_paid: 0,
+        currency: ct.currency || "XAF",
+        due_date: new Date(`${currentYear}-12-31`).toISOString(),
+        status: "pending" as const,
+        period_label: String(currentYear),
+      }));
+      await supabase.from("contribution_obligations").insert(obligations);
+    }
+  } catch (err) {
+    // Non-blocking — don't fail member creation if enrollment fails
+    console.error("Auto-enrollment error:", err);
+  }
+}
+
 type Standing = "good" | "warning" | "suspended" | "banned";
 
 const standingConfig: Record<Standing, { color: string; dotColor: string }> = {
@@ -437,13 +481,18 @@ export default function MembersPage() {
       const role = VALID_ROLES.includes(row.role) ? row.role : "member";
 
       try {
-        const { error: rpcError } = await supabase.rpc("create_proxy_member", {
+        const { data: newMembershipId, error: rpcError } = await supabase.rpc("create_proxy_member", {
           p_group_id: groupId,
           p_display_name: displayName,
           p_phone: row.phone || null,
           p_role: role,
         });
         if (rpcError) throw new Error(rpcError.message);
+
+        // Auto-enroll in active contribution types
+        if (newMembershipId) {
+          await autoEnrollMember(supabase, groupId, newMembershipId);
+        }
         succeeded++;
       } catch (err) {
         failed.push({ name: row.display_name, error: (err as Error).message });
@@ -469,7 +518,7 @@ export default function MembersPage() {
       const displayName = newTitle.trim()
         ? `${newTitle.trim()} ${newFullName.trim()}`
         : newFullName.trim();
-      const { data, error: rpcError } = await supabase.rpc("create_proxy_member", {
+      const { data: newMembershipId, error: rpcError } = await supabase.rpc("create_proxy_member", {
         p_group_id: groupId,
         p_display_name: displayName,
         p_phone: newPhone || null,
@@ -477,6 +526,11 @@ export default function MembersPage() {
       });
 
       if (rpcError) throw new Error(rpcError.message);
+
+      // Auto-enroll new member in active contribution types
+      if (newMembershipId) {
+        await autoEnrollMember(supabase, groupId, newMembershipId);
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setAddDialogOpen(false);

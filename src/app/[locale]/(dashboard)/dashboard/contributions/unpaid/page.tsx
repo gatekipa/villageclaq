@@ -61,16 +61,27 @@ export default function UnpaidReportPage() {
   const [sendingReminders, setSendingReminders] = useState(false);
   const [remindersSentCount, setRemindersSentCount] = useState(0);
 
-  const { data: pendingObligations, isLoading, isError, refetch } = useObligations({ status: "pending" });
+  // Fetch ALL non-paid obligations (pending, partial, overdue)
+  const { data: allObligations, isLoading, isError, refetch } = useObligations();
 
-  // Group obligations by membership (member)
+  // Group obligations by membership — only include truly unpaid ones
   const unpaidMembers = useMemo<UnpaidMember[]>(() => {
-    if (!pendingObligations || pendingObligations.length === 0) return [];
+    if (!allObligations || allObligations.length === 0) return [];
 
     const memberMap = new Map<string, UnpaidMember>();
 
-    for (const obl of pendingObligations) {
-      const membership = obl.membership as { id: string; user_id: string; profiles: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[] };
+    for (const obl of allObligations) {
+      // Skip paid and waived obligations
+      const status = obl.status as string;
+      if (status === "paid" || status === "waived") continue;
+
+      // Double-check mathematically: only include if there's a real outstanding balance
+      const amountDue = Number(obl.amount) || 0;
+      const amountPaid = Number(obl.amount_paid) || 0;
+      const outstanding = amountDue - amountPaid;
+      if (outstanding <= 0 || amountDue <= 0) continue;
+
+      const membership = obl.membership as { id: string; user_id: string; standing?: string; profiles: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[] };
       const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
       const membershipId = membership.id;
 
@@ -80,28 +91,27 @@ export default function UnpaidReportPage() {
           userId: membership.user_id || null,
           name: getMemberName(obl.membership as Record<string, unknown>),
           avatarUrl: profile?.avatar_url || null,
-          standing: "good",
+          standing: (membership.standing as string) || "good",
           totalOutstanding: 0,
           obligations: [],
         });
       }
 
       const member = memberMap.get(membershipId)!;
-      const outstanding = Number(obl.amount) - Number(obl.amount_paid);
       member.totalOutstanding += outstanding;
 
       const contributionType = obl.contribution_type as { id: string; name: string; name_fr?: string } | null;
       member.obligations.push({
         type: contributionType?.name || "Contribution",
         period: obl.period_label || obl.due_date?.slice(0, 7) || "",
-        amount: Number(obl.amount),
-        amountPaid: Number(obl.amount_paid),
+        amount: amountDue,
+        amountPaid: amountPaid,
         dueDate: obl.due_date || "",
       });
     }
 
     return Array.from(memberMap.values());
-  }, [pendingObligations]);
+  }, [allObligations]);
 
   const sorted = useMemo(() => {
     return [...unpaidMembers].sort((a, b) =>

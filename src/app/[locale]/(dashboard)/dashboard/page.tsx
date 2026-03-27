@@ -3,11 +3,17 @@
 import { useMemo } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Users,
   HandCoins,
@@ -22,6 +28,8 @@ import {
   CheckCircle2,
   ListChecks,
   Rocket,
+  Mail,
+  UserRoundPlus,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import {
@@ -34,6 +42,7 @@ import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-
 
 export default function DashboardPage() {
   const t = useTranslations();
+  const router = useRouter();
   const { currentGroup, user, isAdmin } = useGroup();
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
@@ -131,14 +140,26 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid gap-4 sm:grid-cols-3">
-          <Link href="/dashboard/invitations">
-            <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
-              <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
-                <UserPlus className="h-8 w-8 text-primary" />
-                <span className="text-sm font-medium">{t("dashboard.addMember")}</span>
-              </CardContent>
-            </Card>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="text-left">
+              <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
+                <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
+                  <UserPlus className="h-8 w-8 text-primary" />
+                  <span className="text-sm font-medium">{t("dashboard.addMember")}</span>
+                </CardContent>
+              </Card>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center">
+              <DropdownMenuItem onClick={() => router.push("/dashboard/invitations")}>
+                <Mail className="h-4 w-4" />
+                {t("dashboard.inviteByEmail")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/dashboard/members?addProxy=true")}>
+                <UserRoundPlus className="h-4 w-4" />
+                {t("dashboard.addWithoutAccount")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Link href="/dashboard/events">
             <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
               <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
@@ -246,12 +267,24 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Link href="/dashboard/invitations">
-                <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
-                  <UserPlus className="h-5 w-5 text-primary" />
-                  <span className="text-xs">{t("dashboard.addMember")}</span>
-                </Button>
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger className="w-full">
+                  <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    <span className="text-xs">{t("dashboard.addMember")}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/invitations")}>
+                    <Mail className="h-4 w-4" />
+                    {t("dashboard.inviteByEmail")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/dashboard/members?addProxy=true")}>
+                    <UserRoundPlus className="h-4 w-4" />
+                    {t("dashboard.addWithoutAccount")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Link href="/dashboard/contributions/record">
                 <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
                   <CreditCard className="h-5 w-5 text-primary" />

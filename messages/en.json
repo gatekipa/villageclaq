@@ -293,6 +293,8 @@
     "overdue": "overdue",
     "quickActions": "Quick Actions",
     "addMember": "Add Member",
+    "inviteByEmail": "Invite by Email/Link",
+    "addWithoutAccount": "Add Without Account",
     "recordPayment": "Record Payment",
     "scheduleEvent": "Schedule Event",
     "sendAnnouncement": "Send Announcement",

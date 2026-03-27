@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ export default function MembersPage() {
   const router = useRouter();
   const { isAdmin, groupId, user, currentGroup } = useGroup();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
   const [search, setSearch] = useState("");
 
@@ -67,6 +69,15 @@ export default function MembersPage() {
   const [newRole, setNewRole] = useState<"member" | "admin" | "moderator">("member");
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+
+  // Auto-open proxy member dialog when navigated with ?addProxy=true
+  useEffect(() => {
+    if (searchParams.get("addProxy") === "true" && isAdmin) {
+      setAddDialogOpen(true);
+      // Clean up the URL without triggering a navigation
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [searchParams, isAdmin]);
 
   function resetAddForm() {
     setNewFullName("");

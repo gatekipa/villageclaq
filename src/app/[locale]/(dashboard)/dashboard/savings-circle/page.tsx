@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -42,6 +43,7 @@ import {
   MoreVertical,
   Edit,
   XCircle,
+  AlertTriangle,
   CheckCircle,
   ChevronRight,
 } from "lucide-react";
@@ -1116,6 +1118,192 @@ export default function SavingsCirclePage() {
                   )}
                 </div>
 
+                {/* ── Treasury ────────────────────────────────────── */}
+                {(() => {
+                  const totalExpected = totalRnds * totalMembers * amt;
+                  const totalReceived = Math.max(0, currentRound - 1) * totalMembers * amt;
+                  const collectedCount = participants.filter((p: Record<string, unknown>) => p.has_collected).length;
+                  const totalPayouts = collectedCount * potSize;
+                  const balance = totalReceived - totalPayouts;
+                  const rate = totalExpected > 0 ? Math.round((totalReceived / totalExpected) * 100) : 0;
+                  const fl = (cycle.fines_ledger as Array<Record<string, unknown>>) || [];
+                  const finesCollectedAmt = fl.filter((f) => f.status === "paid").reduce((s, f) => s + Number(f.amount), 0);
+                  const freqDays = freq === "weekly" ? 7 : freq === "biweekly" ? 14 : 30;
+                  const startD = new Date((cycle.start_date as string) || "");
+
+                  return (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-primary" />
+                          {t("treasury")}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                          <div><p className="text-[10px] text-muted-foreground">{t("totalExpected")}</p><p className="text-sm font-bold">{formatAmount(totalExpected, currency)}</p></div>
+                          <div><p className="text-[10px] text-muted-foreground">{t("totalReceived")}</p><p className="text-sm font-bold">{formatAmount(totalReceived, currency)}</p></div>
+                          <div><p className="text-[10px] text-muted-foreground">{t("collectionRate")}</p><p className={`text-sm font-bold ${rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-600"}`}>{rate}%</p></div>
+                          <div><p className="text-[10px] text-muted-foreground">{t("totalPayouts")}</p><p className="text-sm font-bold">{formatAmount(totalPayouts, currency)}</p></div>
+                          <div><p className="text-[10px] text-muted-foreground">{t("balance")}</p><p className={`text-sm font-bold ${balance >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatAmount(balance, currency)}</p></div>
+                          <div><p className="text-[10px] text-muted-foreground">{t("finesCollected")}</p><p className="text-sm font-bold">{formatAmount(finesCollectedAmt, currency)}</p></div>
+                        </div>
+                        {/* Round Breakdown */}
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">{t("roundBreakdown")}</p>
+                          <div className="rounded-md border overflow-x-auto max-h-48 overflow-y-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs w-[50px]">#</TableHead>
+                                  <TableHead className="text-xs">{t("dueDate")}</TableHead>
+                                  <TableHead className="text-xs text-center">{t("collector")}</TableHead>
+                                  <TableHead className="text-xs text-center">{tc("status")}</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {Array.from({ length: totalRnds }, (_, i) => i + 1).map((rnd) => {
+                                  const dueDate = new Date(startD.getTime() + (rnd - 1) * freqDays * 86400000);
+                                  const collector = participants.find((p: Record<string, unknown>) => (p.collection_round as number) === rnd);
+                                  const cm = collector?.membership as Record<string, unknown> | undefined;
+                                  const cName = cm ? getMemberName(cm) : "—";
+                                  const isCurrent = rnd === currentRound;
+                                  const isPast = rnd < currentRound;
+                                  return (
+                                    <TableRow key={rnd} className={isCurrent ? "bg-blue-50 dark:bg-blue-950/20" : ""}>
+                                      <TableCell className="text-xs">R{rnd}</TableCell>
+                                      <TableCell className="text-xs text-muted-foreground">{dueDate.toLocaleDateString()}</TableCell>
+                                      <TableCell className="text-xs text-center">{cName}</TableCell>
+                                      <TableCell className="text-center">
+                                        {isCurrent ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">{t("inProgress")}</Badge>
+                                        : isPast ? <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("statusCompleted")}</Badge>
+                                        : <Badge variant="secondary" className="text-[10px]">{t("upcoming")}</Badge>}
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
+                {/* ── Fines ──────────────────────────────────────── */}
+                {(() => {
+                  const fl = (cycle.fines_ledger as Array<Record<string, unknown>>) || [];
+                  const fr = (cycle.fine_rules as Record<string, number>) || {};
+                  const hasFineRules = (fr.late_contribution || 0) > 0 || (fr.absence || 0) > 0 || (fr.default_penalty || 0) > 0;
+                  const totalFinesAmt = fl.reduce((s, f) => s + Number(f.amount), 0);
+                  const paidFinesAmt = fl.filter((f) => f.status === "paid").reduce((s, f) => s + Number(f.amount), 0);
+                  const outstandingFinesAmt = fl.filter((f) => f.status === "unpaid").reduce((s, f) => s + Number(f.amount), 0);
+
+                  return (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            {t("fines")} {fl.length > 0 && <Badge variant="secondary" className="text-[10px]">{fl.length}</Badge>}
+                          </CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {/* Rules display */}
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                          {hasFineRules ? (
+                            <>
+                              {(fr.late_contribution || 0) > 0 && <span>{t("lateContributionFine")}: {formatAmount(fr.late_contribution, currency)}</span>}
+                              {(fr.absence || 0) > 0 && <span>{t("absenceFine")}: {formatAmount(fr.absence, currency)}</span>}
+                              {(fr.default_penalty || 0) > 0 && <span>{t("defaultPenalty")}: {formatAmount(fr.default_penalty, currency)}</span>}
+                            </>
+                          ) : (
+                            <span>{t("noFineRules")}</span>
+                          )}
+                        </div>
+                        {/* Ledger */}
+                        {fl.length > 0 && (
+                          <>
+                            <div className="rounded-md border divide-y">
+                              {fl.map((fine: Record<string, unknown>) => {
+                                const mp = participants.find((p: Record<string, unknown>) => (p.membership_id as string) === (fine.membership_id as string));
+                                const mm = mp?.membership as Record<string, unknown> | undefined;
+                                return (
+                                  <div key={fine.id as string} className="flex items-center justify-between px-3 py-2 text-xs">
+                                    <span className="font-medium">{mm ? getMemberName(mm) : "—"}</span>
+                                    <span className="text-muted-foreground capitalize">{String(fine.type).replace(/_/g, " ")}</span>
+                                    <span>{formatAmount(Number(fine.amount), currency)}</span>
+                                    <Badge className={`text-[10px] ${(fine.status as string) === "paid" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
+                                      {(fine.status as string) === "paid" ? t("markPaid") : t("unpaid")}
+                                    </Badge>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <div className="flex gap-4 text-xs text-muted-foreground">
+                              <span>{t("totalFines")}: {formatAmount(totalFinesAmt, currency)}</span>
+                              <span>{t("finesCollected")}: {formatAmount(paidFinesAmt, currency)}</span>
+                              <span>{t("finesOutstanding")}: {formatAmount(outstandingFinesAmt, currency)}</span>
+                            </div>
+                          </>
+                        )}
+                        {fl.length === 0 && <p className="text-xs text-muted-foreground">{t("noFines")}</p>}
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
+                {/* ── Issues ─────────────────────────────────────── */}
+                {(() => {
+                  const il = (cycle.issues_log as Array<Record<string, unknown>>) || [];
+                  return (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                            {t("issues")} {il.length > 0 && <Badge variant="secondary" className="text-[10px]">{il.length}</Badge>}
+                          </CardTitle>
+                          {isAdmin && (
+                            <IssueRecordButton cycleId={id} participants={participants} queryClient={queryClient} issuesLog={il} t={t} tc={tc} />
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {il.length === 0 ? (
+                          <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle className="h-4 w-4" />
+                            <span>{t("noIssues")}</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {il.sort((a, b) => new Date(b.date as string).getTime() - new Date(a.date as string).getTime()).map((issue: Record<string, unknown>) => {
+                              const sevColors: Record<string, string> = { low: "bg-emerald-100 text-emerald-800", medium: "bg-amber-100 text-amber-800", high: "bg-red-100 text-red-800" };
+                              const mp = issue.membership_id ? participants.find((p: Record<string, unknown>) => (p.membership_id as string) === (issue.membership_id as string)) : null;
+                              const mm = mp?.membership as Record<string, unknown> | undefined;
+                              const isResolved = issue.resolved as boolean;
+                              return (
+                                <div key={issue.id as string} className={`rounded-lg border p-3 text-xs ${isResolved ? "opacity-60" : ""}`}>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge className={`text-[10px] ${sevColors[issue.severity as string] || sevColors.low}`}>{t((issue.severity as string) || "low")}</Badge>
+                                    <span className="font-medium capitalize">{String(issue.type).replace(/_/g, " ")}</span>
+                                    {mm && <span className="text-muted-foreground">— {getMemberName(mm)}</span>}
+                                    {isResolved && <Badge variant="secondary" className="text-[10px]">{t("resolved")}</Badge>}
+                                  </div>
+                                  <p className={`mt-1 text-muted-foreground ${isResolved ? "line-through" : ""}`}>{String(issue.description)}</p>
+                                  <p className="mt-1 text-muted-foreground">{new Date(issue.date as string).toLocaleDateString()}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+
                 {/* Round Management (admin only) */}
                 {isAdmin && status === "active" && (
                   <RoundManagement
@@ -1363,5 +1551,109 @@ export default function SavingsCirclePage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ─── Issue Record Button ──────────────────────────────────────────────────
+
+function IssueRecordButton({ cycleId, participants, queryClient, issuesLog, t, tc }: {
+  cycleId: string;
+  participants: Record<string, unknown>[];
+  queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>;
+  issuesLog: Array<Record<string, unknown>>;
+  t: ReturnType<typeof import("next-intl").useTranslations>;
+  tc: ReturnType<typeof import("next-intl").useTranslations>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [issueType, setIssueType] = useState("payment_delay");
+  const [description, setDescription] = useState("");
+  const [membershipId, setMembershipId] = useState("");
+  const [severity, setSeverity] = useState("medium");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!description.trim()) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const newIssue = {
+        id: crypto.randomUUID(),
+        type: issueType,
+        description: description.trim(),
+        membership_id: membershipId || null,
+        severity,
+        date: new Date().toISOString(),
+        resolved: false,
+      };
+      const updated = [...issuesLog, newIssue];
+      await supabase.from("savings_cycles").update({ issues_log: updated }).eq("id", cycleId);
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      setOpen(false);
+      setDescription("");
+      setMembershipId("");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setOpen(true)}>
+        <Plus className="mr-1 h-3 w-3" />
+        {t("recordIssue")}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("recordIssue")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>{t("issueType")}</Label>
+              <Select value={issueType} onValueChange={(v) => setIssueType(v ?? "payment_delay")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="payment_delay">{t("paymentDelay")}</SelectItem>
+                  <SelectItem value="collection_dispute">{t("collectionDispute")}</SelectItem>
+                  <SelectItem value="member_default">{t("memberDefault")}</SelectItem>
+                  <SelectItem value="late_payment">{t("latePayment")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("description")} *</Label>
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("affectedMember")}</Label>
+              <Select value={membershipId} onValueChange={(v) => setMembershipId(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">—</SelectItem>
+                  {participants.map((p: Record<string, unknown>) => {
+                    const m = p.membership as Record<string, unknown> | undefined;
+                    const mid = (p.membership_id as string) || "";
+                    return <SelectItem key={mid} value={mid}>{m ? getMemberName(m) : "—"}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("severity")}</Label>
+              <div className="flex gap-2">
+                {(["low", "medium", "high"] as const).map((s) => (
+                  <Button key={s} type="button" variant={severity === s ? "default" : "outline"} size="sm" className="text-xs" onClick={() => setSeverity(s)}>
+                    {t(s)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleSubmit} disabled={saving || !description.trim()}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("recordIssue")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

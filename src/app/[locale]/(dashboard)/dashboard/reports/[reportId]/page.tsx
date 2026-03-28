@@ -243,22 +243,43 @@ export default function ReportDetailPage() {
     };
   }).filter(e => e.attendees.length > 0);
 
-  // Report 13: Hosting Compliance
+  // Report 13: Hosting Compliance — comprehensive per-member breakdown
   const hostingRosterList = hostingRosters || [];
-  const hostingComplianceData: { name: string; completed: number; missed: number; total: number }[] = [];
+  const hostingComplianceData: { name: string; completed: number; missed: number; total: number; lastHosted: string; fairnessScore: number; rate: number }[] = [];
+  const allHostingAssignments: Record<string, unknown>[] = [];
   hostingRosterList.forEach((roster: Record<string, unknown>) => {
     const assignments = (roster.hosting_assignments as Record<string, unknown>[]) || [];
-    const memberMap: Record<string, { name: string; completed: number; missed: number; total: number }> = {};
-    assignments.forEach((a: Record<string, unknown>) => {
-      const membership = a.membership as Record<string, unknown>;
-      const name = getMemberName(membership);
-      if (!memberMap[name]) memberMap[name] = { name, completed: 0, missed: 0, total: 0 };
-      memberMap[name].total += 1;
-      if ((a.status as string) === "completed") memberMap[name].completed += 1;
-      else if ((a.status as string) === "missed" || (a.status as string) === "skipped") memberMap[name].missed += 1;
-    });
-    hostingComplianceData.push(...Object.values(memberMap));
+    allHostingAssignments.push(...assignments);
   });
+  // Compute per-member stats
+  const hostingMemberMap: Record<string, { name: string; completed: number; missed: number; total: number; lastHosted: string }> = {};
+  allHostingAssignments.forEach((a: Record<string, unknown>) => {
+    const membership = a.membership as Record<string, unknown>;
+    const name = getMemberName(membership);
+    if (!hostingMemberMap[name]) hostingMemberMap[name] = { name, completed: 0, missed: 0, total: 0, lastHosted: "" };
+    hostingMemberMap[name].total += 1;
+    if ((a.status as string) === "completed") {
+      hostingMemberMap[name].completed += 1;
+      const d = a.assigned_date as string || "";
+      if (d > hostingMemberMap[name].lastHosted) hostingMemberMap[name].lastHosted = d;
+    }
+    else if ((a.status as string) === "missed" || (a.status as string) === "skipped") hostingMemberMap[name].missed += 1;
+  });
+  const hostingValues = Object.values(hostingMemberMap);
+  const avgHosted = hostingValues.length > 0 ? hostingValues.reduce((s, v) => s + v.completed, 0) / hostingValues.length : 0;
+  hostingValues.forEach((v) => {
+    const deviation = avgHosted > 0 ? Math.abs(v.completed - avgHosted) / avgHosted : 0;
+    const fairnessScore = Math.max(0, Math.round(100 - deviation * 100));
+    const rate = (v.completed + v.missed) > 0 ? Math.round((v.completed / (v.completed + v.missed)) * 100) : 100;
+    hostingComplianceData.push({ ...v, fairnessScore, rate });
+  });
+  hostingComplianceData.sort((a, b) => b.total - a.total);
+  const hostingCompletionRate = (() => {
+    const c = allHostingAssignments.filter((a) => (a.status as string) === "completed").length;
+    const m = allHostingAssignments.filter((a) => (a.status as string) === "missed").length;
+    return (c + m) > 0 ? Math.round((c / (c + m)) * 100) : 100;
+  })();
+  const hostingExempted = allHostingAssignments.filter((a) => (a.status as string) === "exempted").length;
 
   // Report 14: Minutes Archive
   const minutesList = (meetingMinutes || []).filter((m: Record<string, unknown>) => (m.status as string) === "published");
@@ -328,7 +349,7 @@ export default function ReportDetailPage() {
       data = Object.entries(arBuckets).map(([bucket, d]) => ({ Bucket: bucket, Amount: d.amount, Count: d.count }));
       filename = "ar_aging";
     } else if (reportId === "6") {
-      data = standingData.map(r => ({ Name: r.name, Standing: r.standing }));
+      data = standingData.map(r => ({ Name: r.name, Standing: r.standing, Dues: r.standing === "good" ? "Pass" : "—", Attendance: "—", Hosting: "—" }));
       filename = "member_standing";
     } else if (reportId === "8") {
       data = rosterData.map(r => ({ Name: r.name, Phone: r.phone, Joined: r.joined, Role: r.role, Standing: r.standing }));
@@ -346,7 +367,7 @@ export default function ReportDetailPage() {
       data = eventAttendanceLog.flatMap(e => e.attendees.map(a => ({ Event: e.title, Date: e.date, Member: a.name, Status: a.status })));
       filename = "event_attendance_log";
     } else if (reportId === "13") {
-      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total }));
+      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || "Never", "Rate %": r.rate, "Fairness %": r.fairnessScore }));
       filename = "hosting_compliance";
     } else if (reportId === "14") {
       data = filteredMinutes.map((m: Record<string, unknown>) => ({ Event: ((m.event as Record<string, unknown>)?.title as string) || "", Date: m.created_at, Status: m.status }));
@@ -399,7 +420,7 @@ export default function ReportDetailPage() {
       data = savingsCycleData.map(r => ({ Name: r.name, Status: r.status, Participants: r.participants, Round: `${r.currentRound}/${r.totalRounds}`, Amount: r.amount, Frequency: r.frequency }));
       filename = "savings_cycles";
     } else if (reportId === "6") {
-      data = standingData.map(r => ({ Name: r.name, Standing: r.standing }));
+      data = standingData.map(r => ({ Name: r.name, Standing: r.standing, Dues: r.standing === "good" ? "Pass" : "—", Attendance: "—", Hosting: "—" }));
       filename = "member_standing";
     } else if (reportId === "7") {
       data = Object.entries(matrixByMember).map(([name, yearData]) => {
@@ -424,7 +445,7 @@ export default function ReportDetailPage() {
       data = eventAttendanceLog.flatMap(e => e.attendees.map(a => ({ Event: e.title, Date: e.date, Member: a.name, Status: a.status })));
       filename = "event_attendance_log";
     } else if (reportId === "13") {
-      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total }));
+      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || "Never", "Rate %": r.rate, "Fairness %": r.fairnessScore }));
       filename = "hosting_compliance";
     } else if (reportId === "14") {
       data = filteredMinutes.map((m: Record<string, unknown>) => ({ Event: ((m.event as Record<string, unknown>)?.title as string) || "", Date: m.created_at, Status: m.status }));
@@ -931,37 +952,72 @@ export default function ReportDetailPage() {
 
       {/* Report 13: Hosting Compliance */}
       {reportId === "13" && (
-        <Card><CardContent className="pt-6">
-          {hostingComplianceData.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">{t("reports.notEnoughData")}</p>
-              <Link href="/dashboard/hosting" className="mt-2 inline-block">
-                <Button variant="outline" size="sm">{t("hosting.title")}</Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {hostingComplianceData.map((row, i) => (
-                <div key={i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-sm">{row.name}</p>
-                    <p className="text-xs text-muted-foreground">{row.total} {t("common.total")}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      {row.completed} {t("reports.stable")}
-                    </Badge>
-                    {row.missed > 0 && (
-                      <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                        {row.missed} missed
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent></Card>
+        <div className="space-y-4">
+          {/* Summary stats */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{t("hosting.complianceRate")}</p>
+              <p className={`text-2xl font-bold ${hostingCompletionRate >= 80 ? "text-emerald-600" : hostingCompletionRate >= 50 ? "text-amber-600" : "text-red-600"}`}>{hostingCompletionRate}%</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{t("hosting.timesMissed")}</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{allHostingAssignments.filter((a) => (a.status as string) === "missed").length}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{t("hosting.statusExceptions")}</p>
+              <p className="text-2xl font-bold">{hostingExempted}</p>
+            </CardContent></Card>
+          </div>
+
+          {/* Per-member table */}
+          <Card><CardContent className="pt-6">
+            {hostingComplianceData.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-muted-foreground">{t("reports.notEnoughData")}</p>
+                <Link href="/dashboard/hosting" className="mt-2 inline-block">
+                  <Button variant="outline" size="sm">{t("hosting.title")}</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("hosting.memberName")}</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("hosting.timesCompleted")}</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("hosting.timesMissed")}</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("common.total")}</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("hosting.lastHosted")}</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("hosting.complianceRate")}</th>
+                      <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("hosting.fairnessScore")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hostingComplianceData.map((row, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="px-3 py-2 font-medium">{row.name}</td>
+                        <td className="px-3 py-2 text-center text-emerald-600">{row.completed}</td>
+                        <td className="px-3 py-2 text-center text-red-600">{row.missed}</td>
+                        <td className="px-3 py-2 text-center">{row.total}</td>
+                        <td className="px-3 py-2 text-muted-foreground text-xs">{row.lastHosted ? new Date(row.lastHosted).toLocaleDateString() : "—"}</td>
+                        <td className="px-3 py-2 text-center">
+                          <Badge className={`text-xs ${row.rate >= 80 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : row.rate >= 50 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
+                            {row.rate}%
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <Badge className={`text-xs ${row.fairnessScore >= 75 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : row.fairnessScore >= 50 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
+                            {row.fairnessScore}%
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent></Card>
+        </div>
       )}
 
       {/* Report 14: Minutes Archive */}

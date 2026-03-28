@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
-import { usePermissions } from "@/lib/hooks/use-permissions";
+// permissions checked via isAdmin from useGroup()
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -179,6 +179,9 @@ export default function ConstitutionPage() {
   const [amendReason, setAmendReason] = useState("");
   const [amendSaving, setAmendSaving] = useState(false);
 
+  // Publish confirmation
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+
   // Acknowledgment
   const [acknowledging, setAcknowledging] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -277,6 +280,39 @@ export default function ConstitutionPage() {
     queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
   };
 
+  const handleApplyAmendment = async (amend: Record<string, unknown>) => {
+    if (!constitution?.id || !groupId || !currentMembership) return;
+    const oldText = amend.old_text as string;
+    const newText = amend.new_text as string;
+    const currentContent = (constitution.content as string) || "";
+
+    // Apply text replacement if both old and new text are provided
+    let updatedContent = currentContent;
+    if (oldText && newText) {
+      updatedContent = currentContent.replace(oldText, newText);
+    } else if (newText) {
+      // Append new text if no old text specified
+      updatedContent = currentContent + "\n\n" + newText;
+    }
+
+    // Archive current published version
+    await supabase.from("group_constitutions").update({ status: "archived" }).eq("id", constitution.id);
+
+    // Create new published version
+    const newVersion = (constitution.version_number as number) + 1;
+    await supabase.from("group_constitutions").insert({
+      group_id: groupId, title: constitution.title, content: updatedContent,
+      version_number: newVersion, status: "published",
+      published_at: new Date().toISOString(), published_by: currentMembership.id,
+    });
+
+    // Mark amendment as applied
+    await supabase.from("constitution_amendments").update({ status: "applied" }).eq("id", amend.id as string);
+
+    queryClient.invalidateQueries({ queryKey: ["constitution", groupId] });
+    queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
+  };
+
   const handleSendReminder = async () => {
     if (!groupId || !constitution?.id) return;
     setSendingReminder(true);
@@ -324,7 +360,7 @@ export default function ConstitutionPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div><h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1><p className="text-muted-foreground">{t("description")}</p></div>
         {isAdmin && hasContent && draft && (
-          <Button onClick={handlePublish} disabled={publishing}>
+          <Button onClick={() => setShowPublishConfirm(true)} disabled={publishing}>
             {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
             {t("publish")}
           </Button>
@@ -429,6 +465,9 @@ export default function ConstitutionPage() {
                           <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleAmendmentAction(amend.id as string, "rejected")}>{t("reject")}</Button>
                         </div>
                       )}
+                      {isAdmin && amend.status === "approved" && constitution && (
+                        <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => handleApplyAmendment(amend)}>{t("apply")}</Button>
+                      )}
                     </div>
                   </CardContent></Card>
                 );
@@ -488,6 +527,21 @@ export default function ConstitutionPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAmendDialog(false)}>{tc("cancel")}</Button>
             <Button onClick={handleProposeAmendment} disabled={amendSaving || !amendTitle.trim()}>{amendSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("proposeAmendment")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish Confirmation Dialog */}
+      <Dialog open={showPublishConfirm} onOpenChange={setShowPublishConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("publish")}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("publishConfirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPublishConfirm(false)}>{tc("cancel")}</Button>
+            <Button onClick={async () => { setShowPublishConfirm(false); await handlePublish(); }} disabled={publishing}>
+              {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("publish")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

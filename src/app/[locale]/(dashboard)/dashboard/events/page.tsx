@@ -171,7 +171,7 @@ export default function EventsPage() {
   const [formIsRecurring, setFormIsRecurring] = useState(false);
   const [formRecurrenceRule, setFormRecurrenceRule] = useState<string>("monthly");
   const [formAttendanceRequired, setFormAttendanceRequired] = useState(true);
-  const [formEnableRsvp, setFormEnableRsvp] = useState(true);
+  // RSVP is enabled by default for all upcoming events (no per-event toggle — no DB column exists)
   const [preFilledBanner, setPreFilledBanner] = useState<string | null>(null);
 
   const year = calendarDate.getFullYear();
@@ -216,7 +216,6 @@ export default function EventsPage() {
     setFormIsRecurring(false);
     setFormRecurrenceRule("monthly");
     setFormAttendanceRequired(true);
-    setFormEnableRsvp(true);
     setPreFilledBanner(null);
   };
 
@@ -823,22 +822,7 @@ export default function EventsPage() {
               </button>
             </div>
 
-            {/* Enable RSVP */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <p className="text-sm font-medium">{t("enableRsvp")}</p>
-                <p className="text-xs text-muted-foreground">{t("enableRsvpHint")}</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={formEnableRsvp}
-                onClick={() => setFormEnableRsvp(!formEnableRsvp)}
-                className={cn("relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors", formEnableRsvp ? "bg-primary" : "bg-muted")}
-              >
-                <span className={cn("pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform", formEnableRsvp ? "translate-x-5" : "translate-x-0")} />
-              </button>
-            </div>
+            {/* RSVP is enabled by default for all upcoming events — no per-event control */}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); setEditEventId(null); }}>

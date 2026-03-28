@@ -864,8 +864,6 @@
     "recurringHint": "This event repeats on a regular schedule",
     "attendanceRequired": "Attendance Required",
     "attendanceRequiredHint": "Members who miss will be marked absent, affecting standing",
-    "enableRsvp": "Enable RSVP",
-    "enableRsvpHint": "Members can respond Yes/No/Maybe before the event",
     "repeatLastMeeting": "Repeat Last Meeting",
     "repeatLastMeetingDesc": "Copy the most recent meeting with date advanced by frequency",
     "preFilledFrom": "Pre-filled from: {title} on {date}",

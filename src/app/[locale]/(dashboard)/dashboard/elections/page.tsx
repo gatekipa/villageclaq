@@ -54,6 +54,7 @@ import {
   BarChart3,
   MoreVertical,
   Edit,
+  AlertCircle,
 } from "lucide-react";
 import { useElections, useCreateElection, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -212,6 +213,13 @@ export default function ElectionsPage() {
   const [statusLoading, setStatusLoading] = useState(false);
   const [removeLoading, setRemoveLoading] = useState<string | null>(null);
 
+  // Action error notification (auto-clears after 5s)
+  const [actionError, setActionError] = useState<string | null>(null);
+  function showError(msg: string) {
+    setActionError(msg);
+    setTimeout(() => setActionError(null), 5000);
+  }
+
   // ─── Derived ──────────────────────────────────────────────────────────────
 
   const electionsList = (elections || []) as Election[];
@@ -335,7 +343,7 @@ export default function ElectionsPage() {
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
     } catch (err) {
-      console.error("Status update failed:", err);
+      showError(t("statusChangeFailed"));
     } finally {
       setStatusLoading(false);
     }
@@ -356,7 +364,7 @@ export default function ElectionsPage() {
       setCandidateMembershipId("");
       setCandidateStatement("");
     } catch (err) {
-      console.error("Add candidate failed:", err);
+      showError(t("addCandidateFailed"));
     } finally {
       setCandidateLoading(false);
     }
@@ -378,7 +386,7 @@ export default function ElectionsPage() {
       setShowAddOption(false);
       setOptionLabel("");
     } catch (err) {
-      console.error("Add option failed:", err);
+      showError(t("addOptionFailed"));
     } finally {
       setOptionLoading(false);
     }
@@ -391,7 +399,7 @@ export default function ElectionsPage() {
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
     } catch (err) {
-      console.error("Remove candidate failed:", err);
+      showError(t("removeFailed"));
     } finally {
       setRemoveLoading(null);
     }
@@ -404,7 +412,7 @@ export default function ElectionsPage() {
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
     } catch (err) {
-      console.error("Remove option failed:", err);
+      showError(t("removeFailed"));
     } finally {
       setRemoveLoading(null);
     }
@@ -437,7 +445,7 @@ export default function ElectionsPage() {
       queryClient.invalidateQueries({ queryKey: ["election-vote-check", selectedElectionId, currentMembership.id] });
       queryClient.invalidateQueries({ queryKey: ["election-results", selectedElectionId] });
     } catch (err) {
-      console.error("Vote failed:", err);
+      showError(t("voteFailed"));
     } finally {
       setVoteLoading(false);
     }
@@ -465,6 +473,15 @@ export default function ElectionsPage() {
           </Button>
         )}
       </div>
+
+      {/* Action Error Notification */}
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-auto text-destructive/70 hover:text-destructive">✕</button>
+        </div>
+      )}
 
       {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-3">

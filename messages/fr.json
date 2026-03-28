@@ -2524,7 +2524,13 @@
     "alreadyNominated": "Vous êtes déjà candidat",
     "nominationSuccess": "Vous avez été nominé",
     "resultsHidden": "Les résultats seront visibles après la clôture du vote",
-    "selfNominationOnly": "L'auto-nomination est disponible pendant les élections ouvertes"
+    "selfNominationOnly": "L'auto-nomination est disponible pendant les élections ouvertes",
+    "statusChangeFailed": "Échec de la mise à jour du statut",
+    "addCandidateFailed": "Échec de l'ajout du candidat",
+    "addOptionFailed": "Échec de l'ajout de l'option",
+    "removeFailed": "Échec de la suppression",
+    "voteFailed": "Échec de l'envoi du vote. Veuillez réessayer.",
+    "deleteFailed": "Échec de la suppression de l'élection"
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

@@ -2548,7 +2548,13 @@
     "alreadyNominated": "You are already a candidate",
     "nominationSuccess": "You have been nominated",
     "resultsHidden": "Results will be visible after voting closes",
-    "selfNominationOnly": "Self-nomination is available during open elections"
+    "selfNominationOnly": "Self-nomination is available during open elections",
+    "statusChangeFailed": "Failed to update election status",
+    "addCandidateFailed": "Failed to add candidate",
+    "addOptionFailed": "Failed to add option",
+    "removeFailed": "Failed to remove item",
+    "voteFailed": "Failed to submit vote. Please try again.",
+    "deleteFailed": "Failed to delete election"
   },
   "documentVault": {
     "title": "Document Vault",

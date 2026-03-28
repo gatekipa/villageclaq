@@ -914,11 +914,16 @@ export default function SavingsCirclePage() {
                 ? "bg-slate-600 text-white dark:bg-slate-500"
                 : "bg-amber-600 text-white dark:bg-amber-500";
 
+          const isExpanded = expandedCycleId === id;
+
           return (
             <Card key={id}>
-              <CardHeader>
+              <CardHeader className="cursor-pointer" onClick={() => setExpandedCycleId(isExpanded ? null : id)}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="text-lg">{name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    <CardTitle className="text-lg">{name}</CardTitle>
+                  </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge variant="default" className={statusColor}>
                       {t(`status${status.charAt(0).toUpperCase() + status.slice(1)}` as Parameters<typeof t>[0])}
@@ -961,6 +966,15 @@ export default function SavingsCirclePage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-5">
+                {/* Summary row (always visible) */}
+                <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  <span>{t("currentRound")}: <strong className="text-foreground">{currentRound}/{totalRnds}</strong></span>
+                  <span>{t("potSize")}: <strong className="text-foreground">{formatAmount(potSize, currency)}</strong></span>
+                  <span>{t("participants")}: <strong className="text-foreground">{totalMembers}</strong></span>
+                  <span>{t("amount")}: <strong className="text-foreground">{formatAmount(amt, currency)}</strong></span>
+                </div>
+
+                {isExpanded && <>
                 {/* Meeting info */}
                 {((cycle.meeting_schedule as string) || (cycle.meeting_location as string)) && (
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -968,36 +982,7 @@ export default function SavingsCirclePage() {
                     {(cycle.meeting_location as string) && <span>📍 {cycle.meeting_location as string}</span>}
                   </div>
                 )}
-                {/* Cycle overview grid */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("currentRound")}</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {currentRound} {t("of")} {totalRnds}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("potSize")}</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {formatAmount(potSize, currency)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {totalMembers} members x {formatAmount(amt, currency)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("participants")}</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {totalMembers}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("amount")}</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {formatAmount(amt, currency)}
-                    </p>
-                  </div>
-                </div>
+                {/* (Overview stats moved to always-visible summary row above) */}
 
                 {/* Next Collector + Next Collection */}
                 {status === "active" && participants.length > 0 && (() => {
@@ -1324,6 +1309,7 @@ export default function SavingsCirclePage() {
                     tc={tc}
                   />
                 )}
+                </>}
               </CardContent>
             </Card>
           );

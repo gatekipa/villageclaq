@@ -204,11 +204,16 @@ function RoundManagement({
     setAdvancing(false);
   };
 
+  const [payoutDeductions, setPayoutDeductions] = useState("0");
+  const [payoutStatus, setPayoutStatus] = useState("full");
+  const [payoutDeferredReason, setPayoutDeferredReason] = useState("");
+
   const handleRecordCollection = async () => {
     if (!collectorParticipantId) return;
     setRecordingCollection(true);
     try {
       const supabase = createClient();
+      const amountGiven = Number(collectionAmount) - Number(payoutDeductions || 0);
       await supabase.from("savings_participants").update({
         has_collected: true,
         collected_at: new Date().toISOString(),
@@ -524,21 +529,38 @@ function RoundManagement({
             </DialogContent>
           </Dialog>
 
-          {/* Record Collection Dialog */}
+          {/* Record Payout Dialog */}
           <Dialog open={showCollectionDialog} onOpenChange={setShowCollectionDialog}>
-            <DialogContent className="max-w-sm">
-              <DialogHeader><DialogTitle>{t("recordCollection")}</DialogTitle></DialogHeader>
+            <DialogContent className="max-w-md">
+              <DialogHeader><DialogTitle>{t("recordPayout")} — {t("round")} {currentRound}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div className="rounded-lg bg-muted p-3">
-                  <p className="text-xs text-muted-foreground">{t("collector")}</p>
+                  <p className="text-xs text-muted-foreground">{t("beneficiary")}</p>
                   <p className="text-sm font-medium">{collectorName}</p>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-muted/50 p-2">
+                    <p className="text-[10px] text-muted-foreground">{t("expectedAmount")}</p>
+                    <p className="text-sm font-bold">{formatAmount(potSize, currency)}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-2">
+                    <p className="text-[10px] text-muted-foreground">{t("actualCollected")}</p>
+                    <p className="text-sm font-bold">{formatAmount(roundContribs.reduce((s, c) => s + Number(c.amount || 0), 0), currency)}</p>
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label>{t("amount")}</Label>
+                  <Label>{t("amountGiven")}</Label>
                   <Input type="number" value={collectionAmount} onChange={(e) => setCollectionAmount(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>{tc("method") || "Method"}</Label>
+                  <Label>{t("deductions")}</Label>
+                  <Input type="number" value={payoutDeductions} onChange={(e) => setPayoutDeductions(e.target.value)} placeholder="0" />
+                  {Number(payoutDeductions) > 0 && (
+                    <p className="text-xs text-muted-foreground">{t("netPayout")}: {formatAmount(Number(collectionAmount) - Number(payoutDeductions), currency)}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("payoutMethod") || t("paymentMethod")}</Label>
                   <Select value={collectionMethod} onValueChange={(v) => setCollectionMethod(v ?? "cash")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -1387,6 +1409,31 @@ export default function SavingsCirclePage() {
                     t={t}
                     tc={tc}
                   />
+                )}
+
+                {/* Complete Cycle */}
+                {isAdmin && status === "active" && currentRound >= totalRnds && (
+                  <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+                    <CardContent className="p-4 space-y-3">
+                      <p className="text-sm font-medium">{t("completeCycle")}</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">{t("totalExpectedFull")}:</span> <span className="font-medium">{formatAmount(totalRnds * totalMembers * amt, currency)}</span></div>
+                        <div><span className="text-muted-foreground">{t("totalPayoutsFull")}:</span> <span className="font-medium">{formatAmount(participants.filter((p: Record<string, unknown>) => p.has_collected).length * potSize, currency)}</span></div>
+                      </div>
+                      <Button
+                        className="w-full"
+                        onClick={async () => {
+                          if (!confirm(t("completeConfirm"))) return;
+                          const supabase = createClient();
+                          await supabase.from("savings_cycles").update({ status: "completed" }).eq("id", id);
+                          queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+                        }}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        {t("completeCycle")}
+                      </Button>
+                    </CardContent>
+                  </Card>
                 )}
                 </>}
               </CardContent>

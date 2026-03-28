@@ -194,7 +194,7 @@ function groupByMonth(assignments: Assignment[]): Record<string, Assignment[]> {
 export default function HostingPage() {
   const t = useTranslations("hosting");
   const tc = useTranslations("common");
-  const { groupId, user } = useGroup();
+  const { groupId, user, currentMembership } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("hosting.manage");
   const queryClient = useQueryClient();
@@ -214,6 +214,9 @@ export default function HostingPage() {
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [assignContext, setAssignContext] = useState<{ rosterId: string; date: string } | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("assignments");
+  const [publishing, setPublishing] = useState(false);
+  const [planBuilderOpen, setPlanBuilderOpen] = useState(false);
 
   // ── Stats ──────────────────────────────────────────────────────────────
 
@@ -308,6 +311,28 @@ export default function HostingPage() {
     setShowAssignDialog(true);
   }, []);
 
+  const handlePublish = useCallback(async () => {
+    if (!groupId) return;
+    setPublishing(true);
+    try {
+      const supabase = createClient();
+      const upcoming = allAssignments.filter((a) => a.status === "upcoming");
+      if (upcoming.length > 0) {
+        const notifications = upcoming.map((a) => ({
+          group_id: groupId,
+          membership_id: a.membership_id,
+          type: "hosting_assigned",
+          title: "Hosting Assigned",
+          message: `You are assigned to host on ${new Date(a.assigned_date).toLocaleDateString()}`,
+          is_read: false,
+        }));
+        await supabase.from("notifications").insert(notifications);
+      }
+    } finally {
+      setPublishing(false);
+    }
+  }, [groupId, allAssignments]);
+
   // ── Loading / Error / Empty ────────────────────────────────────────────
 
   if (isLoading) {
@@ -361,10 +386,9 @@ export default function HostingPage() {
           onCreateRoster={() => setShowCreateDialog(true)}
         />
 
-        {/* Stat Cards */}
+        {/* Stat Cards — clickable to switch tabs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          {/* Next Host */}
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => setActiveTab("assignments")}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
@@ -373,16 +397,12 @@ export default function HostingPage() {
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">{t("nextHost")}</p>
                   <p className="font-semibold text-sm truncate">{stats.nextHostName}</p>
-                  {stats.nextHostDate && (
-                    <p className="text-xs text-muted-foreground">{formatDate(stats.nextHostDate)}</p>
-                  )}
+                  {stats.nextHostDate && <p className="text-xs text-muted-foreground">{formatDate(stats.nextHostDate)}</p>}
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Missed */}
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => setActiveTab("compliance")}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-red-100 p-2 dark:bg-red-900/30">
@@ -395,9 +415,7 @@ export default function HostingPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Fairness */}
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => setActiveTab("history")}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
@@ -405,21 +423,14 @@ export default function HostingPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t("fairness")}</p>
-                  <p className={cn(
-                    "text-2xl font-bold",
-                    stats.fairnessLabel === "Good"
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-amber-600 dark:text-amber-400"
-                  )}>
+                  <p className={cn("text-2xl font-bold", stats.fairnessLabel === "Good" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
                     {stats.fairnessLabel}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Compliance */}
-          <Card>
+          <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => setActiveTab("compliance")}>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
                 <div className="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
@@ -427,12 +438,7 @@ export default function HostingPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t("compliance")}</p>
-                  <p className={cn(
-                    "text-2xl font-bold",
-                    stats.complianceRate >= 80
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
-                  )}>
+                  <p className={cn("text-2xl font-bold", stats.complianceRate >= 80 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
                     {stats.complianceRate}%
                   </p>
                 </div>
@@ -441,16 +447,53 @@ export default function HostingPage() {
           </Card>
         </div>
 
+        {/* Publish Schedule */}
+        {isAdmin && allAssignments.some((a) => a.status === "upcoming") && (
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={handlePublish} disabled={publishing}>
+              {publishing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-2 h-3.5 w-3.5" />}
+              {t("publishSchedule")}
+            </Button>
+          </div>
+        )}
+
         {/* ── Top-Level Tabs ──────────────────────────────────────────── */}
-        <Tabs defaultValue="assignments" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="assignments">{t("allAssignments")}</TabsTrigger>
+            <TabsTrigger value="myhosting">{t("myAssignment")}</TabsTrigger>
             <TabsTrigger value="history">{t("historyTab")}</TabsTrigger>
             <TabsTrigger value="compliance">{t("complianceTab")}</TabsTrigger>
           </TabsList>
 
           {/* ═══ TAB: All Assignments ════════════════════════════════════ */}
           <TabsContent value="assignments" className="mt-4 space-y-6">
+
+        {/* Plan Builder (collapsible) */}
+        {isAdmin && rosters.length > 0 && (
+          <Card>
+            <CardHeader className="pb-0 cursor-pointer" onClick={() => setPlanBuilderOpen(!planBuilderOpen)}>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Home className="h-4 w-4 text-primary" />
+                  {t("generateSchedule")}
+                </CardTitle>
+                <ChevronDown className={cn("h-4 w-4 transition-transform", planBuilderOpen && "rotate-180")} />
+              </div>
+            </CardHeader>
+            {planBuilderOpen && (
+              <CardContent className="pt-4">
+                <PlanBuilder
+                  roster={rosters[0]}
+                  activeMembers={activeMembers}
+                  t={t}
+                  tc={tc}
+                  onSuccess={invalidateRosters}
+                />
+              </CardContent>
+            )}
+          </Card>
+        )}
 
         {/* Fairness Dashboard */}
         {fairnessData && fairnessData.chartData.length > 1 && (
@@ -529,6 +572,16 @@ export default function HostingPage() {
           ))}
         </div>
 
+          </TabsContent>
+
+          {/* ═══ TAB: My Hosting ══════════════════════════════════════ */}
+          <TabsContent value="myhosting" className="mt-4">
+            <MyHostingTab
+              allAssignments={allAssignments}
+              currentMembershipId={currentMembership?.id || null}
+              t={t}
+              tc={tc}
+            />
           </TabsContent>
 
           {/* ═══ TAB: History ════════════════════════════════════════════ */}
@@ -1437,6 +1490,207 @@ function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId
           <p className="text-xs text-muted-foreground">{t("complianceFrameworkDesc")}</p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─── MY HOSTING TAB ───────────────────────────────────────────────────────
+
+function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
+  allAssignments: Assignment[];
+  currentMembershipId: string | null;
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+}) {
+  const myAssignments = useMemo(
+    () => allAssignments.filter((a) => a.membership_id === currentMembershipId).sort((a, b) => b.assigned_date.localeCompare(a.assigned_date)),
+    [allAssignments, currentMembershipId]
+  );
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const nextAssignment = myAssignments.find((a) => a.status === "upcoming" && a.assigned_date >= todayStr);
+  const completed = myAssignments.filter((a) => a.status === "completed").length;
+  const missed = myAssignments.filter((a) => a.status === "missed").length;
+  const total = completed + missed;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 100;
+
+  const daysUntilNext = nextAssignment
+    ? Math.ceil((new Date(nextAssignment.assigned_date).getTime() - Date.now()) / 86400000)
+    : null;
+
+  if (!currentMembershipId) {
+    return <p className="text-sm text-muted-foreground py-8 text-center">{t("noAssignments")}</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Next Assignment */}
+      {nextAssignment ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-primary/10 p-3">
+                <Home className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">{t("myAssignment")}</p>
+                <p className="text-lg font-bold">{formatDate(nextAssignment.assigned_date)}</p>
+                {daysUntilNext !== null && daysUntilNext >= 0 && (
+                  <p className="text-xs text-primary font-medium">
+                    {daysUntilNext === 0 ? t("countdownToday") : t("countdown", { days: daysUntilNext })}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Home className="h-10 w-10 text-muted-foreground/50" />
+            <p className="mt-3 text-sm text-muted-foreground">{t("notAssigned")}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Personal Stats */}
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("timesHosted")}</p><p className="text-2xl font-bold">{completed}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("timesMissed")}</p><p className="text-2xl font-bold text-red-600 dark:text-red-400">{missed}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("complianceRate")}</p><p className={`text-2xl font-bold ${completionRate >= 80 ? "text-emerald-600" : completionRate >= 50 ? "text-amber-600" : "text-red-600"}`}>{completionRate}%</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("timesAssigned")}</p><p className="text-2xl font-bold">{myAssignments.length}</p></CardContent></Card>
+      </div>
+
+      {/* History Table */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{t("hostingHistory")}</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          {myAssignments.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">{t("noAssignments")}</p>
+          ) : (
+            <div className="divide-y">
+              {myAssignments.map((a) => {
+                const statusColors: Record<string, string> = {
+                  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+                  missed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                  upcoming: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+                  swapped: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+                  exempted: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+                };
+                return (
+                  <div key={a.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{formatDate(a.assigned_date)}</p>
+                    </div>
+                    <Badge className={`text-xs ${statusColors[a.status] || ""}`}>
+                      {t(`hostingStatus.${a.status}` as "hostingStatus.upcoming")}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── PLAN BUILDER ─────────────────────────────────────────────────────────
+
+function PlanBuilder({ roster, activeMembers, t, tc, onSuccess }: {
+  roster: Roster;
+  activeMembers: Member[];
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+  onSuccess: () => void;
+}) {
+  const [startMonth, setStartMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [endMonth, setEndMonth] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 6);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [hostsPerEvent, setHostsPerEvent] = useState(1);
+  const [building, setBuilding] = useState(false);
+
+  // Calculate months in range
+  const monthCount = useMemo(() => {
+    const [sy, sm] = startMonth.split("-").map(Number);
+    const [ey, em] = endMonth.split("-").map(Number);
+    return Math.max(1, (ey - sy) * 12 + (em - sm) + 1);
+  }, [startMonth, endMonth]);
+
+  const hostsPerMonth = activeMembers.length > 0 ? Math.max(1, Math.ceil(activeMembers.length / monthCount)) : 1;
+
+  const handleBuild = async () => {
+    if (activeMembers.length === 0) return;
+    setBuilding(true);
+    try {
+      const supabase = createClient();
+      const assignments: Array<{ roster_id: string; membership_id: string; assigned_date: string; status: string; order_index: number }> = [];
+      const [sy, sm] = startMonth.split("-").map(Number);
+      let memberIdx = 0;
+
+      for (let i = 0; i < monthCount; i++) {
+        const d = new Date(sy, sm - 1 + i, 1);
+        const dateStr = d.toISOString().slice(0, 10);
+
+        for (let h = 0; h < hostsPerEvent; h++) {
+          let member: Member;
+          if (roster.rotation_type === "random") {
+            member = activeMembers[Math.floor(Math.random() * activeMembers.length)];
+          } else {
+            member = activeMembers[memberIdx % activeMembers.length];
+            memberIdx++;
+          }
+          assignments.push({
+            roster_id: roster.id,
+            membership_id: member.id,
+            assigned_date: dateStr,
+            status: "upcoming",
+            order_index: assignments.length,
+          });
+        }
+      }
+
+      if (assignments.length > 0) {
+        await supabase.from("hosting_assignments").insert(assignments);
+      }
+      onSuccess();
+    } finally {
+      setBuilding(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-2">
+          <Label>{t("startMonth")}</Label>
+          <Input type="month" value={startMonth} onChange={(e) => setStartMonth(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>{t("endMonth")}</Label>
+          <Input type="month" value={endMonth} onChange={(e) => setEndMonth(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label>{t("hostsPerMonth")}</Label>
+          <Input type="number" min={1} max={5} value={hostsPerEvent} onChange={(e) => setHostsPerEvent(Number(e.target.value) || 1)} />
+        </div>
+      </div>
+      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3">
+        <p className="text-xs text-amber-800 dark:text-amber-300">
+          {t("calculation", { members: activeMembers.length, months: monthCount, hosts: hostsPerEvent })}
+        </p>
+      </div>
+      <Button onClick={handleBuild} disabled={building || activeMembers.length === 0}>
+        {building && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {t("autoAssign")}
+      </Button>
     </div>
   );
 }

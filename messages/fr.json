@@ -1200,6 +1200,7 @@
     "publishedBy": "Publié par {name}",
     "minutesSaved": "Procès-verbal enregistré",
     "minutesPublished": "Procès-verbal publié",
+    "minutesPublishedMsg": "Le procès-verbal \"{title}\" a été publié.",
     "searchMinutes": "Rechercher dans les procès-verbaux...",
     "actionItemsTracker": "Suivi des points d'action",
     "fromMeeting": "De la réunion",

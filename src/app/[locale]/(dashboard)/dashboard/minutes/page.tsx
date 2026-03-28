@@ -37,6 +37,7 @@ import {
   Upload,
   Pencil,
   Info,
+  AlertCircle,
 } from "lucide-react";
 import { useMeetingMinutes, useEvents } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -137,7 +138,7 @@ export default function MinutesPage() {
   const tc = useTranslations("common");
   const { groupId, user } = useGroup();
   const { hasPermission } = usePermissions();
-  const isAdmin = hasPermission("minutes.manage");
+  // Permission check — used inline throughout, no hasPermission("minutes.manage") shortcut
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -157,6 +158,13 @@ export default function MinutesPage() {
   } = useEvents();
 
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Action error notification
+  const [actionError, setActionError] = useState<string | null>(null);
+  function showError(msg: string) {
+    setActionError(msg);
+    setTimeout(() => setActionError(null), 5000);
+  }
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [standaloneMode, setStandaloneMode] = useState(false);
   const [standaloneTitle, setStandaloneTitle] = useState("");
@@ -197,7 +205,7 @@ export default function MinutesPage() {
     let list = events;
 
     // Non-admins only see events with published minutes
-    if (!isAdmin) {
+    if (!hasPermission("minutes.manage")) {
       list = list.filter((e) => {
         const m = minutesByEventId[e.id];
         return m && m.status === "published";
@@ -215,7 +223,7 @@ export default function MinutesPage() {
     }
 
     return list;
-  }, [events, isAdmin, minutesByEventId, searchQuery]);
+  }, [events, hasPermission("minutes.manage"), minutesByEventId, searchQuery]);
 
   // Standalone minutes (no event_id)
   const standaloneMinutes = useMemo(() => {
@@ -355,8 +363,8 @@ export default function MinutesPage() {
               group_id: groupId,
               membership_id: m.id,
               type: "minutes_published",
-              title: "Minutes Published",
-              message: `Meeting minutes "${minutesTitle}" have been published.`,
+              title: t("minutesPublished"),
+              message: t("minutesPublishedMsg", { title: minutesTitle }),
               is_read: false,
             }));
             await supabase.from("notifications").insert(notifications);
@@ -368,7 +376,7 @@ export default function MinutesPage() {
       setEditMode(false);
       setStandaloneMode(false);
     } catch (err) {
-      console.error("Save error:", err);
+      showError((err as Error).message || tc("error"));
     } finally {
       setSaving(false);
     }
@@ -385,7 +393,7 @@ export default function MinutesPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
     } catch (err) {
-      console.error("Unpublish error:", err);
+      showError((err as Error).message || tc("error"));
     } finally {
       setSaving(false);
     }
@@ -397,7 +405,7 @@ export default function MinutesPage() {
     minutesRecord: MinutesRecord,
     actionIndex: number
   ) => {
-    if (!isAdmin || !groupId) return;
+    if (!hasPermission("minutes.manage") || !groupId) return;
     const items = [...(minutesRecord.action_items_json || [])];
     const current = items[actionIndex];
     if (!current) return;
@@ -414,7 +422,7 @@ export default function MinutesPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
     } catch (err) {
-      console.error("Toggle error:", err);
+      showError((err as Error).message || tc("error"));
     }
   };
 
@@ -543,8 +551,17 @@ export default function MinutesPage() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
+      {/* Error notification */}
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-auto text-destructive/70 hover:text-destructive">✕</button>
+        </div>
+      )}
+
       {/* Read-only notice for members */}
-      {!isAdmin && (
+      {!hasPermission("minutes.manage") && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
           <p className="text-sm text-blue-800 dark:text-blue-300">
@@ -569,7 +586,7 @@ export default function MinutesPage() {
           </div>
 
           {/* New Standalone Minutes button */}
-          {isAdmin && (
+          {hasPermission("minutes.manage") && (
             <Button
               variant="outline"
               className="w-full"
@@ -591,7 +608,7 @@ export default function MinutesPage() {
           {standaloneMinutes.length > 0 && (
             <div className="space-y-2">
               {standaloneMinutes
-                .filter((m) => isAdmin || m.status === "published")
+                .filter((m) => hasPermission("minutes.manage") || m.status === "published")
                 .map((m) => (
                 <Card
                   key={m.id}
@@ -681,7 +698,7 @@ export default function MinutesPage() {
                 <p className="text-muted-foreground">{t("selectEvent")}</p>
               </div>
             </Card>
-          ) : editMode && isAdmin ? (
+          ) : editMode && hasPermission("minutes.manage") ? (
             /* Editor mode */
             <Card>
               <CardHeader>
@@ -1136,7 +1153,7 @@ export default function MinutesPage() {
                       </p>
                     )}
                   </div>
-                  {isAdmin && (
+                  {hasPermission("minutes.manage") && (
                     <div className="flex gap-2">
                       {selectedMinutes.status === "published" && (
                         <Button
@@ -1312,7 +1329,7 @@ export default function MinutesPage() {
                   )}
               </CardContent>
             </Card>
-          ) : isAdmin ? (
+          ) : hasPermission("minutes.manage") ? (
             /* No minutes exist for this event - admin can create */
             <Card className="flex min-h-[300px] flex-col items-center justify-center">
               <div className="text-center">
@@ -1405,7 +1422,7 @@ export default function MinutesPage() {
                           : "\u2014"}
                       </td>
                       <td className="py-2">
-                        {isAdmin ? (
+                        {hasPermission("minutes.manage") ? (
                           <Button
                             variant="ghost"
                             size="sm"

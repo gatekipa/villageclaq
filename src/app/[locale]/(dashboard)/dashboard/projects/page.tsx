@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   FolderKanban,
@@ -35,6 +36,13 @@ import {
   Milestone,
   Users,
   Loader2,
+  AlertTriangle,
+  Link2,
+  FileText,
+  Sparkles,
+  Shield,
+  Upload,
+  XCircle,
 } from "lucide-react";
 import { useProjects, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -130,6 +138,10 @@ interface ProjectRecord {
   contributions: ProjectContribution[];
   expenses: ProjectExpense[];
   milestones: ProjectMilestone[];
+  blockers?: Array<Record<string, unknown>>;
+  dependencies?: Array<Record<string, unknown>>;
+  attachments?: Array<Record<string, unknown>>;
+  resolutions?: Array<Record<string, unknown>>;
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────
@@ -584,6 +596,14 @@ function ProjectDetail({
             <Milestone className="h-3.5 w-3.5" />
             {t("milestones")}
           </TabsTrigger>
+          <TabsTrigger value="blockers" className="flex-1 sm:flex-initial gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {t("blockers")}
+          </TabsTrigger>
+          <TabsTrigger value="docs" className="flex-1 sm:flex-initial gap-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            {t("documentsPhotos")}
+          </TabsTrigger>
         </TabsList>
 
         {/* Budget & Finance Tab */}
@@ -813,8 +833,487 @@ function ProjectDetail({
             </div>
           )}
         </TabsContent>
+
+        {/* ═══ BLOCKERS & DEPENDENCIES TAB ═══════════════════════════════ */}
+        <TabsContent value="blockers" className="mt-4 space-y-6">
+          <ProjectBlockers project={project} isAdmin={isAdmin} memberNameMap={memberNameMap} members={members} milestones={milestones} currency={currency} onDataChanged={onDataChanged} />
+          <ProjectDependencies project={project} isAdmin={isAdmin} milestones={milestones} onDataChanged={onDataChanged} />
+        </TabsContent>
+
+        {/* ═══ DOCUMENTS TAB ═════════════════════════════════════════════ */}
+        <TabsContent value="docs" className="mt-4 space-y-4">
+          <ProjectDocuments project={project} isAdmin={isAdmin} milestones={milestones} onDataChanged={onDataChanged} />
+        </TabsContent>
       </Tabs>
+
+      {/* AI Insights (below tabs) */}
+      <ProjectAIInsights project={project} contributions={contributions} expenses={expenses} milestones={milestones} currency={currency} />
     </div>
+  );
+}
+
+// ─── Blockers Component ───────────────────────────────────────────────────
+
+function ProjectBlockers({ project, isAdmin, memberNameMap, members, milestones, currency, onDataChanged }: {
+  project: ProjectRecord;
+  isAdmin: boolean;
+  memberNameMap: Record<string, string>;
+  members: Record<string, unknown>[];
+  milestones: { id: string; title: string }[];
+  currency: string;
+  onDataChanged: () => void;
+}) {
+  const t = useTranslations("projects");
+  const tc = useTranslations("common");
+  const [showDialog, setShowDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("other");
+  const [severity, setSeverity] = useState("medium");
+  const [milestoneId, setMilestoneId] = useState("");
+  const [delay, setDelay] = useState("");
+  const [delayUnit, setDelayUnit] = useState("days");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [showResolved, setShowResolved] = useState(false);
+
+  const blockers = project.blockers || [];
+  const active = blockers.filter((b) => (b.status as string) !== "resolved");
+  const resolved = blockers.filter((b) => (b.status as string) === "resolved");
+
+  const severityColors: Record<string, string> = {
+    low: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+    high: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+    critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  };
+
+  async function handleAdd() {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const updated = [...blockers, {
+        id: crypto.randomUUID(),
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        severity,
+        milestone_id: milestoneId || null,
+        estimated_delay: delay ? Number(delay) : null,
+        delay_unit: delayUnit,
+        assigned_to: assignedTo || null,
+        reported_date: new Date().toISOString(),
+        status: "active",
+        resolved_date: null,
+        resolution_notes: null,
+      }];
+      await supabase.from("projects").update({ blockers: updated }).eq("id", project.id);
+      onDataChanged();
+      setShowDialog(false);
+      setTitle(""); setDescription(""); setCategory("other"); setSeverity("medium"); setMilestoneId(""); setDelay(""); setAssignedTo("");
+    } finally { setSaving(false); }
+  }
+
+  async function handleResolve(blockerId: string) {
+    const notes = prompt(t("resolutionNotes"));
+    if (notes === null) return;
+    const supabase = createClient();
+    const updated = blockers.map((b) =>
+      (b.id as string) === blockerId ? { ...b, status: "resolved", resolved_date: new Date().toISOString(), resolution_notes: notes } : b
+    );
+    await supabase.from("projects").update({ blockers: updated }).eq("id", project.id);
+    onDataChanged();
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" />{t("blockers")} ({active.length})</h4>
+        {isAdmin && <Button size="sm" variant="outline" onClick={() => setShowDialog(true)}><Plus className="mr-1 h-3 w-3" />{t("reportBlocker")}</Button>}
+      </div>
+
+      {active.length === 0 ? (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />{t("noBlockers")}</p>
+      ) : (
+        <div className="space-y-2">
+          {active.map((b) => (
+            <Card key={b.id as string} className="border-amber-200 dark:border-amber-800">
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{b.title as string}</span>
+                      <Badge className={`text-[10px] ${severityColors[(b.severity as string) || "medium"]}`}>{b.severity as string}</Badge>
+                    </div>
+                    {(b.description as string) ? <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{String(b.description)}</p> : null}
+                    <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
+                      {(b.assigned_to as string) ? <span>{memberNameMap[(b.assigned_to as string)] || "—"}</span> : null}
+                      {(b.estimated_delay as number) ? <span>{Number(b.estimated_delay)} {String(b.delay_unit)}</span> : null}
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] text-emerald-600 shrink-0" onClick={() => handleResolve(b.id as string)}>
+                      {t("resolveBlocker")}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {resolved.length > 0 && (
+        <button onClick={() => setShowResolved(!showResolved)} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+          <ChevronDown className={`h-3 w-3 transition-transform ${showResolved ? "rotate-180" : ""}`} />
+          {t("resolvedBlockers")} ({resolved.length})
+        </button>
+      )}
+      {showResolved && resolved.map((b) => (
+        <div key={b.id as string} className="text-xs text-muted-foreground line-through pl-4">{b.title as string}</div>
+      ))}
+
+      {/* Add Blocker Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("reportBlocker")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>{t("blockerTitle")} *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tc("description")}</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{t("category")}</Label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+                  {["funding_gap","logistics","regulatory","vendor","staffing","scheduling","community","technical","weather","communication","other"].map((c) => (
+                    <option key={c} value={c}>{c.replace(/_/g, " ")}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>{t("blockerSeverity")}</Label>
+                <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>{t("estimatedDelay")}</Label>
+                <div className="flex gap-1">
+                  <Input type="number" value={delay} onChange={(e) => setDelay(e.target.value)} className="w-20" />
+                  <select value={delayUnit} onChange={(e) => setDelayUnit(e.target.value)} className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+                    <option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>{t("assignedTo") || "Assigned To"}</Label>
+                <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+                  <option value="">—</option>
+                  {members.map((m) => <option key={m.id as string} value={m.id as string}>{getMemberName(m)}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleAdd} disabled={saving || !title.trim()}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{tc("save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Dependencies Component ───────────────────────────────────────────────
+
+function ProjectDependencies({ project, isAdmin, milestones, onDataChanged }: {
+  project: ProjectRecord;
+  isAdmin: boolean;
+  milestones: { id: string; title: string }[];
+  onDataChanged: () => void;
+}) {
+  const t = useTranslations("projects");
+  const tc = useTranslations("common");
+  const [showDialog, setShowDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState("");
+  const [depType, setDepType] = useState("other");
+  const [description, setDescription] = useState("");
+  const [requiredBy, setRequiredBy] = useState("");
+
+  const deps = project.dependencies || [];
+  const today = new Date().toISOString().slice(0, 10);
+
+  async function handleAdd() {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const updated = [...deps, { id: crypto.randomUUID(), title: title.trim(), type: depType, description: description.trim(), required_by: requiredBy || null, status: "pending", created_at: new Date().toISOString() }];
+      await supabase.from("projects").update({ dependencies: updated }).eq("id", project.id);
+      onDataChanged();
+      setShowDialog(false); setTitle(""); setDescription(""); setDepType("other"); setRequiredBy("");
+    } finally { setSaving(false); }
+  }
+
+  async function updateStatus(depId: string, newStatus: string) {
+    const supabase = createClient();
+    const updated = deps.map((d) => (d.id as string) === depId ? { ...d, status: newStatus } : d);
+    await supabase.from("projects").update({ dependencies: updated }).eq("id", project.id);
+    onDataChanged();
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium flex items-center gap-2"><Link2 className="h-4 w-4 text-blue-500" />{t("dependencies")} ({deps.length})</h4>
+        {isAdmin && <Button size="sm" variant="outline" onClick={() => setShowDialog(true)}><Plus className="mr-1 h-3 w-3" />{t("addDependency")}</Button>}
+      </div>
+
+      {deps.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t("noDependencies")}</p>
+      ) : (
+        <div className="space-y-1.5">
+          {deps.map((d) => {
+            const status = d.status as string;
+            const isOverdue = status === "pending" && d.required_by && (d.required_by as string) < today;
+            const effectiveStatus = isOverdue ? "overdue" : status;
+            return (
+              <div key={d.id as string} className="flex items-center gap-2 text-sm">
+                {effectiveStatus === "met" ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> :
+                 effectiveStatus === "overdue" ? <XCircle className="h-4 w-4 text-red-500 shrink-0" /> :
+                 effectiveStatus === "waived" ? <Circle className="h-4 w-4 text-blue-500 shrink-0" /> :
+                 <Circle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                <span className={effectiveStatus === "met" ? "line-through text-muted-foreground" : effectiveStatus === "overdue" ? "text-red-600" : ""}>
+                  {d.title as string}
+                </span>
+                {(d.required_by as string) ? <span className="text-[10px] text-muted-foreground ml-auto">{t("requiredBy")}: {String(d.required_by)}</span> : null}
+                {isAdmin && status === "pending" && (
+                  <div className="flex gap-1 ml-2">
+                    <Button size="sm" variant="ghost" className="h-5 text-[10px] text-emerald-600" onClick={() => updateStatus(d.id as string, "met")}>{t("met")}</Button>
+                    <Button size="sm" variant="ghost" className="h-5 text-[10px] text-blue-600" onClick={() => updateStatus(d.id as string, "waived")}>{t("waived")}</Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("addDependency")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>{t("dependencyTitle")} *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tc("description")}</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
+            <div className="space-y-1"><Label>{t("requiredBy")}</Label><Input type="date" value={requiredBy} onChange={(e) => setRequiredBy(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleAdd} disabled={saving || !title.trim()}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{tc("save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Documents Component ──────────────────────────────────────────────────
+
+function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
+  project: ProjectRecord;
+  isAdmin: boolean;
+  milestones: { id: string; title: string }[];
+  onDataChanged: () => void;
+}) {
+  const t = useTranslations("projects");
+  const tc = useTranslations("common");
+  const [uploading, setUploading] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [showUpload, setShowUpload] = useState(false);
+  const [docTitle, setDocTitle] = useState("");
+  const [docType, setDocType] = useState("other");
+
+  const attachments = project.attachments || [];
+  const filtered = typeFilter === "all" ? attachments : attachments.filter((a) => (a.type as string) === typeFilter);
+
+  async function handleUpload(file: File) {
+    if (!file || !docTitle.trim()) return;
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const path = `projects/${project.id}/${Date.now()}-${file.name}`;
+      const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file);
+      if (uploadErr) throw uploadErr;
+      const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
+      const updated = [...attachments, {
+        id: crypto.randomUUID(),
+        file_url: urlData.publicUrl,
+        title: docTitle.trim(),
+        type: docType,
+        date: new Date().toISOString(),
+        filename: file.name,
+      }];
+      await supabase.from("projects").update({ attachments: updated }).eq("id", project.id);
+      onDataChanged();
+      setShowUpload(false); setDocTitle(""); setDocType("other");
+    } finally { setUploading(false); }
+  }
+
+  async function handleDelete(attachId: string) {
+    if (!confirm(tc("confirm") + "?")) return;
+    const supabase = createClient();
+    const updated = attachments.filter((a) => (a.id as string) !== attachId);
+    await supabase.from("projects").update({ attachments: updated }).eq("id", project.id);
+    onDataChanged();
+  }
+
+  const isPhoto = (a: Record<string, unknown>) => ["photo","progress_photo"].includes((a.type as string) || "") || ((a.filename as string) || "").match(/\.(jpg|jpeg|png|webp|gif)$/i);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4 text-indigo-500" />{t("documentsPhotos")} ({attachments.length})</h4>
+        {isAdmin && <Button size="sm" variant="outline" onClick={() => setShowUpload(true)}><Upload className="mr-1 h-3 w-3" />{t("uploadDocument")}</Button>}
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-1.5">
+        {["all", "photo", "contract", "invoice", "resolution", "permit", "other"].map((f) => (
+          <Button key={f} size="sm" variant={typeFilter === f ? "default" : "outline"} className="h-6 text-[10px]" onClick={() => setTypeFilter(f)}>
+            {f === "all" ? tc("all") || "All" : f}
+          </Button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-4 text-center">{tc("noResults") || "No documents"}</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {filtered.map((a) => (
+            <Card key={a.id as string}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{a.title as string}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge variant="outline" className="text-[10px]">{a.type as string}</Badge>
+                      <span className="text-[10px] text-muted-foreground">{a.date ? new Date(a.date as string).toLocaleDateString() : ""}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <a href={a.file_url as string} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px]">View</Button>
+                    </a>
+                    {isAdmin && <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive" onClick={() => handleDelete(a.id as string)}>×</Button>}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Upload Dialog */}
+      <Dialog open={showUpload} onOpenChange={setShowUpload}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("uploadDocument")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>{t("caption") || "Title"} *</Label><Input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} /></div>
+            <div className="space-y-1">
+              <Label>{t("documentType") || "Type"}</Label>
+              <select value={docType} onChange={(e) => setDocType(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+                <option value="photo">Photo</option>
+                <option value="contract">Contract</option>
+                <option value="invoice">Invoice/Receipt</option>
+                <option value="resolution">Resolution</option>
+                <option value="permit">Permit</option>
+                <option value="report">Report</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <input type="file" accept="image/*,.pdf,.doc,.docx" id="project-doc-upload" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
+            <Button variant="outline" className="w-full" onClick={() => document.getElementById("project-doc-upload")?.click()} disabled={uploading || !docTitle.trim()}>
+              {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+              {t("uploadDocument")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── AI Insights Component ────────────────────────────────────────────────
+
+function ProjectAIInsights({ project, contributions, expenses, milestones, currency }: {
+  project: ProjectRecord;
+  contributions: ProjectContribution[];
+  expenses: ProjectExpense[];
+  milestones: ProjectMilestone[];
+  currency: string;
+}) {
+  const t = useTranslations("projects");
+  const [insights, setInsights] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const totalRaised = contributions.reduce((s, c) => s + Number(c.amount), 0);
+  const totalSpent = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const target = Number(project.target_amount) || 0;
+
+  async function generateInsights() {
+    setLoading(true);
+    setError(null);
+    try {
+      const projectData = {
+        name: project.name,
+        target,
+        raised: totalRaised,
+        spent: totalSpent,
+        balance: totalRaised - totalSpent,
+        progressPercent: target > 0 ? ((totalRaised / target) * 100).toFixed(1) : "0",
+        milestonesCompleted: milestones.filter((m) => m.completed_at).length,
+        milestonesTotal: milestones.length,
+        activeBlockers: (project.blockers || []).filter((b) => (b.status as string) === "active").length,
+        pendingDependencies: (project.dependencies || []).filter((d) => (d.status as string) === "pending").length,
+      };
+      const res = await fetch("/api/ai-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportType: "project-status", reportData: projectData }),
+      });
+      if (!res.ok) throw new Error("Failed to generate insights");
+      const data = await res.json();
+      setInsights(data.insights || data.content || JSON.stringify(data));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <Card className="mt-4 border-purple-200 dark:border-purple-800 bg-purple-50/30 dark:bg-purple-950/10">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-500" />{t("aiInsights")}</h4>
+          <Button size="sm" variant="outline" onClick={generateInsights} disabled={loading}>
+            {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
+            {t("generateInsights")}
+          </Button>
+        </div>
+        {error && <p className="text-xs text-destructive mt-2">{error}</p>}
+        {insights && (
+          <div className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap rounded-lg bg-background p-3 border">
+            {insights}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

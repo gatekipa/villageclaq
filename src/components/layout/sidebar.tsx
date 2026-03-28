@@ -36,6 +36,7 @@ import {
   ShieldCheck,
   IdCard,
   Scale,
+  ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -95,6 +96,7 @@ const adminSections: NavSection[] = [
       { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw },
       { key: "elections", href: "/dashboard/elections", icon: Vote },
       { key: "relief", href: "/dashboard/relief", icon: Heart },
+      { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
       { key: "projects", href: "/dashboard/projects", icon: FolderKanban },
@@ -142,6 +144,7 @@ const memberSections: NavSection[] = [
     items: [
       { key: "directory", href: "/dashboard/directory", icon: Users },
       { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
+      { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },
       { key: "disputes", href: "/dashboard/disputes", icon: Scale },

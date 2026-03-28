@@ -1630,16 +1630,29 @@ export default function SavingsCirclePage() {
               setMpSaving(true);
               try {
                 const supabase = createClient();
-                const paidAmount = Number(mpAmount);
-                const isPartial = paidAmount < mpContribAmount;
+                const newPayment = Number(mpAmount);
+
+                // Check for existing partial payment — ADD to it, don't overwrite
+                const { data: existing } = await supabase
+                  .from("savings_contributions")
+                  .select("amount")
+                  .eq("cycle_id", mpCycleId)
+                  .eq("membership_id", mpMembershipId)
+                  .eq("round_number", mpCurrentRound)
+                  .maybeSingle();
+
+                const previousPaid = Number(existing?.amount) || 0;
+                const totalPaid = previousPaid + newPayment;
+                const newStatus = totalPaid >= mpContribAmount ? "paid" : totalPaid > 0 ? "partial" : "unpaid";
+
                 await supabase.from("savings_contributions").upsert({
                   cycle_id: mpCycleId,
                   membership_id: mpMembershipId,
                   round_number: mpCurrentRound,
-                  amount: paidAmount,
+                  amount: totalPaid,
                   payment_method: mpMethod,
                   paid_at: new Date().toISOString(),
-                  status: isPartial ? "partial" : "paid",
+                  status: newStatus,
                 }, { onConflict: "cycle_id,membership_id,round_number" });
                 queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
                 setShowMarkPaidDialog(false);

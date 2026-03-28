@@ -2517,7 +2517,14 @@
     "manageElection": "Gérer",
     "confirmVote": "Confirmez votre vote",
     "noVotes": "Aucun vote encore",
-    "deleteElectionConfirm": "Supprimer cette élection brouillon ? Cette action est irréversible."
+    "deleteElectionConfirm": "Supprimer cette élection brouillon ? Cette action est irréversible.",
+    "tie": "Égalité",
+    "tieResult": "Égalité — pas de gagnant unique",
+    "nominateMyself": "Me porter candidat",
+    "alreadyNominated": "Vous êtes déjà candidat",
+    "nominationSuccess": "Vous avez été nominé",
+    "resultsHidden": "Les résultats seront visibles après la clôture du vote",
+    "selfNominationOnly": "L'auto-nomination est disponible pendant les élections ouvertes"
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

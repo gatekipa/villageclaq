@@ -2541,7 +2541,14 @@
     "manageElection": "Manage",
     "confirmVote": "Confirm your vote",
     "noVotes": "No votes yet",
-    "deleteElectionConfirm": "Delete this draft election? This cannot be undone."
+    "deleteElectionConfirm": "Delete this draft election? This cannot be undone.",
+    "tie": "Tie",
+    "tieResult": "Tied — no single winner",
+    "nominateMyself": "Nominate Myself",
+    "alreadyNominated": "You are already a candidate",
+    "nominationSuccess": "You have been nominated",
+    "resultsHidden": "Results will be visible after voting closes",
+    "selfNominationOnly": "Self-nomination is available during open elections"
   },
   "documentVault": {
     "title": "Document Vault",

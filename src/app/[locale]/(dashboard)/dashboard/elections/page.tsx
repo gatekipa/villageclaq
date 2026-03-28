@@ -267,7 +267,8 @@ export default function ElectionsPage() {
 
       return { results, totalVotes: data.length };
     },
-    enabled: !!selectedElectionId && (selectedElection?.status === "closed" || selectedElection?.status === "open"),
+    // FIX 4: Only fetch results when election is CLOSED — no live tallies during voting
+    enabled: !!selectedElectionId && selectedElection?.status === "closed",
   });
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
@@ -724,6 +725,42 @@ export default function ElectionsPage() {
                       </div>
                     )}
 
+                    {/* ─── Self-Nomination (open officer elections) ────────── */}
+                    {election.status === "open" && election.election_type === "officer_election" && currentMembership && user && (
+                      (() => {
+                        const alreadyCandidate = election.election_candidates.some(
+                          (c) => c.membership_id === currentMembership.id
+                        );
+                        return !alreadyCandidate ? (
+                          <div className="mb-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                setCandidateLoading(true);
+                                try {
+                                  await supabase.from("election_candidates").insert({
+                                    election_id: election.id,
+                                    membership_id: currentMembership.id,
+                                  });
+                                  queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
+                                } finally { setCandidateLoading(false); }
+                              }}
+                              disabled={candidateLoading}
+                            >
+                              {candidateLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                              {t("nominateMyself")}
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="mb-3 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {t("alreadyNominated")}
+                          </p>
+                        );
+                      })()
+                    )}
+
                     {/* ─── Voting Interface (open elections) ──────────────── */}
                     {election.status === "open" && withinPeriod && currentMembership && (
                       <div className="mb-4 rounded-lg border bg-muted/30 p-4">
@@ -802,7 +839,12 @@ export default function ElectionsPage() {
                       </div>
                     )}
 
-                    {/* ─── Results (closed elections) ────────────────────── */}
+                    {/* Results hidden during open voting */}
+                    {election.status === "open" && (
+                      <p className="text-xs text-muted-foreground italic mt-2">{t("resultsHidden")}</p>
+                    )}
+
+                    {/* ─── Results (closed elections ONLY) ────────────────── */}
                     {election.status === "closed" && voteResults && (
                       <div className="space-y-4">
                         <h4 className="flex items-center gap-2 text-sm font-semibold">
@@ -814,11 +856,13 @@ export default function ElectionsPage() {
                           <p className="text-sm text-muted-foreground">{t("noVotes")}</p>
                         ) : (
                           <>
-                            {/* Find winner */}
+                            {/* Find winner — handle ties */}
                             {(() => {
                               const maxCount = Math.max(...voteResults.results.map((r) => r.count));
-                              const winnerId = voteResults.results.find((r) => r.count === maxCount);
-                              const winnerKey = winnerId?.candidate_id || winnerId?.option_id;
+                              const topResults = voteResults.results.filter((r) => r.count === maxCount);
+                              const isTie = topResults.length > 1;
+                              const tiedIds = new Set(topResults.map((r) => r.candidate_id || r.option_id));
+                              const winnerKey = isTie ? null : (topResults[0]?.candidate_id || topResults[0]?.option_id);
 
                               return (
                                 <div className="space-y-3">
@@ -829,7 +873,8 @@ export default function ElectionsPage() {
                                       const percentage = voteResults.totalVotes > 0
                                         ? Math.round((result.count / voteResults.totalVotes) * 100)
                                         : 0;
-                                      const isWinner = id === winnerKey;
+                                      const isWinner = !isTie && id === winnerKey;
+                                      const isTied = isTie && tiedIds.has(id);
 
                                       // Resolve name
                                       let name = "";
@@ -844,11 +889,16 @@ export default function ElectionsPage() {
                                       return (
                                         <div key={id} className="space-y-1">
                                           <div className="flex items-center justify-between text-sm">
-                                            <span className={cn("flex items-center gap-2", isWinner && "font-bold")}>
+                                            <span className={cn("flex items-center gap-2", (isWinner || isTied) && "font-bold")}>
                                               {name}
                                               {isWinner && (
                                                 <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                                                   {t("winner")}
+                                                </Badge>
+                                              )}
+                                              {isTied && (
+                                                <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                                                  {t("tie")}
                                                 </Badge>
                                               )}
                                             </span>

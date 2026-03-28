@@ -176,9 +176,25 @@ function RoundManagement({
     setMarkingPaid(null);
   };
 
+  const [showAdvanceWarning, setShowAdvanceWarning] = useState(false);
+  const [unpaidForAdvance, setUnpaidForAdvance] = useState(0);
+
   const handleAdvanceRound = async () => {
-    if (currentRound >= totalRounds) return; // Guard: cannot advance past total
+    if (currentRound >= totalRounds) return;
+    // Check unpaid members before advancing
+    const paidMemberIds = new Set(roundContribs.filter((c) => c.status === "paid").map((c) => c.membership_id as string));
+    const unpaidCount = participants.length - paidMemberIds.size;
+    if (unpaidCount > 0) {
+      setUnpaidForAdvance(unpaidCount);
+      setShowAdvanceWarning(true);
+      return;
+    }
+    await doAdvanceRound();
+  };
+
+  const doAdvanceRound = async () => {
     setAdvancing(true);
+    setShowAdvanceWarning(false);
     const supabase = createClient();
     await supabase
       .from("savings_cycles")
@@ -275,6 +291,32 @@ function RoundManagement({
               <span className="text-sm font-medium text-foreground">{collectorName}</span>
             </div>
           )}
+
+          {/* Round Payment Overview */}
+          {(() => {
+            const paidMembers = roundContribs.filter((c) => (c.status as string) === "paid").length;
+            const partialMembers = roundContribs.filter((c) => (c.status as string) === "partial").length;
+            const unpaidMembers = participants.length - paidMembers - partialMembers;
+            const collectedAmount = roundContribs.reduce((s, c) => s + Number(c.amount || 0), 0);
+            const expectedAmount = participants.length * cycleAmount;
+            const pctPaid = participants.length > 0 ? Math.round((paidMembers / participants.length) * 100) : 0;
+            return (
+              <Card className="bg-muted/50">
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-xs font-medium">{t("roundPaymentStatus", { round: currentRound })}</p>
+                  <Progress value={pctPaid} className="h-2" />
+                  <div className="flex flex-wrap gap-2 text-[10px]">
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">{t("paidCount", { count: paidMembers })}</Badge>
+                    {partialMembers > 0 && <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">{t("partialCount", { count: partialMembers })}</Badge>}
+                    {unpaidMembers > 0 && <Badge variant="destructive">{t("unpaidCount", { count: unpaidMembers })}</Badge>}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {formatAmount(collectedAmount, currency)} / {formatAmount(expectedAmount, currency)}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Per-participant contribution status */}
           <div className="space-y-2">
@@ -516,6 +558,30 @@ function RoundManagement({
                 <Button onClick={handleRecordCollection} disabled={recordingCollection}>
                   {recordingCollection && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {t("recordCollection")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Advance Round Warning Dialog */}
+          <Dialog open={showAdvanceWarning} onOpenChange={setShowAdvanceWarning}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-amber-600">
+                  <AlertTriangle className="h-5 w-5" />
+                  {t("advanceRound")}
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                {t("advanceWarning", { count: unpaidForAdvance })}
+              </p>
+              <DialogFooter className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowAdvanceWarning(false)}>
+                  {t("stayOnRound")}
+                </Button>
+                <Button variant="destructive" onClick={doAdvanceRound} disabled={advancing}>
+                  {advancing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("advanceAnyway")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1490,35 +1556,49 @@ export default function SavingsCirclePage() {
       {/* Mark Paid Dialog */}
       <Dialog open={showMarkPaidDialog} onOpenChange={setShowMarkPaidDialog}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>{t("markPaid")}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("recordPayment")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="rounded-lg bg-muted p-3">
               <p className="text-xs text-muted-foreground">{t("participants")}</p>
               <p className="text-sm font-medium">{mpMemberName}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("required")}: {formatAmount(mpContribAmount, groupCurrency)}</p>
             </div>
             <div className="space-y-2">
-              <Label>{t("amount")} ({currentGroup?.currency || "XAF"})</Label>
-              <div className="flex gap-2">
-                <Input type="number" value={mpAmount} onChange={(e) => setMpAmount(e.target.value)} className="flex-1" />
-                <Button variant="outline" size="sm" className="shrink-0 text-xs" onClick={() => setMpAmount(String(mpContribAmount))}>
-                  {t("fullPayment")}
+              <Label>{t("amount")} ({groupCurrency})</Label>
+              <Input type="number" value={mpAmount} onChange={(e) => setMpAmount(e.target.value)} />
+              <div className="flex gap-1.5">
+                <Button variant="outline" size="sm" className="shrink-0 text-xs flex-1" onClick={() => setMpAmount(String(mpContribAmount))}>
+                  {t("fullPayment")} ({formatAmount(mpContribAmount, groupCurrency)})
+                </Button>
+                <Button variant="outline" size="sm" className="shrink-0 text-xs flex-1" onClick={() => setMpAmount(String(Math.round(mpContribAmount / 2)))}>
+                  {t("halfPayment")} ({formatAmount(Math.round(mpContribAmount / 2), groupCurrency)})
                 </Button>
               </div>
+              {mpAmount && Number(mpAmount) > 0 && Number(mpAmount) < mpContribAmount && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t("partialWarning", { amount: formatAmount(mpContribAmount - Number(mpAmount), groupCurrency) })}
+                </p>
+              )}
+              {mpAmount && Number(mpAmount) > mpContribAmount && (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  {t("overpaymentNote", { amount: formatAmount(Number(mpAmount) - mpContribAmount, groupCurrency) })}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("paymentMethod")}</Label>
               <Select value={mpMethod} onValueChange={(v) => setMpMethod(v ?? "cash")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="cash">{t("cash")}</SelectItem>
+                  <SelectItem value="mobile_money">{t("mobileMoney")}</SelectItem>
+                  <SelectItem value="bank_transfer">{t("bankTransfer")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Notes</Label>
-              <Input value={mpNotes} onChange={(e) => setMpNotes(e.target.value)} placeholder="Optional" />
+              <Label>{t("notes")}</Label>
+              <Input value={mpNotes} onChange={(e) => setMpNotes(e.target.value)} />
             </div>
           </div>
           <DialogFooter>

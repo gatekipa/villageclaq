@@ -41,41 +41,73 @@ import { EmptyState } from "@/components/ui/page-skeleton";
 
 const supabase = createClient();
 
+const DOC_TYPES = ["Constitution", "Bylaws", "Standing Rules", "Code of Conduct", "Financial Policy", "Meeting Procedures", "Membership Policy"] as const;
+
 // ─── Data Hooks ──────────────────────────────────────────────────────────────
 
-function useConstitution(groupId: string | null) {
+/** Fetch ALL governing documents (latest version of each unique title) */
+function useAllDocuments(groupId: string | null) {
   return useQuery({
-    queryKey: ["constitution", groupId],
+    queryKey: ["all-constitutions", groupId],
     queryFn: async () => {
-      if (!groupId) return null;
+      if (!groupId) return [];
       const { data, error } = await supabase
         .from("group_constitutions")
         .select("*")
         .eq("group_id", groupId)
-        .eq("status", "published")
-        .order("version_number", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .in("status", ["published", "draft"])
+        .order("version_number", { ascending: false });
       if (error) {
-        if (error.code === "42P01" || error.message?.includes("does not exist")) return null;
+        if (error.code === "42P01" || error.message?.includes("does not exist")) return [];
         throw error;
       }
-      return data;
+      // Deduplicate: keep latest version per title
+      const seen = new Map<string, Record<string, unknown>>();
+      for (const doc of (data || [])) {
+        const title = (doc.title as string) || "Untitled";
+        if (!seen.has(title)) seen.set(title, doc);
+      }
+      return Array.from(seen.values());
     },
     enabled: !!groupId,
     retry: false,
   });
 }
 
-function useDraft(groupId: string | null) {
+/** Fetch the published version for a specific document title */
+function useConstitution(groupId: string | null, docTitle: string | null) {
   return useQuery({
-    queryKey: ["constitution-draft", groupId],
+    queryKey: ["constitution", groupId, docTitle],
     queryFn: async () => {
-      if (!groupId) return null;
+      if (!groupId || !docTitle) return null;
       const { data, error } = await supabase
         .from("group_constitutions")
         .select("*")
         .eq("group_id", groupId)
+        .eq("title", docTitle)
+        .eq("status", "published")
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!groupId && !!docTitle,
+    retry: false,
+  });
+}
+
+/** Fetch the draft version for a specific document title */
+function useDraft(groupId: string | null, docTitle: string | null) {
+  return useQuery({
+    queryKey: ["constitution-draft", groupId, docTitle],
+    queryFn: async () => {
+      if (!groupId || !docTitle) return null;
+      const { data, error } = await supabase
+        .from("group_constitutions")
+        .select("*")
+        .eq("group_id", groupId)
+        .eq("title", docTitle)
         .eq("status", "draft")
         .order("version_number", { ascending: false })
         .limit(1)
@@ -83,7 +115,7 @@ function useDraft(groupId: string | null) {
       if (error) return null;
       return data;
     },
-    enabled: !!groupId,
+    enabled: !!groupId && !!docTitle,
     retry: false,
   });
 }
@@ -157,8 +189,18 @@ export default function ConstitutionPage() {
   const queryClient = useQueryClient();
   const { data: members } = useMembers();
 
-  const { data: constitution, error: constError } = useConstitution(groupId);
-  const { data: draft } = useDraft(groupId);
+  // Document selector
+  const { data: allDocs = [], error: constError } = useAllDocuments(groupId);
+  const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
+  const [showNewDocDialog, setShowNewDocDialog] = useState(false);
+  const [newDocType, setNewDocType] = useState("");
+  const [newDocCustomTitle, setNewDocCustomTitle] = useState("");
+
+  // Auto-select first document
+  const activeTitle = selectedTitle || (allDocs.length > 0 ? (allDocs[0].title as string) : null);
+
+  const { data: constitution } = useConstitution(groupId, activeTitle);
+  const { data: draft } = useDraft(groupId, activeTitle);
   const { data: amendments = [] } = useAmendments(groupId);
   const { data: acknowledgments = [] } = useAcknowledgments(constitution?.id || null);
 
@@ -215,9 +257,23 @@ export default function ConstitutionPage() {
           version_number: currentVersion + 1, status: "draft",
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["constitution-draft", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
+      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
+      if (!selectedTitle) setSelectedTitle(editorTitle);
       setEditing(false);
     } finally { setSaving(false); }
+  };
+
+  const handleCreateNewDoc = () => {
+    const title = newDocType === "Other" ? newDocCustomTitle.trim() : newDocType;
+    if (!title) return;
+    setEditorTitle(title);
+    setEditorContent("");
+    setSelectedTitle(title);
+    setShowNewDocDialog(false);
+    setNewDocType("");
+    setNewDocCustomTitle("");
+    setEditing(true);
   };
 
   const handlePublish = async () => {
@@ -241,8 +297,9 @@ export default function ConstitutionPage() {
           title: "Constitution Updated", message: "The group constitution has been updated. Please review and acknowledge.", is_read: false,
         })));
       }
-      queryClient.invalidateQueries({ queryKey: ["constitution", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["constitution-draft", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["constitution"] });
+      queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
+      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
     } finally { setPublishing(false); }
   };
 
@@ -309,7 +366,8 @@ export default function ConstitutionPage() {
     // Mark amendment as applied
     await supabase.from("constitution_amendments").update({ status: "applied" }).eq("id", amend.id as string);
 
-    queryClient.invalidateQueries({ queryKey: ["constitution", groupId] });
+    queryClient.invalidateQueries({ queryKey: ["constitution"] });
+    queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
     queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
   };
 
@@ -339,7 +397,8 @@ export default function ConstitutionPage() {
         group_id: groupId, title: file.name.replace(/\.[^.]+$/, ""), file_url: urlData.publicUrl,
         version_number: currentVersion + 1, status: "draft",
       });
-      queryClient.invalidateQueries({ queryKey: ["constitution-draft", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
+      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
     } catch { /* non-blocking */ }
   };
 
@@ -359,13 +418,46 @@ export default function ConstitutionPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div><h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1><p className="text-muted-foreground">{t("description")}</p></div>
-        {isAdmin && hasContent && draft && (
-          <Button onClick={() => setShowPublishConfirm(true)} disabled={publishing}>
-            {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-            {t("publish")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && hasContent && draft && (
+            <Button onClick={() => setShowPublishConfirm(true)} disabled={publishing}>
+              {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {t("publish")}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setShowNewDocDialog(true)}>
+              <Plus className="mr-2 h-3.5 w-3.5" />
+              {t("addNewDocument")}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Document Selector */}
+      {allDocs.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {allDocs.map((doc: Record<string, unknown>) => {
+            const title = doc.title as string;
+            const isActive = title === activeTitle;
+            return (
+              <Button
+                key={doc.id as string}
+                variant={isActive ? "default" : "outline"}
+                size="sm"
+                className="shrink-0"
+                onClick={() => { setSelectedTitle(title); setEditing(false); setSearchQuery(""); }}
+              >
+                <ScrollText className="mr-1.5 h-3.5 w-3.5" />
+                {title}
+                <Badge variant="secondary" className="ml-1.5 text-[10px]">
+                  {doc.status === "published" ? "v" + String(doc.version_number) : t("draft")}
+                </Badge>
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       <Tabs defaultValue="document" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
@@ -541,6 +633,52 @@ export default function ConstitutionPage() {
             <Button onClick={async () => { setShowPublishConfirm(false); await handlePublish(); }} disabled={publishing}>
               {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("publish")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Document Dialog */}
+      <Dialog open={showNewDocDialog} onOpenChange={setShowNewDocDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("addNewDocument")}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("documentType")}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {DOC_TYPES.map((dtype) => (
+                  <button
+                    key={dtype}
+                    type="button"
+                    onClick={() => { setNewDocType(dtype); setNewDocCustomTitle(""); }}
+                    className={`rounded-lg border p-2.5 text-left text-xs transition-colors ${newDocType === dtype ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                  >
+                    <ScrollText className="h-3.5 w-3.5 mb-1 text-primary" />
+                    {dtype}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setNewDocType("Other")}
+                  className={`rounded-lg border p-2.5 text-left text-xs transition-colors ${newDocType === "Other" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                >
+                  <FileText className="h-3.5 w-3.5 mb-1 text-muted-foreground" />
+                  {tc("other")}
+                </button>
+              </div>
+            </div>
+            {newDocType === "Other" && (
+              <div className="space-y-2">
+                <Label>{t("amendmentTitle")}</Label>
+                <Input value={newDocCustomTitle} onChange={(e) => setNewDocCustomTitle(e.target.value)} placeholder="Custom document name..." />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewDocDialog(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleCreateNewDoc} disabled={!newDocType || (newDocType === "Other" && !newDocCustomTitle.trim())}>
+              <Pencil className="mr-2 h-4 w-4" />
+              {t("writeConstitution")}
             </Button>
           </DialogFooter>
         </DialogContent>

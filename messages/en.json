@@ -1155,7 +1155,11 @@
     "noAmendments": "No amendments proposed yet",
     "constitutionPublished": "Constitution published",
     "amendmentProposed": "Amendment proposed",
-    "acknowledgmentRecorded": "Acknowledgment recorded"
+    "acknowledgmentRecorded": "Acknowledgment recorded",
+    "addNewDocument": "Add New Document",
+    "documentType": "Document Type",
+    "governingDocuments": "Governing Documents",
+    "selectDocument": "Select Document"
   },
   "minutes": {
     "title": "Meeting Minutes",

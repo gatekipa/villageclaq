@@ -1155,7 +1155,11 @@
     "noAmendments": "Aucun amendement proposé",
     "constitutionPublished": "Constitution publiée",
     "amendmentProposed": "Amendement proposé",
-    "acknowledgmentRecorded": "Confirmation enregistrée"
+    "acknowledgmentRecorded": "Confirmation enregistrée",
+    "addNewDocument": "Ajouter un document",
+    "documentType": "Type de document",
+    "governingDocuments": "Documents de gouvernance",
+    "selectDocument": "Sélectionner un document"
   },
   "minutes": {
     "title": "Procès-verbaux",

@@ -106,7 +106,7 @@ export default function ReportDetailPage() {
     attendanceReports.includes(reportId) ? (eventsLoading || attendanceLoading) :
     reportId === "13" ? hostingLoading :
     reportId === "14" ? minutesLoading :
-    ["16", "20"].includes(reportId) ? (membersLoading || paymentsLoading || eventsLoading) :
+    ["16", "17", "20"].includes(reportId) ? (membersLoading || paymentsLoading || eventsLoading || obligationsLoading) :
     false;
 
   if (isLoading) return <ListSkeleton rows={5} />;
@@ -400,6 +400,25 @@ export default function ReportDetailPage() {
     } else if (reportId === "16" || reportId === "20") {
       data = [{ Members: boardStats.totalMembers, Collected: boardStats.totalCollected, Expected: boardStats.totalExpected, CollectionRate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents, AvgAttendance: `${boardStats.avgAttendanceRate}%` }];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
+    } else if (reportId === "17") {
+      data = [{
+        Group: groupMetrics.groupName,
+        Members: groupMetrics.totalMembers,
+        ActiveMembers: groupMetrics.activeMembers,
+        GoodStandingPct: `${groupMetrics.goodStandingPct}%`,
+        Collected: groupMetrics.totalCollected,
+        Outstanding: groupMetrics.totalOutstanding,
+        CollectionRate: `${groupMetrics.collectionRate}%`,
+        AttendanceRate: `${groupMetrics.avgAttendanceRate}%`,
+        Events: groupMetrics.totalEvents,
+        HostingCompliance: `${groupMetrics.hostingCompletionRate}%`,
+        ReliefPlans: groupMetrics.reliefPlansActive,
+        PendingClaims: groupMetrics.reliefPendingClaims,
+        SavingsCycles: groupMetrics.savingsCyclesActive,
+        OpenDisputes: groupMetrics.disputesOpen,
+        HealthScore: `${healthScore}%`,
+      }];
+      filename = "group_performance";
     }
 
     if (data.length > 0) exportCSV(data, filename);
@@ -477,6 +496,22 @@ export default function ReportDetailPage() {
     } else if (reportId === "16" || reportId === "20") {
       data = [{ Members: boardStats.totalMembers, Collected: formatAmount(boardStats.totalCollected, currency), Expected: formatAmount(boardStats.totalExpected, currency), Rate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents }];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
+    } else if (reportId === "17") {
+      data = [{
+        Metric: "Total Members", Value: groupMetrics.totalMembers },
+        { Metric: "Active Members", Value: groupMetrics.activeMembers },
+        { Metric: "Good Standing", Value: `${groupMetrics.goodStandingPct}%` },
+        { Metric: "Total Collected", Value: formatAmount(groupMetrics.totalCollected, currency) },
+        { Metric: "Total Outstanding", Value: formatAmount(groupMetrics.totalOutstanding, currency) },
+        { Metric: "Collection Rate", Value: `${groupMetrics.collectionRate}%` },
+        { Metric: "Avg Attendance", Value: `${groupMetrics.avgAttendanceRate}%` },
+        { Metric: "Events Held", Value: groupMetrics.totalEvents },
+        { Metric: "Hosting Compliance", Value: `${groupMetrics.hostingCompletionRate}%` },
+        { Metric: "Relief Plans", Value: groupMetrics.reliefPlansActive },
+        { Metric: "Savings Circles", Value: groupMetrics.savingsCyclesActive },
+        { Metric: "Health Score", Value: `${healthScore}% (${healthLabel})` },
+      ];
+      filename = "group_performance";
     }
 
     if (data.length === 0) return;
@@ -499,7 +534,7 @@ export default function ReportDetailPage() {
   }
 
   // Placeholder report IDs — only reports with no backing data model
-  const placeholderReports = ["17"];
+  const placeholderReports: string[] = [];
   const isPlaceholder = placeholderReports.includes(reportId);
 
   // Report 5: Savings Cycles
@@ -556,6 +591,38 @@ export default function ReportDetailPage() {
     matrixByMember[name][year].due += Number(ob.amount || 0);
   });
   const sortedMatrixYears = Array.from(matrixYears).sort();
+
+  // Report 17: Group Performance Summary / Branch Comparison
+  const groupMetrics = {
+    groupName: currentGroup?.name || "Group",
+    totalMembers: memberList.length,
+    activeMembers: memberList.filter((m: Record<string, unknown>) => (m.standing as string) !== "banned" && (m.standing as string) !== "suspended").length,
+    goodStanding: memberList.filter((m: Record<string, unknown>) => (m.standing as string) === "good").length,
+    goodStandingPct: memberList.length > 0 ? Math.round((memberList.filter((m: Record<string, unknown>) => (m.standing as string) === "good").length / memberList.length) * 100) : 0,
+    totalCollected,
+    totalExpected,
+    totalOutstanding: totalExpected - totalCollected,
+    collectionRate,
+    totalEvents: eventList.length,
+    avgAttendanceRate: attendanceSummary.length > 0 ? Math.round(attendanceSummary.reduce((s, e) => s + e.rate, 0) / attendanceSummary.length) : 0,
+    hostingCompletionRate: hostingCompletionRate,
+    hostingExempted,
+    reliefPlansActive: (reliefPlans || []).filter((p: Record<string, unknown>) => p.is_active).length,
+    reliefPendingClaims: (reliefClaims || []).filter((c: Record<string, unknown>) => (c.status as string) === "submitted" || (c.status as string) === "reviewing").length,
+    savingsCyclesActive: savingsCycleData.filter(c => c.status === "active").length,
+    projectsActive: 0, // Would need projects query if available
+    disputesOpen: disputeData.filter(d => d.status === "open").length,
+    disputesResolved: disputeData.filter(d => d.status === "resolved").length,
+  };
+  // Health Score: collection 40% + attendance 30% + hosting 15% + standing 15%
+  const healthScore = Math.round(
+    groupMetrics.collectionRate * 0.4 +
+    groupMetrics.avgAttendanceRate * 0.3 +
+    groupMetrics.hostingCompletionRate * 0.15 +
+    groupMetrics.goodStandingPct * 0.15
+  );
+  const healthLabel = healthScore > 85 ? "Excellent" : healthScore > 70 ? "Good" : healthScore > 50 ? "Fair" : "Needs Attention";
+  const healthColor = healthScore > 85 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : healthScore > 70 ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : healthScore > 50 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
 
   return (
     <div className="space-y-6">
@@ -635,15 +702,83 @@ export default function ReportDetailPage() {
         </Card>
       )}
 
-      {/* Placeholder reports: 5, 17, 18, 19 */}
+      {/* Report 17: Group Performance Summary */}
+      {reportId === "17" && (
+        <div className="space-y-4">
+          {/* Health Score */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold">{groupMetrics.groupName}</h3>
+                  <p className="text-sm text-muted-foreground">Group Performance Summary</p>
+                </div>
+                <div className="text-right">
+                  <Badge className={`text-sm px-3 py-1 ${healthColor}`}>{healthLabel}</Badge>
+                  <p className="text-xs text-muted-foreground mt-1">Health Score: {healthScore}%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Metrics Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Members</p>
+              <p className="text-2xl font-bold">{groupMetrics.totalMembers}</p>
+              <p className="text-xs text-muted-foreground">{groupMetrics.activeMembers} active · {groupMetrics.goodStandingPct}% good standing</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Total Collected</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatAmount(groupMetrics.totalCollected, currency)}</p>
+              <p className="text-xs text-muted-foreground">{groupMetrics.collectionRate}% collection rate</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Outstanding</p>
+              <p className="text-2xl font-bold text-red-600">{formatAmount(groupMetrics.totalOutstanding, currency)}</p>
+              <p className="text-xs text-muted-foreground">{formatAmount(groupMetrics.totalExpected, currency)} expected</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Attendance</p>
+              <p className="text-2xl font-bold">{groupMetrics.avgAttendanceRate}%</p>
+              <p className="text-xs text-muted-foreground">{groupMetrics.totalEvents} events held</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Hosting Compliance</p>
+              <p className="text-2xl font-bold">{groupMetrics.hostingCompletionRate}%</p>
+              <p className="text-xs text-muted-foreground">{groupMetrics.hostingExempted} exempted</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Relief & Disputes</p>
+              <p className="text-2xl font-bold">{groupMetrics.reliefPlansActive} plans</p>
+              <p className="text-xs text-muted-foreground">{groupMetrics.reliefPendingClaims} pending · {groupMetrics.disputesOpen} disputes open</p>
+            </CardContent></Card>
+          </div>
+
+          {/* Savings & Other */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Savings Circles</p>
+              <p className="text-lg font-bold">{groupMetrics.savingsCyclesActive} active</p>
+            </CardContent></Card>
+            <Card><CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Disputes</p>
+              <p className="text-lg font-bold">{groupMetrics.disputesOpen} open · {groupMetrics.disputesResolved} resolved</p>
+            </CardContent></Card>
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Branch comparison will be available when your organization has multiple groups.
+          </p>
+        </div>
+      )}
+
+      {/* Placeholder reports */}
       {isPlaceholder && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Clock className="h-12 w-12 text-muted-foreground/50" />
             <h3 className="mt-4 text-lg font-semibold">{t("reports.notEnoughData")}</h3>
-            <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
-              {reportId === "17" && "Branch comparison is available for Enterprise plans with multiple branches."}
-            </p>
           </CardContent>
         </Card>
       )}

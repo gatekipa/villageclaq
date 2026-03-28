@@ -841,10 +841,14 @@ function ProjectDetail({
         </TabsContent>
 
         {/* ═══ DOCUMENTS TAB ═════════════════════════════════════════════ */}
-        <TabsContent value="docs" className="mt-4 space-y-4">
+        <TabsContent value="docs" className="mt-4 space-y-6">
           <ProjectDocuments project={project} isAdmin={isAdmin} milestones={milestones} onDataChanged={onDataChanged} />
+          <ProjectResolutions project={project} isAdmin={isAdmin} currency={currency} onDataChanged={onDataChanged} />
         </TabsContent>
       </Tabs>
+
+      {/* Project Report */}
+      <ProjectReport project={project} contributions={contributions} expenses={expenses} milestones={milestones} currency={currency} memberNameMap={memberNameMap} />
 
       {/* AI Insights (below tabs) */}
       <ProjectAIInsights project={project} contributions={contributions} expenses={expenses} milestones={milestones} currency={currency} />
@@ -1314,6 +1318,354 @@ function ProjectAIInsights({ project, contributions, expenses, milestones, curre
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Resolutions Component ────────────────────────────────────────────────
+
+function ProjectResolutions({ project, isAdmin, currency, onDataChanged }: {
+  project: ProjectRecord;
+  isAdmin: boolean;
+  currency: string;
+  onDataChanged: () => void;
+}) {
+  const t = useTranslations("projects");
+  const tc = useTranslations("common");
+  const [showDialog, setShowDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState("");
+  const [meetingDate, setMeetingDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [amountAuth, setAmountAuth] = useState("");
+
+  const resolutions = project.resolutions || [];
+
+  async function handleAdd() {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const updated = [...resolutions, {
+        id: crypto.randomUUID(),
+        title: title.trim(),
+        meeting_date: meetingDate || null,
+        description: description.trim(),
+        amount_authorized: amountAuth ? Number(amountAuth) : null,
+        status: "passed",
+        created_at: new Date().toISOString(),
+      }];
+      await supabase.from("projects").update({ resolutions: updated }).eq("id", project.id);
+      onDataChanged();
+      setShowDialog(false);
+      setTitle(""); setMeetingDate(""); setDescription(""); setAmountAuth("");
+    } finally { setSaving(false); }
+  }
+
+  async function updateStatus(resId: string, newStatus: string) {
+    const supabase = createClient();
+    const updated = resolutions.map((r) => (r.id as string) === resId ? { ...r, status: newStatus } : r);
+    await supabase.from("projects").update({ resolutions: updated }).eq("id", project.id);
+    onDataChanged();
+  }
+
+  const statusColors: Record<string, string> = {
+    passed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    pending_implementation: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    implemented: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium flex items-center gap-2"><FileText className="h-4 w-4 text-blue-500" />{t("resolutions")} ({resolutions.length})</h4>
+        {isAdmin && <Button size="sm" variant="outline" onClick={() => setShowDialog(true)}><Plus className="mr-1 h-3 w-3" />{t("addResolution")}</Button>}
+      </div>
+
+      {resolutions.length === 0 ? (
+        <p className="text-xs text-muted-foreground py-4 text-center">{t("noResolutions")}</p>
+      ) : (
+        <div className="rounded-md border overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("meetingDate")}</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("resolutionTitle")}</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">{t("amountAuthorized")}</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{tc("status")}</th>
+                {isAdmin && <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Actions</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {resolutions.map((r) => (
+                <tr key={r.id as string} className="border-b last:border-0">
+                  <td className="px-3 py-2 text-xs text-muted-foreground">{(r.meeting_date as string) ? formatDate(r.meeting_date as string) : "—"}</td>
+                  <td className="px-3 py-2 text-sm font-medium">{r.title as string}</td>
+                  <td className="px-3 py-2 text-right text-sm">{(r.amount_authorized as number) ? formatAmount(Number(r.amount_authorized), currency) : "—"}</td>
+                  <td className="px-3 py-2 text-center"><Badge className={`text-[10px] ${statusColors[(r.status as string)] || ""}`}>{String(r.status).replace(/_/g, " ")}</Badge></td>
+                  {isAdmin && (
+                    <td className="px-3 py-2 text-right">
+                      <div className="flex gap-1 justify-end">
+                        {(r.status as string) === "passed" && (
+                          <Button size="sm" variant="ghost" className="h-5 text-[10px] text-blue-600" onClick={() => updateStatus(r.id as string, "implemented")}>{t("implemented")}</Button>
+                        )}
+                        {(r.status as string) !== "cancelled" && (
+                          <Button size="sm" variant="ghost" className="h-5 text-[10px] text-destructive" onClick={() => updateStatus(r.id as string, "cancelled")}>{t("cancelled")}</Button>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("addResolution")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>{t("resolutionTitle")} *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+            <div className="space-y-1"><Label>{t("meetingDate")}</Label><Input type="date" value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} /></div>
+            <div className="space-y-1"><Label>{tc("description")}</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
+            <div className="space-y-1"><Label>{t("amountAuthorized")} ({currency})</Label><Input type="number" value={amountAuth} onChange={(e) => setAmountAuth(e.target.value)} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleAdd} disabled={saving || !title.trim()}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{tc("save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Project Report Component ─────────────────────────────────────────────
+
+function ProjectReport({ project, contributions, expenses, milestones, currency, memberNameMap }: {
+  project: ProjectRecord;
+  contributions: ProjectContribution[];
+  expenses: ProjectExpense[];
+  milestones: ProjectMilestone[];
+  currency: string;
+  memberNameMap: Record<string, string>;
+}) {
+  const t = useTranslations("projects");
+  const tc = useTranslations("common");
+  const [showReport, setShowReport] = useState(false);
+
+  const target = Number(project.target_amount) || 0;
+  const totalRaised = contributions.reduce((s, c) => s + Number(c.amount), 0);
+  const totalSpent = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const balance = totalRaised - totalSpent;
+  const progress = target > 0 ? Math.round((totalRaised / target) * 100) : 0;
+  const blockers = project.blockers || [];
+  const dependencies = project.dependencies || [];
+  const resolutions = project.resolutions || [];
+  const activeBlockers = blockers.filter((b) => (b.status as string) === "active");
+  const pendingDeps = dependencies.filter((d) => (d.status as string) === "pending");
+  const completedMilestones = milestones.filter((m) => m.completed_at).length;
+  const overdueMilestones = milestones.filter((m) => !m.completed_at && m.target_date && m.target_date < new Date().toISOString().slice(0, 10)).length;
+
+  // Burn rate
+  const startDate = project.deadline ? new Date(project.deadline) : new Date();
+  const monthsElapsed = Math.max(1, Math.round((Date.now() - new Date(project.deadline || Date.now()).getTime()) / (30 * 24 * 60 * 60 * 1000)));
+  const burnRate = totalSpent / Math.max(1, Math.abs(monthsElapsed));
+
+  // Income by category (use payment_method as proxy for category since no separate category field)
+  const incomeBySource = new Map<string, number>();
+  contributions.forEach((c) => {
+    const cat = c.payment_method || "other";
+    incomeBySource.set(cat, (incomeBySource.get(cat) || 0) + Number(c.amount));
+  });
+
+  // Expense by category (use description keywords or group all)
+  const expenseCategories = new Map<string, number>();
+  expenses.forEach((e) => {
+    expenseCategories.set("general", (expenseCategories.get("general") || 0) + Number(e.amount));
+  });
+
+  // Top contributors
+  const contribByMember = new Map<string, number>();
+  contributions.forEach((c) => {
+    if (c.membership_id) {
+      contribByMember.set(c.membership_id, (contribByMember.get(c.membership_id) || 0) + Number(c.amount));
+    }
+  });
+  const topContributors = Array.from(contribByMember.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, amount]) => ({ name: memberNameMap[id] || "—", amount }));
+
+  // Risk assessment
+  const hasCriticalBlocker = activeBlockers.some((b) => (b.severity as string) === "critical");
+  const hasHighBlocker = activeBlockers.some((b) => (b.severity as string) === "high");
+  const riskLevel = hasCriticalBlocker || progress < 30 || overdueMilestones >= 3 ? "critical"
+    : hasHighBlocker || (progress >= 30 && progress < 60) || overdueMilestones >= 1 ? "at_risk"
+    : "on_track";
+  const riskColors: Record<string, string> = {
+    on_track: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    at_risk: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  };
+
+  function handleExportPDF() {
+    const { exportPDF } = require("@/lib/export-pdf");
+    const rows = [
+      ...contributions.map((c) => ({
+        type: "Income",
+        date: c.paid_at || "",
+        description: memberNameMap[c.membership_id] || "Contribution",
+        amount: formatAmount(Number(c.amount), currency),
+        method: c.payment_method || "",
+      })),
+      ...expenses.map((e) => ({
+        type: "Expense",
+        date: e.spent_at || "",
+        description: e.description,
+        amount: formatAmount(Number(e.amount), currency),
+        method: "",
+      })),
+    ];
+    exportPDF({
+      title: `${t("projectReport")}: ${project.name}`,
+      subtitle: `${t("progress")}: ${progress}% | ${t("balance")}: ${formatAmount(balance, currency)}`,
+      columns: [
+        { header: "Type", key: "type" },
+        { header: "Date", key: "date" },
+        { header: "Description", key: "description" },
+        { header: "Amount", key: "amount" },
+        { header: "Method", key: "method" },
+      ],
+      rows,
+      fileName: `${project.name.replace(/\s+/g, "-")}-report.pdf`,
+      stats: [
+        { label: t("targetAmount"), value: formatAmount(target, currency) },
+        { label: t("totalRaised"), value: formatAmount(totalRaised, currency) },
+        { label: t("totalSpent"), value: formatAmount(totalSpent, currency) },
+        { label: t("balance"), value: formatAmount(balance, currency) },
+      ],
+    });
+  }
+
+  function handleExportCSV() {
+    const { exportCSV } = require("@/lib/export");
+    const rows = [
+      ...contributions.map((c) => ({
+        type: "Income",
+        date: c.paid_at || "",
+        member: memberNameMap[c.membership_id] || "",
+        amount: Number(c.amount),
+        method: c.payment_method || "",
+      })),
+      ...expenses.map((e) => ({
+        type: "Expense",
+        date: e.spent_at || "",
+        description: e.description,
+        amount: Number(e.amount),
+      })),
+    ];
+    exportCSV(rows, `${project.name.replace(/\s+/g, "-")}-transactions.csv`);
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" className="w-full mt-3" onClick={() => setShowReport(true)}>
+        <FileText className="mr-2 h-3.5 w-3.5" />
+        {t("generateReport")}
+      </Button>
+
+      <Dialog open={showReport} onOpenChange={setShowReport}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t("projectReport")}: {project.name}</DialogTitle></DialogHeader>
+
+          <div className="space-y-6">
+            {/* Risk Assessment */}
+            <div className="flex items-center gap-3">
+              <Badge className={`text-sm px-3 py-1 ${riskColors[riskLevel]}`}>
+                <Shield className="mr-1.5 h-4 w-4" />
+                {riskLevel === "on_track" ? t("onTrack") : riskLevel === "at_risk" ? t("atRisk") : t("critical")}
+              </Badge>
+              <span className="text-sm text-muted-foreground">{t("riskAssessment")}</span>
+            </div>
+
+            {/* Financial Summary */}
+            <div>
+              <h4 className="text-sm font-medium mb-2">{t("financialSummary")}</h4>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-lg bg-muted p-2"><p className="text-[10px] text-muted-foreground">{t("targetAmount")}</p><p className="text-sm font-bold">{formatAmount(target, currency)}</p></div>
+                <div className="rounded-lg bg-muted p-2"><p className="text-[10px] text-muted-foreground">{t("totalRaised")}</p><p className="text-sm font-bold text-emerald-600">{formatAmount(totalRaised, currency)}</p></div>
+                <div className="rounded-lg bg-muted p-2"><p className="text-[10px] text-muted-foreground">{t("totalSpent")}</p><p className="text-sm font-bold text-red-600">{formatAmount(totalSpent, currency)}</p></div>
+                <div className="rounded-lg bg-muted p-2"><p className="text-[10px] text-muted-foreground">{t("balance")}</p><p className={`text-sm font-bold ${balance >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatAmount(balance, currency)}</p></div>
+              </div>
+              <Progress value={progress} className="h-2 mt-2" />
+              <p className="text-xs text-muted-foreground mt-1">{progress}% {t("progress")} | {t("burnRate")}: {formatAmount(burnRate, currency)}/mo</p>
+            </div>
+
+            {/* Top Contributors */}
+            {topContributors.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">{t("topContributors")}</h4>
+                <div className="space-y-1">
+                  {topContributors.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{i + 1}. {c.name}</span>
+                      <span className="font-medium">{formatAmount(c.amount, currency)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Milestones */}
+            <div>
+              <h4 className="text-sm font-medium mb-2">{t("milestones")} ({completedMilestones}/{milestones.length})</h4>
+              <div className="space-y-1">
+                {milestones.map((m) => (
+                  <div key={m.id} className="flex items-center gap-2 text-sm">
+                    {m.completed_at ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
+                    <span className={m.completed_at ? "line-through text-muted-foreground" : ""}>{m.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Blockers */}
+            {activeBlockers.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">{t("activeBlockers")} ({activeBlockers.length})</h4>
+                {activeBlockers.map((b) => (
+                  <div key={b.id as string} className="flex items-center gap-2 text-sm">
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                    <span>{b.title as string}</span>
+                    <Badge className="text-[10px]">{b.severity as string}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Resolutions */}
+            {resolutions.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">{t("resolutions")} ({resolutions.length})</h4>
+                {resolutions.map((r) => (
+                  <div key={r.id as string} className="flex items-center justify-between text-sm">
+                    <span>{r.title as string}</span>
+                    {(r.amount_authorized as number) ? <span className="font-medium">{formatAmount(Number(r.amount_authorized), currency)}</span> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>{t("exportCSV")}</Button>
+            <Button size="sm" onClick={handleExportPDF}>{t("downloadPDF")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

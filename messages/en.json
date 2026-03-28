@@ -3111,7 +3111,22 @@
       "culturalEvent": "Cultural Event",
       "emergency": "Emergency",
       "other": "Other"
-    }
+    },
+    "resolutions": "Resolutions",
+    "addResolution": "Add Resolution",
+    "resolutionTitle": "Resolution Title",
+    "meetingDate": "Meeting Date",
+    "amountAuthorized": "Amount Authorized",
+    "implemented": "Implemented",
+    "cancelled": "Cancelled",
+    "noResolutions": "No resolutions recorded",
+    "generateReport": "Generate Report",
+    "projectReport": "Project Report",
+    "financialSummary": "Financial Summary",
+    "critical": "Critical",
+    "downloadPDF": "Download PDF",
+    "exportCSV": "Export CSV",
+    "uploadDocument": "Upload Document"
   },
   "badges": {
     "title": "Achievements & Badges",

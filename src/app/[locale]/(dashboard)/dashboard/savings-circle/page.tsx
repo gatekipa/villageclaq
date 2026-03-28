@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   CircleDollarSign,
+  DollarSign,
   Users,
   Repeat,
   Shuffle,
@@ -44,12 +45,13 @@ import {
   CheckCircle,
   ChevronRight,
 } from "lucide-react";
-import { useSavingsCycles, useCreateSavingsCycle } from "@/lib/hooks/use-supabase-query";
+import { useSavingsCycles, useCreateSavingsCycle, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { getMemberName } from "@/lib/get-member-name";
 
 type RotationType = "sequential" | "random" | "auction";
 type Frequency = "weekly" | "biweekly" | "monthly";
@@ -287,9 +289,11 @@ export default function SavingsCirclePage() {
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("savings.manage");
   const { data: cycles, isLoading, isError, error, refetch } = useSavingsCycles();
+  const { data: membersRaw } = useMembers();
   const createCycle = useCreateSavingsCycle();
 
   const queryClient = useQueryClient();
+  const activeMembers = (membersRaw || []).filter((m: Record<string, unknown>) => m.standing !== "banned" && m.standing !== "suspended");
 
   // Create dialog state
   const [showCreate, setShowCreate] = useState(false);
@@ -299,6 +303,7 @@ export default function SavingsCirclePage() {
   const [totalRounds, setTotalRounds] = useState("");
   const [startDate, setStartDate] = useState("");
   const [rotationType, setRotationType] = useState<string>("sequential");
+  const [autoEnroll, setAutoEnroll] = useState(true);
   const [createError, setCreateError] = useState("");
   const [editCycleId, setEditCycleId] = useState<string | null>(null);
   const [endingCycleId, setEndingCycleId] = useState<string | null>(null);
@@ -342,7 +347,7 @@ export default function SavingsCirclePage() {
     }
 
     try {
-      await createCycle.mutateAsync({
+      const newCycle = await createCycle.mutateAsync({
         name: cycleName.trim(),
         amount: Number(amount),
         currency: currentGroup?.currency || "XAF",
@@ -351,6 +356,23 @@ export default function SavingsCirclePage() {
         rotation_type: rotationType,
         start_date: startDate,
       });
+
+      // Auto-enroll participants if checked
+      if (autoEnroll && newCycle?.id && activeMembers.length > 0) {
+        const supabase = createClient();
+        const rounds = Number(totalRounds);
+        const participants = activeMembers.slice(0, rounds).map((m: Record<string, unknown>, i: number) => ({
+          cycle_id: newCycle.id,
+          membership_id: m.id as string,
+          collection_round: i + 1,
+          has_collected: false,
+        }));
+        if (participants.length > 0) {
+          await supabase.from("savings_participants").insert(participants);
+          queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+        }
+      }
+
       setShowCreate(false);
       resetCreateForm();
     } catch (err) {
@@ -424,15 +446,35 @@ export default function SavingsCirclePage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("rotationType")}</Label>
-                <Select value={rotationType} onValueChange={(v) => setRotationType(v ?? "sequential")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sequential">{t("sequential")}</SelectItem>
-                    <SelectItem value="random">{t("random")}</SelectItem>
-                    <SelectItem value="auction">{t("auction")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: "sequential", label: t("takeTurns"), desc: t("takeTurnsDesc"), Icon: Repeat },
+                    { value: "random", label: t("luckyDraw"), desc: t("luckyDrawDesc"), Icon: Shuffle },
+                    { value: "auction", label: t("bidding"), desc: t("biddingDesc"), Icon: Gavel },
+                  ] as const).map(({ value, label, desc, Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setRotationType(value)}
+                      className={`flex flex-col items-start gap-1 rounded-lg border p-2.5 text-left text-xs transition-colors ${rotationType === value ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                    >
+                      <Icon className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{label}</span>
+                      <span className="text-[10px] text-muted-foreground line-clamp-2">{desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
+              {/* Auto-enroll */}
+              {!editCycleId && (
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input type="checkbox" checked={autoEnroll} onChange={(e) => setAutoEnroll(e.target.checked)} className="h-4 w-4 rounded border-input" />
+                  <div>
+                    <p className="text-sm font-medium">{t("autoEnrollAll")}</p>
+                    <p className="text-[10px] text-muted-foreground">{t("enrollAfterCreate")}</p>
+                  </div>
+                </div>
+              )}
               {createError && <p className="text-sm text-destructive">{createError}</p>}
             </div>
             <DialogFooter>
@@ -465,37 +507,38 @@ export default function SavingsCirclePage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-              <CircleDollarSign className="size-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t("activeCycles")}</p>
-              <p className="text-xl font-bold text-foreground">
-                {cycles.filter((c: Record<string, unknown>) => c.status === "active").length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <Users className="size-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">{t("participants")}</p>
-              <p className="text-xl font-bold text-foreground">
-                {cycles.reduce((sum: number, c: Record<string, unknown>) => {
-                  const participants = (c.savings_participants as unknown[]) || [];
-                  return sum + participants.length;
-                }, 0)}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {(() => {
+        const activeCyclesList = cycles.filter((c: Record<string, unknown>) => c.status === "active");
+        const totalParticipants = cycles.reduce((sum: number, c: Record<string, unknown>) => sum + ((c.savings_participants as unknown[]) || []).length, 0);
+        const totalPot = activeCyclesList.reduce((sum: number, c: Record<string, unknown>) => {
+          const p = ((c.savings_participants as unknown[]) || []).length;
+          return sum + Number(c.amount) * p;
+        }, 0);
+        const totalRoundsCompleted = cycles.reduce((sum: number, c: Record<string, unknown>) => {
+          const current = (c.current_round as number) || 1;
+          return sum + Math.max(0, current - 1);
+        }, 0);
+        return (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Card><CardContent className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><CircleDollarSign className="size-5 text-emerald-600 dark:text-emerald-400" /></div>
+              <div><p className="text-xs text-muted-foreground">{t("activeCycles")}</p><p className="text-xl font-bold">{activeCyclesList.length}</p></div>
+            </CardContent></Card>
+            <Card><CardContent className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"><Users className="size-5 text-blue-600 dark:text-blue-400" /></div>
+              <div><p className="text-xs text-muted-foreground">{t("participants")}</p><p className="text-xl font-bold">{totalParticipants}</p></div>
+            </CardContent></Card>
+            <Card><CardContent className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"><DollarSign className="size-5 text-purple-600 dark:text-purple-400" /></div>
+              <div><p className="text-xs text-muted-foreground">{t("totalPotSize")}</p><p className="text-xl font-bold">{formatAmount(totalPot, groupCurrency)}</p></div>
+            </CardContent></Card>
+            <Card><CardContent className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30"><CheckCircle className="size-5 text-amber-600 dark:text-amber-400" /></div>
+              <div><p className="text-xs text-muted-foreground">{t("roundsCompleted")}</p><p className="text-xl font-bold">{totalRoundsCompleted}</p></div>
+            </CardContent></Card>
+          </div>
+        );
+      })()}
 
       {/* Cycles */}
       <div className="space-y-4">

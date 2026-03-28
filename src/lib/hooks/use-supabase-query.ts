@@ -548,7 +548,7 @@ export function useSavingsCycles() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("savings_cycles")
-        .select("*, savings_participants(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)))")
+        .select("*, savings_participants(*, membership:memberships!inner(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url)))")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;

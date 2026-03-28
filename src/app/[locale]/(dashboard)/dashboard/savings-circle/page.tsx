@@ -1,7 +1,7 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1235,43 +1235,18 @@ export default function SavingsCirclePage() {
                           <div><p className="text-[10px] text-muted-foreground">{t("finesCollected")}</p><p className="text-sm font-bold">{formatAmount(finesCollectedAmt, currency)}</p></div>
                         </div>
                         {/* Round Breakdown */}
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground">{t("roundBreakdown")}</p>
-                          <div className="rounded-md border overflow-x-auto max-h-48 overflow-y-auto">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead className="text-xs w-[50px]">#</TableHead>
-                                  <TableHead className="text-xs">{t("dueDate")}</TableHead>
-                                  <TableHead className="text-xs text-center">{t("collector")}</TableHead>
-                                  <TableHead className="text-xs text-center">{tc("status")}</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {Array.from({ length: totalRnds }, (_, i) => i + 1).map((rnd) => {
-                                  const dueDate = new Date(startD.getTime() + (rnd - 1) * freqDays * 86400000);
-                                  const collector = participants.find((p: Record<string, unknown>) => (p.collection_round as number) === rnd);
-                                  const cm = collector?.membership as Record<string, unknown> | undefined;
-                                  const cName = cm ? getMemberName(cm) : "—";
-                                  const isCurrent = rnd === currentRound;
-                                  const isPast = rnd < currentRound;
-                                  return (
-                                    <TableRow key={rnd} className={isCurrent ? "bg-blue-50 dark:bg-blue-950/20" : ""}>
-                                      <TableCell className="text-xs">R{rnd}</TableCell>
-                                      <TableCell className="text-xs text-muted-foreground">{dueDate.toLocaleDateString()}</TableCell>
-                                      <TableCell className="text-xs text-center">{cName}</TableCell>
-                                      <TableCell className="text-center">
-                                        {isCurrent ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">{t("inProgress")}</Badge>
-                                        : isPast ? <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("statusCompleted")}</Badge>
-                                        : <Badge variant="secondary" className="text-[10px]">{t("upcoming")}</Badge>}
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
+                        <RoundBreakdownTable
+                          cycleId={id}
+                          totalRounds={totalRnds}
+                          currentRound={currentRound}
+                          startDate={startD}
+                          freqDays={freqDays}
+                          participants={participants}
+                          currency={currency}
+                          amt={amt}
+                          t={t}
+                          tc={tc}
+                        />
                       </CardContent>
                     </Card>
                   );
@@ -1781,5 +1756,181 @@ function IssueRecordButton({ cycleId, participants, queryClient, issuesLog, t, t
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ─── ROUND BREAKDOWN TABLE WITH EXPANDABLE HISTORY ───────────────────────
+
+function RoundBreakdownTable({
+  cycleId,
+  totalRounds,
+  currentRound,
+  startDate,
+  freqDays,
+  participants,
+  currency,
+  amt,
+  t,
+  tc,
+}: {
+  cycleId: string;
+  totalRounds: number;
+  currentRound: number;
+  startDate: Date;
+  freqDays: number;
+  participants: Record<string, unknown>[];
+  currency: string;
+  amt: number;
+  t: ReturnType<typeof import("next-intl").useTranslations>;
+  tc: ReturnType<typeof import("next-intl").useTranslations>;
+}) {
+  const [expandedRound, setExpandedRound] = useState<number | null>(null);
+  const [roundData, setRoundData] = useState<Record<string, unknown>[]>([]);
+  const [loadingRound, setLoadingRound] = useState(false);
+
+  const toggleRound = async (rnd: number) => {
+    if (expandedRound === rnd) {
+      setExpandedRound(null);
+      return;
+    }
+    setExpandedRound(rnd);
+    setLoadingRound(true);
+    try {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("savings_contributions")
+        .select("*, membership:memberships!inner(id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name))")
+        .eq("cycle_id", cycleId)
+        .eq("round_number", rnd);
+      const resolved = (data || []).map((c: Record<string, unknown>) => {
+        const m = c.membership as Record<string, unknown> | null;
+        return { ...c, membership: m ? { ...m, profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles } : null };
+      });
+      setRoundData(resolved);
+    } catch {
+      setRoundData([]);
+    } finally {
+      setLoadingRound(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">{t("roundBreakdown")}</p>
+      <div className="rounded-md border overflow-x-auto max-h-[400px] overflow-y-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="text-xs w-[30px]"></TableHead>
+              <TableHead className="text-xs w-[50px]">#</TableHead>
+              <TableHead className="text-xs">{t("dueDate")}</TableHead>
+              <TableHead className="text-xs text-center">{t("collector")}</TableHead>
+              <TableHead className="text-xs text-center">{tc("status")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: totalRounds }, (_, i) => i + 1).map((rnd) => {
+              const dueDate = new Date(startDate.getTime() + (rnd - 1) * freqDays * 86400000);
+              const collector = participants.find((p: Record<string, unknown>) => (p.collection_round as number) === rnd);
+              const cm = collector?.membership as Record<string, unknown> | undefined;
+              const cName = cm ? getMemberName(cm) : "—";
+              const isCurrent = rnd === currentRound;
+              const isPast = rnd < currentRound;
+              const isExpanded = expandedRound === rnd;
+
+              return (
+                <Fragment key={rnd}>
+                  <TableRow
+                    className={`${isCurrent ? "bg-blue-50 dark:bg-blue-950/20" : ""} ${isPast ? "cursor-pointer hover:bg-muted/50" : ""}`}
+                    onClick={() => isPast && toggleRound(rnd)}
+                  >
+                    <TableCell className="text-xs px-2">
+                      {isPast && (
+                        <ChevronRight className={`h-3 w-3 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">R{rnd}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{dueDate.toLocaleDateString()}</TableCell>
+                    <TableCell className="text-xs text-center">{cName}</TableCell>
+                    <TableCell className="text-center">
+                      {isCurrent ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">{t("inProgress")}</Badge>
+                      : isPast ? <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("statusCompleted")}</Badge>
+                      : <Badge variant="secondary" className="text-[10px]">{t("upcoming")}</Badge>}
+                    </TableCell>
+                  </TableRow>
+                  {isExpanded && isPast && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="bg-muted/30 p-3">
+                        {loadingRound ? (
+                          <div className="flex items-center gap-2 py-2"><Loader2 className="h-3 w-3 animate-spin" /><span className="text-xs text-muted-foreground">Loading...</span></div>
+                        ) : (
+                          <div className="space-y-3">
+                            {/* Payments */}
+                            <div>
+                              <p className="text-[10px] font-semibold text-muted-foreground mb-1">{t("roundPayments")}</p>
+                              {roundData.length > 0 ? (
+                                <div className="space-y-1">
+                                  {roundData.map((c: Record<string, unknown>) => (
+                                    <div key={c.id as string} className="flex items-center justify-between text-xs">
+                                      <span>{getMemberName(c.membership as Record<string, unknown>)}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">{formatAmount(Number(c.amount), currency)}</span>
+                                        <Badge className={`text-[9px] ${(c.status as string) === "paid" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"}`}>
+                                          {(c.status as string) === "paid" ? t("statusPaid") : t("partial")}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-muted-foreground">—</p>
+                              )}
+                            </div>
+                            {/* Unpaid */}
+                            {(() => {
+                              const paidIds = new Set(roundData.map((c) => c.membership_id as string));
+                              const unpaid = participants.filter((p: Record<string, unknown>) => !paidIds.has((p.membership_id as string) || ""));
+                              if (unpaid.length === 0) return <p className="text-[10px] text-emerald-600">{t("allPaidInFull")}</p>;
+                              return (
+                                <div>
+                                  <p className="text-[10px] font-semibold text-muted-foreground mb-1">{t("roundUnpaid")}</p>
+                                  <div className="space-y-0.5">
+                                    {unpaid.map((p: Record<string, unknown>) => {
+                                      const m = p.membership as Record<string, unknown> | undefined;
+                                      return <p key={p.id as string} className="text-[10px] text-red-600">{m ? getMemberName(m) : "—"}</p>;
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {/* Collector */}
+                            <div>
+                              <p className="text-[10px] font-semibold text-muted-foreground mb-1">{t("roundCollector")}</p>
+                              {collector ? (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span>{cName}</span>
+                                  {(collector.has_collected as boolean) ? (
+                                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[9px]">{t("paidOut")}</Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-[9px]">{t("statusPending")}</Badge>
+                                  )}
+                                  {(collector.collected_at as string) && (
+                                    <span className="text-[10px] text-muted-foreground">{new Date(collector.collected_at as string).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              ) : <p className="text-[10px] text-muted-foreground">—</p>}
+                            </div>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }

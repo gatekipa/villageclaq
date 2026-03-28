@@ -38,6 +38,7 @@ import {
   XCircle,
   Loader2,
   Copy,
+  AlertCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,6 +51,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEvents, useCreateEvent } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { PermissionGate } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 type EventType = "meeting" | "social" | "fundraiser" | "agm" | "emergency" | "other";
@@ -78,7 +80,6 @@ export default function EventsPage() {
   const tc = useTranslations("common");
   useGroup();
   const { hasPermission } = usePermissions();
-  const isAdmin = hasPermission("events.manage");
   const { data: events, isLoading, isError, error, refetch } = useEvents();
   const createEvent = useCreateEvent();
   const queryClient = useQueryClient();
@@ -90,6 +91,13 @@ export default function EventsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date());
+
+  // Action error notification
+  const [actionError, setActionError] = useState<string | null>(null);
+  function showError(msg: string) {
+    setActionError(msg);
+    setTimeout(() => setActionError(null), 5000);
+  }
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
 
   // Create form state
@@ -110,7 +118,7 @@ export default function EventsPage() {
   const month = calendarDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const monthName = calendarDate.toLocaleDateString("en", { month: "long", year: "numeric" });
+  const monthName = calendarDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   const now = new Date().toISOString();
 
@@ -222,8 +230,8 @@ export default function EventsPage() {
       });
       setShowCreateDialog(false);
       resetForm();
-    } catch {
-      // error handled by mutation state
+    } catch (err) {
+      showError((err as Error).message || tc("error"));
     }
   };
 
@@ -271,25 +279,33 @@ export default function EventsPage() {
       setShowCreateDialog(false);
       resetForm();
       setEditEventId(null);
-    } catch {
-      // error handled
+    } catch (err) {
+      showError((err as Error).message || tc("error"));
     } finally {
       setEditSaving(false);
     }
   }
 
   async function handleCancelEvent(eventId: string) {
-    const supabase = createClient();
-    await supabase.from("events").update({ status: "cancelled" }).eq("id", eventId);
-    await queryClient.invalidateQueries({ queryKey: ["events"] });
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.from("events").update({ status: "cancelled" }).eq("id", eventId);
+      if (err) throw err;
+      await queryClient.invalidateQueries({ queryKey: ["events"] });
+    } catch (err) {
+      showError((err as Error).message || tc("error"));
+    }
   }
 
   async function handleDeleteEvent(eventId: string) {
     setDeletingId(eventId);
     try {
       const supabase = createClient();
-      await supabase.from("events").delete().eq("id", eventId);
+      const { error: err } = await supabase.from("events").delete().eq("id", eventId);
+      if (err) throw err;
       await queryClient.invalidateQueries({ queryKey: ["events"] });
+    } catch (err) {
+      showError((err as Error).message || tc("error"));
     } finally {
       setDeletingId(null);
       setShowDeleteConfirm(null);
@@ -312,7 +328,7 @@ export default function EventsPage() {
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
-        {isAdmin && (
+        {hasPermission("events.manage") && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleRepeatLastMeeting} disabled={!events || events.length === 0}>
               <Copy className="mr-2 h-4 w-4" />
@@ -325,6 +341,15 @@ export default function EventsPage() {
           </div>
         )}
       </div>
+
+      {/* Error notification */}
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-auto text-destructive/70 hover:text-destructive">✕</button>
+        </div>
+      )}
 
       {/* View Toggle + Filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -385,7 +410,7 @@ export default function EventsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-px">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(undefined, { weekday: "short" })).map((day) => (
                 <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
                   {day}
                 </div>
@@ -439,7 +464,7 @@ export default function EventsPage() {
               title={t("noEvents")}
               description={t("noEventsDesc")}
               action={
-                isAdmin ? (
+                hasPermission("events.manage") ? (
                   <Button onClick={() => setShowCreateDialog(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     {t("createEvent")}
@@ -462,7 +487,7 @@ export default function EventsPage() {
                       <div className="flex gap-4 flex-1 min-w-0">
                         <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                           <span className="text-xs font-medium text-primary">
-                            {startsAt.toLocaleDateString("en", { month: "short" })}
+                            {startsAt.toLocaleDateString(undefined, { month: "short" })}
                           </span>
                           <span className="text-xl font-bold leading-none text-primary">
                             {startsAt.getDate()}
@@ -493,8 +518,8 @@ export default function EventsPage() {
                           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3.5 w-3.5" />
-                              {startsAt.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}
-                              {endsAt && ` - ${endsAt.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}`}
+                              {startsAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                              {endsAt && ` - ${endsAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`}
                             </span>
                             {event.location ? (
                               <span className="flex items-center gap-1">
@@ -505,7 +530,7 @@ export default function EventsPage() {
                           </div>
                         </div>
                       </div>
-                      {isAdmin && (
+                      {hasPermission("events.manage") && (
                         <DropdownMenu>
                           <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" />}>
                             <MoreVertical className="h-4 w-4" />

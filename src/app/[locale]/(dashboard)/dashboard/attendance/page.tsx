@@ -45,6 +45,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
+import { getMemberName } from "@/lib/get-member-name";
 import { QRCodeSVG } from "qrcode.react";
 
 type AttendanceStatus = "present" | "absent" | "excused" | "late";
@@ -100,7 +101,7 @@ export default function AttendancePage() {
   const tc = useTranslations("common");
   const { groupId, user } = useGroup();
   const { hasPermission } = usePermissions();
-  const isAdmin = hasPermission("attendance.manage");
+  // Permission check for attendance management (used alongside PermissionGate)
   const queryClient = useQueryClient();
 
   const {
@@ -231,8 +232,7 @@ export default function AttendancePage() {
     const map = new Map<string, { name: string; initials: string }>();
     if (!members) return map;
     for (const m of members as Record<string, unknown>[]) {
-      const profile = m.profile as Record<string, unknown> | undefined;
-      const name = (m.display_name as string) || (profile?.full_name as string) || "\u2014";
+      const name = getMemberName(m);
       const initials = name
         .split(" ")
         .map((w: string) => w[0])
@@ -377,7 +377,7 @@ export default function AttendancePage() {
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
             <p className="text-muted-foreground">{t("subtitle")}</p>
           </div>
-          {isAdmin && (
+          {hasPermission("attendance.manage") && (
             <Button onClick={openRecordDialog}>
               <Plus className="mr-2 h-4 w-4" />
               {t("recordAttendance")}
@@ -457,7 +457,7 @@ export default function AttendancePage() {
                     : t("noRecordsYet")
                 }
                 action={
-                  isAdmin && allEvents.length > 0 ? (
+                  hasPermission("attendance.manage") && allEvents.length > 0 ? (
                     <Button onClick={openRecordDialog} size="sm">
                       <Plus className="mr-2 h-4 w-4" />
                       {t("recordAttendance")}

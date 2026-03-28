@@ -22,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import {
   Home,
   Calendar,
@@ -439,6 +441,17 @@ export default function HostingPage() {
           </Card>
         </div>
 
+        {/* ── Top-Level Tabs ──────────────────────────────────────────── */}
+        <Tabs defaultValue="assignments" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="assignments">{t("allAssignments")}</TabsTrigger>
+            <TabsTrigger value="history">{t("historyTab")}</TabsTrigger>
+            <TabsTrigger value="compliance">{t("complianceTab")}</TabsTrigger>
+          </TabsList>
+
+          {/* ═══ TAB: All Assignments ════════════════════════════════════ */}
+          <TabsContent value="assignments" className="mt-4 space-y-6">
+
         {/* Fairness Dashboard */}
         {fairnessData && fairnessData.chartData.length > 1 && (
           <Card>
@@ -515,6 +528,30 @@ export default function HostingPage() {
             />
           ))}
         </div>
+
+          </TabsContent>
+
+          {/* ═══ TAB: History ════════════════════════════════════════════ */}
+          <TabsContent value="history" className="mt-4">
+            <HostingHistoryTab
+              allAssignments={allAssignments}
+              members={members}
+              t={t}
+            />
+          </TabsContent>
+
+          {/* ═══ TAB: Compliance ═════════════════════════════════════════ */}
+          <TabsContent value="compliance" className="mt-4">
+            <HostingComplianceTab
+              allAssignments={allAssignments}
+              members={members}
+              t={t}
+              tc={tc}
+              isAdmin={isAdmin}
+              groupId={groupId}
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* Dialogs */}
         <CreateRosterDialog
@@ -1148,5 +1185,258 @@ function AssignHostsDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── HISTORY TAB ──────────────────────────────────────────────────────────
+
+function HostingHistoryTab({ allAssignments, members, t }: {
+  allAssignments: Assignment[];
+  members: Member[];
+  t: ReturnType<typeof useTranslations>;
+}) {
+  // Per-member stats
+  const memberStats = useMemo(() => {
+    const statsMap = new Map<string, {
+      name: string;
+      total: number;
+      completed: number;
+      missed: number;
+      lastHosted: string | null;
+      dates: string[];
+    }>();
+
+    // Init all members
+    for (const m of members) {
+      const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || "Unknown";
+      statsMap.set(m.id, { name, total: 0, completed: 0, missed: 0, lastHosted: null, dates: [] });
+    }
+
+    for (const a of allAssignments) {
+      const entry = statsMap.get(a.membership_id);
+      if (!entry) continue;
+      entry.total++;
+      if (a.status === "completed") {
+        entry.completed++;
+        entry.dates.push(a.assigned_date);
+        if (!entry.lastHosted || a.assigned_date > entry.lastHosted) entry.lastHosted = a.assigned_date;
+      }
+      if (a.status === "missed") entry.missed++;
+    }
+
+    return Array.from(statsMap.values()).filter((s) => s.total > 0).sort((a, b) => b.total - a.total);
+  }, [allAssignments, members]);
+
+  const totalCompleted = allAssignments.filter((a) => a.status === "completed").length;
+  const totalMissed = allAssignments.filter((a) => a.status === "missed").length;
+  const totalAssigned = allAssignments.length;
+  const memberCount = memberStats.length || 1;
+  const avgAssignments = Math.round((totalAssigned / memberCount) * 10) / 10;
+  const counts = memberStats.map((m) => m.total);
+  const minCount = counts.length > 0 ? Math.min(...counts) : 0;
+  const maxCount = counts.length > 0 ? Math.max(...counts) : 0;
+  const completionRate = (totalCompleted + totalMissed) > 0 ? Math.round((totalCompleted / (totalCompleted + totalMissed)) * 100) : 100;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary stats */}
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("avgAssignments")}</p><p className="text-xl font-bold">{avgAssignments} <span className="text-xs font-normal text-muted-foreground">{t("perMember")}</span></p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("distribution")}</p><p className="text-xl font-bold">{maxCount - minCount} <span className="text-xs font-normal text-muted-foreground">({minCount}-{maxCount})</span></p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("avgCompliance")}</p><p className={`text-xl font-bold ${completionRate >= 80 ? "text-emerald-600" : completionRate >= 50 ? "text-amber-600" : "text-red-600"}`}>{completionRate}%</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("totalMissedAll")}</p><p className="text-xl font-bold text-red-600 dark:text-red-400">{totalMissed} <span className="text-xs font-normal text-muted-foreground">{t("acrossAll")}</span></p></CardContent></Card>
+      </div>
+
+      {/* Per Member History Table */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{t("perMemberHistory")}</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          {memberStats.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">{t("noAssignments")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{t("memberName")}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("totalHosted")}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("timesCompleted")}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("timesMissed")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("lastHosted")}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("fairnessScore")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {memberStats.map((ms) => {
+                    const ideal = avgAssignments || 1;
+                    const deviation = Math.abs(ms.completed - ideal) / ideal;
+                    const fairScore = Math.max(0, Math.round(100 - deviation * 100));
+                    const fairLabel = fairScore >= 90 ? t("excellent") : fairScore >= 75 ? t("good") : fairScore >= 50 ? t("fair") : t("poor");
+                    const fairColor = fairScore >= 75 ? "text-emerald-600" : fairScore >= 50 ? "text-amber-600" : "text-red-600";
+                    return (
+                      <tr key={ms.name} className="border-b last:border-0">
+                        <td className="px-4 py-2 font-medium">{ms.name}</td>
+                        <td className="px-3 py-2 text-center">{ms.total}</td>
+                        <td className="px-3 py-2 text-center text-emerald-600">{ms.completed}</td>
+                        <td className="px-3 py-2 text-center text-red-600">{ms.missed}</td>
+                        <td className="px-3 py-2 text-muted-foreground text-xs">{ms.lastHosted ? new Date(ms.lastHosted).toLocaleDateString() : "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2 justify-center">
+                            <Progress value={fairScore} className="h-1.5 w-16" />
+                            <span className={`text-xs font-medium ${fairColor}`}>{fairScore}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Fairness Legend */}
+      <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+        <CardContent className="p-4">
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300 mb-2">{t("fairnessScore")}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground">
+            <span>90-100%: <span className="font-medium text-emerald-600">{t("excellent")}</span></span>
+            <span>75-89%: <span className="font-medium text-emerald-600">{t("good")}</span></span>
+            <span>50-74%: <span className="font-medium text-amber-600">{t("fair")}</span></span>
+            <span>&lt;50%: <span className="font-medium text-red-600">{t("poor")}</span></span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── COMPLIANCE TAB ───────────────────────────────────────────────────────
+
+function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId }: {
+  allAssignments: Assignment[];
+  members: Member[];
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+  isAdmin: boolean;
+  groupId: string | null;
+}) {
+  const REQUIRED_INTERVAL_MONTHS = 12;
+
+  const totalCompleted = allAssignments.filter((a) => a.status === "completed").length;
+  const totalMissed = allAssignments.filter((a) => a.status === "missed").length;
+  const complianceTotal = totalCompleted + totalMissed;
+  const completionRate = complianceTotal > 0 ? Math.round((totalCompleted / complianceTotal) * 100) : 100;
+  const severity = completionRate >= 80 ? t("good") : completionRate >= 50 ? "At Risk" : t("critical");
+  const severityColor = completionRate >= 80 ? "text-emerald-600" : completionRate >= 50 ? "text-amber-600" : "text-red-600";
+
+  const exempted = allAssignments.filter((a) => a.status === "exempted").length;
+
+  // Members overdue on hosting
+  const overdueMembers = useMemo(() => {
+    const now = new Date();
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - REQUIRED_INTERVAL_MONTHS, now.getDate());
+
+    return members.map((m) => {
+      const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || "Unknown";
+      const memberAssignments = allAssignments.filter((a) => a.membership_id === m.id && a.status === "completed");
+      const lastHosted = memberAssignments.length > 0
+        ? memberAssignments.sort((a, b) => b.assigned_date.localeCompare(a.assigned_date))[0].assigned_date
+        : null;
+      const lastDate = lastHosted ? new Date(lastHosted) : new Date("2020-01-01");
+      const monthsOverdue = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (30 * 86400000)) - REQUIRED_INTERVAL_MONTHS);
+      const isOverdue = lastDate < cutoff;
+
+      return { id: m.id, name, lastHosted, monthsOverdue, isOverdue };
+    }).filter((m) => m.isOverdue).sort((a, b) => b.monthsOverdue - a.monthsOverdue);
+  }, [allAssignments, members]);
+
+  return (
+    <div className="space-y-6">
+      {/* Compliance Stats */}
+      <div className="grid gap-4 sm:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("complianceRate")}</p>
+            <p className={`text-2xl font-bold ${severityColor}`}>{completionRate}%</p>
+            <p className={`text-xs ${severityColor}`}>{severity}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("timesMissed")}</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{totalMissed}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("membersOverdue")}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{overdueMembers.length}</p>
+            <p className="text-xs text-muted-foreground">&gt; {REQUIRED_INTERVAL_MONTHS} {t("months")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("statusExceptions")}</p>
+            <p className="text-2xl font-bold">{exempted}</p>
+            <p className="text-xs text-muted-foreground">{t("exemptedOrDeferred")}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Members Overdue Table */}
+      {overdueMembers.length > 0 && (
+        <Card className="border-amber-200 dark:border-amber-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-4 w-4" />
+              {t("membersOverdue")} ({overdueMembers.length})
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">{t("overdueDesc")}</p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{t("memberName")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("lastHosted")}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("monthsOverdue")}</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("urgency")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overdueMembers.map((m) => (
+                    <tr key={m.id} className="border-b last:border-0">
+                      <td className="px-4 py-2 font-medium">{m.name}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">{m.lastHosted ? new Date(m.lastHosted).toLocaleDateString() : t("neverHosted")}</td>
+                      <td className="px-3 py-2 text-center text-xs">+{m.monthsOverdue} {t("months")}</td>
+                      <td className="px-3 py-2 text-center">
+                        <Badge className={`text-xs ${
+                          m.monthsOverdue > REQUIRED_INTERVAL_MONTHS * 2
+                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                        }`}>
+                          {m.monthsOverdue > REQUIRED_INTERVAL_MONTHS * 2 ? t("critical") : t("medium")}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Compliance Framework Info */}
+      <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+        <CardContent className="p-4">
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300 mb-2">{t("complianceFramework")}</p>
+          <p className="text-xs text-muted-foreground">{t("complianceFrameworkDesc")}</p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

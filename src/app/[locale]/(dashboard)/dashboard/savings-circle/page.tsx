@@ -646,7 +646,15 @@ export default function SavingsCirclePage() {
           enrollMembers = activeMembers.filter((m: Record<string, unknown>) => selectedMemberIds.includes(m.id as string)).slice(0, rounds);
         }
         if (enrollMembers.length > 0) {
-          const parts = enrollMembers.map((m: Record<string, unknown>, i: number) => ({
+          // Shuffle for random rotation
+          let ordered = [...enrollMembers];
+          if (rotationType === "random") {
+            for (let i = ordered.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [ordered[i], ordered[j]] = [ordered[j], ordered[i]];
+            }
+          }
+          const parts = ordered.map((m: Record<string, unknown>, i: number) => ({
             cycle_id: newCycle.id,
             membership_id: m.id as string,
             collection_round: i + 1,
@@ -1065,8 +1073,13 @@ export default function SavingsCirclePage() {
                                 <TableCell><span className="text-sm font-medium">{fullName}</span></TableCell>
                                 <TableCell className="text-center text-xs">R{collectionRound}</TableCell>
                                 <TableCell className="text-center">
-                                  {/* This is a placeholder — real data needs savings_contributions query per round */}
-                                  <span className="text-xs text-muted-foreground">—</span>
+                                  {collectionRound < currentRound ? (
+                                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("statusPaid")}</Badge>
+                                  ) : collectionRound === currentRound ? (
+                                    <Badge variant="secondary" className="text-[10px]">{t("inProgress")}</Badge>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">—</span>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-center">
                                   {hasCollected ? (

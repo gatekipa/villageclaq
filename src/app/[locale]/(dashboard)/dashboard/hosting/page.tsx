@@ -82,6 +82,13 @@ interface Assignment {
   };
 }
 
+interface ComplianceRules {
+  required_interval_months?: number;
+  required_for_relief?: boolean;
+  penalty_flags_active?: boolean;
+  penalty_flag_days?: number;
+}
+
 interface Roster {
   id: string;
   group_id: string;
@@ -91,6 +98,7 @@ interface Roster {
   is_active: boolean;
   created_by: string;
   hosting_assignments: Assignment[];
+  compliance_rules?: ComplianceRules | null;
 }
 
 interface Member {
@@ -598,10 +606,13 @@ export default function HostingPage() {
             <HostingComplianceTab
               allAssignments={allAssignments}
               members={members}
+              activeMembers={activeMembers}
+              rosters={rosters}
               t={t}
               tc={tc}
               isAdmin={isAdmin}
               groupId={groupId}
+              onRefresh={invalidateRosters}
             />
           </TabsContent>
         </Tabs>
@@ -1367,15 +1378,41 @@ function HostingHistoryTab({ allAssignments, members, t }: {
 
 // ─── COMPLIANCE TAB ───────────────────────────────────────────────────────
 
-function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId }: {
+function HostingComplianceTab({ allAssignments, members, activeMembers, rosters, t, tc, isAdmin, groupId, onRefresh }: {
   allAssignments: Assignment[];
   members: Member[];
+  activeMembers: Member[];
+  rosters: Roster[];
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
   isAdmin: boolean;
   groupId: string | null;
+  onRefresh: () => void;
 }) {
-  const REQUIRED_INTERVAL_MONTHS = 12;
+  const queryClient = useQueryClient();
+
+  // Read compliance_rules from first active roster
+  const activeRoster = rosters.find((r) => r.is_active) || rosters[0];
+  const rules: ComplianceRules = activeRoster?.compliance_rules || {};
+  const requiredMonths = rules.required_interval_months || 12;
+
+  // Configure rules dialog state
+  const [showRulesDialog, setShowRulesDialog] = useState(false);
+  const [ruleInterval, setRuleInterval] = useState(requiredMonths);
+  const [ruleRelief, setRuleRelief] = useState(!!rules.required_for_relief);
+  const [rulePenalty, setRulePenalty] = useState(!!rules.penalty_flags_active);
+  const [rulePenaltyDays, setRulePenaltyDays] = useState(rules.penalty_flag_days || 30);
+  const [savingRules, setSavingRules] = useState(false);
+
+  // Exception dialog state
+  const [showExceptionDialog, setShowExceptionDialog] = useState(false);
+  const [exMemberId, setExMemberId] = useState("");
+  const [exReason, setExReason] = useState("");
+  const [exPermanent, setExPermanent] = useState(true);
+  const [exStartDate, setExStartDate] = useState("");
+  const [exEndDate, setExEndDate] = useState("");
+  const [savingException, setSavingException] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const totalCompleted = allAssignments.filter((a) => a.status === "completed").length;
   const totalMissed = allAssignments.filter((a) => a.status === "missed").length;
@@ -1384,26 +1421,90 @@ function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId
   const severity = completionRate >= 80 ? t("good") : completionRate >= 50 ? "At Risk" : t("critical");
   const severityColor = completionRate >= 80 ? "text-emerald-600" : completionRate >= 50 ? "text-amber-600" : "text-red-600";
 
-  const exempted = allAssignments.filter((a) => a.status === "exempted").length;
+  // Exempted assignments
+  const exemptedAssignments = allAssignments.filter((a) => a.status === "exempted");
+  const exemptedMemberIds = new Set(exemptedAssignments.map((a) => a.membership_id));
 
-  // Members overdue on hosting
+  // Members overdue — excluding exempted
   const overdueMembers = useMemo(() => {
     const now = new Date();
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - REQUIRED_INTERVAL_MONTHS, now.getDate());
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - requiredMonths, now.getDate());
 
-    return members.map((m) => {
-      const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || "Unknown";
-      const memberAssignments = allAssignments.filter((a) => a.membership_id === m.id && a.status === "completed");
-      const lastHosted = memberAssignments.length > 0
-        ? memberAssignments.sort((a, b) => b.assigned_date.localeCompare(a.assigned_date))[0].assigned_date
-        : null;
-      const lastDate = lastHosted ? new Date(lastHosted) : new Date("2020-01-01");
-      const monthsOverdue = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (30 * 86400000)) - REQUIRED_INTERVAL_MONTHS);
-      const isOverdue = lastDate < cutoff;
+    return members
+      .filter((m) => !exemptedMemberIds.has(m.id))
+      .map((m) => {
+        const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || "Unknown";
+        const completed = allAssignments.filter((a) => a.membership_id === m.id && a.status === "completed");
+        const lastHosted = completed.length > 0
+          ? completed.sort((a, b) => b.assigned_date.localeCompare(a.assigned_date))[0].assigned_date
+          : null;
+        const lastDate = lastHosted ? new Date(lastHosted) : new Date("2020-01-01");
+        const monthsOverdue = Math.max(0, Math.floor((now.getTime() - lastDate.getTime()) / (30 * 86400000)) - requiredMonths);
+        const isOverdue = lastDate < cutoff;
+        return { id: m.id, name, lastHosted, monthsOverdue, isOverdue };
+      })
+      .filter((m) => m.isOverdue)
+      .sort((a, b) => b.monthsOverdue - a.monthsOverdue);
+  }, [allAssignments, members, requiredMonths, exemptedMemberIds]);
 
-      return { id: m.id, name, lastHosted, monthsOverdue, isOverdue };
-    }).filter((m) => m.isOverdue).sort((a, b) => b.monthsOverdue - a.monthsOverdue);
-  }, [allAssignments, members]);
+  // Save compliance rules
+  const handleSaveRules = async () => {
+    if (!activeRoster) return;
+    setSavingRules(true);
+    try {
+      const supabase = createClient();
+      await supabase.from("hosting_rosters").update({
+        compliance_rules: {
+          required_interval_months: ruleInterval,
+          required_for_relief: ruleRelief,
+          penalty_flags_active: rulePenalty,
+          penalty_flag_days: rulePenaltyDays,
+        },
+      }).eq("id", activeRoster.id);
+      onRefresh();
+      setShowRulesDialog(false);
+    } finally {
+      setSavingRules(false);
+    }
+  };
+
+  // Add exception
+  const handleAddException = async () => {
+    if (!exMemberId || !exReason.trim() || !activeRoster) return;
+    setSavingException(true);
+    try {
+      const supabase = createClient();
+      await supabase.from("hosting_assignments").insert({
+        roster_id: activeRoster.id,
+        membership_id: exMemberId,
+        assigned_date: exPermanent ? new Date().toISOString().slice(0, 10) : exStartDate || new Date().toISOString().slice(0, 10),
+        status: "exempted",
+        exemption_reason: exReason.trim(),
+        order_index: 0,
+      });
+      onRefresh();
+      setShowExceptionDialog(false);
+      setExMemberId("");
+      setExReason("");
+    } finally {
+      setSavingException(false);
+    }
+  };
+
+  // Remove exception
+  const handleRemoveException = async (assignmentId: string) => {
+    setRemovingId(assignmentId);
+    try {
+      const supabase = createClient();
+      await supabase.from("hosting_assignments").delete().eq("id", assignmentId);
+      onRefresh();
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  // Members available for exemption (not already exempted)
+  const availableForExemption = activeMembers.filter((m) => !exemptedMemberIds.has(m.id));
 
   return (
     <div className="space-y-6">
@@ -1426,19 +1527,55 @@ function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">{t("membersOverdue")}</p>
             <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{overdueMembers.length}</p>
-            <p className="text-xs text-muted-foreground">&gt; {REQUIRED_INTERVAL_MONTHS} {t("months")}</p>
+            <p className="text-xs text-muted-foreground">&gt; {requiredMonths} {t("months")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">{t("statusExceptions")}</p>
-            <p className="text-2xl font-bold">{exempted}</p>
+            <p className="text-2xl font-bold">{exemptedAssignments.length}</p>
             <p className="text-xs text-muted-foreground">{t("exemptedOrDeferred")}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Members Overdue Table */}
+      {/* ── Compliance Rules Card ──────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">{t("complianceRules")}</CardTitle>
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => {
+                setRuleInterval(requiredMonths);
+                setRuleRelief(!!rules.required_for_relief);
+                setRulePenalty(!!rules.penalty_flags_active);
+                setRulePenaltyDays(rules.penalty_flag_days || 30);
+                setShowRulesDialog(true);
+              }}>
+                {t("configureRules")}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">{t("requiredEvery")}</span>
+              <Badge variant="outline">{requiredMonths} {t("monthsLabel")}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">{t("reliefEligibility")}</span>
+              <Badge variant={rules.required_for_relief ? "default" : "secondary"}>{rules.required_for_relief ? tc("active") : tc("inactive")}</Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">{t("penaltyFlags")}</span>
+              <Badge variant={rules.penalty_flags_active ? "destructive" : "secondary"}>{rules.penalty_flags_active ? tc("active") : tc("inactive")}</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Members Overdue Table ──────────────────────────────────────── */}
       {overdueMembers.length > 0 && (
         <Card className="border-amber-200 dark:border-amber-800">
           <CardHeader className="pb-2">
@@ -1466,12 +1603,8 @@ function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId
                       <td className="px-3 py-2 text-muted-foreground text-xs">{m.lastHosted ? new Date(m.lastHosted).toLocaleDateString() : t("neverHosted")}</td>
                       <td className="px-3 py-2 text-center text-xs">+{m.monthsOverdue} {t("months")}</td>
                       <td className="px-3 py-2 text-center">
-                        <Badge className={`text-xs ${
-                          m.monthsOverdue > REQUIRED_INTERVAL_MONTHS * 2
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                            : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                        }`}>
-                          {m.monthsOverdue > REQUIRED_INTERVAL_MONTHS * 2 ? t("critical") : t("medium")}
+                        <Badge className={`text-xs ${m.monthsOverdue > requiredMonths * 2 ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"}`}>
+                          {m.monthsOverdue > requiredMonths * 2 ? t("critical") : t("medium")}
                         </Badge>
                       </td>
                     </tr>
@@ -1483,6 +1616,53 @@ function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId
         </Card>
       )}
 
+      {/* ── Status Exceptions ──────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">{t("exceptions")} ({exemptedAssignments.length})</CardTitle>
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => {
+                setExMemberId("");
+                setExReason("");
+                setExPermanent(true);
+                setExStartDate("");
+                setExEndDate("");
+                setShowExceptionDialog(true);
+              }}>
+                <Plus className="mr-1 h-3 w-3" />
+                {t("addException")}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {exemptedAssignments.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">{t("exemptedOrDeferred")}: 0</p>
+          ) : (
+            <div className="divide-y">
+              {exemptedAssignments.map((a) => {
+                const name = a.membership?.display_name || (Array.isArray(a.membership?.profiles) ? a.membership?.profiles[0]?.full_name : a.membership?.profiles?.full_name) || "—";
+                return (
+                  <div key={a.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{name}</p>
+                      <p className="text-xs text-muted-foreground">{a.exemption_reason || "—"}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(a.assigned_date)}</p>
+                    </div>
+                    {isAdmin && (
+                      <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => handleRemoveException(a.id)} disabled={removingId === a.id}>
+                        {removingId === a.id ? <Loader2 className="h-3 w-3 animate-spin" /> : t("removeException")}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Compliance Framework Info */}
       <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
         <CardContent className="p-4">
@@ -1490,6 +1670,110 @@ function HostingComplianceTab({ allAssignments, members, t, tc, isAdmin, groupId
           <p className="text-xs text-muted-foreground">{t("complianceFrameworkDesc")}</p>
         </CardContent>
       </Card>
+
+      {/* ── Configure Rules Dialog ─────────────────────────────────────── */}
+      <Dialog open={showRulesDialog} onOpenChange={setShowRulesDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("complianceRules")}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("requiredEvery")}</Label>
+              <div className="flex items-center gap-2">
+                <Input type="number" min={1} max={60} value={ruleInterval} onChange={(e) => setRuleInterval(Number(e.target.value) || 12)} className="w-20" />
+                <span className="text-sm text-muted-foreground">{t("monthsLabel")}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">{t("reliefEligibility")}</p>
+                <p className="text-xs text-muted-foreground">{t("reliefEligibilityDesc")}</p>
+              </div>
+              <button type="button" onClick={() => setRuleRelief(!ruleRelief)} className={`h-6 w-11 rounded-full transition-colors ${ruleRelief ? "bg-primary" : "bg-muted"}`}>
+                <span className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${ruleRelief ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">{t("penaltyFlags")}</p>
+                <p className="text-xs text-muted-foreground">{t("penaltyFlagsDesc")}</p>
+              </div>
+              <button type="button" onClick={() => setRulePenalty(!rulePenalty)} className={`h-6 w-11 rounded-full transition-colors ${rulePenalty ? "bg-primary" : "bg-muted"}`}>
+                <span className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${rulePenalty ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            {rulePenalty && (
+              <div className="space-y-2 pl-4">
+                <Label>{t("flagAfter")}</Label>
+                <div className="flex items-center gap-2">
+                  <Input type="number" min={1} max={365} value={rulePenaltyDays} onChange={(e) => setRulePenaltyDays(Number(e.target.value) || 30)} className="w-20" />
+                  <span className="text-sm text-muted-foreground">{t("daysLabel")}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRulesDialog(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleSaveRules} disabled={savingRules}>
+              {savingRules && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("saveRules")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add Exception Dialog ───────────────────────────────────────── */}
+      <Dialog open={showExceptionDialog} onOpenChange={setShowExceptionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{t("addException")}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("memberName")}</Label>
+              <Select value={exMemberId} onValueChange={(v) => setExMemberId(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder={t("selectMembers")} /></SelectTrigger>
+                <SelectContent>
+                  {availableForExemption.map((m) => {
+                    const name = (m.display_name as string) || (m.profile as Record<string, unknown>)?.full_name as string || "—";
+                    return <SelectItem key={m.id} value={m.id}>{name}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("exemptionReason")} *</Label>
+              <textarea
+                className="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                rows={2}
+                value={exReason}
+                onChange={(e) => setExReason(e.target.value)}
+                placeholder={t("exemptionReason")}
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button variant={exPermanent ? "default" : "outline"} size="sm" onClick={() => setExPermanent(true)}>{t("permanent")}</Button>
+              <Button variant={!exPermanent ? "default" : "outline"} size="sm" onClick={() => setExPermanent(false)}>{t("temporary")}</Button>
+            </div>
+            {!exPermanent && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>{t("startDate")}</Label>
+                  <Input type="date" value={exStartDate} onChange={(e) => setExStartDate(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("endDate")}</Label>
+                  <Input type="date" value={exEndDate} onChange={(e) => setExEndDate(e.target.value)} />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExceptionDialog(false)}>{tc("cancel")}</Button>
+            <Button onClick={handleAddException} disabled={savingException || !exMemberId || !exReason.trim()}>
+              {savingException && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("addException")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

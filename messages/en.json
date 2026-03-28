@@ -1089,7 +1089,22 @@
     "reassign": "Reassign",
     "addNotes": "Add Notes",
     "notAssigned": "Not assigned",
-    "variance": "Variance"
+    "variance": "Variance",
+    "exceptions": "Status Exceptions",
+    "removeException": "Remove",
+    "exemptionReason": "Reason for exemption",
+    "temporary": "Temporary",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "configureRules": "Configure",
+    "requiredEvery": "Hosting Required Every",
+    "monthsLabel": "months",
+    "reliefEligibility": "Required for Relief Eligibility",
+    "reliefEligibilityDesc": "When enabled, members overdue on hosting become ineligible for relief claims",
+    "penaltyFlagsDesc": "When enabled, missed hosting affects member standing",
+    "flagAfter": "Flag members after",
+    "daysLabel": "days",
+    "saveRules": "Save Rules"
   },
   "minutes": {
     "title": "Meeting Minutes",

@@ -1089,7 +1089,22 @@
     "reassign": "Réassigner",
     "addNotes": "Ajouter des notes",
     "notAssigned": "Non assigné",
-    "variance": "Variance"
+    "variance": "Variance",
+    "exceptions": "Exceptions de statut",
+    "removeException": "Supprimer",
+    "exemptionReason": "Motif de l'exemption",
+    "temporary": "Temporaire",
+    "startDate": "Date de début",
+    "endDate": "Date de fin",
+    "configureRules": "Configurer",
+    "requiredEvery": "Accueil requis tous les",
+    "monthsLabel": "mois",
+    "reliefEligibility": "Requis pour l'éligibilité au secours",
+    "reliefEligibilityDesc": "Quand activé, les membres en retard deviennent non éligibles au secours",
+    "penaltyFlagsDesc": "Quand activé, les accueils manqués affectent le statut du membre",
+    "flagAfter": "Signaler les membres après",
+    "daysLabel": "jours",
+    "saveRules": "Enregistrer les règles"
   },
   "minutes": {
     "title": "Procès-verbaux",

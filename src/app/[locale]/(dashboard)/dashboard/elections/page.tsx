@@ -57,6 +57,7 @@ import {
 } from "lucide-react";
 import { useElections, useCreateElection, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { getMemberName } from "@/lib/get-member-name";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -153,10 +154,7 @@ function formatDate(dateStr: string) {
 
 function getCandidateName(candidate: Candidate): string {
   if (!candidate.membership) return "Candidate";
-  const profile = Array.isArray(candidate.membership.profiles)
-    ? candidate.membership.profiles[0]
-    : candidate.membership.profiles;
-  return profile?.full_name || "Candidate";
+  return getMemberName(candidate.membership as unknown as Record<string, unknown>);
 }
 
 function isWithinVotingPeriod(election: Election): boolean {
@@ -952,15 +950,11 @@ export default function ElectionsPage() {
               <Select value={candidateMembershipId} onValueChange={(v) => setCandidateMembershipId(v ?? "")}>
                 <SelectTrigger><SelectValue placeholder={t("selectMember")} /></SelectTrigger>
                 <SelectContent>
-                  {(members || []).map((member: Record<string, unknown>) => {
-                    const profile = member.profile as Record<string, unknown> | undefined;
-                    const memberName = (profile?.full_name as string) || (member.display_name as string) || "Member";
-                    return (
-                      <SelectItem key={member.id as string} value={member.id as string}>
-                        {memberName}
-                      </SelectItem>
-                    );
-                  })}
+                  {(members || []).map((member: Record<string, unknown>) => (
+                    <SelectItem key={member.id as string} value={member.id as string}>
+                      {getMemberName(member)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

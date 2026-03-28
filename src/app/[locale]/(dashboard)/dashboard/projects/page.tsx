@@ -39,6 +39,7 @@ import {
 import { useProjects, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
+import { getMemberName } from "@/lib/get-member-name";
 import {
   CardGridSkeleton,
   EmptyState,
@@ -213,8 +214,7 @@ function IncomeDialog({
               <option value="">{t("selectMember")}</option>
               {members.map((m) => {
                 const id = m.id as string;
-                const profile = m.profile as { full_name: string | null } | null;
-                const displayName = (m.display_name as string) || profile?.full_name || id;
+                const displayName = getMemberName(m as Record<string, unknown>);
                 return (
                   <option key={id} value={id}>
                     {displayName}
@@ -545,13 +545,12 @@ function ProjectDetail({
   const totalSpent = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const balance = totalRaised - totalSpent;
 
-  // Build a lookup for member names from the contributions data
+  // Build a lookup for member names using getMemberName (handles proxy members)
   const memberNameMap = useMemo(() => {
     const map: Record<string, string> = {};
     for (const m of members) {
       const id = m.id as string;
-      const profile = m.profile as { full_name: string | null } | null;
-      map[id] = (m.display_name as string) || profile?.full_name || id;
+      map[id] = getMemberName(m as Record<string, unknown>);
     }
     return map;
   }, [members]);

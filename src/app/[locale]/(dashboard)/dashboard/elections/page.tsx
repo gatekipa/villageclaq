@@ -143,7 +143,7 @@ function getInitials(name: string) {
 
 function formatDate(dateStr: string) {
   try {
-    return new Date(dateStr).toLocaleDateString("en-US", {
+    return new Date(dateStr).toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -154,7 +154,7 @@ function formatDate(dateStr: string) {
 }
 
 function getCandidateName(candidate: Candidate): string {
-  if (!candidate.membership) return "Candidate";
+  if (!candidate.membership) return "—";
   return getMemberName(candidate.membership as unknown as Record<string, unknown>);
 }
 
@@ -170,7 +170,6 @@ export default function ElectionsPage() {
   const tc = useTranslations("common");
   const { groupId, user, currentMembership } = useGroup();
   const { hasPermission } = usePermissions();
-  const isAdmin = hasPermission("elections.manage");
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -466,12 +465,12 @@ export default function ElectionsPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
-        {isAdmin && (
+        <PermissionGate permission="elections.manage">
           <Button onClick={() => { resetCreateForm(); setShowCreate(true); }}>
             <Plus className="mr-2 h-4 w-4" />
             {t("createElection")}
           </Button>
-        )}
+        </PermissionGate>
       </div>
 
       {/* Action Error Notification */}
@@ -567,7 +566,7 @@ export default function ElectionsPage() {
                         )}
                         {t(`status${election.status.charAt(0).toUpperCase() + election.status.slice(1)}` as Parameters<typeof t>[0])}
                       </Badge>
-                      {isAdmin && election.status === "draft" && (
+                      {hasPermission("elections.manage") && election.status === "draft" && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none">
                             <MoreVertical className="h-4 w-4" />
@@ -609,7 +608,7 @@ export default function ElectionsPage() {
                   )}
 
                   {/* Manage / view results */}
-                  {!isSelected && (election.status === "closed" || isAdmin) && (
+                  {!isSelected && (election.status === "closed" || hasPermission("elections.manage")) && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -631,7 +630,7 @@ export default function ElectionsPage() {
                 {isSelected && (
                   <CardContent className="border-t pt-4">
                     {/* Admin Controls */}
-                    {isAdmin && (
+                    {hasPermission("elections.manage") && (
                       <PermissionGate permission="elections.manage">
                         <div className="mb-4 flex flex-wrap gap-2">
                           {election.status === "draft" && (
@@ -697,7 +696,7 @@ export default function ElectionsPage() {
                                     <p className="line-clamp-2 text-xs text-muted-foreground">{candidate.statement}</p>
                                   )}
                                 </div>
-                                {isAdmin && (election.status === "draft" || election.status === "open") && (
+                                {hasPermission("elections.manage") && (election.status === "draft" || election.status === "open") && (
                                   <Button
                                     size="icon"
                                     variant="ghost"
@@ -725,7 +724,7 @@ export default function ElectionsPage() {
                             .map((option) => (
                               <div key={option.id} className="flex items-center gap-1">
                                 <Badge variant="outline">{option.label}</Badge>
-                                {isAdmin && (election.status === "draft" || election.status === "open") && (
+                                {hasPermission("elections.manage") && (election.status === "draft" || election.status === "open") && (
                                   <Button
                                     size="icon"
                                     variant="ghost"
@@ -756,11 +755,14 @@ export default function ElectionsPage() {
                               onClick={async () => {
                                 setCandidateLoading(true);
                                 try {
-                                  await supabase.from("election_candidates").insert({
+                                  const { error: err } = await supabase.from("election_candidates").insert({
                                     election_id: election.id,
                                     membership_id: currentMembership.id,
                                   });
+                                  if (err) throw err;
                                   queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
+                                } catch {
+                                  showError(t("addCandidateFailed"));
                                 } finally { setCandidateLoading(false); }
                               }}
                               disabled={candidateLoading}
@@ -897,7 +899,7 @@ export default function ElectionsPage() {
                                       let name = "";
                                       if (result.candidate_id) {
                                         const candidate = election.election_candidates.find((c) => c.id === result.candidate_id);
-                                        name = candidate ? getCandidateName(candidate) : "Unknown";
+                                        name = candidate ? getCandidateName(candidate) : "—";
                                       } else if (result.option_id) {
                                         const option = election.election_options.find((o) => o.id === result.option_id);
                                         name = option?.label || "Unknown";

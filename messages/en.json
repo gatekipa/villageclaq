@@ -2342,7 +2342,9 @@
     "participantAdded": "Participant added",
     "participantRemoved": "Participant removed",
     "enrollParticipants": "Enroll Participants",
-    "njangiTreasury": "Njangi Treasury"
+    "njangiTreasury": "Njangi Treasury",
+    "nextCollector": "Next Collector",
+    "separateFinances": "Njangi finances are tracked separately from group finances"
   },
   "elections": {
     "title": "Elections & Voting",

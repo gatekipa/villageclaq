@@ -540,6 +540,42 @@ export default function SavingsCirclePage() {
         );
       })()}
 
+      {/* Njangi Treasury */}
+      {(() => {
+        const allContribs = cycles.reduce((sum: number, c: Record<string, unknown>) => {
+          const p = ((c.savings_participants as unknown[]) || []).length;
+          const round = (c.current_round as number) || 1;
+          return sum + Number(c.amount) * p * Math.max(0, round - 1);
+        }, 0);
+        const allPayouts = cycles.reduce((sum: number, c: Record<string, unknown>) => {
+          const p = ((c.savings_participants as Record<string, unknown>[]) || []).filter((pp) => pp.has_collected);
+          return sum + p.length * Number(c.amount) * (((c.savings_participants as unknown[]) || []).length);
+        }, 0);
+        return (
+          <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CircleDollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{t("njangiTreasury")}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("totalCollected")}</p>
+                  <p className="text-lg font-bold">{formatAmount(allContribs, groupCurrency)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{t("totalPending")}</p>
+                  <p className="text-lg font-bold">{formatAmount(Math.max(0, allContribs - allPayouts), groupCurrency)}</p>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <p className="text-[10px] text-muted-foreground italic">{t("separateFinances")}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Cycles */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-foreground">{t("activeCycles")}</h2>
@@ -644,6 +680,29 @@ export default function SavingsCirclePage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Next Collector + Next Collection */}
+                {status === "active" && participants.length > 0 && (() => {
+                  const nextCollector = participants.find((p: Record<string, unknown>) => (p.collection_round as number) === currentRound);
+                  const ncMembership = nextCollector?.membership as Record<string, unknown> | undefined;
+                  const ncName = ncMembership ? getMemberName(ncMembership) : "—";
+                  // Calculate next collection date from start_date + frequency * (currentRound - 1)
+                  const startD = new Date((cycle.start_date as string) || "");
+                  const freqDays = freq === "weekly" ? 7 : freq === "biweekly" ? 14 : 30;
+                  const nextDate = new Date(startD.getTime() + (currentRound - 1) * freqDays * 86400000);
+                  return (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 p-2.5">
+                        <p className="text-xs text-muted-foreground">{t("nextCollector")}</p>
+                        <p className="text-sm font-semibold">{ncName}</p>
+                      </div>
+                      <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 p-2.5">
+                        <p className="text-xs text-muted-foreground">{t("nextCollection")}</p>
+                        <p className="text-sm font-semibold">{nextDate.toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Progress bar */}
                 <div className="space-y-2">
@@ -773,15 +832,35 @@ export default function SavingsCirclePage() {
             </div>
             <div className="space-y-2">
               <Label>{t("rotationType")}</Label>
-              <Select value={rotationType} onValueChange={(v) => setRotationType(v ?? "sequential")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sequential">{t("sequential")}</SelectItem>
-                  <SelectItem value="random">{t("random")}</SelectItem>
-                  <SelectItem value="auction">{t("auction")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: "sequential", label: t("takeTurns"), desc: t("takeTurnsDesc"), Icon: Repeat },
+                  { value: "random", label: t("luckyDraw"), desc: t("luckyDrawDesc"), Icon: Shuffle },
+                  { value: "auction", label: t("bidding"), desc: t("biddingDesc"), Icon: Gavel },
+                ] as const).map(({ value, label, desc, Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRotationType(value)}
+                    className={`flex flex-col items-start gap-1 rounded-lg border p-2.5 text-left text-xs transition-colors ${rotationType === value ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                  >
+                    <Icon className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{label}</span>
+                    <span className="text-[10px] text-muted-foreground line-clamp-2">{desc}</span>
+                  </button>
+                ))}
+              </div>
             </div>
+            {/* Auto-enroll */}
+            {!editCycleId && (
+              <div className="flex items-center gap-3 rounded-lg border p-3">
+                <input type="checkbox" checked={autoEnroll} onChange={(e) => setAutoEnroll(e.target.checked)} className="h-4 w-4 rounded border-input" />
+                <div>
+                  <p className="text-sm font-medium">{t("autoEnrollAll")}</p>
+                  <p className="text-[10px] text-muted-foreground">{t("enrollAfterCreate")}</p>
+                </div>
+              </div>
+            )}
             {createError && <p className="text-sm text-destructive">{createError}</p>}
           </div>
           <DialogFooter>

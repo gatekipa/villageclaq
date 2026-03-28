@@ -97,6 +97,12 @@ function RoundManagement({
 }) {
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [advancing, setAdvancing] = useState(false);
+  const [showCollectionDialog, setShowCollectionDialog] = useState(false);
+  const [collectionAmount, setCollectionAmount] = useState("");
+  const [collectionMethod, setCollectionMethod] = useState("cash");
+  const [collectionNotes, setCollectionNotes] = useState("");
+  const [recordingCollection, setRecordingCollection] = useState(false);
+  const [collectionHistory, setCollectionHistory] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -107,6 +113,19 @@ function RoundManagement({
       .eq("cycle_id", cycleId)
       .eq("round_number", currentRound)
       .then(({ data }) => setRoundContribs(data || []));
+    // Fetch collection history (all completed rounds)
+    supabase
+      .from("savings_participants")
+      .select("collection_round, has_collected, collected_at, membership:memberships!inner(id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name))")
+      .eq("cycle_id", cycleId)
+      .eq("has_collected", true)
+      .order("collection_round", { ascending: true })
+      .then(({ data }) => {
+        setCollectionHistory((data || []).map((d: Record<string, unknown>) => {
+          const m = d.membership as Record<string, unknown> | null;
+          return { ...d, membership: m ? { ...m, profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles } : null };
+        }));
+      });
   }, [expanded, cycleId, currentRound, setRoundContribs]);
 
   const handleMarkPaid = async (participantMembershipId: string) => {
@@ -146,16 +165,27 @@ function RoundManagement({
     setAdvancing(false);
   };
 
+  const handleRecordCollection = async () => {
+    if (!collectorParticipantId) return;
+    setRecordingCollection(true);
+    try {
+      const supabase = createClient();
+      await supabase.from("savings_participants").update({
+        has_collected: true,
+        collected_at: new Date().toISOString(),
+      }).eq("cycle_id", cycleId).eq("collection_round", currentRound);
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      setShowCollectionDialog(false);
+    } finally { setRecordingCollection(false); }
+  };
+
   const collectorParticipant = participants.find(
     (p) => (p.collection_round as number) === currentRound
   );
   const collectorMembership = collectorParticipant?.membership as Record<string, unknown> | undefined;
-  const collectorProfile = collectorMembership
-    ? (Array.isArray(collectorMembership.profiles)
-        ? collectorMembership.profiles[0]
-        : collectorMembership.profiles) as Record<string, unknown> | undefined
-    : undefined;
-  const collectorName = (collectorProfile?.full_name as string) || "";
+  const collectorName = collectorMembership ? getMemberName(collectorMembership) : "";
+  const collectorParticipantId = collectorParticipant?.id as string | undefined;
+  const potSize = cycleAmount * participants.length;
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4 dark:bg-muted/5">
@@ -259,17 +289,82 @@ function RoundManagement({
             })}
           </div>
 
-          {/* Advance Round button */}
-          {currentRound < totalRounds && (
-            <Button
-              onClick={handleAdvanceRound}
-              disabled={advancing}
-              className="w-full sm:w-auto"
-            >
-              {advancing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("advanceRound")}
-            </Button>
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2">
+            {collectorParticipant && !(collectorParticipant.has_collected as boolean) && (
+              <Button variant="outline" size="sm" onClick={() => {
+                setCollectionAmount(String(potSize));
+                setCollectionMethod("cash");
+                setCollectionNotes("");
+                setShowCollectionDialog(true);
+              }}>
+                <DollarSign className="mr-1 h-3.5 w-3.5" />
+                {t("recordCollection")}
+              </Button>
+            )}
+            {currentRound < totalRounds && (
+              <Button onClick={handleAdvanceRound} disabled={advancing} size="sm">
+                {advancing && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                {t("advanceRound")}
+              </Button>
+            )}
+          </div>
+
+          {/* Collection History */}
+          {collectionHistory.length > 0 && (
+            <div className="space-y-2">
+              <h5 className="text-xs font-medium text-muted-foreground">{t("collectionHistory")}</h5>
+              <div className="rounded-lg border divide-y">
+                {collectionHistory.map((ch: Record<string, unknown>, i: number) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2 text-xs">
+                    <span>R{ch.collection_round as number}</span>
+                    <span className="font-medium">{getMemberName(ch.membership as Record<string, unknown>)}</span>
+                    <span className="text-muted-foreground">{ch.collected_at ? new Date(ch.collected_at as string).toLocaleDateString() : "—"}</span>
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("collected")}</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
+
+          {/* Record Collection Dialog */}
+          <Dialog open={showCollectionDialog} onOpenChange={setShowCollectionDialog}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>{t("recordCollection")}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="text-xs text-muted-foreground">{t("collector")}</p>
+                  <p className="text-sm font-medium">{collectorName}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("amount")}</Label>
+                  <Input type="number" value={collectionAmount} onChange={(e) => setCollectionAmount(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>{tc("method") || "Method"}</Label>
+                  <Select value={collectionMethod} onValueChange={(v) => setCollectionMethod(v ?? "cash")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Input value={collectionNotes} onChange={(e) => setCollectionNotes(e.target.value)} placeholder="Optional" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowCollectionDialog(false)}>{tc("cancel")}</Button>
+                <Button onClick={handleRecordCollection} disabled={recordingCollection}>
+                  {recordingCollection && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("recordCollection")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>
@@ -304,6 +399,8 @@ export default function SavingsCirclePage() {
   const [startDate, setStartDate] = useState("");
   const [rotationType, setRotationType] = useState<string>("sequential");
   const [autoEnroll, setAutoEnroll] = useState(true);
+  const [meetingSchedule, setMeetingSchedule] = useState("");
+  const [meetingLocation, setMeetingLocation] = useState("");
   const [createError, setCreateError] = useState("");
   const [editCycleId, setEditCycleId] = useState<string | null>(null);
   const [endingCycleId, setEndingCycleId] = useState<string | null>(null);
@@ -317,6 +414,8 @@ export default function SavingsCirclePage() {
     setTotalRounds("");
     setStartDate("");
     setRotationType("sequential");
+    setMeetingSchedule("");
+    setMeetingLocation("");
     setCreateError("");
   };
 
@@ -442,6 +541,17 @@ export default function SavingsCirclePage() {
                 <div className="space-y-2">
                   <Label>{t("startDate")}</Label>
                   <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                </div>
+              </div>
+              {/* Meeting Schedule & Location */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("meetingSchedule")}</Label>
+                  <Input value={meetingSchedule} onChange={(e) => setMeetingSchedule(e.target.value)} placeholder={t("meetingSchedulePlaceholder")} />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("meetingLocation")}</Label>
+                  <Input value={meetingLocation} onChange={(e) => setMeetingLocation(e.target.value)} placeholder={t("meetingLocationPlaceholder")} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -650,6 +760,13 @@ export default function SavingsCirclePage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-5">
+                {/* Meeting info */}
+                {((cycle.meeting_schedule as string) || (cycle.meeting_location as string)) && (
+                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                    {(cycle.meeting_schedule as string) && <span>📅 {t("meets")}: {cycle.meeting_schedule as string}</span>}
+                    {(cycle.meeting_location as string) && <span>📍 {cycle.meeting_location as string}</span>}
+                  </div>
+                )}
                 {/* Cycle overview grid */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>

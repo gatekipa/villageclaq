@@ -862,8 +862,6 @@
     "descriptionPlaceholder": "Décrivez l'objectif et l'ordre du jour...",
     "locationPlaceholder": "ex: Salle communautaire, Douala",
     "recurringHint": "Cet événement se répète régulièrement",
-    "attendanceRequired": "Présence obligatoire",
-    "attendanceRequiredHint": "Les membres absents seront marqués, affectant leur statut",
     "repeatLastMeeting": "Répéter la dernière réunion",
     "repeatLastMeetingDesc": "Copier la réunion la plus récente avec la date avancée selon la fréquence",
     "preFilledFrom": "Pré-rempli depuis: {title} le {date}",

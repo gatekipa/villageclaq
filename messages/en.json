@@ -862,8 +862,6 @@
     "descriptionPlaceholder": "Describe the event purpose and agenda...",
     "locationPlaceholder": "e.g., Community Hall, Douala",
     "recurringHint": "This event repeats on a regular schedule",
-    "attendanceRequired": "Attendance Required",
-    "attendanceRequiredHint": "Members who miss will be marked absent, affecting standing",
     "repeatLastMeeting": "Repeat Last Meeting",
     "repeatLastMeetingDesc": "Copy the most recent meeting with date advanced by frequency",
     "preFilledFrom": "Pre-filled from: {title} on {date}",

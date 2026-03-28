@@ -170,7 +170,7 @@ export default function EventsPage() {
   const [formLocation, setFormLocation] = useState("");
   const [formIsRecurring, setFormIsRecurring] = useState(false);
   const [formRecurrenceRule, setFormRecurrenceRule] = useState<string>("monthly");
-  const [formAttendanceRequired, setFormAttendanceRequired] = useState(true);
+  // Attendance is tracked for all events by default (no per-event toggle — no DB column exists)
   // RSVP is enabled by default for all upcoming events (no per-event toggle — no DB column exists)
   const [preFilledBanner, setPreFilledBanner] = useState<string | null>(null);
 
@@ -215,7 +215,6 @@ export default function EventsPage() {
     setFormLocation("");
     setFormIsRecurring(false);
     setFormRecurrenceRule("monthly");
-    setFormAttendanceRequired(true);
     setPreFilledBanner(null);
   };
 
@@ -805,23 +804,7 @@ export default function EventsPage() {
               </div>
             )}
 
-            {/* Attendance required */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <p className="text-sm font-medium">{t("attendanceRequired")}</p>
-                <p className="text-xs text-muted-foreground">{t("attendanceRequiredHint")}</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={formAttendanceRequired}
-                onClick={() => setFormAttendanceRequired(!formAttendanceRequired)}
-                className={cn("relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors", formAttendanceRequired ? "bg-primary" : "bg-muted")}
-              >
-                <span className={cn("pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform", formAttendanceRequired ? "translate-x-5" : "translate-x-0")} />
-              </button>
-            </div>
-
+            {/* Attendance is tracked for all events by default — no per-event toggle */}
             {/* RSVP is enabled by default for all upcoming events — no per-event control */}
           </div>
           <DialogFooter>

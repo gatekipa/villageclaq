@@ -1,5 +1,7 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
+import { exportPDF } from "@/lib/export-pdf";
+import { exportCSV } from "@/lib/export";
 
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -1511,35 +1513,30 @@ function ProjectReport({ project, contributions, expenses, milestones, currency,
   };
 
   function handleExportPDF() {
-    const { exportPDF } = require("@/lib/export-pdf");
-    const rows = [
-      ...contributions.map((c) => ({
-        type: "Income",
-        date: c.paid_at || "",
-        description: memberNameMap[c.membership_id] || "Contribution",
-        amount: formatAmount(Number(c.amount), currency),
-        method: c.payment_method || "",
-      })),
-      ...expenses.map((e) => ({
-        type: "Expense",
-        date: e.spent_at || "",
-        description: e.description,
-        amount: formatAmount(Number(e.amount), currency),
-        method: "",
-      })),
+    const pdfColumns = ["Type", "Date", "Description", "Amount", "Method"];
+    const pdfRows: (string | number)[][] = [
+      ...contributions.map((c) => [
+        "Income",
+        c.paid_at || "",
+        memberNameMap[c.membership_id] || "Contribution",
+        formatAmount(Number(c.amount), currency),
+        c.payment_method || "",
+      ]),
+      ...expenses.map((e) => [
+        "Expense",
+        e.spent_at || "",
+        e.description,
+        formatAmount(Number(e.amount), currency),
+        "",
+      ]),
     ];
     exportPDF({
       title: `${t("projectReport")}: ${project.name}`,
       subtitle: `${t("progress")}: ${progress}% | ${t("balance")}: ${formatAmount(balance, currency)}`,
-      columns: [
-        { header: "Type", key: "type" },
-        { header: "Date", key: "date" },
-        { header: "Description", key: "description" },
-        { header: "Amount", key: "amount" },
-        { header: "Method", key: "method" },
-      ],
-      rows,
-      fileName: `${project.name.replace(/\s+/g, "-")}-report.pdf`,
+      columns: pdfColumns,
+      rows: pdfRows,
+      fileName: `${project.name.replace(/\s+/g, "-")}-report`,
+      groupName: project.name,
       stats: [
         { label: t("targetAmount"), value: formatAmount(target, currency) },
         { label: t("totalRaised"), value: formatAmount(totalRaised, currency) },
@@ -1550,23 +1547,25 @@ function ProjectReport({ project, contributions, expenses, milestones, currency,
   }
 
   function handleExportCSV() {
-    const { exportCSV } = require("@/lib/export");
-    const rows = [
+    const csvRows = [
       ...contributions.map((c) => ({
         type: "Income",
         date: c.paid_at || "",
         member: memberNameMap[c.membership_id] || "",
+        description: "Contribution",
         amount: Number(c.amount),
         method: c.payment_method || "",
       })),
       ...expenses.map((e) => ({
         type: "Expense",
         date: e.spent_at || "",
+        member: "",
         description: e.description,
         amount: Number(e.amount),
+        method: "",
       })),
     ];
-    exportCSV(rows, `${project.name.replace(/\s+/g, "-")}-transactions.csv`);
+    exportCSV(csvRows, `${project.name.replace(/\s+/g, "-")}-transactions`);
   }
 
   return (

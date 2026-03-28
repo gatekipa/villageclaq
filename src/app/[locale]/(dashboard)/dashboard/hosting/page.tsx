@@ -212,7 +212,7 @@ export default function HostingPage() {
   const rosters = (rostersRaw || []) as Roster[];
   const members = (membersRaw || []) as Member[];
   const activeMembers = useMemo(
-    () => members.filter((m) => m.standing === "good"),
+    () => members.filter((m) => m.standing !== "banned" && m.standing !== "suspended"),
     [members]
   );
 
@@ -236,9 +236,9 @@ export default function HostingPage() {
   const stats = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
 
-    // Next host
+    // Next host — find the nearest future assignment that isn't completed/missed/exempted
     const upcoming = allAssignments
-      .filter((a) => a.status === "upcoming" && a.assigned_date >= todayStr)
+      .filter((a) => a.assigned_date >= todayStr && a.status !== "completed" && a.status !== "missed" && a.status !== "exempted")
       .sort((a, b) => a.assigned_date.localeCompare(b.assigned_date));
     const next = upcoming[0];
     const nextHostName = next ? getHostName(next) : "\u2014";
@@ -1942,9 +1942,14 @@ function PlanBuilder({ roster, activeMembers, t, tc, onSuccess }: {
       }
 
       if (assignments.length > 0) {
-        await supabase.from("hosting_assignments").insert(assignments);
+        const { error } = await supabase.from("hosting_assignments").insert(assignments);
+        if (error) {
+          console.error("Failed to create assignments:", error);
+        }
       }
       onSuccess();
+    } catch (err) {
+      console.error("Plan builder error:", err);
     } finally {
       setBuilding(false);
     }

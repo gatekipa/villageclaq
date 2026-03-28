@@ -549,9 +549,11 @@ export default function SavingsCirclePage() {
   const [startDate, setStartDate] = useState("");
   const [rotationType, setRotationType] = useState<string>("sequential");
   const [autoEnroll, setAutoEnroll] = useState(true);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [meetingSchedule, setMeetingSchedule] = useState("");
   const [meetingLocation, setMeetingLocation] = useState("");
   const [createError, setCreateError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [editCycleId, setEditCycleId] = useState<string | null>(null);
   const [endingCycleId, setEndingCycleId] = useState<string | null>(null);
   const [expandedCycleId, setExpandedCycleId] = useState<string | null>(null);
@@ -562,18 +564,24 @@ export default function SavingsCirclePage() {
     setAmount("");
     setFrequency("monthly");
     setTotalRounds("");
-    setStartDate("");
+    setStartDate(new Date().toISOString().slice(0, 10));
     setRotationType("sequential");
+    setAutoEnroll(true);
+    setSelectedMemberIds([]);
     setMeetingSchedule("");
     setMeetingLocation("");
     setCreateError("");
+    setFieldErrors({});
   };
 
   const handleCreateCycle = async () => {
-    if (!cycleName.trim() || !amount || !totalRounds || !startDate) {
-      setCreateError(tc("required"));
-      return;
-    }
+    const errors: Record<string, string> = {};
+    if (!cycleName.trim()) errors.name = t("cycleName") + " required";
+    if (!amount || Number(amount) <= 0) errors.amount = t("amount") + " > 0";
+    if (!totalRounds || Number(totalRounds) <= 0) errors.rounds = t("totalRounds") + " > 0";
+    if (!startDate) errors.date = t("startDate") + " required";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setCreateError("");
 
     // Edit mode
@@ -606,18 +614,24 @@ export default function SavingsCirclePage() {
         start_date: startDate,
       });
 
-      // Auto-enroll participants if checked
-      if (autoEnroll && newCycle?.id && activeMembers.length > 0) {
+      // Enroll participants
+      if (newCycle?.id) {
         const supabase = createClient();
         const rounds = Number(totalRounds);
-        const participants = activeMembers.slice(0, rounds).map((m: Record<string, unknown>, i: number) => ({
-          cycle_id: newCycle.id,
-          membership_id: m.id as string,
-          collection_round: i + 1,
-          has_collected: false,
-        }));
-        if (participants.length > 0) {
-          await supabase.from("savings_participants").insert(participants);
+        let enrollMembers: Array<Record<string, unknown>> = [];
+        if (autoEnroll) {
+          enrollMembers = activeMembers.slice(0, rounds);
+        } else if (selectedMemberIds.length > 0) {
+          enrollMembers = activeMembers.filter((m: Record<string, unknown>) => selectedMemberIds.includes(m.id as string)).slice(0, rounds);
+        }
+        if (enrollMembers.length > 0) {
+          const parts = enrollMembers.map((m: Record<string, unknown>, i: number) => ({
+            cycle_id: newCycle.id,
+            membership_id: m.id as string,
+            collection_round: i + 1,
+            has_collected: false,
+          }));
+          await supabase.from("savings_participants").insert(parts);
           queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
         }
       }
@@ -727,13 +741,29 @@ export default function SavingsCirclePage() {
               </div>
               {/* Auto-enroll */}
               {!editCycleId && (
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <input type="checkbox" checked={autoEnroll} onChange={(e) => setAutoEnroll(e.target.checked)} className="h-4 w-4 rounded border-input" />
-                  <div>
-                    <p className="text-sm font-medium">{t("autoEnrollAll")}</p>
-                    <p className="text-[10px] text-muted-foreground">{t("enrollAfterCreate")}</p>
+                <>
+                  <div className="flex items-center gap-3 rounded-lg border p-3">
+                    <input type="checkbox" checked={autoEnroll} onChange={(e) => { setAutoEnroll(e.target.checked); if (e.target.checked) setSelectedMemberIds([]); }} className="h-4 w-4 rounded border-input" />
+                    <div>
+                      <p className="text-sm font-medium">{t("autoEnrollAll")}</p>
+                      <p className="text-[10px] text-muted-foreground">{autoEnroll ? `${activeMembers.length} ${t("participants")}` : t("manualSelect")}</p>
+                    </div>
                   </div>
-                </div>
+                  {!autoEnroll && (
+                    <div className="max-h-40 overflow-y-auto rounded-lg border divide-y">
+                      {activeMembers.map((m: Record<string, unknown>) => {
+                        const mid = m.id as string;
+                        const sel = selectedMemberIds.includes(mid);
+                        return (
+                          <button key={mid} type="button" onClick={() => setSelectedMemberIds((prev) => sel ? prev.filter((x) => x !== mid) : [...prev, mid])} className={`flex w-full items-center gap-2 p-2 text-left text-xs transition-colors ${sel ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                            {sel ? <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" /> : <div className="h-3.5 w-3.5 rounded-full border shrink-0" />}
+                            <span>{getMemberName(m)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
               {createError && <p className="text-sm text-destructive">{createError}</p>}
             </div>
@@ -1069,13 +1099,15 @@ export default function SavingsCirclePage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>{t("cycleName")}</Label>
-              <Input value={cycleName} onChange={(e) => setCycleName(e.target.value)} placeholder={t("cycleName")} />
+              <Label>{t("cycleName")} *</Label>
+              <Input value={cycleName} onChange={(e) => setCycleName(e.target.value)} placeholder={t("cycleName")} className={fieldErrors.name ? "border-destructive" : ""} />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>{t("amount")}</Label>
-                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" />
+                <Label>{t("amount")} ({currentGroup?.currency || "XAF"}) *</Label>
+                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="10000" className={fieldErrors.amount ? "border-destructive" : ""} />
+                {fieldErrors.amount && <p className="text-xs text-destructive">{fieldErrors.amount}</p>}
               </div>
               <div className="space-y-2">
                 <Label>{t("frequency")}</Label>
@@ -1091,12 +1123,13 @@ export default function SavingsCirclePage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>{t("totalRounds")}</Label>
-                <Input type="number" value={totalRounds} onChange={(e) => setTotalRounds(e.target.value)} placeholder="12" />
+                <Label>{t("totalRounds")} *</Label>
+                <Input type="number" value={totalRounds} onChange={(e) => setTotalRounds(e.target.value)} placeholder="12" className={fieldErrors.rounds ? "border-destructive" : ""} />
+                {fieldErrors.rounds && <p className="text-xs text-destructive">{fieldErrors.rounds}</p>}
               </div>
               <div className="space-y-2">
-                <Label>{t("startDate")}</Label>
-                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <Label>{t("startDate")} *</Label>
+                <Input type="date" value={startDate || new Date().toISOString().slice(0, 10)} onChange={(e) => setStartDate(e.target.value)} className={fieldErrors.date ? "border-destructive" : ""} />
               </div>
             </div>
             <div className="space-y-2">

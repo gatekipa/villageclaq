@@ -1803,7 +1803,12 @@
     "noOutstanding": "All payments up to date!",
     "noOutstandingDesc": "You have no outstanding payments. Great job!",
     "noEvents": "No upcoming events",
-    "noEventsDesc": "There are no upcoming events scheduled for your group."
+    "noEventsDesc": "There are no upcoming events scheduled for your group.",
+    "mySavings": "My Savings",
+    "alreadyCollected": "Collected",
+    "waitingToCollect": "Waiting to Collect",
+    "totalContributed": "Total Contributed",
+    "roundsAway": "{count} rounds away"
   },
   "myHosting": {
     "title": "My Hosting",
@@ -2373,7 +2378,10 @@
     "meetingLocationPlaceholder": "e.g., Chief's palace, Mankon",
     "meets": "Meets",
     "fineRulesUpdated": "Fine rules updated",
-    "fineRecorded": "Fine recorded"
+    "fineRecorded": "Fine recorded",
+    "finesCollected": "Collected",
+    "fineMarkedPaid": "Fine marked as paid",
+    "roundsAway": "{count} rounds away"
   },
   "elections": {
     "title": "Elections & Voting",

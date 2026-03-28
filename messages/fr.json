@@ -1502,7 +1502,12 @@
     "noOutstanding": "Tous les paiements sont à jour !",
     "noOutstandingDesc": "Vous n'avez aucun paiement en attente. Bravo !",
     "noEvents": "Aucun événement à venir",
-    "noEventsDesc": "Aucun événement n'est prévu pour votre groupe."
+    "noEventsDesc": "Aucun événement n'est prévu pour votre groupe.",
+    "mySavings": "Mon épargne",
+    "alreadyCollected": "Collecté",
+    "waitingToCollect": "En attente de collecte",
+    "totalContributed": "Total cotisé",
+    "roundsAway": "{count} tours restants"
   },
   "myPayments": {
     "title": "Mes paiements",
@@ -2349,7 +2354,10 @@
     "meetingLocationPlaceholder": "ex., Palais du chef, Mankon",
     "meets": "Se réunit",
     "fineRulesUpdated": "Règles d'amende mises à jour",
-    "fineRecorded": "Amende enregistrée"
+    "fineRecorded": "Amende enregistrée",
+    "finesCollected": "Collectées",
+    "fineMarkedPaid": "Amende marquée payée",
+    "roundsAway": "{count} tours restants"
   },
   "elections": {
     "title": "Élections et votes",

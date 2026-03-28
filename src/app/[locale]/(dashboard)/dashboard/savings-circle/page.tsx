@@ -73,6 +73,8 @@ function RoundManagement({
   cycleAmount,
   currency,
   participants,
+  fineRules,
+  finesLedger,
   expanded,
   onToggle,
   roundContribs,
@@ -87,6 +89,8 @@ function RoundManagement({
   cycleAmount: number;
   currency: string;
   participants: Record<string, unknown>[];
+  fineRules: Record<string, number>;
+  finesLedger: Array<Record<string, unknown>>;
   expanded: boolean;
   onToggle: () => void;
   roundContribs: Record<string, unknown>[];
@@ -103,6 +107,20 @@ function RoundManagement({
   const [collectionNotes, setCollectionNotes] = useState("");
   const [recordingCollection, setRecordingCollection] = useState(false);
   const [collectionHistory, setCollectionHistory] = useState<Record<string, unknown>[]>([]);
+
+  // Fines state
+  const [showFineRulesDialog, setShowFineRulesDialog] = useState(false);
+  const [fineLateFee, setFineLateFee] = useState(fineRules.late_contribution || 0);
+  const [fineAbsenceFee, setFineAbsenceFee] = useState(fineRules.absence || 0);
+  const [fineDefaultFee, setFineDefaultFee] = useState(fineRules.default_penalty || 0);
+  const [savingFineRules, setSavingFineRules] = useState(false);
+  const [showRecordFineDialog, setShowRecordFineDialog] = useState(false);
+  const [fineMembershipId, setFineMembershipId] = useState("");
+  const [fineType, setFineType] = useState("late_contribution");
+  const [fineAmount, setFineAmount] = useState("");
+  const [fineReason, setFineReason] = useState("");
+  const [recordingFine, setRecordingFine] = useState(false);
+  const [markingFinePaid, setMarkingFinePaid] = useState<string | null>(null);
 
   useEffect(() => {
     if (!expanded) return;
@@ -177,6 +195,42 @@ function RoundManagement({
       queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
       setShowCollectionDialog(false);
     } finally { setRecordingCollection(false); }
+  };
+
+  const handleSaveFineRules = async () => {
+    setSavingFineRules(true);
+    try {
+      const supabase = createClient();
+      await supabase.from("savings_cycles").update({
+        fine_rules: { late_contribution: fineLateFee, absence: fineAbsenceFee, default_penalty: fineDefaultFee },
+      }).eq("id", cycleId);
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      setShowFineRulesDialog(false);
+    } finally { setSavingFineRules(false); }
+  };
+
+  const handleRecordFine = async () => {
+    if (!fineMembershipId || !fineAmount) return;
+    setRecordingFine(true);
+    try {
+      const supabase = createClient();
+      const newFine = { id: crypto.randomUUID(), membership_id: fineMembershipId, type: fineType, amount: Number(fineAmount), reason: fineReason.trim(), date: new Date().toISOString().slice(0, 10), status: "unpaid" };
+      const updated = [...finesLedger, newFine];
+      await supabase.from("savings_cycles").update({ fines_ledger: updated }).eq("id", cycleId);
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      setShowRecordFineDialog(false);
+      setFineMembershipId(""); setFineAmount(""); setFineReason("");
+    } finally { setRecordingFine(false); }
+  };
+
+  const handleMarkFinePaid = async (fineId: string) => {
+    setMarkingFinePaid(fineId);
+    try {
+      const supabase = createClient();
+      const updated = finesLedger.map((f) => (f.id as string) === fineId ? { ...f, status: "paid" } : f);
+      await supabase.from("savings_cycles").update({ fines_ledger: updated }).eq("id", cycleId);
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+    } finally { setMarkingFinePaid(null); }
   };
 
   const collectorParticipant = participants.find(
@@ -281,6 +335,9 @@ function RoundManagement({
                           )}
                           {t("markPaid")}
                         </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-[10px] text-amber-600" onClick={() => { setFineMembershipId(membershipId); setFineAmount(String(fineRules.late_contribution || 0)); setFineReason(""); setFineType("late_contribution"); setShowRecordFineDialog(true); }}>
+                          {t("recordFine")}
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -326,6 +383,99 @@ function RoundManagement({
               </div>
             </div>
           )}
+
+          {/* Fine Rules */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h5 className="text-xs font-medium text-muted-foreground">{t("fineRules")}</h5>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => { setFineLateFee(fineRules.late_contribution || 0); setFineAbsenceFee(fineRules.absence || 0); setFineDefaultFee(fineRules.default_penalty || 0); setShowFineRulesDialog(true); }}>
+                {t("configureFines")}
+              </Button>
+            </div>
+            <div className="flex gap-3 text-xs text-muted-foreground">
+              <span>{t("lateContributionFine")}: {formatAmount(fineRules.late_contribution || 0, currency)}</span>
+              <span>{t("absenceFine")}: {formatAmount(fineRules.absence || 0, currency)}</span>
+              <span>{t("defaultPenalty")}: {formatAmount(fineRules.default_penalty || 0, currency)}</span>
+            </div>
+          </div>
+
+          {/* Fines Ledger */}
+          <div className="space-y-2">
+            <h5 className="text-xs font-medium text-muted-foreground">{t("finesLedger")}</h5>
+            {finesLedger.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">{t("noFines")}</p>
+            ) : (
+              <>
+                <div className="rounded-lg border divide-y">
+                  {finesLedger.map((fine: Record<string, unknown>) => {
+                    const mp = participants.find((p) => (p.membership_id as string) === (fine.membership_id as string));
+                    const mm = mp?.membership as Record<string, unknown> | undefined;
+                    return (
+                      <div key={fine.id as string} className="flex items-center justify-between px-3 py-2 text-xs">
+                        <span className="font-medium">{mm ? getMemberName(mm) : "—"}</span>
+                        <span className="text-muted-foreground capitalize">{String(fine.type).replace(/_/g, " ")}</span>
+                        <span>{formatAmount(Number(fine.amount), currency)}</span>
+                        {(fine.status as string) === "paid" ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("markPaid")}</Badge>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="h-5 text-[10px] text-emerald-600" onClick={() => handleMarkFinePaid(fine.id as string)} disabled={markingFinePaid === (fine.id as string)}>
+                            {t("markPaid")}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <span>{t("totalFines")}: {formatAmount(finesLedger.reduce((s, f) => s + Number(f.amount), 0), currency)}</span>
+                  <span>{t("finesCollected")}: {formatAmount(finesLedger.filter((f) => f.status === "paid").reduce((s, f) => s + Number(f.amount), 0), currency)}</span>
+                  <span>{t("finesOutstanding")}: {formatAmount(finesLedger.filter((f) => f.status === "unpaid").reduce((s, f) => s + Number(f.amount), 0), currency)}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Fine Rules Dialog */}
+          <Dialog open={showFineRulesDialog} onOpenChange={setShowFineRulesDialog}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>{t("configureFines")}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-2"><Label>{t("lateContributionFine")}</Label><Input type="number" value={fineLateFee} onChange={(e) => setFineLateFee(Number(e.target.value))} /></div>
+                <div className="space-y-2"><Label>{t("absenceFine")}</Label><Input type="number" value={fineAbsenceFee} onChange={(e) => setFineAbsenceFee(Number(e.target.value))} /></div>
+                <div className="space-y-2"><Label>{t("defaultPenalty")}</Label><Input type="number" value={fineDefaultFee} onChange={(e) => setFineDefaultFee(Number(e.target.value))} /></div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowFineRulesDialog(false)}>{tc("cancel")}</Button>
+                <Button onClick={handleSaveFineRules} disabled={savingFineRules}>{savingFineRules && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{tc("save")}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Record Fine Dialog */}
+          <Dialog open={showRecordFineDialog} onOpenChange={setShowRecordFineDialog}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader><DialogTitle>{t("recordFine")}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>{t("fineType")}</Label>
+                  <Select value={fineType} onValueChange={(v) => { setFineType(v ?? "late_contribution"); setFineAmount(String(v === "late_contribution" ? fineRules.late_contribution : v === "absence" ? fineRules.absence : fineRules.default_penalty) || ""); }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="late_contribution">{t("lateContributionFine")}</SelectItem>
+                      <SelectItem value="absence">{t("absenceFine")}</SelectItem>
+                      <SelectItem value="default">{t("defaultPenalty")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>{t("amount")}</Label><Input type="number" value={fineAmount} onChange={(e) => setFineAmount(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Reason</Label><Input value={fineReason} onChange={(e) => setFineReason(e.target.value)} /></div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowRecordFineDialog(false)}>{tc("cancel")}</Button>
+                <Button onClick={handleRecordFine} disabled={recordingFine || !fineAmount}>{recordingFine && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("recordFine")}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Record Collection Dialog */}
           <Dialog open={showCollectionDialog} onOpenChange={setShowCollectionDialog}>
@@ -894,6 +1044,8 @@ export default function SavingsCirclePage() {
                     cycleAmount={amt}
                     currency={currency}
                     participants={participants}
+                    fineRules={((cycle.fine_rules as Record<string, number>) || { late_contribution: 0, absence: 0, default_penalty: 0 })}
+                    finesLedger={((cycle.fines_ledger as Array<Record<string, unknown>>) || [])}
                     expanded={expandedCycleId === id}
                     onToggle={() => setExpandedCycleId(expandedCycleId === id ? null : id)}
                     roundContribs={roundContribs}

@@ -19,6 +19,9 @@ import {
   useEvents,
   useUnreadNotificationCount,
 } from "@/lib/hooks/use-supabase-query";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { formatAmount as formatAmt } from "@/lib/currencies";
 import { useMemberStanding } from "@/lib/hooks/use-member-standing";
 import {
   ShieldCheck,
@@ -34,6 +37,7 @@ import {
   User,
   ArrowRight,
   LayoutDashboard,
+  RefreshCw,
 } from "lucide-react";
 
 
@@ -121,6 +125,22 @@ export default function MyDashboardPage() {
   } = useEvents();
 
   const { data: unreadCount } = useUnreadNotificationCount();
+
+  // My Savings participation
+  const { data: mySavings = [] } = useQuery({
+    queryKey: ["my-savings", currentMembership?.id],
+    queryFn: async () => {
+      if (!currentMembership?.id) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("savings_participants")
+        .select("*, cycle:savings_cycles!inner(id, name, status, amount, currency, current_round, total_rounds, frequency, start_date)")
+        .eq("membership_id", currentMembership.id);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!currentMembership?.id,
+  });
 
   const upcomingEvents = useMemo(() => {
     if (!events) return [];
@@ -438,6 +458,57 @@ export default function MyDashboardPage() {
             </Link>
           </CardContent>
         </Card>
+      )}
+      {/* My Savings */}
+      {mySavings.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-primary" />
+            {t("mySavings")}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {mySavings.map((sp: Record<string, unknown>) => {
+              const cycle = sp.cycle as Record<string, unknown>;
+              const collectionRound = (sp.collection_round as number) || 0;
+              const hasCollected = sp.has_collected as boolean;
+              const currentRound = (cycle.current_round as number) || 1;
+              const totalRnds = (cycle.total_rounds as number) || 1;
+              const amt = Number(cycle.amount) || 0;
+              const cur = (cycle.currency as string) || currentGroup?.currency || "XAF";
+              const roundsAway = Math.max(0, collectionRound - currentRound);
+              const totalContributed = amt * Math.max(0, currentRound - 1);
+
+              return (
+                <Card key={sp.id as string}>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{cycle.name as string}</span>
+                      <Badge variant={(cycle.status as string) === "active" ? "default" : "secondary"} className="text-xs">
+                        {(cycle.status as string) === "active" ? tCommon("active") : tCommon("completed")}
+                      </Badge>
+                    </div>
+                    <div className={`rounded-md p-2 text-xs font-medium ${hasCollected ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400" : collectionRound <= currentRound ? "bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400" : "bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400"}`}>
+                      {hasCollected
+                        ? `✓ ${t("alreadyCollected")} (R${collectionRound})`
+                        : collectionRound <= currentRound
+                        ? `⏳ ${t("waitingToCollect")}`
+                        : `R${collectionRound} — ${t("roundsAway", { count: roundsAway })}`
+                      }
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formatAmt(amt, cur)} / {(cycle.frequency as string) || "monthly"}</span>
+                      <span>R{currentRound}/{totalRnds}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">{t("totalContributed")}</span>
+                      <span className="font-medium">{formatAmt(totalContributed, cur)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

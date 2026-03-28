@@ -276,12 +276,12 @@ function RoundManagement({
             {participants.map((p) => {
               const membership = p.membership as Record<string, unknown> | undefined;
               const membershipId = (p.membership_id as string) || (membership?.id as string) || "";
+              const fullName = membership ? getMemberName(membership) : "Member";
               const profile = membership
                 ? (Array.isArray(membership.profiles)
                     ? membership.profiles[0]
                     : membership.profiles) as Record<string, unknown> | undefined
                 : undefined;
-              const fullName = (profile?.full_name as string) || "Member";
               const avatarUrl = (profile?.avatar_url as string) || "";
               const isCollector = (p.collection_round as number) === currentRound;
 
@@ -558,6 +558,10 @@ export default function SavingsCirclePage() {
   const [endingCycleId, setEndingCycleId] = useState<string | null>(null);
   const [expandedCycleId, setExpandedCycleId] = useState<string | null>(null);
   const [roundContribs, setRoundContribs] = useState<Record<string, unknown>[]>([]);
+  const [showAddParticipants, setShowAddParticipants] = useState(false);
+  const [addPartCycleId, setAddPartCycleId] = useState<string | null>(null);
+  const [addPartSelected, setAddPartSelected] = useState<string[]>([]);
+  const [addingParts, setAddingParts] = useState(false);
 
   const resetCreateForm = () => {
     setCycleName("");
@@ -846,7 +850,7 @@ export default function SavingsCirclePage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CircleDollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{t("njangiTreasury")}</span>
+                <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{t("savingsTreasury")}</span>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
@@ -1015,17 +1019,25 @@ export default function SavingsCirclePage() {
                 </div>
 
                 {/* Participants list */}
-                {participants.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-foreground">{t("participants")}</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-foreground">{t("participants")} ({totalMembers})</h4>
+                    {isAdmin && (
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setAddPartCycleId(id); setAddPartSelected([]); setShowAddParticipants(true); }}>
+                        <Plus className="mr-1 h-3 w-3" />
+                        {t("addParticipant")}
+                      </Button>
+                    )}
+                  </div>
+                  {participants.length > 0 ? (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {participants.map((p: Record<string, unknown>) => {
                         const pid = p.id as string;
                         const membership = p.membership as Record<string, unknown> | undefined;
+                        const fullName = membership ? getMemberName(membership) : "Member";
                         const profile = membership
                           ? (Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles) as Record<string, unknown> | undefined
                           : undefined;
-                        const fullName = (profile?.full_name as string) || "Member";
                         const avatarUrl = (profile?.avatar_url as string) || "";
                         const collectionRound = (p.collection_round as number) || 0;
                         const hasCollected = p.has_collected as boolean;
@@ -1062,8 +1074,10 @@ export default function SavingsCirclePage() {
                         );
                       })}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-xs text-muted-foreground py-4 text-center">{t("noCyclesDesc")}</p>
+                  )}
+                </div>
 
                 {/* Round Management (admin only) */}
                 {isAdmin && status === "active" && (
@@ -1191,6 +1205,60 @@ export default function SavingsCirclePage() {
               queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
               setEndingCycleId(null);
             }}>{tc("confirm")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Participants Dialog */}
+      <Dialog open={showAddParticipants} onOpenChange={setShowAddParticipants}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{t("addParticipant")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{addPartSelected.length} {t("participants")} selected</p>
+            <div className="max-h-60 overflow-y-auto rounded-lg border divide-y">
+              {activeMembers.map((m: Record<string, unknown>) => {
+                const mid = m.id as string;
+                // Check if already enrolled in this cycle
+                const cycle = (cycles || []).find((c: Record<string, unknown>) => (c.id as string) === addPartCycleId);
+                const existingParticipants = ((cycle as Record<string, unknown>)?.savings_participants as Record<string, unknown>[]) || [];
+                const alreadyEnrolled = existingParticipants.some((p) => (p.membership_id as string) === mid);
+                const sel = addPartSelected.includes(mid);
+                return (
+                  <button key={mid} type="button" disabled={alreadyEnrolled}
+                    onClick={() => setAddPartSelected((prev) => sel ? prev.filter((x) => x !== mid) : [...prev, mid])}
+                    className={`flex w-full items-center gap-2 p-2.5 text-left text-xs transition-colors ${alreadyEnrolled ? "opacity-50 cursor-not-allowed" : sel ? "bg-primary/5" : "hover:bg-muted/50"}`}>
+                    {alreadyEnrolled ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> : sel ? <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" /> : <div className="h-3.5 w-3.5 rounded-full border shrink-0" />}
+                    <span>{getMemberName(m)}</span>
+                    {alreadyEnrolled && <span className="ml-auto text-[10px] text-muted-foreground">enrolled</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddParticipants(false)}>{tc("cancel")}</Button>
+            <Button disabled={addingParts || addPartSelected.length === 0} onClick={async () => {
+              if (!addPartCycleId) return;
+              setAddingParts(true);
+              try {
+                const supabase = createClient();
+                const cycle = (cycles || []).find((c: Record<string, unknown>) => (c.id as string) === addPartCycleId);
+                const existing = ((cycle as Record<string, unknown>)?.savings_participants as Record<string, unknown>[]) || [];
+                const maxRound = existing.reduce((max, p) => Math.max(max, (p.collection_round as number) || 0), 0);
+                const parts = addPartSelected.map((mid, i) => ({
+                  cycle_id: addPartCycleId,
+                  membership_id: mid,
+                  collection_round: maxRound + i + 1,
+                  has_collected: false,
+                }));
+                await supabase.from("savings_participants").insert(parts);
+                queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+                setShowAddParticipants(false);
+              } finally { setAddingParts(false); }
+            }}>
+              {addingParts && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("addParticipant")} ({addPartSelected.length})
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

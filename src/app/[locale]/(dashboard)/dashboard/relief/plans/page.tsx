@@ -53,6 +53,11 @@ import { useReliefPlans, useCreateReliefPlan, useMembers } from "@/lib/hooks/use
 import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, PieChart, Pie, Cell,
+} from "recharts";
+import { Progress } from "@/components/ui/progress";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -575,7 +580,18 @@ export default function ReliefPlansPage() {
           </Card>
         </div>
 
-        {/* ── Plan Cards ─────────────────────────────────────────────────── */}
+        {/* ── Top-Level Tabs ────────────────────────────────────────────── */}
+        <Tabs defaultValue="plans" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="plans">{t("plans")}</TabsTrigger>
+            <TabsTrigger value="financial">{t("financialDashboard")}</TabsTrigger>
+            <TabsTrigger value="pipeline">{t("claimsPipeline")}</TabsTrigger>
+            <TabsTrigger value="eligibility">{t("eligibilityTracker")}</TabsTrigger>
+          </TabsList>
+
+          {/* ═══ TAB: Plans ════════════════════════════════════════════════ */}
+          <TabsContent value="plans" className="mt-4 space-y-4">
+
         {plansList.length === 0 ? (
           <EmptyState
             icon={Heart}
@@ -696,6 +712,45 @@ export default function ReliefPlansPage() {
             })}
           </div>
         )}
+
+          </TabsContent>
+
+          {/* ═══ TAB: Financial Dashboard ══════════════════════════════════ */}
+          <TabsContent value="financial" className="mt-4">
+            <ReliefFinancialDashboard
+              plans={plansList}
+              currency={currency}
+              groupId={groupId}
+              t={t}
+            />
+          </TabsContent>
+
+          {/* ═══ TAB: Claims Pipeline ═════════════════════════════════════ */}
+          <TabsContent value="pipeline" className="mt-4">
+            <ClaimsPipeline
+              plans={plansList}
+              currency={currency}
+              groupId={groupId}
+              isAdmin={isAdmin}
+              userId={user?.id || null}
+              onApproveClaim={handleApproveClaim}
+              onDenyClaim={(claimId) => { setDenyClaimId(claimId); setDenyReason(""); setShowDenyDialog(true); }}
+              onRecordPayout={(claimId, amount) => { setPayoutClaimId(claimId); setPayoutAmount(String(amount)); setPayoutMethod(""); setPayoutReference(""); setShowPayoutDialog(true); }}
+              isReviewing={isReviewing}
+              t={t}
+            />
+          </TabsContent>
+
+          {/* ═══ TAB: Eligibility Tracker ═════════════════════════════════ */}
+          <TabsContent value="eligibility" className="mt-4">
+            <EligibilityTracker
+              plans={plansList}
+              currency={currency}
+              groupId={groupId}
+              t={t}
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* ── Create Plan Dialog ──────────────────────────────────────────── */}
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -1140,5 +1195,554 @@ function PlanDetailTabs({
         )}
       </TabsContent>
     </Tabs>
+  );
+}
+
+// ─── FINANCIAL DASHBOARD ──────────────────────────────────────────────────
+
+const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+
+function ReliefFinancialDashboard({ plans, currency, groupId, t }: {
+  plans: ReliefPlan[];
+  currency: string;
+  groupId: string | null;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const supabase = createClient();
+
+  const { data: allPayouts = [] } = useQuery({
+    queryKey: ["relief-all-payouts", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const planIds = plans.map((p) => p.id);
+      if (planIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("relief_payouts")
+        .select("id, amount, paid_at, claim:relief_claims!inner(plan_id)")
+        .in("relief_claims.plan_id", planIds);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!groupId && plans.length > 0,
+  });
+
+  const { data: allClaims = [] } = useQuery({
+    queryKey: ["relief-all-claims", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const planIds = plans.map((p) => p.id);
+      if (planIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("relief_claims")
+        .select("id, plan_id, status, amount, created_at")
+        .in("plan_id", planIds);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!groupId && plans.length > 0,
+  });
+
+  const { data: enrollmentCounts = [] } = useQuery({
+    queryKey: ["relief-enrollment-counts", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const planIds = plans.map((p) => p.id);
+      if (planIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("relief_enrollments")
+        .select("plan_id, is_active")
+        .in("plan_id", planIds)
+        .eq("is_active", true);
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!groupId && plans.length > 0,
+  });
+
+  // Compute stats
+  const totalPayouts = allPayouts.reduce((s, p) => s + Number(p.amount), 0);
+  const totalEnrolled = enrollmentCounts.length;
+  const pendingClaims = allClaims.filter((c) => c.status === "submitted" || c.status === "reviewing").length;
+
+  // Monthly payouts (last 12 months)
+  const monthlyData = (() => {
+    const now = new Date();
+    const months: { key: string; label: string; payouts: number }[] = [];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: monthNames[d.getMonth()], payouts: 0 });
+    }
+    for (const p of allPayouts) {
+      const pMonth = ((p.paid_at as string) || "").slice(0, 7);
+      const m = months.find((mm) => mm.key === pMonth);
+      if (m) m.payouts += Number(p.amount);
+    }
+    return months;
+  })();
+
+  // Fund allocation by plan
+  const planAllocation = plans.map((plan) => {
+    const planPayouts = allPayouts
+      .filter((p) => ((p.claim as unknown as Record<string, unknown>)?.plan_id) === plan.id)
+      .reduce((s, p) => s + Number(p.amount), 0);
+    const enrolled = enrollmentCounts.filter((e) => e.plan_id === plan.id).length;
+    return { name: plan.name, payouts: planPayouts, enrolled };
+  });
+
+  // Claims summary per plan
+  const claimsSummary = plans.map((plan) => {
+    const pc = allClaims.filter((c) => c.plan_id === plan.id);
+    return {
+      planName: plan.name,
+      submitted: pc.filter((c) => c.status === "submitted").length,
+      reviewing: pc.filter((c) => c.status === "reviewing").length,
+      approved: pc.filter((c) => c.status === "approved").length,
+      denied: pc.filter((c) => c.status === "denied").length,
+      totalPaid: pc.filter((c) => c.status === "approved").reduce((s, c) => s + Number(c.amount), 0),
+    };
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("totalEnrolled")}</p>
+            <p className="text-2xl font-bold">{totalEnrolled}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("totalPayouts")}</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatAmount(totalPayouts, currency)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("pendingClaims")}</p>
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{pendingClaims}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">{t("activePlans")}</p>
+            <p className="text-2xl font-bold">{plans.filter((p) => p.is_active).length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">{t("monthlyTrend")}</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <RechartsTooltip />
+                <Bar dataKey="payouts" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">{t("fundAllocation")}</CardTitle></CardHeader>
+          <CardContent>
+            {planAllocation.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">{t("noPlans")}</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={planAllocation}
+                    dataKey="enrolled"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    label={({ name, value }) => `${name}: ${value}`}
+                    labelLine={false}
+                  >
+                    {planAllocation.map((_, i) => (
+                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Claims Summary Table */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">{t("claimsSummaryTable")}</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{t("planName")}</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("submitted")}</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("underReview")}</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("approved")}</th>
+                  <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("denied")}</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">{t("totalAmountPaid")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {claimsSummary.map((row) => (
+                  <tr key={row.planName} className="border-b last:border-0">
+                    <td className="px-4 py-2 font-medium">{row.planName}</td>
+                    <td className="px-3 py-2 text-center">{row.submitted}</td>
+                    <td className="px-3 py-2 text-center">{row.reviewing}</td>
+                    <td className="px-3 py-2 text-center">{row.approved}</td>
+                    <td className="px-3 py-2 text-center">{row.denied}</td>
+                    <td className="px-3 py-2 text-right font-medium">{formatAmount(row.totalPaid, currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── CLAIMS PIPELINE ──────────────────────────────────────────────────────
+
+function ClaimsPipeline({ plans, currency, groupId, isAdmin, userId, onApproveClaim, onDenyClaim, onRecordPayout, isReviewing, t }: {
+  plans: ReliefPlan[];
+  currency: string;
+  groupId: string | null;
+  isAdmin: boolean;
+  userId: string | null;
+  onApproveClaim: (claimId: string) => void;
+  onDenyClaim: (claimId: string) => void;
+  onRecordPayout: (claimId: string, amount: number) => void;
+  isReviewing: boolean;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const supabase = createClient();
+  const [planFilter, setPlanFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const { data: claims = [], isLoading } = useQuery({
+    queryKey: ["relief-pipeline-claims", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const planIds = plans.map((p) => p.id);
+      if (planIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("relief_claims")
+        .select("*, plan:relief_plans!inner(id, name), membership:memberships!relief_claims_membership_id_fkey(id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .in("plan_id", planIds)
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return (data || []).map((c: Record<string, unknown>) => {
+        const m = c.membership as Record<string, unknown> | null;
+        return { ...c, membership: m ? { ...m, profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles } : null };
+      });
+    },
+    enabled: !!groupId && plans.length > 0,
+  });
+
+  const filtered = claims.filter((c: Record<string, unknown>) => {
+    if (planFilter !== "all" && (c.plan as Record<string, unknown>)?.id !== planFilter) return false;
+    if (statusFilter !== "all" && c.status !== statusFilter) return false;
+    return true;
+  });
+
+  const claimStatusStyles: Record<string, string> = {
+    submitted: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+    reviewing: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    denied: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  };
+
+  function timeAgo(dateStr: string): string {
+    const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    if (days === 0) return "today";
+    if (days === 1) return "1d";
+    return `${days}d`;
+  }
+
+  if (isLoading) return <p className="text-sm text-muted-foreground py-4">{t("noClaimsDesc")}</p>;
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <Select value={planFilter} onValueChange={(v) => setPlanFilter(v ?? "all")}>
+          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allPlans")}</SelectItem>
+            {plans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "all")}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allStatuses")}</SelectItem>
+            <SelectItem value="submitted">{t("submitted")}</SelectItem>
+            <SelectItem value="reviewing">{t("underReview")}</SelectItem>
+            <SelectItem value="approved">{t("approved")}</SelectItem>
+            <SelectItem value="denied">{t("denied")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">{t("noClaimsInPipeline")}</p>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((claim: Record<string, unknown>) => {
+            const plan = claim.plan as Record<string, unknown> | null;
+            const status = claim.status as string;
+            return (
+              <Card key={claim.id as string}>
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm truncate">
+                          {getMemberName(claim.membership as { display_name: string | null; profiles?: { full_name: string | null } | null })}
+                        </span>
+                        <Badge variant="outline" className="text-xs">{t(`eventTypes.${claim.event_type}`)}</Badge>
+                        <Badge className={`text-xs ${claimStatusStyles[status] || ""}`}>{t(`claimStatus.${status}`)}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {(plan?.name as string) || "—"} · {timeAgo(claim.created_at as string)} · {formatAmount(Number(claim.amount), currency)}
+                      </p>
+                      {(claim.description as string) ? <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{String(claim.description)}</p> : null}
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      {status === "submitted" && isAdmin && (
+                        <>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-600" onClick={() => onApproveClaim(claim.id as string)} disabled={isReviewing}>{t("approve")}</Button>
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => onDenyClaim(claim.id as string)} disabled={isReviewing}>{t("deny")}</Button>
+                        </>
+                      )}
+                      {status === "approved" && isAdmin && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onRecordPayout(claim.id as string, Number(claim.amount))}>
+                          <DollarSign className="mr-1 h-3 w-3" />{t("recordPayout")}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ELIGIBILITY TRACKER ──────────────────────────────────────────────────
+
+function EligibilityTracker({ plans, currency, groupId, t }: {
+  plans: ReliefPlan[];
+  currency: string;
+  groupId: string | null;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  const [planFilter, setPlanFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  const { data: enrollments = [], isLoading } = useQuery({
+    queryKey: ["relief-eligibility-all", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const planIds = plans.map((p) => p.id);
+      if (planIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("relief_enrollments")
+        .select("*, plan:relief_plans!inner(id, name, waiting_period_days), membership:memberships!relief_enrollments_membership_id_fkey(id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .in("plan_id", planIds)
+        .eq("is_active", true)
+        .order("enrolled_at", { ascending: false });
+      if (error) return [];
+      return (data || []).map((e: Record<string, unknown>) => {
+        const m = e.membership as Record<string, unknown> | null;
+        return { ...e, membership: m ? { ...m, profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles } : null };
+      });
+    },
+    enabled: !!groupId && plans.length > 0,
+  });
+
+  // Calculate eligibility for each enrollment
+  const enriched = enrollments.map((e: Record<string, unknown>) => {
+    const plan = e.plan as Record<string, unknown>;
+    const enrollDate = new Date(e.enrolled_at as string);
+    const waitDays = Number(plan?.waiting_period_days) || 180;
+    const eligibleDate = new Date(enrollDate.getTime() + waitDays * 86400000);
+    const today = new Date();
+    const contribStatus = (e.contribution_status as string) || "up_to_date";
+    let eligibility = "waiting_period";
+    if (contribStatus === "behind" || contribStatus === "suspended") {
+      eligibility = "ineligible";
+    } else if (today >= eligibleDate) {
+      eligibility = "eligible";
+    }
+    const daysLeft = Math.max(0, Math.ceil((eligibleDate.getTime() - today.getTime()) / 86400000));
+
+    return {
+      id: e.id as string,
+      membershipId: (e.membership as Record<string, unknown>)?.id as string,
+      memberName: getMemberName(e.membership as { display_name: string | null; profiles?: { full_name: string | null } | null }),
+      planName: (plan?.name as string) || "—",
+      planId: (plan?.id as string) || "",
+      enrolledAt: new Date(e.enrolled_at as string).toLocaleDateString(),
+      eligibleDate: eligibleDate.toLocaleDateString(),
+      daysLeft,
+      contribStatus,
+      eligibility,
+    };
+  });
+
+  const filtered = enriched.filter((e) => {
+    if (planFilter !== "all" && e.planId !== planFilter) return false;
+    if (statusFilter !== "all" && e.eligibility !== statusFilter) return false;
+    return true;
+  });
+
+  // Summary stats
+  const eligible = enriched.filter((e) => e.eligibility === "eligible").length;
+  const waiting = enriched.filter((e) => e.eligibility === "waiting_period").length;
+  const ineligible = enriched.filter((e) => e.eligibility === "ineligible").length;
+
+  async function updateContribStatus(enrollmentId: string, newStatus: string) {
+    setUpdating(enrollmentId);
+    try {
+      await supabase.from("relief_enrollments").update({ contribution_status: newStatus }).eq("id", enrollmentId);
+      queryClient.invalidateQueries({ queryKey: ["relief-eligibility-all"] });
+    } finally {
+      setUpdating(null);
+    }
+  }
+
+  async function removeEnrollment(enrollmentId: string) {
+    setUpdating(enrollmentId);
+    try {
+      await supabase.from("relief_enrollments").update({ is_active: false }).eq("id", enrollmentId);
+      queryClient.invalidateQueries({ queryKey: ["relief-eligibility-all"] });
+      queryClient.invalidateQueries({ queryKey: ["relief-stats"] });
+    } finally {
+      setUpdating(null);
+    }
+  }
+
+  if (isLoading) return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Stats */}
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("totalEnrolled")}</p><p className="text-xl font-bold">{enriched.length}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-emerald-600">{t("eligible")}</p><p className="text-xl font-bold text-emerald-600">{eligible}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-amber-600">{t("waiting")}</p><p className="text-xl font-bold text-amber-600">{waiting}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-red-600">{t("ineligible")}</p><p className="text-xl font-bold text-red-600">{ineligible}</p></CardContent></Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <Select value={planFilter} onValueChange={(v) => setPlanFilter(v ?? "all")}>
+          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allPlans")}</SelectItem>
+            {plans.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? "all")}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allStatuses")}</SelectItem>
+            <SelectItem value="eligible">{t("eligible")}</SelectItem>
+            <SelectItem value="waiting_period">{t("waiting")}</SelectItem>
+            <SelectItem value="ineligible">{t("ineligible")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">{t("noEligibilityData")}</p>
+      ) : (
+        <div className="rounded-lg border overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("claimant")}</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("planName")}</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("enrollmentDate")}</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("eligibilityDate")}</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("daysUntilEligible")}</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("contributionStatus")}</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("eligible")}</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row) => (
+                <tr key={row.id} className="border-b last:border-0">
+                  <td className="px-3 py-2 font-medium truncate max-w-[150px]">{row.memberName}</td>
+                  <td className="px-3 py-2 text-muted-foreground text-xs">{row.planName}</td>
+                  <td className="px-3 py-2 text-muted-foreground text-xs">{row.enrolledAt}</td>
+                  <td className="px-3 py-2 text-muted-foreground text-xs">{row.eligibleDate}</td>
+                  <td className="px-3 py-2 text-center">
+                    {row.eligibility === "eligible" ? (
+                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs">{t("eligible")}</Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">{row.daysLeft}d</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <Badge variant={row.contribStatus === "up_to_date" ? "outline" : "destructive"} className="text-xs">
+                      {row.contribStatus === "up_to_date" ? t("upToDate") : t("behind")}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <Badge className={`text-xs ${
+                      row.eligibility === "eligible" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      : row.eligibility === "waiting_period" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                      : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                    }`}>
+                      {row.eligibility === "eligible" ? t("eligible") : row.eligibility === "waiting_period" ? t("waiting") : t("ineligible")}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <div className="flex gap-1 justify-end">
+                      {row.contribStatus === "up_to_date" ? (
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-amber-600" onClick={() => updateContribStatus(row.id, "behind")} disabled={updating === row.id}>
+                          {t("markBehind")}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-emerald-600" onClick={() => updateContribStatus(row.id, "up_to_date")} disabled={updating === row.id}>
+                          {t("markUpToDate")}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive" onClick={() => removeEnrollment(row.id)} disabled={updating === row.id}>
+                        {t("removeFromPlan")}
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

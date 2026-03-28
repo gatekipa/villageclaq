@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -121,6 +122,10 @@ export default function MyReliefPage() {
     const payoutRules = (plan.payout_rules as Record<string, number>) || {};
     const maxPayout = Number(payoutRules.max_amount) || Number(plan.contribution_amount) || 0;
 
+    const daysLeft = Math.max(0, Math.ceil((eligibleFrom.getTime() - now.getTime()) / 86400000));
+    const daysPassed = Math.max(0, waitingDays - daysLeft);
+    const waitProgress = waitingDays > 0 ? Math.min(100, Math.round((daysPassed / waitingDays) * 100)) : 100;
+
     return {
       id: enrollment.id as string,
       planId: plan.id as string,
@@ -135,6 +140,8 @@ export default function MyReliefPage() {
       contributionFrequency: (plan.contribution_frequency as string) || "monthly",
       qualifyingEvents,
       maxPayout,
+      daysLeft,
+      waitProgress,
     };
   });
 
@@ -284,6 +291,28 @@ export default function MyReliefPage() {
                       </Badge>
                     </div>
                   </div>
+                  {/* Eligibility Countdown */}
+                  {plan.isWaiting && (
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-muted-foreground">{t("relief.eligibilityCountdown")}</span>
+                        <span className="text-xs font-medium text-amber-600">{plan.daysLeft}d</span>
+                      </div>
+                      <Progress value={plan.waitProgress} className="h-1.5" />
+                    </div>
+                  )}
+                  {plan.isEligible && (
+                    <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 p-2 text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                      {t("relief.youAreEligible")}
+                    </div>
+                  )}
+                  {!plan.isWaiting && !plan.isEligible && (
+                    <div className="rounded-md bg-red-50 dark:bg-red-950/20 p-2 text-xs text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {t("relief.contributionsBehind")}
+                    </div>
+                  )}
                   <div className="pt-2 border-t">
                     <p className="text-xs font-medium text-muted-foreground mb-1">{t("relief.qualifyingEvents")}:</p>
                     <div className="flex flex-wrap gap-1">

@@ -45,6 +45,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { getMemberName } from "@/lib/get-member-name";
 
 type DisputeStatus = "open" | "under_review" | "mediation" | "resolved" | "dismissed";
 type DisputePriority = "low" | "medium" | "high" | "urgent";
@@ -78,11 +79,7 @@ const categoryColors: Record<string, string> = {
   other: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
 };
 
-function getDisputeMemberName(m: Record<string, unknown>): string {
-  if (m.display_name) return m.display_name as string;
-  const profile = m.profiles as Record<string, unknown>;
-  return (profile?.full_name as string) || "Unknown";
-}
+// Use canonical getMemberName for all name displays (handles proxy members)
 
 export default function DisputesPage() {
   const t = useTranslations("disputes");
@@ -101,7 +98,7 @@ export default function DisputesPage() {
       const { data, error } = await supabase
         .from("disputes")
         .select(
-          "*, filed_member:memberships!filed_by(id, display_name, profiles!memberships_user_id_fkey(full_name, avatar_url)), assigned_member:memberships!assigned_to(id, display_name, profiles!memberships_user_id_fkey(full_name, avatar_url))"
+          "*, filed_member:memberships!filed_by(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(full_name, avatar_url)), assigned_member:memberships!assigned_to(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(full_name, avatar_url))"
         )
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
@@ -366,8 +363,8 @@ export default function DisputesPage() {
           {filteredDisputes.map((dispute: Record<string, unknown>) => {
             const filedMember = dispute.filed_member as Record<string, unknown> | null;
             const assignedMember = dispute.assigned_member as Record<string, unknown> | null;
-            const filedName = filedMember ? getDisputeMemberName(filedMember) : "Unknown";
-            const assignedName = assignedMember ? getDisputeMemberName(assignedMember) : null;
+            const filedName = filedMember ? getMemberName(filedMember) : "Unknown";
+            const assignedName = assignedMember ? getMemberName(assignedMember) : null;
             const status = (dispute.status as string) || "open";
             const priority = (dispute.priority as string) || "medium";
             const category = (dispute.category as string) || "other";
@@ -519,7 +516,7 @@ export default function DisputesPage() {
                 <SelectContent>
                   {(membersList || []).map((m: Record<string, unknown>) => (
                     <SelectItem key={m.id as string} value={m.id as string}>
-                      {getDisputeMemberName(m)}
+                      {getMemberName(m)}
                     </SelectItem>
                   ))}
                 </SelectContent>

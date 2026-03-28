@@ -2349,6 +2349,8 @@
     "enrollParticipants": "Enroll Participants",
     "njangiTreasury": "Njangi Treasury",
     "savingsTreasury": "Savings Treasury",
+    "fullPayment": "Full Payment",
+    "paymentMethod": "Method",
     "nextCollector": "Next Collector",
     "separateFinances": "Njangi finances are tracked separately from group finances",
     "recordCollection": "Record Collection",

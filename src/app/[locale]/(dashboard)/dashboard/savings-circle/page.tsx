@@ -52,6 +52,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from "@/components/ui/table";
 
 type RotationType = "sequential" | "random" | "auction";
 type Frequency = "weekly" | "biweekly" | "monthly";
@@ -563,6 +566,18 @@ export default function SavingsCirclePage() {
   const [addPartSelected, setAddPartSelected] = useState<string[]>([]);
   const [addingParts, setAddingParts] = useState(false);
 
+  // Mark Paid dialog state (table-level, for any cycle)
+  const [showMarkPaidDialog, setShowMarkPaidDialog] = useState(false);
+  const [mpCycleId, setMpCycleId] = useState<string | null>(null);
+  const [mpMembershipId, setMpMembershipId] = useState("");
+  const [mpMemberName, setMpMemberName] = useState("");
+  const [mpAmount, setMpAmount] = useState("");
+  const [mpMethod, setMpMethod] = useState("cash");
+  const [mpNotes, setMpNotes] = useState("");
+  const [mpSaving, setMpSaving] = useState(false);
+  const [mpCurrentRound, setMpCurrentRound] = useState(1);
+  const [mpContribAmount, setMpContribAmount] = useState(0);
+
   const resetCreateForm = () => {
     setCycleName("");
     setAmount("");
@@ -1030,49 +1045,71 @@ export default function SavingsCirclePage() {
                     )}
                   </div>
                   {participants.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {participants.map((p: Record<string, unknown>) => {
-                        const pid = p.id as string;
-                        const membership = p.membership as Record<string, unknown> | undefined;
-                        const fullName = membership ? getMemberName(membership) : "Member";
-                        const profile = membership
-                          ? (Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles) as Record<string, unknown> | undefined
-                          : undefined;
-                        const avatarUrl = (profile?.avatar_url as string) || "";
-                        const collectionRound = (p.collection_round as number) || 0;
-                        const hasCollected = p.has_collected as boolean;
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[40px]">#</TableHead>
+                            <TableHead>{t("participants")}</TableHead>
+                            <TableHead className="text-center">{t("round")}</TableHead>
+                            <TableHead className="text-center">{t("statusPaid")}</TableHead>
+                            <TableHead className="text-center">{t("collected")}</TableHead>
+                            <TableHead className="text-right">{t("totalContributed")}</TableHead>
+                            {isAdmin && <TableHead className="w-[80px]"></TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {participants.map((p: Record<string, unknown>, idx: number) => {
+                            const pid = p.id as string;
+                            const membership = p.membership as Record<string, unknown> | undefined;
+                            const fullName = membership ? getMemberName(membership) : "Member";
+                            const collectionRound = (p.collection_round as number) || 0;
+                            const hasCollected = p.has_collected as boolean;
+                            const membershipId = (p.membership_id as string) || (membership?.id as string) || "";
+                            // Fines from finesLedger
+                            const finesLedger = ((cycle.fines_ledger as Array<Record<string, unknown>>) || []);
+                            const unpaidFines = finesLedger.filter((f) => (f.membership_id as string) === membershipId && (f.status as string) === "unpaid").reduce((s, f) => s + Number(f.amount), 0);
+                            // Estimate total contributed = (currentRound - 1) rounds worth if sequential
+                            const totalContrib = Math.max(0, currentRound - 1) * amt;
 
-                        return (
-                          <div
-                            key={pid}
-                            className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 dark:bg-muted/10"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-7 w-7">
-                                <AvatarImage src={avatarUrl || undefined} />
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(fullName)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0">
-                                <span className="text-sm text-foreground truncate block">{fullName}</span>
-                                <span className="text-[10px] text-muted-foreground">
-                                  R{collectionRound}
-                                </span>
-                              </div>
-                            </div>
-                            {hasCollected ? (
-                              <Badge variant="default" className="bg-emerald-600 text-white dark:bg-emerald-500 text-xs">
-                                {t("statusPaid")}
-                              </Badge>
-                            ) : collectionRound <= currentRound ? (
-                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400 text-xs">
-                                {t("statusPending")}
-                              </Badge>
-                            ) : null}
-                          </div>
-                        );
-                      })}
+                            return (
+                              <TableRow key={pid}>
+                                <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                                <TableCell><span className="text-sm font-medium">{fullName}</span></TableCell>
+                                <TableCell className="text-center text-xs">R{collectionRound}</TableCell>
+                                <TableCell className="text-center">
+                                  {/* This is a placeholder — real data needs savings_contributions query per round */}
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {hasCollected ? (
+                                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("collected")}</Badge>
+                                  ) : collectionRound === currentRound ? (
+                                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">{t("current")}</Badge>
+                                  ) : collectionRound < currentRound ? (
+                                    <Badge variant="secondary" className="text-[10px]">{t("statusPending")}</Badge>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground">R{collectionRound}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right text-xs font-medium">{formatAmount(totalContrib, currency)}</TableCell>
+                                {isAdmin && (
+                                  <TableCell>
+                                    <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => {
+                                      setMpCycleId(id); setMpMembershipId(membershipId); setMpMemberName(fullName);
+                                      setMpAmount(String(amt)); setMpMethod("cash"); setMpNotes("");
+                                      setMpCurrentRound(currentRound); setMpContribAmount(amt);
+                                      setShowMarkPaidDialog(true);
+                                    }}>
+                                      {t("markPaid")}
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground py-4 text-center">{t("noCyclesDesc")}</p>
@@ -1258,6 +1295,69 @@ export default function SavingsCirclePage() {
             }}>
               {addingParts && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("addParticipant")} ({addPartSelected.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Paid Dialog */}
+      <Dialog open={showMarkPaidDialog} onOpenChange={setShowMarkPaidDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>{t("markPaid")}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-muted p-3">
+              <p className="text-xs text-muted-foreground">{t("participants")}</p>
+              <p className="text-sm font-medium">{mpMemberName}</p>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("amount")} ({currentGroup?.currency || "XAF"})</Label>
+              <div className="flex gap-2">
+                <Input type="number" value={mpAmount} onChange={(e) => setMpAmount(e.target.value)} className="flex-1" />
+                <Button variant="outline" size="sm" className="shrink-0 text-xs" onClick={() => setMpAmount(String(mpContribAmount))}>
+                  {t("fullPayment")}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("paymentMethod")}</Label>
+              <Select value={mpMethod} onValueChange={(v) => setMpMethod(v ?? "cash")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Input value={mpNotes} onChange={(e) => setMpNotes(e.target.value)} placeholder="Optional" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMarkPaidDialog(false)}>{tc("cancel")}</Button>
+            <Button disabled={mpSaving || !mpAmount} onClick={async () => {
+              if (!mpCycleId || !mpMembershipId) return;
+              setMpSaving(true);
+              try {
+                const supabase = createClient();
+                const paidAmount = Number(mpAmount);
+                const isPartial = paidAmount < mpContribAmount;
+                await supabase.from("savings_contributions").upsert({
+                  cycle_id: mpCycleId,
+                  membership_id: mpMembershipId,
+                  round_number: mpCurrentRound,
+                  amount: paidAmount,
+                  payment_method: mpMethod,
+                  paid_at: new Date().toISOString(),
+                  status: isPartial ? "partial" : "paid",
+                }, { onConflict: "cycle_id,membership_id,round_number" });
+                queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+                setShowMarkPaidDialog(false);
+              } finally { setMpSaving(false); }
+            }}>
+              {mpSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("markPaid")}
             </Button>
           </DialogFooter>
         </DialogContent>

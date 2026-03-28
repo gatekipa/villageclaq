@@ -58,6 +58,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
+import { getMemberName } from "@/lib/get-member-name";
 
 type AudienceType = "all" | "roles" | "members";
 type ScheduleType = "now" | "later";
@@ -237,6 +238,52 @@ export default function AnnouncementsPage() {
         created_by: user.id,
       });
       if (insertError) throw insertError;
+
+      // Send in-app notifications if not a draft and In-App channel is selected
+      if (!asDraft && schedule === "now" && activeChannels.includes("in_app")) {
+        try {
+          // Get target members based on audience
+          let targetMemberIds: string[] = [];
+          if (audience === "all") {
+            const { data: allMembers } = await supabase
+              .from("memberships")
+              .select("user_id")
+              .eq("group_id", groupId)
+              .not("user_id", "is", null);
+            targetMemberIds = (allMembers || []).map((m) => m.user_id).filter(Boolean);
+          } else if (audience === "roles" && selectedRoles.length > 0) {
+            const { data: roleMembers } = await supabase
+              .from("memberships")
+              .select("user_id, role")
+              .eq("group_id", groupId)
+              .in("role", selectedRoles)
+              .not("user_id", "is", null);
+            targetMemberIds = (roleMembers || []).map((m) => m.user_id).filter(Boolean);
+          }
+          // For "specific members", selectedMembers contains names not IDs — skip notifications for now
+          // (would need member ID mapping for proper targeting)
+
+          if (targetMemberIds.length > 0) {
+            // Remove current user from notifications (they sent it, they know)
+            const recipientIds = targetMemberIds.filter((id) => id !== user.id);
+            // Batch insert notifications (max 50 at a time to avoid timeout)
+            for (let i = 0; i < recipientIds.length; i += 50) {
+              const batch = recipientIds.slice(i, i + 50).map((userId) => ({
+                user_id: userId,
+                group_id: groupId,
+                type: "announcement",
+                title: titleEn,
+                body: (contentEn || "").slice(0, 200),
+                is_read: false,
+              }));
+              await supabase.from("notifications").insert(batch);
+            }
+          }
+        } catch {
+          // Non-critical — don't fail the announcement if notifications fail
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
       setDialogOpen(false);
       resetForm();
@@ -301,10 +348,7 @@ export default function AnnouncementsPage() {
     }
   }
 
-  const memberNames = (membersList || []).map((m: Record<string, unknown>) => {
-    const profile = (m.profile || m.profiles) as Record<string, unknown> | undefined;
-    return (m.display_name as string) || (profile?.full_name as string) || "Unknown";
-  });
+  const memberNames = (membersList || []).map((m: Record<string, unknown>) => getMemberName(m));
   const filteredMembers = memberNames.filter((m: string) =>
     m.toLowerCase().includes(memberSearch.toLowerCase())
   );

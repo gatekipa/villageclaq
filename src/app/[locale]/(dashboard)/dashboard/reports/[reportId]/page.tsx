@@ -73,7 +73,7 @@ export default function ReportDetailPage() {
 
   // Fetch data based on report type
   const { data: members, isLoading: membersLoading } = useMembers();
-  const { data: payments, isLoading: paymentsLoading } = usePayments(100);
+  const { data: payments, isLoading: paymentsLoading } = usePayments(500);
   const { data: obligations, isLoading: obligationsLoading } = useObligations();
   const { data: events, isLoading: eventsLoading } = useEvents();
   const { data: allAttendances, isLoading: attendanceLoading } = useAllEventAttendances();
@@ -141,8 +141,8 @@ export default function ReportDetailPage() {
   const totalExpected = obligationList.reduce((s: number, o: Record<string, unknown>) => s + Number(o.amount || 0), 0);
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
 
-  // Report 3: Contribution Ledger - just use payments
-  const ledgerPayments = paymentList.slice(0, 20);
+  // Report 3: Contribution Ledger - all payments (no limit for exports, show 50 on screen)
+  const ledgerPayments = paymentList;
 
   // Report 4: AR Aging
   const arBuckets: Record<string, { count: number; amount: number }> = { "0-30": { count: 0, amount: 0 }, "31-60": { count: 0, amount: 0 }, "61-90": { count: 0, amount: 0 }, "120+": { count: 0, amount: 0 } };
@@ -382,6 +382,15 @@ export default function ReportDetailPage() {
         return row;
       });
       filename = "yoy_dues_matrix";
+    } else if (reportId === "15") {
+      data = reliefPlanList.map((plan: Record<string, unknown>) => {
+        const planClaims = reliefClaimList.filter((c: Record<string, unknown>) => (c.relief_plan as Record<string, unknown>)?.id === plan.id);
+        const pending = planClaims.filter((c: Record<string, unknown>) => (c.status as string) === "submitted" || (c.status as string) === "reviewing").length;
+        const approved = planClaims.filter((c: Record<string, unknown>) => (c.status as string) === "approved");
+        const ytdPayouts = approved.reduce((s: number, c: Record<string, unknown>) => s + Number(c.amount || 0), 0);
+        return { Plan: plan.name, Contribution: Number(plan.contribution_amount || 0), PendingClaims: pending, ApprovedClaims: approved.length, YTDPayouts: ytdPayouts };
+      });
+      filename = "relief_fund_status";
     } else if (reportId === "18") {
       data = electionResultsData.map(r => ({ Title: r.title, Type: r.type, Date: r.date, Winner: r.winner, WinnerVotes: r.winnerVotes, WinnerPct: `${r.winnerPct}%`, TotalVotes: r.totalVotes }));
       filename = "election_results";
@@ -450,6 +459,15 @@ export default function ReportDetailPage() {
     } else if (reportId === "14") {
       data = filteredMinutes.map((m: Record<string, unknown>) => ({ Event: ((m.event as Record<string, unknown>)?.title as string) || "", Date: m.created_at, Status: m.status }));
       filename = "minutes_archive";
+    } else if (reportId === "15") {
+      data = reliefPlanList.map((plan: Record<string, unknown>) => {
+        const planClaims = reliefClaimList.filter((c: Record<string, unknown>) => (c.relief_plan as Record<string, unknown>)?.id === plan.id);
+        const pending = planClaims.filter((c: Record<string, unknown>) => (c.status as string) === "submitted" || (c.status as string) === "reviewing").length;
+        const approved = planClaims.filter((c: Record<string, unknown>) => (c.status as string) === "approved");
+        const ytdPayouts = approved.reduce((s: number, c: Record<string, unknown>) => s + Number(c.amount || 0), 0);
+        return { Plan: plan.name, Contribution: formatAmount(Number(plan.contribution_amount || 0), currency), Pending: pending, Approved: approved.length, YTDPayouts: formatAmount(ytdPayouts, currency) };
+      });
+      filename = "relief_fund_status";
     } else if (reportId === "18") {
       data = electionResultsData.map(r => ({ Title: r.title, Type: r.type, Date: r.date, Winner: r.winner, Votes: r.winnerVotes, Pct: `${r.winnerPct}%` }));
       filename = "election_results";
@@ -457,7 +475,7 @@ export default function ReportDetailPage() {
       data = disputeData.map(r => ({ Title: r.title, Category: r.category, Priority: r.priority, Status: r.status, Filed: r.filedDate }));
       filename = "dispute_log";
     } else if (reportId === "16" || reportId === "20") {
-      data = [{ Members: boardStats.totalMembers, Collected: boardStats.totalCollected, Expected: boardStats.totalExpected, Rate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents }];
+      data = [{ Members: boardStats.totalMembers, Collected: formatAmount(boardStats.totalCollected, currency), Expected: formatAmount(boardStats.totalExpected, currency), Rate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents }];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
     }
 
@@ -527,7 +545,7 @@ export default function ReportDetailPage() {
   const matrixByMember: Record<string, Record<string, { paid: number; due: number }>> = {};
   const matrixYears = new Set<string>();
   (obligations || []).forEach((ob: Record<string, unknown>) => {
-    const name = getMemberName(ob);
+    const name = getMemberName(ob.membership as Record<string, unknown>);
     const dueDate = (ob.due_date as string) || (ob.created_at as string) || "";
     const year = dueDate ? new Date(dueDate).getFullYear().toString() : "";
     if (!year) return;

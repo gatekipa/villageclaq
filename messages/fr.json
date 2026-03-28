@@ -877,6 +877,8 @@
     "rsvpCount": "{count} présents",
     "rsvpMaybeCount": "{count} peut-être",
     "rsvpNoCount": "{count} déclinés",
+    "rsvpFailed": "Échec de la mise à jour RSVP",
+    "noResponses": "Aucune réponse pour le moment",
     "noEvents": "Aucun événement planifié",
     "noEventsDesc": "Créez votre premier événement pour commencer",
     "todayEvents": "Événements du jour",

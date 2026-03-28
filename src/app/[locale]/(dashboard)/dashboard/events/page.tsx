@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEvents, useCreateEvent } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -78,11 +78,71 @@ function getFirstDayOfMonth(year: number, month: number) {
 export default function EventsPage() {
   const t = useTranslations("events");
   const tc = useTranslations("common");
-  useGroup();
+  const { groupId, currentMembership, user } = useGroup();
   const { hasPermission } = usePermissions();
   const { data: events, isLoading, isError, error, refetch } = useEvents();
   const createEvent = useCreateEvent();
   const queryClient = useQueryClient();
+
+  // RSVP: query current user's RSVPs for all events
+  const { data: myRsvps } = useQuery({
+    queryKey: ["my-rsvps", currentMembership?.id],
+    queryFn: async () => {
+      if (!currentMembership?.id) return [];
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("event_rsvps")
+        .select("event_id, response")
+        .eq("membership_id", currentMembership.id);
+      return data || [];
+    },
+    enabled: !!currentMembership?.id,
+  });
+
+  // RSVP: query counts per event
+  const { data: rsvpCounts } = useQuery({
+    queryKey: ["rsvp-counts", groupId],
+    queryFn: async () => {
+      if (!groupId || !events) return {};
+      const supabase = createClient();
+      const eventIds = events.map((e: Record<string, unknown>) => e.id as string);
+      if (eventIds.length === 0) return {};
+      const { data } = await supabase
+        .from("event_rsvps")
+        .select("event_id, response")
+        .in("event_id", eventIds);
+      const counts: Record<string, { yes: number; no: number; maybe: number }> = {};
+      for (const r of (data || [])) {
+        if (!counts[r.event_id]) counts[r.event_id] = { yes: 0, no: 0, maybe: 0 };
+        if (r.response === "yes") counts[r.event_id].yes++;
+        else if (r.response === "no") counts[r.event_id].no++;
+        else if (r.response === "maybe") counts[r.event_id].maybe++;
+      }
+      return counts;
+    },
+    enabled: !!groupId && !!events && events.length > 0,
+  });
+
+  const [rsvpLoading, setRsvpLoading] = useState<string | null>(null);
+
+  async function handleRsvp(eventId: string, response: "yes" | "no" | "maybe") {
+    if (!currentMembership?.id) return;
+    setRsvpLoading(eventId);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.from("event_rsvps").upsert(
+        { event_id: eventId, membership_id: currentMembership.id, response, responded_at: new Date().toISOString() },
+        { onConflict: "event_id,membership_id" }
+      );
+      if (err) throw err;
+      queryClient.invalidateQueries({ queryKey: ["my-rsvps"] });
+      queryClient.invalidateQueries({ queryKey: ["rsvp-counts"] });
+    } catch {
+      showError(t("rsvpFailed"));
+    } finally {
+      setRsvpLoading(null);
+    }
+  }
 
   const [view, setView] = useState<"calendar" | "list">("list");
   const [editEventId, setEditEventId] = useState<string | null>(null);
@@ -554,6 +614,52 @@ export default function EventsPage() {
                         </DropdownMenu>
                       )}
                     </div>
+
+                    {/* RSVP Section — show for upcoming, non-cancelled events when user is authenticated (not proxy) */}
+                    {!isPast && (event.status as string) !== "cancelled" && currentMembership && user && (() => {
+                      const eventId = event.id as string;
+                      const myRsvp = (myRsvps || []).find((r: Record<string, unknown>) => r.event_id === eventId);
+                      const currentResponse = myRsvp?.response as string | undefined;
+                      const counts = (rsvpCounts as Record<string, { yes: number; no: number; maybe: number }> || {})[eventId];
+                      const isSubmitting = rsvpLoading === eventId;
+
+                      return (
+                        <div className="border-t pt-3 mt-3 space-y-2">
+                          {/* RSVP Buttons */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground mr-1">{t("rsvp")}:</span>
+                            {(["yes", "no", "maybe"] as const).map((resp) => {
+                              const isSelected = currentResponse === resp;
+                              const label = resp === "yes" ? t("rsvpYes") : resp === "no" ? t("rsvpNo") : t("rsvpMaybe");
+                              return (
+                                <Button
+                                  key={resp}
+                                  size="sm"
+                                  variant={isSelected ? "default" : "outline"}
+                                  className={cn("h-7 text-xs", isSelected && resp === "yes" && "bg-emerald-600 hover:bg-emerald-700", isSelected && resp === "no" && "bg-red-600 hover:bg-red-700", isSelected && resp === "maybe" && "bg-amber-600 hover:bg-amber-700")}
+                                  disabled={isSubmitting}
+                                  onClick={() => handleRsvp(eventId, resp)}
+                                >
+                                  {isSubmitting && currentResponse !== resp ? null : null}
+                                  {label}
+                                </Button>
+                              );
+                            })}
+                            {isSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                          </div>
+                          {/* RSVP Counts */}
+                          {counts && (counts.yes > 0 || counts.maybe > 0 || counts.no > 0) ? (
+                            <div className="flex gap-3 text-[10px] text-muted-foreground">
+                              {counts.yes > 0 && <span className="text-emerald-600 dark:text-emerald-400">{t("rsvpCount", { count: counts.yes })}</span>}
+                              {counts.maybe > 0 && <span className="text-amber-600 dark:text-amber-400">{t("rsvpMaybeCount", { count: counts.maybe })}</span>}
+                              {counts.no > 0 && <span className="text-red-600 dark:text-red-400">{t("rsvpNoCount", { count: counts.no })}</span>}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground">{t("noResponses")}</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               );

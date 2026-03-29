@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { ErrorState } from "@/components/ui/page-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -71,7 +72,7 @@ export default function MyReliefPage() {
   const [claimError, setClaimError] = useState("");
 
   // Fetch enrollments with plan details
-  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
+  const { data: enrollments = [], isLoading: enrollmentsLoading, error: enrollmentsError, refetch: refetchEnrollments } = useQuery({
     queryKey: ["my-relief-enrollments", membershipId],
     queryFn: async () => {
       if (!membershipId) return [];
@@ -87,7 +88,7 @@ export default function MyReliefPage() {
   });
 
   // Fetch claims
-  const { data: claims = [], isLoading: claimsLoading } = useQuery({
+  const { data: claims = [], isLoading: claimsLoading, error: claimsError, refetch: refetchClaims } = useQuery({
     queryKey: ["my-relief-claims", membershipId],
     queryFn: async () => {
       if (!membershipId) return [];
@@ -213,6 +214,16 @@ export default function MyReliefPage() {
       // Non-blocking
     }
   };
+
+  // Error state
+  if (enrollmentsError || claimsError) {
+    return (
+      <ErrorState
+        message={(enrollmentsError || claimsError)?.message}
+        onRetry={() => { refetchEnrollments(); refetchClaims(); }}
+      />
+    );
+  }
 
   // Loading state
   if (enrollmentsLoading || claimsLoading) {

@@ -37,6 +37,7 @@ import {
   IdCard,
   Scale,
   ScrollText,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -132,6 +133,7 @@ const memberSections: NavSection[] = [
     items: [
       { key: "myPayments", href: "/dashboard/my-payments", icon: CreditCard },
       { key: "myEvents", href: "/dashboard/my-events", icon: Calendar },
+      { key: "myInvitations", href: "/dashboard/my-invitations", icon: Mail },
       { key: "myAttendance", href: "/dashboard/my-attendance", icon: ClipboardCheck },
       { key: "myHosting", href: "/dashboard/my-hosting", icon: Home },
       { key: "myRelief", href: "/dashboard/relief/my", icon: Heart },

@@ -187,7 +187,12 @@ export function PaymentsTab() {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      setSaveError((err as Error).message);
+      const msg = (err as Error).message || "";
+      if (msg.includes("schema cache")) {
+        setSaveError(t("pay.schemaError"));
+      } else {
+        setSaveError(msg);
+      }
     } finally {
       setSaving(false);
     }

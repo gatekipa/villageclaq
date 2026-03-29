@@ -720,7 +720,8 @@
       "instructionsPlaceholder": "e.g. Please include your name and contribution type as the reference...",
       "instructionsPlaceholderFr": "ex. Veuillez inclure votre nom et le type de cotisation comme référence...",
       "saved": "Payment configuration saved",
-      "saveConfig": "Save Payment Settings"
+      "saveConfig": "Save Payment Settings",
+      "schemaError": "Database schema is out of date. Please ask your platform administrator to run migration 00022."
     }
   },
   "contributions": {

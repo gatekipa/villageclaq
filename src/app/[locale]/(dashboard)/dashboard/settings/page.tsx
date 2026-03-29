@@ -216,6 +216,8 @@ export default function GroupSettingsPage() {
                                 const { error: updateErr } = await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId);
                                 if (updateErr) throw updateErr;
                                 queryClient.invalidateQueries({ queryKey: ["group-settings"] });
+                                setSaveSuccess(true);
+                                setTimeout(() => setSaveSuccess(false), 3000);
                               } catch (err) {
                                 setSaveError((err as Error).message || t("logoUploadFailed"));
                               } finally { setUploadingLogo(false); }

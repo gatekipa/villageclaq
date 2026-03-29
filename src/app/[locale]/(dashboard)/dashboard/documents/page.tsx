@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -77,9 +78,9 @@ function formatFileSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -92,6 +93,7 @@ function formatDate(dateStr: string) {
 const CATEGORY_OPTIONS: CategoryKey[] = ["constitution", "financial", "certificate", "meeting", "photo", "other"];
 
 export default function DocumentVaultPage() {
+  const locale = useLocale();
   const t = useTranslations("documentVault");
   const { groupId, user } = useGroup();
   const { hasPermission } = usePermissions();

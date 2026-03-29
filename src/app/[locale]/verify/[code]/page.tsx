@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, AlertTriangle, XCircle, Shield, Loader2 } from "lucide-react";
@@ -18,6 +19,7 @@ interface VerificationData {
 }
 
 export default function VerificationPage() {
+  const locale = useLocale();
   const t = useTranslations("membershipCard");
   const params = useParams();
   const membershipId = params.code as string;
@@ -143,7 +145,7 @@ export default function VerificationPage() {
     .toUpperCase();
 
   const joinedDate = data.joinedAt
-    ? new Date(data.joinedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    ? new Date(data.joinedAt).toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" })
     : "—";
 
   return (

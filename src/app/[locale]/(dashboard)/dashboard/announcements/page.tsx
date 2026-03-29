@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -134,8 +135,8 @@ function getStatusBadge(announcement: Record<string, unknown>, t: (key: string) 
   );
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString(undefined, {
+function formatDate(dateStr: string, locale: string = "en") {
+  return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -145,6 +146,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function AnnouncementsPage() {
+  const locale = useLocale();
   const t = useTranslations("communications");
   const tc = useTranslations("common");
   const { groupId, user } = useGroup();

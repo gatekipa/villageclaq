@@ -2,7 +2,8 @@
 
 import { useMemo, useEffect } from "react";
 import { formatAmount } from "@/lib/currencies";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Link, useRouter } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
 export default function DashboardPage() {
+  const locale = useLocale();
   const t = useTranslations();
   const router = useRouter();
   const { currentGroup, user, isAdmin } = useGroup();
@@ -336,7 +338,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                   <span className="text-xs font-medium text-primary">
-                    {new Date(nextEvent.starts_at as string).toLocaleDateString(undefined, { month: "short" })}
+                    {new Date(nextEvent.starts_at as string).toLocaleDateString(getDateLocale(locale), { month: "short" })}
                   </span>
                   <span className="text-lg font-bold leading-none text-primary">
                     {new Date(nextEvent.starts_at as string).getDate()}
@@ -347,7 +349,7 @@ export default function DashboardPage() {
                     {(nextEvent.title as string) || (nextEvent.title_fr as string)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(nextEvent.starts_at as string).toLocaleTimeString(undefined, {
+                    {new Date(nextEvent.starts_at as string).toLocaleTimeString(getDateLocale(locale), {
                       hour: "numeric",
                       minute: "2-digit",
                     })}
@@ -376,7 +378,7 @@ export default function DashboardPage() {
               <div className="flex items-start gap-3 rounded-lg border p-3">
                 <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                   <span className="text-xs font-medium text-primary">
-                    {new Date(latestMinutes.created_at as string).toLocaleDateString(undefined, { month: "short" })}
+                    {new Date(latestMinutes.created_at as string).toLocaleDateString(getDateLocale(locale), { month: "short" })}
                   </span>
                   <span className="text-lg font-bold leading-none text-primary">
                     {new Date(latestMinutes.created_at as string).getDate()}

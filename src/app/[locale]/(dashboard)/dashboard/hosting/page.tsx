@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,9 +129,9 @@ const rotationBadgeColors: Record<RotationType, string> = {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, {
+    return new Date(dateStr + "T00:00:00").toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -140,9 +141,9 @@ function formatDate(dateStr: string) {
   }
 }
 
-function formatMonth(dateStr: string) {
+function formatMonth(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, {
+    return new Date(dateStr + "T00:00:00").toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "long",
     });
@@ -200,6 +201,7 @@ function groupByMonth(assignments: Assignment[]): Record<string, Assignment[]> {
 // ─── Main Component ────────────────────────────────────────────────────────
 
 export default function HostingPage() {
+  const locale = useLocale();
   const t = useTranslations("hosting");
   const tc = useTranslations("common");
   const { groupId, user, currentMembership } = useGroup();

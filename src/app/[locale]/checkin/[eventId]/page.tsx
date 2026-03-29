@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ interface EventInfo {
 export default function CheckInPage() {
   const params = useParams();
   const eventId = params.eventId as string;
+  const locale = useLocale();
   const t = useTranslations("checkin");
 
   const [state, setState] = useState<CheckinState>("loading");
@@ -125,11 +127,11 @@ export default function CheckInPage() {
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    return d.toLocaleDateString(getDateLocale(locale), { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   };
   const formatTime = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString(getDateLocale(locale), { hour: "2-digit", minute: "2-digit" });
   };
 
   return (

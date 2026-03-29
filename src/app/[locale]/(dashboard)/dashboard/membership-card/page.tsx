@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,6 +57,7 @@ function useTargetMember(membershipId: string | null) {
 }
 
 export default function MembershipCardPage() {
+  const locale = useLocale();
   const t = useTranslations("membershipCard");
   const searchParams = useSearchParams();
   const targetMemberId = searchParams.get("memberId");
@@ -117,7 +119,7 @@ export default function MembershipCardPage() {
   const memberId = `${membershipId.slice(0, 4).toUpperCase()}-${membershipId.slice(4, 8).toUpperCase()}`;
   const joinedAt = (membership.joined_at as string) || null;
   const memberSince = joinedAt
-    ? new Date(joinedAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    ? new Date(joinedAt).toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" })
     : "—";
   const groupName = currentGroup?.name || "—";
   const verifyUrl = typeof window !== "undefined"

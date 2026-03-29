@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
@@ -153,6 +154,7 @@ const ITEMS_PER_PAGE = 25;
 const VIEW_PREFERENCE_KEY = "villageclaq-members-view";
 
 export default function MembersPage() {
+  const locale = useLocale();
   const t = useTranslations("members");
   const tr = useTranslations("roles");
   const tt = useTranslations("transfers");
@@ -650,7 +652,7 @@ export default function MembersPage() {
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString(undefined, {
+      return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
         year: "numeric",
         month: "short",
         day: "numeric",

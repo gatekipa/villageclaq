@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +109,9 @@ interface MinutesRecord {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -120,9 +121,9 @@ function formatDate(dateStr: string) {
   }
 }
 
-function formatDateTime(dateStr: string) {
+function formatDateTime(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -137,6 +138,7 @@ function formatDateTime(dateStr: string) {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 export default function MinutesPage() {
+  const locale = useLocale();
   const t = useTranslations("minutes");
   const tc = useTranslations("common");
   const { groupId, user } = useGroup();

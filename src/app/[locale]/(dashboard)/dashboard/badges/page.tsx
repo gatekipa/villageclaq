@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,9 @@ import {
   ErrorState,
 } from "@/components/ui/page-skeleton";
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -27,6 +28,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function BadgesPage() {
+  const locale = useLocale();
   const t = useTranslations("badges");
   const { currentMembership } = useGroup();
   const {

@@ -4,7 +4,8 @@ import { exportPDF } from "@/lib/export-pdf";
 import { exportCSV } from "@/lib/export";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,9 +85,9 @@ const PROJECT_TYPES = [
 const PAYMENT_METHODS = ["cash", "mobile_money", "bank_transfer", "card"] as const;
 
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -159,6 +160,7 @@ function IncomeDialog({
   currency: string;
   onSaved: () => void;
 }) {
+  const locale = useLocale();
   const t = useTranslations("projects");
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);

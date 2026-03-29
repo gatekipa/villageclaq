@@ -44,7 +44,7 @@ const methodColors: Record<string, string> = {
 };
 
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -52,7 +52,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-function formatTime(dateStr: string) {
+function formatTime(dateStr: string, locale: string = "en") {
   return new Date(dateStr).toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",

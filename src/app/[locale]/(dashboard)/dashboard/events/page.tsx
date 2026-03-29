@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,7 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 
 export default function EventsPage() {
+  const locale = useLocale();
   const t = useTranslations("events");
   const tc = useTranslations("common");
   const { groupId, currentMembership, user } = useGroup();
@@ -178,7 +180,7 @@ export default function EventsPage() {
   const month = calendarDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const monthName = calendarDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const monthName = calendarDate.toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" });
 
   const now = new Date().toISOString();
 
@@ -468,7 +470,7 @@ export default function EventsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-px">
-              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(undefined, { weekday: "short" })).map((day) => (
+              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(getDateLocale(locale), { weekday: "short" })).map((day) => (
                 <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
                   {day}
                 </div>
@@ -545,7 +547,7 @@ export default function EventsPage() {
                       <div className="flex gap-4 flex-1 min-w-0">
                         <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                           <span className="text-xs font-medium text-primary">
-                            {startsAt.toLocaleDateString(undefined, { month: "short" })}
+                            {startsAt.toLocaleDateString(getDateLocale(locale), { month: "short" })}
                           </span>
                           <span className="text-xl font-bold leading-none text-primary">
                             {startsAt.getDate()}
@@ -576,8 +578,8 @@ export default function EventsPage() {
                           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3.5 w-3.5" />
-                              {startsAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                              {endsAt && ` - ${endsAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`}
+                              {startsAt.toLocaleTimeString(getDateLocale(locale), { hour: "2-digit", minute: "2-digit" })}
+                              {endsAt && ` - ${endsAt.toLocaleTimeString(getDateLocale(locale), { hour: "2-digit", minute: "2-digit" })}`}
                             </span>
                             {event.location ? (
                               <span className="flex items-center gap-1">

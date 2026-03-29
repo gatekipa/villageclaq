@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ function getInitials(name: string) {
 }
 
 export default function MembershipCardPage() {
+  const locale = useLocale();
   const t = useTranslations("memberCard");
   const { user, currentMembership, currentGroup, loading } = useGroup();
 
@@ -48,7 +50,7 @@ export default function MembershipCardPage() {
   const StandingIcon = standing.icon;
   const memberRole = currentMembership.role || "member";
   const joinedAt = currentMembership.joined_at
-    ? new Date(currentMembership.joined_at).toLocaleDateString(undefined, { year: "numeric", month: "long" })
+    ? new Date(currentMembership.joined_at).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "long" })
     : "";
   const membershipId = currentMembership.id;
   const initials = getInitials(memberName);

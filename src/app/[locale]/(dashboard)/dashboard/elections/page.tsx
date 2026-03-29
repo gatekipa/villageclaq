@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -141,9 +142,9 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -166,6 +167,7 @@ function isWithinVotingPeriod(election: Election): boolean {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ElectionsPage() {
+  const locale = useLocale();
   const t = useTranslations("elections");
   const tc = useTranslations("common");
   const { groupId, user, currentMembership } = useGroup();

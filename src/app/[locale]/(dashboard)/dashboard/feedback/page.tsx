@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,9 +90,9 @@ const STATUS_COLORS: Record<FeedbackStatus, string> = {
   closed: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500",
 };
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -136,6 +137,7 @@ function useUserVotes() {
 }
 
 export default function FeedbackPage() {
+  const locale = useLocale();
   const t = useTranslations("feedback");
   const queryClient = useQueryClient();
   const { data: feedbackItems, isLoading, isError, error, refetch } = useFeedback();

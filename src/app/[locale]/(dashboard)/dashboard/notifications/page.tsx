@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +65,8 @@ const TYPE_BG: Record<string, string> = {
 function getRelativeTime(
   timestamp: Date,
   now: Date,
-  t: (key: string, values?: Record<string, string | number>) => string
+  t: (key: string, values?: Record<string, string | number>) => string,
+  locale: string = "en"
 ): string {
   const diffMs = now.getTime() - timestamp.getTime();
   const diffMinutes = Math.floor(diffMs / (1000 * 60));
@@ -78,7 +80,7 @@ function getRelativeTime(
   if (diffDays === 1) return t("timeAgo.yesterday");
   if (diffDays < 7) return t("timeAgo.daysAgo", { count: diffDays });
 
-  return timestamp.toLocaleDateString(undefined, {
+  return timestamp.toLocaleDateString(getDateLocale(locale), {
     month: "short",
     day: "numeric",
   });
@@ -99,6 +101,7 @@ function getTimeGroup(timestamp: Date, now: Date): TimeGroup {
 }
 
 export default function NotificationsPage() {
+  const locale = useLocale();
   const t = useTranslations("notifications");
   const { user, loading: groupLoading } = useGroup();
   const queryClient = useQueryClient();
@@ -279,7 +282,7 @@ export default function NotificationsPage() {
                           {/* Right side: time + unread dot */}
                           <div className="flex shrink-0 items-center gap-2">
                             <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                              {getRelativeTime(timestamp, now, t)}
+                              {getRelativeTime(timestamp, now, t, locale)}
                             </span>
                             {!isRead ? (
                               <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />

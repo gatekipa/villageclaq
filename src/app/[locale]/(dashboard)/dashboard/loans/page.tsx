@@ -58,7 +58,7 @@ function getInitials(name: string) {
 }
 
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, locale: string = "en") {
   try {
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",

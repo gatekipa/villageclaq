@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -113,6 +114,7 @@ function useMyAttendances(membershipId: string | null) {
 }
 
 export default function MyEventsPage() {
+  const locale = useLocale();
   const t = useTranslations();
   const queryClient = useQueryClient();
   const { groupId, currentMembership } = useGroup();
@@ -210,7 +212,7 @@ export default function MyEventsPage() {
   const month = calendarDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const monthName = calendarDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const monthName = calendarDate.toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" });
 
   const eventsInMonth = useMemo(
     () =>
@@ -226,11 +228,11 @@ export default function MyEventsPage() {
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleTimeString(getDateLocale(locale), { hour: "2-digit", minute: "2-digit" });
   };
 
   const formatMonth = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString(undefined, { month: "short" });
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), { month: "short" });
   };
 
   const formatDay = (dateStr: string) => {
@@ -238,7 +240,7 @@ export default function MyEventsPage() {
   };
 
   const formatFullDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString(undefined, {
+    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
       weekday: "short",
       month: "short",
       day: "numeric",

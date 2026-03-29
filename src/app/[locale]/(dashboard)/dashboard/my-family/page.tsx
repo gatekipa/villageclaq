@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import {
   Card,
   CardContent,
@@ -61,6 +62,7 @@ const EMPTY_FORM = {
 };
 
 export default function MyFamilyPage() {
+  const locale = useLocale();
   const t = useTranslations("family");
   const tc = useTranslations("common");
   const { currentMembership, loading: groupLoading } = useGroup();
@@ -155,7 +157,7 @@ export default function MyFamilyPage() {
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString(undefined, {
+      return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
         year: "numeric",
         month: "long",
         day: "numeric",

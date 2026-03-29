@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,7 @@ function getGradient(index: number): string {
 const filterRoles = ["all", "owner", "admin", "moderator", "member"] as const;
 
 export default function DirectoryPage() {
+  const locale = useLocale();
   const t = useTranslations();
   const { groupId } = useGroup();
   const { data: members = [], isLoading, error, refetch } = useMembers();
@@ -355,7 +357,7 @@ export default function DirectoryPage() {
                           <Calendar className="h-3.5 w-3.5 shrink-0" />
                           <span>
                             {t("directory.memberSince", {
-                              date: new Date(joinedAt).toLocaleDateString(undefined, {
+                              date: new Date(joinedAt).toLocaleDateString(getDateLocale(locale), {
                                 year: "numeric",
                                 month: "long",
                                 day: "numeric",

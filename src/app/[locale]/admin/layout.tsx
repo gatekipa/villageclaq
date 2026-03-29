@@ -20,6 +20,7 @@ import {
   X,
   Menu,
   ShieldAlert,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -38,6 +39,7 @@ const navItems = [
 function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"loading" | "authorized" | "denied">("loading");
   const router = useRouter();
+  const t = useTranslations("admin");
 
   useEffect(() => {
     async function checkAccess() {
@@ -69,7 +71,7 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <img src="/logo-mark.svg" alt="VillageClaq" className="h-12 w-12 animate-pulse" />
-          <p className="text-sm text-muted-foreground animate-pulse">Verifying access...</p>
+          <p className="text-sm text-muted-foreground animate-pulse">{t("verifyingAccess")}</p>
         </div>
       </div>
     );
@@ -82,12 +84,12 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
             <ShieldAlert className="h-8 w-8 text-red-600 dark:text-red-400" />
           </div>
-          <h2 className="text-xl font-bold">Access Denied</h2>
+          <h2 className="text-xl font-bold">{t("accessDenied")}</h2>
           <p className="text-sm text-muted-foreground">
-            You are not authorized to view the platform admin panel. This area is restricted to platform staff members only.
+            {t("accessDeniedDesc")}
           </p>
           <Button onClick={() => router.replace("/dashboard")}>
-            Go to Dashboard
+            {t("goToDashboard")}
           </Button>
         </div>
       </div>
@@ -155,11 +157,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-16 items-center gap-4 border-b px-4 lg:px-6">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
-              <Menu className="h-5 w-5" />
+          <header className="flex h-16 items-center justify-between gap-4 border-b px-4 lg:px-6">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+                <Menu className="h-5 w-5" />
+              </Button>
+              <h2 className="text-lg font-semibold">{t("title")}</h2>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              }}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              {t("signOut")}
             </Button>
-            <h2 className="text-lg font-semibold">{t("title")}</h2>
           </header>
           <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
         </div>

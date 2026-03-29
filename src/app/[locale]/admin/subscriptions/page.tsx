@@ -288,9 +288,9 @@ export default function SubscriptionsPage() {
                 <CardDescription>
                   {plan.price_monthly !== null ? (
                     <span className="text-2xl font-bold text-foreground">
-                      ${plan.price_monthly}
+                      ${plan.price_monthly}{" "}
                       <span className="text-sm font-normal text-muted-foreground">
-                        {t("perMonth")}
+                        / {t("perMonth")}
                       </span>
                     </span>
                   ) : (

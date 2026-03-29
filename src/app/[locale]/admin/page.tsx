@@ -20,19 +20,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
-// Revenue stats remain static (no billing tables yet)
-const revenueStats = {
-  mrr: 2450,
-  arr: 29400,
-  revenueThisMonth: 3200,
-  revenueGrowth: 12,
-};
-
-const systemHealth = {
-  uptime: 99.97,
-  errorRate: 0.02,
-  openTickets: 3,
-};
+// Revenue/system metrics: no billing/monitoring tables yet — show honest zeros
+// These will become real when payment processing + monitoring are integrated
 
 
 interface RecentGroup {
@@ -96,69 +85,7 @@ export default function AdminDashboardPage() {
         <p className="text-muted-foreground">{t("dashboardSubtitle")}</p>
       </div>
 
-      {/* Revenue Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("mrr")}
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold sm:text-3xl">
-              {formatAmount(revenueStats.mrr, "USD")}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("arr")}
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold sm:text-3xl">
-              {formatAmount(revenueStats.arr, "USD")}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("revenueThisMonth")}
-            </CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold sm:text-3xl">
-              {formatAmount(revenueStats.revenueThisMonth, "USD")}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t("revenueGrowth")}
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary sm:text-3xl">
-              +{revenueStats.revenueGrowth}%
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("fromLastMonth")}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Usage Cards */}
+      {/* Platform Metrics Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -168,12 +95,8 @@ export default function AdminDashboardPage() {
             <Layers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="text-2xl font-bold sm:text-3xl">
-                {totalGroups.toLocaleString()}
-              </div>
+            {loading ? <Skeleton className="h-8 w-20" /> : (
+              <div className="text-2xl font-bold sm:text-3xl">{totalGroups}</div>
             )}
           </CardContent>
         </Card>
@@ -186,12 +109,8 @@ export default function AdminDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="text-2xl font-bold sm:text-3xl">
-                {totalUsers.toLocaleString()}
-              </div>
+            {loading ? <Skeleton className="h-8 w-20" /> : (
+              <div className="text-2xl font-bold sm:text-3xl">{totalUsers}</div>
             )}
           </CardContent>
         </Card>
@@ -204,12 +123,8 @@ export default function AdminDashboardPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="text-2xl font-bold sm:text-3xl">
-                {totalPayments.toLocaleString()}
-              </div>
+            {loading ? <Skeleton className="h-8 w-20" /> : (
+              <div className="text-2xl font-bold sm:text-3xl">{totalPayments}</div>
             )}
           </CardContent>
         </Card>
@@ -222,16 +137,14 @@ export default function AdminDashboardPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-20" />
-            ) : (
-              <div className="text-2xl font-bold sm:text-3xl">
-                {totalEvents.toLocaleString()}
-              </div>
+            {loading ? <Skeleton className="h-8 w-20" /> : (
+              <div className="text-2xl font-bold sm:text-3xl">{totalEvents}</div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Removed duplicate Usage Cards — metrics now in the top row */}
 
       {/* Recent Signups + System Health */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -277,53 +190,38 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* System Health */}
+        {/* Platform Status */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("systemHealth")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-5">
-              {/* Uptime */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{t("uptime")}</span>
+                  <span className="text-sm">{t("platformStatus")}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                    {systemHealth.uptime}%
+                    {t("operational")}
                   </span>
                 </div>
               </div>
-
-              {/* Error Rate */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{t("errorRate")}</span>
+                  <Layers className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{t("deployment")}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                    {systemHealth.errorRate}%
-                  </span>
-                </div>
+                <Badge variant="outline" className="text-xs">Vercel</Badge>
               </div>
-
-              {/* Support Tickets */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <HeadsetIcon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{t("supportTickets")}</span>
+                  <span className="text-sm">{t("database")}</span>
                 </div>
-                <Badge
-                  variant="outline"
-                  className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                >
-                  {t("openTickets", { count: systemHealth.openTickets })}
-                </Badge>
+                <Badge variant="outline" className="text-xs">Supabase</Badge>
               </div>
             </div>
           </CardContent>

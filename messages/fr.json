@@ -2319,7 +2319,22 @@
     "unusualPayments": "Montants de paiement inhabituels",
     "suspiciousLogins": "Connexions suspectes",
     "memberSpikes": "Pics d'activité des membres",
-    "paymentDisputes": "Litiges de paiement"
+    "paymentDisputes": "Litiges de paiement",
+    "plansTab": "Plans d'abonnement",
+    "offlineCodesTab": "Codes hors ligne",
+    "customRequestsTab": "Demandes personnalisées",
+    "totalPlans": "Total plans",
+    "activePlans": "Plans actifs",
+    "planName": "Nom du plan",
+    "planPrice": "Prix",
+    "maxMembers": "Membres max",
+    "subscribers": "Abonnés",
+    "perMonth": "mois",
+    "perYear": "an",
+    "addPlan": "Ajouter un plan",
+    "noPlans": "Aucun plan d'abonnement configuré",
+    "manageOfflineCodes": "Gérer les codes hors ligne sur la page des bons",
+    "noCustomRequests": "Aucune demande personnalisée"
   },
   "communications": {
     "notifications": "Notifications",

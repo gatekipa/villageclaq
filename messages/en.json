@@ -2343,7 +2343,22 @@
     "unusualPayments": "Unusual payment amounts",
     "suspiciousLogins": "Suspicious login patterns",
     "memberSpikes": "Member activity spikes",
-    "paymentDisputes": "Payment disputes"
+    "paymentDisputes": "Payment disputes",
+    "plansTab": "Subscription Plans",
+    "offlineCodesTab": "Offline Codes",
+    "customRequestsTab": "Custom Requests",
+    "totalPlans": "Total Plans",
+    "activePlans": "Active Plans",
+    "planName": "Plan Name",
+    "planPrice": "Price",
+    "maxMembers": "Max Members",
+    "subscribers": "Subscribers",
+    "perMonth": "month",
+    "perYear": "year",
+    "addPlan": "Add Plan",
+    "noPlans": "No subscription plans configured",
+    "manageOfflineCodes": "Manage offline codes on the Vouchers page",
+    "noCustomRequests": "No custom requests"
   },
   "communications": {
     "notifications": "Notifications",

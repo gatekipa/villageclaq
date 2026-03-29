@@ -141,6 +141,7 @@ export default function RecordPaymentPage() {
           });
 
           // Send payment receipt email (non-blocking)
+          // Guard: only send if user_id exists (proxy members have user_id=NULL)
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {

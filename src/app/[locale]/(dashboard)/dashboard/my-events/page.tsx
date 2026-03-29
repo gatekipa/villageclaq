@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/page-skeleton";
 import {
   Calendar,
   CalendarDays,
@@ -117,7 +118,7 @@ export default function MyEventsPage() {
   const { groupId, currentMembership } = useGroup();
   const membershipId = currentMembership?.id || null;
 
-  const { data: events = [], isLoading: eventsLoading, error: eventsError } = useEvents();
+  const { data: events = [], isLoading: eventsLoading, error: eventsError, refetch: refetchEvents } = useEvents();
   const { data: myRsvps = [] } = useMyRsvps(groupId, membershipId);
   const eventIds = useMemo(() => events.map((e: Record<string, unknown>) => e.id as string), [events]);
   const { data: rsvpCounts = {} } = useRsvpCounts(eventIds);
@@ -209,7 +210,7 @@ export default function MyEventsPage() {
   const month = calendarDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const monthName = calendarDate.toLocaleDateString("en", { month: "long", year: "numeric" });
+  const monthName = calendarDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   const eventsInMonth = useMemo(
     () =>
@@ -225,11 +226,11 @@ export default function MyEventsPage() {
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   };
 
   const formatMonth = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en", { month: "short" });
+    return new Date(dateStr).toLocaleDateString(undefined, { month: "short" });
   };
 
   const formatDay = (dateStr: string) => {
@@ -237,7 +238,7 @@ export default function MyEventsPage() {
   };
 
   const formatFullDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en", {
+    return new Date(dateStr).toLocaleDateString(undefined, {
       weekday: "short",
       month: "short",
       day: "numeric",
@@ -279,11 +280,10 @@ export default function MyEventsPage() {
   // Error state
   if (eventsError) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-semibold">{t("common.error")}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{t("myEvents.noUpcomingDesc")}</p>
-      </div>
+      <ErrorState
+        message={(eventsError as Error)?.message}
+        onRetry={() => refetchEvents()}
+      />
     );
   }
 

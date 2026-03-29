@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/page-skeleton";
 import {
   Home,
   Calendar,
@@ -109,7 +110,7 @@ export default function MyHostingPage() {
   const { groupId, currentMembership } = useGroup();
   const membershipId = currentMembership?.id || null;
 
-  const { data: assignments = [], isLoading, error } = useMyHostingAssignments(membershipId);
+  const { data: assignments = [], isLoading, error, refetch } = useMyHostingAssignments(membershipId);
   const { data: groupAverage = 0 } = useHostingGroupAverage(groupId);
 
   const today = new Date();
@@ -165,10 +166,10 @@ export default function MyHostingPage() {
   // Error state
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-semibold">{t("common.error")}</h3>
-      </div>
+      <ErrorState
+        message={(error as Error)?.message}
+        onRetry={() => refetch()}
+      />
     );
   }
 

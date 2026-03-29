@@ -113,7 +113,6 @@ export default function MyDashboardPage() {
     error: oblError,
     refetch: refetchObl,
   } = useObligations({
-    status: "pending",
     membershipId: currentMembership?.id,
   });
 
@@ -141,6 +140,17 @@ export default function MyDashboardPage() {
     },
     enabled: !!currentMembership?.id,
   });
+
+  // Filter to only unpaid obligations (pending, partial, overdue)
+  const unpaidObligations = useMemo(() => {
+    if (!pendingObligations) return [];
+    return pendingObligations.filter((o: Record<string, unknown>) => {
+      const status = o.status as string;
+      if (status === "paid" || status === "waived") return false;
+      const outstanding = Number(o.amount) - Number(o.amount_paid || 0);
+      return outstanding > 0;
+    });
+  }, [pendingObligations]);
 
   const upcomingEvents = useMemo(() => {
     if (!events) return [];
@@ -320,7 +330,7 @@ export default function MyDashboardPage() {
           </Link>
         </CardHeader>
         <CardContent>
-          {!pendingObligations || pendingObligations.length === 0 ? (
+          {unpaidObligations.length === 0 ? (
             <EmptyState
               icon={CheckCircle2}
               title={t("noOutstanding")}
@@ -328,7 +338,7 @@ export default function MyDashboardPage() {
             />
           ) : (
             <div className="space-y-3">
-              {pendingObligations.slice(0, 3).map((obl: Record<string, unknown>) => {
+              {unpaidObligations.slice(0, 3).map((obl: Record<string, unknown>) => {
                 const urgency = getUrgency(obl.due_date as string);
                 const ct = obl.contribution_type as Record<string, unknown> | null;
                 const label = ct?.name as string || "";

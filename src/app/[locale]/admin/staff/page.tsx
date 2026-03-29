@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import {
   Shield,
   ShieldCheck,
@@ -16,6 +17,9 @@ import {
   Clock,
   Activity,
   Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -103,6 +107,10 @@ function getInitials(name: string | null | undefined): string {
 
 export default function StaffPage() {
   const t = useTranslations("admin");
+  const locale = useLocale();
+  const dateLocale = getDateLocale(locale);
+
+  // Existing state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<string>("");
@@ -111,12 +119,46 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // Feedback state
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showError, setShowError] = useState<string | null>(null);
+
+  // Change Role dialog state
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [roleStaffId, setRoleStaffId] = useState<string | null>(null);
+  const [roleStaffName, setRoleStaffName] = useState("");
+  const [changeRoleValue, setChangeRoleValue] = useState<string>("");
+  const [roleSubmitting, setRoleSubmitting] = useState(false);
+
+  // Suspend/Activate dialog state
+  const [showSuspendDialog, setShowSuspendDialog] = useState(false);
+  const [suspendStaffId, setSuspendStaffId] = useState<string | null>(null);
+  const [suspendStaffName, setSuspendStaffName] = useState("");
+  const [suspendAction, setSuspendAction] = useState<"suspend" | "activate">("suspend");
+  const [suspendSubmitting, setSuspendSubmitting] = useState(false);
+
+  // Remove dialog state
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [removeStaffId, setRemoveStaffId] = useState<string | null>(null);
+  const [removeStaffName, setRemoveStaffName] = useState("");
+  const [removeSubmitting, setRemoveSubmitting] = useState(false);
+
+  // Current user ID for self-action prevention
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const supabase = createClient();
+
+  const showSuccessBanner = useCallback((msg: string) => {
+    setShowSuccess(true);
+    setSuccessMessage(msg);
+    setTimeout(() => setShowSuccess(false), 3000);
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    const [staffResult, logsResult] = await Promise.all([
+    const [staffResult, logsResult, userResult] = await Promise.all([
       supabase
         .from("platform_staff")
         .select("id, user_id, role, is_active, created_at, profiles(id, full_name, avatar_url)")
@@ -126,6 +168,7 @@ export default function StaffPage() {
         .select("id, action, target_type, target_id, details, created_at, platform_staff(profiles(full_name))")
         .order("created_at", { ascending: false })
         .limit(20),
+      supabase.auth.getUser(),
     ]);
 
     if (staffResult.data) {
@@ -133,6 +176,9 @@ export default function StaffPage() {
     }
     if (logsResult.data) {
       setActivityLogs(logsResult.data as unknown as ActivityLog[]);
+    }
+    if (userResult.data?.user) {
+      setCurrentUserId(userResult.data.user.id);
     }
 
     setLoading(false);
@@ -143,11 +189,12 @@ export default function StaffPage() {
     fetchData();
   }, [fetchData]);
 
+  // --- Add Staff Handler ---
   const handleAddStaff = async () => {
     if (!newEmail || !newRole) return;
     setSubmitting(true);
+    setShowError(null);
 
-    // Look up user by name or ID in profiles
     const { data: profile } = await supabase
       .from("profiles")
       .select("id")
@@ -156,6 +203,7 @@ export default function StaffPage() {
       .maybeSingle();
 
     if (!profile) {
+      setShowError(t("noUsers"));
       setSubmitting(false);
       return;
     }
@@ -166,14 +214,89 @@ export default function StaffPage() {
       is_active: true,
     });
 
-    if (!error) {
+    if (error) {
+      setShowError(error.message);
+    } else {
       setAddDialogOpen(false);
       setNewEmail("");
       setNewRole("");
+      showSuccessBanner(t("addStaff"));
       fetchData();
     }
 
     setSubmitting(false);
+  };
+
+  // --- Change Role Handler ---
+  const handleChangeRole = async () => {
+    if (!roleStaffId || !changeRoleValue) return;
+    setRoleSubmitting(true);
+    setShowError(null);
+
+    const { error } = await supabase
+      .from("platform_staff")
+      .update({ role: changeRoleValue })
+      .eq("id", roleStaffId);
+
+    if (error) {
+      setShowError(error.message);
+    } else {
+      setShowRoleDialog(false);
+      setRoleStaffId(null);
+      setChangeRoleValue("");
+      showSuccessBanner(t("roleChanged"));
+      fetchData();
+    }
+
+    setRoleSubmitting(false);
+  };
+
+  // --- Suspend/Activate Handler ---
+  const handleSuspendActivate = async () => {
+    if (!suspendStaffId) return;
+    setSuspendSubmitting(true);
+    setShowError(null);
+
+    const newActive = suspendAction === "activate";
+
+    const { error } = await supabase
+      .from("platform_staff")
+      .update({ is_active: newActive })
+      .eq("id", suspendStaffId);
+
+    if (error) {
+      setShowError(error.message);
+    } else {
+      setShowSuspendDialog(false);
+      setSuspendStaffId(null);
+      showSuccessBanner(suspendAction === "suspend" ? t("staffSuspended") : t("staffActivated"));
+      fetchData();
+    }
+
+    setSuspendSubmitting(false);
+  };
+
+  // --- Remove Handler ---
+  const handleRemove = async () => {
+    if (!removeStaffId) return;
+    setRemoveSubmitting(true);
+    setShowError(null);
+
+    const { error } = await supabase
+      .from("platform_staff")
+      .delete()
+      .eq("id", removeStaffId);
+
+    if (error) {
+      setShowError(error.message);
+    } else {
+      setShowRemoveDialog(false);
+      setRemoveStaffId(null);
+      showSuccessBanner(t("staffRemoved"));
+      fetchData();
+    }
+
+    setRemoveSubmitting(false);
   };
 
   if (loading) {
@@ -245,6 +368,27 @@ export default function StaffPage() {
         </Dialog>
       </div>
 
+      {/* Success Banner */}
+      {showSuccess && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {successMessage}
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {showError && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {showError}
+          </div>
+          <button onClick={() => setShowError(null)} className="shrink-0">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Staff list */}
       <div className="grid gap-4">
         {staff.map((member) => {
@@ -252,7 +396,7 @@ export default function StaffPage() {
           const name = member.profiles?.full_name || "Unknown";
           const staffUserId = member.user_id || "";
           const avatar = getInitials(member.profiles?.full_name);
-          const joinedDate = new Date(member.created_at).toLocaleDateString();
+          const joinedDate = new Date(member.created_at).toLocaleDateString(dateLocale);
 
           return (
             <Card key={member.id}>
@@ -292,15 +436,46 @@ export default function StaffPage() {
                       }
                     />
                     <DropdownMenuContent>
-                      <DropdownMenuItem className="gap-2">
+                      <DropdownMenuItem
+                        className="gap-2"
+                        onClick={() => {
+                          setRoleStaffId(member.id);
+                          setRoleStaffName(name);
+                          setChangeRoleValue(member.role);
+                          setShowRoleDialog(true);
+                        }}
+                      >
                         <UserCog className="h-4 w-4" />
                         {t("changeRole")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
+                      <DropdownMenuItem
+                        className="gap-2"
+                        onClick={() => {
+                          if (member.user_id === currentUserId) {
+                            setShowError(t("cannotSuspendSelf"));
+                            return;
+                          }
+                          setSuspendStaffId(member.id);
+                          setSuspendStaffName(name);
+                          setSuspendAction(member.is_active ? "suspend" : "activate");
+                          setShowSuspendDialog(true);
+                        }}
+                      >
                         <Ban className="h-4 w-4" />
-                        {t("suspendStaff")}
+                        {member.is_active ? t("suspendStaff") : t("activateStaff")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2 text-red-600 dark:text-red-400">
+                      <DropdownMenuItem
+                        className="gap-2 text-red-600 dark:text-red-400"
+                        onClick={() => {
+                          if (member.user_id === currentUserId) {
+                            setShowError(t("cannotRemoveSelf"));
+                            return;
+                          }
+                          setRemoveStaffId(member.id);
+                          setRemoveStaffName(name);
+                          setShowRemoveDialog(true);
+                        }}
+                      >
                         <UserMinus className="h-4 w-4" />
                         {t("removeStaff")}
                       </DropdownMenuItem>
@@ -331,7 +506,7 @@ export default function StaffPage() {
             {activityLogs.map((log) => {
               const staffName =
                 log.platform_staff?.profiles?.full_name || "Unknown";
-              const timestamp = new Date(log.created_at).toLocaleString();
+              const timestamp = new Date(log.created_at).toLocaleString(dateLocale);
 
               return (
                 <div
@@ -360,12 +535,108 @@ export default function StaffPage() {
             })}
             {activityLogs.length === 0 && (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                {t("noActivity")}
+                {t("noActivityLogs")}
               </p>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Change Role Dialog */}
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("changeRole")}</DialogTitle>
+            <DialogDescription>
+              {t("changeRoleFor", { name: roleStaffName })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t("newRole")}</Label>
+              <Select value={changeRoleValue} onValueChange={(val) => setChangeRoleValue(val ?? "")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t("selectRole")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">{t("roles.admin")}</SelectItem>
+                  <SelectItem value="support">{t("roles.support")}</SelectItem>
+                  <SelectItem value="sales">{t("roles.sales")}</SelectItem>
+                  <SelectItem value="finance">{t("roles.finance")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRoleDialog(false)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              onClick={handleChangeRole}
+              disabled={roleSubmitting || !changeRoleValue}
+              className="gap-2"
+            >
+              {roleSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("saveChanges")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspend/Activate Confirmation Dialog */}
+      <Dialog open={showSuspendDialog} onOpenChange={setShowSuspendDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("confirmAction")}</DialogTitle>
+            <DialogDescription>
+              {suspendAction === "suspend" ? t("confirmSuspend") : t("confirmActivate")}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{suspendStaffName}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSuspendDialog(false)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              variant={suspendAction === "suspend" ? "destructive" : "default"}
+              onClick={handleSuspendActivate}
+              disabled={suspendSubmitting}
+              className="gap-2"
+            >
+              {suspendSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {suspendAction === "suspend" ? t("suspendStaff") : t("activateStaff")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Confirmation Dialog */}
+      <Dialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("confirmAction")}</DialogTitle>
+            <DialogDescription>{t("confirmRemove")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 dark:border-red-800 dark:bg-red-900/20">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+            <p className="text-sm text-red-700 dark:text-red-300">{removeStaffName}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRemoveDialog(false)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemove}
+              disabled={removeSubmitting}
+              className="gap-2"
+            >
+              {removeSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("removeStaff")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

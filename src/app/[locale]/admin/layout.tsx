@@ -44,7 +44,7 @@ const navSections: NavSection[] = [
   {
     sectionKey: "sectionFinancialControls",
     items: [
-      { key: "transactionsMonitor", href: "/admin/revenue", icon: DollarSign },
+      { key: "transactionsMonitor", href: "/admin/transactions", icon: DollarSign },
       { key: "offlinePayments", href: "/admin/offline-payments", icon: WifiOff },
       { key: "feeMonetization", href: "/admin/subscriptions", icon: CreditCard },
       { key: "subscriptionPlans", href: "/admin/plans", icon: CreditCard },

@@ -8,6 +8,7 @@ import { useGroup } from "@/lib/group-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/page-skeleton";
 import {
   CheckCircle2,
   XCircle,
@@ -69,7 +70,7 @@ export default function MyAttendancePage() {
   const { currentMembership } = useGroup();
   const membershipId = currentMembership?.id || null;
 
-  const { data: records = [], isLoading, error } = useMyAttendanceRecords(membershipId);
+  const { data: records = [], isLoading, error, refetch } = useMyAttendanceRecords(membershipId);
 
   // Compute stats
   const totalEvents = records.length;
@@ -170,10 +171,10 @@ export default function MyAttendancePage() {
   // Error state
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-semibold">{t("common.error")}</h3>
-      </div>
+      <ErrorState
+        message={(error as Error)?.message}
+        onRetry={() => refetch()}
+      />
     );
   }
 

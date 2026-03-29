@@ -81,13 +81,15 @@ export default function MyPaymentsPage() {
     refetch: refetchPayments,
   } = usePayments();
 
-  // Filter outstanding obligations (pending/partial)
+  // Filter outstanding obligations (pending/partial/overdue — exclude paid/waived)
   const outstanding = useMemo(() => {
     if (!obligations) return [];
-    return obligations.filter(
-      (o: Record<string, unknown>) =>
-        o.status === "pending" || o.status === "partial"
-    );
+    return obligations.filter((o: Record<string, unknown>) => {
+      const status = o.status as string;
+      if (status === "paid" || status === "waived") return false;
+      const remaining = Number(o.amount) - Number(o.amount_paid || 0);
+      return remaining > 0;
+    });
   }, [obligations]);
 
   // Filter payments for current membership

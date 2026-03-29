@@ -49,42 +49,55 @@ export default function RecordPaymentPage() {
   const currency = currentGroup?.currency || "XAF";
 
   // Query group payment config to filter available methods
-  const { data: paymentConfig } = useQuery({
+  const { data: paymentConfig, isLoading: configLoading } = useQuery({
     queryKey: ["group-payment-config", groupId],
     queryFn: async () => {
       if (!groupId) return null;
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("group_payment_config")
         .select("*")
         .eq("group_id", groupId)
         .maybeSingle();
-      return data as Record<string, boolean | unknown> | null;
+      // If table doesn't exist or RLS blocks, return null gracefully
+      if (error) return null;
+      return data;
     },
     enabled: !!groupId,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Build enabled payment methods from config (fallback: all methods if no config)
+  // Legacy defaults — used when no config exists or query still loading
+  const LEGACY_METHODS = [
+    { value: "cash", labelKey: "contributions.cash" },
+    { value: "mobile_money", labelKey: "contributions.mobileMoney" },
+    { value: "bank_transfer", labelKey: "contributions.bankTransfer" },
+    { value: "online", labelKey: "contributions.online" },
+  ];
+
+  // Build enabled payment methods from config
   const enabledMethods = (() => {
+    // Still loading or no config row → show legacy defaults
+    if (configLoading || !paymentConfig) return LEGACY_METHODS;
+
+    const cfg = paymentConfig as Record<string, unknown>;
     const methods: { value: string; labelKey: string }[] = [];
-    if (!paymentConfig) {
-      // No config yet — show all legacy methods
-      return [
-        { value: "cash", labelKey: "contributions.cash" },
-        { value: "mobile_money", labelKey: "contributions.mobileMoney" },
-        { value: "bank_transfer", labelKey: "contributions.bankTransfer" },
-        { value: "online", labelKey: "contributions.online" },
-      ];
-    }
-    if (paymentConfig.cash_enabled) methods.push({ value: "cash", labelKey: "contributions.cash" });
-    if (paymentConfig.cashapp_enabled) methods.push({ value: "cashapp", labelKey: "contributions.cashapp" });
-    if (paymentConfig.zelle_enabled) methods.push({ value: "zelle", labelKey: "contributions.zelle" });
-    if (paymentConfig.mobile_money_enabled) methods.push({ value: "mobile_money", labelKey: "contributions.mobileMoney" });
-    if (paymentConfig.bank_transfer_enabled) methods.push({ value: "bank_transfer", labelKey: "contributions.bankTransfer" });
-    if (paymentConfig.flutterwave_enabled) methods.push({ value: "online", labelKey: "contributions.online" });
+
+    if (cfg.cash_enabled !== false) methods.push({ value: "cash", labelKey: "contributions.cash" });
+    if (cfg.cashapp_enabled === true) methods.push({ value: "cashapp", labelKey: "contributions.cashapp" });
+    if (cfg.zelle_enabled === true) methods.push({ value: "zelle", labelKey: "contributions.zelle" });
+    if (cfg.mobile_money_enabled === true) methods.push({ value: "mobile_money", labelKey: "contributions.mobileMoney" });
+    if (cfg.bank_transfer_enabled === true) methods.push({ value: "bank_transfer", labelKey: "contributions.bankTransfer" });
+    if (cfg.flutterwave_enabled === true) methods.push({ value: "online", labelKey: "contributions.online" });
+
     // Always include "other" as fallback
     methods.push({ value: "other", labelKey: "contributions.other" });
+
+    // If no methods enabled at all (unlikely), fall back to cash + other
+    if (methods.length === 1) {
+      methods.unshift({ value: "cash", labelKey: "contributions.cash" });
+    }
+
     return methods;
   })();
 
@@ -534,9 +547,11 @@ export default function RecordPaymentPage() {
             {/* Action Buttons */}
             <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-end">
               <Button
-                variant="outline"
+                variant="secondary"
+                size="lg"
                 onClick={() => handleSave(false)}
                 disabled={!canSubmit}
+                className="font-semibold"
               >
                 {recordPayment.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -546,8 +561,10 @@ export default function RecordPaymentPage() {
                 {t("contributions.savePayment")}
               </Button>
               <Button
+                size="lg"
                 onClick={() => handleSave(true)}
                 disabled={!canSubmit}
+                className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700"
               >
                 {recordPayment.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

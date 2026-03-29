@@ -40,6 +40,7 @@ export default function MyInvitationsPage() {
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showError, setShowError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState<string | null>(null);
 
   // Query invitations for the current user by email match
   // RLS policy: email = auth.users.email OR invited_by = auth.uid()
@@ -82,6 +83,7 @@ export default function MyInvitationsPage() {
   async function handleAccept(invitationId: string) {
     setUpdatingId(invitationId);
     setShowError(null);
+    setShowSuccess(null);
     try {
       const supabase = createClient();
       const { error } = await supabase
@@ -90,6 +92,8 @@ export default function MyInvitationsPage() {
         .eq("id", invitationId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
+      setShowSuccess(t("acceptSuccess"));
+      setTimeout(() => setShowSuccess(null), 3000);
     } catch (err) {
       setShowError(t("actionFailed"));
     } finally {
@@ -101,6 +105,7 @@ export default function MyInvitationsPage() {
   async function handleDecline(invitationId: string) {
     setUpdatingId(invitationId);
     setShowError(null);
+    setShowSuccess(null);
     try {
       const supabase = createClient();
       const { error } = await supabase
@@ -109,6 +114,8 @@ export default function MyInvitationsPage() {
         .eq("id", invitationId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
+      setShowSuccess(t("declineSuccess"));
+      setTimeout(() => setShowSuccess(null), 3000);
     } catch (err) {
       setShowError(t("actionFailed"));
     } finally {
@@ -141,6 +148,13 @@ export default function MyInvitationsPage() {
           </Badge>
         )}
       </div>
+
+      {/* Success banner */}
+      {showSuccess && (
+        <div className="rounded-lg border border-emerald-500/50 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+          {showSuccess}
+        </div>
+      )}
 
       {/* Error banner */}
       {showError && (

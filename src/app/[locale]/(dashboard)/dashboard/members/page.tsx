@@ -73,6 +73,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { getMemberName } from "@/lib/get-member-name";
 import { calculateStanding } from "@/lib/calculate-standing";
 import { RefreshCw } from "lucide-react";
 
@@ -156,7 +157,7 @@ export default function MembersPage() {
   const tr = useTranslations("roles");
   const tt = useTranslations("transfers");
   const router = useRouter();
-  const { isAdmin, groupId, user, currentGroup, currentMembership } = useGroup();
+  const { groupId, user, currentGroup, currentMembership } = useGroup();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
@@ -247,11 +248,11 @@ export default function MembersPage() {
 
   // Auto-open proxy member dialog when navigated with ?addProxy=true
   useEffect(() => {
-    if (searchParams.get("addProxy") === "true" && isAdmin) {
+    if (searchParams.get("addProxy") === "true" && canManageMembers) {
       setAddDialogOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [searchParams, isAdmin]);
+  }, [searchParams, canManageMembers]);
 
   function handleViewChange(mode: "table" | "grid") {
     setViewMode(mode);
@@ -628,10 +629,7 @@ export default function MembersPage() {
     );
   }
 
-  const getName = (member: Record<string, unknown>) => {
-    const profile = member.profile as { full_name?: string } | undefined;
-    return (member.display_name as string) || profile?.full_name || t("unnamed");
-  };
+  const getName = (member: Record<string, unknown>) => getMemberName(member);
 
   const getPhone = (member: Record<string, unknown>) => {
     const profile = member.profile as { phone?: string } | undefined;

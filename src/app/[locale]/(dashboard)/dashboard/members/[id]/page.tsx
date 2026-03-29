@@ -35,6 +35,7 @@ import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 import { useMemberStanding } from "@/lib/hooks/use-member-standing";
 import { calculateStanding } from "@/lib/calculate-standing";
 import { PermissionGate } from "@/components/ui/permission-gate";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount } from "@/lib/currencies";
 import {
   ArrowLeft,
@@ -235,7 +236,8 @@ export default function MemberDetailPage() {
   const ts = useTranslations("standing");
   const params = useParams();
   const membershipId = params.id as string;
-  const { groupId, isAdmin, currentGroup, user } = useGroup();
+  const { groupId, currentGroup, user } = useGroup();
+  const { hasPermission } = usePermissions();
   const currency = currentGroup?.currency || "XAF";
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -247,6 +249,10 @@ export default function MemberDetailPage() {
   const [showPositionDialog, setShowPositionDialog] = useState(false);
   const [newRole, setNewRole] = useState("");
   const [newStanding, setNewStanding] = useState("");
+
+  // Action error
+  const [actionError, setActionError] = useState<string | null>(null);
+  function showError(msg: string) { setActionError(msg); setTimeout(() => setActionError(null), 5000); }
   const [overrideReason, setOverrideReason] = useState("");
   const [selectedPositionId, setSelectedPositionId] = useState("");
   const [actionSaving, setActionSaving] = useState(false);
@@ -362,7 +368,7 @@ export default function MemberDetailPage() {
       await queryClient.invalidateQueries({ queryKey: ["member-standing", membershipId, groupId] });
       setShowStandingDialog(false);
     } catch (err) {
-      console.error("Failed to update standing:", err);
+      showError((err as Error).message || t("common.error"));
     } finally {
       setActionSaving(false);
     }
@@ -455,6 +461,14 @@ export default function MemberDetailPage() {
 
   return (
     <div className="space-y-6 pb-8">
+      {/* Error notification */}
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-auto text-destructive/70 hover:text-destructive">✕</button>
+        </div>
+      )}
+
       {/* Back + Actions */}
       <div className="flex items-center justify-between">
         <Link href="/dashboard/members" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -471,7 +485,7 @@ export default function MemberDetailPage() {
             {recalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
             {ts("recalculateStanding")}
           </Button>
-          {isAdmin && (
+          {hasPermission("members.manage") && (
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent focus:outline-none">
                 <MoreVertical className="h-4 w-4" />
@@ -1025,7 +1039,7 @@ export default function MemberDetailPage() {
                   await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
                   setShowRoleDialog(false);
                 } catch (err) {
-                  console.error("Failed to update role:", err);
+                  showError((err as Error).message || t("common.error"));
                 } finally {
                   setActionSaving(false);
                 }
@@ -1067,7 +1081,7 @@ export default function MemberDetailPage() {
                   setShowPositionDialog(false);
                   setSelectedPositionId("");
                 } catch (err) {
-                  console.error("Failed to assign position:", err);
+                  showError((err as Error).message || t("common.error"));
                 } finally {
                   setActionSaving(false);
                 }
@@ -1102,7 +1116,7 @@ export default function MemberDetailPage() {
                   await queryClient.invalidateQueries({ queryKey: ["members"] });
                   router.push("/dashboard/members");
                 } catch (err) {
-                  console.error("Failed to remove member:", err);
+                  showError((err as Error).message || t("common.error"));
                 } finally {
                   setActionSaving(false);
                 }

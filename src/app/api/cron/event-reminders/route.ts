@@ -74,50 +74,22 @@ export async function GET(request: Request) {
       const groupName = (group?.name as string) || "";
       const startsAt = new Date(event.starts_at as string);
 
-      // Get all non-proxy members for this group
-      const { data: memberships, error: memErr } = await supabase
-        .from("memberships")
-        .select(`
-          user_id,
-          display_name,
-          is_proxy,
-          profiles!memberships_user_id_fkey(
-            full_name,
-            preferred_locale
-          )
-        `)
-        .eq("group_id", groupId)
-        .eq("is_proxy", false)
-        .not("user_id", "is", null);
+      // Get all non-proxy members + emails for this group in one RPC call
+      const { data: memberEmails, error: rpcErr } = await supabase
+        .rpc("get_member_emails", { p_group_id: groupId });
 
-      if (memErr || !memberships || memberships.length === 0) {
-        if (memErr) errors.push(`Group ${groupId}: ${memErr.message}`);
+      if (rpcErr || !memberEmails || !Array.isArray(memberEmails) || memberEmails.length === 0) {
+        if (rpcErr) errors.push(`Group ${groupId}: ${rpcErr.message}`);
         continue;
       }
 
-      // Resolve emails for all members in this group
-      const emailMap = new Map<string, string>();
-      for (const m of memberships) {
-        const uid = m.user_id as string;
-        if (!uid) continue;
-        const { data: userData } = await supabase.auth.admin.getUserById(uid);
-        if (userData?.user?.email) {
-          emailMap.set(uid, userData.user.email);
-        }
-      }
-
       // Build and send emails
-      const sendPromises = memberships
-        .filter((m) => m.user_id && emailMap.has(m.user_id as string))
+      const sendPromises = (memberEmails as Array<{ user_id: string; email: string; display_name: string; preferred_locale: string }>)
+        .filter((m) => m.user_id && m.email)
         .map((m) => {
-          const uid = m.user_id as string;
-          const email = emailMap.get(uid)!;
-          const profiles = m.profiles as Record<string, unknown> | Array<Record<string, unknown>> | null;
-          const profile = Array.isArray(profiles) ? profiles[0] : profiles;
-          const memberName = (m.display_name as string)
-            || (profile?.full_name as string)
-            || "Member";
-          const preferredLocale = ((profile?.preferred_locale as string) || "en") as "en" | "fr";
+          const email = m.email;
+          const memberName = m.display_name || "Member";
+          const preferredLocale = (m.preferred_locale || "en") as "en" | "fr";
 
           const eventName = preferredLocale === "fr"
             ? ((event.title_fr as string) || (event.title as string))

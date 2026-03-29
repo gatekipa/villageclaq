@@ -130,15 +130,32 @@ export async function GET(request: Request) {
       });
     }
 
-    // ── Resolve emails via auth.users (service role can read admin API) ──
-    const userIds = Array.from(byUser.keys());
+    // ── Resolve emails via get_member_emails RPC — one call per group ──
+    // Collect unique group_ids from obligations
+    const groupIds = new Set<string>();
+    for (const o of realObligations) {
+      const membership = (Array.isArray(o.membership) ? o.membership[0] : o.membership) as Record<string, unknown>;
+      const gid = membership.group_id as string;
+      if (gid) groupIds.add(gid);
+    }
+
     const emailMap = new Map<string, string>();
 
-    // Batch resolve — service role can list users
-    for (const uid of userIds) {
-      const { data: userData } = await supabase.auth.admin.getUserById(uid);
-      if (userData?.user?.email) {
-        emailMap.set(uid, userData.user.email);
+    // Batch resolve — one RPC call per group instead of one auth call per user
+    for (const gid of groupIds) {
+      const { data: members, error: rpcErr } = await supabase
+        .rpc("get_member_emails", { p_group_id: gid });
+      if (rpcErr) {
+        console.warn(`[Cron:PaymentReminders] get_member_emails failed for group ${gid}:`, rpcErr.message);
+        continue;
+      }
+      if (members && Array.isArray(members)) {
+        for (const m of members) {
+          const row = m as { user_id: string; email: string };
+          if (row.user_id && row.email) {
+            emailMap.set(row.user_id, row.email);
+          }
+        }
       }
     }
 

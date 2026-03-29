@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   FileText,
   Search,
@@ -38,8 +39,10 @@ import {
   Pencil,
   Info,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
-import { useMeetingMinutes, useEvents } from "@/lib/hooks/use-supabase-query";
+import { useMeetingMinutes, useEvents, useMembers } from "@/lib/hooks/use-supabase-query";
+import { getMemberName } from "@/lib/get-member-name";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
@@ -149,6 +152,7 @@ export default function MinutesPage() {
     error: minutesErr,
     refetch: refetchMinutes,
   } = useMeetingMinutes();
+  const { data: members } = useMembers();
   const {
     data: eventsRaw,
     isLoading: eventsLoading,
@@ -184,7 +188,12 @@ export default function MinutesPage() {
   const [editorPlainText, setEditorPlainText] = useState("");
   const [editorDecisions, setEditorDecisions] = useState<DecisionItem[]>([]);
   const [editorActionItems, setEditorActionItems] = useState<ActionItem[]>([]);
+  const [editorAttendees, setEditorAttendees] = useState<string[]>([]); // membership IDs
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+  // Delete state
+  const [deleteMinutesId, setDeleteMinutesId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [richTextInitContent, setRichTextInitContent] = useState("");
   const contentEditableRef = useRef<HTMLDivElement>(null);
 
@@ -254,6 +263,7 @@ export default function MinutesPage() {
         setRichTextInitContent(content.text || "");
         setEditorDecisions(minutesData.decisions_json || []);
         setEditorActionItems(minutesData.action_items_json || []);
+        setEditorAttendees(Array.isArray(minutesData.attendees_json) ? minutesData.attendees_json.map(String) : []);
       } else {
         const template = t("templateHint");
         setEditorLocation(event?.location || "");
@@ -262,6 +272,7 @@ export default function MinutesPage() {
         setRichTextInitContent(template);
         setEditorDecisions([]);
         setEditorActionItems([]);
+        setEditorAttendees([]);
       }
       setUploadedFileName(null);
       setEditorTab("rich");
@@ -315,6 +326,7 @@ export default function MinutesPage() {
       },
       decisions_json: editorDecisions,
       action_items_json: editorActionItems,
+      attendees_json: editorAttendees,
       status,
       created_by: user.id,
     };
@@ -425,6 +437,51 @@ export default function MinutesPage() {
       showError((err as Error).message || tc("error"));
     }
   };
+
+  // ─── Delete minutes ─────────────────────────────────────────────────────
+
+  const handleDeleteMinutes = async () => {
+    if (!deleteMinutesId || !groupId) return;
+    setDeleting(true);
+    try {
+      const { error: err } = await supabase
+        .from("meeting_minutes")
+        .delete()
+        .eq("id", deleteMinutesId);
+      if (err) throw err;
+      queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
+      // Clear selection if the deleted minutes were open
+      if (selectedMinutes?.id === deleteMinutesId) {
+        setEditMode(false);
+        setStandaloneMode(false);
+      }
+      setDeleteMinutesId(null);
+    } catch (err) {
+      showError((err as Error).message || t("deleteMinutesFailed"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ─── Attendee helpers ───────────────────────────────────────────────────
+
+  const addAttendee = (membershipId: string) => {
+    if (!editorAttendees.includes(membershipId)) {
+      setEditorAttendees((prev) => [...prev, membershipId]);
+    }
+  };
+
+  const removeAttendee = (membershipId: string) => {
+    setEditorAttendees((prev) => prev.filter((id) => id !== membershipId));
+  };
+
+  const memberNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const m of (members || []) as Record<string, unknown>[]) {
+      map[m.id as string] = getMemberName(m);
+    }
+    return map;
+  }, [members]);
 
   // ─── Decisions / Action Items editor helpers ────────────────────────────
 
@@ -1093,6 +1150,35 @@ export default function MinutesPage() {
                   ))}
                 </div>
 
+                {/* Attendees Editor */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t("attendees")}</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {editorAttendees.map((id) => (
+                      <Badge key={id} variant="secondary" className="gap-1 text-xs">
+                        {memberNameMap[id] || "—"}
+                        <button type="button" className="ml-1 text-muted-foreground hover:text-destructive" onClick={() => removeAttendee(id)}>×</button>
+                      </Badge>
+                    ))}
+                    {editorAttendees.length === 0 && (
+                      <span className="text-xs text-muted-foreground">{t("noAttendees")}</span>
+                    )}
+                  </div>
+                  <select
+                    className="flex h-8 w-full max-w-xs rounded-md border border-input bg-transparent px-2 text-xs"
+                    value=""
+                    onChange={(e) => { if (e.target.value) addAttendee(e.target.value); e.target.value = ""; }}
+                  >
+                    <option value="">{t("addAttendee")}</option>
+                    {(members || [])
+                      .filter((m: Record<string, unknown>) => !editorAttendees.includes(m.id as string))
+                      .map((m: Record<string, unknown>) => (
+                        <option key={m.id as string} value={m.id as string}>{getMemberName(m)}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:justify-end">
                   <Button
@@ -1173,6 +1259,16 @@ export default function MinutesPage() {
                         <Pencil className="mr-1 h-3.5 w-3.5" />
                         {tc("edit")}
                       </Button>
+                      {selectedMinutes.status === "draft" && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setDeleteMinutesId(selectedMinutes.id)}
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          {t("deleteMinutes")}
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1327,6 +1423,22 @@ export default function MinutesPage() {
                       </div>
                     </div>
                   )}
+
+                {/* Attendees (view mode) */}
+                {selectedMinutes.attendees_json && Array.isArray(selectedMinutes.attendees_json) && selectedMinutes.attendees_json.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">
+                      {t("attendees")} ({selectedMinutes.attendees_json.length})
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedMinutes.attendees_json.map((id) => (
+                        <Badge key={String(id)} variant="secondary" className="text-xs">
+                          {memberNameMap[String(id)] || "—"}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : hasPermission("minutes.manage") ? (
@@ -1474,6 +1586,22 @@ export default function MinutesPage() {
           </CardContent>
         </Card>
       )}
+      {/* Delete Minutes Confirmation Dialog */}
+      <Dialog open={!!deleteMinutesId} onOpenChange={() => setDeleteMinutesId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("deleteMinutes")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("deleteMinutesConfirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteMinutesId(null)}>{tc("cancel")}</Button>
+            <Button variant="destructive" onClick={handleDeleteMinutes} disabled={deleting}>
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -23,6 +23,7 @@ import {
   Camera,
 } from "lucide-react";
 import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
+import { CURRENCIES } from "@/lib/currencies";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -55,6 +56,9 @@ export default function GroupSettingsPage() {
   const [editDescription, setEditDescription] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
   const [editLocale, setEditLocale] = useState("");
+  const [editCountry, setEditCountry] = useState("");
+  const [editRegion, setEditRegion] = useState("");
+  const [editCity, setEditCity] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -72,6 +76,10 @@ export default function GroupSettingsPage() {
       setEditDescription((g.description as string) || "");
       setEditCurrency((g.currency as string) || "");
       setEditLocale((g.locale as string) || "");
+      const settings = (g.settings as Record<string, unknown>) || {};
+      setEditCountry((settings.country as string) || "");
+      setEditRegion((settings.state_region as string) || (g.state_region as string) || "");
+      setEditCity((settings.city as string) || (g.city as string) || "");
     }
   }, [group]);
 
@@ -89,6 +97,11 @@ export default function GroupSettingsPage() {
           description: editDescription.trim() || null,
           currency: editCurrency,
           locale: editLocale,
+          settings: {
+            country: editCountry,
+            state_region: editRegion,
+            city: editCity,
+          },
         })
         .eq("id", groupId);
       if (updateError) throw updateError;
@@ -339,6 +352,31 @@ export default function GroupSettingsPage() {
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
+                      <Label className="text-xs font-medium text-muted-foreground">{t("country")}</Label>
+                      {canManageSettings ? (
+                        <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
+                          <option value="">—</option>
+                          <optgroup label="West Africa">
+                            {["Cameroon","Nigeria","Ghana","Senegal","Côte d'Ivoire","Togo","Benin","Burkina Faso","Mali","Guinea","Sierra Leone","Liberia","Niger","Gambia"].map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                          <optgroup label="East Africa">
+                            {["Kenya","Tanzania","Uganda","Rwanda","Ethiopia","Somalia"].map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                          <optgroup label="Southern Africa">
+                            {["South Africa","Zimbabwe","Zambia","Mozambique","Botswana","Namibia","Malawi"].map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                          <optgroup label="Central Africa">
+                            {["DR Congo","Congo","Gabon","Chad","Central African Republic","Equatorial Guinea"].map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                          <optgroup label="International">
+                            {["United States","United Kingdom","Canada","France","Germany","Belgium","Netherlands","Italy","Australia"].map(c => <option key={c} value={c}>{c}</option>)}
+                          </optgroup>
+                        </select>
+                      ) : (
+                        <p className="mt-1 text-sm font-medium">{editCountry || "—"}</p>
+                      )}
+                    </div>
+                    <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</Label>
                       {canManageSettings ? (
                         <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editLocale} onChange={(e) => setEditLocale(e.target.value)}>
@@ -349,21 +387,29 @@ export default function GroupSettingsPage() {
                         <p className="mt-1 text-sm font-medium">{editLocale === "fr" ? "Français" : "English"}</p>
                       )}
                     </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">{t("stateRegion")}</Label>
+                      {canManageSettings ? (
+                        <Input className="mt-1" value={editRegion} onChange={(e) => setEditRegion(e.target.value)} />
+                      ) : (
+                        <p className="mt-1 text-sm font-medium">{editRegion || "—"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-muted-foreground">{t("city")}</Label>
+                      {canManageSettings ? (
+                        <Input className="mt-1" value={editCity} onChange={(e) => setEditCity(e.target.value)} />
+                      ) : (
+                        <p className="mt-1 text-sm font-medium">{editCity || "—"}</p>
+                      )}
+                    </div>
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("currency")}</Label>
                       {canManageSettings ? (
                         <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editCurrency} onChange={(e) => setEditCurrency(e.target.value)}>
-                          <option value="XAF">XAF (CFA Franc BEAC)</option>
-                          <option value="XOF">XOF (CFA Franc BCEAO)</option>
-                          <option value="NGN">NGN (Nigerian Naira)</option>
-                          <option value="GHS">GHS (Ghanaian Cedi)</option>
-                          <option value="KES">KES (Kenyan Shilling)</option>
-                          <option value="ZAR">ZAR (South African Rand)</option>
-                          <option value="USD">USD (US Dollar)</option>
-                          <option value="EUR">EUR (Euro)</option>
-                          <option value="GBP">GBP (British Pound)</option>
-                          <option value="CAD">CAD (Canadian Dollar)</option>
-                          <option value="CHF">CHF (Swiss Franc)</option>
+                          {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
                         </select>
                       ) : (
                         <p className="mt-1 text-sm font-medium">{editCurrency || "—"}</p>

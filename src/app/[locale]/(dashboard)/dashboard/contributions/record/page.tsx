@@ -139,6 +139,38 @@ export default function RecordPaymentPage() {
             is_read: false,
             data: { amount: Number(amount), currency, contribution_type: typeName, method, reference: reference || null },
           });
+
+          // Send payment receipt email (non-blocking)
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              fetch("/api/email/send", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  to: membership.user_id, // API route will resolve email from user_id
+                  template: "payment-receipt",
+                  data: {
+                    memberName: selectedMembership.name,
+                    groupName: currentGroup?.name || "",
+                    amount: formatAmount(Number(amount), currency),
+                    contributionType: typeName,
+                    paymentMethod: method,
+                    date: new Date().toLocaleDateString(),
+                    reference: reference || undefined,
+                    recordedBy: "Treasurer",
+                    paymentsUrl: `${window.location.origin}/dashboard/my-payments`,
+                  },
+                  locale: "en",
+                }),
+              }).catch(() => {}); // Fire and forget — do not await
+            }
+          } catch {
+            // Email is non-critical
+          }
         }
       } catch {
         // Non-critical — don't block the payment flow

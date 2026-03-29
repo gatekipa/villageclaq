@@ -11,7 +11,7 @@ import {
   DollarSign, FileText, MessageSquare, ClipboardList,
   X, Menu, ShieldAlert, LogOut, ChevronDown,
   BarChart3, Activity, Layers, Settings, Bell, Database,
-  Lock, HelpCircle, Globe, Wifi, WifiOff, Scale,
+  Lock, HelpCircle, Globe, Wifi, WifiOff, Scale, Ticket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +49,7 @@ const navSections: NavSection[] = [
       { key: "feeMonetization", href: "/admin/subscriptions", icon: CreditCard },
       { key: "subscriptionPlans", href: "/admin/plans", icon: CreditCard },
       { key: "anomalyMonitoring", href: "/admin/anomalies", icon: ShieldAlert },
+      { key: "vouchers", href: "/admin/vouchers", icon: Ticket },
     ],
   },
   {
@@ -218,6 +219,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const t = useTranslations("admin");
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [adminName, setAdminName] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchAdminName() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      setAdminName(profile?.full_name || user.email || null);
+    }
+    fetchAdminName();
+  }, []);
 
   return (
     <PlatformAdminGuard>
@@ -262,10 +279,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Bottom card */}
           <div className="border-t border-slate-800 px-4 py-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold">VC</div>
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold">
+                {adminName ? adminName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "VC"}
+              </div>
               <div>
-                <p className="text-xs font-medium text-slate-300">VillageClaq Staff</p>
-                <p className="text-[10px] text-slate-500">LawTekno LLC</p>
+                <p className="text-xs font-medium text-slate-300">{adminName || "Admin"}</p>
+                <p className="text-[10px] text-slate-500">VillageClaq Staff</p>
               </div>
             </div>
           </div>

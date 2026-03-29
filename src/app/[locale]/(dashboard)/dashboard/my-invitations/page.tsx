@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -35,6 +35,7 @@ const statusConfig: Record<InvitationStatus, { color: string; icon: typeof Check
 export default function MyInvitationsPage() {
   const t = useTranslations("myInvitations");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const { user } = useGroup();
 
@@ -86,19 +87,87 @@ export default function MyInvitationsPage() {
     return { total, pending, accepted, declined };
   }, [invitations]);
 
-  // Accept invitation
+  // Accept invitation — creates membership + fires welcome email
   async function handleAccept(invitationId: string) {
     setUpdatingId(invitationId);
     setShowError(null);
     setShowSuccess(null);
     try {
       const supabase = createClient();
+
+      // Look up the invitation from our cached data
+      const invitation = invitations.find(
+        (i: Record<string, unknown>) => i.id === invitationId
+      ) as Record<string, unknown> | undefined;
+      if (!invitation) throw new Error("Invitation not found");
+
+      const groupId = invitation.group_id as string;
+      const role = (invitation.role as string) || "member";
+      const group = invitation.group as Record<string, unknown> | null;
+      const groupName = (group?.name as string) || "";
+
+      // Get the current authenticated user
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error("Not authenticated");
+
+      // Check if already a member of this group (prevent duplicate memberships)
+      const { data: existing } = await supabase
+        .from("memberships")
+        .select("id")
+        .eq("user_id", authUser.id)
+        .eq("group_id", groupId)
+        .maybeSingle();
+
+      // Create membership if not already a member
+      if (!existing) {
+        const { error: membershipErr } = await supabase
+          .from("memberships")
+          .insert({
+            user_id: authUser.id,
+            group_id: groupId,
+            role,
+            standing: "good",
+            is_proxy: false,
+          });
+        if (membershipErr) throw membershipErr;
+      }
+
+      // Mark invitation as accepted
       const { error } = await supabase
         .from("invitations")
         .update({ status: "accepted", accepted_at: new Date().toISOString() })
         .eq("id", invitationId);
       if (error) throw error;
+
+      // Send welcome email (fire-and-forget)
+      // Guard: only send if user has an id (they always do since they're logged in)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token && authUser.id) {
+          fetch("/api/email/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              to: authUser.id,
+              template: "welcome",
+              data: {
+                memberName: user?.full_name || user?.display_name || authUser.email || "Member",
+                groupName,
+                dashboardUrl: `${window.location.origin}/dashboard`,
+              },
+              locale,
+            }),
+          }).catch(() => {}); // Fire and forget
+        }
+      } catch {
+        // Email is non-critical — never block invitation acceptance
+      }
+
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setShowSuccess(t("acceptSuccess"));
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => setShowSuccess(null), 3000);

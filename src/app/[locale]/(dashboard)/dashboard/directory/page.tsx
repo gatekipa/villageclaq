@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/page-skeleton";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { getMemberName } from "@/lib/get-member-name";
 import {
   Search,
   Users,
@@ -66,7 +68,7 @@ const filterRoles = ["all", "owner", "admin", "moderator", "member"] as const;
 export default function DirectoryPage() {
   const t = useTranslations();
   const { groupId } = useGroup();
-  const { data: members = [], isLoading, error } = useMembers();
+  const { data: members = [], isLoading, error, refetch } = useMembers();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export default function DirectoryPage() {
   const filtered = useMemo(() => {
     return members.filter((m: Record<string, unknown>) => {
       const profile = m.profile as Record<string, unknown> | undefined;
-      const name = ((m.display_name as string) || (profile?.full_name as string) || "").toLowerCase();
+      const name = getMemberName(m).toLowerCase();
       const matchesSearch = name.includes(search.toLowerCase());
       const matchesRole = roleFilter === "all" || m.role === roleFilter;
       return matchesSearch && matchesRole;
@@ -105,11 +107,10 @@ export default function DirectoryPage() {
   // Error state
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
-        <h3 className="mt-4 text-lg font-semibold">{t("common.error")}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{t("directory.noResults")}</p>
-      </div>
+      <ErrorState
+        message={(error as Error)?.message}
+        onRetry={() => refetch()}
+      />
     );
   }
 
@@ -168,7 +169,7 @@ export default function DirectoryPage() {
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((member: Record<string, unknown>, index: number) => {
             const profile = member.profile as Record<string, unknown> | undefined;
-            const memberName = ((member.display_name as string) || (profile?.full_name as string) || "?") as string;
+            const memberName = getMemberName(member);
             const memberRole = (member.role as string) || "member";
             const joinedAt = member.joined_at as string;
             const privacySettings = (member.privacy_settings || {}) as Record<string, boolean>;

@@ -141,7 +141,7 @@ export default function MinutesPage() {
   const locale = useLocale();
   const t = useTranslations("minutes");
   const tc = useTranslations("common");
-  const { groupId, user } = useGroup();
+  const { groupId, user, currentGroup } = useGroup();
   const { hasPermission } = usePermissions();
   // Permission check — used inline throughout, no hasPermission("minutes.manage") shortcut
   const queryClient = useQueryClient();
@@ -366,13 +366,15 @@ export default function MinutesPage() {
 
       // Notify members on publish
       if (status === "published") {
+        const minutesTitle = payload.title as string;
+
+        // In-app notifications
         try {
           const { data: allMembers } = await supabase
             .from("memberships")
             .select("id")
             .eq("group_id", groupId);
           if (allMembers && allMembers.length > 0) {
-            const minutesTitle = payload.title as string;
             const notifications = allMembers.map((m) => ({
               group_id: groupId,
               membership_id: m.id,
@@ -384,6 +386,50 @@ export default function MinutesPage() {
             await supabase.from("notifications").insert(notifications);
           }
         } catch { /* notification failure shouldn't block save */ }
+
+        // Email notifications (fire-and-forget)
+        // Guard: only send to members with user_id (skip proxy members)
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token && members) {
+            const realMembers = (members as Array<Record<string, unknown>>).filter(
+              (m) => m.user_id && !m.is_proxy
+            );
+            if (realMembers.length > 0) {
+              const meetingDate = selectedEvent?.starts_at
+                ? new Date(selectedEvent.starts_at).toLocaleDateString(getDateLocale(locale))
+                : new Date().toLocaleDateString(getDateLocale(locale));
+              const publisherName = user?.full_name || "Admin";
+
+              Promise.allSettled(
+                realMembers.map((m) =>
+                  fetch("/api/email/send", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                      to: m.user_id,
+                      template: "minutes-published",
+                      data: {
+                        memberName: getMemberName(m),
+                        groupName: currentGroup?.name || "",
+                        meetingTitle: minutesTitle,
+                        meetingDate,
+                        publishedBy: publisherName,
+                        minutesUrl: `${window.location.origin}/dashboard/minutes`,
+                      },
+                      locale,
+                    }),
+                  }).catch(() => {})
+                )
+              ).catch(() => {}); // Fire and forget — never block publish
+            }
+          }
+        } catch {
+          // Email is non-critical — never block minutes publish
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });

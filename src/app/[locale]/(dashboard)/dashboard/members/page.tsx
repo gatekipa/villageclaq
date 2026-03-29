@@ -535,6 +535,42 @@ export default function MembersPage() {
         await autoEnrollMember(supabase, groupId, newMembershipId);
       }
 
+      // Send welcome email (non-blocking)
+      // Guard: only send if the new member has a user_id (proxy members have user_id=NULL)
+      // Note: create_proxy_member always creates with user_id=NULL, so this guard
+      // currently skips all adds from this dialog. Wired for future non-proxy add flow.
+      try {
+        const { data: newMembership } = await supabase
+          .from("memberships")
+          .select("user_id")
+          .eq("id", newMembershipId)
+          .single();
+        if (newMembership?.user_id) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            fetch("/api/email/send", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                to: newMembership.user_id,
+                template: "welcome",
+                data: {
+                  memberName: displayName,
+                  groupName: currentGroup?.name || "",
+                  dashboardUrl: `${window.location.origin}/dashboard`,
+                },
+                locale,
+              }),
+            }).catch(() => {}); // Fire and forget
+          }
+        }
+      } catch {
+        // Email is non-critical — never block member creation
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setAddDialogOpen(false);
       resetAddForm();

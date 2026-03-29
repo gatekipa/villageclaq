@@ -113,6 +113,7 @@
     "myInvitations": "My Invitations",
     "myAttendance": "My Attendance",
     "myHosting": "My Hosting",
+    "changePassword": "Change Password",
     "myRelief": "My Relief",
     "myFamily": "My Family",
     "membershipCard": "Membership Card",
@@ -1548,6 +1549,24 @@
     "fri": "Fri",
     "sat": "Sat"
   },
+  "changePassword": {
+    "title": "Change Password",
+    "subtitle": "Update your account security credentials",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "changeButton": "Change Password",
+    "minLength": "At least 8 characters",
+    "uppercase": "One uppercase letter",
+    "lowercase": "One lowercase letter",
+    "number": "One number",
+    "specialChar": "One special character",
+    "passwordsMatch": "Passwords match",
+    "success": "Password updated successfully",
+    "error": "Failed to update password"
+  },
   "myInvitations": {
     "title": "My Invitations",
     "subtitle": "View and respond to group invitations",
@@ -1615,7 +1634,12 @@
     "bio": "Bio",
     "noBio": "No bio shared",
     "location": "Location",
-    "membersCount": "{count} members"
+    "membersCount": "{count} members",
+    "name": "Name",
+    "role": "Role",
+    "email": "Email",
+    "phone": "Phone",
+    "joined": "Joined"
   },
   "subgroups": {
     "title": "Sub-Groups",

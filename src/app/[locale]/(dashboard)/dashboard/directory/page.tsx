@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,6 +13,14 @@ import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Search,
   Users,
   Mail,
@@ -20,7 +29,11 @@ import {
   Star,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   AlertCircle,
+  LayoutList,
+  LayoutGrid,
 } from "lucide-react";
 
 const roleBadgeStyles: Record<string, string> = {
@@ -72,10 +85,13 @@ export default function DirectoryPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const filtered = useMemo(() => {
+    setPage(1); // Reset page when filters change
     return members.filter((m: Record<string, unknown>) => {
-      const profile = m.profile as Record<string, unknown> | undefined;
       const name = getMemberName(m).toLowerCase();
       const matchesSearch = name.includes(search.toLowerCase());
       const matchesRole = roleFilter === "all" || m.role === roleFilter;
@@ -148,13 +164,23 @@ export default function DirectoryPage() {
             </option>
           ))}
         </select>
-        <Badge variant="secondary" className="w-fit">
-          <Users className="mr-1 h-3 w-3" />
-          {t("directory.membersCount", { count: filtered.length })}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="w-fit">
+            <Users className="mr-1 h-3 w-3" />
+            {t("directory.membersCount", { count: filtered.length })}
+          </Badge>
+          <div className="flex rounded-md border">
+            <Button variant={viewMode === "table" ? "default" : "ghost"} size="icon" className="h-8 w-8 rounded-r-none" onClick={() => setViewMode("table")}>
+              <LayoutList className="h-4 w-4" />
+            </Button>
+            <Button variant={viewMode === "grid" ? "default" : "ghost"} size="icon" className="h-8 w-8 rounded-l-none" onClick={() => setViewMode("grid")}>
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Member Grid */}
+      {/* Members */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16">
           <Users className="h-10 w-10 text-muted-foreground" />
@@ -165,6 +191,87 @@ export default function DirectoryPage() {
             {t("directory.noResultsDesc")}
           </p>
         </div>
+      ) : viewMode === "table" ? (
+        <>
+          {/* Table View */}
+          {(() => {
+            const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+            const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+            const showFrom = (page - 1) * PAGE_SIZE + 1;
+            const showTo = Math.min(page * PAGE_SIZE, filtered.length);
+            return (
+              <>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[40px]"></TableHead>
+                        <TableHead>{t("directory.name")}</TableHead>
+                        <TableHead>{t("directory.role")}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t("directory.email")}</TableHead>
+                        <TableHead className="hidden md:table-cell">{t("directory.phone")}</TableHead>
+                        <TableHead className="hidden lg:table-cell">{t("directory.joined")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginated.map((member: Record<string, unknown>, index: number) => {
+                        const profile = member.profile as Record<string, unknown> | undefined;
+                        const memberName = getMemberName(member);
+                        const memberRole = (member.role as string) || "member";
+                        const joinedAt = member.joined_at as string;
+                        const privacySettings = (member.privacy_settings || {}) as Record<string, boolean>;
+                        const initials = memberName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
+                        return (
+                          <TableRow key={member.id as string}>
+                            <TableCell>
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={(profile?.avatar_url as string) || undefined} />
+                                <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
+                              </Avatar>
+                            </TableCell>
+                            <TableCell className="font-medium">{memberName}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-xs capitalize ${roleBadgeStyles[memberRole] || ""}`}>
+                                {t(`roles.${memberRole}`)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                              {privacySettings.show_email && (profile?.email as string) ? String(profile?.email) : "—"}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                              {privacySettings.show_phone && (profile?.phone as string) ? String(profile?.phone) : "—"}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
+                              {joinedAt ? new Date(joinedAt).toLocaleDateString() : "—"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {showFrom}–{showTo} of {filtered.length}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>
+                        <ChevronLeft className="mr-1 h-4 w-4" />
+                        {t("common.previous")}
+                      </Button>
+                      <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+                      <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(page + 1)}>
+                        {t("common.next")}
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </>
       ) : (
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((member: Record<string, unknown>, index: number) => {

@@ -113,6 +113,7 @@
     "myInvitations": "Mes invitations",
     "myAttendance": "Ma présence",
     "myHosting": "Mon hébergement",
+    "changePassword": "Changer le mot de passe",
     "myRelief": "Mon entraide",
     "myFamily": "Ma famille",
     "membershipCard": "Carte de membre",
@@ -1608,6 +1609,24 @@
     "fri": "Ven",
     "sat": "Sam"
   },
+  "changePassword": {
+    "title": "Changer le mot de passe",
+    "subtitle": "Mettez à jour vos identifiants de sécurité",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "changeButton": "Changer le mot de passe",
+    "minLength": "Au moins 8 caractères",
+    "uppercase": "Une lettre majuscule",
+    "lowercase": "Une lettre minuscule",
+    "number": "Un chiffre",
+    "specialChar": "Un caractère spécial",
+    "passwordsMatch": "Les mots de passe correspondent",
+    "success": "Mot de passe mis à jour avec succès",
+    "error": "Échec de la mise à jour du mot de passe"
+  },
   "myInvitations": {
     "title": "Mes Invitations",
     "subtitle": "Consultez et répondez aux invitations de groupe",
@@ -1676,7 +1695,12 @@
     "bio": "Bio",
     "noBio": "Aucune bio partagée",
     "location": "Lieu",
-    "membersCount": "{count} membres"
+    "membersCount": "{count} membres",
+    "name": "Nom",
+    "role": "Rôle",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "joined": "Inscrit"
   },
   "subgroups": {
     "title": "Sous-groupes",

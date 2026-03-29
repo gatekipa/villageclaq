@@ -38,6 +38,7 @@ import {
   Scale,
   ScrollText,
   Mail,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -139,6 +140,7 @@ const memberSections: NavSection[] = [
       { key: "myRelief", href: "/dashboard/relief/my", icon: Heart },
       { key: "myFamily", href: "/dashboard/my-family", icon: Contact },
       { key: "membershipCard", href: "/dashboard/membership-card", icon: IdCard },
+      { key: "changePassword", href: "/dashboard/change-password", icon: KeyRound },
     ],
   },
   {

@@ -59,18 +59,14 @@ export default function RevenuePage() {
     setLoading(true);
 
     try {
-      // Fetch all payments
+      // Fetch all payments (payments table has no status column — all recorded payments are valid)
       const { data: payments } = await supabase
         .from("payments")
-        .select("amount, created_at, status, group_id");
+        .select("amount, created_at, group_id");
 
       const allPayments = payments || [];
-      const successfulPayments = allPayments.filter(
-        (p) => p.status === "completed" || p.status === "succeeded" || !p.status
-      );
-      const failedPayments = allPayments.filter(
-        (p) => p.status === "failed"
-      );
+      const successfulPayments = allPayments; // All recorded payments are valid
+      const failedPayments: typeof allPayments = []; // No failed-payment tracking yet
 
       // Total revenue
       const totalRevenue = successfulPayments.reduce(

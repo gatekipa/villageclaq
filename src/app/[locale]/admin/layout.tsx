@@ -7,34 +7,90 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  Shield,
-  CreditCard,
-  Ticket,
-  DollarSign,
-  FileText,
-  MessageSquare,
-  ClipboardList,
-  X,
-  Menu,
-  ShieldAlert,
-  LogOut,
+  LayoutDashboard, Users, Building2, Shield, CreditCard,
+  DollarSign, FileText, MessageSquare, ClipboardList,
+  X, Menu, ShieldAlert, LogOut, ChevronDown,
+  BarChart3, Activity, Layers, Settings, Bell, Database,
+  Lock, HelpCircle, Globe, Wifi, WifiOff, Scale,
+  type LucideIcon,
 } from "lucide-react";
 
-const navItems = [
-  { key: "dashboard", href: "/admin", icon: LayoutDashboard },
-  { key: "groups", href: "/admin/groups", icon: Building2 },
-  { key: "users", href: "/admin/users", icon: Users },
-  { key: "staff", href: "/admin/staff", icon: Shield },
-  { key: "subscriptions", href: "/admin/subscriptions", icon: CreditCard },
-  { key: "vouchers", href: "/admin/vouchers", icon: Ticket },
-  { key: "revenue", href: "/admin/revenue", icon: DollarSign },
-  { key: "content", href: "/admin/content", icon: FileText },
-  { key: "enquiries", href: "/admin/enquiries", icon: MessageSquare },
-  { key: "audit", href: "/admin/audit", icon: ClipboardList },
-] as const;
+// ─── Sidebar section definitions ──────────────────────────────────────────
+
+interface NavItem { key: string; href: string; icon: LucideIcon }
+interface NavSection { sectionKey: string; items: NavItem[]; defaultOpen?: boolean }
+
+const navSections: NavSection[] = [
+  {
+    sectionKey: "sectionPlatformOverview",
+    defaultOpen: true,
+    items: [
+      { key: "dashboard", href: "/admin", icon: LayoutDashboard },
+      { key: "platformOverview", href: "/admin/overview", icon: BarChart3 },
+      { key: "usageAnalytics", href: "/admin/analytics", icon: Activity },
+    ],
+  },
+  {
+    sectionKey: "sectionUsersAndGroups",
+    items: [
+      { key: "groups", href: "/admin/groups", icon: Building2 },
+      { key: "groupTypes", href: "/admin/group-types", icon: Layers },
+      { key: "users", href: "/admin/users", icon: Users },
+      { key: "groupAdministrators", href: "/admin/group-admins", icon: Shield },
+      { key: "groupAdminActions", href: "/admin/group-actions", icon: ClipboardList },
+      { key: "multiGroupParticipation", href: "/admin/multi-group", icon: Globe },
+    ],
+  },
+  {
+    sectionKey: "sectionFinancialControls",
+    items: [
+      { key: "transactionsMonitor", href: "/admin/revenue", icon: DollarSign },
+      { key: "offlinePayments", href: "/admin/offline-payments", icon: WifiOff },
+      { key: "feeMonetization", href: "/admin/subscriptions", icon: CreditCard },
+      { key: "subscriptionPlans", href: "/admin/plans", icon: CreditCard },
+      { key: "anomalyMonitoring", href: "/admin/anomalies", icon: ShieldAlert },
+    ],
+  },
+  {
+    sectionKey: "sectionReports",
+    items: [
+      { key: "reportsHub", href: "/admin/reports", icon: BarChart3 },
+      { key: "financialReports", href: "/admin/reports/financial", icon: DollarSign },
+      { key: "engagementReports", href: "/admin/reports/engagement", icon: Activity },
+      { key: "membershipReports", href: "/admin/reports/membership", icon: Users },
+      { key: "attendanceReports", href: "/admin/reports/attendance", icon: ClipboardList },
+      { key: "reliefPlanReports", href: "/admin/reports/relief", icon: Shield },
+    ],
+  },
+  {
+    sectionKey: "sectionSystemConfiguration",
+    items: [
+      { key: "globalSettings", href: "/admin/settings", icon: Settings },
+      { key: "notificationsManagement", href: "/admin/notifications", icon: Bell },
+      { key: "paymentIntegrations", href: "/admin/integrations", icon: CreditCard },
+      { key: "dataSecurity", href: "/admin/security", icon: Database },
+      { key: "offlineSupport", href: "/admin/offline-status", icon: Wifi },
+    ],
+  },
+  {
+    sectionKey: "sectionAccessControl",
+    items: [
+      { key: "staff", href: "/admin/staff", icon: Shield },
+      { key: "rolePermissions", href: "/admin/permissions", icon: Lock },
+      { key: "audit", href: "/admin/audit", icon: ClipboardList },
+    ],
+  },
+  {
+    sectionKey: "sectionContentManagement",
+    items: [
+      { key: "testimonials", href: "/admin/content", icon: FileText },
+      { key: "faqs", href: "/admin/content?tab=faqs", icon: HelpCircle },
+      { key: "enquiries", href: "/admin/enquiries", icon: MessageSquare },
+    ],
+  },
+];
+
+// ─── Platform Admin Guard ─────────────────────────────────────────────────
 
 function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<"loading" | "authorized" | "denied">("loading");
@@ -45,23 +101,14 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
     async function checkAccess() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
-
+      if (!user) { router.replace("/login"); return; }
       const { data: staff } = await supabase
         .from("platform_staff")
         .select("id, role, is_active")
         .eq("user_id", user.id)
         .eq("is_active", true)
         .maybeSingle();
-
-      if (!staff) {
-        setStatus("denied");
-      } else {
-        setStatus("authorized");
-      }
+      setStatus(staff ? "authorized" : "denied");
     }
     checkAccess();
   }, [router]);
@@ -85,12 +132,8 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
             <ShieldAlert className="h-8 w-8 text-red-600 dark:text-red-400" />
           </div>
           <h2 className="text-xl font-bold">{t("accessDenied")}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t("accessDeniedDesc")}
-          </p>
-          <Button onClick={() => router.replace("/dashboard")}>
-            {t("goToDashboard")}
-          </Button>
+          <p className="text-sm text-muted-foreground">{t("accessDeniedDesc")}</p>
+          <Button onClick={() => router.replace("/dashboard")}>{t("goToDashboard")}</Button>
         </div>
       </div>
     );
@@ -98,6 +141,78 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
+// ─── Collapsible Section Component ────────────────────────────────────────
+
+function SidebarSection({
+  section, pathname, t, onNavigate,
+}: {
+  section: NavSection;
+  pathname: string;
+  t: ReturnType<typeof useTranslations>;
+  onNavigate: () => void;
+}) {
+  const storageKey = `admin-nav-${section.sectionKey}`;
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return !!section.defaultOpen;
+    const stored = localStorage.getItem(storageKey);
+    if (stored !== null) return stored === "1";
+    return !!section.defaultOpen;
+  });
+
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    localStorage.setItem(storageKey, next ? "1" : "0");
+  }
+
+  // Auto-expand if active item is in this section
+  const hasActive = section.items.some(
+    (item) => pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
+  );
+
+  useEffect(() => {
+    if (hasActive && !open) {
+      setOpen(true);
+      localStorage.setItem(storageKey, "1");
+    }
+  }, [hasActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="mb-1">
+      <button
+        onClick={toggle}
+        className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition-colors"
+      >
+        <span>{t(section.sectionKey as Parameters<typeof t>[0])}</span>
+        <ChevronDown className={cn("h-3 w-3 transition-transform", open ? "" : "-rotate-90")} />
+      </button>
+      {open && (
+        <div className="space-y-0.5 mt-0.5">
+          {section.items.map((item) => {
+            const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href.split("?")[0]));
+            return (
+              <Link
+                key={item.key + item.href}
+                href={item.href}
+                onClick={onNavigate}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                  isActive ? "bg-emerald-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {t(item.key as Parameters<typeof t>[0])}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Admin Layout ─────────────────────────────────────────────────────────
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations("admin");
@@ -117,47 +232,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-900 text-white transition-transform duration-300 lg:static lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
-          <div className="flex h-16 items-center justify-between px-6">
+          {/* Logo */}
+          <div className="flex h-14 items-center justify-between px-4 border-b border-slate-800">
             <Link href="/admin" className="flex items-center gap-2">
-              <img src="/logo-mark.svg" alt="VillageClaq" className="h-10 w-10" />
+              <img src="/logo-mark.svg" alt="VillageClaq" className="h-8 w-8" />
               <div>
-                <span className="text-lg font-bold text-emerald-400">VillageClaq</span>
-                <span className="block text-[10px] text-slate-400">Platform Admin</span>
+                <span className="text-sm font-bold text-emerald-400">VillageClaq</span>
+                <span className="block text-[9px] text-slate-500">{t("superAdmin")}</span>
               </div>
             </Link>
-            <Button variant="ghost" size="icon" className="text-white lg:hidden" onClick={() => setSidebarOpen(false)}>
-              <X className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="text-white lg:hidden h-7 w-7" onClick={() => setSidebarOpen(false)}>
+              <X className="h-4 w-4" />
             </Button>
           </div>
 
-          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  onClick={() => setSidebarOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    isActive ? "bg-emerald-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-                  )}
-                >
-                  <item.icon className="h-5 w-5 shrink-0" />
-                  {t(item.key)}
-                </Link>
-              );
-            })}
+          {/* Nav sections */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
+            {navSections.map((section) => (
+              <SidebarSection
+                key={section.sectionKey}
+                section={section}
+                pathname={pathname}
+                t={t}
+                onNavigate={() => setSidebarOpen(false)}
+              />
+            ))}
           </nav>
 
-          <div className="border-t border-slate-700 px-4 py-3">
-            <p className="text-xs text-slate-500">LawTekno LLC</p>
+          {/* Bottom card */}
+          <div className="border-t border-slate-800 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold">VC</div>
+              <div>
+                <p className="text-xs font-medium text-slate-300">VillageClaq Staff</p>
+                <p className="text-[10px] text-slate-500">LawTekno LLC</p>
+              </div>
+            </div>
           </div>
         </aside>
 
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-16 items-center justify-between gap-4 border-b px-4 lg:px-6">
+          <header className="flex h-14 items-center justify-between gap-4 border-b px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
                 <Menu className="h-5 w-5" />

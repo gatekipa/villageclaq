@@ -286,7 +286,7 @@ export default function GroupOnboardingPage() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setError("Not authenticated. Please log in again.");
+      setError(t("notAuthenticated"));
       setIsSubmitting(false);
       return;
     }
@@ -316,7 +316,7 @@ export default function GroupOnboardingPage() {
       .select()
       .single();
     if (orgErr) {
-      setError(`Organization: ${orgErr.message}`);
+      setError(t("setupFailed"));
       setIsSubmitting(false);
       return;
     }
@@ -343,7 +343,7 @@ export default function GroupOnboardingPage() {
       .select()
       .single();
     if (groupErr) {
-      setError(`Group: ${groupErr.message}`);
+      setError(t("setupFailed"));
       await supabase.from("organizations").delete().eq("id", org.id);
       setIsSubmitting(false);
       return;
@@ -359,7 +359,7 @@ export default function GroupOnboardingPage() {
       display_name: fullName.trim() || user.email?.split("@")[0] || "Owner",
     });
     if (memErr) {
-      setError(`Membership: ${memErr.message}`);
+      setError(t("setupFailed"));
       await supabase.from("groups").delete().eq("id", group.id);
       await supabase.from("organizations").delete().eq("id", org.id);
       setIsSubmitting(false);

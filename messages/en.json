@@ -2863,7 +2863,26 @@
     "taskRecordPayment": "Record your first payment",
     "taskRecordPaymentLink": "Go to Payments",
     "joinCodeShare": "Share this code with members",
-    "joinCodeCopied": "Code copied!"
+    "joinCodeCopied": "Code copied!",
+    "notAuthenticated": "Not authenticated. Please log in again.",
+    "setupFailed": "Setup failed. Please try again."
+  },
+  "forgotPassword": {
+    "title": "Forgot Password",
+    "subtitle": "Enter your email and we'll send you a reset link.",
+    "sendLink": "Send Reset Link",
+    "success": "Check your email for a password reset link.",
+    "error": "Failed to send reset link. Please try again.",
+    "backToLogin": "Back to Login"
+  },
+  "resetPassword": {
+    "title": "Reset Password",
+    "subtitle": "Create a new password for your account.",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "resetButton": "Reset Password",
+    "success": "Password reset successfully. Redirecting to login...",
+    "error": "Failed to reset password. Please try again."
   },
   "errors": {
     "notFoundTitle": "Page Not Found",

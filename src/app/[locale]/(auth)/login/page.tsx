@@ -169,7 +169,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">{t("auth.password")}</Label>
-                  <span className="text-xs text-muted-foreground cursor-not-allowed">{t("auth.forgotPassword")}</span>
+                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">{t("auth.forgotPassword")}</Link>
                 </div>
                 <PasswordInput id="password" name="password" required autoComplete="current-password" disabled={isLoading} className="h-11" />
               </div>

@@ -2839,7 +2839,26 @@
     "taskRecordPayment": "Enregistrer votre premier paiement",
     "taskRecordPaymentLink": "Aller aux Paiements",
     "joinCodeShare": "Partagez ce code avec les membres",
-    "joinCodeCopied": "Code copié !"
+    "joinCodeCopied": "Code copié !",
+    "notAuthenticated": "Non authentifié. Veuillez vous reconnecter.",
+    "setupFailed": "La configuration a échoué. Veuillez réessayer."
+  },
+  "forgotPassword": {
+    "title": "Mot de passe oublié",
+    "subtitle": "Entrez votre e-mail et nous vous enverrons un lien de réinitialisation.",
+    "sendLink": "Envoyer le lien",
+    "success": "Vérifiez votre e-mail pour le lien de réinitialisation.",
+    "error": "Échec de l'envoi du lien. Veuillez réessayer.",
+    "backToLogin": "Retour à la connexion"
+  },
+  "resetPassword": {
+    "title": "Réinitialiser le mot de passe",
+    "subtitle": "Créez un nouveau mot de passe pour votre compte.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "resetButton": "Réinitialiser le mot de passe",
+    "success": "Mot de passe réinitialisé. Redirection vers la connexion...",
+    "error": "Échec de la réinitialisation. Veuillez réessayer."
   },
   "errors": {
     "notFoundTitle": "Page introuvable",

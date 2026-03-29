@@ -109,7 +109,7 @@ export default function JoinPage() {
     });
 
     if (joinErr) {
-      setError(joinErr.message);
+      setError(t("error"));
       setStatus("error");
       return;
     }

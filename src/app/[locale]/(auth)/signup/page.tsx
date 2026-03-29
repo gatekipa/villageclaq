@@ -59,7 +59,20 @@ export default function SignupPage() {
         email, password,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-      if (signupError) { setError(signupError.message); return; }
+      if (signupError) {
+        // Map common Supabase auth errors to translated messages
+        const msg = signupError.message?.toLowerCase() || "";
+        if (msg.includes("already registered") || msg.includes("already been registered")) {
+          setError(t("auth.emailAlreadyRegistered"));
+        } else if (msg.includes("invalid") && msg.includes("email")) {
+          setError(t("auth.invalidEmail"));
+        } else if (msg.includes("password")) {
+          setError(t("auth.passwordMinLength"));
+        } else {
+          setError(t("auth.signupFailed"));
+        }
+        return;
+      }
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.error"));

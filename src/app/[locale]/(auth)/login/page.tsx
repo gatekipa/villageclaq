@@ -49,7 +49,17 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-      if (loginError) { setError(loginError.message); return; }
+      if (loginError) {
+        const msg = loginError.message?.toLowerCase() || "";
+        if (msg.includes("invalid login") || msg.includes("invalid credentials")) {
+          setError(t("auth.invalidCredentials"));
+        } else if (msg.includes("email not confirmed")) {
+          setError(t("auth.emailNotConfirmed"));
+        } else {
+          setError(t("auth.loginFailed"));
+        }
+        return;
+      }
       router.push(redirectTo ?? "/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.error"));
@@ -159,7 +169,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">{t("auth.password")}</Label>
-                  <Link href="/login" className="text-xs text-primary hover:underline">{t("auth.forgotPassword")}</Link>
+                  <span className="text-xs text-muted-foreground cursor-not-allowed">{t("auth.forgotPassword")}</span>
                 </div>
                 <PasswordInput id="password" name="password" required autoComplete="current-password" disabled={isLoading} className="h-11" />
               </div>

@@ -30,6 +30,7 @@ import {
   useContributionTypes,
   useRecordPayment,
 } from "@/lib/hooks/use-supabase-query";
+import { useQuery } from "@tanstack/react-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -46,6 +47,46 @@ export default function RecordPaymentPage() {
   const recordPayment = useRecordPayment();
 
   const currency = currentGroup?.currency || "XAF";
+
+  // Query group payment config to filter available methods
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["group-payment-config", groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("group_payment_config")
+        .select("*")
+        .eq("group_id", groupId)
+        .maybeSingle();
+      return data as Record<string, boolean | unknown> | null;
+    },
+    enabled: !!groupId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Build enabled payment methods from config (fallback: all methods if no config)
+  const enabledMethods = (() => {
+    const methods: { value: string; labelKey: string }[] = [];
+    if (!paymentConfig) {
+      // No config yet — show all legacy methods
+      return [
+        { value: "cash", labelKey: "contributions.cash" },
+        { value: "mobile_money", labelKey: "contributions.mobileMoney" },
+        { value: "bank_transfer", labelKey: "contributions.bankTransfer" },
+        { value: "online", labelKey: "contributions.online" },
+      ];
+    }
+    if (paymentConfig.cash_enabled) methods.push({ value: "cash", labelKey: "contributions.cash" });
+    if (paymentConfig.cashapp_enabled) methods.push({ value: "cashapp", labelKey: "contributions.cashapp" });
+    if (paymentConfig.zelle_enabled) methods.push({ value: "zelle", labelKey: "contributions.zelle" });
+    if (paymentConfig.mobile_money_enabled) methods.push({ value: "mobile_money", labelKey: "contributions.mobileMoney" });
+    if (paymentConfig.bank_transfer_enabled) methods.push({ value: "bank_transfer", labelKey: "contributions.bankTransfer" });
+    if (paymentConfig.flutterwave_enabled) methods.push({ value: "online", labelKey: "contributions.online" });
+    // Always include "other" as fallback
+    methods.push({ value: "other", labelKey: "contributions.other" });
+    return methods;
+  })();
 
   const [memberSearch, setMemberSearch] = useState("");
   const [selectedMembership, setSelectedMembership] = useState<{ id: string; name: string } | null>(null);
@@ -410,10 +451,11 @@ export default function RecordPaymentPage() {
                   onChange={(e) => setMethod(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
                 >
-                  <option value="cash">{t("contributions.cash")}</option>
-                  <option value="mobile_money">{t("contributions.mobileMoney")}</option>
-                  <option value="bank_transfer">{t("contributions.bankTransfer")}</option>
-                  <option value="online">{t("contributions.online")}</option>
+                  {enabledMethods.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {t(m.labelKey)}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

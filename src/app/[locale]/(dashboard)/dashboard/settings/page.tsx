@@ -29,6 +29,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { PaymentsTab } from "@/components/settings/payments-tab";
 
 function getInitials(name: string) {
   return name
@@ -179,6 +180,7 @@ export default function GroupSettingsPage() {
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="info">{t("profileTab")}</TabsTrigger>
           <TabsTrigger value="localization">{t("localizationTab")}</TabsTrigger>
+          <TabsTrigger value="payments">{t("paymentsTab")}</TabsTrigger>
           <TabsTrigger value="positions">{t("positionsTab")}</TabsTrigger>
         </TabsList>
 
@@ -432,6 +434,11 @@ export default function GroupSettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Payments Tab */}
+        <TabsContent value="payments" className="mt-6">
+          <PaymentsTab />
         </TabsContent>
 
         {/* Positions Tab */}

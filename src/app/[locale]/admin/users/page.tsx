@@ -37,7 +37,16 @@ import {
   UserCog,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const PAGE_SIZE = 20;
 
@@ -76,6 +85,9 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [page, setPage] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "noGroups">("all");
+  const [sortField, setSortField] = useState<"name" | "groups" | "lastActive" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     async function fetchUsers() {
@@ -140,19 +152,40 @@ export default function AdminUsersPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return users;
-    const q = search.toLowerCase();
-    return users.filter(
-      (u) =>
-        u.full_name.toLowerCase().includes(q) ||
-        (u.phone && u.phone.includes(q))
-    );
-  }, [users, search]);
+    let result = users;
 
-  // Reset page when search changes
+    // Status filter
+    if (statusFilter === "active") result = result.filter((u) => u.groupCount > 0);
+    else if (statusFilter === "noGroups") result = result.filter((u) => u.groupCount === 0);
+
+    // Search filter
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.full_name.toLowerCase().includes(q) ||
+          (u.phone && u.phone.includes(q))
+      );
+    }
+
+    // Sort
+    if (sortField) {
+      result = [...result].sort((a, b) => {
+        let cmp = 0;
+        if (sortField === "name") cmp = a.full_name.localeCompare(b.full_name);
+        else if (sortField === "groups") cmp = a.groupCount - b.groupCount;
+        else if (sortField === "lastActive") cmp = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+        return sortDirection === "desc" ? -cmp : cmp;
+      });
+    }
+
+    return result;
+  }, [users, search, statusFilter, sortField, sortDirection]);
+
+  // Reset page when search or filter changes
   useEffect(() => {
     setPage(0);
-  }, [search]);
+  }, [search, statusFilter, sortField, sortDirection]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -169,6 +202,23 @@ export default function AdminUsersPage() {
     ).length;
     return { total, active, noGroups, newThisMonth };
   }, [users]);
+
+  function toggleSort(field: "name" | "groups" | "lastActive") {
+    if (sortField === field) {
+      if (sortDirection === "asc") setSortDirection("desc");
+      else { setSortField(null); setSortDirection("asc"); }
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  }
+
+  function SortIcon({ field }: { field: "name" | "groups" | "lastActive" }) {
+    if (sortField !== field) return null;
+    return sortDirection === "asc"
+      ? <ChevronUp className="inline h-3 w-3 ml-0.5" />
+      : <ChevronDown className="inline h-3 w-3 ml-0.5" />;
+  }
 
   const getInitials = useCallback((name: string) => {
     return name
@@ -233,15 +283,25 @@ export default function AdminUsersPage() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder={t("searchUsers")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+      {/* Search + Status Filter */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={t("searchUsers")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
         />
+        </div>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter((v as "all" | "active" | "noGroups") ?? "all")}>
+          <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("allStatuses")}</SelectItem>
+            <SelectItem value="active">{t("activeUsers")}</SelectItem>
+            <SelectItem value="noGroups">{t("noGroupsUsers")}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Summary Cards */}
@@ -338,16 +398,20 @@ export default function AdminUsersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("userName")}</TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>
+                      {t("userName")}<SortIcon field="name" />
+                    </TableHead>
                     <TableHead className="hidden sm:table-cell">
                       {t("userEmail")}
                     </TableHead>
                     <TableHead className="hidden md:table-cell">
                       {t("userPhone")}
                     </TableHead>
-                    <TableHead>{t("groupsCount")}</TableHead>
-                    <TableHead className="hidden lg:table-cell">
-                      {t("lastActive")}
+                    <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("groups")}>
+                      {t("groupsCount")}<SortIcon field="groups" />
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell cursor-pointer select-none" onClick={() => toggleSort("lastActive")}>
+                      {t("lastActive")}<SortIcon field="lastActive" />
                     </TableHead>
                     <TableHead>{t("status")}</TableHead>
                     <TableHead className="w-10">

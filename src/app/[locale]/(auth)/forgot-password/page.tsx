@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ export default function ForgotPasswordPage() {
   const t = useTranslations("forgotPassword");
   const tc = useTranslations("common");
   const ta = useTranslations("auth");
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -27,7 +28,7 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = createClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/en/reset-password`,
+        redirectTo: `${window.location.origin}/${locale}/reset-password`,
       });
       if (resetError) throw resetError;
       setSuccess(true);

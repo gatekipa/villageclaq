@@ -20,6 +20,7 @@ import {
   Clock,
   AlertCircle,
   Loader2,
+  UserCheck,
 } from "lucide-react";
 
 type InvitationStatus = "pending" | "accepted" | "declined" | "expired" | "revoked";
@@ -68,7 +69,7 @@ export default function MyInvitationsPage() {
       // or where they sent the invitation
       const { data, error } = await supabase
         .from("invitations")
-        .select("*, group:groups!inner(id, name)")
+        .select("*, group:groups!inner(id, name), claim_membership:memberships!invitations_claim_membership_id_fkey(id, display_name, role)")
         .or(`email.eq.${authUser.email}`)
         .order("created_at", { ascending: false });
 
@@ -87,7 +88,7 @@ export default function MyInvitationsPage() {
     return { total, pending, accepted, declined };
   }, [invitations]);
 
-  // Accept invitation — creates membership + fires welcome email
+  // Accept invitation — creates membership (or claims proxy) + fires welcome email
   async function handleAccept(invitationId: string) {
     setUpdatingId(invitationId);
     setShowError(null);
@@ -105,31 +106,54 @@ export default function MyInvitationsPage() {
       const role = (invitation.role as string) || "member";
       const group = invitation.group as Record<string, unknown> | null;
       const groupName = (group?.name as string) || "";
+      const claimMembershipId = invitation.claim_membership_id as string | null;
+      const claimMembership = invitation.claim_membership as Record<string, unknown> | null;
+      const isClaim = !!claimMembershipId;
 
       // Get the current authenticated user
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) throw new Error("Not authenticated");
 
-      // Check if already a member of this group (prevent duplicate memberships)
-      const { data: existing } = await supabase
-        .from("memberships")
-        .select("id")
-        .eq("user_id", authUser.id)
-        .eq("group_id", groupId)
-        .maybeSingle();
-
-      // Create membership if not already a member
-      if (!existing) {
-        const { error: membershipErr } = await supabase
+      if (isClaim) {
+        // ── CLAIM FLOW: claim existing proxy membership ──
+        const { error: claimErr } = await supabase.rpc("claim_proxy_membership", {
+          p_membership_id: claimMembershipId,
+          p_user_id: authUser.id,
+        });
+        if (claimErr) {
+          // Map RPC errors to user-friendly messages
+          if (claimErr.message?.includes("already has a membership")) {
+            setShowError(t("alreadyMember"));
+          } else if (claimErr.message?.includes("not a claimable")) {
+            setShowError(t("alreadyClaimed"));
+          } else {
+            setShowError(claimErr.message || t("actionFailed"));
+          }
+          return;
+        }
+      } else {
+        // ── NORMAL FLOW: create new membership ──
+        // Check if already a member of this group (prevent duplicate memberships)
+        const { data: existing } = await supabase
           .from("memberships")
-          .insert({
-            user_id: authUser.id,
-            group_id: groupId,
-            role,
-            standing: "good",
-            is_proxy: false,
-          });
-        if (membershipErr) throw membershipErr;
+          .select("id")
+          .eq("user_id", authUser.id)
+          .eq("group_id", groupId)
+          .maybeSingle();
+
+        // Create membership if not already a member
+        if (!existing) {
+          const { error: membershipErr } = await supabase
+            .from("memberships")
+            .insert({
+              user_id: authUser.id,
+              group_id: groupId,
+              role,
+              standing: "good",
+              is_proxy: false,
+            });
+          if (membershipErr) throw membershipErr;
+        }
       }
 
       // Mark invitation as accepted
@@ -144,6 +168,9 @@ export default function MyInvitationsPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token && authUser.id) {
+          const memberName = isClaim
+            ? (claimMembership?.display_name as string) || user?.full_name || "Member"
+            : user?.full_name || user?.display_name || authUser.email || "Member";
           fetch("/api/email/send", {
             method: "POST",
             headers: {
@@ -154,7 +181,7 @@ export default function MyInvitationsPage() {
               to: authUser.id,
               template: "welcome",
               data: {
-                memberName: user?.full_name || user?.display_name || authUser.email || "Member",
+                memberName,
                 groupName,
                 dashboardUrl: `${window.location.origin}/dashboard`,
               },
@@ -168,9 +195,10 @@ export default function MyInvitationsPage() {
 
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
       queryClient.invalidateQueries({ queryKey: ["members", groupId] });
-      setShowSuccess(t("acceptSuccess"));
+      const successMsg = isClaim ? t("profileClaimed") : t("acceptSuccess");
+      setShowSuccess(successMsg);
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
-      successTimerRef.current = setTimeout(() => setShowSuccess(null), 3000);
+      successTimerRef.current = setTimeout(() => setShowSuccess(null), 5000);
     } catch (err) {
       setShowError(t("actionFailed"));
     } finally {
@@ -298,6 +326,7 @@ export default function MyInvitationsPage() {
                 const StatusIcon = config.icon;
                 const isPending = status === "pending";
                 const isUpdating = updatingId === id;
+                const isClaim = !!(inv.claim_membership_id);
 
                 return (
                   <div
@@ -305,10 +334,23 @@ export default function MyInvitationsPage() {
                     className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex-1 min-w-0 space-y-1">
-                      <p className="font-medium truncate">{groupName}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{groupName}</p>
+                        {isClaim && (
+                          <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400 text-[10px]">
+                            <UserCheck className="mr-1 h-3 w-3" />
+                            {t("claimInvite")}
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span>{t("invitedOn")}: {createdAt}</span>
                       </div>
+                      {isClaim && isPending && (
+                        <p className="text-xs text-muted-foreground">
+                          {t("claimDescription", { groupName })}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
@@ -328,10 +370,12 @@ export default function MyInvitationsPage() {
                           >
                             {isUpdating ? (
                               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                            ) : isClaim ? (
+                              <UserCheck className="mr-1 h-3 w-3" />
                             ) : (
                               <CheckCircle2 className="mr-1 h-3 w-3" />
                             )}
-                            {t("accept")}
+                            {isClaim ? t("claimProfile") : t("accept")}
                           </Button>
                           <Button
                             size="sm"

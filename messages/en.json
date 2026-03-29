@@ -509,7 +509,14 @@
     "imported": "{count} members imported successfully",
     "failed": "{count} failed",
     "rowFailed": "Failed: {name} — {error}",
-    "step": "Step {current} of {total}"
+    "step": "Step {current} of {total}",
+    "sendClaimInvite": "Send Claim Invitation",
+    "claimInviteEmail": "Enter the member's email address so they can claim this profile and preserve their history.",
+    "claimInviteSent": "Claim invitation sent successfully",
+    "claimInviteError": "Failed to send claim invitation",
+    "emailRequired": "Email address is required",
+    "sendInvite": "Send Invitation",
+    "emailAddress": "Email Address"
   },
   "roles": {
     "title": "Roles & Permissions",
@@ -1599,7 +1606,13 @@
     "declineSuccess": "Invitation declined",
     "actionFailed": "Failed to update invitation",
     "noInvitations": "No invitations",
-    "noInvitationsDesc": "You don't have any group invitations yet."
+    "noInvitationsDesc": "You don't have any group invitations yet.",
+    "claimInvite": "Profile Claim",
+    "claimDescription": "Claim your existing profile in {groupName}. Your payment history and records will be preserved.",
+    "claimProfile": "Claim Profile",
+    "profileClaimed": "Profile claimed successfully! Your history has been preserved.",
+    "alreadyClaimed": "This profile has already been claimed.",
+    "alreadyMember": "You already have a membership in this group."
   },
   "myHosting": {
     "title": "My Hosting",

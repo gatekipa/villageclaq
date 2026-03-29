@@ -509,7 +509,14 @@
     "imported": "{count} membres importés avec succès",
     "failed": "{count} échoués",
     "rowFailed": "Échoué: {name} — {error}",
-    "step": "Étape {current} sur {total}"
+    "step": "Étape {current} sur {total}",
+    "sendClaimInvite": "Envoyer une invitation de réclamation",
+    "claimInviteEmail": "Entrez l'adresse e-mail du membre pour qu'il puisse réclamer ce profil et préserver son historique.",
+    "claimInviteSent": "Invitation de réclamation envoyée avec succès",
+    "claimInviteError": "Échec de l'envoi de l'invitation de réclamation",
+    "emailRequired": "L'adresse e-mail est requise",
+    "sendInvite": "Envoyer l'invitation",
+    "emailAddress": "Adresse e-mail"
   },
   "roles": {
     "title": "Rôles et Permissions",
@@ -1659,7 +1666,13 @@
     "declineSuccess": "Invitation déclinée",
     "actionFailed": "Échec de la mise à jour de l'invitation",
     "noInvitations": "Aucune invitation",
-    "noInvitationsDesc": "Vous n'avez aucune invitation de groupe pour le moment."
+    "noInvitationsDesc": "Vous n'avez aucune invitation de groupe pour le moment.",
+    "claimInvite": "Réclamation de profil",
+    "claimDescription": "Réclamez votre profil existant dans {groupName}. Votre historique de paiement et vos dossiers seront préservés.",
+    "claimProfile": "Réclamer le profil",
+    "profileClaimed": "Profil réclamé avec succès ! Votre historique a été préservé.",
+    "alreadyClaimed": "Ce profil a déjà été réclamé.",
+    "alreadyMember": "Vous avez déjà une adhésion dans ce groupe."
   },
   "myHosting": {
     "title": "Mon Accueil",

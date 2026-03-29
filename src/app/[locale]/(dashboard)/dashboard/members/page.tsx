@@ -67,6 +67,7 @@ import {
   XCircle,
   AlertTriangle,
   ArrowRightLeft,
+  Mail,
 } from "lucide-react";
 import Papa from "papaparse";
 import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
@@ -222,6 +223,14 @@ export default function MembersPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Claim invite dialog state
+  const [claimDialogOpen, setClaimDialogOpen] = useState(false);
+  const [claimMember, setClaimMember] = useState<Record<string, unknown> | null>(null);
+  const [claimEmail, setClaimEmail] = useState("");
+  const [claimSaving, setClaimSaving] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
+
   // Recalculate all standing state
   const [recalcAllLoading, setRecalcAllLoading] = useState(false);
   const ts = useTranslations("standing");
@@ -245,6 +254,74 @@ export default function MembersPage() {
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
     } finally {
       setRecalcAllLoading(false);
+    }
+  }
+
+  function openClaimInvite(member: Record<string, unknown>) {
+    setClaimMember(member);
+    setClaimEmail("");
+    setClaimError(null);
+    setClaimSuccess(null);
+    setClaimDialogOpen(true);
+  }
+
+  async function handleSendClaimInvite() {
+    if (!claimEmail.trim() || !claimMember || !groupId || !user) return;
+    setClaimSaving(true);
+    setClaimError(null);
+    setClaimSuccess(null);
+    try {
+      const supabase = createClient();
+      const membershipId = claimMember.id as string;
+      const memberName = getMemberName(claimMember);
+
+      // Create a claim invitation linked to the proxy membership
+      const { error: invErr } = await supabase.from("invitations").insert({
+        group_id: groupId,
+        email: claimEmail.trim(),
+        role: (claimMember.role as string) || "member",
+        status: "pending",
+        invited_by: user.id,
+        claim_membership_id: membershipId,
+      });
+      if (invErr) throw invErr;
+
+      // Send claim invitation email (fire-and-forget)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          fetch("/api/email/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              to: claimEmail.trim(),
+              template: "welcome",
+              data: {
+                memberName,
+                groupName: currentGroup?.name || "",
+                dashboardUrl: `${window.location.origin}/dashboard/my-invitations`,
+              },
+              locale,
+            }),
+          }).catch(() => {}); // Fire and forget
+        }
+      } catch {
+        // Email is non-critical
+      }
+
+      setClaimSuccess(t("claimInviteSent"));
+      await queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+      setTimeout(() => {
+        setClaimDialogOpen(false);
+        setClaimSuccess(null);
+      }, 2000);
+    } catch (err) {
+      setClaimError((err as Error).message || t("claimInviteError"));
+    } finally {
+      setClaimSaving(false);
     }
   }
 
@@ -962,6 +1039,14 @@ export default function MembersPage() {
                             >
                               <ArrowRightLeft className="h-4 w-4" /> {tt("transferMember")}
                             </DropdownMenuItem>
+                            {isProxy && !(member.claimed_at) && (
+                              <DropdownMenuItem
+                                className="flex items-center gap-2"
+                                onClick={(e) => { e.stopPropagation(); openClaimInvite(member); }}
+                              >
+                                <Mail className="h-4 w-4" /> {t("sendClaimInvite")}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="flex items-center gap-2 text-destructive"
@@ -1494,6 +1579,54 @@ export default function MembersPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Claim Invite Dialog */}
+      <Dialog open={claimDialogOpen} onOpenChange={(open) => { setClaimDialogOpen(open); if (!open) { setClaimError(null); setClaimSuccess(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              {t("sendClaimInvite")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {claimMember && (
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-sm font-medium">{getMemberName(claimMember)}</p>
+                <p className="text-xs text-muted-foreground">{t("proxyMember")}</p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {t("claimInviteEmail")}
+            </p>
+            <div className="space-y-2">
+              <Label>{t("emailAddress")} <span className="text-red-500">*</span></Label>
+              <Input
+                type="email"
+                value={claimEmail}
+                onChange={(e) => setClaimEmail(e.target.value)}
+                placeholder="name@example.com"
+                autoFocus
+              />
+            </div>
+            {claimError && <p className="text-sm text-destructive">{claimError}</p>}
+            {claimSuccess && (
+              <div className="rounded-lg border border-emerald-500/50 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+                {claimSuccess}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClaimDialogOpen(false)}>
+              {locale === "fr" ? "Annuler" : "Cancel"}
+            </Button>
+            <Button onClick={handleSendClaimInvite} disabled={claimSaving || !claimEmail.trim()}>
+              {claimSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("sendInvite")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

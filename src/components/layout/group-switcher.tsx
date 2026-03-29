@@ -49,13 +49,12 @@ export function GroupSwitcher() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="flex items-center gap-2"
-          onClick={() => window.location.href = "/dashboard/onboarding/group"}
-        >
-          <Plus className="h-4 w-4" />
-          <span>{t("manageGroups")}</span>
-        </DropdownMenuItem>
+        <Link href="/dashboard/onboarding/group">
+          <DropdownMenuItem className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            <span>{t("manageGroups")}</span>
+          </DropdownMenuItem>
+        </Link>
       </DropdownMenuContent>
     </DropdownMenu>
   );

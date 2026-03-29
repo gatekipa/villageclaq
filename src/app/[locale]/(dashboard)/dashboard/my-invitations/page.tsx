@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -41,6 +41,13 @@ export default function MyInvitationsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showError, setShowError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
 
   // Query invitations for the current user by email match
   // RLS policy: email = auth.users.email OR invited_by = auth.uid()
@@ -93,7 +100,8 @@ export default function MyInvitationsPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
       setShowSuccess(t("acceptSuccess"));
-      setTimeout(() => setShowSuccess(null), 3000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setShowSuccess(null), 3000);
     } catch (err) {
       setShowError(t("actionFailed"));
     } finally {
@@ -115,7 +123,8 @@ export default function MyInvitationsPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
       setShowSuccess(t("declineSuccess"));
-      setTimeout(() => setShowSuccess(null), 3000);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      successTimerRef.current = setTimeout(() => setShowSuccess(null), 3000);
     } catch (err) {
       setShowError(t("actionFailed"));
     } finally {

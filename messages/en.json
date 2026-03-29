@@ -650,7 +650,9 @@
     "positionNamePlaceholder": "New position name...",
     "defaultLocale": "Default Language",
     "currency": "Currency",
-    "localizationTab": "Localization"
+    "localizationTab": "Localization",
+    "logoTooLarge": "Logo must be under 2MB",
+    "logoUploadFailed": "Failed to upload logo"
   },
   "contributions": {
     "title": "Contributions",

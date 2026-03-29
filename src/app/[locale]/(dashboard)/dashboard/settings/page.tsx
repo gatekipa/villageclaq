@@ -40,7 +40,7 @@ function getInitials(name: string) {
 
 export default function GroupSettingsPage() {
   const t = useTranslations("settings");
-  const { isAdmin, groupId } = useGroup();
+  const { groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
   const queryClient = useQueryClient();
@@ -191,7 +191,7 @@ export default function GroupSettingsPage() {
                           getInitials((groupData.name as string) || "G")
                         )}
                       </div>
-                      {isAdmin && (
+                      {canManageSettings && (
                         <>
                           <input
                             type="file"
@@ -201,18 +201,24 @@ export default function GroupSettingsPage() {
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file || !groupId) return;
-                              if (file.size > 2 * 1024 * 1024) return;
+                              if (file.size > 2 * 1024 * 1024) {
+                                setSaveError(t("logoTooLarge"));
+                                return;
+                              }
                               setUploadingLogo(true);
+                              setSaveError(null);
                               try {
                                 const supabase = createClient();
                                 const path = `logos/${groupId}/${Date.now()}-${file.name}`;
                                 const { error: upErr } = await supabase.storage.from("group-documents").upload(path, file, { upsert: true });
-                                if (!upErr) {
-                                  const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
-                                  await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId);
-                                  queryClient.invalidateQueries({ queryKey: ["group-settings"] });
-                                }
-                              } catch {} finally { setUploadingLogo(false); }
+                                if (upErr) throw upErr;
+                                const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
+                                const { error: updateErr } = await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId);
+                                if (updateErr) throw updateErr;
+                                queryClient.invalidateQueries({ queryKey: ["group-settings"] });
+                              } catch (err) {
+                                setSaveError((err as Error).message || t("logoUploadFailed"));
+                              } finally { setUploadingLogo(false); }
                             }}
                           />
                           <button
@@ -226,7 +232,7 @@ export default function GroupSettingsPage() {
                       )}
                     </div>
                     <div className="flex-1">
-                      {isAdmin ? (
+                      {canManageSettings ? (
                         <div className="space-y-1">
                           <Label className="text-xs">{t("groupName")}</Label>
                           <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -248,7 +254,7 @@ export default function GroupSettingsPage() {
                     </div>
                     <div className="rounded-lg border p-3">
                       <Label className="text-xs font-medium text-muted-foreground">{t("currency")}</Label>
-                      {isAdmin ? (
+                      {canManageSettings ? (
                         <select
                           value={editCurrency}
                           onChange={(e) => setEditCurrency(e.target.value)}
@@ -269,7 +275,7 @@ export default function GroupSettingsPage() {
                     </div>
                     <div className="rounded-lg border p-3">
                       <Label className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</Label>
-                      {isAdmin ? (
+                      {canManageSettings ? (
                         <select
                           value={editLocale}
                           onChange={(e) => setEditLocale(e.target.value)}
@@ -291,7 +297,7 @@ export default function GroupSettingsPage() {
                   {/* Description */}
                   <div className="rounded-lg border p-3">
                     <Label className="text-xs font-medium text-muted-foreground">{t("groupDescription")}</Label>
-                    {isAdmin ? (
+                    {canManageSettings ? (
                       <Textarea className="mt-1" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
                     ) : (
                       <p className="mt-1 text-sm text-muted-foreground">{(groupData.description as string) || "—"}</p>
@@ -299,7 +305,7 @@ export default function GroupSettingsPage() {
                   </div>
 
                   {/* Save Button */}
-                  {isAdmin && (
+                  {canManageSettings && (
                     <div className="space-y-2">
                       {saveError && <p className="text-sm text-destructive">{saveError}</p>}
                       {saveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("saved")}</p>}
@@ -332,7 +338,7 @@ export default function GroupSettingsPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</Label>
-                      {isAdmin ? (
+                      {canManageSettings ? (
                         <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editLocale} onChange={(e) => setEditLocale(e.target.value)}>
                           <option value="en">English</option>
                           <option value="fr">Français</option>
@@ -343,7 +349,7 @@ export default function GroupSettingsPage() {
                     </div>
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("currency")}</Label>
-                      {isAdmin ? (
+                      {canManageSettings ? (
                         <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editCurrency} onChange={(e) => setEditCurrency(e.target.value)}>
                           <option value="XAF">XAF (CFA Franc BEAC)</option>
                           <option value="XOF">XOF (CFA Franc BCEAO)</option>
@@ -362,7 +368,7 @@ export default function GroupSettingsPage() {
                       )}
                     </div>
                   </div>
-                  {isAdmin && (
+                  {canManageSettings && (
                     <div className="space-y-2">
                       {saveError && <p className="text-sm text-destructive">{saveError}</p>}
                       {saveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("saved")}</p>}
@@ -422,7 +428,7 @@ export default function GroupSettingsPage() {
                           {activeHolders.length === 0 ? (
                             <div className="flex items-center gap-2">
                               <Badge variant="secondary">{t("vacant")}</Badge>
-                              {isAdmin && (
+                              {canManageSettings && (
                                 assignPositionId === posId ? (
                                   <div className="flex flex-wrap gap-1">
                                     {(members || []).slice(0, 10).map((m: Record<string, unknown>) => {
@@ -476,7 +482,7 @@ export default function GroupSettingsPage() {
                   })}
                 </div>
               )}
-              {isAdmin && (
+              {canManageSettings && (
                 <div className="mt-4 flex gap-2">
                   <Input
                     placeholder={t("positionNamePlaceholder") || "New position name..."}

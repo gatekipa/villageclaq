@@ -650,7 +650,9 @@
     "positionNamePlaceholder": "Nom du nouveau poste...",
     "defaultLocale": "Langue par défaut",
     "currency": "Devise",
-    "localizationTab": "Localisation"
+    "localizationTab": "Localisation",
+    "logoTooLarge": "Le logo doit faire moins de 2 Mo",
+    "logoUploadFailed": "Échec du téléchargement du logo"
   },
   "contributions": {
     "title": "Cotisations",

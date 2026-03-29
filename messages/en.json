@@ -184,6 +184,10 @@
     "invalidCredentials": "Invalid email or password. Please try again.",
     "emailNotConfirmed": "Please check your email and confirm your account before logging in.",
     "loginFailed": "Login failed. Please try again.",
+    "checkEmail": "Check your email",
+    "confirmationSent": "We've sent a confirmation link to {email}. Please check your inbox and click the link to activate your account.",
+    "resendEmail": "Resend confirmation email",
+    "backToLogin": "Back to Login",
     "brandBullet1": "Track contributions with full transparency",
     "brandBullet2": "Manage members, attendance, and hosting",
     "brandBullet3": "Generate reports and share with one tap",
@@ -2882,7 +2886,10 @@
     "confirmPassword": "Confirm New Password",
     "resetButton": "Reset Password",
     "success": "Password reset successfully. Redirecting to login...",
-    "error": "Failed to reset password. Please try again."
+    "error": "Failed to reset password. Please try again.",
+    "linkExpired": "Reset link expired",
+    "linkExpiredDesc": "This password reset link is invalid or has expired. Please request a new one.",
+    "requestNewLink": "Request new link"
   },
   "errors": {
     "notFoundTitle": "Page Not Found",

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,16 @@ export default function ResetPasswordPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionValid, setSessionValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function checkSession() {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      setSessionValid(!!session);
+    }
+    checkSession();
+  }, []);
 
   const requirements = useMemo(() => [
     { key: "minLength", label: ta("passwordMinLength") || "At least 8 characters", met: newPassword.length >= 8 },
@@ -56,6 +66,33 @@ export default function ResetPasswordPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Loading session check
+  if (sessionValid === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Invalid/expired session
+  if (!sessionValid) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl border bg-card p-8 shadow-sm text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">{t("linkExpired")}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{t("linkExpiredDesc")}</p>
+            <Link href="/forgot-password">
+              <Button className="w-full">{t("requestNewLink")}</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

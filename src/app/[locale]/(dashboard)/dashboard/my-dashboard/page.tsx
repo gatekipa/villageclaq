@@ -410,7 +410,7 @@ export default function MyDashboardPage() {
                   <div key={event.id as string} className="flex items-start gap-3">
                     <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                       <span className="text-xs font-medium text-primary">
-                        {startDate.toLocaleDateString("en", {
+                        {startDate.toLocaleDateString(undefined, {
                           month: "short",
                         })}
                       </span>

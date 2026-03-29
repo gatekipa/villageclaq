@@ -38,6 +38,8 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [emailConfirmation, setEmailConfirmation] = useState(false);
+  const [resending, setResending] = useState(false);
   const { allMet } = usePasswordRequirements(password);
   const passwordsMatch = password.length > 0 && password === confirmPassword;
   const canSubmit = email.length > 0 && allMet && passwordsMatch && !isLoading;
@@ -55,12 +57,11 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       const supabase = createClient();
-      const { error: signupError } = await supabase.auth.signUp({
+      const { data, error: signupError } = await supabase.auth.signUp({
         email, password,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
       if (signupError) {
-        // Map common Supabase auth errors to translated messages
         const msg = signupError.message?.toLowerCase() || "";
         if (msg.includes("already registered") || msg.includes("already been registered")) {
           setError(t("auth.emailAlreadyRegistered"));
@@ -71,6 +72,11 @@ export default function SignupPage() {
         } else {
           setError(t("auth.signupFailed"));
         }
+        return;
+      }
+      // If session is null but user exists → email confirmation required
+      if (data?.user && !data?.session) {
+        setEmailConfirmation(true);
         return;
       }
       router.push("/dashboard");
@@ -143,6 +149,36 @@ export default function SignupPage() {
           </Link>
 
           <div className="rounded-2xl border bg-card p-8 shadow-sm">
+            {emailConfirmation ? (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mb-4">
+                  <Check className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2">{t("auth.checkEmail")}</h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  {t("auth.confirmationSent", { email })}
+                </p>
+                <Button
+                  variant="outline"
+                  className="mb-3"
+                  disabled={resending}
+                  onClick={async () => {
+                    setResending(true);
+                    try {
+                      const supabase = createClient();
+                      await supabase.auth.resend({ type: "signup", email });
+                    } finally { setResending(false); }
+                  }}
+                >
+                  {resending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {t("auth.resendEmail")}
+                </Button>
+                <Link href="/login" className="text-sm text-primary hover:underline">
+                  {t("auth.backToLogin")}
+                </Link>
+              </div>
+            ) : (
+            <>
             <div className="mb-6">
               <h1 className="text-2xl font-bold">{t("auth.createAccount")}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{t("auth.signupSubtitle")}</p>
@@ -200,6 +236,8 @@ export default function SignupPage() {
                 {t("auth.signup")}
               </Button>
             </form>
+            </>
+            )}
           </div>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">

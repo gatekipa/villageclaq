@@ -336,7 +336,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                   <span className="text-xs font-medium text-primary">
-                    {new Date(nextEvent.starts_at as string).toLocaleDateString("en", { month: "short" })}
+                    {new Date(nextEvent.starts_at as string).toLocaleDateString(undefined, { month: "short" })}
                   </span>
                   <span className="text-lg font-bold leading-none text-primary">
                     {new Date(nextEvent.starts_at as string).getDate()}
@@ -347,7 +347,7 @@ export default function DashboardPage() {
                     {(nextEvent.title as string) || (nextEvent.title_fr as string)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(nextEvent.starts_at as string).toLocaleTimeString("en", {
+                    {new Date(nextEvent.starts_at as string).toLocaleTimeString(undefined, {
                       hour: "numeric",
                       minute: "2-digit",
                     })}
@@ -376,7 +376,7 @@ export default function DashboardPage() {
               <div className="flex items-start gap-3 rounded-lg border p-3">
                 <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                   <span className="text-xs font-medium text-primary">
-                    {new Date(latestMinutes.created_at as string).toLocaleDateString("en", { month: "short" })}
+                    {new Date(latestMinutes.created_at as string).toLocaleDateString(undefined, { month: "short" })}
                   </span>
                   <span className="text-lg font-bold leading-none text-primary">
                     {new Date(latestMinutes.created_at as string).getDate()}

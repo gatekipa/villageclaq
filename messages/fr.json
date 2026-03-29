@@ -184,6 +184,10 @@
     "invalidCredentials": "E-mail ou mot de passe invalide. Veuillez réessayer.",
     "emailNotConfirmed": "Veuillez vérifier votre e-mail et confirmer votre compte avant de vous connecter.",
     "loginFailed": "La connexion a échoué. Veuillez réessayer.",
+    "checkEmail": "Vérifiez votre e-mail",
+    "confirmationSent": "Nous avons envoyé un lien de confirmation à {email}. Veuillez vérifier votre boîte de réception et cliquer sur le lien pour activer votre compte.",
+    "resendEmail": "Renvoyer l'e-mail de confirmation",
+    "backToLogin": "Retour à la connexion",
     "brandBullet1": "Suivez les cotisations en toute transparence",
     "brandBullet2": "Gérez les membres, présences et hébergement",
     "brandBullet3": "Générez des rapports et partagez en un clic",
@@ -2858,7 +2862,10 @@
     "confirmPassword": "Confirmer le nouveau mot de passe",
     "resetButton": "Réinitialiser le mot de passe",
     "success": "Mot de passe réinitialisé. Redirection vers la connexion...",
-    "error": "Échec de la réinitialisation. Veuillez réessayer."
+    "error": "Échec de la réinitialisation. Veuillez réessayer.",
+    "linkExpired": "Lien de réinitialisation expiré",
+    "linkExpiredDesc": "Ce lien de réinitialisation est invalide ou a expiré. Veuillez en demander un nouveau.",
+    "requestNewLink": "Demander un nouveau lien"
   },
   "errors": {
     "notFoundTitle": "Page introuvable",

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/page-skeleton";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   User,
   Camera,
@@ -238,11 +239,10 @@ export default function MyProfilePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">{t("phone")}</Label>
-              <Input
-                id="phone"
+              <Label>{t("phone")}</Label>
+              <PhoneInput
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(p) => setPhone(p)}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">

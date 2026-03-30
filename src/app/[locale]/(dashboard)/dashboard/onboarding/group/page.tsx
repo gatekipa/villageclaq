@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 
 /* ───────────────────────── types ───────────────────────── */
 
@@ -772,12 +773,11 @@ export default function GroupOnboardingPage() {
 
               {/* Phone */}
               <div className="space-y-2">
-                <Label htmlFor="phone">{t("phoneLabel")}</Label>
-                <Input
-                  id="phone"
-                  placeholder={t("phonePlaceholder")}
+                <Label>{t("phoneLabel")}</Label>
+                <PhoneInput
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(p) => setPhone(p)}
+                  defaultCountryCode={getDefaultCountryCode(autoCurrency || undefined)}
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("phoneHint")}

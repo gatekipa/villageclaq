@@ -51,6 +51,7 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useReliefPlans, useCreateReliefPlan, useMembers } from "@/lib/hooks/use-supabase-query";
+import { getMemberName as getMemberNameShared } from "@/lib/get-member-name";
 import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
@@ -150,9 +151,9 @@ function formatDate(dateStr: string, locale: string = "en") {
   }
 }
 
-function getMemberName(membership: { display_name: string | null; profiles?: { full_name: string | null } | null } | undefined): string {
+function getMemberName(membership: Record<string, unknown> | { display_name: string | null; profiles?: { full_name: string | null } | null } | undefined): string {
   if (!membership) return "—";
-  return membership.display_name || membership.profiles?.full_name || "—";
+  return getMemberNameShared(membership as Record<string, unknown>);
 }
 
 // ─── Stats Hook ────────────────────────────────────────────────────────────
@@ -461,13 +462,31 @@ export default function ReliefPlansPage() {
         recorded_by: user?.id,
       });
 
-      // CRITICAL: Update claim status to reflect payout
-      // Note: DB enum is ('submitted','reviewing','approved','denied') — no 'paid_out' value
-      // We mark as 'approved' with review_notes indicating payout was recorded
       // The payout record in relief_payouts is the authoritative source for payment status
+      // Update claim review_notes with payout info (no 'paid_out' enum value exists)
       await supabase.from("relief_claims").update({
-        review_notes: `Payout of ${payoutAmount} recorded on ${new Date().toLocaleDateString()}`,
+        review_notes: t("relief.payoutRecordedNote", { amount: payoutAmount }),
       }).eq("id", payoutClaimId);
+
+      // Notify claimant about payout
+      if (groupId && payoutClaimId) {
+        const { data: claimData } = await supabase
+          .from("relief_claims")
+          .select("membership:memberships!relief_claims_membership_id_fkey(user_id)")
+          .eq("id", payoutClaimId)
+          .single();
+        const claimantUserId = (claimData?.membership as unknown as Record<string, unknown> | null)?.user_id as string | null;
+        if (claimantUserId) {
+          try { await supabase.from("notifications").insert({
+            user_id: claimantUserId,
+            group_id: groupId,
+            type: "system" as const,
+            title: t("relief.payoutNotifTitle"),
+            body: t("relief.payoutNotifBody", { amount: formatAmount(Number(payoutAmount), currency) }),
+            is_read: false,
+          }); } catch { /* best-effort */ }
+        }
+      }
 
       queryClient.invalidateQueries({ queryKey: ["relief-payouts-plan"] });
       queryClient.invalidateQueries({ queryKey: ["relief-claims-plan"] });
@@ -942,7 +961,7 @@ export default function ReliefPlansPage() {
               <div className="space-y-2">
                 <Label>{t("payoutMethod")}</Label>
                 <Input
-                  placeholder="Mobile Money / Bank Transfer"
+                  placeholder={t("payoutMethodPlaceholder")}
                   value={payoutMethod}
                   onChange={(e) => setPayoutMethod(e.target.value)}
                 />
@@ -950,7 +969,7 @@ export default function ReliefPlansPage() {
               <div className="space-y-2">
                 <Label>{t("payoutReference")}</Label>
                 <Input
-                  placeholder="REF-001"
+                  placeholder={t("payoutReferencePlaceholder")}
                   value={payoutReference}
                   onChange={(e) => setPayoutReference(e.target.value)}
                 />
@@ -976,8 +995,7 @@ export default function ReliefPlansPage() {
               </p>
               <div className="divide-y rounded-lg border max-h-60 overflow-y-auto">
                 {activeMembers.map((member: Record<string, unknown>) => {
-                  const profile = member.profile as { full_name?: string; avatar_url?: string } | null;
-                  const name = (member.display_name as string) || profile?.full_name || "—";
+                  const name = getMemberNameShared(member) || "—";
                   const membershipId = member.id as string;
                   const isSelected = selectedMemberIds.includes(membershipId);
 
@@ -1556,6 +1574,7 @@ function EligibilityTracker({ plans, currency, groupId, t }: {
   groupId: string | null;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const locale = useLocale();
   const supabase = createClient();
   const queryClient = useQueryClient();
   const [planFilter, setPlanFilter] = useState("all");
@@ -1605,8 +1624,8 @@ function EligibilityTracker({ plans, currency, groupId, t }: {
       memberName: getMemberName(e.membership as { display_name: string | null; profiles?: { full_name: string | null } | null }),
       planName: (plan?.name as string) || "—",
       planId: (plan?.id as string) || "",
-      enrolledAt: new Date(e.enrolled_at as string).toLocaleDateString(),
-      eligibleDate: eligibleDate.toLocaleDateString(),
+      enrolledAt: formatDate(e.enrolled_at as string, locale),
+      eligibleDate: formatDate(eligibleDate.toISOString(), locale),
       daysLeft,
       contribStatus,
       eligibility,

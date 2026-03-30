@@ -1693,7 +1693,19 @@
     "noClaimsInPipeline": "Aucune demande correspondant aux filtres",
     "noEligibilityData": "Aucune inscription trouvée",
     "deficit": "Déficit",
-    "healthy": "Sain"
+    "healthy": "Sain",
+    "claimApprovedNotifTitle": "Demande approuvée",
+    "claimApprovedNotifBody": "Votre demande de secours a été approuvée. Le paiement sera traité bientôt.",
+    "claimDeniedNotifTitle": "Demande refusée",
+    "newClaimNotifTitle": "Nouvelle demande de secours",
+    "newClaimNotifBody": "Un membre a soumis une nouvelle demande de secours à examiner.",
+    "payoutNotifTitle": "Paiement enregistré",
+    "payoutNotifBody": "Un paiement a été enregistré pour votre demande approuvée.",
+    "payoutRecordedNote": "Paiement de {amount} enregistré",
+    "denyReasonRequired": "Veuillez fournir une raison du refus",
+    "viewDocument": "Voir le document",
+    "payoutMethodPlaceholder": "Mobile Money / Virement bancaire",
+    "payoutReferencePlaceholder": "REF-001"
   },
   "myDashboard": {
     "title": "Bienvenue, {name}",

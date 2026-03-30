@@ -2,7 +2,8 @@
 import { formatAmount } from "@/lib/currencies";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -52,10 +53,11 @@ const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof Check
   denied: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
 };
 
-const supabase = createClient();
-
 export default function MyReliefPage() {
   const t = useTranslations();
+  const locale = useLocale();
+  const dateLocale = getDateLocale(locale);
+  const supabase = createClient();
   const { currentMembership, currentGroup, groupId } = useGroup();
   const queryClient = useQueryClient();
   const membershipId = currentMembership?.id;
@@ -132,8 +134,8 @@ export default function MyReliefPage() {
       planId: plan.id as string,
       planName: (plan.name as string) || "",
       planNameFr: (plan.name_fr as string) || "",
-      enrolledAt: enrolledAt.toLocaleDateString(),
-      eligibleFrom: eligibleFrom.toLocaleDateString(),
+      enrolledAt: enrolledAt.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }),
+      eligibleFrom: eligibleFrom.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }),
       isEligible,
       isWaiting,
       contributionStatus: contribStatus,
@@ -155,7 +157,7 @@ export default function MyReliefPage() {
       eventType: claim.event_type as EventType,
       amount: Number(claim.amount) || 0,
       status: claim.status as ClaimStatus,
-      date: new Date(claim.created_at as string).toLocaleDateString(),
+      date: new Date(claim.created_at as string).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }),
       description: (claim.description as string) || "",
       reviewNotes: claim.review_notes as string | undefined,
     };
@@ -189,6 +191,27 @@ export default function MyReliefPage() {
         status: "submitted",
       });
       if (error) throw error;
+
+      // Notify group admins of new claim
+      if (groupId) {
+        const { data: admins } = await supabase
+          .from("memberships")
+          .select("user_id")
+          .eq("group_id", groupId)
+          .in("role", ["admin", "owner"])
+          .not("user_id", "is", null);
+        if (admins && admins.length > 0) {
+          const notifications = admins.map((a: { user_id: string }) => ({
+            user_id: a.user_id,
+            group_id: groupId,
+            type: "system" as const,
+            title: t("relief.newClaimNotifTitle"),
+            body: t("relief.newClaimNotifBody"),
+            is_read: false,
+          }));
+          try { await supabase.from("notifications").insert(notifications); } catch { /* best-effort */ }
+        }
+      }
 
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["my-relief-claims", membershipId] });

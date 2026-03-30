@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
+import { getMemberName as getMemberNameShared } from "@/lib/get-member-name";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,14 +32,13 @@ import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
 
-const supabase = createClient();
-
 function useReliefEnrollments() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["relief-enrollments", groupId],
     queryFn: async () => {
       if (!groupId) return [];
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("relief_enrollments")
         .select("*, plan:relief_plans!inner(id, name, name_fr, group_id, waiting_period_days), membership:memberships!inner(id, user_id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
@@ -61,6 +62,8 @@ function getInitials(name: string) {
 
 export default function ReliefEnrollmentPage() {
   const t = useTranslations();
+  const locale = useLocale();
+  const dateLocale = getDateLocale(locale);
   const { groupId } = useGroup();
   const queryClient = useQueryClient();
   const { data: enrollments, isLoading, error, refetch } = useReliefEnrollments();
@@ -121,8 +124,7 @@ export default function ReliefEnrollmentPage() {
     const plan = e.plan as Record<string, unknown>;
     const planName = plan?.name as string || "";
     const membership = e.membership as Record<string, unknown>;
-    const profile = (membership?.profiles as Record<string, unknown>) || {};
-    const memberName = (membership?.display_name as string) || (profile.full_name as string) || "";
+    const memberName = membership ? getMemberNameShared(membership) : "";
     if (planFilter !== "all" && planName !== planFilter) return false;
     if (search && !memberName.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -230,8 +232,7 @@ export default function ReliefEnrollmentPage() {
               {filtered.map((enrollment: Record<string, unknown>) => {
                 const plan = enrollment.plan as Record<string, unknown>;
                 const membership = enrollment.membership as Record<string, unknown>;
-                const profile = (membership?.profiles as Record<string, unknown>) || {};
-                const memberName = (membership?.display_name as string) || (profile.full_name as string) || t("common.unknown");
+                const memberName = membership ? getMemberNameShared(membership) : t("common.unknown");
                 const planName = (plan?.name as string) || "";
                 const enrolledAt = (enrollment.enrolled_at as string) || "";
                 const isActive = enrollment.is_active as boolean;
@@ -256,10 +257,10 @@ export default function ReliefEnrollmentPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="text-xs text-muted-foreground">
-                        {t("relief.enrollmentDate")}: {enrolledAt ? new Date(enrolledAt).toLocaleDateString() : ""}
+                        {t("relief.enrollmentDate")}: {enrolledAt ? new Date(enrolledAt).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }) : ""}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {t("relief.eligibilityDate")}: {eligibleDate.toLocaleDateString()}
+                        {t("relief.eligibilityDate")}: {eligibleDate.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" })}
                       </div>
                       {isWaiting ? (
                         <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
@@ -311,8 +312,7 @@ export default function ReliefEnrollmentPage() {
               <div className="max-h-48 overflow-y-auto rounded-md border p-2 space-y-1">
                 {(membersList || []).map((m: Record<string, unknown>) => {
                   const mId = m.id as string;
-                  const profile = m.profile as { full_name?: string } | undefined;
-                  const name = (m.display_name as string) || profile?.full_name || "—";
+                  const name = getMemberNameShared(m) || "—";
                   const isSelected = selectedMemberIds.includes(mId);
                   return (
                     <button

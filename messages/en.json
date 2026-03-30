@@ -1693,7 +1693,19 @@
     "noClaimsInPipeline": "No claims matching filters",
     "noEligibilityData": "No enrollments found",
     "deficit": "Deficit",
-    "healthy": "Healthy"
+    "healthy": "Healthy",
+    "claimApprovedNotifTitle": "Claim Approved",
+    "claimApprovedNotifBody": "Your relief claim has been approved. Payout will be processed soon.",
+    "claimDeniedNotifTitle": "Claim Denied",
+    "newClaimNotifTitle": "New Relief Claim",
+    "newClaimNotifBody": "A member has submitted a new relief claim for review.",
+    "payoutNotifTitle": "Payout Recorded",
+    "payoutNotifBody": "A payout has been recorded for your approved claim.",
+    "payoutRecordedNote": "Payout of {amount} recorded",
+    "denyReasonRequired": "Please provide a reason for denial",
+    "viewDocument": "View Document",
+    "payoutMethodPlaceholder": "Mobile Money / Bank Transfer",
+    "payoutReferencePlaceholder": "REF-001"
   },
   "myPayments": {
     "title": "My Payments",

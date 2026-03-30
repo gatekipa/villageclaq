@@ -1979,7 +1979,11 @@
     "membershipCard": "My Membership Card",
     "membershipCardDesc": "QR code with your membership details",
     "downloadCard": "Download Card",
-    "profileSaved": "Profile saved successfully"
+    "profileSaved": "Profile saved successfully",
+    "fullName": "Full Name",
+    "fullNameRequired": "Full name is required",
+    "completeProfile": "Please complete your profile",
+    "completeProfileDesc": "Your name is not set yet. Please enter your full name below."
   },
   "notifications": {
     "title": "Notifications",

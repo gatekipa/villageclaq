@@ -2020,7 +2020,11 @@
     "membershipCard": "Ma carte de membre",
     "membershipCardDesc": "Code QR avec vos détails de membre",
     "downloadCard": "Télécharger la carte",
-    "profileSaved": "Profil enregistré avec succès"
+    "profileSaved": "Profil enregistré avec succès",
+    "fullName": "Nom complet",
+    "fullNameRequired": "Le nom complet est obligatoire",
+    "completeProfile": "Veuillez compléter votre profil",
+    "completeProfileDesc": "Votre nom n'est pas encore défini. Veuillez entrer votre nom complet ci-dessous."
   },
   "notifications": {
     "title": "Notifications",

@@ -25,6 +25,7 @@ import {
   Shield,
   Save,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 export default function MyProfilePage() {
@@ -42,6 +43,7 @@ export default function MyProfilePage() {
   const [phone, setPhone] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
+  const [nameError, setNameError] = useState("");
 
   // Privacy state
   const [privacy, setPrivacy] = useState({
@@ -57,13 +59,40 @@ export default function MyProfilePage() {
   const [privacySaved, setPrivacySaved] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Populate form from real data
+  // BUG 2 FIX: Populate form from real data, with auth metadata fallback
   useEffect(() => {
-    if (user) {
-      setFullName(user.full_name || "");
-      setPhone(user.phone || "");
-      setDisplayName(user.display_name || "");
+    async function populateForm() {
+      if (!user) return;
+
+      let name = user.full_name || "";
+      const phoneVal = user.phone || "";
+      const dispName = user.display_name || "";
+
+      // If full_name is empty, try to pull from auth user_metadata
+      // (e.g., Google OAuth sets user_metadata.full_name)
+      if (!name.trim()) {
+        try {
+          const supabase = createClient();
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            name = authUser.user_metadata?.full_name
+              || authUser.user_metadata?.name
+              || "";
+            // Last resort: derive from email
+            if (!name.trim() && authUser.email) {
+              name = authUser.email.split("@")[0].replace(/[._-]/g, " ");
+            }
+          }
+        } catch {
+          // Non-critical — user can still type their name
+        }
+      }
+
+      setFullName(name);
+      setPhone(phoneVal);
+      setDisplayName(dispName);
     }
+    populateForm();
   }, [user]);
 
   // Load email from auth
@@ -96,8 +125,17 @@ export default function MyProfilePage() {
     }
   }, [currentMembership]);
 
+  // BUG 4 FIX: Validate before save
   const handleSaveProfile = async () => {
     if (!user) return;
+
+    // Validate full name is not empty
+    if (!fullName.trim()) {
+      setNameError(t("fullNameRequired"));
+      return;
+    }
+    setNameError("");
+
     setSaving(true);
     setSaved(false);
 
@@ -105,9 +143,9 @@ export default function MyProfilePage() {
     const { error } = await supabase
       .from("profiles")
       .update({
-        full_name: fullName || null,
+        full_name: fullName.trim(),
         phone: phone || null,
-        display_name: displayName || null,
+        display_name: displayName.trim() || null,
       })
       .eq("id", user.id);
 
@@ -147,11 +185,26 @@ export default function MyProfilePage() {
     setPrivacy((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // BUG 2 FIX: Avatar initials — handle empty/null full_name gracefully
+  const avatarInitials = (() => {
+    const name = fullName.trim() || displayName.trim() || email.split("@")[0] || "";
+    if (!name) return null; // will show User icon
+    return name
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  })();
+
   if (groupLoading) return <ListSkeleton rows={4} />;
 
   if (loadError) {
     return <ErrorState message={loadError} onRetry={() => setLoadError(null)} />;
   }
+
+  // Show whether profile needs completion
+  const profileIncomplete = !user?.full_name?.trim();
 
   return (
     <div className="space-y-6 pb-8">
@@ -162,6 +215,21 @@ export default function MyProfilePage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
+
+      {/* BUG 2 FIX: Complete profile banner */}
+      {profileIncomplete && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-500/50 bg-amber-500/5 p-4">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+              {t("completeProfile")}
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+              {t("completeProfileDesc")}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 1. Personal Information */}
       <Card>
@@ -181,6 +249,12 @@ export default function MyProfilePage() {
                   alt=""
                   className="h-24 w-24 rounded-full object-cover"
                 />
+              ) : avatarInitials ? (
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
+                  <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {avatarInitials}
+                  </span>
+                </div>
               ) : (
                 <div className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40">
                   <User className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
@@ -228,14 +302,32 @@ export default function MyProfilePage() {
             </div>
           </div>
 
-          {/* Form Fields */}
+          {/* Form Fields — BUG 1 FIX: Full Name field uses t("fullName"), Display Name appears ONCE */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="fullName">{t("displayName")}</Label>
+              <Label htmlFor="fullName">
+                {t("fullName")} <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="fullName"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (nameError) setNameError("");
+                }}
+                className={nameError ? "border-red-500 focus-visible:ring-red-500" : ""}
+              />
+              {nameError && (
+                <p className="text-xs text-red-500">{nameError}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>{t("displayName")}</Label>
+              <Input
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={t("displayName")}
               />
             </div>
             <div className="space-y-2">
@@ -245,22 +337,13 @@ export default function MyProfilePage() {
                 onChange={(p) => setPhone(p)}
               />
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="email">{t("email")}</Label>
               <Input
                 id="email"
                 value={email}
                 disabled
                 className="bg-muted"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="displayName2">{t("displayName")}</Label>
-              <Input
-                id="displayName2"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={t("displayName")}
               />
             </div>
           </div>
@@ -272,10 +355,11 @@ export default function MyProfilePage() {
                 {tCommon("saved")}
               </span>
             )}
+            {/* BUG 4 FIX: Disable save when full name is empty */}
             <Button
               className="gap-2"
               onClick={handleSaveProfile}
-              disabled={saving}
+              disabled={saving || !fullName.trim()}
             >
               <Save className="h-4 w-4" />
               {saving ? tCommon("saving") : tCommon("save")}

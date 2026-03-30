@@ -127,9 +127,17 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Re-sync internal state when value prop changes (e.g., async load from DB)
   useEffect(() => {
-    if (!value && defaultCountryCode) setCountryCode(defaultCountryCode);
-  }, [defaultCountryCode, value]);
+    if (!value) {
+      if (defaultCountryCode) setCountryCode(defaultCountryCode);
+      setRawDigits("");
+      return;
+    }
+    const p = parsePhone(value);
+    setCountryCode(p.code);
+    setRawDigits(p.number);
+  }, [defaultCountryCode, value, parsePhone]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

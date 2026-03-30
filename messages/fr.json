@@ -2232,7 +2232,13 @@
     "comingInFuture": "Ce rapport arrive dans une prochaine mise à jour",
     "notEnoughData": "Pas assez de données pour générer ce rapport",
     "aiLoading": "Génération des analyses...",
-    "aiUnavailable": "Analyses IA temporairement indisponibles"
+    "aiUnavailable": "Analyses IA temporairement indisponibles",
+    "generateAi": "Générer les analyses IA",
+    "regenerateAi": "Régénérer les analyses",
+    "copyAi": "Copier les analyses",
+    "copiedAi": "Copié dans le presse-papiers",
+    "aiFinancialInsights": "Analyses financières IA",
+    "reportHeader": "{group} — {report}"
   },
   "enterprise": {
     "title": "Tableau de bord entreprise",

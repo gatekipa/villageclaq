@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { exportCSV } from "@/lib/export";
 import { exportPDF } from "@/lib/export-pdf";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useParams } from "next/navigation";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,12 +27,58 @@ import {
   Search,
   Clock,
   Loader2,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton } from "@/components/ui/page-skeleton";
+
+/** Convert markdown to plain text (strip **, ##, etc.) */
+function stripMarkdown(md: string): string {
+  return md
+    .replace(/^#{1,3}\s+/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/^[-•]\s+/gm, "• ")
+    .trim();
+}
+
+/** Render markdown as React elements for on-screen display */
+function renderMarkdown(md: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const lines = md.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    if (line.startsWith("## ") || line.startsWith("### ")) {
+      const text = line.replace(/^#{2,3}\s+/, "");
+      nodes.push(<h4 key={i} className="font-semibold text-sm mt-3 mb-1">{renderInlineBold(text)}</h4>);
+    } else if (line.startsWith("- ") || line.startsWith("• ")) {
+      const text = line.replace(/^[-•]\s+/, "");
+      nodes.push(<li key={i} className="text-sm ml-4 list-disc">{renderInlineBold(text)}</li>);
+    } else if (/^\d+\.\s/.test(line)) {
+      const text = line.replace(/^\d+\.\s+/, "");
+      nodes.push(<li key={i} className="text-sm ml-4 list-decimal">{renderInlineBold(text)}</li>);
+    } else {
+      nodes.push(<p key={i} className="text-sm">{renderInlineBold(line)}</p>);
+    }
+  }
+  return nodes;
+}
+
+/** Render inline **bold** within a line */
+function renderInlineBold(text: string): React.ReactNode {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+  );
+}
 
 
 function standingColor(s: string) {
@@ -58,6 +104,7 @@ import { getMemberName } from "@/lib/get-member-name";
 
 export default function ReportDetailPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const params = useParams();
   const reportId = params.reportId as string;
   const reportKey = `report${reportId}`;
@@ -66,7 +113,10 @@ export default function ReportDetailPage() {
   const [minutesSearch, setMinutesSearch] = useState("");
   const [aiInsights, setAiInsights] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
+  const [aiCollapsed, setAiCollapsed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const aiAutoFetched = useRef(false);
 
   const reportName = t(`reports.${reportKey}.name`);
   const reportDesc = t(`reports.${reportKey}.desc`);
@@ -421,7 +471,21 @@ export default function ReportDetailPage() {
       filename = "group_performance";
     }
 
-    if (data.length > 0) exportCSV(data, filename);
+    if (data.length > 0) {
+      // Build header rows with group name, report title, date, and AI insights
+      const headerRows: string[] = [
+        currentGroup?.name || "",
+        reportName,
+        new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { year: "numeric", month: "long", day: "numeric" }),
+      ];
+      if (aiInsights) {
+        headerRows.push("");
+        headerRows.push(locale === "fr" ? "--- Analyses financières IA ---" : "--- AI Financial Insights ---");
+        headerRows.push(stripMarkdown(aiInsights));
+        headerRows.push("");
+      }
+      exportCSV(data, filename, { headerRows });
+    }
   }
 
   function handleExportPDF() {
@@ -530,6 +594,8 @@ export default function ReportDetailPage() {
       fileName: `${filename}_${new Date().toISOString().slice(0, 10)}`,
       groupName: currentGroup?.name || "",
       locale: currentGroup?.locale || "en",
+      aiInsights: aiInsights || undefined,
+      aiSectionTitle: locale === "fr" ? "Analyses financières IA" : "AI Financial Insights",
     });
   }
 
@@ -624,6 +690,86 @@ export default function ReportDetailPage() {
   const healthLabel = healthScore > 85 ? "Excellent" : healthScore > 70 ? "Good" : healthScore > 50 ? "Fair" : "Needs Attention";
   const healthColor = healthScore > 85 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : healthScore > 70 ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : healthScore > 50 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
 
+  // ── Lazy AI fetch — doesn't block page load ──
+  const fetchAiInsights = useCallback(async () => {
+    if (aiLoading || aiUnavailable) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/ai-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reportType: reportKey,
+          reportData: {
+            members: members?.length || 0,
+            payments: payments?.length || 0,
+            obligations: obligations?.length || 0,
+            currency,
+            totalCollected,
+            totalExpected,
+            collectionRate,
+          },
+          locale: currentGroup?.locale || locale,
+        }),
+      });
+      if (res.status === 503 || res.status === 429) {
+        // AI unavailable or rate limited — hide section silently
+        setAiUnavailable(true);
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok || data.error === "unavailable") {
+        setAiUnavailable(true);
+        return;
+      }
+      setAiInsights(data.insights || null);
+    } catch {
+      // Network error — hide AI section silently
+      setAiUnavailable(true);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [aiLoading, aiUnavailable, reportKey, members?.length, payments?.length, obligations?.length, currency, totalCollected, totalExpected, collectionRate, currentGroup?.locale, locale]);
+
+  // Auto-fetch AI insights on first load (lazy — after data loads)
+  useEffect(() => {
+    if (!isLoading && !aiAutoFetched.current && !aiInsights && !aiUnavailable && !isPlaceholder) {
+      aiAutoFetched.current = true;
+      fetchAiInsights();
+    }
+  }, [isLoading, aiInsights, aiUnavailable, isPlaceholder, fetchAiInsights]);
+
+  // ── WhatsApp share ──
+  function handleShareWhatsApp() {
+    const groupName = currentGroup?.name || "VillageClaq";
+    const dateStr = new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+    let msg = `📊 *${reportName}*\n${groupName} — ${dateStr}\n\n`;
+
+    if (aiInsights) {
+      const plain = stripMarkdown(aiInsights);
+      const truncated = plain.length > 500 ? plain.slice(0, 497) + "..." : plain;
+      msg += `${locale === "fr" ? "💡 Analyses IA" : "💡 AI Insights"}:\n${truncated}\n\n`;
+    }
+
+    msg += `${locale === "fr" ? "Voir le rapport complet sur" : "View full report on"} VillageClaq\nhttps://villageclaq.com`;
+
+    // Ensure under 2000 chars
+    if (msg.length > 2000) msg = msg.slice(0, 1997) + "...";
+
+    const encoded = encodeURIComponent(msg);
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+  }
+
+  // ── Copy AI insights to clipboard ──
+  function handleCopyAi() {
+    if (!aiInsights) return;
+    const plain = stripMarkdown(aiInsights);
+    navigator.clipboard.writeText(plain).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -644,61 +790,64 @@ export default function ReportDetailPage() {
           <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={isPlaceholder}>
             <Download className="mr-1 h-3.5 w-3.5" />{t("reports.exportPDF")}
           </Button>
-          <Button variant="outline" size="sm"><Share2 className="mr-1 h-3.5 w-3.5" />{t("reports.shareWhatsApp")}</Button>
+          <Button variant="outline" size="sm" onClick={handleShareWhatsApp}>
+            <Share2 className="mr-1 h-3.5 w-3.5" />{t("reports.shareWhatsApp")}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="mr-1 h-3.5 w-3.5" />{t("reports.print")}
           </Button>
         </div>
       </div>
 
-      {/* AI Insights */}
-      {!isPlaceholder && (
-        <Card className="border-emerald-200 dark:border-emerald-800 print:hidden">
+      {/* AI Insights — graceful degradation: hidden when unavailable, no red errors */}
+      {!isPlaceholder && !aiUnavailable && (
+        <Card className="border-emerald-200 dark:border-emerald-800">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Sparkles className="h-4 w-4 text-emerald-600" />
-              {t("reports.aiInsights")}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Sparkles className="h-4 w-4 text-emerald-600" />
+                {t("reports.aiInsights")}
+              </CardTitle>
+              <div className="flex items-center gap-1 print:hidden">
+                {aiInsights && (
+                  <>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyAi} title={t("reports.copyAi")}>
+                      {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setAiCollapsed(!aiCollapsed)}>
+                      {aiCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            {aiInsights ? (
-              <div className="text-sm whitespace-pre-wrap">{aiInsights}</div>
-            ) : aiError ? (
-              <p className="text-sm text-red-500">{aiError}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 w-full"
-              onClick={async () => {
-                setAiLoading(true);
-                setAiError(null);
-                try {
-                  const res = await fetch("/api/ai-insights", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ reportType: reportKey, reportData: { members: members?.length || 0, payments: payments?.length || 0, obligations: obligations?.length || 0, currency }, locale: currentGroup?.locale || "en" }),
-                  });
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(data.error || "Failed");
-                  setAiInsights(data.insights);
-                } catch (err: unknown) {
-                  setAiError(err instanceof Error ? err.message : "AI insights unavailable");
-                } finally {
-                  setAiLoading(false);
-                }
-              }}
-              disabled={aiLoading}
-            >
+          {!aiCollapsed && (
+            <CardContent>
               {aiLoading ? (
-                <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t("common.loading")}</>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("reports.aiLoading")}
+                </div>
+              ) : aiInsights ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  {renderMarkdown(aiInsights)}
+                </div>
               ) : (
-                <><Sparkles className="h-4 w-4 mr-2" />{t("reports.aiInsights")}</>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
+                  <Button variant="outline" size="sm" onClick={fetchAiInsights} disabled={aiLoading}>
+                    <Sparkles className="h-4 w-4 mr-2" />{t("reports.generateAi")}
+                  </Button>
+                </div>
               )}
-            </Button>
-          </CardContent>
+              {aiInsights && (
+                <Button variant="ghost" size="sm" className="mt-2 print:hidden" onClick={fetchAiInsights} disabled={aiLoading}>
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />{t("reports.regenerateAi")}
+                </Button>
+              )}
+            </CardContent>
+          )}
         </Card>
       )}
 

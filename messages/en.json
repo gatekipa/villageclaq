@@ -2232,7 +2232,13 @@
     "comingInFuture": "This report is coming in a future update",
     "notEnoughData": "Not enough data to generate this report",
     "aiLoading": "Generating insights...",
-    "aiUnavailable": "AI insights temporarily unavailable"
+    "aiUnavailable": "AI insights temporarily unavailable",
+    "generateAi": "Generate AI Insights",
+    "regenerateAi": "Regenerate Insights",
+    "copyAi": "Copy insights to clipboard",
+    "copiedAi": "Copied to clipboard",
+    "aiFinancialInsights": "AI Financial Insights",
+    "reportHeader": "{group} — {report}"
   },
   "enterprise": {
     "title": "Enterprise Dashboard",

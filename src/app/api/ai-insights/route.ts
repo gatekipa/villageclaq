@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+// Simple in-memory rate limiter: 20 requests per minute per user
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
 export async function POST(req: NextRequest) {
   try {
     // ── Auth check: caller must be a logged-in user ──
@@ -8,6 +11,18 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // ── Rate limit: 20 requests / minute per user ──
+    const now = Date.now();
+    const rl = rateLimitMap.get(user.id);
+    if (rl && rl.resetAt > now) {
+      if (rl.count >= 20) {
+        return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+      }
+      rl.count++;
+    } else {
+      rateLimitMap.set(user.id, { count: 1, resetAt: now + 60000 });
     }
 
     const { reportType, reportData, locale } = await req.json();
@@ -18,7 +33,8 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "AI service not configured" }, { status: 500 });
+      // 503: service unavailable — graceful degradation
+      return NextResponse.json({ error: "unavailable" }, { status: 503 });
     }
 
     const langInstruction = locale === "fr"
@@ -37,22 +53,25 @@ export async function POST(req: NextRequest) {
         max_tokens: 1024,
         messages: [{
           role: "user",
-          content: `You are a financial analyst for an African community group (njangi/alumni union/village association). Analyze this "${reportType}" report data and provide 3-5 actionable insights. Be specific with numbers. Flag concerns. Suggest actions. Keep it under 200 words. ${langInstruction}\n\nReport data:\n${JSON.stringify(reportData, null, 2).slice(0, 8000)}`
+          content: `You are a financial analyst for an African community group (njangi/alumni union/village association). Analyze this "${reportType}" report data and provide 3-5 actionable insights. Use markdown formatting: ## for section headings, **bold** for emphasis, numbered lists for recommendations. Be specific with numbers. Flag concerns. Suggest actions. Keep it under 300 words. ${langInstruction}\n\nReport data:\n${JSON.stringify(reportData, null, 2).slice(0, 8000)}`
         }]
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Anthropic API error:", errorText);
-      return NextResponse.json({ error: "AI service unavailable" }, { status: 502 });
+      console.error("Anthropic API error:", response.status, errorText);
+      return NextResponse.json({ error: "unavailable" }, { status: 502 });
     }
 
     const data = await response.json();
-    const insights = data.content?.[0]?.text || "No insights generated.";
+    const insights = data.content?.[0]?.text || "";
+    if (!insights) {
+      return NextResponse.json({ error: "unavailable" }, { status: 502 });
+    }
     return NextResponse.json({ insights });
   } catch (error) {
     console.error("AI Insights error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "unavailable" }, { status: 500 });
   }
 }

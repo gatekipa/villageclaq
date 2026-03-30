@@ -100,15 +100,18 @@ export default function ReportsHubPage() {
 
   const { data: stats } = useDashboardStats();
 
+  const [aiHidden, setAiHidden] = useState(false);
+
   const fetchAiInsights = useCallback(async () => {
-    if (!stats) return;
+    if (!stats || aiHidden) return;
     setAiLoading(true);
     try {
       const res = await fetch("/api/ai-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          groupStats: {
+          reportType: "dashboard-overview",
+          reportData: {
             memberCount: stats.totalMembers,
             totalCollected: stats.totalCollected,
             collectionRate: stats.collectionRate,
@@ -118,20 +121,28 @@ export default function ReportsHubPage() {
           locale,
         }),
       });
+      if (res.status === 503 || res.status === 429) {
+        setAiHidden(true);
+        return;
+      }
       const data = await res.json();
-      setAiInsight(data.insight || t("reports.aiUnavailable"));
+      if (!res.ok || data.error === "unavailable") {
+        setAiHidden(true);
+        return;
+      }
+      setAiInsight(data.insights || null);
     } catch {
-      setAiInsight(t("reports.aiUnavailable"));
+      setAiHidden(true);
     } finally {
       setAiLoading(false);
     }
-  }, [stats, locale, t]);
+  }, [stats, locale, aiHidden]);
 
   useEffect(() => {
-    if (stats && !aiInsight && !aiLoading) {
+    if (stats && !aiInsight && !aiLoading && !aiHidden) {
       fetchAiInsights();
     }
-  }, [stats, aiInsight, aiLoading, fetchAiInsights]);
+  }, [stats, aiInsight, aiLoading, aiHidden, fetchAiInsights]);
 
   const categories: ReportCategory[] = ["financial", "membership", "operations", "executive"];
 
@@ -160,36 +171,38 @@ export default function ReportsHubPage() {
         )}
       </div>
 
-      {/* AI Insights Card */}
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
-        <CardContent className="flex items-start gap-4 pt-6">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <Sparkles className="h-6 w-6 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold">{t("reports.aiInsights")}</h3>
-              {!aiLoading && (
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={fetchAiInsights}>
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
+      {/* AI Insights Card — hidden when AI is unavailable */}
+      {!aiHidden && (
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+          <CardContent className="flex items-start gap-4 pt-6">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold">{t("reports.aiInsights")}</h3>
+                {!aiLoading && aiInsight && (
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={fetchAiInsights}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+              {aiLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <p className="text-xs text-muted-foreground mt-1">{t("reports.aiLoading")}</p>
+                </div>
+              ) : aiInsight ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-line">{aiInsight}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
               )}
             </div>
-            {aiLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <p className="text-xs text-muted-foreground mt-1">{t("reports.aiLoading")}</p>
-              </div>
-            ) : aiInsight ? (
-              <p className="text-sm text-muted-foreground whitespace-pre-line">{aiInsight}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("reports.aiDesc")}</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search + Category Filter */}
       <div className="flex flex-col gap-3 sm:flex-row print:hidden">

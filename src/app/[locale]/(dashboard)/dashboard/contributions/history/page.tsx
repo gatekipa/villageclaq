@@ -28,12 +28,19 @@ import { usePayments } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
+import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, X } from "lucide-react";
 
 const methodLabels: Record<string, string> = {
   cash: "Cash",
   mobile_money: "Mobile Money",
   bank_transfer: "Bank Transfer",
   online: "Online",
+  cashapp: "CashApp",
+  zelle: "Zelle",
+  other: "Other",
 };
 
 const methodColors: Record<string, string> = {
@@ -41,6 +48,8 @@ const methodColors: Record<string, string> = {
   mobile_money: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
   bank_transfer: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
   online: "bg-orange-500/10 text-orange-700 dark:text-orange-400",
+  cashapp: "bg-green-500/10 text-green-700 dark:text-green-400",
+  zelle: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400",
 };
 
 
@@ -61,8 +70,11 @@ function formatTime(dateStr: string, locale: string = "en") {
 
 export default function PaymentHistoryPage() {
   const t = useTranslations();
-  const { currentGroup } = useGroup();
+  const { currentGroup, groupId } = useGroup();
+  const queryClient = useQueryClient();
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
 
@@ -93,12 +105,17 @@ export default function PaymentHistoryPage() {
       return {
         id: p.id as string,
         memberName: getMemberName(membership as Record<string, unknown>),
+        membershipId: (membership?.id as string) || "",
         contributionTypeName: contributionType?.name || "-",
+        contributionTypeId: (contributionType?.id as string) || "",
+        obligationId: (p.obligation_id as string) || "",
         amount: Number(p.amount),
         currency: (p.currency as string) || currency,
         paymentMethod: (p.payment_method as string) || "cash",
         referenceNumber: p.reference_number as string | undefined,
+        receiptUrl: p.receipt_url as string | undefined,
         recordedAt: (p.recorded_at as string) || (p.created_at as string) || "",
+        status: (p.status as string) || "confirmed",
       };
     });
   }, [payments, currency]);
@@ -159,6 +176,69 @@ export default function PaymentHistoryPage() {
     a.download = `payments-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleConfirmPayment(payment: typeof normalizedPayments[0]) {
+    setConfirmingId(payment.id);
+    try {
+      const supabase = createClient();
+      // Update payment status to confirmed
+      const { error: updateErr } = await supabase
+        .from("payments")
+        .update({ status: "confirmed" })
+        .eq("id", payment.id);
+      if (updateErr) throw updateErr;
+
+      // Update obligation if linked
+      if (payment.obligationId) {
+        const { data: obl } = await supabase
+          .from("contribution_obligations")
+          .select("amount, amount_paid")
+          .eq("id", payment.obligationId)
+          .single();
+        if (obl) {
+          const newPaid = Number(obl.amount_paid) + payment.amount;
+          const newStatus = newPaid >= Number(obl.amount) ? "paid" : newPaid > 0 ? "partial" : "pending";
+          await supabase
+            .from("contribution_obligations")
+            .update({ amount_paid: newPaid, status: newStatus })
+            .eq("id", payment.obligationId);
+        }
+      }
+
+      // Invalidate all financial caches
+      queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["member-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["member-obligations"] });
+      if (payment.membershipId) {
+        queryClient.invalidateQueries({ queryKey: ["member-standing", payment.membershipId, groupId] });
+      }
+    } catch (err) {
+      console.warn("Confirm payment failed:", (err as Error).message);
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+  async function handleRejectPayment(paymentId: string) {
+    setRejectingId(paymentId);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("payments")
+        .update({ status: "rejected" })
+        .eq("id", paymentId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["member-payments"] });
+    } catch (err) {
+      console.warn("Reject payment failed:", (err as Error).message);
+    } finally {
+      setRejectingId(null);
+    }
   }
 
   const subNavItems = [
@@ -298,6 +378,9 @@ export default function PaymentHistoryPage() {
                     <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">
                       {t("contributions.method")}
                     </th>
+                    <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">
+                      {t("contributions.statusHeader")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -350,6 +433,41 @@ export default function PaymentHistoryPage() {
                           <p className="text-[10px] text-muted-foreground mt-0.5">
                             {payment.referenceNumber}
                           </p>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        {payment.status === "pending_confirmation" ? (
+                          <div className="flex items-center gap-1.5">
+                            <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-[10px]">
+                              {t("contributions.pendingConfirmation")}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                              onClick={() => handleConfirmPayment(payment)}
+                              disabled={confirmingId === payment.id}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                              onClick={() => handleRejectPayment(payment.id)}
+                              disabled={rejectingId === payment.id}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : payment.status === "rejected" ? (
+                          <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-[10px]">
+                            {t("contributions.rejected")}
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
+                            {t("contributions.confirmed")}
+                          </Badge>
                         )}
                       </td>
                     </tr>

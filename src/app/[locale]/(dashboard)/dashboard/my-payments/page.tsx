@@ -19,6 +19,9 @@ import {
 } from "@/components/ui/page-skeleton";
 import { useGroup } from "@/lib/group-context";
 import { useObligations, usePayments } from "@/lib/hooks/use-supabase-query";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+import { PayNowDialog } from "@/components/payments/pay-now-dialog";
 import {
   Wallet,
   AlertCircle,
@@ -30,6 +33,8 @@ import {
   Banknote,
   Smartphone,
   Building2,
+  DollarSign,
+  CreditCard,
 } from "lucide-react";
 
 
@@ -66,6 +71,33 @@ export default function MyPaymentsPage() {
   const [search, setSearch] = useState("");
 
   const currency = currentGroup?.currency || "XAF";
+
+  // Pay Now dialog state
+  const [payNowObligation, setPayNowObligation] = useState<Record<string, unknown> | null>(null);
+
+  // Check if group has self-service payment methods enabled
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["group-payment-config", currentGroup?.id],
+    queryFn: async () => {
+      if (!currentGroup?.id) return null;
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("group_payment_config")
+        .select("cashapp_enabled, zelle_enabled, mobile_money_enabled, bank_transfer_enabled")
+        .eq("group_id", currentGroup.id)
+        .maybeSingle();
+      return data as Record<string, boolean> | null;
+    },
+    enabled: !!currentGroup?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const hasSelfServiceMethods = !!(
+    paymentConfig?.cashapp_enabled ||
+    paymentConfig?.zelle_enabled ||
+    paymentConfig?.mobile_money_enabled ||
+    paymentConfig?.bank_transfer_enabled
+  );
 
   const {
     data: obligations,
@@ -149,14 +181,16 @@ export default function MyPaymentsPage() {
   }, [myPayments, search]);
 
   const methodIcon = (method: string) => {
-    if (method?.includes("mobile"))
-      return <Smartphone className="h-3.5 w-3.5" />;
-    if (method?.includes("bank"))
-      return <Building2 className="h-3.5 w-3.5" />;
+    if (method === "cashapp") return <DollarSign className="h-3.5 w-3.5" />;
+    if (method === "zelle") return <CreditCard className="h-3.5 w-3.5" />;
+    if (method?.includes("mobile")) return <Smartphone className="h-3.5 w-3.5" />;
+    if (method?.includes("bank")) return <Building2 className="h-3.5 w-3.5" />;
     return <Banknote className="h-3.5 w-3.5" />;
   };
 
   const methodLabel = (method: string) => {
+    if (method === "cashapp") return t("cashapp");
+    if (method === "zelle") return t("zelle");
     if (method?.includes("mobile")) return t("mobileMoney");
     if (method?.includes("bank")) return t("bankTransfer");
     return t("cash");
@@ -319,10 +353,20 @@ export default function MyPaymentsPage() {
                           {renderUrgencyBadge(dueDate)}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="text-right shrink-0 space-y-2">
                         <p className="text-xl font-bold">
                           {formatAmount(remaining, currency)}
                         </p>
+                        {hasSelfServiceMethods && (
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => setPayNowObligation(item)}
+                          >
+                            <Wallet className="h-3 w-3" />
+                            {t("payNow")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -353,7 +397,9 @@ export default function MyPaymentsPage() {
                 ? new Date(item.recorded_at as string).toLocaleDateString()
                 : "";
               const status = (item.status as string) || "confirmed";
-              const isPaid = status === "confirmed" || status === "approved";
+              const isPending = status === "pending_confirmation";
+              const isRejected = status === "rejected";
+              const isPaid = !isPending && !isRejected;
 
               return (
                 <Card key={item.id as string}>
@@ -384,10 +430,14 @@ export default function MyPaymentsPage() {
                           className={
                             isPaid
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
+                              : isPending
+                              ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
+                              : isRejected
+                              ? "bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
                               : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
                           }
                         >
-                          {isPaid ? t("paid") : t("pending")}
+                          {isPaid ? t("paid") : isPending ? t("pendingConfirmation") : isRejected ? t("rejected") : t("pending")}
                         </Badge>
                       </div>
                     </div>
@@ -414,10 +464,14 @@ export default function MyPaymentsPage() {
                           className={
                             isPaid
                               ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20"
+                              : isPending
+                              ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
+                              : isRejected
+                              ? "bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
                               : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
                           }
                         >
-                          {isPaid ? t("paid") : t("pending")}
+                          {isPaid ? t("paid") : isPending ? t("pendingConfirmation") : isRejected ? t("rejected") : t("pending")}
                         </Badge>
                       </span>
                     </div>
@@ -427,6 +481,22 @@ export default function MyPaymentsPage() {
             })
           )}
         </div>
+      )}
+      {/* Pay Now Dialog */}
+      {payNowObligation && currentMembership && (
+        <PayNowDialog
+          open={!!payNowObligation}
+          onOpenChange={(open) => { if (!open) setPayNowObligation(null); }}
+          obligation={{
+            id: payNowObligation.id as string,
+            amount: Number(payNowObligation.amount),
+            amount_paid: Number(payNowObligation.amount_paid || 0),
+            currency,
+            contribution_type_id: (payNowObligation.contribution_type as Record<string, unknown>)?.id as string || "",
+            contribution_type: payNowObligation.contribution_type as { name?: string; name_fr?: string } | undefined,
+          }}
+          membershipId={currentMembership.id}
+        />
       )}
     </div>
   );

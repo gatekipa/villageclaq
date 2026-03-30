@@ -39,6 +39,7 @@ import {
   ScrollText,
   Mail,
   KeyRound,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -81,6 +82,7 @@ const adminSections: NavSection[] = [
     items: [
       { key: "contributions", href: "/dashboard/contributions", icon: HandCoins, anyPermission: ["contributions.manage", "finances.view", "finances.manage", "finances.record"] },
       { key: "finances", href: "/dashboard/finances", icon: CreditCard, anyPermission: ["finances.manage", "finances.view"] },
+      { key: "loans", href: "/dashboard/loans", icon: Landmark, anyPermission: ["contributions.manage", "finances.manage"] },
     ],
   },
   {
@@ -140,6 +142,7 @@ const memberSections: NavSection[] = [
       { key: "myAttendance", href: "/dashboard/my-attendance", icon: ClipboardCheck },
       { key: "myHosting", href: "/dashboard/my-hosting", icon: Home },
       { key: "myRelief", href: "/dashboard/relief/my", icon: Heart },
+      { key: "myLoans", href: "/dashboard/my-loans", icon: Landmark },
       { key: "myFamily", href: "/dashboard/my-family", icon: Contact },
       { key: "membershipCard", href: "/dashboard/membership-card", icon: IdCard },
       { key: "changePassword", href: "/dashboard/change-password", icon: KeyRound },

@@ -125,7 +125,46 @@ export async function calculateStanding(
       : `Secours: En retard sur ${behindPlans.length} plans`,
   });
 
-  // Rule 4: Disputes
+  // Rule 4: Loan repayments
+  const { data: loanSchedules } = await supabase
+    .from("loan_schedule")
+    .select("id, status, loan_id, loans!inner(membership_id, status)")
+    .eq("status", "overdue");
+
+  // Filter to this member's loans that are active (repaying)
+  const memberOverdueInstallments = (loanSchedules || []).filter((s: Record<string, unknown>) => {
+    const loan = s.loans as Record<string, unknown> | null;
+    return loan && loan.membership_id === membershipId && loan.status === "repaying";
+  });
+
+  const { data: defaultedLoans } = await supabase
+    .from("loans")
+    .select("id")
+    .eq("membership_id", membershipId)
+    .eq("status", "defaulted");
+
+  const overdueInstCount = memberOverdueInstallments.length;
+  const defaultedCount = (defaultedLoans || []).length;
+  const loansPassed = overdueInstCount === 0 && defaultedCount === 0;
+
+  reasons.push({
+    category: "loans",
+    passed: loansPassed,
+    label_en: "Loan Repayments",
+    label_fr: "Remboursements de prêts",
+    detail_en: loansPassed
+      ? "Loan repayments: Up to date"
+      : defaultedCount > 0
+        ? `${defaultedCount} defaulted loan(s)`
+        : `${overdueInstCount} overdue installment(s)`,
+    detail_fr: loansPassed
+      ? "Remboursements de prêts: À jour"
+      : defaultedCount > 0
+        ? `${defaultedCount} prêt(s) en défaut`
+        : `${overdueInstCount} échéance(s) en retard`,
+  });
+
+  // Rule 5: Disputes
   const { data: disputes } = await supabase
     .from("disputes")
     .select("id, status")

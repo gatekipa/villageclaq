@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +31,16 @@ function PhoneIcon() {
   );
 }
 
+function safeRedirect(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 export default function SignupPage() {
   const t = useTranslations();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get("redirectTo"));
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +70,7 @@ export default function SignupPage() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/dashboard")}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
         },
       });
       if (oauthError) {
@@ -95,7 +103,7 @@ export default function SignupPage() {
       const supabase = createClient();
       const { data, error: signupError } = await supabase.auth.signUp({
         email, password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` },
       });
       if (signupError) {
         const msg = signupError.message?.toLowerCase() || "";
@@ -115,7 +123,7 @@ export default function SignupPage() {
         setEmailConfirmation(true);
         return;
       }
-      router.push("/dashboard");
+      router.push(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
@@ -278,7 +286,7 @@ export default function SignupPage() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {t("auth.hasAccount")}{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">{t("auth.login")}</Link>
+            <Link href={redirectTo !== "/dashboard" ? `/login?redirectTo=${encodeURIComponent(redirectTo)}` : "/login"} className="font-medium text-primary hover:underline">{t("auth.login")}</Link>
           </p>
         </div>
       </div>

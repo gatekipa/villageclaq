@@ -226,7 +226,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {t("auth.noAccount")}{" "}
-            <Link href="/signup" className="font-medium text-primary hover:underline">{t("auth.signup")}</Link>
+            <Link href={redirectTo !== "/dashboard" ? `/signup?redirectTo=${encodeURIComponent(redirectTo)}` : "/signup"} className="font-medium text-primary hover:underline">{t("auth.signup")}</Link>
           </p>
         </div>
       </div>

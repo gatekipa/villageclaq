@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
+import { useRouter } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +39,8 @@ export default function MyInvitationsPage() {
   const tc = useTranslations("common");
   const locale = useLocale();
   const queryClient = useQueryClient();
-  const { user } = useGroup();
+  const { user, refresh, memberships } = useGroup();
+  const router = useRouter();
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showError, setShowError] = useState<string | null>(null);
@@ -199,6 +201,14 @@ export default function MyInvitationsPage() {
       setShowSuccess(successMsg);
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => setShowSuccess(null), 5000);
+
+      // Refresh group context to pick up the new membership, then redirect
+      // This ensures the sidebar/header appear and onboarding is bypassed
+      await refresh();
+      // Short delay so the user sees the success message before navigating
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1500);
     } catch (err) {
       setShowError(t("actionFailed"));
     } finally {

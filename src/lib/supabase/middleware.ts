@@ -62,10 +62,19 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isAuthRoute && user) {
-    // Redirect authenticated users away from auth pages
+    // Redirect authenticated users away from auth pages.
+    // Honor ?redirectTo= so invitation links work for logged-in users.
     const locale = isLocalePrefix ? pathnameLocale : "en";
     const url = request.nextUrl.clone();
-    url.pathname = `/${locale}/dashboard`;
+    const redirectParam = request.nextUrl.searchParams.get("redirectTo");
+    if (redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")) {
+      // Preserve locale prefix if the redirect doesn't already have one
+      const hasLocale = redirectParam.startsWith(`/${locale}/`) || redirectParam.startsWith("/en/") || redirectParam.startsWith("/fr/");
+      url.pathname = hasLocale ? redirectParam : `/${locale}${redirectParam}`;
+    } else {
+      url.pathname = `/${locale}/dashboard`;
+    }
+    url.search = ""; // Clear query params (especially redirectTo) from the destination
     return NextResponse.redirect(url);
   }
 

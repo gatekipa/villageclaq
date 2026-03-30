@@ -142,7 +142,7 @@ export default function InvitationsPage() {
       const inviterName = user?.full_name || user?.display_name || "";
       const groupName = currentGroup?.name || "";
       const groupType = (currentGroup as Record<string, unknown>)?.group_type as string | undefined;
-      const acceptUrl = `https://villageclaq.com/${locale}/login?next=/dashboard/my-invitations`;
+      const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
 
       await fetch("/api/email/send", {
         method: "POST",

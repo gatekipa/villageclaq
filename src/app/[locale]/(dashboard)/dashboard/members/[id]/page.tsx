@@ -476,15 +476,17 @@ export default function MemberDetailPage() {
           {t("common.back")}
         </Link>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRecalculate}
-            disabled={recalculating}
-          >
-            {recalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
-            {ts("recalculateStanding")}
-          </Button>
+          {hasPermission("members.manage") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRecalculate}
+              disabled={recalculating}
+            >
+              {recalculating ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+              {ts("recalculateStanding")}
+            </Button>
+          )}
           {hasPermission("members.manage") && (
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent focus:outline-none">

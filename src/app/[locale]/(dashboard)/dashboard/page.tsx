@@ -81,6 +81,11 @@ export default function DashboardPage() {
     return minutes[0]; // already ordered by created_at desc
   }, [minutes]);
 
+  // Redirect in progress — show skeleton to prevent flashing admin content to members
+  if (!showAdminNav && user) {
+    return <DashboardSkeleton />;
+  }
+
   // Show skeleton while loading
   if (isLoading) {
     return <DashboardSkeleton />;

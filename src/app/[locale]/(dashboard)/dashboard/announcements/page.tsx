@@ -58,7 +58,6 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 
 type AudienceType = "all" | "roles" | "members";
@@ -150,6 +149,8 @@ export default function AnnouncementsPage() {
   const t = useTranslations("communications");
   const tc = useTranslations("common");
   const { groupId, user } = useGroup();
+  const { hasPermission } = usePermissions();
+  const canManageAnnouncements = hasPermission("announcements.manage");
   const queryClient = useQueryClient();
   const { data: announcements, isLoading, error, refetch } = useAnnouncements();
   const { data: membersList } = useMembers();
@@ -355,13 +356,13 @@ export default function AnnouncementsPage() {
     m.toLowerCase().includes(memberSearch.toLowerCase())
   );
 
-  if (isLoading) return <RequirePermission permission="announcements.manage"><ListSkeleton rows={5} /></RequirePermission>;
-  if (error) return <RequirePermission permission="announcements.manage"><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></RequirePermission>;
+  if (isLoading) return <ListSkeleton rows={5} />;
+  if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
 
   const announcementList = announcements || [];
 
   return (
-    <RequirePermission permission="announcements.manage"><div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
+    <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -372,6 +373,7 @@ export default function AnnouncementsPage() {
             {t("announcementsSubtitle")}
           </p>
         </div>
+        {canManageAnnouncements && (
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { resetForm(); setEditAnnId(null); } }}>
           <DialogTrigger
             render={
@@ -601,6 +603,7 @@ export default function AnnouncementsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Announcements List */}
@@ -609,12 +612,12 @@ export default function AnnouncementsPage() {
           icon={Megaphone}
           title={t("noAnnouncements")}
           description={t("noAnnouncementsDesc")}
-          action={
+          action={canManageAnnouncements ? (
             <Button onClick={() => setDialogOpen(true)}>
               <Megaphone className="mr-2 h-4 w-4" />
               {t("create")}
             </Button>
-          }
+          ) : undefined}
         />
       ) : (
         <div className="space-y-4">
@@ -642,27 +645,29 @@ export default function AnnouncementsPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {getStatusBadge(announcement, t)}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
-                          <MoreVertical className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditAnnouncement(announcement)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            {t("editAnnouncement")}
-                          </DropdownMenuItem>
-                          {(announcement.sent_at as string | null) && (
-                            <DropdownMenuItem onClick={() => handleUnpublish(announcement.id as string)}>
-                              <EyeOff className="mr-2 h-4 w-4" />
-                              {t("unpublishAnnouncement")}
+                      {canManageAnnouncements && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+                            <MoreVertical className="h-4 w-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditAnnouncement(announcement)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              {t("editAnnouncement")}
                             </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem onClick={() => setShowDeleteConfirm(announcement.id as string)} className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t("deleteAnnouncement")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            {(announcement.sent_at as string | null) && (
+                              <DropdownMenuItem onClick={() => handleUnpublish(announcement.id as string)}>
+                                <EyeOff className="mr-2 h-4 w-4" />
+                                {t("unpublishAnnouncement")}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => setShowDeleteConfirm(announcement.id as string)} className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {t("deleteAnnouncement")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -716,6 +721,6 @@ export default function AnnouncementsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div></RequirePermission>
+    </div>
   );
 }

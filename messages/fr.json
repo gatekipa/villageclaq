@@ -721,7 +721,7 @@
       "instructionsPlaceholderFr": "ex. Veuillez inclure votre nom et le type de cotisation comme référence...",
       "saved": "Configuration de paiement enregistrée",
       "saveConfig": "Enregistrer les paramètres de paiement",
-      "schemaError": "Le schéma de la base de données est obsolète. Veuillez demander à votre administrateur d'exécuter la migration 00022."
+      "saveError": "Échec de l'enregistrement de la configuration de paiement"
     }
   },
   "contributions": {

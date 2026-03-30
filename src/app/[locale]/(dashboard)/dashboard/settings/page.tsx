@@ -177,11 +177,11 @@ export default function GroupSettingsPage() {
       </div>
 
       <Tabs defaultValue="info">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="info">{t("profileTab")}</TabsTrigger>
-          <TabsTrigger value="localization">{t("localizationTab")}</TabsTrigger>
-          <TabsTrigger value="payments">{t("paymentsTab")}</TabsTrigger>
-          <TabsTrigger value="positions">{t("positionsTab")}</TabsTrigger>
+        <TabsList className="h-10 w-full justify-start gap-1 overflow-x-auto bg-muted/60 p-1 dark:bg-muted/40">
+          <TabsTrigger value="info" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("profileTab")}</TabsTrigger>
+          <TabsTrigger value="localization" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("localizationTab")}</TabsTrigger>
+          <TabsTrigger value="payments" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("paymentsTab")}</TabsTrigger>
+          <TabsTrigger value="positions" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("positionsTab")}</TabsTrigger>
         </TabsList>
 
         {/* Group Info Tab */}

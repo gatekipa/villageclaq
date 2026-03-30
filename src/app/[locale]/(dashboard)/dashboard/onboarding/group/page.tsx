@@ -22,6 +22,7 @@ import {
   Check,
   Camera,
   Loader2,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,6 +162,37 @@ export default function GroupOnboardingPage() {
     { id: 2, value: "" },
     { id: 3, value: "" },
   ]);
+
+  // ─── Logout & Save Later ──────────────────────────────────────────────
+  const [savingLater, setSavingLater] = useState(false);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  async function handleSaveLater() {
+    setSavingLater(true);
+    try {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser?.id) {
+        const updates: Record<string, unknown> = {};
+        if (fullName.trim()) updates.full_name = fullName.trim();
+        if (displayName.trim()) updates.display_name = displayName.trim();
+        if (phone.trim()) updates.phone = phone.trim();
+        if (preferredLocale) updates.preferred_locale = preferredLocale;
+        if (Object.keys(updates).length > 0) {
+          await supabase.from("profiles").update(updates).eq("id", authUser.id);
+        }
+      }
+      await supabase.auth.signOut();
+      router.push("/login");
+    } catch {
+      setSavingLater(false);
+    }
+  }
 
   // Pre-fill profile from existing user data
   useEffect(() => {
@@ -607,6 +639,18 @@ export default function GroupOnboardingPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center px-4 py-8 sm:py-12">
+      {/* Top bar with logout */}
+      <div className="mb-4 flex w-full justify-end">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <LogOut className="size-3" />
+          {t("logOut")}
+        </button>
+      </div>
+
       {/* Logo */}
       <img src="/logo-mark.svg" className="h-12 w-12 mx-auto mb-6" alt="" />
 
@@ -1125,6 +1169,18 @@ export default function GroupOnboardingPage() {
             <ArrowRight className="size-4" />
           </Button>
         )}
+      </div>
+
+      {/* Save & continue later */}
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={handleSaveLater}
+          disabled={savingLater}
+          className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          {savingLater ? t("saving") : t("saveLater")}
+        </button>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/routing";
 import {
@@ -20,6 +20,7 @@ import {
   Check,
   Loader2,
   CheckCircle2,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,6 +177,39 @@ export default function MemberOnboardingPage() {
     }));
   }
 
+  // ─── Logout & Save Later ──────────────────────────────────────────────
+
+  const [savingLater, setSavingLater] = useState(false);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  const handleSaveLater = useCallback(async () => {
+    setSavingLater(true);
+    try {
+      const supabase = createClient();
+      const userId = user?.id;
+      if (userId) {
+        const updates: Record<string, unknown> = {};
+        if (formData.name.trim()) updates.full_name = formData.name.trim();
+        if (formData.displayName.trim()) updates.display_name = formData.displayName.trim();
+        if (formData.phone.trim()) updates.phone = formData.phone.trim();
+        if (formData.language) updates.preferred_locale = formData.language;
+        if (Object.keys(updates).length > 0) {
+          await supabase.from("profiles").update(updates).eq("id", userId);
+        }
+      }
+      const supabase2 = createClient();
+      await supabase2.auth.signOut();
+      router.push("/login");
+    } catch {
+      setSavingLater(false);
+    }
+  }, [formData, user?.id, router]);
+
   // ─── Options ───────────────────────────────────────────────────────────
 
   const languageOptions = [
@@ -205,6 +239,18 @@ export default function MemberOnboardingPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-6 sm:py-10">
+      {/* Top bar with logout */}
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <LogOut className="size-3" />
+          {t("logOut")}
+        </button>
+      </div>
+
       {/* Progress bar */}
       <div className="mb-8">
         <p className="mb-3 text-center text-sm font-medium text-muted-foreground">
@@ -529,6 +575,18 @@ export default function MemberOnboardingPage() {
             {t("letsGo")}
           </Button>
         )}
+      </div>
+
+      {/* Save & continue later */}
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={handleSaveLater}
+          disabled={savingLater}
+          className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          {savingLater ? t("saving") : t("saveLater")}
+        </button>
       </div>
     </div>
   );

@@ -177,6 +177,7 @@ export default function MyInvitationsPage() {
           const memberName = isClaim
             ? (claimMembership?.display_name as string) || user?.full_name || "Member"
             : user?.full_name || user?.display_name || authUser.email || "Member";
+          // Email (fire-and-forget)
           fetch("/api/email/send", {
             method: "POST",
             headers: {
@@ -193,7 +194,25 @@ export default function MyInvitationsPage() {
               },
               locale,
             }),
-          }).catch(() => {}); // Fire and forget
+          }).catch(() => {});
+
+          // SMS (fire-and-forget)
+          fetch("/api/sms/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              to: authUser.id,
+              template: "welcome",
+              data: {
+                memberName,
+                groupName,
+              },
+              locale,
+            }),
+          }).catch(() => {});
         }
       } catch {
         // Email is non-critical — never block invitation acceptance

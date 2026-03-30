@@ -276,6 +276,16 @@ export default function MyProfilePage() {
                   setAvatarUploading(true);
                   try {
                     const supabase = createClient();
+                    // Clean up old avatar if exists
+                    const oldUrl = user.avatar_url as string | null;
+                    if (oldUrl) {
+                      const marker = "/avatars/";
+                      const idx = oldUrl.indexOf(marker);
+                      if (idx !== -1) {
+                        const oldPath = oldUrl.substring(idx + marker.length);
+                        await supabase.storage.from("avatars").remove([oldPath]).catch(() => {});
+                      }
+                    }
                     const ext = file.name.split(".").pop() || "jpg";
                     const path = `${user.id}/${Date.now()}.${ext}`;
                     const { error: uploadErr } = await supabase.storage

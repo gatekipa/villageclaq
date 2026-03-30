@@ -1361,6 +1361,7 @@
     "uploadFile": "Télécharger un fichier",
     "uploaded": "Téléchargé",
     "uploadNote": "Le fichier sera stocké en pièce jointe. Vous pouvez toujours ajouter du texte ci-dessus.",
+    "fileTooLarge": "Le fichier dépasse la limite de 10 Mo",
     "discussionSummary": "Résumé des discussions",
     "discussionPlaceholder": "Résumez les points clés de la discussion...",
     "decisions": "Décisions prises",

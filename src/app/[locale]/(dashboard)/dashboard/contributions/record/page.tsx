@@ -228,6 +228,7 @@ export default function RecordPaymentPage() {
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
+              // Email (fire-and-forget)
               fetch("/api/email/send", {
                 method: "POST",
                 headers: {
@@ -247,6 +248,25 @@ export default function RecordPaymentPage() {
                     reference: reference || undefined,
                     recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
                     paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
+                  },
+                  locale,
+                }),
+              }).catch(() => {});
+
+              // SMS (fire-and-forget)
+              fetch("/api/sms/send", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  to: membership.user_id,
+                  template: "payment-receipt",
+                  data: {
+                    groupName: currentGroup?.name || "",
+                    amount: formattedAmt,
+                    contributionType: typeName,
                   },
                   locale,
                 }),

@@ -264,6 +264,16 @@ export default function GroupOnboardingPage() {
         return;
       }
 
+      // Clean up old avatar if exists
+      if (avatarUrl) {
+        const marker = "/avatars/";
+        const idx = avatarUrl.indexOf(marker);
+        if (idx !== -1) {
+          const oldPath = avatarUrl.substring(idx + marker.length);
+          await supabase.storage.from("avatars").remove([oldPath]).catch(() => {});
+        }
+      }
+
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${authUser.id}/${Date.now()}.${ext}`;
 

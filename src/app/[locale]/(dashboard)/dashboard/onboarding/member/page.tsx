@@ -143,6 +143,17 @@ export default function MemberOnboardingPage() {
       const userId = user?.id;
       if (!userId) return;
 
+      // Clean up old avatar if exists
+      const oldUrl = formData.photoUrl;
+      if (oldUrl) {
+        const marker = "/avatars/";
+        const idx = oldUrl.indexOf(marker);
+        if (idx !== -1) {
+          const oldPath = oldUrl.substring(idx + marker.length);
+          await supabase.storage.from("avatars").remove([oldPath]).catch(() => {});
+        }
+      }
+
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${userId}/${Date.now()}.${ext}`;
 

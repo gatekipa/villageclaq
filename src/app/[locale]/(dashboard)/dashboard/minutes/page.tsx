@@ -192,6 +192,7 @@ export default function MinutesPage() {
   const [editorActionItems, setEditorActionItems] = useState<ActionItem[]>([]);
   const [editorAttendees, setEditorAttendees] = useState<string[]>([]); // membership IDs
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   // Delete state
   const [deleteMinutesId, setDeleteMinutesId] = useState<string | null>(null);
@@ -277,6 +278,7 @@ export default function MinutesPage() {
         setEditorAttendees([]);
       }
       setUploadedFileName(null);
+      setUploadedFile(null);
       setEditorTab("rich");
     },
     [t]
@@ -317,6 +319,26 @@ export default function MinutesPage() {
         ? contentEditableRef.current?.innerText || ""
         : editorPlainText;
 
+    // Upload file attachment if present
+    let fileUrl: string | null = null;
+    if (uploadedFile) {
+      try {
+        const path = `minutes/${groupId}/${Date.now()}-${uploadedFile.name}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("group-documents")
+          .upload(path, uploadedFile);
+        if (uploadErr) throw uploadErr;
+        const { data: urlData } = supabase.storage
+          .from("group-documents")
+          .getPublicUrl(path);
+        fileUrl = urlData.publicUrl;
+      } catch (err) {
+        showError((err as Error).message || tc("error"));
+        setSaving(false);
+        return;
+      }
+    }
+
     const payload: Record<string, unknown> = {
       group_id: groupId,
       title: standaloneMode ? standaloneTitle.trim() : selectedEvent!.title,
@@ -332,6 +354,10 @@ export default function MinutesPage() {
       status,
       created_by: user.id,
     };
+
+    if (fileUrl) {
+      payload.file_url = fileUrl;
+    }
 
     if (!standaloneMode && selectedEvent) {
       payload.event_id = selectedEvent.id;
@@ -401,6 +427,7 @@ export default function MinutesPage() {
                 : new Date().toLocaleDateString(getDateLocale(locale));
               const publisherName = user?.full_name || user?.display_name || tc("admin");
 
+              // Email (fire-and-forget)
               Promise.allSettled(
                 realMembers.map((m) =>
                   fetch("/api/email/send", {
@@ -419,6 +446,28 @@ export default function MinutesPage() {
                         meetingDate,
                         publishedBy: publisherName,
                         minutesUrl: `${window.location.origin}/${locale}/dashboard/minutes`,
+                      },
+                      locale,
+                    }),
+                  }).catch(() => {})
+                )
+              ).catch(() => {});
+
+              // SMS (fire-and-forget) — send to all real members
+              Promise.allSettled(
+                realMembers.map((m) =>
+                  fetch("/api/sms/send", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                      to: m.user_id,
+                      template: "minutes-published",
+                      data: {
+                        groupName: currentGroup?.name || "",
+                        meetingTitle: minutesTitle,
                       },
                       locale,
                     }),
@@ -1047,7 +1096,14 @@ export default function MinutesPage() {
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) setUploadedFileName(file.name);
+                            if (file) {
+                              if (file.size > 10 * 1024 * 1024) {
+                                showError(t("fileTooLarge"));
+                                return;
+                              }
+                              setUploadedFile(file);
+                              setUploadedFileName(file.name);
+                            }
                           }}
                         />
                       </div>

@@ -1176,6 +1176,16 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
   async function handleDelete(attachId: string) {
     if (!confirm(tc("confirm") + "?")) return;
     const supabase = createClient();
+    // Find the attachment to get its storage URL
+    const toDelete = attachments.find((a) => (a.id as string) === attachId);
+    if (toDelete?.file_url) {
+      const marker = "/group-documents/";
+      const idx = (toDelete.file_url as string).indexOf(marker);
+      if (idx !== -1) {
+        const storagePath = (toDelete.file_url as string).substring(idx + marker.length);
+        await supabase.storage.from("group-documents").remove([storagePath]).catch(() => {});
+      }
+    }
     const updated = attachments.filter((a) => (a.id as string) !== attachId);
     await supabase.from("projects").update({ attachments: updated }).eq("id", project.id);
     onDataChanged();

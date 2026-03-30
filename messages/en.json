@@ -1361,6 +1361,7 @@
     "uploadFile": "Upload File",
     "uploaded": "Uploaded",
     "uploadNote": "File will be stored as an attachment. You can still add text content above.",
+    "fileTooLarge": "File exceeds the 10MB size limit",
     "discussionSummary": "Discussion Summary",
     "discussionPlaceholder": "Summarize the key discussion points...",
     "decisions": "Decisions Made",

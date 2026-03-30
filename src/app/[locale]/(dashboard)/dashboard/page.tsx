@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
@@ -40,7 +40,6 @@ import {
   useMeetingMinutes,
 } from "@/lib/hooks/use-supabase-query";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { usePermissions } from "@/lib/hooks/use-permissions";
 import { getMemberName } from "@/lib/get-member-name";
 
 export default function DashboardPage() {
@@ -48,15 +47,6 @@ export default function DashboardPage() {
   const t = useTranslations();
   const router = useRouter();
   const { currentGroup, user, isAdmin } = useGroup();
-  const { userPermissions } = usePermissions();
-
-  // Redirect non-admin members to their personal dashboard
-  const showAdminNav = isAdmin || userPermissions.length > 0;
-  useEffect(() => {
-    if (!showAdminNav && user) {
-      router.replace("/dashboard/my-dashboard");
-    }
-  }, [showAdminNav, user, router]);
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);
@@ -80,11 +70,6 @@ export default function DashboardPage() {
     if (!minutes || minutes.length === 0) return null;
     return minutes[0]; // already ordered by created_at desc
   }, [minutes]);
-
-  // Redirect in progress — show skeleton to prevent flashing admin content to members
-  if (!showAdminNav && user) {
-    return <DashboardSkeleton />;
-  }
 
   // Show skeleton while loading
   if (isLoading) {

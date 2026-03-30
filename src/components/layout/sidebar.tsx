@@ -125,7 +125,7 @@ const memberSections: NavSection[] = [
   {
     labelKey: "sectionOverview",
     items: [
-      { key: "dashboard", href: "/dashboard/my-dashboard", icon: LayoutDashboard },
+      { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
     ],
   },

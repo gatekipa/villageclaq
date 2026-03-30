@@ -56,6 +56,7 @@ import {
   MoreVertical,
   Edit,
   AlertCircle,
+  Search,
 } from "lucide-react";
 import { useElections, useCreateElection, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -64,7 +65,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
-import { cn } from "@/lib/utils";
+import { cn, normalizeSearch } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,17 +222,32 @@ export default function ElectionsPage() {
     setTimeout(() => setActionError(null), 5000);
   }
 
+  // Search and filter
+  const [elSearchQuery, setElSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("all");
+
   // ─── Derived ──────────────────────────────────────────────────────────────
 
-  const electionsList = (elections || []) as Election[];
-  const selectedElection = electionsList.find((e) => e.id === selectedElectionId) || null;
+  const allElections = (elections || []) as Election[];
+  const electionsList = useMemo(() => {
+    let result = allElections;
+    if (statusFilter !== "all") {
+      result = result.filter((e) => e.status === statusFilter);
+    }
+    if (elSearchQuery.trim()) {
+      const q = normalizeSearch(elSearchQuery);
+      result = result.filter((e) => normalizeSearch(e.title).includes(q) || normalizeSearch(e.description || "").includes(q));
+    }
+    return result;
+  }, [allElections, statusFilter, elSearchQuery]);
+  const selectedElection = allElections.find((e) => e.id === selectedElectionId) || null;
 
   const stats = useMemo(() => {
-    const total = electionsList.length;
-    const active = electionsList.filter((e) => e.status === "open").length;
-    const completed = electionsList.filter((e) => e.status === "closed").length;
+    const total = allElections.length;
+    const active = allElections.filter((e) => e.status === "open").length;
+    const completed = allElections.filter((e) => e.status === "closed").length;
     return { total, active, completed };
-  }, [electionsList]);
+  }, [allElections]);
 
   // ─── Vote check query ────────────────────────────────────────────────────
 
@@ -518,13 +534,37 @@ export default function ElectionsPage() {
         </Card>
       </div>
 
+      {/* Search + Status Filter */}
+      {allElections.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder={t("searchElections")} value={elSearchQuery} onChange={(e) => setElSearchQuery(e.target.value)} className="pl-9" />
+          </div>
+          <div className="flex gap-2">
+            <Button variant={statusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("all")}>{t("filterAll")}</Button>
+            <Button variant={statusFilter === "open" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("open")}>{t("filterOpen")}</Button>
+            <Button variant={statusFilter === "closed" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("closed")}>{t("filterClosed")}</Button>
+          </div>
+        </div>
+      )}
+
       {/* Empty State */}
       {electionsList.length === 0 && (
-        <EmptyState
-          icon={Vote}
-          title={t("noElections")}
-          description={t("noElectionsDesc")}
-        />
+        (elSearchQuery.trim() || statusFilter !== "all") ? (
+          <EmptyState
+            icon={Search}
+            title={tc("noSearchResults")}
+            description={tc("noSearchResultsDesc")}
+            action={<Button variant="outline" onClick={() => { setElSearchQuery(""); setStatusFilter("all"); }}>{tc("resetFilters")}</Button>}
+          />
+        ) : (
+          <EmptyState
+            icon={Vote}
+            title={t("noElections")}
+            description={t("noElectionsDesc")}
+          />
+        )
       )}
 
       {/* Election Cards */}

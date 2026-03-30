@@ -53,7 +53,7 @@ import {
   EmptyState,
   ErrorState,
 } from "@/components/ui/page-skeleton";
-import { cn } from "@/lib/utils";
+import { cn, normalizeSearch } from "@/lib/utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -223,13 +223,13 @@ export default function MinutesPage() {
       });
     }
 
-    // Search filter
+    // Search filter (accent-insensitive)
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = normalizeSearch(searchQuery);
       list = list.filter(
         (e) =>
-          e.title.toLowerCase().includes(q) ||
-          (e.title_fr && e.title_fr.toLowerCase().includes(q))
+          normalizeSearch(e.title).includes(q) ||
+          (e.title_fr && normalizeSearch(e.title_fr).includes(q))
       );
     }
 

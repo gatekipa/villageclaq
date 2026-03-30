@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -58,6 +58,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { normalizeSearch } from "@/lib/utils";
 import { getMemberName } from "@/lib/get-member-name";
 
 type AudienceType = "all" | "roles" | "members";
@@ -367,7 +368,33 @@ export default function AnnouncementsPage() {
   if (isLoading) return <ListSkeleton rows={5} />;
   if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
 
-  const announcementList = announcements || [];
+  const allAnnouncements = announcements || [];
+
+  const [annSearch, setAnnSearch] = useState("");
+  const [annStatusFilter, setAnnStatusFilter] = useState<"all" | "sent" | "scheduled" | "draft">("all");
+
+  const announcementList = useMemo(() => {
+    let result = allAnnouncements as Array<Record<string, unknown>>;
+    if (annStatusFilter !== "all") {
+      result = result.filter((a) => {
+        const sentAt = a.sent_at as string | null;
+        const scheduledAt = a.scheduled_at as string | null;
+        if (annStatusFilter === "sent") return !!sentAt;
+        if (annStatusFilter === "scheduled") return !sentAt && !!scheduledAt;
+        if (annStatusFilter === "draft") return !sentAt && !scheduledAt;
+        return true;
+      });
+    }
+    if (annSearch.trim()) {
+      const q = normalizeSearch(annSearch);
+      result = result.filter((a) => {
+        const title = (a.title as string) || "";
+        const content = (a.content as string) || "";
+        return normalizeSearch(title).includes(q) || normalizeSearch(content).includes(q);
+      });
+    }
+    return result;
+  }, [allAnnouncements, annStatusFilter, annSearch]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
@@ -614,19 +641,44 @@ export default function AnnouncementsPage() {
         )}
       </div>
 
+      {/* Search + Status Filter */}
+      {allAnnouncements.length > 0 && (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder={t("searchAnnouncements")} value={annSearch} onChange={(e) => setAnnSearch(e.target.value)} className="pl-9" />
+          </div>
+          <div className="flex gap-2">
+            <Button variant={annStatusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("all")}>{t("filterAll")}</Button>
+            <Button variant={annStatusFilter === "sent" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("sent")}>{t("filterSent")}</Button>
+            <Button variant={annStatusFilter === "scheduled" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("scheduled")}>{t("filterScheduled")}</Button>
+            <Button variant={annStatusFilter === "draft" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("draft")}>{t("filterDraft")}</Button>
+          </div>
+        </div>
+      )}
+
       {/* Announcements List */}
       {announcementList.length === 0 ? (
-        <EmptyState
-          icon={Megaphone}
-          title={t("noAnnouncements")}
-          description={t("noAnnouncementsDesc")}
-          action={canManageAnnouncements ? (
-            <Button onClick={() => setDialogOpen(true)}>
-              <Megaphone className="mr-2 h-4 w-4" />
-              {t("create")}
-            </Button>
-          ) : undefined}
-        />
+        (annSearch.trim() || annStatusFilter !== "all") ? (
+          <EmptyState
+            icon={Search}
+            title={tc("noSearchResults")}
+            description={tc("noSearchResultsDesc")}
+            action={<Button variant="outline" onClick={() => { setAnnSearch(""); setAnnStatusFilter("all"); }}>{tc("resetFilters")}</Button>}
+          />
+        ) : (
+          <EmptyState
+            icon={Megaphone}
+            title={t("noAnnouncements")}
+            description={t("noAnnouncementsDesc")}
+            action={canManageAnnouncements ? (
+              <Button onClick={() => setDialogOpen(true)}>
+                <Megaphone className="mr-2 h-4 w-4" />
+                {t("create")}
+              </Button>
+            ) : undefined}
+          />
+        )
       ) : (
         <div className="space-y-4">
           {announcementList.map((announcement: Record<string, unknown>) => {

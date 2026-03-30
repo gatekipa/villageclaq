@@ -26,6 +26,7 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { normalizeSearch } from "@/lib/utils";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,7 @@ function formatTime(dateStr: string, locale: string = "en") {
 
 export default function PaymentHistoryPage() {
   const t = useTranslations();
+  const tc = useTranslations("common");
   const { currentGroup, groupId } = useGroup();
   const queryClient = useQueryClient();
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
@@ -126,11 +128,12 @@ export default function PaymentHistoryPage() {
 
   const filtered = useMemo(() => {
     if (!search) return normalizedPayments;
-    const q = search.toLowerCase();
+    const q = normalizeSearch(search);
     return normalizedPayments.filter(
       (p) =>
-        p.memberName.toLowerCase().includes(q) ||
-        (p.referenceNumber && p.referenceNumber.toLowerCase().includes(q))
+        normalizeSearch(p.memberName).includes(q) ||
+        (p.referenceNumber && normalizeSearch(p.referenceNumber).includes(q)) ||
+        normalizeSearch(p.contributionTypeName).includes(q)
     );
   }, [normalizedPayments, search]);
 
@@ -398,6 +401,9 @@ export default function PaymentHistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {paginated.length === 0 && search.trim() && (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">{tc("noSearchResults")}</td></tr>
+                  )}
                   {paginated.map((payment) => (
                     <tr
                       key={payment.id}

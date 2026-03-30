@@ -36,6 +36,7 @@ import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { normalizeSearch } from "@/lib/utils";
 
 type CategoryKey =
   | "constitution"
@@ -102,6 +103,7 @@ export default function DocumentVaultPage() {
   const queryClient = useQueryClient();
   const { data: documents, isLoading, isError, error, refetch } = useDocuments();
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryKey | "all">("all");
 
   // Upload dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -177,13 +179,23 @@ export default function DocumentVaultPage() {
 
   const filtered = useMemo(() => {
     if (!documents) return [];
-    if (!searchQuery.trim()) return documents;
-    const q = searchQuery.toLowerCase();
-    return documents.filter((doc: Record<string, unknown>) => {
-      const title = (doc.title as string) || "";
-      return title.toLowerCase().includes(q);
-    });
-  }, [documents, searchQuery]);
+    let result = documents as Array<Record<string, unknown>>;
+    if (categoryFilter !== "all") {
+      result = result.filter((doc) => (doc.category as string) === categoryFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = normalizeSearch(searchQuery);
+      result = result.filter((doc) => {
+        const title = (doc.title as string) || "";
+        const description = (doc.description as string) || "";
+        const category = (doc.category as string) || "";
+        const uploader = doc.uploader as Record<string, unknown> | null;
+        const uploaderName = (uploader?.full_name as string) || "";
+        return normalizeSearch(title).includes(q) || normalizeSearch(description).includes(q) || normalizeSearch(category).includes(q) || normalizeSearch(uploaderName).includes(q);
+      });
+    }
+    return result;
+  }, [documents, searchQuery, categoryFilter]);
 
   if (isLoading) return <CardGridSkeleton cards={6} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;
@@ -196,7 +208,7 @@ export default function DocumentVaultPage() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      {/* Search + Upload */}
+      {/* Search + Category Filter + Upload */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -207,6 +219,16 @@ export default function DocumentVaultPage() {
             className="pl-9"
           />
         </div>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value as CategoryKey | "all")}
+          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <option value="all">{t("allCategories")}</option>
+          {CATEGORY_OPTIONS.map((cat) => (
+            <option key={cat} value={cat}>{t(`categories.${cat}` as Parameters<typeof t>[0])}</option>
+          ))}
+        </select>
         {isAdmin && (
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -271,19 +293,28 @@ export default function DocumentVaultPage() {
 
       {/* Document Grid or Empty State */}
       {filtered.length === 0 ? (
-        <EmptyState
-          icon={FolderOpen}
-          title={t("noDocuments")}
-          description={t("noDocumentsDesc")}
-          action={
-            isAdmin ? (
-              <Button onClick={() => setDialogOpen(true)}>
-                <Upload className="mr-2 h-4 w-4" />
-                {t("upload")}
-              </Button>
-            ) : undefined
-          }
-        />
+        (searchQuery.trim() || categoryFilter !== "all") ? (
+          <EmptyState
+            icon={Search}
+            title={tc("noSearchResults")}
+            description={tc("noSearchResultsDesc")}
+            action={<Button variant="outline" onClick={() => { setSearchQuery(""); setCategoryFilter("all"); }}>{tc("resetFilters")}</Button>}
+          />
+        ) : (
+          <EmptyState
+            icon={FolderOpen}
+            title={t("noDocuments")}
+            description={t("noDocumentsDesc")}
+            action={
+              isAdmin ? (
+                <Button onClick={() => setDialogOpen(true)}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {t("upload")}
+                </Button>
+              ) : undefined
+            }
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((doc: Record<string, unknown>) => {

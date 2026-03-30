@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
+import { cn, normalizeSearch } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ import {
   Loader2,
   Copy,
   AlertCircle,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -161,6 +162,7 @@ export default function EventsPage() {
     setTimeout(() => setActionError(null), 5000);
   }
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Create form state
   const [formTitle, setFormTitle] = useState("");
@@ -186,12 +188,22 @@ export default function EventsPage() {
 
   const filteredEvents = useMemo(() => {
     if (!events) return [];
-    return events.filter((e: Record<string, unknown>) => {
+    let result = events.filter((e: Record<string, unknown>) => {
       if (filter === "upcoming") return (e.starts_at as string) >= now || e.status === "upcoming";
       if (filter === "past") return (e.starts_at as string) < now || e.status === "completed";
       return true;
     });
-  }, [events, filter, now]);
+    if (searchQuery.trim()) {
+      const q = normalizeSearch(searchQuery);
+      result = result.filter((e: Record<string, unknown>) => {
+        const title = (e.title as string) || "";
+        const titleFr = (e.title_fr as string) || "";
+        const location = (e.location as string) || "";
+        return normalizeSearch(title).includes(q) || normalizeSearch(titleFr).includes(q) || normalizeSearch(location).includes(q);
+      });
+    }
+    return result;
+  }, [events, filter, now, searchQuery]);
 
   const eventsInMonth = useMemo(() => {
     if (!events) return [];
@@ -413,7 +425,16 @@ export default function EventsPage() {
         </div>
       )}
 
-      {/* View Toggle + Filter */}
+      {/* Search + View Toggle + Filter */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder={t("searchEvents")}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2">
           <Button
@@ -521,19 +542,28 @@ export default function EventsPage() {
       {view === "list" && (
         <div className="space-y-3">
           {filteredEvents.length === 0 ? (
-            <EmptyState
-              icon={Calendar}
-              title={t("noEvents")}
-              description={t("noEventsDesc")}
-              action={
-                hasPermission("events.manage") ? (
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    {t("createEvent")}
-                  </Button>
-                ) : undefined
-              }
-            />
+            searchQuery.trim() ? (
+              <EmptyState
+                icon={Search}
+                title={tc("noSearchResults")}
+                description={tc("noSearchResultsDesc")}
+                action={<Button variant="outline" onClick={() => setSearchQuery("")}>{tc("clearSearch")}</Button>}
+              />
+            ) : (
+              <EmptyState
+                icon={Calendar}
+                title={t("noEvents")}
+                description={t("noEventsDesc")}
+                action={
+                  hasPermission("events.manage") ? (
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      {t("createEvent")}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )
           ) : (
             filteredEvents.map((event: Record<string, unknown>) => {
               const startsAt = new Date(event.starts_at as string);

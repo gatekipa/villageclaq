@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
+import { normalizeSearch } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
@@ -160,6 +161,7 @@ const VIEW_PREFERENCE_KEY = "villageclaq-members-view";
 export default function MembersPage() {
   const locale = useLocale();
   const t = useTranslations("members");
+  const tCommon = useTranslations("common");
   const tr = useTranslations("roles");
   const tt = useTranslations("transfers");
   const router = useRouter();
@@ -679,9 +681,9 @@ export default function MembersPage() {
     if (!members) return [];
     let result = members;
 
-    // Search filter
+    // Search filter (accent-insensitive)
     if (search.trim()) {
-      const q = search.toLowerCase();
+      const q = normalizeSearch(search);
       result = result.filter((m: Record<string, unknown>) => {
         const profile = m.profile as { full_name?: string; phone?: string } | undefined;
         const displayName = (m.display_name as string) || "";
@@ -690,8 +692,8 @@ export default function MembersPage() {
         const privacySettings = m.privacy_settings as Record<string, unknown> | null;
         const proxyPhone = (privacySettings?.proxy_phone as string) || "";
         return (
-          fullName.toLowerCase().includes(q) ||
-          displayName.toLowerCase().includes(q) ||
+          normalizeSearch(fullName).includes(q) ||
+          normalizeSearch(displayName).includes(q) ||
           phone.includes(q) ||
           proxyPhone.includes(q)
         );
@@ -936,11 +938,24 @@ export default function MembersPage() {
 
       {/* Members */}
       {filtered.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title={t("noMembers")}
-          description={t("searchMembers")}
-        />
+        (search.trim() || roleFilter !== "all" || standingFilter !== "all" || positionFilter !== "all") ? (
+          <EmptyState
+            icon={Search}
+            title={tCommon("noSearchResults")}
+            description={tCommon("noSearchResultsDesc")}
+            action={
+              <Button variant="outline" onClick={() => { setSearch(""); setRoleFilter("all"); setStandingFilter("all"); setPositionFilter("all"); }}>
+                {tCommon("resetFilters")}
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={Users}
+            title={t("noMembers")}
+            description={t("searchMembers")}
+          />
+        )
       ) : viewMode === "table" ? (
         /* Table View */
         <div className="rounded-md border">

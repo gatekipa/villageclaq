@@ -158,11 +158,11 @@ export async function calculateStanding(
     standing = "warning";
   }
 
-  // Optionally update DB
+  // Optionally update DB (standing + standing_updated_at)
   if (options?.updateDb) {
     await supabase
       .from("memberships")
-      .update({ standing })
+      .update({ standing, standing_updated_at: new Date().toISOString() })
       .eq("id", membershipId);
   }
 

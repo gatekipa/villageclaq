@@ -40,6 +40,8 @@ import {
   useMembers,
   useContributionTypes,
   useRecordPayment,
+  checkDuplicatePayment,
+  type PaymentCascadeResult,
 } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
@@ -126,6 +128,15 @@ export default function RecordPaymentPage() {
   const memberInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // ─── Duplicate Warning Dialog State ──────────────────────────────────
+  const [dupDialogOpen, setDupDialogOpen] = useState(false);
+  const [dupKeepType, setDupKeepType] = useState(false);
+  const [dupIsBulk, setDupIsBulk] = useState(false);
+  const [dupBulkMemberId, setDupBulkMemberId] = useState<string | null>(null);
+
+  // ─── Cascade Toast State ─────────────────────────────────────────────
+  const [cascadeInfo, setCascadeInfo] = useState<PaymentCascadeResult | null>(null);
+
   const isLoading = membersLoading || typesLoading;
   const isError = membersError || typesError;
 
@@ -169,11 +180,12 @@ export default function RecordPaymentPage() {
     setShowMemberList(false);
   }
 
-  async function handleSave(keepTypeAndMethod: boolean) {
+  /** Core save logic, called after duplicate check passes or is bypassed */
+  async function doSave(keepTypeAndMethod: boolean, skipDuplicateCheck: boolean) {
     if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
 
     try {
-      const paymentResult = await recordPayment.mutateAsync({
+      const result = await recordPayment.mutateAsync({
         membership_id: selectedMembership.id,
         contribution_type_id: selectedTypeId,
         amount: Number(amount),
@@ -182,13 +194,19 @@ export default function RecordPaymentPage() {
         reference_number: reference || undefined,
         receipt_url: receiptUrl && !receiptUrl.startsWith("pending:") ? receiptUrl : undefined,
         notes: notes || undefined,
+        skipDuplicateCheck,
       });
+
+      // Show cascade info if payment was split across multiple obligations
+      if (result.appliedTo.length > 1 || result.creditRemaining > 0) {
+        setCascadeInfo(result);
+        setTimeout(() => setCascadeInfo(null), 8000); // longer display for cascade
+      }
 
       // Send payment receipt notification to the member
       const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === selectedTypeId)?.name as string || "";
       try {
         const supabase = createClient();
-        // Find the user_id for this membership
         const { data: membership } = await supabase
           .from("memberships")
           .select("user_id")
@@ -205,8 +223,6 @@ export default function RecordPaymentPage() {
             data: { amount: Number(amount), currency, contribution_type: typeName, method, reference: reference || null },
           });
 
-          // Send payment receipt email (non-blocking)
-          // Guard: only send if user_id exists (proxy members have user_id=NULL)
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
@@ -217,7 +233,7 @@ export default function RecordPaymentPage() {
                   Authorization: `Bearer ${session.access_token}`,
                 },
                 body: JSON.stringify({
-                  to: membership.user_id, // API route will resolve email from user_id
+                  to: membership.user_id,
                   template: "payment-receipt",
                   data: {
                     memberName: selectedMembership.name,
@@ -232,27 +248,24 @@ export default function RecordPaymentPage() {
                   },
                   locale: "en",
                 }),
-              }).catch(() => {}); // Fire and forget — do not await
+              }).catch(() => {});
             }
           } catch {
             // Email is non-critical
           }
         }
       } catch {
-        // Non-critical — don't block the payment flow
+        // Non-critical
       }
 
       setLastSavedName(selectedMembership.name);
       setShowSuccess(true);
-
-      // Clear member fields always
       setSelectedMembership(null);
       setMemberSearch("");
       setReference("");
       setNotes("");
 
       if (!keepTypeAndMethod) {
-        // Full clear
         setAmount("");
         setSelectedTypeId("");
         setMethod("cash");
@@ -260,9 +273,31 @@ export default function RecordPaymentPage() {
 
       setTimeout(() => setShowSuccess(false), 3000);
       memberInputRef.current?.focus();
-    } catch {
-      // error displayed via mutation state
+    } catch (err) {
+      // Handle duplicate detection — show dialog instead of error
+      if (err instanceof Error && err.message === "DUPLICATE_PAYMENT_DETECTED") {
+        setDupKeepType(keepTypeAndMethod);
+        setDupIsBulk(false);
+        setDupDialogOpen(true);
+        return;
+      }
+      // Other errors displayed via mutation state
     }
+  }
+
+  async function handleSave(keepTypeAndMethod: boolean) {
+    await doSave(keepTypeAndMethod, false);
+  }
+
+  /** Called when user clicks "Record Anyway" in the duplicate warning dialog */
+  async function handleDuplicateConfirm() {
+    setDupDialogOpen(false);
+    if (dupIsBulk && dupBulkMemberId) {
+      // For bulk, we just skip this particular member's duplicate check
+      // The bulk flow handles this via skipDuplicateCheck flag
+      return;
+    }
+    await doSave(dupKeepType, true);
   }
 
   // ─── Bulk Payment ────────────────────────────────────────────────────
@@ -275,6 +310,7 @@ export default function RecordPaymentPage() {
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkSearch, setBulkSearch] = useState("");
   const [bulkSuccess, setBulkSuccess] = useState<number | null>(null);
+  const [bulkDupCount, setBulkDupCount] = useState(0);
 
   const bulkType = types.find((ct: Record<string, unknown>) => ct.id === bulkTypeId);
 
@@ -309,10 +345,26 @@ export default function RecordPaymentPage() {
     if (!bulkTypeId || !bulkAmount || Number(bulkAmount) <= 0 || bulkSelected.size === 0) return;
     setBulkSubmitting(true);
     let successCount = 0;
+    let dupCount = 0;
 
     try {
+      const today = new Date().toISOString().slice(0, 10);
+
       for (const memberId of bulkSelected) {
         try {
+          // Check for duplicates per member in bulk flow
+          const dup = await checkDuplicatePayment(
+            groupId!,
+            memberId,
+            bulkTypeId,
+            Number(bulkAmount),
+            today,
+          );
+          if (dup) {
+            dupCount++;
+            continue; // Skip duplicates silently in bulk mode
+          }
+
           await recordPayment.mutateAsync({
             membership_id: memberId,
             contribution_type_id: bulkTypeId,
@@ -320,6 +372,7 @@ export default function RecordPaymentPage() {
             currency,
             payment_method: bulkMethod,
             notes: bulkNotes || undefined,
+            skipDuplicateCheck: true, // Already checked above
           });
           successCount++;
         } catch {
@@ -328,6 +381,9 @@ export default function RecordPaymentPage() {
       }
 
       setBulkSuccess(successCount);
+      if (dupCount > 0) {
+        setBulkDupCount(dupCount);
+      }
       setBulkSelected(new Set());
       setBulkTypeId("");
       setBulkAmount("");
@@ -337,8 +393,9 @@ export default function RecordPaymentPage() {
 
       setTimeout(() => {
         setBulkSuccess(null);
+        setBulkDupCount(0);
         setBulkOpen(false);
-      }, 3000);
+      }, 4000);
     } finally {
       setBulkSubmitting(false);
     }
@@ -448,6 +505,71 @@ export default function RecordPaymentPage() {
           </Button>
         </div>
       )}
+
+      {/* Cascade Toast — shows when payment was split across multiple obligations */}
+      {cascadeInfo && cascadeInfo.appliedTo.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg bg-emerald-600 px-4 py-3 text-white shadow-lg animate-in slide-in-from-bottom-4">
+          <div className="flex items-start gap-3">
+            <Check className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">{t("contributions.cascadeTitle")}</p>
+              {cascadeInfo.appliedTo.map((item, i) => (
+                <p key={i} className="text-xs opacity-90">
+                  {formatAmount(item.amountApplied, currency)} → {item.typeName || t("contributions.obligation")}
+                </p>
+              ))}
+              {cascadeInfo.creditRemaining > 0 && (
+                <p className="text-xs font-medium opacity-90">
+                  {t("contributions.creditRemaining", { amount: formatAmount(cascadeInfo.creditRemaining, currency) })}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0 text-white hover:text-white/80 hover:bg-white/10"
+              onClick={() => setCascadeInfo(null)}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Payment Warning Dialog */}
+      <Dialog open={dupDialogOpen} onOpenChange={setDupDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="h-5 w-5" />
+              {t("contributions.duplicateTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("contributions.duplicateDesc", {
+                amount: formatAmount(Number(amount), currency),
+                member: selectedMembership?.name || "",
+                type: (types.find((ct: Record<string, unknown>) => ct.id === selectedTypeId)?.name as string) || "",
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDupDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-700"
+              onClick={handleDuplicateConfirm}
+              disabled={recordPayment.isPending}
+            >
+              {recordPayment.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {t("contributions.recordAnyway")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Record Payment Form */}
       <Card>
@@ -704,6 +826,11 @@ export default function RecordPaymentPage() {
               <p className="text-lg font-semibold">
                 {t("contributions.bulkSuccess", { count: bulkSuccess })}
               </p>
+              {bulkDupCount > 0 && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  {t("contributions.bulkDuplicatesSkipped", { count: bulkDupCount })}
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

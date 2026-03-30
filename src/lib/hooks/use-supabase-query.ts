@@ -165,29 +165,112 @@ export function usePayments(limit = 50) {
   });
 }
 
+/** Shape returned by useRecordPayment for cascade/duplicate info */
+export interface PaymentCascadeResult {
+  payment: Record<string, unknown>;
+  /** Each obligation touched by this payment, in order of application */
+  appliedTo: { obligationId: string; typeName: string; amountApplied: number }[];
+  /** Any remaining credit after all obligations are satisfied */
+  creditRemaining: number;
+}
+
+/**
+ * Check if a duplicate payment already exists for the same member/type/amount/date.
+ * Returns the matching payment or null.
+ */
+export async function checkDuplicatePayment(
+  groupId: string,
+  membershipId: string,
+  contributionTypeId: string | undefined,
+  amount: number,
+  paymentDate: string, // ISO date string YYYY-MM-DD
+): Promise<Record<string, unknown> | null> {
+  // payment_date is stored as recorded_at (TIMESTAMPTZ); match on the same calendar day
+  const dayStart = `${paymentDate}T00:00:00.000Z`;
+  const dayEnd = `${paymentDate}T23:59:59.999Z`;
+
+  let query = supabase
+    .from("payments")
+    .select("id, amount, recorded_at, contribution_type:contribution_types(name)")
+    .eq("group_id", groupId)
+    .eq("membership_id", membershipId)
+    .eq("amount", amount)
+    .gte("recorded_at", dayStart)
+    .lte("recorded_at", dayEnd);
+
+  if (contributionTypeId) {
+    query = query.eq("contribution_type_id", contributionTypeId);
+  }
+
+  const { data } = await query.limit(1).maybeSingle();
+  return data as Record<string, unknown> | null;
+}
+
 export function useRecordPayment() {
   const queryClient = useQueryClient();
   const { groupId, user } = useGroup();
   return useMutation({
-    mutationFn: async (values: { membership_id: string; obligation_id?: string; contribution_type_id?: string; amount: number; currency: string; payment_method: string; reference_number?: string; receipt_url?: string; notes?: string }) => {
+    mutationFn: async (values: {
+      membership_id: string;
+      obligation_id?: string;
+      contribution_type_id?: string;
+      amount: number;
+      currency: string;
+      payment_method: string;
+      reference_number?: string;
+      receipt_url?: string;
+      notes?: string;
+      /** Set to true to bypass duplicate warning (user confirmed "Record Anyway") */
+      skipDuplicateCheck?: boolean;
+    }): Promise<PaymentCascadeResult> => {
       if (!groupId || !user) throw new Error("No group/user");
 
       // Validate amount — must be positive
       if (!values.amount || values.amount <= 0) throw new Error("Amount must be greater than zero");
 
-      const { data, error } = await supabase.from("payments").insert({
-        ...values,
+      // ─── Step 0: Duplicate check (unless bypassed) ─────────────────────
+      if (!values.skipDuplicateCheck && values.contribution_type_id) {
+        const today = new Date().toISOString().slice(0, 10);
+        const dup = await checkDuplicatePayment(
+          groupId,
+          values.membership_id,
+          values.contribution_type_id,
+          values.amount,
+          today,
+        );
+        if (dup) {
+          // Throw a special error the UI can catch to show the duplicate dialog
+          const err = new Error("DUPLICATE_PAYMENT_DETECTED");
+          (err as unknown as Record<string, unknown>).duplicatePayment = dup;
+          throw err;
+        }
+      }
+
+      // ─── Step 1: Insert payment record ─────────────────────────────────
+      // IMPORTANT: Do NOT pass obligation_id to avoid double-update from DB trigger
+      const insertPayload: Record<string, unknown> = {
+        membership_id: values.membership_id,
+        contribution_type_id: values.contribution_type_id || null,
+        amount: values.amount,
+        currency: values.currency,
+        payment_method: values.payment_method,
+        reference_number: values.reference_number || null,
+        receipt_url: values.receipt_url || null,
+        notes: values.notes || null,
         group_id: groupId,
         recorded_by: user.id,
-      }).select().single();
+      };
+
+      const { data, error } = await supabase.from("payments").insert(insertPayload).select().single();
       if (error) throw error;
 
-      // Update matching obligation — this is CRITICAL for the financial pipeline
-      let oblId = values.obligation_id;
+      // ─── Step 2: Cascade payment across obligations ────────────────────
+      const appliedTo: PaymentCascadeResult["appliedTo"] = [];
+      let remaining = values.amount;
 
-      // If no explicit obligation_id, try to find one by member + type (unpaid first, then any)
+      // Find the first obligation (FIFO by due_date) for this member + type
+      let oblId = values.obligation_id;
       if (!oblId && values.contribution_type_id && values.membership_id) {
-        // First try: find an unpaid obligation for this member + type
         const { data: matchedObl } = await supabase
           .from("contribution_obligations")
           .select("id")
@@ -202,19 +285,78 @@ export function useRecordPayment() {
       }
 
       if (oblId) {
-        // Update existing obligation
-        const { data: obl } = await supabase.from("contribution_obligations").select("amount, amount_paid").eq("id", oblId).single();
+        // Apply to the first obligation
+        const { data: obl } = await supabase
+          .from("contribution_obligations")
+          .select("amount, amount_paid, contribution_type:contribution_types(name)")
+          .eq("id", oblId)
+          .single();
+
         if (obl) {
-          const newPaid = Number(obl.amount_paid) + values.amount;
           const amountDue = Number(obl.amount);
-          const newStatus = (amountDue > 0 && newPaid >= amountDue) ? "paid" : newPaid > 0 ? "partial" : "pending";
-          await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", oblId);
+          const currentPaid = Number(obl.amount_paid);
+          const gap = Math.max(0, amountDue - currentPaid);
+          const applied = Math.min(remaining, gap > 0 ? gap : remaining);
+
+          // If gap is 0 (already paid), the full payment is excess
+          if (gap > 0) {
+            const newPaid = currentPaid + applied;
+            const newStatus = newPaid >= amountDue ? "paid" : "partial";
+            await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", oblId);
+            const typeName = ((Array.isArray(obl.contribution_type) ? obl.contribution_type[0] : obl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
+            appliedTo.push({ obligationId: oblId, typeName, amountApplied: applied });
+            remaining -= applied;
+          }
+        }
+
+        // ─── Cascade: apply remainder to next unpaid obligations ─────────
+        // Loop while there's remaining money and more unpaid obligations exist
+        while (remaining > 0) {
+          // Find the NEXT unpaid obligation for this member in this group
+          // (any contribution type — cascades across all dues)
+          const alreadyAppliedIds = appliedTo.map((a) => a.obligationId);
+          let nextQuery = supabase
+            .from("contribution_obligations")
+            .select("id, amount, amount_paid, contribution_type:contribution_types(name)")
+            .eq("membership_id", values.membership_id)
+            .eq("group_id", groupId)
+            .in("status", ["pending", "partial", "overdue"])
+            .order("due_date", { ascending: true })
+            .order("created_at", { ascending: true })
+            .limit(1);
+
+          // Exclude already-applied obligations
+          if (alreadyAppliedIds.length > 0) {
+            // Use .not('id', 'in', ...) to skip obligations we already touched
+            nextQuery = nextQuery.not("id", "in", `(${alreadyAppliedIds.join(",")})`);
+          }
+
+          const { data: nextObl } = await nextQuery.maybeSingle();
+          if (!nextObl) break; // No more unpaid obligations — remainder becomes credit
+
+          const nextDue = Number(nextObl.amount);
+          const nextCurrentPaid = Number(nextObl.amount_paid);
+          const nextGap = Math.max(0, nextDue - nextCurrentPaid);
+          if (nextGap <= 0) break; // Shouldn't happen (status filter), but safety
+
+          const nextApplied = Math.min(remaining, nextGap);
+          const nextNewPaid = nextCurrentPaid + nextApplied;
+          const nextStatus = nextNewPaid >= nextDue ? "paid" : "partial";
+
+          await supabase.from("contribution_obligations").update({
+            amount_paid: nextNewPaid,
+            status: nextStatus,
+          }).eq("id", nextObl.id);
+
+          const nextTypeName = ((Array.isArray(nextObl.contribution_type) ? nextObl.contribution_type[0] : nextObl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
+          appliedTo.push({ obligationId: nextObl.id as string, typeName: nextTypeName, amountApplied: nextApplied });
+          remaining -= nextApplied;
         }
       } else if (values.contribution_type_id && values.membership_id) {
         // No obligation exists — create one and mark it paid/partial
         const { data: contribType } = await supabase
           .from("contribution_types")
-          .select("amount, currency")
+          .select("amount, currency, name")
           .eq("id", values.contribution_type_id)
           .single();
 
@@ -227,14 +369,67 @@ export function useRecordPayment() {
           membership_id: values.membership_id,
           contribution_type_id: values.contribution_type_id,
           amount: amountDue,
-          amount_paid: amountPaid,
+          amount_paid: Math.min(amountPaid, amountDue),
           currency: contribType?.currency || values.currency || "XAF",
           status: amountPaid >= amountDue ? "paid" : "partial",
           period_label: String(currentYear),
           due_date: new Date(currentYear, 11, 31).toISOString(),
         });
+
+        const appliedAmount = Math.min(amountPaid, amountDue);
+        appliedTo.push({
+          obligationId: "new",
+          typeName: (contribType?.name as string) || "",
+          amountApplied: appliedAmount,
+        });
+        remaining = Math.max(0, amountPaid - amountDue);
+
+        // If the new obligation was overpaid, cascade the remainder
+        if (remaining > 0) {
+          // Find next unpaid obligations for this member
+          const { data: nextObls } = await supabase
+            .from("contribution_obligations")
+            .select("id, amount, amount_paid, contribution_type:contribution_types(name)")
+            .eq("membership_id", values.membership_id)
+            .eq("group_id", groupId)
+            .in("status", ["pending", "partial", "overdue"])
+            .order("due_date", { ascending: true })
+            .order("created_at", { ascending: true })
+            .limit(10);
+
+          for (const nextObl of (nextObls || [])) {
+            if (remaining <= 0) break;
+            const nextDue = Number(nextObl.amount);
+            const nextPaid = Number(nextObl.amount_paid);
+            const nextGap = Math.max(0, nextDue - nextPaid);
+            if (nextGap <= 0) continue;
+
+            const nextApplied = Math.min(remaining, nextGap);
+            await supabase.from("contribution_obligations").update({
+              amount_paid: nextPaid + nextApplied,
+              status: (nextPaid + nextApplied) >= nextDue ? "paid" : "partial",
+            }).eq("id", nextObl.id);
+
+            const nextTypeName = ((Array.isArray(nextObl.contribution_type) ? nextObl.contribution_type[0] : nextObl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
+            appliedTo.push({ obligationId: nextObl.id as string, typeName: nextTypeName, amountApplied: nextApplied });
+            remaining -= nextApplied;
+          }
+        }
       }
-      return data;
+
+      // ─── Step 3: Standing DB writeback ─────────────────────────────────
+      // Recalculate standing for the affected member and persist to DB
+      try {
+        const { calculateStanding } = await import("@/lib/calculate-standing");
+        await calculateStanding(values.membership_id, groupId, {
+          updateDb: true,
+          currency: values.currency,
+        });
+      } catch {
+        // Non-critical — standing will recalculate on next view
+      }
+
+      return { payment: data as Record<string, unknown>, appliedTo, creditRemaining: remaining };
     },
     onSuccess: (_data, variables) => {
       // Invalidate ALL financial queries so every page shows fresh data

@@ -189,7 +189,7 @@ export default function MyInvitationsPage() {
               data: {
                 memberName,
                 groupName,
-                dashboardUrl: `${window.location.origin}/dashboard`,
+                dashboardUrl: `${window.location.origin}/${locale}/dashboard`,
               },
               locale,
             }),

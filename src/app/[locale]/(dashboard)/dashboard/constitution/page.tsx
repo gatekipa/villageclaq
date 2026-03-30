@@ -404,10 +404,17 @@ export default function ConstitutionPage() {
 
   const handleFileUpload = async (file: File) => {
     if (!groupId) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setActionError(t("fileTooLarge"));
+      return;
+    }
     try {
       const path = `constitutions/${groupId}/${Date.now()}-${file.name}`;
       const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file);
-      if (uploadErr) return;
+      if (uploadErr) {
+        setActionError(uploadErr.message);
+        return;
+      }
       const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
       await supabase.from("group_constitutions").insert({
         group_id: groupId, title: file.name.replace(/\.[^.]+$/, ""), file_url: urlData.publicUrl,

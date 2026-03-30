@@ -418,7 +418,7 @@ export default function MinutesPage() {
                         meetingTitle: minutesTitle,
                         meetingDate,
                         publishedBy: publisherName,
-                        minutesUrl: `${window.location.origin}/dashboard/minutes`,
+                        minutesUrl: `${window.location.origin}/${locale}/dashboard/minutes`,
                       },
                       locale,
                     }),

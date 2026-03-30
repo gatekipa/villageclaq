@@ -204,14 +204,21 @@ export default function MyReliefPage() {
 
   const handleDocUpload = async (file: File) => {
     if (!groupId || !membershipId) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setClaimError(t("common.error"));
+      return;
+    }
     try {
       const path = `relief-claims/${groupId}/${membershipId}/${Date.now()}-${file.name}`;
       const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file);
-      if (uploadErr) return;
+      if (uploadErr) {
+        setClaimError(uploadErr.message);
+        return;
+      }
       const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
       setClaimDocUrl(urlData.publicUrl);
-    } catch {
-      // Non-blocking
+    } catch (err) {
+      setClaimError((err as Error).message);
     }
   };
 

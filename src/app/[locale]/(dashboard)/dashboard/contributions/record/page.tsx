@@ -2,7 +2,7 @@
 import { formatAmount } from "@/lib/currencies";
 
 import { useState, useRef, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,8 @@ import { Shield } from "lucide-react";
 
 export default function RecordPaymentPage() {
   const t = useTranslations();
-  const { currentGroup, groupId } = useGroup();
+  const locale = useLocale();
+  const { currentGroup, groupId, user: currentUser } = useGroup();
   const { hasPermission } = usePermissions();
   const canRecord = hasPermission("finances.record") || hasPermission("finances.manage");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
@@ -213,12 +214,13 @@ export default function RecordPaymentPage() {
           .eq("id", selectedMembership.id)
           .single();
         if (membership?.user_id) {
+          const formattedAmt = formatAmount(Number(amount), currency);
           await supabase.from("notifications").insert({
             user_id: membership.user_id,
             group_id: groupId,
             type: "contribution_received",
-            title: `Payment of ${formatAmount(Number(amount), currency)} received`,
-            body: `Payment of ${formatAmount(Number(amount), currency)} received for ${typeName}. Method: ${method}. Reference: ${reference || "N/A"}.`,
+            title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
+            body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method, reference: reference || "N/A" }),
             is_read: false,
             data: { amount: Number(amount), currency, contribution_type: typeName, method, reference: reference || null },
           });
@@ -238,15 +240,15 @@ export default function RecordPaymentPage() {
                   data: {
                     memberName: selectedMembership.name,
                     groupName: currentGroup?.name || "",
-                    amount: formatAmount(Number(amount), currency),
+                    amount: formattedAmt,
                     contributionType: typeName,
                     paymentMethod: method,
-                    date: new Date().toLocaleDateString(),
+                    date: new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US"),
                     reference: reference || undefined,
-                    recordedBy: "Treasurer",
-                    paymentsUrl: `${window.location.origin}/dashboard/my-payments`,
+                    recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
+                    paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
                   },
-                  locale: "en",
+                  locale,
                 }),
               }).catch(() => {});
             }
@@ -717,6 +719,10 @@ export default function RecordPaymentPage() {
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file || !groupId) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert(t("contributions.fileTooLargeReceipt"));
+                        return;
+                      }
                       try {
                         const supabase = createClient();
                         const path = `${groupId}/${Date.now()}-${file.name}`;

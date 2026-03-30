@@ -58,6 +58,7 @@ export default function MyProfilePage() {
   const [privacySaving, setPrivacySaving] = useState(false);
   const [privacySaved, setPrivacySaved] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   // BUG 2 FIX: Populate form from real data, with auth metadata fallback
   useEffect(() => {
@@ -262,34 +263,51 @@ export default function MyProfilePage() {
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 id="avatar-upload"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file || !user) return;
+                  if (file.size > 2 * 1024 * 1024) {
+                    setLoadError(t("photoTooLarge"));
+                    return;
+                  }
+                  setAvatarUploading(true);
                   try {
                     const supabase = createClient();
-                    const path = `${user.id}/${Date.now()}-${file.name}`;
+                    const ext = file.name.split(".").pop() || "jpg";
+                    const path = `${user.id}/${Date.now()}.${ext}`;
                     const { error: uploadErr } = await supabase.storage
                       .from("avatars")
                       .upload(path, file, { upsert: true });
-                    if (!uploadErr) {
+                    if (uploadErr) {
+                      setLoadError(uploadErr.message);
+                    } else {
                       const { data: urlData } = supabase.storage
                         .from("avatars")
                         .getPublicUrl(path);
                       await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", user.id);
-                      window.location.reload();
+                      refresh();
                     }
-                  } catch { /* storage bucket may not exist yet */ }
+                  } catch (err) {
+                    setLoadError((err as Error).message);
+                  } finally {
+                    setAvatarUploading(false);
+                  }
                 }}
               />
               <button
                 className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-sm transition-colors hover:bg-emerald-700 dark:border-slate-900"
                 aria-label={t("changePhoto")}
                 onClick={() => document.getElementById("avatar-upload")?.click()}
+                disabled={avatarUploading}
               >
-                <Camera className="h-4 w-4" />
+                {avatarUploading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
               </button>
             </div>
             <div className="text-center sm:text-left">

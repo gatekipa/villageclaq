@@ -149,16 +149,24 @@ export function PayNowDialog({
       // Upload receipt if provided
       let receiptUrl: string | undefined;
       if (receiptFile) {
+        if (receiptFile.size > 5 * 1024 * 1024) {
+          setSubmitError(t("fileTooLarge"));
+          setSubmitting(false);
+          return;
+        }
         const path = `${groupId}/${Date.now()}-${receiptFile.name}`;
         const { error: uploadErr } = await supabase.storage
           .from("receipts")
           .upload(path, receiptFile);
-        if (!uploadErr) {
-          const { data: urlData } = supabase.storage
-            .from("receipts")
-            .getPublicUrl(path);
-          receiptUrl = urlData.publicUrl;
+        if (uploadErr) {
+          setSubmitError(uploadErr.message);
+          setSubmitting(false);
+          return;
         }
+        const { data: urlData } = supabase.storage
+          .from("receipts")
+          .getPublicUrl(path);
+        receiptUrl = urlData.publicUrl;
       }
 
       // Insert payment with pending_confirmation status
@@ -438,7 +446,7 @@ export function PayNowDialog({
                 <div className="relative">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf"
                     className="hidden"
                     id="receipt-upload"
                     onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}

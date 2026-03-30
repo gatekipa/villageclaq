@@ -253,11 +253,10 @@ export default function TransfersPage() {
               outstanding_obligations: outstandingObligations,
             };
 
-            // Update source membership: set standing to 'suspended'
-            // (no 'transferred' enum value exists — 'suspended' is the closest semantic match)
+            // Update source membership: mark as transferred
             await supabase
               .from("memberships")
-              .update({ standing: "suspended" })
+              .update({ standing: "transferred" })
               .eq("id", sourceMembership.id);
 
             // Create new membership in destination group

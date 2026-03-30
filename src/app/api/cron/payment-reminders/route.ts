@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
+import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { formatAmount } from "@/lib/currencies";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -23,6 +24,8 @@ export async function GET(request: Request) {
   const now = new Date();
   let sent = 0;
   let failed = 0;
+  let smsSent = 0;
+  let smsSkipped = 0;
   const errors: string[] = [];
 
   try {
@@ -130,7 +133,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // ── Resolve emails via get_member_emails RPC — one call per group ──
+    // ── Resolve emails + phones via RPC — one call per group ──
     // Collect unique group_ids from obligations
     const groupIds = new Set<string>();
     for (const o of realObligations) {
@@ -140,16 +143,16 @@ export async function GET(request: Request) {
     }
 
     const emailMap = new Map<string, string>();
+    const phoneMap = new Map<string, { phone: string; locale: string }>();
 
-    // Batch resolve — one RPC call per group instead of one auth call per user
+    // Batch resolve — one RPC call per group for emails and phones
     for (const gid of groupIds) {
+      // Emails
       const { data: members, error: rpcErr } = await supabase
         .rpc("get_member_emails", { p_group_id: gid });
       if (rpcErr) {
         console.warn(`[Cron:PaymentReminders] get_member_emails failed for group ${gid}:`, rpcErr.message);
-        continue;
-      }
-      if (members && Array.isArray(members)) {
+      } else if (members && Array.isArray(members)) {
         for (const m of members) {
           const row = m as { user_id: string; email: string };
           if (row.user_id && row.email) {
@@ -157,46 +160,80 @@ export async function GET(request: Request) {
           }
         }
       }
+
+      // Phones
+      const { data: phoneMembers, error: phoneErr } = await supabase
+        .rpc("get_member_phones", { p_group_id: gid });
+      if (phoneErr) {
+        console.warn(`[Cron:PaymentReminders] get_member_phones failed for group ${gid}:`, phoneErr.message);
+      } else if (phoneMembers && Array.isArray(phoneMembers)) {
+        for (const m of phoneMembers) {
+          const row = m as { user_id: string; phone: string; preferred_locale: string; is_proxy: boolean };
+          if (row.user_id && row.phone && !row.is_proxy) {
+            phoneMap.set(row.user_id, { phone: row.phone, locale: row.preferred_locale || "en" });
+          }
+        }
+      }
     }
 
-    // ── Send one email per member (first overdue item as primary, rest as context) ──
-    // The template handles a single obligation per email, so we send one per overdue item
-    const sendPromises: Promise<{ userId: string; success: boolean; error?: string }>[] = [];
+    // ── Send emails + SMS per member per overdue obligation ──
+    const emailPromises: Promise<{ userId: string; success: boolean; error?: string }>[] = [];
+    const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
 
     for (const [userId, memberData] of byUser) {
       const email = emailMap.get(userId);
-      if (!email) {
-        errors.push(`No email found for user ${userId}`);
+      const phoneInfo = phoneMap.get(userId);
+
+      if (!email && !phoneInfo) {
+        errors.push(`No email or phone found for user ${userId}`);
         failed++;
         continue;
       }
 
-      // Send one email per overdue obligation
+      // Send one email + one SMS per overdue obligation
       for (const item of memberData.items) {
-        sendPromises.push(
-          sendEmail({
-            to: email,
-            template: "payment-reminder",
-            data: {
-              memberName: memberData.memberName,
-              groupName: item.groupName,
-              amount: item.amount,
-              contributionType: item.contributionType,
-              dueDate: item.dueDate,
-              daysOverdue: item.daysOverdue,
-              paymentsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/my-payments`,
-            },
-            locale: memberData.locale,
-          }).then((result) => ({
-            userId,
-            success: result.success,
-            error: result.error,
-          }))
-        );
+        const templateData = {
+          memberName: memberData.memberName,
+          groupName: item.groupName,
+          amount: item.amount,
+          contributionType: item.contributionType,
+          dueDate: item.dueDate,
+          daysOverdue: item.daysOverdue,
+          paymentsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/my-payments`,
+        };
+
+        // Email
+        if (email) {
+          emailPromises.push(
+            sendEmail({
+              to: email,
+              template: "payment-reminder",
+              data: templateData,
+              locale: memberData.locale,
+            }).then((result) => ({
+              userId,
+              success: result.success,
+              error: result.error,
+            }))
+          );
+        }
+
+        // SMS (fire-and-forget alongside email)
+        if (phoneInfo) {
+          smsPromises.push(
+            sendSmsNotification({
+              to: phoneInfo.phone,
+              template: "payment-reminder",
+              data: templateData,
+              locale: (phoneInfo.locale || memberData.locale) as "en" | "fr",
+            })
+          );
+        }
       }
     }
 
-    const results = await Promise.allSettled(sendPromises);
+    // Wait for emails (primary channel)
+    const results = await Promise.allSettled(emailPromises);
     for (const r of results) {
       if (r.status === "fulfilled" && r.value.success) {
         sent++;
@@ -209,14 +246,28 @@ export async function GET(request: Request) {
       }
     }
 
-    if (errors.length > 0) {
-      console.warn(`[Cron:PaymentReminders] ${sent} sent, ${failed} failed:`, errors.slice(0, 10));
+    // Wait for SMS (secondary channel — failures don't affect response)
+    const smsResults = await Promise.allSettled(smsPromises);
+    for (const r of smsResults) {
+      if (r.status === "fulfilled" && r.value.sent) smsSent++;
+      else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
     }
 
-    return NextResponse.json({ success: true, sent, failed, errors: errors.slice(0, 20) });
+    if (errors.length > 0) {
+      console.warn(`[Cron:PaymentReminders] ${sent} emails sent, ${failed} failed, ${smsSent} SMS sent:`, errors.slice(0, 10));
+    }
+
+    return NextResponse.json({
+      success: true,
+      sent,
+      failed,
+      smsSent,
+      smsSkipped,
+      errors: errors.slice(0, 20),
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:PaymentReminders] Fatal error:", msg);
-    return NextResponse.json({ success: false, error: msg, sent, failed }, { status: 500 });
+    return NextResponse.json({ success: false, error: msg, sent, failed, smsSent, smsSkipped }, { status: 500 });
   }
 }

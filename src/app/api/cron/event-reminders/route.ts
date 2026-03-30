@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
+import { sendSmsNotification } from "@/lib/send-sms-notification";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -30,6 +31,8 @@ export async function GET(request: Request) {
   let eventsProcessed = 0;
   let emailsSent = 0;
   let emailsFailed = 0;
+  let smsSent = 0;
+  let smsSkipped = 0;
   const errors: string[] = [];
 
   try {
@@ -74,56 +77,123 @@ export async function GET(request: Request) {
       const groupName = (group?.name as string) || "";
       const startsAt = new Date(event.starts_at as string);
 
-      // Get all non-proxy members + emails for this group in one RPC call
+      // Get all non-proxy members + emails for this group
       const { data: memberEmails, error: rpcErr } = await supabase
         .rpc("get_member_emails", { p_group_id: groupId });
 
-      if (rpcErr || !memberEmails || !Array.isArray(memberEmails) || memberEmails.length === 0) {
-        if (rpcErr) errors.push(`Group ${groupId}: ${rpcErr.message}`);
+      if (rpcErr) {
+        errors.push(`Group ${groupId} emails: ${rpcErr.message}`);
+      }
+
+      // Get phone numbers for SMS
+      const { data: memberPhones, error: phoneErr } = await supabase
+        .rpc("get_member_phones", { p_group_id: groupId });
+
+      if (phoneErr) {
+        console.warn(`[Cron:EventReminders] get_member_phones failed for group ${groupId}:`, phoneErr.message);
+      }
+
+      // Build phone lookup: user_id → phone
+      const phoneMap = new Map<string, string>();
+      if (memberPhones && Array.isArray(memberPhones)) {
+        for (const mp of memberPhones) {
+          const row = mp as { user_id: string; phone: string; is_proxy: boolean };
+          if (row.user_id && row.phone && !row.is_proxy) {
+            phoneMap.set(row.user_id, row.phone);
+          }
+        }
+      }
+
+      const emailList = (memberEmails && Array.isArray(memberEmails))
+        ? memberEmails as Array<{ user_id: string; email: string; display_name: string; preferred_locale: string }>
+        : [];
+
+      if (emailList.length === 0 && phoneMap.size === 0) {
         continue;
       }
 
-      // Build and send emails
-      const sendPromises = (memberEmails as Array<{ user_id: string; email: string; display_name: string; preferred_locale: string }>)
-        .filter((m) => m.user_id && m.email)
-        .map((m) => {
-          const email = m.email;
-          const memberName = m.display_name || "Member";
-          const preferredLocale = (m.preferred_locale || "en") as "en" | "fr";
+      // Build and send emails + SMS
+      const emailPromises: Promise<{ success: boolean; error?: string }>[] = [];
+      const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
 
-          const eventName = preferredLocale === "fr"
-            ? ((event.title_fr as string) || (event.title as string))
-            : (event.title as string);
+      for (const m of emailList.filter((m) => m.user_id && m.email)) {
+        const email = m.email;
+        const memberName = m.display_name || "Member";
+        const preferredLocale = (m.preferred_locale || "en") as "en" | "fr";
 
-          const eventDate = startsAt.toLocaleDateString(
-            preferredLocale === "fr" ? "fr-FR" : "en-US",
-            { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-          );
-          const eventTime = startsAt.toLocaleTimeString(
-            preferredLocale === "fr" ? "fr-FR" : "en-US",
-            { hour: "2-digit", minute: "2-digit" }
-          );
+        const eventName = preferredLocale === "fr"
+          ? ((event.title_fr as string) || (event.title as string))
+          : (event.title as string);
 
-          return sendEmail({
+        const eventDate = startsAt.toLocaleDateString(
+          preferredLocale === "fr" ? "fr-FR" : "en-US",
+          { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+        );
+        const eventTime = startsAt.toLocaleTimeString(
+          preferredLocale === "fr" ? "fr-FR" : "en-US",
+          { hour: "2-digit", minute: "2-digit" }
+        );
+
+        const templateData = {
+          memberName,
+          groupName,
+          eventName,
+          eventDate,
+          eventTime,
+          eventLocation: (event.location as string) || undefined,
+          eventsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/events`,
+        };
+
+        // Email
+        emailPromises.push(
+          sendEmail({
             to: email,
             template: "event-reminder",
-            data: {
-              memberName,
-              groupName,
-              eventName,
-              eventDate,
-              eventTime,
-              eventLocation: (event.location as string) || undefined,
-              eventsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/events`,
-            },
+            data: templateData,
             locale: preferredLocale,
           }).then((result) => ({
             success: result.success,
             error: result.error,
-          }));
-        });
+          }))
+        );
 
-      const results = await Promise.allSettled(sendPromises);
+        // SMS (if this member has a phone)
+        const phone = phoneMap.get(m.user_id);
+        if (phone) {
+          smsPromises.push(
+            sendSmsNotification({
+              to: phone,
+              template: "event-reminder",
+              data: templateData,
+              locale: preferredLocale,
+            })
+          );
+          // Remove from phoneMap so we don't double-send for proxy members below
+          phoneMap.delete(m.user_id);
+        }
+      }
+
+      // Send SMS to any remaining phone-only members (proxy members with phones)
+      for (const [, phone] of phoneMap) {
+        smsPromises.push(
+          sendSmsNotification({
+            to: phone,
+            template: "event-reminder",
+            data: {
+              groupName,
+              eventName: event.title as string,
+              eventDate: startsAt.toLocaleDateString("en-US", {
+                weekday: "long", year: "numeric", month: "long", day: "numeric",
+              }),
+              eventLocation: (event.location as string) || "",
+            },
+            locale: "en",
+          })
+        );
+      }
+
+      // Await emails
+      const results = await Promise.allSettled(emailPromises);
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.success) {
           emailsSent++;
@@ -136,11 +206,18 @@ export async function GET(request: Request) {
         }
       }
 
+      // Await SMS
+      const smsResults = await Promise.allSettled(smsPromises);
+      for (const r of smsResults) {
+        if (r.status === "fulfilled" && r.value.sent) smsSent++;
+        else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
+      }
+
       eventsProcessed++;
     }
 
     if (errors.length > 0) {
-      console.warn(`[Cron:EventReminders] ${eventsProcessed} events, ${emailsSent} sent, ${emailsFailed} failed:`, errors.slice(0, 10));
+      console.warn(`[Cron:EventReminders] ${eventsProcessed} events, ${emailsSent} emails, ${smsSent} SMS:`, errors.slice(0, 10));
     }
 
     return NextResponse.json({
@@ -148,13 +225,15 @@ export async function GET(request: Request) {
       eventsProcessed,
       emailsSent,
       emailsFailed,
+      smsSent,
+      smsSkipped,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:EventReminders] Fatal error:", msg);
     return NextResponse.json(
-      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed },
+      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed, smsSent, smsSkipped },
       { status: 500 }
     );
   }

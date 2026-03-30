@@ -22,6 +22,7 @@ export default function JoinPage() {
   const params = useParams();
   const code = params.code as string;
   const t = useTranslations("common");
+  const tj = useTranslations("join");
   const router = useRouter();
 
   const [status, setStatus] = useState<"loading" | "found" | "not_found" | "joining" | "joined" | "error" | "already_member">("loading");
@@ -144,13 +145,13 @@ export default function JoinPage() {
           {status === "not_found" && (
             <div className="flex flex-col items-center gap-4 py-8 text-center">
               <AlertCircle className="h-12 w-12 text-muted-foreground" />
-              <h2 className="text-lg font-semibold">Invalid or Expired Link</h2>
+              <h2 className="text-lg font-semibold">{tj("invalidLink")}</h2>
               <p className="text-sm text-muted-foreground">
-                This join link is no longer active. Ask your group admin for a new one.
+                {tj("invalidLinkDesc")}
               </p>
               <Link href="/">
                 <Button variant="outline" className="gap-2">
-                  <ArrowLeft className="h-4 w-4" /> Go Home
+                  <ArrowLeft className="h-4 w-4" /> {tj("goHome")}
                 </Button>
               </Link>
             </div>
@@ -165,7 +166,7 @@ export default function JoinPage() {
                 <h2 className="text-xl font-bold">{group.name}</h2>
                 <div className="mt-1 flex items-center justify-center gap-2">
                   <Badge variant="secondary" className="text-xs">{group.group_type}</Badge>
-                  <span className="text-xs text-muted-foreground">{group.member_count} members</span>
+                  <span className="text-xs text-muted-foreground">{tj("memberCount", { count: group.member_count })}</span>
                 </div>
               </div>
               {group.description && (
@@ -177,10 +178,10 @@ export default function JoinPage() {
                 ) : (
                   <Users className="mr-2 h-4 w-4" />
                 )}
-                Join This Group
+                {tj("joinGroup")}
               </Button>
               <p className="text-xs text-muted-foreground">
-                You&apos;ll need a VillageClaq account to join.
+                {tj("accountRequired")}
               </p>
             </div>
           )}
@@ -190,20 +191,20 @@ export default function JoinPage() {
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
                 <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <h2 className="text-lg font-semibold">Welcome to {group?.name}!</h2>
-              <p className="text-sm text-muted-foreground">Redirecting to your dashboard...</p>
+              <h2 className="text-lg font-semibold">{tj("welcomeTo", { group: group?.name || "" })}</h2>
+              <p className="text-sm text-muted-foreground">{tj("redirecting")}</p>
             </div>
           )}
 
           {status === "already_member" && (
             <div className="flex flex-col items-center gap-4 py-8 text-center">
               <CheckCircle2 className="h-12 w-12 text-primary" />
-              <h2 className="text-lg font-semibold">You&apos;re already a member!</h2>
+              <h2 className="text-lg font-semibold">{tj("alreadyMember")}</h2>
               <p className="text-sm text-muted-foreground">
-                You&apos;re already in {group?.name}.
+                {tj("alreadyMemberDesc", { group: group?.name || "" })}
               </p>
               <Link href="/dashboard">
-                <Button>Go to Dashboard</Button>
+                <Button>{tj("goToDashboard")}</Button>
               </Link>
             </div>
           )}
@@ -211,9 +212,9 @@ export default function JoinPage() {
           {status === "error" && (
             <div className="flex flex-col items-center gap-4 py-8 text-center">
               <AlertCircle className="h-12 w-12 text-destructive" />
-              <h2 className="text-lg font-semibold">Something went wrong</h2>
+              <h2 className="text-lg font-semibold">{tj("errorTitle")}</h2>
               <p className="text-sm text-destructive">{error}</p>
-              <Button onClick={() => setStatus("found")} variant="outline">Try Again</Button>
+              <Button onClick={() => setStatus("found")} variant="outline">{tj("tryAgain")}</Button>
             </div>
           )}
         </CardContent>

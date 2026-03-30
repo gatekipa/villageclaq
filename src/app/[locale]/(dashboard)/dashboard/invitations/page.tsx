@@ -101,7 +101,8 @@ export default function InvitationsPage() {
   }
 
   function getJoinLink(code: string) {
-    return `https://villageclaq.vercel.app/join/${code}`;
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://villageclaq.com";
+    return `${origin}/${locale}/join/${code}`;
   }
 
   function shareWhatsApp(code: string) {

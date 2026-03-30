@@ -75,6 +75,21 @@
     "unpublish": "Unpublish",
     "cancelled": "Cancelled"
   },
+  "join": {
+    "invalidLink": "Invalid or Expired Link",
+    "invalidLinkDesc": "This join link is no longer active. Ask your group admin for a new one.",
+    "goHome": "Go Home",
+    "memberCount": "{count} members",
+    "joinGroup": "Join This Group",
+    "accountRequired": "You'll need a VillageClaq account to join.",
+    "welcomeTo": "Welcome to {group}!",
+    "redirecting": "Redirecting to your dashboard...",
+    "alreadyMember": "You're already a member!",
+    "alreadyMemberDesc": "You're already in {group}.",
+    "goToDashboard": "Go to Dashboard",
+    "errorTitle": "Something went wrong",
+    "tryAgain": "Try Again"
+  },
   "checkin": {
     "verifying": "Verifying your membership...",
     "loginRequired": "Login Required",

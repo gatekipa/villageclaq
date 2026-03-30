@@ -75,6 +75,21 @@
     "unpublish": "Dépublier",
     "cancelled": "Annulé"
   },
+  "join": {
+    "invalidLink": "Lien invalide ou expiré",
+    "invalidLinkDesc": "Ce lien d'adhésion n'est plus actif. Demandez un nouveau lien à l'administrateur de votre groupe.",
+    "goHome": "Retour à l'accueil",
+    "memberCount": "{count} membres",
+    "joinGroup": "Rejoindre ce groupe",
+    "accountRequired": "Vous aurez besoin d'un compte VillageClaq pour rejoindre.",
+    "welcomeTo": "Bienvenue dans {group} !",
+    "redirecting": "Redirection vers votre tableau de bord...",
+    "alreadyMember": "Vous êtes déjà membre !",
+    "alreadyMemberDesc": "Vous êtes déjà dans {group}.",
+    "goToDashboard": "Aller au tableau de bord",
+    "errorTitle": "Une erreur est survenue",
+    "tryAgain": "Réessayer"
+  },
   "checkin": {
     "verifying": "Vérification de votre adhésion...",
     "loginRequired": "Connexion requise",

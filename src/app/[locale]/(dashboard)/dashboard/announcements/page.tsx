@@ -334,17 +334,25 @@ export default function AnnouncementsPage() {
   }
 
   async function handleUnpublish(annId: string) {
-    const supabase = createClient();
-    await supabase.from("announcements").update({ sent_at: null }).eq("id", annId);
-    await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.from("announcements").update({ sent_at: null }).eq("id", annId);
+      if (err) throw err;
+      await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+    } catch (err) {
+      setMutationError((err as Error).message || tc("error"));
+    }
   }
 
   async function handleDeleteAnnouncement(annId: string) {
     setDeletingId(annId);
     try {
       const supabase = createClient();
-      await supabase.from("announcements").delete().eq("id", annId);
+      const { error: err } = await supabase.from("announcements").delete().eq("id", annId);
+      if (err) throw err;
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+    } catch (err) {
+      setMutationError((err as Error).message || tc("error"));
     } finally {
       setDeletingId(null);
       setShowDeleteConfirm(null);
@@ -514,7 +522,7 @@ export default function AnnouncementsPage() {
                       <Input
                         value={memberSearch}
                         onChange={(e) => setMemberSearch(e.target.value)}
-                        placeholder="Search members..."
+                        placeholder={t("searchMembers")}
                         className="pl-9"
                       />
                     </div>
@@ -677,8 +685,8 @@ export default function AnnouncementsPage() {
                     <Clock className="size-3.5" />
                     <span>
                       {!sentAt && scheduledAt
-                        ? `${t("scheduledFor")}: ${formatDate(scheduledAt)}`
-                        : dateStr ? formatDate(dateStr) : ""}
+                        ? `${t("scheduledFor")}: ${formatDate(scheduledAt, locale)}`
+                        : dateStr ? formatDate(dateStr, locale) : ""}
                     </span>
                   </div>
 

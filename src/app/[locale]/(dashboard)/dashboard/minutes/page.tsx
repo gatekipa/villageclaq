@@ -399,7 +399,7 @@ export default function MinutesPage() {
               const meetingDate = selectedEvent?.starts_at
                 ? new Date(selectedEvent.starts_at).toLocaleDateString(getDateLocale(locale))
                 : new Date().toLocaleDateString(getDateLocale(locale));
-              const publisherName = user?.full_name || "Admin";
+              const publisherName = user?.full_name || user?.display_name || tc("admin");
 
               Promise.allSettled(
                 realMembers.map((m) =>

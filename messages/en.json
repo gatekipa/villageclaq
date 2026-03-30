@@ -42,6 +42,7 @@
     "time": "Time",
     "actions": "Actions",
     "unknown": "Unknown",
+    "admin": "Admin",
     "description": "Description",
     "title": "Title",
     "type": "Type",
@@ -1066,6 +1067,7 @@
     "rsvpUpdated": "RSVP updated",
     "deleteEventConfirm": "This will permanently delete this event. Are you sure?",
     "eventCancelled": "Event cancelled",
+    "cancelEventConfirm": "This will cancel the event and notify attendees. Are you sure?",
     "updateEvent": "Update Event"
   },
   "attendance": {
@@ -2930,6 +2932,7 @@
     "audienceAll": "All Members",
     "audienceRoles": "Specific Roles",
     "audienceMembers": "Specific Members",
+    "searchMembers": "Search members...",
     "scheduleNow": "Send Now",
     "scheduleLater": "Schedule for Later",
     "scheduledFor": "Scheduled for",
@@ -3184,6 +3187,7 @@
     "title": "Elections & Voting",
     "subtitle": "Run officer elections, motions, and polls with anonymous ballots",
     "createElection": "Create Election",
+    "editElection": "Edit Election",
     "electionTitle": "Title",
     "electionTitleFr": "Title (French)",
     "description": "Description",
@@ -3313,7 +3317,8 @@
     "documentTitleEn": "Title (English)",
     "deleteDocument": "Delete Document",
     "confirmDeleteDocument": "Are you sure you want to delete this document? This action cannot be undone.",
-    "documentDeleted": "Document deleted successfully"
+    "documentDeleted": "Document deleted successfully",
+    "fileTooLarge": "File exceeds the 10MB size limit"
   },
   "memberCard": {
     "title": "Digital Membership Card",

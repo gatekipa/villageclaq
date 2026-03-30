@@ -335,7 +335,7 @@ export default function EventsPage() {
         })
         .eq("id", editEventId);
       if (updateError) throw updateError;
-      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
       setShowCreateDialog(false);
       resetForm();
       setEditEventId(null);
@@ -347,11 +347,12 @@ export default function EventsPage() {
   }
 
   async function handleCancelEvent(eventId: string) {
+    if (!confirm(t("cancelEventConfirm"))) return;
     try {
       const supabase = createClient();
       const { error: err } = await supabase.from("events").update({ status: "cancelled" }).eq("id", eventId);
       if (err) throw err;
-      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
     } catch (err) {
       showError((err as Error).message || tc("error"));
     }
@@ -363,7 +364,8 @@ export default function EventsPage() {
       const supabase = createClient();
       const { error: err } = await supabase.from("events").delete().eq("id", eventId);
       if (err) throw err;
-      await queryClient.invalidateQueries({ queryKey: ["events"] });
+      await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
     } catch (err) {
       showError((err as Error).message || tc("error"));
     } finally {
@@ -826,7 +828,8 @@ export default function EventsPage() {
                 onClick={handleCreateEvent}
                 disabled={!formTitle || !formStartsAt || createEvent.isPending}
               >
-                {createEvent.isPending ? tc("loading") : t("saveEvent")}
+                {createEvent.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("saveEvent")}
               </Button>
             )}
           </DialogFooter>

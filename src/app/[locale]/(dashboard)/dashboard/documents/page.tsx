@@ -95,6 +95,7 @@ const CATEGORY_OPTIONS: CategoryKey[] = ["constitution", "financial", "certifica
 export default function DocumentVaultPage() {
   const locale = useLocale();
   const t = useTranslations("documentVault");
+  const tc = useTranslations("common");
   const { groupId, user } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("documents.manage");
@@ -127,32 +128,31 @@ export default function DocumentVaultPage() {
   }
 
   async function handleUpload() {
-    if (!docTitle.trim() || !groupId || !user) return;
+    if (!docTitle.trim() || !groupId || !user || !selectedFile) return;
     setSaving(true);
     setMutationError(null);
     try {
       const supabase = createClient();
-      let fileUrl = "";
-      let fileType = "";
-      let fileSize = 0;
+      const fileType = selectedFile.name.split(".").pop()?.toUpperCase() || "";
+      const fileSize = selectedFile.size;
 
-      if (selectedFile) {
-        fileType = selectedFile.name.split(".").pop()?.toUpperCase() || "";
-        fileSize = selectedFile.size;
-        const filePath = `${groupId}/${Date.now()}-${selectedFile.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("group-documents")
-          .upload(filePath, selectedFile);
-        if (uploadError) {
-          // Storage bucket might not exist — continue with empty file_url
-          console.warn("Storage upload failed:", uploadError.message);
-        } else {
-          const { data: urlData } = supabase.storage
-            .from("group-documents")
-            .getPublicUrl(filePath);
-          fileUrl = urlData?.publicUrl || "";
-        }
+      // Validate file size (10MB max)
+      if (fileSize > 10 * 1024 * 1024) {
+        setMutationError(t("fileTooLarge"));
+        setSaving(false);
+        return;
       }
+
+      const filePath = `${groupId}/${Date.now()}-${selectedFile.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("group-documents")
+        .upload(filePath, selectedFile);
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { data: urlData } = supabase.storage
+        .from("group-documents")
+        .getPublicUrl(filePath);
+      const fileUrl = urlData?.publicUrl || "";
 
       const { error: insertError } = await supabase.from("documents").insert({
         group_id: groupId,
@@ -261,7 +261,7 @@ export default function DocumentVaultPage() {
             {mutationError && <p className="text-sm text-destructive">{mutationError}</p>}
           </div>
           <DialogFooter>
-            <Button onClick={handleUpload} disabled={saving || !docTitle.trim()}>
+            <Button onClick={handleUpload} disabled={saving || !docTitle.trim() || !selectedFile}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               {t("upload")}
             </Button>
@@ -340,7 +340,7 @@ export default function DocumentVaultPage() {
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         {fileType && <span>{fileType.toUpperCase()}</span>}
                         {fileSize && <span>{formatFileSize(fileSize)}</span>}
-                        {createdAt && <span>{formatDate(createdAt)}</span>}
+                        {createdAt && <span>{formatDate(createdAt, locale)}</span>}
                       </div>
 
                       {uploaderName && (
@@ -383,7 +383,7 @@ export default function DocumentVaultPage() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">{t("confirmDeleteDocument")}</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>{t("cancel" as Parameters<typeof t>[0])}</Button>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>{tc("cancel")}</Button>
             <Button
               variant="destructive"
               disabled={deleting}
@@ -407,8 +407,7 @@ export default function DocumentVaultPage() {
                   setDeleteDialogOpen(false);
                   setDeleteDocId(null);
                 } catch (err) {
-                  console.error('Failed to delete document:', err);
-                  setMutationError(t("error"));
+                  setMutationError((err as Error).message || tc("error"));
                 } finally {
                   setDeleting(false);
                 }

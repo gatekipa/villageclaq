@@ -42,6 +42,7 @@
     "time": "Heure",
     "actions": "Actions",
     "unknown": "Inconnu",
+    "admin": "Administrateur",
     "description": "Description",
     "title": "Titre",
     "type": "Type",
@@ -1066,6 +1067,7 @@
     "rsvpUpdated": "RSVP mis à jour",
     "deleteEventConfirm": "Ceci supprimera définitivement cet événement. Êtes-vous sûr ?",
     "eventCancelled": "Événement annulé",
+    "cancelEventConfirm": "Ceci annulera l'événement et notifiera les participants. Êtes-vous sûr ?",
     "updateEvent": "Mettre à jour"
   },
   "attendance": {
@@ -2930,6 +2932,7 @@
     "audienceAll": "Tous les membres",
     "audienceRoles": "Rôles spécifiques",
     "audienceMembers": "Membres spécifiques",
+    "searchMembers": "Rechercher des membres...",
     "scheduleNow": "Envoyer maintenant",
     "scheduleLater": "Planifier pour plus tard",
     "scheduledFor": "Planifié pour",
@@ -3184,6 +3187,7 @@
     "title": "Élections et votes",
     "subtitle": "Organisez des élections, motions et sondages avec bulletins anonymes",
     "createElection": "Créer une élection",
+    "editElection": "Modifier l'élection",
     "electionTitle": "Titre",
     "electionTitleFr": "Titre (Français)",
     "description": "Description",
@@ -3313,7 +3317,8 @@
     "documentTitleEn": "Titre (Anglais)",
     "deleteDocument": "Supprimer le document",
     "confirmDeleteDocument": "Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.",
-    "documentDeleted": "Document supprimé avec succès"
+    "documentDeleted": "Document supprimé avec succès",
+    "fileTooLarge": "Le fichier dépasse la limite de 10 Mo"
   },
   "memberCard": {
     "title": "Carte de membre numérique",

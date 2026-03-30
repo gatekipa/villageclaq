@@ -300,6 +300,7 @@ export default function ElectionsPage() {
 
     // Edit mode
     if (editElectionId) {
+      setStatusLoading(true);
       try {
         const { error } = await supabase.from('elections').update({
           title: elTitle.trim(),
@@ -309,12 +310,14 @@ export default function ElectionsPage() {
           ends_at: new Date(endsAt).toISOString(),
         }).eq('id', editElectionId);
         if (error) { setCreateError(error.message); return; }
-        queryClient.invalidateQueries({ queryKey: ["elections"] });
+        queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
         setShowCreate(false);
         setEditElectionId(null);
         resetCreateForm();
       } catch (err) {
         setCreateError((err as Error).message || tc("error"));
+      } finally {
+        setStatusLoading(false);
       }
       return;
     }
@@ -965,7 +968,7 @@ export default function ElectionsPage() {
       <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setElTitle(""); setElDescription(""); setStartsAt(""); setEndsAt(""); setElType("poll"); setCreateError(""); } }}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("createElection")}</DialogTitle>
+            <DialogTitle>{editElectionId ? t("editElection") : t("createElection")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1001,9 +1004,9 @@ export default function ElectionsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>{tc("cancel")}</Button>
-            <Button onClick={handleCreateElection} disabled={createElection.isPending}>
-              {createElection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {tc("create")}
+            <Button onClick={handleCreateElection} disabled={createElection.isPending || statusLoading}>
+              {(createElection.isPending || statusLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editElectionId ? tc("save") : tc("create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1084,12 +1087,23 @@ export default function ElectionsPage() {
           <p className="text-sm text-muted-foreground">{t("deleteElectionConfirm")}</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingElectionId(null)}>{tc("cancel")}</Button>
-            <Button variant="destructive" onClick={async () => {
+            <Button variant="destructive" disabled={statusLoading} onClick={async () => {
               if (!deletingElectionId) return;
-              await supabase.from('elections').delete().eq('id', deletingElectionId);
-              queryClient.invalidateQueries({ queryKey: ["elections"] });
-              setDeletingElectionId(null);
-            }}>{tc("delete")}</Button>
+              setStatusLoading(true);
+              try {
+                const { error: err } = await supabase.from('elections').delete().eq('id', deletingElectionId);
+                if (err) throw err;
+                await queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
+                setDeletingElectionId(null);
+              } catch (err) {
+                showError(t("deleteFailed"));
+              } finally {
+                setStatusLoading(false);
+              }
+            }}>
+              {statusLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("delete")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

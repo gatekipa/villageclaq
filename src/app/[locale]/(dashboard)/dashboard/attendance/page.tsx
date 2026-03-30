@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
+import { getDateLocale } from "@/lib/date-utils";
 import { QRCodeSVG } from "qrcode.react";
 
 type AttendanceStatus = "present" | "absent" | "excused" | "late";
@@ -99,6 +100,7 @@ const statusConfig: Record<AttendanceStatus, { color: string; activeColor: strin
 export default function AttendancePage() {
   const t = useTranslations("attendance");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const { groupId, user } = useGroup();
   const { hasPermission } = usePermissions();
   // Permission check for attendance management (used alongside PermissionGate)
@@ -480,7 +482,7 @@ export default function AttendancePage() {
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
                         <p className="font-medium">{record.event_title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(record.event_date).toLocaleDateString()}
+                          {new Date(record.event_date).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric", year: "numeric" })}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -606,7 +608,7 @@ export default function AttendancePage() {
                     allEvents.map((event) => (
                       <SelectItem key={event.id as string} value={event.id as string}>
                         {event.title as string} &mdash;{" "}
-                        {new Date(event.starts_at as string).toLocaleDateString()}
+                        {new Date(event.starts_at as string).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric" })}
                       </SelectItem>
                     ))
                   )}
@@ -651,11 +653,7 @@ export default function AttendancePage() {
                   <div className="space-y-2">
                     {members &&
                       (members as Record<string, unknown>[]).map((member) => {
-                        const profile = member.profile as Record<string, unknown> | undefined;
-                        const name =
-                          (member.display_name as string) ||
-                          (profile?.full_name as string) ||
-                          "\u2014";
+                        const name = getMemberName(member);
                         const initials = name
                           .split(" ")
                           .map((w: string) => w[0])

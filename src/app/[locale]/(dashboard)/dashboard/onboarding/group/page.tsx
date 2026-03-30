@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/routing";
+import { useRouter, usePathname } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import {
@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Check,
   Camera,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,7 +119,8 @@ const SAVINGS_SUGGESTIONS = [
 export default function GroupOnboardingPage() {
   const t = useTranslations("onboarding");
   const router = useRouter();
-  const { refresh } = useGroup();
+  const pathname = usePathname();
+  const { refresh, user } = useGroup();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,6 +132,10 @@ export default function GroupOnboardingPage() {
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [preferredLocale, setPreferredLocale] = useState<"en" | "fr">("en");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Step 2: Location
   const [locationType, setLocationType] = useState<GroupLocation>(null);
@@ -180,6 +186,46 @@ export default function GroupOnboardingPage() {
     }
     loadUser();
   }, []);
+
+  // ─── Photo Upload ──────────────────────────────────────────────────────
+  async function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setPhotoError(t("photoTooLarge"));
+      return;
+    }
+    setPhotoError(null);
+    setUploading(true);
+
+    try {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser?.id) {
+        setPhotoError(t("photoUploadFailed"));
+        return;
+      }
+
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${authUser.id}/${Date.now()}.${ext}`;
+
+      const { error: uploadErr } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true });
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+
+      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", authUser.id);
+      setAvatarUrl(publicUrl);
+    } catch {
+      setPhotoError(t("photoUploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // Auto-detect currency when country changes
   useEffect(() => {
@@ -614,14 +660,43 @@ export default function GroupOnboardingPage() {
               {t("profileWelcome")}
             </p>
 
-            {/* Photo placeholder */}
+            {/* Photo upload */}
             <div className="flex flex-col items-center gap-2">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                <Camera className="size-8 text-muted-foreground" />
-              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="group relative flex size-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-muted-foreground/40 bg-muted/50 transition-colors hover:border-emerald-600 hover:bg-muted dark:hover:border-emerald-500"
+              >
+                {avatarUrl ? (
+                  <>
+                    <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
+                    <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Camera className="size-6 text-white" />
+                    </div>
+                    <div className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-emerald-500 text-white">
+                      <Check className="h-3 w-3" />
+                    </div>
+                  </>
+                ) : uploading ? (
+                  <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                ) : (
+                  <Camera className="size-8 text-muted-foreground transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-500" />
+                )}
+              </button>
               <span className="text-xs text-muted-foreground">
                 {t("photoSkip")}
               </span>
+              {photoError && (
+                <span className="text-xs text-destructive">{photoError}</span>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -673,7 +748,10 @@ export default function GroupOnboardingPage() {
                     <button
                       key={lang}
                       type="button"
-                      onClick={() => setPreferredLocale(lang)}
+                      onClick={() => {
+                      setPreferredLocale(lang);
+                      router.replace(pathname, { locale: lang });
+                    }}
                       className={cn(
                         "rounded-xl border-2 p-4 text-center font-medium transition-all",
                         preferredLocale === lang

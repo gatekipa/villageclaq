@@ -448,6 +448,7 @@
     "switchGroup": "Switch Group",
     "allGroups": "All Groups",
     "manageGroups": "Manage Groups",
+    "createGroup": "Create New Group",
     "currentGroup": "Current Group",
     "groupSettings": "Group Settings",
     "noGroupSelected": "No group selected"
@@ -557,7 +558,11 @@
     "permManageMinutesDesc": "Create and publish meeting minutes",
     "accessDenied": "Access Denied",
     "accessDeniedDesc": "You do not have permission to perform this action. Contact your group admin.",
-    "searchMembers": "Search members to assign..."
+    "searchMembers": "Search members to assign...",
+    "owner": "Owner",
+    "admin": "Admin",
+    "moderator": "Moderator",
+    "member": "Member"
   },
   "members": {
     "title": "Members",

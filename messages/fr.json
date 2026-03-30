@@ -448,6 +448,7 @@
     "switchGroup": "Changer de groupe",
     "allGroups": "Tous les groupes",
     "manageGroups": "Gérer les groupes",
+    "createGroup": "Créer un nouveau groupe",
     "currentGroup": "Groupe actuel",
     "groupSettings": "Paramètres du groupe",
     "noGroupSelected": "Aucun groupe sélectionné"
@@ -557,7 +558,11 @@
     "permManageMinutesDesc": "Créer et publier les PV",
     "accessDenied": "Accès refusé",
     "accessDeniedDesc": "Vous n'avez pas la permission d'effectuer cette action. Contactez l'administrateur du groupe.",
-    "searchMembers": "Rechercher des membres à assigner..."
+    "searchMembers": "Rechercher des membres à assigner...",
+    "owner": "Propriétaire",
+    "admin": "Administrateur",
+    "moderator": "Modérateur",
+    "member": "Membre"
   },
   "members": {
     "title": "Membres",

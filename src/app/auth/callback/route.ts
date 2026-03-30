@@ -27,7 +27,41 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // Redirect to the dashboard (intl middleware will add locale prefix)
+      // After successful auth, check if user has pending invitations.
+      // This handles the case where ?redirectTo was lost during email
+      // confirmation flow — we detect invitations server-side and redirect
+      // to my-invitations instead of letting the DashboardGuard send them
+      // to group onboarding.
+      if (next === "/dashboard") {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email) {
+            // Check if user has any memberships first
+            const { count: membershipCount } = await supabase
+              .from("memberships")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", user.id);
+
+            // Only check invitations if user has no memberships
+            // (existing members should go to their dashboard)
+            if (!membershipCount || membershipCount === 0) {
+              const { count: inviteCount } = await supabase
+                .from("invitations")
+                .select("id", { count: "exact", head: true })
+                .eq("email", user.email)
+                .eq("status", "pending");
+
+              if (inviteCount && inviteCount > 0) {
+                return NextResponse.redirect(`${origin}/dashboard/my-invitations`);
+              }
+            }
+          }
+        } catch {
+          // Non-critical — fall through to default redirect
+        }
+      }
+
+      // Redirect to the intended destination (intl middleware will add locale prefix)
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

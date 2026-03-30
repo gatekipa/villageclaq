@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { useRouter, usePathname } from "@/i18n/routing";
+import { useRouter, usePathname, Link } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import {
@@ -165,6 +165,28 @@ export default function GroupOnboardingPage() {
     { id: 2, value: "" },
     { id: 3, value: "" },
   ]);
+
+  // ─── Pending invitations check (safety net) ────────────────────────────
+  const [pendingInviteCount, setPendingInviteCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser?.email || cancelled) return;
+        const { count } = await supabase
+          .from("invitations")
+          .select("id", { count: "exact", head: true })
+          .eq("email", authUser.email)
+          .eq("status", "pending");
+        if (!cancelled && count && count > 0) {
+          setPendingInviteCount(count);
+        }
+      } catch { /* non-critical */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // ─── Logout & Save Later ──────────────────────────────────────────────
   const [savingLater, setSavingLater] = useState(false);
@@ -682,6 +704,24 @@ export default function GroupOnboardingPage() {
 
       {/* Logo */}
       <img src="/logo-mark.svg" className="h-12 w-12 mx-auto mb-6" alt="" />
+
+      {/* Pending invitations banner — safety net for invited users who land here */}
+      {pendingInviteCount > 0 && (
+        <div className="mb-6 w-full rounded-lg border border-emerald-500/50 bg-emerald-500/5 p-4">
+          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            {t("pendingInvitations", { count: pendingInviteCount })}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("pendingInvitationsDesc")}
+          </p>
+          <Link
+            href="/dashboard/my-invitations"
+            className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+          >
+            {t("viewInvitations")} →
+          </Link>
+        </div>
+      )}
 
       {/* Progress bar with step names */}
       <div className="mb-8 w-full">

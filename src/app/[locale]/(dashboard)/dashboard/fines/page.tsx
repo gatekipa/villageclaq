@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useFines, useFineRules } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
@@ -47,7 +48,9 @@ function getInitials(name: string) {
 
 export default function FinesPage() {
   const t = useTranslations("fines");
-  const { isAdmin, currentGroup } = useGroup();
+  const { currentGroup } = useGroup();
+  const { hasPermission, isAdmin } = usePermissions();
+  const canManageFines = isAdmin; // Fines management requires admin role (no dedicated permission key yet)
   const { data: fines, isLoading: finesLoading, isError: finesError, error: finesErr, refetch: refetchFines } = useFines();
   const { data: rules, isLoading: rulesLoading, isError: rulesError, error: rulesErr, refetch: refetchRules } = useFineRules();
   const [togglingRuleId, setTogglingRuleId] = useState<string | null>(null);
@@ -57,6 +60,7 @@ export default function FinesPage() {
   const [disputingId, setDisputingId] = useState<string | null>(null);
 
   const handleToggleRule = async (ruleId: string, currentActive: boolean) => {
+    if (!canManageFines) return;
     setTogglingRuleId(ruleId);
     try {
       const supabase = createClient();
@@ -213,7 +217,7 @@ export default function FinesPage() {
                           <Badge className={statusColors[status]}>
                             {t(`status_${status}` as Parameters<typeof t>[0])}
                           </Badge>
-                          {status === "pending" && !isAdmin && (
+                          {status === "pending" && !canManageFines && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -272,7 +276,7 @@ export default function FinesPage() {
                             <p className="text-xs text-muted-foreground mt-1">{description}</p>
                           )}
                         </div>
-                        {isAdmin && (
+                        {canManageFines && (
                           <Button
                             variant="ghost"
                             size="sm"

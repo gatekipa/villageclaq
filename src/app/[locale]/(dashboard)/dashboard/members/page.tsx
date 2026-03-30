@@ -168,7 +168,7 @@ export default function MembersPage() {
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
   const { data: positions } = useGroupPositions();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isOwner } = usePermissions();
   const canManageMembers = hasPermission("members.manage");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -425,6 +425,8 @@ export default function MembersPage() {
 
   async function handleEditMember() {
     if (!editMemberId || !editDisplayName.trim()) return;
+    // Block non-owners from assigning the "owner" role
+    if (editRole === "owner" && !isOwner) return;
     setEditSaving(true);
     setEditError(null);
     try {
@@ -1407,10 +1409,11 @@ export default function MembersPage() {
                 onChange={(e) => setEditRole(e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
-                <option value="moderator">Moderator</option>
-                <option value="member">Member</option>
+                {/* Owner role option: only visible to owners. Prevents admins from assigning/stealing ownership. */}
+                {isOwner && <option value="owner">{tr("owner")}</option>}
+                <option value="admin">{tr("admin")}</option>
+                <option value="moderator">{tr("moderator")}</option>
+                <option value="member">{tr("member")}</option>
               </select>
             </div>
             <div className="space-y-2">

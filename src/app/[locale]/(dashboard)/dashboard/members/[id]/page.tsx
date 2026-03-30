@@ -237,7 +237,7 @@ export default function MemberDetailPage() {
   const params = useParams();
   const membershipId = params.id as string;
   const { groupId, currentGroup, user } = useGroup();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isOwner } = usePermissions();
   const currency = currentGroup?.currency || "XAF";
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -1023,7 +1023,7 @@ export default function MemberDetailPage() {
                 <SelectValue placeholder={t("members.selectRole")} />
               </SelectTrigger>
               <SelectContent>
-                {["owner", "admin", "moderator", "member"].map((role) => (
+                {(isOwner ? ["owner", "admin", "moderator", "member"] : ["admin", "moderator", "member"]).map((role) => (
                   <SelectItem key={role} value={role}>{t(`roles.${role}` as "roles.admin")}</SelectItem>
                 ))}
               </SelectContent>
@@ -1034,6 +1034,8 @@ export default function MemberDetailPage() {
             <Button
               disabled={actionSaving}
               onClick={async () => {
+                // Block non-owners from assigning "owner" role
+                if (newRole === "owner" && !isOwner) return;
                 setActionSaving(true);
                 try {
                   const { error } = await supabase.from("memberships").update({ role: newRole }).eq("id", membershipId);

@@ -117,7 +117,9 @@ const adminSections: NavSection[] = [
 const adminEnterprise: NavSection = {
   labelKey: "sectionEnterprise",
   items: [
-    { key: "enterprise", href: "/dashboard/enterprise", icon: GitBranch },
+    { key: "enterprise", href: "/dashboard/enterprise", icon: Activity },
+    { key: "branches", href: "/dashboard/enterprise/branches", icon: GitBranch },
+    { key: "exchangeRates", href: "/dashboard/enterprise/exchange-rates", icon: RefreshCw },
   ],
 };
 
@@ -177,7 +179,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
-  const { isAdmin, isPlatformStaff } = useGroup();
+  const { isAdmin, isPlatformStaff, currentGroup } = useGroup();
   const { hasPermission, hasAnyPermission, userPermissions } = usePermissions();
 
   // Show admin nav if user is admin/owner OR has any position-based permissions
@@ -187,7 +189,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   function adminNavSections(): NavSection[] {
     const base = [...adminSections];
-    if (isAdmin) base.push(adminEnterprise);
+    // Enterprise section only visible when current group is HQ level and user is admin/owner
+    if (isAdmin && currentGroup?.group_level === "hq") base.push(adminEnterprise);
     return base;
   }
 

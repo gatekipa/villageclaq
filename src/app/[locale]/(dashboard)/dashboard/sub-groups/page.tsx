@@ -67,6 +67,7 @@ import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { getMemberName as getMemberNameShared } from "@/lib/get-member-name";
 
 const supabase = createClient();
 
@@ -266,7 +267,7 @@ export default function SubGroupsPage() {
         setAssignedIds((prev) => new Set(prev).add(membershipId));
       }
       await queryClient.invalidateQueries({ queryKey: ["sub-groups", groupId] });
-    } catch { /* silent */ }
+    } catch (err) { setFormError((err as Error).message || tc("error")); }
     finally { setAssignSaving(null); }
   }
 
@@ -279,16 +280,15 @@ export default function SubGroupsPage() {
         approved_by: currentMembership?.id,
       }).eq("id", transferId);
       await queryClient.invalidateQueries({ queryKey: ["sub-group-transfers", groupId] });
-    } catch { /* silent */ }
+    } catch (err) { setFormError((err as Error).message || tc("error")); }
     finally { setTransferSaving(null); }
   }
 
   const getMemberName = (id: string) => {
     if (!members) return "—";
-    const m = members.find((m: Record<string, unknown>) => m.id === id) as Record<string, unknown> | undefined;
+    const m = members.find((mem: Record<string, unknown>) => mem.id === id) as Record<string, unknown> | undefined;
     if (!m) return "—";
-    const p = m.profile as { full_name?: string } | undefined;
-    return (m.display_name as string) || p?.full_name || "—";
+    return getMemberNameShared(m);
   };
 
   const filtered = useMemo(() => {

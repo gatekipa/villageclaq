@@ -23,6 +23,9 @@ export interface GroupMembership {
     settings: Record<string, unknown>;
     is_active: boolean;
     created_by: string | null;
+    organization_id: string | null;
+    group_level: "standalone" | "hq" | "branch";
+    sharing_controls: Record<string, boolean> | null;
   };
 }
 
@@ -143,7 +146,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         .from("memberships")
         .select(`
           id, group_id, role, standing, display_name, joined_at, privacy_settings,
-          group:groups!inner(id, name, group_type, currency, locale, logo_url, settings, is_active, created_by)
+          group:groups!inner(id, name, group_type, currency, locale, logo_url, settings, is_active, created_by, organization_id, group_level, sharing_controls)
         `)
         .eq("user_id", authUser.id)
         .order("joined_at", { ascending: false });

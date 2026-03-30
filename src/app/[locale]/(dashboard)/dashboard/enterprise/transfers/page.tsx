@@ -1,11 +1,11 @@
 "use client";
-import { formatAmount } from "@/lib/currencies";
 
+import { formatAmount } from "@/lib/currencies";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
+import { useTranslations, useLocale } from "next-intl";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@/i18n/routing";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -33,14 +33,15 @@ import {
   XCircle,
   Clock,
   AlertCircle,
-  FileText,
+  Loader2,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
+import { getMemberName } from "@/lib/get-member-name";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-
-const supabase = createClient();
+import { getDateLocale } from "@/lib/date-utils";
 
 type TransferStatus = "requested" | "source_approved" | "dest_approved" | "completed" | "rejected";
 
@@ -52,15 +53,15 @@ const statusConfig: Record<TransferStatus, { color: string; icon: typeof CheckCi
   rejected: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: XCircle },
 };
 
-function useTransfers() {
-  const { groupId } = useGroup();
+function useTransfers(groupId: string | null) {
   return useQuery({
     queryKey: ["member-transfers", groupId],
     queryFn: async () => {
       if (!groupId) return [];
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("member_transfers")
-        .select("*, member:profiles!member_transfers_member_id_fkey(id, full_name, avatar_url), source_group:groups!member_transfers_source_group_id_fkey(id, name), dest_group:groups!member_transfers_dest_group_id_fkey(id, name)")
+        .select("*, member:profiles!member_transfers_member_id_fkey(id, full_name, avatar_url), source_group:groups!member_transfers_source_group_id_fkey(id, name, currency), dest_group:groups!member_transfers_dest_group_id_fkey(id, name, currency)")
         .or(`source_group_id.eq.${groupId},dest_group_id.eq.${groupId}`)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -70,14 +71,50 @@ function useTransfers() {
   });
 }
 
+function useOrganizationBranches(organizationId: string | null) {
+  return useQuery({
+    queryKey: ["org-branches", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("groups")
+        .select("id, name, currency")
+        .eq("organization_id", organizationId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+}
 
 export default function TransfersPage() {
-  const t = useTranslations();
-  const { currentGroup, memberships } = useGroup();
-  const { data: transfers, isLoading, error, refetch } = useTransfers();
+  const t = useTranslations("enterprise");
+  const tc = useTranslations("common");
+  const locale = useLocale();
+  const { currentGroup, groupId } = useGroup();
+  const { hasPermission } = usePermissions();
+  const queryClient = useQueryClient();
+  const { data: transfers, isLoading, error, refetch } = useTransfers(groupId);
   const { data: membersList } = useMembers();
+  const { data: branches } = useOrganizationBranches(currentGroup?.organization_id || null);
+
+  // Create dialog state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createMemberId, setCreateMemberId] = useState("");
+  const [createSourceId, setCreateSourceId] = useState("");
+  const [createDestId, setCreateDestId] = useState("");
+  const [createReason, setCreateReason] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  // Detail dialog
   const [selectedTransfer, setSelectedTransfer] = useState<Record<string, unknown> | null>(null);
+
+  // Action state
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
 
@@ -85,27 +122,114 @@ export default function TransfersPage() {
   if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
 
   const transferList = transfers || [];
-  const memberOptions = (membersList || []).map((m: Record<string, unknown>) => {
-    const profile = (m.profile || m.profiles) as Record<string, unknown> | undefined;
-    return { id: m.user_id as string, name: (profile?.full_name as string) || (m.display_name as string) || t("common.unknown") };
-  });
-  const branchOptions = memberships.map((m) => ({ id: m.group_id, name: m.group.name }));
+  const memberOptions = (membersList || []).filter((m: Record<string, unknown>) => m.user_id).map((m: Record<string, unknown>) => ({
+    id: m.user_id as string,
+    name: getMemberName(m),
+  }));
+  const branchOptions = (branches || []).map((b: Record<string, unknown>) => ({
+    id: b.id as string,
+    name: b.name as string,
+  }));
+
+  const handleCreateTransfer = async () => {
+    if (!createMemberId || !createSourceId || !createDestId || !groupId) return;
+    if (createSourceId === createDestId) return;
+    setCreating(true);
+    setCreateError("");
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Unauthorized");
+      const { error: err } = await supabase.from("member_transfers").insert({
+        member_id: createMemberId,
+        source_group_id: createSourceId,
+        dest_group_id: createDestId,
+        reason: createReason.trim() || null,
+        requested_by: user.id,
+        status: "requested",
+      });
+      if (err) throw err;
+      await queryClient.invalidateQueries({ queryKey: ["member-transfers", groupId] });
+      setShowCreateDialog(false);
+      setCreateMemberId("");
+      setCreateSourceId("");
+      setCreateDestId("");
+      setCreateReason("");
+    } catch (err) {
+      setCreateError((err as Error).message || tc("error"));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleApprove = async (transferId: string, currentStatus: TransferStatus) => {
+    setActionLoading(transferId);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let newStatus: TransferStatus;
+      const updateFields: Record<string, unknown> = {};
+
+      if (currentStatus === "requested") {
+        newStatus = "source_approved";
+        updateFields.approved_by_source = user.id;
+      } else if (currentStatus === "source_approved") {
+        newStatus = "dest_approved";
+        updateFields.approved_by_dest = user.id;
+      } else {
+        return;
+      }
+
+      // If dest_approved, also complete the transfer
+      if (newStatus === "dest_approved") {
+        newStatus = "completed";
+        updateFields.completed_at = new Date().toISOString();
+      }
+
+      await supabase.from("member_transfers").update({
+        status: newStatus,
+        ...updateFields,
+      }).eq("id", transferId);
+
+      await queryClient.invalidateQueries({ queryKey: ["member-transfers", groupId] });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (transferId: string) => {
+    setActionLoading(transferId);
+    try {
+      const supabase = createClient();
+      await supabase.from("member_transfers").update({
+        status: "rejected",
+      }).eq("id", transferId);
+      await queryClient.invalidateQueries({ queryKey: ["member-transfers", groupId] });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Link href="/dashboard/enterprise">
             <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("enterprise.memberTransfer")}</h1>
-            <p className="text-sm text-muted-foreground">{t("enterprise.subtitle")}</p>
+            <h1 className="text-2xl font-bold tracking-tight">{t("memberTransfer")}</h1>
+            <p className="text-sm text-muted-foreground">{t("transferHistory")}</p>
           </div>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />{t("enterprise.transferMember")}
-        </Button>
+        {hasPermission("members.manage") && (
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />{t("transferMember")}
+          </Button>
+        )}
       </div>
 
       {/* Transfer List */}
@@ -113,32 +237,35 @@ export default function TransfersPage() {
         {transferList.length === 0 ? (
           <EmptyState
             icon={ArrowRightLeft}
-            title={t("enterprise.noTransfers")}
-            description={t("enterprise.subtitle")}
+            title={t("noTransfers")}
+            description={t("subtitle")}
           />
         ) : (
           transferList.map((transfer: Record<string, unknown>) => {
+            const id = transfer.id as string;
             const status = (transfer.status as TransferStatus) || "requested";
             const config = statusConfig[status] || statusConfig.requested;
             const StatusIcon = config.icon;
             const member = transfer.member as Record<string, unknown> | null;
-            const memberName = (member?.full_name as string) || t("common.unknown");
+            const memberName = member ? getMemberName(member) : tc("unknown");
             const sourceGroup = transfer.source_group as Record<string, unknown> | null;
             const destGroup = transfer.dest_group as Record<string, unknown> | null;
-            const sourceName = (sourceGroup?.name as string) || "";
-            const destName = (destGroup?.name as string) || "";
+            const sourceName = (sourceGroup?.name as string) || "—";
+            const destName = (destGroup?.name as string) || "—";
             const reason = (transfer.reason as string) || "";
-            const createdAt = transfer.created_at ? new Date(transfer.created_at as string).toLocaleDateString() : "";
-            const summary = (transfer.transfer_summary_json as Record<string, unknown>) || {};
+            const createdAt = transfer.created_at
+              ? new Date(transfer.created_at as string).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short", day: "numeric" })
+              : "";
+            const isLoading = actionLoading === id;
 
             return (
-              <Card key={transfer.id as string} className="transition-shadow hover:shadow-md cursor-pointer" onClick={() => setSelectedTransfer(transfer)}>
+              <Card key={id} className="transition-shadow hover:shadow-md cursor-pointer" onClick={() => setSelectedTransfer(transfer)}>
                 <CardContent className="p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">{memberName}</h3>
-                        <Badge className={config.color}><StatusIcon className="mr-1 h-3 w-3" />{t(`enterprise.transferStatus.${status}`)}</Badge>
+                        <Badge className={config.color}><StatusIcon className="mr-1 h-3 w-3" />{t(`transferStatus.${status}`)}</Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {sourceName} → {destName} · {createdAt}
@@ -146,13 +273,15 @@ export default function TransfersPage() {
                       {reason && <p className="mt-0.5 text-xs text-muted-foreground">{reason}</p>}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {(status === "requested" || status === "source_approved") && (
+                      {(status === "requested" || status === "source_approved") && hasPermission("members.manage") && (
                         <>
-                          <Button size="sm" variant="outline" className="text-destructive" onClick={(e) => { e.stopPropagation(); }}>
-                            <XCircle className="mr-1 h-3.5 w-3.5" />{t("enterprise.rejectTransfer")}
+                          <Button size="sm" variant="outline" className="text-destructive" disabled={isLoading} onClick={(e) => { e.stopPropagation(); handleReject(id); }}>
+                            {isLoading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <XCircle className="mr-1 h-3.5 w-3.5" />}
+                            {t("rejectTransfer")}
                           </Button>
-                          <Button size="sm" onClick={(e) => { e.stopPropagation(); }}>
-                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />{t("enterprise.approveTransfer")}
+                          <Button size="sm" disabled={isLoading} onClick={(e) => { e.stopPropagation(); handleApprove(id, status); }}>
+                            {isLoading ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
+                            {t("approveTransfer")}
                           </Button>
                         </>
                       )}
@@ -165,24 +294,30 @@ export default function TransfersPage() {
         )}
       </div>
 
-      {/* Transfer Detail */}
+      {/* Transfer Detail Dialog */}
       {selectedTransfer && (
         <Dialog open={!!selectedTransfer} onOpenChange={() => setSelectedTransfer(null)}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{t("enterprise.memberTransfer")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("memberTransfer")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="rounded-lg border p-3 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Member</span><span className="font-medium">{((selectedTransfer.member as Record<string, unknown>)?.full_name as string) || t("common.unknown")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.sourceBranch")}</span><span className="font-medium">{((selectedTransfer.source_group as Record<string, unknown>)?.name as string) || ""}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.destBranch")}</span><span className="font-medium">{((selectedTransfer.dest_group as Record<string, unknown>)?.name as string) || ""}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.transferReason")}</span><span className="font-medium">{(selectedTransfer.reason as string) || ""}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{tc("member")}</span><span className="font-medium">{selectedTransfer.member ? getMemberName(selectedTransfer.member as Record<string, unknown>) : tc("unknown")}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("sourceBranch")}</span><span className="font-medium">{((selectedTransfer.source_group as Record<string, unknown>)?.name as string) || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("destBranch")}</span><span className="font-medium">{((selectedTransfer.dest_group as Record<string, unknown>)?.name as string) || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("transferReason")}</span><span className="font-medium">{(selectedTransfer.reason as string) || "—"}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{tc("status")}</span>
+                  <Badge className={statusConfig[(selectedTransfer.status as TransferStatus) || "requested"]?.color}>
+                    {t(`transferStatus.${(selectedTransfer.status as string) || "requested"}`)}
+                  </Badge>
+                </div>
               </div>
               {(() => {
                 const summary = selectedTransfer.transfer_summary_json as Record<string, unknown> | null;
                 if (!summary || Object.keys(summary).length === 0) return null;
                 return (
                   <Card className="bg-muted/50"><CardContent className="pt-4 space-y-1 text-sm">
-                    <h4 className="font-semibold mb-2">{t("enterprise.transferSummary")}</h4>
+                    <h4 className="font-semibold mb-2">{t("transferSummary")}</h4>
                     {Object.entries(summary).map(([key, value]) => (
                       <div key={key} className="flex justify-between">
                         <span className="text-muted-foreground">{key}</span>
@@ -194,43 +329,53 @@ export default function TransfersPage() {
               })()}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedTransfer(null)}>{t("common.close")}</Button>
+              <Button variant="outline" onClick={() => setSelectedTransfer(null)}>{tc("close")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
 
       {/* Create Transfer Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      <Dialog open={showCreateDialog} onOpenChange={(o) => { setShowCreateDialog(o); if (!o) setCreateError(""); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{t("enterprise.transferMember")}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("transferMember")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>{t("contributions.member")}</Label>
-              <Select><SelectTrigger><SelectValue placeholder={t("minutes.selectMember")} /></SelectTrigger>
+              <Label>{tc("member")}</Label>
+              <Select value={createMemberId} onValueChange={(v) => setCreateMemberId(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder={tc("select")} /></SelectTrigger>
                 <SelectContent>{memberOptions.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t("enterprise.sourceBranch")}</Label>
-              <Select><SelectTrigger><SelectValue /></SelectTrigger>
+              <Label>{t("sourceBranch")}</Label>
+              <Select value={createSourceId} onValueChange={(v) => setCreateSourceId(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder={tc("select")} /></SelectTrigger>
                 <SelectContent>{branchOptions.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t("enterprise.destBranch")}</Label>
-              <Select><SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{branchOptions.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+              <Label>{t("destBranch")}</Label>
+              <Select value={createDestId} onValueChange={(v) => setCreateDestId(v ?? "")}>
+                <SelectTrigger><SelectValue placeholder={tc("select")} /></SelectTrigger>
+                <SelectContent>{branchOptions.filter((b) => b.id !== createSourceId).map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>{t("enterprise.transferReason")}</Label>
-              <Textarea rows={3} />
+              <Label>{t("transferReason")}</Label>
+              <Textarea rows={3} value={createReason} onChange={(e) => setCreateReason(e.target.value)} />
             </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>{t("common.cancel")}</Button>
-            <Button onClick={() => setShowCreateDialog(false)}>{t("enterprise.transferMember")}</Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>{tc("cancel")}</Button>
+            <Button
+              onClick={handleCreateTransfer}
+              disabled={creating || !createMemberId || !createSourceId || !createDestId || createSourceId === createDestId}
+            >
+              {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("createTransfer")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

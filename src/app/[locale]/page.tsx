@@ -53,17 +53,17 @@ const phase9Features = [
 ] as const;
 
 const countries = [
-  { name: "Cameroon", flag: "🇨🇲" },
-  { name: "Nigeria", flag: "🇳🇬" },
-  { name: "Ghana", flag: "🇬🇭" },
-  { name: "Kenya", flag: "🇰🇪" },
-  { name: "South Africa", flag: "🇿🇦" },
-  { name: "Uganda", flag: "🇺🇬" },
-  { name: "Senegal", flag: "🇸🇳" },
-  { name: "USA", flag: "🇺🇸" },
-  { name: "UK", flag: "🇬🇧" },
-  { name: "Canada", flag: "🇨🇦" },
-  { name: "France", flag: "🇫🇷" },
+  { code: "CM", flag: "🇨🇲" },
+  { code: "NG", flag: "🇳🇬" },
+  { code: "GH", flag: "🇬🇭" },
+  { code: "KE", flag: "🇰🇪" },
+  { code: "ZA", flag: "🇿🇦" },
+  { code: "UG", flag: "🇺🇬" },
+  { code: "SN", flag: "🇸🇳" },
+  { code: "USA", flag: "🇺🇸" },
+  { code: "UK", flag: "🇬🇧" },
+  { code: "CA", flag: "🇨🇦" },
+  { code: "FR", flag: "🇫🇷" },
 ];
 
 const testimonials = [
@@ -192,36 +192,36 @@ export default function HomePage() {
                       <div className="h-3 w-20 rounded bg-white/10" />
                     </div>
                     <div className="space-y-2">
-                      <div className="rounded-lg bg-emerald-500/20 px-3 py-2 text-xs text-emerald-300 font-medium">Dashboard</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">Members</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">Contributions</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">Meetings</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">Reports</div>
+                      <div className="rounded-lg bg-emerald-500/20 px-3 py-2 text-xs text-emerald-300 font-medium">{t("landing.mockDashboard")}</div>
+                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockMembers")}</div>
+                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockContributions")}</div>
+                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockMeetings")}</div>
+                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockReports")}</div>
                     </div>
                   </div>
                   {/* Main content mock */}
                   <div className="flex-1 p-4 sm:p-6">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                       {[
-                        { label: "Members", value: "247", change: "+12%" },
-                        { label: "Balance", value: "$18.4K", change: "+8%" },
-                        { label: "Collected", value: "94%", change: "On track" },
-                        { label: "Meetings", value: "12", change: "This year" },
+                        { labelKey: "landing.mockStatMembers", value: "247", change: "+12%" },
+                        { labelKey: "landing.mockStatBalance", value: "$18.4K", change: "+8%" },
+                        { labelKey: "landing.mockStatCollected", value: "94%", changeKey: "landing.mockOnTrack" },
+                        { labelKey: "landing.mockStatMeetings", value: "12", changeKey: "landing.mockThisYear" },
                       ].map((s) => (
-                        <div key={s.label} className="rounded-lg border border-white/5 bg-white/5 p-3">
-                          <div className="text-[10px] text-white/40 uppercase tracking-wider">{s.label}</div>
+                        <div key={s.labelKey} className="rounded-lg border border-white/5 bg-white/5 p-3">
+                          <div className="text-[10px] text-white/40 uppercase tracking-wider">{t(s.labelKey)}</div>
                           <div className="mt-1 text-lg font-bold text-white">{s.value}</div>
-                          <div className="mt-0.5 text-[10px] text-emerald-400">{s.change}</div>
+                          <div className="mt-0.5 text-[10px] text-emerald-400">{s.changeKey ? t(s.changeKey) : s.change}</div>
                         </div>
                       ))}
                     </div>
                     <div className="mt-4 rounded-lg border border-white/5 bg-white/5 overflow-hidden">
-                      <div className="border-b border-white/5 px-4 py-2.5 text-xs font-medium text-white/60">Recent Contributions</div>
+                      <div className="border-b border-white/5 px-4 py-2.5 text-xs font-medium text-white/60">{t("landing.mockRecentContributions")}</div>
                       <div className="divide-y divide-white/5">
                         {[
-                          { name: "Aisha M.", amount: "$50", status: "Paid" },
-                          { name: "Emeka O.", amount: "$50", status: "Paid" },
-                          { name: "Fatou D.", amount: "$50", status: "Pending" },
+                          { name: "Aisha M.", amount: "$50", statusKey: "landing.mockPaid" },
+                          { name: "Emeka O.", amount: "$50", statusKey: "landing.mockPaid" },
+                          { name: "Fatou D.", amount: "$50", statusKey: "landing.mockPending" },
                         ].map((row) => (
                           <div key={row.name} className="flex items-center justify-between px-4 py-2.5">
                             <div className="flex items-center gap-2">
@@ -230,8 +230,8 @@ export default function HomePage() {
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="text-xs text-white/80 font-medium">{row.amount}</span>
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${row.status === "Paid" ? "bg-emerald-500/20 text-emerald-300" : "bg-yellow-500/20 text-yellow-300"}`}>
-                                {row.status}
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${row.statusKey === "landing.mockPaid" ? "bg-emerald-500/20 text-emerald-300" : "bg-yellow-500/20 text-yellow-300"}`}>
+                                {t(row.statusKey)}
                               </span>
                             </div>
                           </div>
@@ -391,11 +391,11 @@ export default function HomePage() {
           <div className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-2.5">
             {countries.map((country) => (
               <div
-                key={country.name}
+                key={country.code}
                 className="flex items-center gap-2.5 rounded-full border bg-card px-4 py-2 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/30"
               >
-                <TwemojiFlag emoji={country.flag} alt={country.name} className="h-6 w-6" />
-                <span className="font-medium text-muted-foreground">{country.name}</span>
+                <TwemojiFlag emoji={country.flag} alt={t(`countries.${country.code}`)} className="h-6 w-6" />
+                <span className="font-medium text-muted-foreground">{t(`countries.${country.code}`)}</span>
               </div>
             ))}
           </div>

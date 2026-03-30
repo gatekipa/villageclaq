@@ -14,23 +14,24 @@ import {
 } from "lucide-react";
 
 const countries = [
-  { name: "Cameroon", flag: "\ud83c\udde8\ud83c\uddf2" },
-  { name: "Nigeria", flag: "\ud83c\uddf3\ud83c\uddec" },
-  { name: "Ghana", flag: "\ud83c\uddec\ud83c\udded" },
-  { name: "Kenya", flag: "\ud83c\uddf0\ud83c\uddea" },
-  { name: "South Africa", flag: "\ud83c\uddff\ud83c\udde6" },
-  { name: "Uganda", flag: "\ud83c\uddfa\ud83c\uddec" },
-  { name: "Senegal", flag: "\ud83c\uddf8\ud83c\uddf3" },
-  { name: "Tanzania", flag: "\ud83c\uddf9\ud83c\uddff" },
-  { name: "USA", flag: "\ud83c\uddfa\ud83c\uddf8" },
-  { name: "UK", flag: "\ud83c\uddec\ud83c\udde7" },
-  { name: "Canada", flag: "\ud83c\udde8\ud83c\udde6" },
+  { code: "CM", flag: "\ud83c\udde8\ud83c\uddf2" },
+  { code: "NG", flag: "\ud83c\uddf3\ud83c\uddec" },
+  { code: "GH", flag: "\ud83c\uddec\ud83c\udded" },
+  { code: "KE", flag: "\ud83c\uddf0\ud83c\uddea" },
+  { code: "ZA", flag: "\ud83c\uddff\ud83c\udde6" },
+  { code: "UG", flag: "\ud83c\uddfa\ud83c\uddec" },
+  { code: "SN", flag: "\ud83c\uddf8\ud83c\uddf3" },
+  { code: "TZ", flag: "\ud83c\uddf9\ud83c\uddff" },
+  { code: "USA", flag: "\ud83c\uddfa\ud83c\uddf8" },
+  { code: "UK", flag: "\ud83c\uddec\ud83c\udde7" },
+  { code: "CA", flag: "\ud83c\udde8\ud83c\udde6" },
 ];
 
 export default function AboutPage() {
   const t = useTranslations("about");
   const tLanding = useTranslations("landing");
   const tCommon = useTranslations("common");
+  const tCountries = useTranslations("countries");
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,12 +197,12 @@ export default function AboutPage() {
           <div className="mt-8 flex flex-wrap gap-2">
             {countries.map((country) => (
               <Badge
-                key={country.name}
+                key={country.code}
                 variant="secondary"
                 className="gap-1.5 px-3 py-1.5 text-sm"
               >
                 <span className="text-2xl">{country.flag}</span>
-                <span className="text-muted-foreground">{country.name}</span>
+                <span className="text-muted-foreground">{tCountries(country.code)}</span>
               </Badge>
             ))}
           </div>
@@ -215,25 +216,25 @@ export default function AboutPage() {
             <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
               500+
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">Groups</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("statsGroups")}</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
               10,000+
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">Members</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("statsMembers")}</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
               $2M+
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">Managed</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("statsManaged")}</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">
               11
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">Countries</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("statsCountries")}</p>
           </div>
         </div>
       </section>

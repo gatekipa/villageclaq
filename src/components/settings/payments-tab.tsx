@@ -252,7 +252,7 @@ export function PaymentsTab() {
                 <Input
                   value={cashappTag}
                   onChange={(e) => setCashappTag(e.target.value)}
-                  placeholder="$YourTag"
+                  placeholder={t("pay.cashappTagPlaceholder")}
                 />
               </div>
               <div className="space-y-1">
@@ -289,7 +289,7 @@ export function PaymentsTab() {
                   type="email"
                   value={zelleEmail}
                   onChange={(e) => setZelleEmail(e.target.value)}
-                  placeholder="name@email.com"
+                  placeholder={t("pay.zelleEmailPlaceholder")}
                 />
               </div>
               <div className="space-y-1">
@@ -297,7 +297,7 @@ export function PaymentsTab() {
                 <Input
                   value={zellePhone}
                   onChange={(e) => setZellePhone(e.target.value)}
-                  placeholder="+1 (555) 123-4567"
+                  placeholder={t("pay.zellePhonePlaceholder")}
                 />
               </div>
               <div className="space-y-1">
@@ -350,7 +350,7 @@ export function PaymentsTab() {
                     <Input
                       value={provider.number}
                       onChange={(e) => updateProvider(index, "number", e.target.value)}
-                      placeholder="+237 6XX XXX XXX"
+                      placeholder={t("pay.mobileNumberPlaceholder")}
                     />
                   </div>
                   <div className="space-y-1">
@@ -416,7 +416,7 @@ export function PaymentsTab() {
                 <Input
                   value={bankAccountNumber}
                   onChange={(e) => setBankAccountNumber(e.target.value)}
-                  placeholder="XXXX XXXX XXXX"
+                  placeholder={t("pay.bankAccountNumberPlaceholder")}
                 />
               </div>
               <div className="space-y-1">
@@ -432,7 +432,7 @@ export function PaymentsTab() {
                 <Input
                   value={bankSwiftCode}
                   onChange={(e) => setBankSwiftCode(e.target.value)}
-                  placeholder="XXXXUSXX"
+                  placeholder={t("pay.bankSwiftPlaceholder")}
                 />
               </div>
               <div className="space-y-1">
@@ -470,7 +470,7 @@ export function PaymentsTab() {
               <Input
                 value={flutterwaveCurrency}
                 onChange={(e) => setFlutterwaveCurrency(e.target.value)}
-                placeholder="NGN, USD, XAF..."
+                placeholder={t("pay.flutterwaveCurrencyPlaceholder")}
               />
             </div>
           </CardContent>

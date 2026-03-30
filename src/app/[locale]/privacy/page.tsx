@@ -54,7 +54,7 @@ export default function PrivacyPage() {
         <nav className="hidden w-56 shrink-0 lg:block">
           <div className="sticky top-24 space-y-1">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Contents
+              {t("contents")}
             </p>
             {sectionKeys.map((key, index) => (
               <a

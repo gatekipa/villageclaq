@@ -182,7 +182,7 @@ export default function TransfersPage() {
                 if (!summary || Object.keys(summary).length === 0) return null;
                 return (
                   <Card className="bg-muted/50"><CardContent className="pt-4 space-y-1 text-sm">
-                    <h4 className="font-semibold mb-2">Transfer Summary</h4>
+                    <h4 className="font-semibold mb-2">{t("enterprise.transferSummary")}</h4>
                     {Object.entries(summary).map(([key, value]) => (
                       <div key={key} className="flex justify-between">
                         <span className="text-muted-foreground">{key}</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,7 @@ export interface PhoneInputProps {
 }
 
 export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disabled = false }: PhoneInputProps) {
+  const tCountries = useTranslations("countries");
   const parsePhone = useCallback((phone: string) => {
     if (!phone) return { code: defaultCountryCode, number: "" };
     const sorted = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
@@ -159,11 +161,12 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
     const q = search.toLowerCase().trim();
     return COUNTRY_CODES.filter(
       (c) =>
+        tCountries(c.country).toLowerCase().includes(q) ||
         c.label.toLowerCase().includes(q) ||
         c.code.includes(q) ||
         c.country.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, tCountries]);
 
   const priorityCountries = filteredCountries.filter((c) => c.priority);
   const otherCountries = filteredCountries.filter((c) => !c.priority);
@@ -225,7 +228,7 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search countries..."
+                placeholder={tCountries("searchCountries")}
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
@@ -233,7 +236,7 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
             {/* Country list */}
             <div className="max-h-60 overflow-y-auto p-1">
               {filteredCountries.length === 0 && (
-                <p className="px-3 py-4 text-center text-sm text-muted-foreground">No results</p>
+                <p className="px-3 py-4 text-center text-sm text-muted-foreground">{tCountries("noResults")}</p>
               )}
 
               {/* Priority countries */}
@@ -248,7 +251,7 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
                   )}
                 >
                   <span className="text-base leading-none">{cc.flag}</span>
-                  <span className="flex-1 truncate text-left">{cc.label}</span>
+                  <span className="flex-1 truncate text-left">{tCountries(cc.country)}</span>
                   <span className="text-muted-foreground">{cc.code}</span>
                   {countryCode === cc.code && (
                     <Check className="size-3.5 text-emerald-500 shrink-0" />
@@ -273,7 +276,7 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
                   )}
                 >
                   <span className="text-base leading-none">{cc.flag}</span>
-                  <span className="flex-1 truncate text-left">{cc.label}</span>
+                  <span className="flex-1 truncate text-left">{tCountries(cc.country)}</span>
                   <span className="text-muted-foreground">{cc.code}</span>
                   {countryCode === cc.code && (
                     <Check className="size-3.5 text-emerald-500 shrink-0" />
@@ -307,7 +310,7 @@ export function PhoneInput({ value, onChange, defaultCountryCode = "+237", disab
       </div>
       {!isEmpty && !isValid && (
         <p className="text-xs text-red-500">
-          {currentCountry.label}: {expectedDigits} digits required ({digitCount} entered)
+          {tCountries("digitsRequired", { country: tCountries(currentCountry.country), expected: expectedDigits, entered: digitCount })}
         </p>
       )}
     </div>

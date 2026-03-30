@@ -42,6 +42,7 @@ function getInitials(name: string) {
 
 export default function GroupSettingsPage() {
   const t = useTranslations("settings");
+  const tCountries = useTranslations("countries");
   const { groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
@@ -307,7 +308,7 @@ export default function GroupSettingsPage() {
                     </div>
                     <div className="rounded-lg border p-3">
                       <p className="text-xs font-medium text-muted-foreground">{t("status")}</p>
-                      <p className="mt-1 text-sm font-medium">{(groupData.is_active as boolean) ? "Active" : "Inactive"}</p>
+                      <p className="mt-1 text-sm font-medium">{(groupData.is_active as boolean) ? t("statusActive") : t("statusInactive")}</p>
                     </div>
                   </div>
 
@@ -358,19 +359,19 @@ export default function GroupSettingsPage() {
                       {canManageSettings ? (
                         <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
                           <option value="">—</option>
-                          <optgroup label="West Africa">
+                          <optgroup label={tCountries("westAfrica")}>
                             {["Cameroon","Nigeria","Ghana","Senegal","Côte d'Ivoire","Togo","Benin","Burkina Faso","Mali","Guinea","Sierra Leone","Liberia","Niger","Gambia"].map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
-                          <optgroup label="East Africa">
+                          <optgroup label={tCountries("eastAfrica")}>
                             {["Kenya","Tanzania","Uganda","Rwanda","Ethiopia","Somalia"].map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
-                          <optgroup label="Southern Africa">
+                          <optgroup label={tCountries("southernAfrica")}>
                             {["South Africa","Zimbabwe","Zambia","Mozambique","Botswana","Namibia","Malawi"].map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
-                          <optgroup label="Central Africa">
+                          <optgroup label={tCountries("centralAfrica")}>
                             {["DR Congo","Congo","Gabon","Chad","Central African Republic","Equatorial Guinea"].map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
-                          <optgroup label="International">
+                          <optgroup label={tCountries("international")}>
                             {["United States","United Kingdom","Canada","France","Germany","Belgium","Netherlands","Italy","Australia"].map(c => <option key={c} value={c}>{c}</option>)}
                           </optgroup>
                         </select>
@@ -500,7 +501,7 @@ export default function GroupSettingsPage() {
                                 ) : (
                                   <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setAssignPositionId(posId)}>
                                     <UserPlus className="h-3 w-3" />
-                                    Assign
+                                    {t("assign")}
                                   </Button>
                                 )
                               )}

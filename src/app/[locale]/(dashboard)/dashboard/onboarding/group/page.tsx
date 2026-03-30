@@ -120,6 +120,7 @@ const SAVINGS_SUGGESTIONS = [
 
 export default function GroupOnboardingPage() {
   const t = useTranslations("onboarding");
+  const tCountries = useTranslations("countries");
   const router = useRouter();
   const pathname = usePathname();
   const { refresh, user } = useGroup();
@@ -867,7 +868,7 @@ export default function GroupOnboardingPage() {
                     <SelectContent>
                       {getCountryList().map((c) => (
                         <SelectItem key={c.value} value={c.value}>
-                          {c.label}
+                          {tCountries(c.value)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -966,9 +967,7 @@ export default function GroupOnboardingPage() {
                 {autoCurrency && (
                   <p className="text-xs text-muted-foreground">
                     {t("currencyAutoDetected", {
-                      country:
-                        ALL_COUNTRIES.find((c) => c.value === selectedCountry)
-                          ?.label || selectedCountry,
+                      country: tCountries(selectedCountry),
                     })}
                   </p>
                 )}

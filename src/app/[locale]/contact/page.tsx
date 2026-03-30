@@ -70,7 +70,7 @@ export default function ContactPage() {
         setIsSuccess(true);
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("error"));
     } finally {
       setIsLoading(false);
     }

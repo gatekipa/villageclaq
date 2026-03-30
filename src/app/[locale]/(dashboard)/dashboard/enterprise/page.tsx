@@ -188,14 +188,14 @@ export default function EnterpriseDashboardPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>{t("enterprise.createBranch")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2"><Label>{t("enterprise.branchName")}</Label><Input placeholder="Douala Chapter" /></div>
+            <div className="space-y-2"><Label>{t("enterprise.branchName")}</Label><Input placeholder={t("enterprise.branchNamePlaceholder")} /></div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2"><Label>{t("enterprise.branchCity")}</Label><Input placeholder="Douala" /></div>
-              <div className="space-y-2"><Label>{t("enterprise.branchCountry")}</Label><Input placeholder="Cameroon" /></div>
+              <div className="space-y-2"><Label>{t("enterprise.branchCity")}</Label><Input placeholder={t("enterprise.branchCityPlaceholder")} /></div>
+              <div className="space-y-2"><Label>{t("enterprise.branchCountry")}</Label><Input placeholder={t("enterprise.branchCountryPlaceholder")} /></div>
             </div>
-            <div className="space-y-2"><Label>{t("enterprise.branchCurrency")}</Label><Input placeholder="XAF" /></div>
-            <div className="space-y-2"><Label>{t("enterprise.foundingPresident")}</Label><Input placeholder="Jean-Pierre Kamga" /></div>
-            <div className="space-y-2"><Label>{t("enterprise.presidentEmail")}</Label><Input type="email" placeholder="president@example.com" /></div>
+            <div className="space-y-2"><Label>{t("enterprise.branchCurrency")}</Label><Input placeholder={t("enterprise.branchCurrencyPlaceholder")} /></div>
+            <div className="space-y-2"><Label>{t("enterprise.foundingPresident")}</Label><Input placeholder={t("enterprise.presidentNamePlaceholder")} /></div>
+            <div className="space-y-2"><Label>{t("enterprise.presidentEmail")}</Label><Input type="email" placeholder={t("enterprise.presidentEmailPlaceholder")} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>{t("common.cancel")}</Button>

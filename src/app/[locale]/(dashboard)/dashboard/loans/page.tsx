@@ -144,7 +144,7 @@ export default function LoansPage() {
                 {t("requestLoan")}
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{t("requestLoan")}</DialogTitle>
               </DialogHeader>

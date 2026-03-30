@@ -214,7 +214,7 @@ export default function ReliefClaimsPage() {
 
       {/* Submit Claim Dialog */}
       <Dialog open={showSubmitDialog} onOpenChange={(open) => { setShowSubmitDialog(open); if (!open) resetClaimForm(); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("relief.submitClaim")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -271,7 +271,7 @@ export default function ReliefClaimsPage() {
       {/* Review Claim Dialog */}
       {selectedClaim && (
         <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("relief.reviewClaim")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="rounded-lg border p-3 space-y-2">

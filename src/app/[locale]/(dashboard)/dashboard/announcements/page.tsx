@@ -418,7 +418,7 @@ export default function AnnouncementsPage() {
               </Button>
             }
           />
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editAnnId ? t("editAnnouncement") : t("createAnnouncement")}</DialogTitle>
               <DialogDescription>

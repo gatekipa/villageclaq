@@ -290,7 +290,7 @@ export default function ContributionsPage() {
               <Plus className="mr-2 h-4 w-4" />
               {t("contributions.createType")}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogTitle>{t("contributions.createType")}</DialogTitle>
               <DialogDescription>{t("contributions.createTypeDesc")}</DialogDescription>
               <form className="mt-4 space-y-4" onSubmit={handleCreate}>
@@ -515,7 +515,7 @@ export default function ContributionsPage() {
       )}
       {/* Edit Type Dialog */}
       <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) { resetForm(); setEditTypeId(null); } }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogTitle>{t("contributions.editType")}</DialogTitle>
           <DialogDescription>{t("contributions.editTypeDesc")}</DialogDescription>
           <form className="mt-4 space-y-4" onSubmit={handleEditSave}>

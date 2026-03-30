@@ -903,7 +903,7 @@ export default function ReliefPlansPage() {
 
         {/* ── Deny Claim Dialog ───────────────────────────────────────────── */}
         <Dialog open={showDenyDialog} onOpenChange={setShowDenyDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("denyClaim")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -928,7 +928,7 @@ export default function ReliefPlansPage() {
 
         {/* ── Record Payout Dialog ────────────────────────────────────────── */}
         <Dialog open={showPayoutDialog} onOpenChange={setShowPayoutDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("recordPayout")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">

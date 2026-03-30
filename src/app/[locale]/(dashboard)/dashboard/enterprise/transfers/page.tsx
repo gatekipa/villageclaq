@@ -168,7 +168,7 @@ export default function TransfersPage() {
       {/* Transfer Detail */}
       {selectedTransfer && (
         <Dialog open={!!selectedTransfer} onOpenChange={() => setSelectedTransfer(null)}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("enterprise.memberTransfer")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="rounded-lg border p-3 space-y-2 text-sm">
@@ -202,7 +202,7 @@ export default function TransfersPage() {
 
       {/* Create Transfer Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("enterprise.transferMember")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

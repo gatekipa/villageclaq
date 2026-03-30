@@ -239,7 +239,7 @@ export default function DocumentVaultPage() {
 
       {/* Upload Document Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetUploadForm(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("uploadDocument")}</DialogTitle>
           </DialogHeader>

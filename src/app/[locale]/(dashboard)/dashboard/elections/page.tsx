@@ -1054,7 +1054,7 @@ export default function ElectionsPage() {
 
       {/* ─── Add Candidate Dialog ────────────────────────────────────────────── */}
       <Dialog open={showAddCandidate} onOpenChange={(open) => { setShowAddCandidate(open); if (!open) { setCandidateMembershipId(""); setCandidateStatement(""); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("addCandidate")}</DialogTitle>
           </DialogHeader>
@@ -1094,7 +1094,7 @@ export default function ElectionsPage() {
 
       {/* ─── Add Option Dialog ───────────────────────────────────────────────── */}
       <Dialog open={showAddOption} onOpenChange={(open) => { setShowAddOption(open); if (!open) { setOptionLabel(""); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("addOption")}</DialogTitle>
           </DialogHeader>

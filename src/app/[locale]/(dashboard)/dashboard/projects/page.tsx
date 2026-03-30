@@ -215,7 +215,7 @@ function IncomeDialog({
           {t("recordIncome")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("recordIncome")}</DialogTitle>
         </DialogHeader>
@@ -361,7 +361,7 @@ function ExpenseDialog({
           {t("recordExpense")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("recordExpense")}</DialogTitle>
         </DialogHeader>
@@ -478,7 +478,7 @@ function MilestoneDialog({
           {t("addMilestone")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("addMilestone")}</DialogTitle>
         </DialogHeader>
@@ -984,7 +984,7 @@ function ProjectBlockers({ project, isAdmin, memberNameMap, members, milestones,
 
       {/* Add Blocker Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("reportBlocker")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>{t("blockerTitle")} *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
@@ -1437,7 +1437,7 @@ function ProjectResolutions({ project, isAdmin, currency, onDataChanged }: {
       )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("addResolution")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>{t("resolutionTitle")} *</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>

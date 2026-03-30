@@ -288,7 +288,7 @@ export default function ReliefEnrollmentPage() {
       )}
       {/* Enroll Members Dialog */}
       <Dialog open={enrollDialogOpen} onOpenChange={(open) => { setEnrollDialogOpen(open); if (!open) resetEnrollForm(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("relief.enrollMember")}</DialogTitle>
           </DialogHeader>

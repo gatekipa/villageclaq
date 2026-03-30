@@ -1201,7 +1201,7 @@ function AssignHostsDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setSelectedIds([]); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t("assignHosts")}</DialogTitle>
         </DialogHeader>
@@ -1675,7 +1675,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
 
       {/* ── Configure Rules Dialog ─────────────────────────────────────── */}
       <Dialog open={showRulesDialog} onOpenChange={setShowRulesDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("complianceRules")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1725,7 +1725,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
 
       {/* ── Add Exception Dialog ───────────────────────────────────────── */}
       <Dialog open={showExceptionDialog} onOpenChange={setShowExceptionDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("addException")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

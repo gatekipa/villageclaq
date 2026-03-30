@@ -924,7 +924,7 @@ export default function MemberDetailPage() {
 
       {/* Edit Member Dialog */}
       <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) setEditError(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("members.editMember")}</DialogTitle>
           </DialogHeader>
@@ -979,7 +979,7 @@ export default function MemberDetailPage() {
 
       {/* Standing Override Dialog */}
       <Dialog open={showStandingDialog} onOpenChange={setShowStandingDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{ts("changeStandingOverride")}</DialogTitle>
           </DialogHeader>
@@ -1058,7 +1058,7 @@ export default function MemberDetailPage() {
 
       {/* Assign Position Dialog */}
       <Dialog open={showPositionDialog} onOpenChange={setShowPositionDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("members.assignPosition")}</DialogTitle>
           </DialogHeader>

@@ -495,7 +495,7 @@ function RoundManagement({
 
           {/* Fine Rules Dialog */}
           <Dialog open={showFineRulesDialog} onOpenChange={setShowFineRulesDialog}>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{t("configureFines")}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div className="space-y-2"><Label>{t("lateContributionFine")}</Label><Input type="number" value={fineLateFee} onChange={(e) => setFineLateFee(Number(e.target.value))} /></div>
@@ -511,7 +511,7 @@ function RoundManagement({
 
           {/* Record Fine Dialog */}
           <Dialog open={showRecordFineDialog} onOpenChange={setShowRecordFineDialog}>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{t("recordFine")}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div className="space-y-2">
@@ -537,7 +537,7 @@ function RoundManagement({
 
           {/* Record Payout Dialog */}
           <Dialog open={showCollectionDialog} onOpenChange={setShowCollectionDialog}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{t("recordPayout")} — {t("round")} {currentRound}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div className="rounded-lg bg-muted p-3">
@@ -1721,7 +1721,7 @@ function IssueRecordButton({ cycleId, participants, queryClient, issuesLog, t, t
         {t("recordIssue")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("recordIssue")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">

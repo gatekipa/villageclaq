@@ -185,7 +185,7 @@ export default function EnterpriseDashboardPage() {
 
       {/* Create Branch Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("enterprise.createBranch")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>{t("enterprise.branchName")}</Label><Input placeholder={t("enterprise.branchNamePlaceholder")} /></div>
@@ -206,7 +206,7 @@ export default function EnterpriseDashboardPage() {
 
       {/* Sharing Controls Dialog */}
       <Dialog open={showSharingDialog} onOpenChange={setShowSharingDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("enterprise.sharingControls")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {([

@@ -422,7 +422,7 @@ export default function RolesPage() {
         {positionsList.length === 0 ? (
           <EmptyState icon={Shield} title={t("noRoles")} description={t("description")} />
         ) : (
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -512,7 +512,7 @@ export default function RolesPage() {
 
         {/* Create Role Dialog */}
         <Dialog open={showCreateDialog} onOpenChange={(open) => { setShowCreateDialog(open); if (!open) resetForm(); }}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("createRole")}</DialogTitle>
             </DialogHeader>
@@ -559,7 +559,7 @@ export default function RolesPage() {
 
         {/* Edit Role Dialog */}
         <Dialog open={!!editPosition} onOpenChange={(open) => { if (!open) { setEditPosition(null); resetForm(); } }}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("editRole")}</DialogTitle>
             </DialogHeader>

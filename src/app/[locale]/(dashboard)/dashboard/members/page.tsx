@@ -958,7 +958,7 @@ export default function MembersPage() {
         )
       ) : viewMode === "table" ? (
         /* Table View */
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1291,7 +1291,7 @@ export default function MembersPage() {
 
       {/* Add Member Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) resetAddForm(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {t("addProxyMember")}
@@ -1343,7 +1343,7 @@ export default function MembersPage() {
 
       {/* Transfer Member Dialog */}
       <Dialog open={transferDialogOpen} onOpenChange={(o) => { setTransferDialogOpen(o); if (!o) setTransferError(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{tt("transferMember")}</DialogTitle>
           </DialogHeader>
@@ -1389,7 +1389,7 @@ export default function MembersPage() {
 
       {/* Edit Member Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={(open) => { setEditDialogOpen(open); if (!open) setEditError(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("editMember")}</DialogTitle>
           </DialogHeader>

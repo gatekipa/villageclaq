@@ -460,7 +460,7 @@ export default function SubGroupsPage() {
             }
           />
         ) : viewMode === "table" ? (
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -600,7 +600,7 @@ export default function SubGroupsPage() {
               <ArrowRightLeft className="h-5 w-5" />
               {tt("pendingTransfers")}
             </h2>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -649,7 +649,7 @@ export default function SubGroupsPage() {
 
         {/* Create Dialog */}
         <Dialog open={showCreateDialog} onOpenChange={(o) => { setShowCreateDialog(o); if (!o) resetForm(); }}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("createSubGroup")}</DialogTitle></DialogHeader>
             {formContent}
             <DialogFooter>
@@ -662,7 +662,7 @@ export default function SubGroupsPage() {
 
         {/* Edit Dialog */}
         <Dialog open={!!editSubGroup} onOpenChange={(o) => { if (!o) { setEditSubGroup(null); resetForm(); } }}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("editSubGroup")}</DialogTitle></DialogHeader>
             {formContent}
             <DialogFooter>
@@ -690,7 +690,7 @@ export default function SubGroupsPage() {
 
         {/* Detail Dialog */}
         <Dialog open={!!detailSubGroup} onOpenChange={(o) => { if (!o) setDetailSubGroup(null); }}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{(detailSubGroup?.name as string) || ""}</DialogTitle></DialogHeader>
             {detailSubGroup && (
               <div className="space-y-4">

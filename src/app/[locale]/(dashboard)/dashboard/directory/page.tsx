@@ -203,7 +203,7 @@ export default function DirectoryPage() {
             const showTo = Math.min(page * PAGE_SIZE, filtered.length);
             return (
               <>
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>

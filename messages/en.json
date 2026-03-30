@@ -73,7 +73,12 @@
     "confirmDeleteTitle": "Confirm Delete",
     "confirmDeleteDesc": "This action cannot be undone. Are you sure?",
     "unpublish": "Unpublish",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "cash": "Cash",
+    "mobileMoney": "Mobile Money",
+    "bankTransfer": "Bank Transfer",
+    "optional": "Optional",
+    "other": "Other"
   },
   "join": {
     "invalidLink": "Invalid or Expired Link",
@@ -1311,7 +1316,9 @@
     "addNewDocument": "Add New Document",
     "documentType": "Document Type",
     "governingDocuments": "Governing Documents",
-    "selectDocument": "Select Document"
+    "selectDocument": "Select Document",
+    "reviewConstitution": "Review Constitution",
+    "reviewConstitutionMessage": "Please review and acknowledge the group constitution."
   },
   "minutes": {
     "title": "Meeting Minutes",
@@ -3690,7 +3697,19 @@
     "filterMinutes": "Minutes",
     "filterElections": "Elections",
     "filterDisputes": "Disputes",
-    "loadMore": "Load More"
+    "loadMore": "Load More",
+    "paymentMessage": "{name} paid {amount} for {type}",
+    "contribution": "contribution",
+    "memberJoined": "{name} joined the group",
+    "eventScheduled": "Event \"{title}\" scheduled for {date}",
+    "system": "System",
+    "announcementPosted": "Announcement: \"{title}\"",
+    "minutesPublished": "Meeting minutes \"{title}\" published",
+    "election": "Election",
+    "electionOpen": "voting is now open",
+    "electionClosed": "voting has been closed",
+    "electionCreated": "was created",
+    "disputeFiled": "Dispute filed: \"{title}\""
   },
   "fines": {
     "title": "Fines & Penalties",
@@ -3868,7 +3887,14 @@
     "financialSummary": "Financial Summary",
     "critical": "Critical",
     "downloadPDF": "Download PDF",
-    "exportCSV": "Export CSV"
+    "exportCSV": "Export CSV",
+    "severityLow": "Low",
+    "severityMedium": "Medium",
+    "severityHigh": "High",
+    "severityCritical": "Critical",
+    "delayDays": "days",
+    "delayWeeks": "weeks",
+    "delayMonths": "months"
   },
   "badges": {
     "title": "Achievements & Badges",

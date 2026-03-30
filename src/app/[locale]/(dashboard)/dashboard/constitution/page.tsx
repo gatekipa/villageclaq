@@ -227,6 +227,8 @@ export default function ConstitutionPage() {
   // Acknowledgment
   const [acknowledging, setAcknowledging] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [applyingAmendment, setApplyingAmendment] = useState(false);
 
   const memberCount = (members || []).length;
   const currentVersion = constitution?.version_number || 0;
@@ -331,44 +333,58 @@ export default function ConstitutionPage() {
   };
 
   const handleAmendmentAction = async (amendId: string, action: "approved" | "rejected") => {
-    await supabase.from("constitution_amendments").update({
-      status: action, approved_at: new Date().toISOString(), approved_by: currentMembership?.id,
-    }).eq("id", amendId);
-    queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
+    try {
+      setActionError(null);
+      const { error } = await supabase.from("constitution_amendments").update({
+        status: action, approved_at: new Date().toISOString(), approved_by: currentMembership?.id,
+      }).eq("id", amendId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
+    } catch {
+      setActionError(tc("error"));
+    }
   };
 
   const handleApplyAmendment = async (amend: Record<string, unknown>) => {
     if (!constitution?.id || !groupId || !currentMembership) return;
-    const oldText = amend.old_text as string;
-    const newText = amend.new_text as string;
-    const currentContent = (constitution.content as string) || "";
+    setApplyingAmendment(true);
+    setActionError(null);
+    try {
+      const oldText = amend.old_text as string;
+      const newText = amend.new_text as string;
+      const currentContent = (constitution.content as string) || "";
 
-    // Apply text replacement if both old and new text are provided
-    let updatedContent = currentContent;
-    if (oldText && newText) {
-      updatedContent = currentContent.replace(oldText, newText);
-    } else if (newText) {
-      // Append new text if no old text specified
-      updatedContent = currentContent + "\n\n" + newText;
+      // Apply text replacement if both old and new text are provided
+      let updatedContent = currentContent;
+      if (oldText && newText) {
+        updatedContent = currentContent.replace(oldText, newText);
+      } else if (newText) {
+        // Append new text if no old text specified
+        updatedContent = currentContent + "\n\n" + newText;
+      }
+
+      // Archive current published version
+      await supabase.from("group_constitutions").update({ status: "archived" }).eq("id", constitution.id);
+
+      // Create new published version
+      const newVersion = (constitution.version_number as number) + 1;
+      await supabase.from("group_constitutions").insert({
+        group_id: groupId, title: constitution.title, content: updatedContent,
+        version_number: newVersion, status: "published",
+        published_at: new Date().toISOString(), published_by: currentMembership.id,
+      });
+
+      // Mark amendment as applied
+      await supabase.from("constitution_amendments").update({ status: "applied" }).eq("id", amend.id as string);
+
+      queryClient.invalidateQueries({ queryKey: ["constitution"] });
+      queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
+    } catch {
+      setActionError(tc("error"));
+    } finally {
+      setApplyingAmendment(false);
     }
-
-    // Archive current published version
-    await supabase.from("group_constitutions").update({ status: "archived" }).eq("id", constitution.id);
-
-    // Create new published version
-    const newVersion = (constitution.version_number as number) + 1;
-    await supabase.from("group_constitutions").insert({
-      group_id: groupId, title: constitution.title, content: updatedContent,
-      version_number: newVersion, status: "published",
-      published_at: new Date().toISOString(), published_by: currentMembership.id,
-    });
-
-    // Mark amendment as applied
-    await supabase.from("constitution_amendments").update({ status: "applied" }).eq("id", amend.id as string);
-
-    queryClient.invalidateQueries({ queryKey: ["constitution"] });
-    queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
-    queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
   };
 
   const handleSendReminder = async () => {
@@ -380,7 +396,7 @@ export default function ConstitutionPage() {
       if (pending.length > 0) {
         await supabase.from("notifications").insert(pending.map((m: Record<string, unknown>) => ({
           group_id: groupId, membership_id: m.id as string, type: "constitution_reminder",
-          title: "Review Constitution", message: "Please review and acknowledge the group constitution.", is_read: false,
+          title: t("reviewConstitution"), message: t("reviewConstitutionMessage"), is_read: false,
         })));
       }
     } finally { setSendingReminder(false); }
@@ -399,7 +415,9 @@ export default function ConstitutionPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
       queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
-    } catch { /* non-blocking */ }
+    } catch {
+      setActionError(tc("error"));
+    }
   };
 
   if (constError) {

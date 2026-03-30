@@ -106,6 +106,7 @@ interface FeedItem {
 function useAggregatedFeed(enabled: boolean) {
   const { groupId, currentGroup } = useGroup();
   const currency = currentGroup?.currency || "XAF";
+  const t = useTranslations("feed");
 
   return useQuery<FeedItem[]>({
     queryKey: ["aggregated-feed", groupId],
@@ -131,7 +132,7 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `payment-${p.id}`,
           entity_type: "payment",
-          message: `${getMemberName(m)} paid ${formatAmount(Number(p.amount), (p.currency as string) || currency)} for ${(ct?.name as string) || "contribution"}`,
+          message: t("paymentMessage", { name: getMemberName(m), amount: formatAmount(Number(p.amount), (p.currency as string) || currency), type: (ct?.name as string) || t("contribution") }),
           actor_name: getMemberName(m),
           actor_avatar: (profile?.avatar_url as string) || null,
           created_at: p.recorded_at as string,
@@ -154,7 +155,7 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `member-${m.id}`,
           entity_type: "membership",
-          message: `${getMemberName(m)} joined the group`,
+          message: t("memberJoined", { name: getMemberName(m) }),
           actor_name: getMemberName(m),
           actor_avatar: (profile?.avatar_url as string) || null,
           created_at: m.joined_at as string,
@@ -176,8 +177,8 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `event-${e.id}`,
           entity_type: "event",
-          message: `Event "${e.title}" scheduled for ${new Date(e.starts_at as string).toLocaleDateString()}`,
-          actor_name: "System",
+          message: t("eventScheduled", { title: e.title as string, date: new Date(e.starts_at as string).toLocaleDateString() }),
+          actor_name: t("system"),
           actor_avatar: null,
           created_at: e.created_at as string,
           pinned: false,
@@ -198,8 +199,8 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `announcement-${a.id}`,
           entity_type: "announcement",
-          message: `Announcement: "${a.title}"`,
-          actor_name: "System",
+          message: t("announcementPosted", { title: a.title as string }),
+          actor_name: t("system"),
           actor_avatar: null,
           created_at: a.created_at as string,
           pinned: false,
@@ -222,8 +223,8 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `minutes-${m.id}`,
           entity_type: "meeting_minutes",
-          message: `Meeting minutes "${m.title}" published`,
-          actor_name: "System",
+          message: t("minutesPublished", { title: m.title as string }),
+          actor_name: t("system"),
           actor_avatar: null,
           created_at: m.published_at as string,
           pinned: false,
@@ -241,12 +242,12 @@ function useAggregatedFeed(enabled: boolean) {
         .limit(10);
 
       for (const e of (elections || []) as Record<string, unknown>[]) {
-        const statusText = e.status === "open" ? "voting is now open" : e.status === "closed" ? "voting has been closed" : "was created";
+        const statusText = e.status === "open" ? t("electionOpen") : e.status === "closed" ? t("electionClosed") : t("electionCreated");
         items.push({
           id: `election-${e.id}`,
           entity_type: "election",
-          message: `Election "${e.title}" ${statusText}`,
-          actor_name: "System",
+          message: `${t("election")}: "${e.title}" — ${statusText}`,
+          actor_name: t("system"),
           actor_avatar: null,
           created_at: e.created_at as string,
           pinned: false,
@@ -267,8 +268,8 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `dispute-${d.id}`,
           entity_type: "dispute",
-          message: `Dispute filed: "${d.title}"`,
-          actor_name: "System",
+          message: t("disputeFiled", { title: d.title as string }),
+          actor_name: t("system"),
           actor_avatar: null,
           created_at: d.created_at as string,
           pinned: false,

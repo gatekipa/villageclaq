@@ -54,6 +54,8 @@ export default function FinesPage() {
 
   const currency = currentGroup?.currency || "XAF";
 
+  const [disputingId, setDisputingId] = useState<string | null>(null);
+
   const handleToggleRule = async (ruleId: string, currentActive: boolean) => {
     setTogglingRuleId(ruleId);
     try {
@@ -63,18 +65,27 @@ export default function FinesPage() {
         .update({ is_active: !currentActive })
         .eq("id", ruleId);
       refetchRules();
+    } catch {
+      // Toggle is visual — refetch restores correct state
     } finally {
       setTogglingRuleId(null);
     }
   };
 
   const handleDispute = async (fineId: string) => {
-    const supabase = createClient();
-    await supabase
-      .from("fines")
-      .update({ status: "disputed" })
-      .eq("id", fineId);
-    refetchFines();
+    setDisputingId(fineId);
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("fines")
+        .update({ status: "disputed" })
+        .eq("id", fineId);
+      refetchFines();
+    } catch {
+      // Refetch restores correct state
+    } finally {
+      setDisputingId(null);
+    }
   };
 
   const isLoading = finesLoading || rulesLoading;

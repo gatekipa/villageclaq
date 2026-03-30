@@ -166,40 +166,51 @@ export default function InvitationsPage() {
     if (!email || !groupId || !user) return;
     setSending(true);
     setSendSuccess(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("invitations").insert({
+        group_id: groupId,
+        email: email.trim(),
+        role,
+        invited_by: user.id,
+        status: "pending",
+      });
 
-    const supabase = createClient();
-    const { error } = await supabase.from("invitations").insert({
-      group_id: groupId,
-      email: email.trim(),
-      role,
-      invited_by: user.id,
-      status: "pending",
-    });
-
-    if (!error) {
-      // Send the invitation email (fire-and-forget)
-      sendInvitationEmail(email.trim());
-      setSendSuccess(true);
-      setEmail("");
-      setTimeout(() => setSendSuccess(false), 3000);
-      queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+      if (!error) {
+        // Send the invitation email (fire-and-forget)
+        sendInvitationEmail(email.trim());
+        setSendSuccess(true);
+        setEmail("");
+        setTimeout(() => setSendSuccess(false), 3000);
+        queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+      }
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const handleResendInvitation = async (inviteEmail: string, inviteId: string) => {
     setResendingId(inviteId);
-    await sendInvitationEmail(inviteEmail);
-    setResendingId(null);
+    try {
+      await sendInvitationEmail(inviteEmail);
+    } finally {
+      setResendingId(null);
+    }
   };
 
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const handleRevoke = async (invitationId: string) => {
-    const supabase = createClient();
-    await supabase
-      .from("invitations")
-      .update({ status: "revoked" })
-      .eq("id", invitationId);
-    queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+    setRevokingId(invitationId);
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("invitations")
+        .update({ status: "revoked" })
+        .eq("id", invitationId);
+      queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+    } finally {
+      setRevokingId(null);
+    }
   };
 
   const isLoading = groupLoading || invLoading || codesLoading;

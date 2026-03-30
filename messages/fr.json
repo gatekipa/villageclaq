@@ -73,7 +73,12 @@
     "confirmDeleteTitle": "Confirmer la suppression",
     "confirmDeleteDesc": "Cette action est irréversible. Êtes-vous sûr ?",
     "unpublish": "Dépublier",
-    "cancelled": "Annulé"
+    "cancelled": "Annulé",
+    "cash": "Espèces",
+    "mobileMoney": "Mobile Money",
+    "bankTransfer": "Virement bancaire",
+    "optional": "Optionnel",
+    "other": "Autre"
   },
   "join": {
     "invalidLink": "Lien invalide ou expiré",
@@ -1311,7 +1316,9 @@
     "addNewDocument": "Ajouter un document",
     "documentType": "Type de document",
     "governingDocuments": "Documents de gouvernance",
-    "selectDocument": "Sélectionner un document"
+    "selectDocument": "Sélectionner un document",
+    "reviewConstitution": "Consulter la constitution",
+    "reviewConstitutionMessage": "Veuillez consulter et confirmer la constitution du groupe."
   },
   "minutes": {
     "title": "Procès-verbaux",
@@ -3690,7 +3697,19 @@
     "filterMinutes": "Procès-verbaux",
     "filterElections": "Élections",
     "filterDisputes": "Litiges",
-    "loadMore": "Charger plus"
+    "loadMore": "Charger plus",
+    "paymentMessage": "{name} a payé {amount} pour {type}",
+    "contribution": "cotisation",
+    "memberJoined": "{name} a rejoint le groupe",
+    "eventScheduled": "Événement \"{title}\" prévu pour le {date}",
+    "system": "Système",
+    "announcementPosted": "Annonce : \"{title}\"",
+    "minutesPublished": "Procès-verbal \"{title}\" publié",
+    "election": "Élection",
+    "electionOpen": "le vote est maintenant ouvert",
+    "electionClosed": "le vote a été clôturé",
+    "electionCreated": "a été créée",
+    "disputeFiled": "Litige déposé : \"{title}\""
   },
   "fines": {
     "title": "Amendes & Pénalités",
@@ -3868,7 +3887,14 @@
     "financialSummary": "Résumé financier",
     "critical": "Critique",
     "downloadPDF": "Télécharger PDF",
-    "exportCSV": "Exporter CSV"
+    "exportCSV": "Exporter CSV",
+    "severityLow": "Faible",
+    "severityMedium": "Moyen",
+    "severityHigh": "Élevé",
+    "severityCritical": "Critique",
+    "delayDays": "jours",
+    "delayWeeks": "semaines",
+    "delayMonths": "mois"
   },
   "badges": {
     "title": "Accomplissements & Badges",

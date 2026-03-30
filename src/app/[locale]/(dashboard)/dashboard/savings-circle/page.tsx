@@ -153,27 +153,30 @@ function RoundManagement({
 
   const handleMarkPaid = async (participantMembershipId: string) => {
     setMarkingPaid(participantMembershipId);
-    const supabase = createClient();
-    await supabase.from("savings_contributions").upsert(
-      {
-        cycle_id: cycleId,
-        membership_id: participantMembershipId,
-        round_number: currentRound,
-        amount: cycleAmount,
-        paid_at: new Date().toISOString(),
-        status: "paid",
-      },
-      { onConflict: "cycle_id,membership_id,round_number" }
-    );
-    queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
-    // Refresh contributions
-    const { data } = await createClient()
-      .from("savings_contributions")
-      .select("*")
-      .eq("cycle_id", cycleId)
-      .eq("round_number", currentRound);
-    setRoundContribs(data || []);
-    setMarkingPaid(null);
+    try {
+      const supabase = createClient();
+      await supabase.from("savings_contributions").upsert(
+        {
+          cycle_id: cycleId,
+          membership_id: participantMembershipId,
+          round_number: currentRound,
+          amount: cycleAmount,
+          paid_at: new Date().toISOString(),
+          status: "paid",
+        },
+        { onConflict: "cycle_id,membership_id,round_number" }
+      );
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      // Refresh contributions
+      const { data } = await createClient()
+        .from("savings_contributions")
+        .select("*")
+        .eq("cycle_id", cycleId)
+        .eq("round_number", currentRound);
+      setRoundContribs(data || []);
+    } finally {
+      setMarkingPaid(null);
+    }
   };
 
   const [showAdvanceWarning, setShowAdvanceWarning] = useState(false);
@@ -195,13 +198,16 @@ function RoundManagement({
   const doAdvanceRound = async () => {
     setAdvancing(true);
     setShowAdvanceWarning(false);
-    const supabase = createClient();
-    await supabase
-      .from("savings_cycles")
-      .update({ current_round: currentRound + 1 })
-      .eq("id", cycleId);
-    queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
-    setAdvancing(false);
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("savings_cycles")
+        .update({ current_round: currentRound + 1 })
+        .eq("id", cycleId);
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+    } finally {
+      setAdvancing(false);
+    }
   };
 
   const [payoutDeductions, setPayoutDeductions] = useState("0");
@@ -520,7 +526,7 @@ function RoundManagement({
                   </Select>
                 </div>
                 <div className="space-y-2"><Label>{t("amount")}</Label><Input type="number" value={fineAmount} onChange={(e) => setFineAmount(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Reason</Label><Input value={fineReason} onChange={(e) => setFineReason(e.target.value)} /></div>
+                <div className="space-y-2"><Label>{t("reason")}</Label><Input value={fineReason} onChange={(e) => setFineReason(e.target.value)} /></div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowRecordFineDialog(false)}>{tc("cancel")}</Button>
@@ -564,15 +570,15 @@ function RoundManagement({
                   <Select value={collectionMethod} onValueChange={(v) => setCollectionMethod(v ?? "cash")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="cash">{tc("cash")}</SelectItem>
+                      <SelectItem value="mobile_money">{tc("mobileMoney")}</SelectItem>
+                      <SelectItem value="bank_transfer">{tc("bankTransfer")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Notes</Label>
-                  <Input value={collectionNotes} onChange={(e) => setCollectionNotes(e.target.value)} placeholder="Optional" />
+                  <Label>{t("notes")}</Label>
+                  <Input value={collectionNotes} onChange={(e) => setCollectionNotes(e.target.value)} placeholder={tc("optional")} />
                 </div>
               </div>
               <DialogFooter>

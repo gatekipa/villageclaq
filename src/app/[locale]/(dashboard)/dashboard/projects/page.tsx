@@ -1001,10 +1001,10 @@ function ProjectBlockers({ project, isAdmin, memberNameMap, members, milestones,
               <div className="space-y-1">
                 <Label>{t("blockerSeverity")}</Label>
                 <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
+                  <option value="low">{t("severityLow")}</option>
+                  <option value="medium">{t("severityMedium")}</option>
+                  <option value="high">{t("severityHigh")}</option>
+                  <option value="critical">{t("severityCritical")}</option>
                 </select>
               </div>
             </div>
@@ -1014,12 +1014,12 @@ function ProjectBlockers({ project, isAdmin, memberNameMap, members, milestones,
                 <div className="flex gap-1">
                   <Input type="number" value={delay} onChange={(e) => setDelay(e.target.value)} className="w-20" />
                   <select value={delayUnit} onChange={(e) => setDelayUnit(e.target.value)} className="flex h-9 rounded-md border border-input bg-transparent px-2 text-sm">
-                    <option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option>
+                    <option value="days">{t("delayDays")}</option><option value="weeks">{t("delayWeeks")}</option><option value="months">{t("delayMonths")}</option>
                   </select>
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>{t("assignedTo") || "Assigned To"}</Label>
+                <Label>{t("assignedTo")}</Label>
                 <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
                   <option value="">—</option>
                   {members.map((m) => <option key={m.id as string} value={m.id as string}>{getMemberName(m)}</option>)}

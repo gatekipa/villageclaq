@@ -66,43 +66,7 @@ const countries = [
   { code: "FR", flag: "🇫🇷" },
 ];
 
-const testimonials = [
-  {
-    name: "Cyril N.",
-    location: "Cameroon",
-    group: "Bamenda Alumni Union",
-    initials: "CN",
-    quote: "VillageClaq transformed how our group manages finances. Every contribution is tracked, every meeting documented. Total transparency.",
-  },
-  {
-    name: "Adebayo O.",
-    location: "Nigeria",
-    group: "Lagos Ajo Cooperative",
-    initials: "AO",
-    quote: "We moved from WhatsApp chaos to organized management overnight. Our members love the contribution tracking and automated reminders.",
-  },
-  {
-    name: "Kwame A.",
-    location: "Ghana",
-    group: "Accra Susu Collective",
-    initials: "KA",
-    quote: "The rotating savings tracker is exactly what we needed. No more spreadsheets, no more arguments about who paid what.",
-  },
-  {
-    name: "Wanjiku M.",
-    location: "Kenya",
-    group: "Nairobi Chama Network",
-    initials: "WM",
-    quote: "Managing 200+ members across three chamas used to be a nightmare. Now it takes minutes. The reports alone are worth it.",
-  },
-  {
-    name: "Thabo D.",
-    location: "South Africa",
-    group: "Soweto Stokvel",
-    initials: "TD",
-    quote: "Our stokvel finally has a proper system. Members check their balances anytime, and our treasurer sleeps better at night.",
-  },
-];
+const testimonialKeys = ["1", "2", "3", "4", "5"] as const;
 
 const steps = [
   { num: "1", titleKey: "step1Title", descKey: "step1Desc", icon: Users },
@@ -431,9 +395,9 @@ export default function HomePage() {
 
           {/* Top row: 3 cards */}
           <div className="mx-auto mt-16 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {testimonials.slice(0, 3).map((person) => (
+            {testimonialKeys.slice(0, 3).map((n) => (
               <div
-                key={person.name}
+                key={n}
                 className="group relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -444,18 +408,18 @@ export default function HomePage() {
                     ))}
                   </div>
                   <p className="mt-5 text-base leading-relaxed text-muted-foreground italic">
-                    &ldquo;{person.quote}&rdquo;
+                    &ldquo;{t(`landing.testimonial${n}Quote`)}&rdquo;
                   </p>
                   <div className="mt-6 flex items-center gap-4 border-t pt-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-sm font-bold text-primary">
-                      {person.initials}
+                      {t(`landing.testimonial${n}Initials`)}
                     </div>
                     <div>
-                      <p className="font-semibold">{person.name}</p>
-                      <p className="text-sm text-muted-foreground">{person.group}</p>
+                      <p className="font-semibold">{t(`landing.testimonial${n}Name`)}</p>
+                      <p className="text-sm text-muted-foreground">{t(`landing.testimonial${n}Group`)}</p>
                     </div>
                     <Badge variant="outline" className="ml-auto text-xs">
-                      {person.location}
+                      {t(`landing.testimonial${n}Location`)}
                     </Badge>
                   </div>
                 </div>
@@ -465,9 +429,9 @@ export default function HomePage() {
 
           {/* Bottom row: 2 cards */}
           <div className="mx-auto mt-6 grid max-w-4xl gap-6 sm:grid-cols-2">
-            {testimonials.slice(3).map((person) => (
+            {testimonialKeys.slice(3).map((n) => (
               <div
-                key={person.name}
+                key={n}
                 className="group relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -478,18 +442,18 @@ export default function HomePage() {
                     ))}
                   </div>
                   <p className="mt-5 text-base leading-relaxed text-muted-foreground italic">
-                    &ldquo;{person.quote}&rdquo;
+                    &ldquo;{t(`landing.testimonial${n}Quote`)}&rdquo;
                   </p>
                   <div className="mt-6 flex items-center gap-4 border-t pt-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-sm font-bold text-primary">
-                      {person.initials}
+                      {t(`landing.testimonial${n}Initials`)}
                     </div>
                     <div>
-                      <p className="font-semibold">{person.name}</p>
-                      <p className="text-sm text-muted-foreground">{person.group}</p>
+                      <p className="font-semibold">{t(`landing.testimonial${n}Name`)}</p>
+                      <p className="text-sm text-muted-foreground">{t(`landing.testimonial${n}Group`)}</p>
                     </div>
                     <Badge variant="outline" className="ml-auto text-xs">
-                      {person.location}
+                      {t(`landing.testimonial${n}Location`)}
                     </Badge>
                   </div>
                 </div>

@@ -68,6 +68,9 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   Mail,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import Papa from "papaparse";
 import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
@@ -172,6 +175,8 @@ export default function MembersPage() {
   const [standingFilter, setStandingFilter] = useState("all");
   const [positionFilter, setPositionFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [sortField, setSortField] = useState<"name" | "role" | "standing" | "joined" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [viewMode, setViewMode] = useState<"table" | "grid">(() => {
     if (typeof window !== "undefined") {
       return (localStorage.getItem(VIEW_PREFERENCE_KEY) as "table" | "grid") || "table";
@@ -332,6 +337,16 @@ export default function MembersPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [searchParams, canManageMembers]);
+
+  function handleSort(field: "name" | "role" | "standing" | "joined") {
+    if (sortField === field) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+    setPage(1);
+  }
 
   function handleViewChange(mode: "table" | "grid") {
     setViewMode(mode);
@@ -701,8 +716,38 @@ export default function MembersPage() {
       }
     }
 
+    // Apply sorting
+    if (sortField) {
+      result = [...result].sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        switch (sortField) {
+          case "name": {
+            const aVal = getMemberName(a).toLowerCase();
+            const bVal = getMemberName(b).toLowerCase();
+            return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+          }
+          case "role": {
+            const roleOrder: Record<string, number> = { owner: 0, admin: 1, moderator: 2, member: 3 };
+            const aOrder = roleOrder[(a.role as string) || "member"] ?? 3;
+            const bOrder = roleOrder[(b.role as string) || "member"] ?? 3;
+            return sortDir === "asc" ? aOrder - bOrder : bOrder - aOrder;
+          }
+          case "standing": {
+            const standOrder: Record<string, number> = { good: 0, warning: 1, suspended: 2, banned: 3 };
+            const aO = standOrder[(a.standing as string) || "good"] ?? 0;
+            const bO = standOrder[(b.standing as string) || "good"] ?? 0;
+            return sortDir === "asc" ? aO - bO : bO - aO;
+          }
+          case "joined": {
+            const aJ = (a.joined_at as string) || "";
+            const bJ = (b.joined_at as string) || "";
+            return sortDir === "asc" ? aJ.localeCompare(bJ) : bJ.localeCompare(aJ);
+          }
+        }
+      });
+    }
+
     return result;
-  }, [members, search, roleFilter, standingFilter, positionFilter, positions]);
+  }, [members, search, roleFilter, standingFilter, positionFilter, positions, sortField, sortDir]);
 
   // Build membership → position titles map
   const memberPositionMap = useMemo(() => {
@@ -817,7 +862,7 @@ export default function MembersPage() {
               </Button>
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                {t("addMember")}
+                {t("addProxyMember")}
               </Button>
               <Link href="/dashboard/invitations">
                 <Button>
@@ -900,12 +945,44 @@ export default function MembersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t("columnName")}</TableHead>
-                <TableHead>{t("role")}</TableHead>
-                <TableHead>{t("standing")}</TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort("name")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {t("columnName")}
+                    {sortField === "name" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort("role")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {t("role")}
+                    {sortField === "role" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    onClick={() => handleSort("standing")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {t("standing")}
+                    {sortField === "standing" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
                 <TableHead className="hidden lg:table-cell">{tr("position")}</TableHead>
                 <TableHead className="hidden md:table-cell">{t("phone")}</TableHead>
-                <TableHead className="hidden md:table-cell">{t("joinedDate")}</TableHead>
+                <TableHead className="hidden md:table-cell">
+                  <button
+                    onClick={() => handleSort("joined")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    {t("joinedDate")}
+                    {sortField === "joined" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                  </button>
+                </TableHead>
                 <TableHead>{t("columnStatus")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -1047,13 +1124,17 @@ export default function MembersPage() {
                                 <Mail className="h-4 w-4" /> {t("sendClaimInvite")}
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="flex items-center gap-2 text-destructive"
-                              onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
-                            >
-                              <UserMinus className="h-4 w-4" /> {t("removeMember")}
-                            </DropdownMenuItem>
+                            {role !== "owner" && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="flex items-center gap-2 text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                                >
+                                  <UserMinus className="h-4 w-4" /> {t("removeMember")}
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -1195,7 +1276,11 @@ export default function MembersPage() {
       <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) resetAddForm(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("addMember")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {t("addProxyMember")}
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{t("proxyMember")}</Badge>
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">{t("addProxyMemberDesc")}</p>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1206,10 +1291,6 @@ export default function MembersPage() {
               <Label>{t("memberTitle")}</Label>
               <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t("titlePlaceholder")} />
               <p className="text-[11px] text-muted-foreground">{t("titleHint")}</p>
-            </div>
-            <div className="space-y-2">
-              <Label>{t("email")}</Label>
-              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder={t("email")} />
             </div>
             <div className="space-y-2">
               <Label>{t("phone")}</Label>
@@ -1226,9 +1307,9 @@ export default function MembersPage() {
                 onChange={(e) => setNewRole(e.target.value as "member" | "admin" | "moderator")}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-                <option value="moderator">Moderator</option>
+                <option value="member">{t("filterMember")}</option>
+                <option value="admin">{t("filterAdmin")}</option>
+                <option value="moderator">{t("filterModerator")}</option>
               </select>
             </div>
             <p className="text-xs text-muted-foreground">{t("proxyHint")}</p>

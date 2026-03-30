@@ -99,25 +99,29 @@ export default function DashboardPage() {
     stats.collectionRate === 0 &&
     (!payments || payments.length === 0);
 
-  if (isNewGroup) {
-    const tasks = [
-      { key: "createGroup", done: true, icon: CheckCircle2, href: "" },
-      { key: "addMember", done: (stats?.totalMembers ?? 0) > 1, icon: UserPlus, href: "/dashboard/invitations" },
-      { key: "createContribution", done: false, icon: CreditCard, href: "/dashboard/contributions" },
-      { key: "scheduleEvent", done: (stats?.upcomingEvents ?? 0) > 0, icon: CalendarPlus, href: "/dashboard/events" },
-      { key: "recordPayment", done: (payments && payments.length > 0), icon: HandCoins, href: "/dashboard/contributions/record" },
-    ];
+  const onboardingTasks = isNewGroup ? [
+    { key: "createGroup", done: true, icon: CheckCircle2, href: "" },
+    { key: "addMember", done: (stats?.totalMembers ?? 0) > 1, icon: UserPlus, href: "/dashboard/invitations" },
+    { key: "createContribution", done: false, icon: CreditCard, href: "/dashboard/contributions" },
+    { key: "scheduleEvent", done: (stats?.upcomingEvents ?? 0) > 0, icon: CalendarPlus, href: "/dashboard/events" },
+    { key: "recordPayment", done: (payments && payments.length > 0), icon: HandCoins, href: "/dashboard/contributions/record" },
+  ] : null;
 
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {t("dashboard.welcome", { name: user?.full_name || user?.display_name || "" })} 🎉
-          </h1>
-          <p className="text-muted-foreground">{t("dashboard.emptyDescription")}</p>
-        </div>
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          {t("dashboard.welcome", { name: user?.full_name || user?.display_name || "" })}
+          {isNewGroup ? " 🎉" : ""}
+        </h1>
+        <p className="text-muted-foreground">
+          {isNewGroup ? t("dashboard.emptyDescription") : t("dashboard.overview")}
+        </p>
+      </div>
 
-        {/* Getting Started Checklist */}
+      {/* Getting Started Checklist (for new groups) */}
+      {onboardingTasks && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -127,7 +131,7 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">{t("onboarding.gettingStartedSubtitle")}</p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {tasks.map((task) => (
+            {onboardingTasks.map((task) => (
               <div key={task.key} className="flex items-center gap-3 rounded-lg border bg-card p-3">
                 {task.done ? (
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
@@ -150,61 +154,9 @@ export default function DashboardPage() {
             ))}
           </CardContent>
         </Card>
+      )}
 
-        {/* Quick Actions */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="text-left">
-              <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
-                <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
-                  <UserPlus className="h-8 w-8 text-primary" />
-                  <span className="text-sm font-medium">{t("dashboard.addMember")}</span>
-                </CardContent>
-              </Card>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center">
-              <DropdownMenuItem onClick={() => router.push("/dashboard/invitations")}>
-                <Mail className="h-4 w-4" />
-                {t("dashboard.inviteByEmail")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/dashboard/members?addProxy=true")}>
-                <UserRoundPlus className="h-4 w-4" />
-                {t("dashboard.addWithoutAccount")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Link href="/dashboard/events">
-            <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
-              <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
-                <CalendarPlus className="h-8 w-8 text-primary" />
-                <span className="text-sm font-medium">{t("dashboard.scheduleEvent")}</span>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/dashboard/contributions/record">
-            <Card className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5">
-              <CardContent className="flex flex-col items-center gap-2 p-6 text-center">
-                <HandCoins className="h-8 w-8 text-primary" />
-                <span className="text-sm font-medium">{t("dashboard.recordPayment")}</span>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {t("dashboard.welcome", { name: user?.full_name || user?.display_name || "" })}
-        </h1>
-        <p className="text-muted-foreground">{t("dashboard.overview")}</p>
-      </div>
-
-      {/* Stats Grid */}
+      {/* Stats Grid — ALWAYS shown */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">

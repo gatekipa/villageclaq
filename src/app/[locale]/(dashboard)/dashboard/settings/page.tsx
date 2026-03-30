@@ -21,7 +21,9 @@ import {
   Plus,
   UserPlus,
   Camera,
+  Share2,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
 import { CURRENCIES } from "@/lib/currencies";
 import { useGroup } from "@/lib/group-context";
@@ -43,7 +45,7 @@ function getInitials(name: string) {
 export default function GroupSettingsPage() {
   const t = useTranslations("settings");
   const tCountries = useTranslations("countries");
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
   const queryClient = useQueryClient();
@@ -70,6 +72,23 @@ export default function GroupSettingsPage() {
   const [addingPosition, setAddingPosition] = useState(false);
   const { data: members } = useMembers();
 
+  // Data sharing controls state
+  const isBranch = currentGroup?.group_level === "branch";
+  const sharingDefaults: Record<string, boolean> = {
+    member_count: true,
+    member_roster: false,
+    financial_summary: true,
+    detailed_transactions: false,
+    attendance: true,
+    events: true,
+    minutes: false,
+    relief: true,
+  };
+  const [sharingControls, setSharingControls] = useState<Record<string, boolean>>(sharingDefaults);
+  const [savingSharing, setSavingSharing] = useState(false);
+  const [sharingSaveError, setSharingSaveError] = useState<string | null>(null);
+  const [sharingSaveSuccess, setSharingSaveSuccess] = useState(false);
+
   // Populate form when data loads
   useEffect(() => {
     if (group) {
@@ -82,6 +101,12 @@ export default function GroupSettingsPage() {
       setEditCountry((settings.country as string) || "");
       setEditRegion((settings.state_region as string) || (g.state_region as string) || "");
       setEditCity((settings.city as string) || (g.city as string) || "");
+
+      // Load sharing controls from group data
+      const sc = g.sharing_controls as Record<string, boolean> | null;
+      if (sc) {
+        setSharingControls({ ...sharingDefaults, ...sc });
+      }
     }
   }, [group]);
 
@@ -114,6 +139,28 @@ export default function GroupSettingsPage() {
       setSaveError((err as Error).message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveSharingControls() {
+    if (!groupId) return;
+    setSavingSharing(true);
+    setSharingSaveError(null);
+    setSharingSaveSuccess(false);
+    try {
+      const supabase = createClient();
+      const { error: updateError } = await supabase
+        .from("groups")
+        .update({ sharing_controls: sharingControls })
+        .eq("id", groupId);
+      if (updateError) throw updateError;
+      await queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] });
+      setSharingSaveSuccess(true);
+      setTimeout(() => setSharingSaveSuccess(false), 3000);
+    } catch (err) {
+      setSharingSaveError((err as Error).message);
+    } finally {
+      setSavingSharing(false);
     }
   }
 
@@ -183,6 +230,9 @@ export default function GroupSettingsPage() {
           <TabsTrigger value="localization" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("localizationTab")}</TabsTrigger>
           <TabsTrigger value="payments" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("paymentsTab")}</TabsTrigger>
           <TabsTrigger value="positions" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("positionsTab")}</TabsTrigger>
+          {isBranch && (
+            <TabsTrigger value="data-sharing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("dataSharingTab")}</TabsTrigger>
+          )}
         </TabsList>
 
         {/* Group Info Tab */}
@@ -555,6 +605,50 @@ export default function GroupSettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Data Sharing Tab — branch groups only */}
+        {isBranch && (
+          <TabsContent value="data-sharing" className="mt-6 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Share2 className="h-4 w-4" />
+                  {t("dataSharingTitle")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-6">{t("dataSharingDescription")}</p>
+                <div className="space-y-4">
+                  {(["member_count", "member_roster", "financial_summary", "detailed_transactions", "attendance", "events", "minutes", "relief"] as const).map((key) => (
+                    <div key={key} className="flex items-center justify-between rounded-lg border p-3">
+                      <Label htmlFor={`sharing-${key}`} className="text-sm font-medium cursor-pointer">
+                        {t(`sharing_${key}`)}
+                      </Label>
+                      <Switch
+                        id={`sharing-${key}`}
+                        checked={!!sharingControls[key]}
+                        onCheckedChange={(checked: boolean) =>
+                          setSharingControls((prev) => ({ ...prev, [key]: checked }))
+                        }
+                        disabled={!canManageSettings}
+                      />
+                    </div>
+                  ))}
+                </div>
+                {canManageSettings && (
+                  <div className="mt-6 space-y-2">
+                    {sharingSaveError && <p className="text-sm text-destructive">{sharingSaveError}</p>}
+                    {sharingSaveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("dataSharingSaved")}</p>}
+                    <Button onClick={handleSaveSharingControls} disabled={savingSharing}>
+                      {savingSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {t("saveSettings")}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div></RequirePermission>
   );

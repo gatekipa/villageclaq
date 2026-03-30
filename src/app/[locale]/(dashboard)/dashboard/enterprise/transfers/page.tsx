@@ -176,16 +176,100 @@ export default function TransfersPage() {
         newStatus = "source_approved";
         updateFields.approved_by_source = user.id;
       } else if (currentStatus === "source_approved") {
-        newStatus = "dest_approved";
+        newStatus = "completed";
         updateFields.approved_by_dest = user.id;
+        updateFields.completed_at = new Date().toISOString();
       } else {
         return;
       }
 
-      // If dest_approved, also complete the transfer
-      if (newStatus === "dest_approved") {
-        newStatus = "completed";
-        updateFields.completed_at = new Date().toISOString();
+      // When completing: gather standing snapshot, update source membership, create dest membership
+      if (newStatus === "completed") {
+        // Fetch the transfer to get member_id, source_group_id, dest_group_id
+        const { data: transferData } = await supabase
+          .from("member_transfers")
+          .select("member_id, source_group_id, dest_group_id")
+          .eq("id", transferId)
+          .single();
+
+        if (transferData) {
+          const { member_id, source_group_id, dest_group_id } = transferData;
+
+          // Find source membership
+          const { data: sourceMembership } = await supabase
+            .from("memberships")
+            .select("id, standing, created_at")
+            .eq("user_id", member_id)
+            .eq("group_id", source_group_id)
+            .single();
+
+          if (sourceMembership) {
+            // Calculate years of membership
+            const joinedAt = new Date(sourceMembership.created_at);
+            const yearsOfMembership = Math.round(
+              ((Date.now() - joinedAt.getTime()) / (365.25 * 24 * 60 * 60 * 1000)) * 10
+            ) / 10;
+
+            // Total contributions paid (sum of payments for this membership)
+            const { data: paymentsData } = await supabase
+              .from("payments")
+              .select("amount")
+              .eq("membership_id", sourceMembership.id)
+              .eq("status", "confirmed");
+            const totalContributions = (paymentsData || []).reduce(
+              (sum: number, p: { amount: number }) => sum + Number(p.amount), 0
+            );
+
+            // Attendance rate
+            const { data: attendanceData } = await supabase
+              .from("event_attendances")
+              .select("status")
+              .eq("membership_id", sourceMembership.id);
+            const totalEvents = (attendanceData || []).length;
+            const presentCount = (attendanceData || []).filter(
+              (a: { status: string }) => a.status === "present" || a.status === "late"
+            ).length;
+            const attendanceRate = totalEvents > 0
+              ? Math.round((presentCount / totalEvents) * 100)
+              : 0;
+
+            // Outstanding obligations
+            const { data: obligationsData } = await supabase
+              .from("contribution_obligations")
+              .select("amount, amount_paid")
+              .eq("membership_id", sourceMembership.id)
+              .in("status", ["pending", "partial", "overdue"]);
+            const outstandingObligations = (obligationsData || []).reduce(
+              (sum: number, o: { amount: number; amount_paid: number }) =>
+                sum + (Number(o.amount) - Number(o.amount_paid)), 0
+            );
+
+            // Build the snapshot
+            updateFields.transfer_summary_json = {
+              years_of_membership: yearsOfMembership,
+              total_contributions: totalContributions,
+              attendance_rate: attendanceRate,
+              standing_at_transfer: sourceMembership.standing,
+              outstanding_obligations: outstandingObligations,
+            };
+
+            // Update source membership: set standing to 'suspended'
+            // (no 'transferred' enum value exists — 'suspended' is the closest semantic match)
+            await supabase
+              .from("memberships")
+              .update({ standing: "suspended" })
+              .eq("id", sourceMembership.id);
+
+            // Create new membership in destination group
+            await supabase.from("memberships").insert({
+              user_id: member_id,
+              group_id: dest_group_id,
+              role: "member",
+              standing: "good",
+              joined_at: new Date().toISOString(),
+            });
+          }
+        }
       }
 
       await supabase.from("member_transfers").update({
@@ -315,15 +399,40 @@ export default function TransfersPage() {
               {(() => {
                 const summary = selectedTransfer.transfer_summary_json as Record<string, unknown> | null;
                 if (!summary || Object.keys(summary).length === 0) return null;
+                const sourceCurrency = ((selectedTransfer.source_group as Record<string, unknown>)?.currency as string) || currency;
                 return (
                   <Card className="bg-muted/50"><CardContent className="pt-4 space-y-1 text-sm">
-                    <h4 className="font-semibold mb-2">{t("transferSummary")}</h4>
-                    {Object.entries(summary).map(([key, value]) => (
-                      <div key={key} className="flex justify-between">
-                        <span className="text-muted-foreground">{key}</span>
-                        <span className="font-medium">{typeof value === "number" ? formatAmount(value, currency) : String(value)}</span>
+                    <h4 className="font-semibold mb-2">{t("standingSnapshot")}</h4>
+                    {summary.years_of_membership != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("yearsOfMembership")}</span>
+                        <span className="font-medium">{String(summary.years_of_membership)}</span>
                       </div>
-                    ))}
+                    )}
+                    {summary.total_contributions != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("totalContributions")}</span>
+                        <span className="font-medium">{formatAmount(Number(summary.total_contributions), sourceCurrency)}</span>
+                      </div>
+                    )}
+                    {summary.attendance_rate != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("attendanceRate")}</span>
+                        <span className="font-medium">{String(summary.attendance_rate)}%</span>
+                      </div>
+                    )}
+                    {summary.standing_at_transfer != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("standingAtTransfer")}</span>
+                        <span className="font-medium">{String(summary.standing_at_transfer)}</span>
+                      </div>
+                    )}
+                    {summary.outstanding_obligations != null && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("outstandingObligations")}</span>
+                        <span className="font-medium">{formatAmount(Number(summary.outstanding_obligations), sourceCurrency)}</span>
+                      </div>
+                    )}
                   </CardContent></Card>
                 );
               })()}

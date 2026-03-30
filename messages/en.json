@@ -799,7 +799,19 @@
     },
     "statusActive": "Active",
     "statusInactive": "Inactive",
-    "assign": "Assign"
+    "assign": "Assign",
+    "dataSharingTab": "Data Sharing",
+    "dataSharingDescription": "Control what data your branch shares with HQ and other branches. These settings only affect what others can see — your branch data is always fully accessible to your own admins.",
+    "dataSharingTitle": "Branch Data Sharing",
+    "sharing_member_count": "Member Count",
+    "sharing_member_roster": "Member Roster",
+    "sharing_financial_summary": "Financial Summary",
+    "sharing_detailed_transactions": "Detailed Transactions",
+    "sharing_attendance": "Attendance Summary",
+    "sharing_events": "Event Calendar",
+    "sharing_minutes": "Meeting Minutes",
+    "sharing_relief": "Relief Fund Status",
+    "dataSharingSaved": "Data sharing settings saved"
   },
   "contributions": {
     "title": "Contributions",
@@ -2346,7 +2358,9 @@
     "transferCreated": "Transfer request created",
     "transferApproved": "Transfer approved",
     "transferRejected": "Transfer rejected",
-    "approvalNotes": "Notes"
+    "approvalNotes": "Notes",
+    "branchCreatedInvitationFailed": "Branch created, but the invitation email could not be sent. You can resend from the Invitations page.",
+    "invitingPresident": "Creating branch and sending invitation..."
   },
   "admin": {
     "title": "Platform Admin",

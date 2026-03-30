@@ -799,7 +799,19 @@
     },
     "statusActive": "Actif",
     "statusInactive": "Inactif",
-    "assign": "Attribuer"
+    "assign": "Attribuer",
+    "dataSharingTab": "Partage de données",
+    "dataSharingDescription": "Contrôlez les données que votre branche partage avec le siège et les autres branches. Ces paramètres n'affectent que ce que les autres peuvent voir — les données de votre branche restent entièrement accessibles à vos propres administrateurs.",
+    "dataSharingTitle": "Partage de données de la branche",
+    "sharing_member_count": "Nombre de membres",
+    "sharing_member_roster": "Liste des membres",
+    "sharing_financial_summary": "Résumé financier",
+    "sharing_detailed_transactions": "Transactions détaillées",
+    "sharing_attendance": "Résumé de la présence",
+    "sharing_events": "Calendrier des événements",
+    "sharing_minutes": "Procès-verbaux des réunions",
+    "sharing_relief": "Statut du fonds d'entraide",
+    "dataSharingSaved": "Paramètres de partage sauvegardés"
   },
   "contributions": {
     "title": "Cotisations",
@@ -2346,7 +2358,9 @@
     "transferCreated": "Demande de transfert créée",
     "transferApproved": "Transfert approuvé",
     "transferRejected": "Transfert rejeté",
-    "approvalNotes": "Notes"
+    "approvalNotes": "Notes",
+    "branchCreatedInvitationFailed": "Branche créée, mais l'e-mail d'invitation n'a pas pu être envoyé. Vous pouvez le renvoyer depuis la page Invitations.",
+    "invitingPresident": "Création de la branche et envoi de l'invitation..."
   },
   "admin": {
     "title": "Admin plateforme",

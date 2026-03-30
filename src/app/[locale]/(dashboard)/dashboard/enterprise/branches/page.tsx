@@ -73,12 +73,13 @@ export default function BranchesPage() {
   const dateLocale = getDateLocale(locale);
   const queryClient = useQueryClient();
   const supabase = createClient();
-  const { currentGroup, groupId, isAdmin } = useGroup();
+  const { currentGroup, groupId, isAdmin, user } = useGroup();
   const { hasPermission } = usePermissions();
 
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [archiveConfirmId, setArchiveConfirmId] = useState<string | null>(null);
+  const [invitationWarning, setInvitationWarning] = useState<string | null>(null);
 
   // Form state for create branch dialog
   const [formName, setFormName] = useState("");
@@ -150,27 +151,79 @@ export default function BranchesPage() {
     enabled: !!organizationId,
   });
 
-  // Create branch mutation
+  // Create branch mutation — inserts group, then invitation + email for founding president
   const createMutation = useMutation({
     mutationFn: async () => {
+      setInvitationWarning(null);
       const slug = formName.toLowerCase().replace(/\s+/g, "-");
-      const { error } = await supabase.from("groups").insert({
-        name: formName,
-        slug,
-        organization_id: organizationId,
-        group_level: "branch",
-        currency: formCurrency,
-        locale: formLanguage,
-        settings: {
-          city: formCity,
-          country: formCountry,
-          founding_president_name: formPresidentName,
-          founding_president_email: formPresidentEmail,
-          branch_phone: formPhone,
-        },
-        is_active: true,
-      });
+      const { data: newBranch, error } = await supabase
+        .from("groups")
+        .insert({
+          name: formName,
+          slug,
+          organization_id: organizationId,
+          group_level: "branch",
+          currency: formCurrency,
+          locale: formLanguage,
+          settings: {
+            city: formCity,
+            country: formCountry,
+            founding_president_name: formPresidentName,
+            founding_president_email: formPresidentEmail,
+            branch_phone: formPhone,
+          },
+          is_active: true,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      // If founding president email provided, create invitation + send email
+      const presidentEmail = formPresidentEmail.trim().toLowerCase();
+      if (presidentEmail && newBranch?.id && user) {
+        // Insert invitation record
+        const { error: invError } = await supabase.from("invitations").insert({
+          group_id: newBranch.id,
+          email: presidentEmail,
+          phone: formPhone.trim() || null,
+          invited_by: user.id,
+          role: "owner",
+          status: "pending",
+        });
+
+        if (invError) {
+          setInvitationWarning(t("branchCreatedInvitationFailed"));
+        } else {
+          // Fire-and-forget invitation email via /api/email/send
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              const inviterName = user.full_name || user.display_name || "";
+              const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
+              await fetch("/api/email/send", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  to: presidentEmail,
+                  template: "invitation",
+                  data: {
+                    groupName: formName,
+                    inviterName,
+                    acceptUrl,
+                  },
+                  locale,
+                }),
+              });
+            }
+          } catch {
+            // Email send failed — invitation record still exists
+            setInvitationWarning(t("branchCreatedInvitationFailed"));
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -312,6 +365,13 @@ export default function BranchesPage() {
           className="pl-10"
         />
       </div>
+
+      {/* Invitation warning */}
+      {invitationWarning && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+          {invitationWarning}
+        </div>
+      )}
 
       {/* Branch list */}
       {filtered.length === 0 ? (

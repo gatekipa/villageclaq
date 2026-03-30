@@ -41,7 +41,7 @@ import { EmptyState } from "@/components/ui/page-skeleton";
 
 const supabase = createClient();
 
-const DOC_TYPES = ["Constitution", "Bylaws", "Standing Rules", "Code of Conduct", "Financial Policy", "Meeting Procedures", "Membership Policy"] as const;
+const DOC_TYPE_KEYS = ["Constitution", "Bylaws", "Standing Rules", "Code of Conduct", "Financial Policy", "Meeting Procedures", "Membership Policy"] as const;
 
 // ─── Data Hooks ──────────────────────────────────────────────────────────────
 
@@ -64,7 +64,7 @@ function useAllDocuments(groupId: string | null) {
       // Deduplicate: keep latest version per title
       const seen = new Map<string, Record<string, unknown>>();
       for (const doc of (data || [])) {
-        const title = (doc.title as string) || "Untitled";
+        const title = (doc.title as string) || "";
         if (!seen.has(title)) seen.set(title, doc);
       }
       return Array.from(seen.values());
@@ -207,7 +207,7 @@ export default function ConstitutionPage() {
   // State
   const [editing, setEditing] = useState(false);
   const [editorContent, setEditorContent] = useState("");
-  const [editorTitle, setEditorTitle] = useState("Constitution");
+  const [editorTitle, setEditorTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -243,7 +243,7 @@ export default function ConstitutionPage() {
   const handleStartEdit = () => {
     const source = draft || constitution;
     setEditorContent((source?.content as string) || "");
-    setEditorTitle((source?.title as string) || "Constitution");
+    setEditorTitle((source?.title as string) || activeTitle || "");
     setEditing(true);
   };
 
@@ -296,7 +296,7 @@ export default function ConstitutionPage() {
       if (memberList.length > 0) {
         await supabase.from("notifications").insert(memberList.map((m) => ({
           group_id: groupId, membership_id: m.id as string, type: "constitution_updated",
-          title: "Constitution Updated", message: "The group constitution has been updated. Please review and acknowledge.", is_read: false,
+          title: t("constitutionUpdatedNotif"), message: t("constitutionUpdatedNotifMsg"), is_read: false,
         })));
       }
       queryClient.invalidateQueries({ queryKey: ["constitution"] });
@@ -459,6 +459,14 @@ export default function ConstitutionPage() {
         </div>
       </div>
 
+      {/* Action Error Display */}
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-400">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError(null)} className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300">✕</button>
+        </div>
+      )}
+
       {/* Document Selector */}
       {allDocs.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -507,7 +515,7 @@ export default function ConstitutionPage() {
             <Card>
               <CardHeader className="pb-2"><Input value={editorTitle} onChange={(e) => setEditorTitle(e.target.value)} className="text-lg font-bold border-0 px-0 focus-visible:ring-0" /></CardHeader>
               <CardContent>
-                <Textarea value={editorContent} onChange={(e) => setEditorContent(e.target.value)} rows={20} className="min-h-[400px] font-mono text-sm" placeholder="Paste or write your constitution here..." />
+                <Textarea value={editorContent} onChange={(e) => setEditorContent(e.target.value)} rows={20} className="min-h-[400px] font-mono text-sm" placeholder={t("editorPlaceholder")} />
                 <div className="mt-4 flex gap-2 justify-end">
                   <Button variant="outline" onClick={() => setEditing(false)}>{tc("cancel")}</Button>
                   <Button onClick={handleSave} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t("save")}</Button>
@@ -529,7 +537,7 @@ export default function ConstitutionPage() {
                 <Input placeholder={t("searchConstitution")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
               </div>
               {activeDoc?.file_url ? (
-                <Card><CardContent className="p-4"><a href={activeDoc.file_url as string} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-5 w-5" />{(activeDoc.title as string) || "Constitution"}</a></CardContent></Card>
+                <Card><CardContent className="p-4"><a href={activeDoc.file_url as string} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><FileText className="h-5 w-5" />{(activeDoc.title as string) || t("title")}</a></CardContent></Card>
               ) : activeDoc?.content ? (
                 <Card><CardContent className="p-6"><h2 className="text-xl font-bold mb-4">{activeDoc.title as string}</h2><HighlightedText content={activeDoc.content as string} query={searchQuery} /></CardContent></Card>
               ) : null}
@@ -636,7 +644,7 @@ export default function ConstitutionPage() {
           <DialogHeader><DialogTitle>{t("proposeAmendment")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>{t("amendmentTitle")} *</Label><Input value={amendTitle} onChange={(e) => setAmendTitle(e.target.value)} /></div>
-            <div className="space-y-2"><Label>{t("sectionAffected")}</Label><Input value={amendSection} onChange={(e) => setAmendSection(e.target.value)} placeholder="e.g., Article 5, Section 3" /></div>
+            <div className="space-y-2"><Label>{t("sectionAffected")}</Label><Input value={amendSection} onChange={(e) => setAmendSection(e.target.value)} placeholder={t("sectionPlaceholder")} /></div>
             <div className="space-y-2"><Label>{t("currentText")}</Label><Textarea value={amendOldText} onChange={(e) => setAmendOldText(e.target.value)} rows={3} /></div>
             <div className="space-y-2"><Label>{t("proposedText")}</Label><Textarea value={amendNewText} onChange={(e) => setAmendNewText(e.target.value)} rows={3} /></div>
             <div className="space-y-2"><Label>{t("reasonForAmendment")}</Label><Textarea value={amendReason} onChange={(e) => setAmendReason(e.target.value)} rows={2} /></div>
@@ -671,7 +679,7 @@ export default function ConstitutionPage() {
             <div className="space-y-2">
               <Label>{t("documentType")}</Label>
               <div className="grid grid-cols-2 gap-2">
-                {DOC_TYPES.map((dtype) => (
+                {DOC_TYPE_KEYS.map((dtype) => (
                   <button
                     key={dtype}
                     type="button"
@@ -679,7 +687,7 @@ export default function ConstitutionPage() {
                     className={`rounded-lg border p-2.5 text-left text-xs transition-colors ${newDocType === dtype ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
                   >
                     <ScrollText className="h-3.5 w-3.5 mb-1 text-primary" />
-                    {dtype}
+                    {t(`docType_${dtype.replace(/\s+/g, "")}` as never) || dtype}
                   </button>
                 ))}
                 <button

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -51,19 +51,24 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, locale: string = "en"): string {
   const now = new Date();
   const date = new Date(dateStr);
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return date.toLocaleDateString();
+  try {
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    if (seconds < 60) return rtf.format(-seconds, "second");
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return rtf.format(-minutes, "minute");
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return rtf.format(-hours, "hour");
+    const days = Math.floor(hours / 24);
+    if (days < 7) return rtf.format(-days, "day");
+  } catch {
+    // Fallback if Intl not supported
+  }
+  return date.toLocaleDateString(locale);
 }
 
 const actionColors: Record<string, string> = {
@@ -81,6 +86,7 @@ function getActionColor(action: string): string {
 
 export default function AuditLogPage() {
   const t = useTranslations("auditLog");
+  const locale = useLocale();
   const { groupId } = useGroup();
   const [actionFilter, setActionFilter] = useState<string>("all");
 
@@ -216,7 +222,7 @@ export default function AuditLogPage() {
                   {/* Timestamp */}
                   <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                     <Clock className="h-3 w-3" />
-                    <span>{timeAgo(entry.created_at)}</span>
+                    <span>{timeAgo(entry.created_at, locale)}</span>
                   </div>
                 </div>
               ))}

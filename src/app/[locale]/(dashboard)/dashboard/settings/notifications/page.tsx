@@ -424,7 +424,7 @@ export default function NotificationPreferencesPage() {
             ))}
             {userGroups.length === 0 && (
               <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                No groups to display.
+                {t("noGroupsToDisplay")}
               </div>
             )}
           </CardContent>

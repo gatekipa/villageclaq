@@ -300,7 +300,7 @@ export default function GroupSettingsPage() {
                           className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                           <option value="en">English</option>
-                          <option value="fr">Francais</option>
+                          <option value="fr">Français</option>
                         </select>
                       ) : (
                         <p className="mt-1 text-sm font-medium">{(groupData.locale as string) || "—"}</p>

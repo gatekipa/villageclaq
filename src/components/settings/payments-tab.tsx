@@ -149,6 +149,18 @@ export function PaymentsTab() {
     setSaveError(null);
     setSaveSuccess(false);
 
+    // Validate enabled methods have required fields
+    const errors: string[] = [];
+    if (cashappEnabled && !cashappTag.trim()) errors.push(t("pay.cashAppTagRequired"));
+    if (zelleEnabled && !zelleEmail.trim() && !zellePhone.trim()) errors.push(t("pay.zelleContactRequired"));
+    if (mobileMoneyEnabled && !mobileProviders.some((p) => p.number.trim())) errors.push(t("pay.mobileNumberRequired"));
+    if (bankTransferEnabled && !bankAccountNumber.trim()) errors.push(t("pay.bankAccountRequired"));
+    if (errors.length > 0) {
+      setSaveError(errors.join(". "));
+      setSaving(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
       const payload = {

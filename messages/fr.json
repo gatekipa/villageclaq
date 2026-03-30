@@ -903,7 +903,9 @@
     "statusHeader": "Statut",
     "pendingConfirmation": "En attente",
     "confirmed": "Confirmé",
-    "rejected": "Rejeté"
+    "rejected": "Rejeté",
+    "confirmFailed": "Échec de la confirmation du paiement. Veuillez réessayer.",
+    "rejectFailed": "Échec du rejet du paiement. Veuillez réessayer."
   },
   "finances": {
     "title": "Tableau de bord financier",
@@ -922,7 +924,10 @@
     "items": "éléments",
     "byType": "Collecte par type",
     "recentPayments": "Paiements récents",
-    "syncPayments": "Synchroniser les paiements"
+    "syncPayments": "Synchroniser les paiements",
+    "noOverdue": "Aucun membre en retard",
+    "noTypes": "Aucun type de cotisation pour le moment",
+    "noPayments": "Aucun paiement enregistré pour le moment"
   },
   "invitations": {
     "title": "Invitations",

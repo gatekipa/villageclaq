@@ -74,6 +74,7 @@ export default function ContributionsPage() {
   const [editTypeId, setEditTypeId] = useState<string | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
@@ -164,7 +165,7 @@ export default function ContributionsPage() {
       resetForm();
       setEditTypeId(null);
     } catch {
-      // error handled
+      setEditError(t("common.error"));
     } finally {
       setEditSaving(false);
     }
@@ -559,6 +560,7 @@ export default function ContributionsPage() {
               <Label htmlFor="edit-dueDay">{t("contributions.dueDay")}</Label>
               <Input id="edit-dueDay" type="number" min="1" max="31" value={formDueDay} onChange={(e) => setFormDueDay(e.target.value)} />
             </div>
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
               <Button type="submit" disabled={editSaving}>

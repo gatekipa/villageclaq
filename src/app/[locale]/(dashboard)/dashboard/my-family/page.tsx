@@ -79,6 +79,7 @@ export default function MyFamilyPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const openAdd = () => {
     setEditingId(null);
@@ -136,6 +137,7 @@ export default function MyFamilyPage() {
       setEditingId(null);
     } catch (err) {
       console.error("Failed to save family member:", err);
+      setSaveError(tc("error"));
     } finally {
       setSaving(false);
     }
@@ -355,6 +357,7 @@ export default function MyFamilyPage() {
             </div>
           </div>
 
+          {saveError && <p className="text-sm text-destructive">{saveError}</p>}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               {tc("cancel")}

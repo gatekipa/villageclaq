@@ -138,6 +138,9 @@ export default function DisputesPage() {
   const [deleteDisputeId, setDeleteDisputeId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Mutation error feedback
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
   const filteredDisputes = useMemo(() => {
     if (!disputes) return [];
     if (statusFilter === "all") return disputes;
@@ -180,7 +183,7 @@ export default function DisputesPage() {
       setShowFileDialog(false);
       resetFileForm();
     } catch {
-      // error handled
+      setMutationError(tc("error"));
     } finally {
       setFiling(false);
     }
@@ -207,7 +210,7 @@ export default function DisputesPage() {
       setAssignDisputeId(null);
       setAssignMemberId("");
     } catch {
-      // error handled
+      setMutationError(tc("error"));
     } finally {
       setAssigning(false);
     }
@@ -226,7 +229,7 @@ export default function DisputesPage() {
       await queryClient.invalidateQueries({ queryKey: ["disputes"] });
       setStatusDisputeId(null);
     } catch {
-      // error handled
+      setMutationError(tc("error"));
     } finally {
       setUpdatingStatus(false);
     }
@@ -251,7 +254,7 @@ export default function DisputesPage() {
       setResolveDisputeId(null);
       setResolutionText("");
     } catch {
-      // error handled
+      setMutationError(tc("error"));
     } finally {
       setResolving(false);
     }
@@ -267,7 +270,7 @@ export default function DisputesPage() {
       await queryClient.invalidateQueries({ queryKey: ["disputes"] });
       setDeleteDisputeId(null);
     } catch {
-      // error handled
+      setMutationError(tc("error"));
     } finally {
       setDeleting(false);
     }
@@ -294,6 +297,14 @@ export default function DisputesPage() {
           {t("fileDispute")}
         </Button>
       </div>
+
+      {/* Mutation Error */}
+      {mutationError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-center justify-between">
+          <span>{mutationError}</span>
+          <button onClick={() => setMutationError(null)} className="ml-2 text-destructive hover:text-destructive/80">&times;</button>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

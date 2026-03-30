@@ -408,6 +408,7 @@ export default function DocumentVaultPage() {
                   setDeleteDocId(null);
                 } catch (err) {
                   console.error('Failed to delete document:', err);
+                  setMutationError(t("error"));
                 } finally {
                   setDeleting(false);
                 }

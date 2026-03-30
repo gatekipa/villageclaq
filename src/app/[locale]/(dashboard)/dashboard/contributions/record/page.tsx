@@ -170,7 +170,7 @@ export default function RecordPaymentPage() {
   }
 
   async function handleSave(keepTypeAndMethod: boolean) {
-    if (!selectedMembership || !selectedTypeId || !amount) return;
+    if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
 
     try {
       const paymentResult = await recordPayment.mutateAsync({
@@ -306,7 +306,7 @@ export default function RecordPaymentPage() {
   }
 
   async function handleBulkSave() {
-    if (!bulkTypeId || !bulkAmount || bulkSelected.size === 0) return;
+    if (!bulkTypeId || !bulkAmount || Number(bulkAmount) <= 0 || bulkSelected.size === 0) return;
     setBulkSubmitting(true);
     let successCount = 0;
 
@@ -544,7 +544,7 @@ export default function RecordPaymentPage() {
                 <Label>{t("contributions.amount")}</Label>
                 <Input
                   type="number"
-                  min="0"
+                  min="1"
                   step="any"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
@@ -730,7 +730,7 @@ export default function RecordPaymentPage() {
                   <Label>{t("contributions.amount")}</Label>
                   <Input
                     type="number"
-                    min="0"
+                    min="1"
                     step="any"
                     value={bulkAmount}
                     onChange={(e) => setBulkAmount(e.target.value)}

@@ -171,6 +171,10 @@ export function useRecordPayment() {
   return useMutation({
     mutationFn: async (values: { membership_id: string; obligation_id?: string; contribution_type_id?: string; amount: number; currency: string; payment_method: string; reference_number?: string; receipt_url?: string; notes?: string }) => {
       if (!groupId || !user) throw new Error("No group/user");
+
+      // Validate amount — must be positive
+      if (!values.amount || values.amount <= 0) throw new Error("Amount must be greater than zero");
+
       const { data, error } = await supabase.from("payments").insert({
         ...values,
         group_id: groupId,

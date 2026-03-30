@@ -57,7 +57,7 @@ export default function FinancesPage() {
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
-  const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(200);
+  const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(5000);
   const { data: contributionTypes } = useContributionTypes();
 
   const isLoading = oblLoading || payLoading;
@@ -439,7 +439,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             {topOverdue.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No overdue members</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">{t("finances.noOverdue")}</p>
             ) : (
               <div className="space-y-3">
                 {topOverdue.map((member, i) => (
@@ -478,7 +478,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             {collectionByType.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No contribution types yet</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">{t("finances.noTypes")}</p>
             ) : (
               <div className="space-y-4">
                 {collectionByType.map((type) => (
@@ -512,7 +512,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             {recentPayments.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No payments recorded yet</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">{t("finances.noPayments")}</p>
             ) : (
               <div className="space-y-3">
                 {recentPayments.map((payment) => (

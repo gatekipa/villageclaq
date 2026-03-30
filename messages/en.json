@@ -903,7 +903,9 @@
     "statusHeader": "Status",
     "pendingConfirmation": "Pending",
     "confirmed": "Confirmed",
-    "rejected": "Rejected"
+    "rejected": "Rejected",
+    "confirmFailed": "Failed to confirm payment. Please try again.",
+    "rejectFailed": "Failed to reject payment. Please try again."
   },
   "finances": {
     "title": "Financial Dashboard",
@@ -922,7 +924,10 @@
     "items": "items",
     "byType": "Collection by Type",
     "recentPayments": "Recent Payments",
-    "syncPayments": "Sync Payments to Obligations"
+    "syncPayments": "Sync Payments to Obligations",
+    "noOverdue": "No overdue members",
+    "noTypes": "No contribution types yet",
+    "noPayments": "No payments recorded yet"
   },
   "invitations": {
     "title": "Invitations",

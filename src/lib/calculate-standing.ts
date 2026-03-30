@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { formatAmount } from "@/lib/currencies";
 
 export interface StandingReason {
   category: string;
@@ -33,7 +34,7 @@ const ATTENDANCE_THRESHOLD = 60;
 export async function calculateStanding(
   membershipId: string,
   groupId: string,
-  options?: { updateDb?: boolean },
+  options?: { updateDb?: boolean; currency?: string },
 ): Promise<StandingResult> {
   const supabase = createClient();
   const reasons: StandingReason[] = [];
@@ -48,7 +49,7 @@ export async function calculateStanding(
 
   const overdueObls = (obligations || []).filter((o) => {
     const dueDate = new Date(o.due_date);
-    return o.status === "pending" && dueDate < now;
+    return (o.status === "pending" || o.status === "partial" || o.status === "overdue") && dueDate < now;
   });
   const totalOutstanding = (obligations || [])
     .filter((o) => o.status !== "paid" && o.status !== "waived")
@@ -60,8 +61,8 @@ export async function calculateStanding(
     passed: duesPassed,
     label_en: "Dues",
     label_fr: "Cotisations",
-    detail_en: duesPassed ? "Dues paid in full" : `Dues: ${totalOutstanding.toLocaleString()} outstanding`,
-    detail_fr: duesPassed ? "Cotisations payées en totalité" : `Cotisations: ${totalOutstanding.toLocaleString()} impayées`,
+    detail_en: duesPassed ? "Dues paid in full" : `Dues: ${formatAmount(totalOutstanding, options?.currency || "XAF")} outstanding`,
+    detail_fr: duesPassed ? "Cotisations payées en totalité" : `Cotisations: ${formatAmount(totalOutstanding, options?.currency || "XAF")} impayées`,
   });
 
   // Rule 2: Attendance (last 12 months)

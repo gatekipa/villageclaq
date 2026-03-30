@@ -962,7 +962,7 @@ export default function ElectionsPage() {
       )}
 
       {/* ─── Create Election Dialog ──────────────────────────────────────────── */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setElTitle(""); setElDescription(""); setStartsAt(""); setEndsAt(""); setElType("poll"); setCreateError(""); } }}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("createElection")}</DialogTitle>
@@ -1010,7 +1010,7 @@ export default function ElectionsPage() {
       </Dialog>
 
       {/* ─── Add Candidate Dialog ────────────────────────────────────────────── */}
-      <Dialog open={showAddCandidate} onOpenChange={setShowAddCandidate}>
+      <Dialog open={showAddCandidate} onOpenChange={(open) => { setShowAddCandidate(open); if (!open) { setCandidateMembershipId(""); setCandidateStatement(""); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("addCandidate")}</DialogTitle>
@@ -1050,7 +1050,7 @@ export default function ElectionsPage() {
       </Dialog>
 
       {/* ─── Add Option Dialog ───────────────────────────────────────────────── */}
-      <Dialog open={showAddOption} onOpenChange={setShowAddOption}>
+      <Dialog open={showAddOption} onOpenChange={(open) => { setShowAddOption(open); if (!open) { setOptionLabel(""); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("addOption")}</DialogTitle>

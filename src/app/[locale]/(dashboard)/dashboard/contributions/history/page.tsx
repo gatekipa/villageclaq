@@ -33,15 +33,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
 
-const methodLabels: Record<string, string> = {
-  cash: "Cash",
-  mobile_money: "Mobile Money",
-  bank_transfer: "Bank Transfer",
-  online: "Online",
-  cashapp: "CashApp",
-  zelle: "Zelle",
-  other: "Other",
-};
+// Method labels resolved via t() inside component — see getMethodLabel()
 
 const methodColors: Record<string, string> = {
   cash: "bg-green-500/10 text-green-700 dark:text-green-400",
@@ -75,8 +67,20 @@ export default function PaymentHistoryPage() {
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
+
+  // Translated method labels
+  const methodLabels: Record<string, string> = {
+    cash: t("contributions.cash"),
+    mobile_money: t("contributions.mobileMoney"),
+    bank_transfer: t("contributions.bankTransfer"),
+    online: t("contributions.online"),
+    cashapp: t("contributions.cashapp"),
+    zelle: t("contributions.zelle"),
+    other: t("common.other"),
+  };
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -218,6 +222,7 @@ export default function PaymentHistoryPage() {
       }
     } catch (err) {
       console.warn("Confirm payment failed:", (err as Error).message);
+      setActionError(t("contributions.confirmFailed"));
     } finally {
       setConfirmingId(null);
     }
@@ -236,6 +241,7 @@ export default function PaymentHistoryPage() {
       queryClient.invalidateQueries({ queryKey: ["member-payments"] });
     } catch (err) {
       console.warn("Reject payment failed:", (err as Error).message);
+      setActionError(t("contributions.rejectFailed"));
     } finally {
       setRejectingId(null);
     }
@@ -311,6 +317,14 @@ export default function PaymentHistoryPage() {
           </Link>
         ))}
       </div>
+
+      {/* Action Error */}
+      {actionError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-center justify-between">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError(null)} className="ml-2 text-destructive hover:text-destructive/80">&times;</button>
+        </div>
+      )}
 
       {/* Search */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

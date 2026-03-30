@@ -35,8 +35,31 @@ export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const redirectTo = searchParams.get("redirectTo");
+
+  async function handleGoogleLogin() {
+    setError(null);
+    setIsGoogleLoading(true);
+    try {
+      const supabase = createClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo ?? "/dashboard")}`,
+        },
+      });
+      if (oauthError) {
+        setError(t("auth.loginFailed"));
+        setIsGoogleLoading(false);
+      }
+      // If successful, browser will redirect — no need to reset loading
+    } catch {
+      setError(t("auth.loginFailed"));
+      setIsGoogleLoading(false);
+    }
+  }
 
   async function handleEmailLogin(formData: FormData) {
     setError(null);
@@ -143,8 +166,8 @@ export default function LoginPage() {
             )}
 
             <div className="grid gap-2.5">
-              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">
-                <GoogleIcon /> {t("auth.continueWithGoogle")}
+              <Button variant="outline" className="w-full justify-center gap-2.5 h-11" disabled={isGoogleLoading} onClick={handleGoogleLogin} aria-label="Continue with Google">
+                {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} {t("auth.continueWithGoogle")}
               </Button>
               <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">
                 <AppleIcon /> {t("auth.continueWithApple")}

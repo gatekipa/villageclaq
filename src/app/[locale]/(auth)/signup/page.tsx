@@ -34,6 +34,7 @@ export default function SignupPage() {
   const t = useTranslations();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -41,6 +42,27 @@ export default function SignupPage() {
   const [emailConfirmation, setEmailConfirmation] = useState(false);
   const [resending, setResending] = useState(false);
   const { allMet } = usePasswordRequirements(password);
+
+  async function handleGoogleSignup() {
+    setError(null);
+    setIsGoogleLoading(true);
+    try {
+      const supabase = createClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/dashboard")}`,
+        },
+      });
+      if (oauthError) {
+        setError(t("auth.signupFailed"));
+        setIsGoogleLoading(false);
+      }
+    } catch {
+      setError(t("auth.signupFailed"));
+      setIsGoogleLoading(false);
+    }
+  }
   const passwordsMatch = password.length > 0 && password === confirmPassword;
   const canSubmit = email.length > 0 && allMet && passwordsMatch && !isLoading;
 
@@ -192,8 +214,8 @@ export default function SignupPage() {
             )}
 
             <div className="grid gap-2.5">
-              <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">
-                <GoogleIcon /> {t("auth.continueWithGoogle")}
+              <Button variant="outline" className="w-full justify-center gap-2.5 h-11" disabled={isGoogleLoading} onClick={handleGoogleSignup} aria-label="Continue with Google">
+                {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} {t("auth.continueWithGoogle")}
               </Button>
               <Button variant="outline" className="w-full justify-center gap-2.5 h-11 opacity-50 cursor-not-allowed" disabled aria-label="OAuth login" title="">
                 <AppleIcon /> {t("auth.continueWithApple")}

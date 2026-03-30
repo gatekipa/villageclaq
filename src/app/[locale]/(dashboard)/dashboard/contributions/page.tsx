@@ -335,7 +335,7 @@ export default function ContributionsPage() {
                       id="amount"
                       type="number"
                       min="0"
-                      step="100"
+                      step="any"
                       placeholder="50000"
                       required
                       value={formAmount}
@@ -540,7 +540,7 @@ export default function ContributionsPage() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="edit-amount">{t("contributions.amount")}</Label>
-                <Input id="edit-amount" type="number" min="0" step="100" required value={formAmount} onChange={(e) => setFormAmount(e.target.value)} />
+                <Input id="edit-amount" type="number" min="0" step="any" required value={formAmount} onChange={(e) => setFormAmount(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-currency">{t("contributions.currency")}</Label>

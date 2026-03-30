@@ -22,7 +22,18 @@ import {
   BarChart3,
   X,
   Loader2,
+  Users,
+  CheckSquare,
+  Square,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -254,6 +265,85 @@ export default function RecordPaymentPage() {
     }
   }
 
+  // ─── Bulk Payment ────────────────────────────────────────────────────
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkTypeId, setBulkTypeId] = useState("");
+  const [bulkAmount, setBulkAmount] = useState("");
+  const [bulkMethod, setBulkMethod] = useState("cash");
+  const [bulkNotes, setBulkNotes] = useState("");
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkSearch, setBulkSearch] = useState("");
+  const [bulkSuccess, setBulkSuccess] = useState<number | null>(null);
+
+  const bulkType = types.find((ct: Record<string, unknown>) => ct.id === bulkTypeId);
+
+  // Auto-fill bulk amount when type changes
+  useEffect(() => {
+    if (bulkType) {
+      setBulkAmount(String(bulkType.amount));
+    }
+  }, [bulkType]);
+
+  const bulkFilteredMembers = memberList.filter((m) =>
+    m.name.toLowerCase().includes(bulkSearch.toLowerCase())
+  );
+
+  function toggleBulkMember(id: string) {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllBulk() {
+    if (bulkSelected.size === bulkFilteredMembers.length) {
+      setBulkSelected(new Set());
+    } else {
+      setBulkSelected(new Set(bulkFilteredMembers.map((m) => m.membershipId)));
+    }
+  }
+
+  async function handleBulkSave() {
+    if (!bulkTypeId || !bulkAmount || bulkSelected.size === 0) return;
+    setBulkSubmitting(true);
+    let successCount = 0;
+
+    try {
+      for (const memberId of bulkSelected) {
+        try {
+          await recordPayment.mutateAsync({
+            membership_id: memberId,
+            contribution_type_id: bulkTypeId,
+            amount: Number(bulkAmount),
+            currency,
+            payment_method: bulkMethod,
+            notes: bulkNotes || undefined,
+          });
+          successCount++;
+        } catch {
+          // Continue with remaining members even if one fails
+        }
+      }
+
+      setBulkSuccess(successCount);
+      setBulkSelected(new Set());
+      setBulkTypeId("");
+      setBulkAmount("");
+      setBulkMethod("cash");
+      setBulkNotes("");
+      setBulkSearch("");
+
+      setTimeout(() => {
+        setBulkSuccess(null);
+        setBulkOpen(false);
+      }, 3000);
+    } finally {
+      setBulkSubmitting(false);
+    }
+  }
+
   const subNavItems = [
     { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
     { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
@@ -312,9 +402,20 @@ export default function RecordPaymentPage() {
   return (
     <RequirePermission anyOf={["finances.record", "finances.manage"]}><div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
-        <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
+          <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
+        </div>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => setBulkOpen(true)}
+          className="shrink-0"
+        >
+          <Users className="mr-1.5 h-3.5 w-3.5" />
+          {t("contributions.bulkPayment")}
+        </Button>
       </div>
 
       {/* Sub Navigation */}
@@ -444,7 +545,7 @@ export default function RecordPaymentPage() {
                 <Input
                   type="number"
                   min="0"
-                  step="100"
+                  step="any"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0"
@@ -540,14 +641,14 @@ export default function RecordPaymentPage() {
             {/* Error display */}
             {recordPayment.isError && (
               <p className="text-sm text-destructive">
-                {(recordPayment.error as Error)?.message || "Failed to record payment."}
+                {(recordPayment.error as Error)?.message || t("contributions.recordFailed")}
               </p>
             )}
 
             {/* Action Buttons */}
             <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-end">
               <Button
-                variant="secondary"
+                variant="default"
                 size="lg"
                 onClick={() => handleSave(false)}
                 disabled={!canSubmit}
@@ -589,6 +690,165 @@ export default function RecordPaymentPage() {
           </ul>
         </CardContent>
       </Card>
+      {/* ═══ Bulk Payment Dialog ═══ */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("contributions.bulkPayment")}</DialogTitle>
+            <DialogDescription>{t("contributions.bulkPaymentDesc")}</DialogDescription>
+          </DialogHeader>
+
+          {bulkSuccess !== null ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Check className="h-12 w-12 text-emerald-500" />
+              <p className="text-lg font-semibold">
+                {t("contributions.bulkSuccess", { count: bulkSuccess })}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Contribution Type */}
+              <div className="space-y-2">
+                <Label>{t("contributions.contributionType")}</Label>
+                <select
+                  value={bulkTypeId}
+                  onChange={(e) => setBulkTypeId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:bg-input/30"
+                >
+                  <option value="">{t("contributions.selectType")}</option>
+                  {types.map((type: Record<string, unknown>) => (
+                    <option key={type.id as string} value={type.id as string}>
+                      {type.name as string} — {formatAmount(Number(type.amount), (type.currency as string) || currency)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Amount + Method */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("contributions.amount")}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={bulkAmount}
+                    onChange={(e) => setBulkAmount(e.target.value)}
+                    placeholder="0"
+                  />
+                  {bulkType && bulkAmount && Number(bulkAmount) !== Number(bulkType.amount) && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      {t("contributions.amountDiffers", {
+                        expected: formatAmount(Number(bulkType.amount), (bulkType.currency as string) || currency),
+                      })}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("contributions.paymentMethod")}</Label>
+                  <select
+                    value={bulkMethod}
+                    onChange={(e) => setBulkMethod(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:bg-input/30"
+                  >
+                    {enabledMethods.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {t(m.labelKey)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label>{t("contributions.notes")}</Label>
+                <Textarea
+                  value={bulkNotes}
+                  onChange={(e) => setBulkNotes(e.target.value)}
+                  rows={2}
+                  placeholder={t("contributions.notesOptional")}
+                />
+              </div>
+
+              {/* Member Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>{t("contributions.selectMembers")}</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {t("contributions.selectedCount", { count: bulkSelected.size })}
+                  </span>
+                </div>
+                <Input
+                  placeholder={t("contributions.searchMembers")}
+                  value={bulkSearch}
+                  onChange={(e) => setBulkSearch(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                <div className="max-h-48 overflow-y-auto rounded-md border">
+                  {/* Select All */}
+                  <button
+                    type="button"
+                    onClick={toggleAllBulk}
+                    className="flex w-full items-center gap-2.5 border-b bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/50"
+                  >
+                    {bulkSelected.size === bulkFilteredMembers.length && bulkFilteredMembers.length > 0 ? (
+                      <CheckSquare className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <Square className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    {t("contributions.selectAll")}
+                  </button>
+                  {bulkFilteredMembers.map((m) => (
+                    <button
+                      key={m.membershipId}
+                      type="button"
+                      onClick={() => toggleBulkMember(m.membershipId)}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                    >
+                      {bulkSelected.has(m.membershipId) ? (
+                        <CheckSquare className="h-4 w-4 shrink-0 text-emerald-600" />
+                      ) : (
+                        <Square className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <Avatar className="h-6 w-6 shrink-0">
+                        <AvatarFallback className="text-[10px]">{m.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{m.name}</span>
+                    </button>
+                  ))}
+                  {bulkFilteredMembers.length === 0 && (
+                    <p className="px-3 py-4 text-center text-sm text-muted-foreground">
+                      {t("contributions.noMembersFound")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {bulkSuccess === null && (
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={bulkSubmitting}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                onClick={handleBulkSave}
+                disabled={bulkSubmitting || !bulkTypeId || !bulkAmount || bulkSelected.size === 0}
+              >
+                {bulkSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
+                {bulkSubmitting
+                  ? t("contributions.bulkRecording")
+                  : t("contributions.recordForSelected", { count: bulkSelected.size })}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div></RequirePermission>
   );
 }

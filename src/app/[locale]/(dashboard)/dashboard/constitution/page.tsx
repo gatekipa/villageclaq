@@ -553,8 +553,8 @@ export default function ConstitutionPage() {
                       </div>
                       {isAdmin && amend.status === "proposed" && (
                         <div className="flex gap-1.5">
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-600" onClick={() => handleAmendmentAction(amend.id as string, "approved")}>{t("approve")}</Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleAmendmentAction(amend.id as string, "rejected")}>{t("reject")}</Button>
+                          <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => handleAmendmentAction(amend.id as string, "approved")}>{t("approve")}</Button>
+                          <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleAmendmentAction(amend.id as string, "rejected")}>{t("reject")}</Button>
                         </div>
                       )}
                       {isAdmin && amend.status === "approved" && constitution && (
@@ -576,7 +576,7 @@ export default function ConstitutionPage() {
             <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("version", { number: currentVersion })}</p><Progress value={ackRate} className="h-2 mt-2" /></CardContent></Card>
           </div>
           {isAdmin && memberCount - ackCount > 0 && (
-            <Button variant="outline" size="sm" onClick={handleSendReminder} disabled={sendingReminder}>
+            <Button variant="default" size="sm" onClick={handleSendReminder} disabled={sendingReminder}>
               {sendingReminder ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-2 h-3.5 w-3.5" />}{t("sendReminder")}
             </Button>
           )}

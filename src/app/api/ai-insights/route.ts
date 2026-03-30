@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     const langInstruction = locale === "fr"
-      ? "Respond entirely in French."
+      ? "IMPORTANT: Respond entirely in French. All headings, analysis, bullet points, recommendations, and action items MUST be written in French. Do not use any English words or phrases."
       : "Respond entirely in English.";
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {

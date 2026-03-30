@@ -593,7 +593,7 @@ export default function ReportDetailPage() {
       rows,
       fileName: `${filename}_${new Date().toISOString().slice(0, 10)}`,
       groupName: currentGroup?.name || "",
-      locale: currentGroup?.locale || "en",
+      locale,
       aiInsights: aiInsights || undefined,
       aiSectionTitle: locale === "fr" ? "Analyses financières IA" : "AI Financial Insights",
     });
@@ -709,7 +709,7 @@ export default function ReportDetailPage() {
             totalExpected,
             collectionRate,
           },
-          locale: currentGroup?.locale || locale,
+          locale,
         }),
       });
       if (res.status === 503 || res.status === 429) {
@@ -729,7 +729,7 @@ export default function ReportDetailPage() {
     } finally {
       setAiLoading(false);
     }
-  }, [aiLoading, aiUnavailable, reportKey, members?.length, payments?.length, obligations?.length, currency, totalCollected, totalExpected, collectionRate, currentGroup?.locale, locale]);
+  }, [aiLoading, aiUnavailable, reportKey, members?.length, payments?.length, obligations?.length, currency, totalCollected, totalExpected, collectionRate, locale]);
 
   // Auto-fetch AI insights on first load (lazy — after data loads)
   useEffect(() => {

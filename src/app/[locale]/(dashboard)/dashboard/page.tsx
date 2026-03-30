@@ -41,6 +41,7 @@ import {
 } from "@/lib/hooks/use-supabase-query";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { getMemberName } from "@/lib/get-member-name";
 
 export default function DashboardPage() {
   const locale = useLocale();
@@ -431,15 +432,15 @@ export default function DashboardPage() {
           {payments && payments.length > 0 ? (
             <div className="space-y-4">
               {payments.map((payment: Record<string, unknown>) => {
-                const membership = payment.membership as Record<string, unknown> | null;
-                const profiles = membership?.profiles as Record<string, unknown> | null;
-                const fullName = (profiles?.full_name as string) || "—";
+                const fullName = getMemberName(payment);
                 const contribType = payment.contribution_type as Record<string, unknown> | null;
-                const typeName = (contribType?.name as string) || "";
+                const typeName = (locale === "fr" && contribType?.name_fr ? contribType.name_fr as string : contribType?.name as string) || "";
                 const initials = fullName
                   .split(" ")
+                  .filter((n: string) => n.length > 0)
                   .map((n: string) => n[0])
-                  .join("");
+                  .join("")
+                  .substring(0, 2);
 
                 return (
                   <div key={payment.id as string} className="flex items-center gap-3">

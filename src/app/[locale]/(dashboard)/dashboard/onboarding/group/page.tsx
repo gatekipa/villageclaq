@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -121,6 +121,7 @@ const SAVINGS_SUGGESTIONS = [
 export default function GroupOnboardingPage() {
   const t = useTranslations("onboarding");
   const tCountries = useTranslations("countries");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const { refresh, user } = useGroup();
@@ -543,6 +544,32 @@ export default function GroupOnboardingPage() {
           token: crypto.randomUUID(),
         }))
       );
+
+      // Send invitation emails for email-based invites (fire-and-forget)
+      const emailInvites = validInvites.filter((inv) => inv.value.includes("@"));
+      if (emailInvites.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
+          const groupName = name;
+          const acceptUrl = `https://villageclaq.com/${locale}/login?next=/dashboard/my-invitations`;
+          for (const inv of emailInvites) {
+            fetch("/api/email/send", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                to: inv.value.trim(),
+                template: "invitation",
+                data: { groupName, inviterName, acceptUrl },
+                locale,
+              }),
+            }).catch(() => {}); // Non-fatal
+          }
+        }
+      }
     }
 
     // Success — refresh context and navigate to dashboard

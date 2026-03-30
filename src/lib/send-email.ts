@@ -4,13 +4,15 @@ import { paymentReceiptEmail, paymentReceiptSubject } from "./email-templates/pa
 import { paymentReminderEmail, paymentReminderSubject } from "./email-templates/payment-reminder";
 import { eventReminderEmail, eventReminderSubject } from "./email-templates/event-reminder";
 import { minutesPublishedEmail, minutesPublishedSubject } from "./email-templates/minutes-published";
+import { invitationEmail, invitationSubject } from "./email-templates/invitation";
 
 export type EmailTemplate =
   | "welcome"
   | "payment-receipt"
   | "payment-reminder"
   | "event-reminder"
-  | "minutes-published";
+  | "minutes-published"
+  | "invitation";
 
 interface SendEmailParams {
   to: string;
@@ -61,6 +63,11 @@ export async function sendEmail({
       case "minutes-published":
         html = minutesPublishedEmail(data as unknown as Parameters<typeof minutesPublishedEmail>[0], locale);
         subject = minutesPublishedSubject((data.meetingTitle as string) || "", locale);
+        break;
+
+      case "invitation":
+        html = invitationEmail(data as unknown as Parameters<typeof invitationEmail>[0], locale);
+        subject = invitationSubject((data.groupName as string) || "", locale);
         break;
 
       default:

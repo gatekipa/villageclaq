@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ const statusStyles: Record<string, string> = {
 
 export default function InvitationsPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const { groupId, user, isAdmin, currentGroup, loading: groupLoading } = useGroup();
   const queryClient = useQueryClient();
 
@@ -85,6 +86,7 @@ export default function InvitationsPage() {
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   function copyCode(text: string) {
     navigator.clipboard.writeText(text);
@@ -129,6 +131,36 @@ export default function InvitationsPage() {
     setRegenerating(false);
   }
 
+  /** Fire-and-forget invitation email via the /api/email/send route */
+  async function sendInvitationEmail(recipientEmail: string) {
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const inviterName = user?.full_name || user?.display_name || "";
+      const groupName = currentGroup?.name || "";
+      const groupType = (currentGroup as Record<string, unknown>)?.group_type as string | undefined;
+      const acceptUrl = `https://villageclaq.com/${locale}/login?next=/dashboard/my-invitations`;
+
+      await fetch("/api/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          to: recipientEmail,
+          template: "invitation",
+          data: { groupName, groupType, inviterName, acceptUrl },
+          locale,
+        }),
+      });
+    } catch {
+      // Email failure is non-fatal — invitation row already exists
+    }
+  }
+
   const handleSendInvitation = async () => {
     if (!email || !groupId || !user) return;
     setSending(true);
@@ -144,12 +176,20 @@ export default function InvitationsPage() {
     });
 
     if (!error) {
+      // Send the invitation email (fire-and-forget)
+      sendInvitationEmail(email.trim());
       setSendSuccess(true);
       setEmail("");
       setTimeout(() => setSendSuccess(false), 3000);
       queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
     }
     setSending(false);
+  };
+
+  const handleResendInvitation = async (inviteEmail: string, inviteId: string) => {
+    setResendingId(inviteId);
+    await sendInvitationEmail(inviteEmail);
+    setResendingId(null);
   };
 
   const handleRevoke = async (invitationId: string) => {
@@ -393,6 +433,25 @@ export default function InvitationsPage() {
                             <MoreVertical className="h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {!!(invite.email) && (
+                              <DropdownMenuItem
+                                className="flex items-center gap-2"
+                                disabled={resendingId === (invite.id as string)}
+                                onClick={() =>
+                                  handleResendInvitation(
+                                    invite.email as string,
+                                    invite.id as string
+                                  )
+                                }
+                              >
+                                {resendingId === (invite.id as string) ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCw className="h-3.5 w-3.5" />
+                                )}
+                                {t("invitations.resendInvite")}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               className="flex items-center gap-2 text-destructive"
                               onClick={() =>

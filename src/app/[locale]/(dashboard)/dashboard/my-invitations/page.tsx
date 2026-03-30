@@ -67,12 +67,12 @@ export default function MyInvitationsPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser?.email) return [];
 
-      // RLS handles scoping — user sees invitations where their email matches
-      // or where they sent the invitation
+      // Match by email OR user_id — covers both new invitations (email only)
+      // and accepted invitations (user_id stamped on acceptance)
       const { data, error } = await supabase
         .from("invitations")
         .select("*, group:groups!inner(id, name), claim_membership:memberships!invitations_claim_membership_id_fkey(id, display_name, role)")
-        .or(`email.eq.${authUser.email}`)
+        .or(`email.eq.${authUser.email},user_id.eq.${authUser.id}`)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -158,10 +158,14 @@ export default function MyInvitationsPage() {
         }
       }
 
-      // Mark invitation as accepted
+      // Mark invitation as accepted and stamp user_id for future lookups
       const { error } = await supabase
         .from("invitations")
-        .update({ status: "accepted", accepted_at: new Date().toISOString() })
+        .update({
+          status: "accepted",
+          accepted_at: new Date().toISOString(),
+          user_id: authUser.id,
+        })
         .eq("id", invitationId);
       if (error) throw error;
 
@@ -223,9 +227,10 @@ export default function MyInvitationsPage() {
     setShowSuccess(null);
     try {
       const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from("invitations")
-        .update({ status: "declined" })
+        .update({ status: "declined", user_id: authUser?.id ?? null })
         .eq("id", invitationId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });

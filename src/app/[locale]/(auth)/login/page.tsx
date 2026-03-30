@@ -30,6 +30,14 @@ function PhoneIcon() {
   );
 }
 
+/**
+ * Validate redirect path — must be relative and start with "/" to prevent open-redirect.
+ */
+function safeRedirect(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 export default function LoginPage() {
   const t = useTranslations();
   const router = useRouter();
@@ -37,7 +45,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const redirectTo = searchParams.get("redirectTo");
+  const redirectTo = safeRedirect(searchParams.get("redirectTo"));
 
   // Reset OAuth loading state when page becomes visible (user navigated back)
   useEffect(() => {
@@ -58,7 +66,7 @@ export default function LoginPage() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo ?? "/dashboard")}`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
         },
       });
       if (oauthError) {
@@ -96,7 +104,7 @@ export default function LoginPage() {
         }
         return;
       }
-      router.push(redirectTo ?? "/dashboard");
+      router.push(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("common.error"));
     } finally {

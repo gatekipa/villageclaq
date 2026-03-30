@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 
@@ -77,6 +78,7 @@ const GroupContext = createContext<GroupContextValue>({
 const STORAGE_KEY = "villageclaq_current_group";
 
 export function GroupProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [memberships, setMemberships] = useState<GroupMembership[]>([]);
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
@@ -169,6 +171,23 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, [fetchData]);
 
+  // Listen for auth state changes (logout, token refresh, session expiry)
+  useEffect(() => {
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        setMemberships([]);
+        setCurrentGroupId(null);
+        setIsPlatformStaff(false);
+        setPlatformRole(null);
+      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        fetchData();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [fetchData]);
+
   // Persist current group selection
   useEffect(() => {
     if (currentGroupId && typeof window !== "undefined") {
@@ -177,8 +196,15 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   }, [currentGroupId]);
 
   const switchGroup = useCallback((groupId: string) => {
-    setCurrentGroupId(groupId);
-  }, []);
+    setCurrentGroupId((prev) => {
+      if (prev && prev !== groupId) {
+        // Clear all cached query data so stale data from the previous group
+        // is never shown while new group data loads.
+        queryClient.removeQueries();
+      }
+      return groupId;
+    });
+  }, [queryClient]);
 
   const refresh = useCallback(async () => {
     setLoading(true);

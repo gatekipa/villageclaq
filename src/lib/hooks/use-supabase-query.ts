@@ -483,8 +483,8 @@ export function useReliefClaims() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("relief_claims")
-        .select("*, relief_plan:relief_plans(id, name, name_fr), membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
-        .eq("relief_plans.group_id", groupId)
+        .select("*, relief_plan:relief_plans!inner(id, name, name_fr, group_id), membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .eq("relief_plan.group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];

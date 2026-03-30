@@ -3227,7 +3227,15 @@
     "allPaidInFull": "Tous les membres ont payé",
     "cycleCompleted": "Cycle terminé",
     "paidOut": "Versé",
-    "completeConfirm": "Terminer ce cycle d'épargne ? Cette action est irréversible."
+    "completeConfirm": "Terminer ce cycle d'épargne ? Cette action est irréversible.",
+    "fieldRequired": "{field} est requis",
+    "fieldPositive": "{field} doit être supérieur à 0",
+    "alreadyEnrolled": "Inscrit",
+    "membersSelected": "{count} sélectionné(s)",
+    "reason": "Motif",
+    "lateContribution": "Retard de cotisation",
+    "absence": "Absence",
+    "defaultPenaltyType": "Pénalité de défaut"
   },
   "elections": {
     "title": "Élections et votes",

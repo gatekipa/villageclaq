@@ -3227,7 +3227,15 @@
     "allPaidInFull": "All members paid in full",
     "cycleCompleted": "Cycle completed",
     "paidOut": "Paid Out",
-    "completeConfirm": "Complete this savings cycle? This action cannot be undone."
+    "completeConfirm": "Complete this savings cycle? This action cannot be undone.",
+    "fieldRequired": "{field} is required",
+    "fieldPositive": "{field} must be greater than 0",
+    "alreadyEnrolled": "Enrolled",
+    "membersSelected": "{count} selected",
+    "reason": "Reason",
+    "lateContribution": "Late Contribution",
+    "absence": "Absence",
+    "defaultPenaltyType": "Default Penalty"
   },
   "elections": {
     "title": "Elections & Voting",

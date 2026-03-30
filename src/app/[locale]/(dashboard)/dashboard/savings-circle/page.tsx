@@ -2,7 +2,7 @@
 import { formatAmount } from "@/lib/currencies";
 
 import { useState, useEffect, Fragment } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,6 +86,7 @@ function RoundManagement({
   setRoundContribs,
   queryClient,
   groupId,
+  locale,
   t,
   tc,
 }: {
@@ -103,6 +104,7 @@ function RoundManagement({
   setRoundContribs: (v: Record<string, unknown>[]) => void;
   queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>;
   groupId: string | null;
+  locale: string;
   t: ReturnType<typeof import("next-intl").useTranslations>;
   tc: ReturnType<typeof import("next-intl").useTranslations>;
 }) {
@@ -336,7 +338,7 @@ function RoundManagement({
             {participants.map((p) => {
               const membership = p.membership as Record<string, unknown> | undefined;
               const membershipId = (p.membership_id as string) || (membership?.id as string) || "";
-              const fullName = membership ? getMemberName(membership) : "Member";
+              const fullName = membership ? getMemberName(membership) : "—";
               const profile = membership
                 ? (Array.isArray(membership.profiles)
                     ? membership.profiles[0]
@@ -436,7 +438,7 @@ function RoundManagement({
                   <div key={i} className="flex items-center justify-between px-3 py-2 text-xs">
                     <span>R{ch.collection_round as number}</span>
                     <span className="font-medium">{getMemberName(ch.membership as Record<string, unknown>)}</span>
-                    <span className="text-muted-foreground">{ch.collected_at ? new Date(ch.collected_at as string).toLocaleDateString() : "—"}</span>
+                    <span className="text-muted-foreground">{ch.collected_at ? new Date(ch.collected_at as string).toLocaleDateString(locale) : "—"}</span>
                     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("collected")}</Badge>
                   </div>
                 ))}
@@ -473,10 +475,10 @@ function RoundManagement({
                     return (
                       <div key={fine.id as string} className="flex items-center justify-between px-3 py-2 text-xs">
                         <span className="font-medium">{mm ? getMemberName(mm) : "—"}</span>
-                        <span className="text-muted-foreground capitalize">{String(fine.type).replace(/_/g, " ")}</span>
+                        <span className="text-muted-foreground capitalize">{(fine.type as string) === "late_contribution" ? t("lateContribution") : (fine.type as string) === "absence" ? t("absence") : (fine.type as string) === "default" ? t("defaultPenaltyType") : String(fine.type).replace(/_/g, " ")}</span>
                         <span>{formatAmount(Number(fine.amount), currency)}</span>
                         {(fine.status as string) === "paid" ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("markPaid")}</Badge>
+                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("statusPaid")}</Badge>
                         ) : (
                           <Button variant="ghost" size="sm" className="h-5 text-[10px] text-emerald-600" onClick={() => handleMarkFinePaid(fine.id as string)} disabled={markingFinePaid === (fine.id as string)}>
                             {t("markPaid")}
@@ -568,13 +570,13 @@ function RoundManagement({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label>{t("payoutMethod") || t("paymentMethod")}</Label>
+                  <Label>{t("paymentMethod")}</Label>
                   <Select value={collectionMethod} onValueChange={(v) => setCollectionMethod(v ?? "cash")}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cash">{tc("cash")}</SelectItem>
-                      <SelectItem value="mobile_money">{tc("mobileMoney")}</SelectItem>
-                      <SelectItem value="bank_transfer">{tc("bankTransfer")}</SelectItem>
+                      <SelectItem value="cash">{t("cash")}</SelectItem>
+                      <SelectItem value="mobile_money">{t("mobileMoney")}</SelectItem>
+                      <SelectItem value="bank_transfer">{t("bankTransfer")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -631,6 +633,7 @@ const rotationIcons: Record<RotationType, typeof Repeat> = {
 export default function SavingsCirclePage() {
   const t = useTranslations("savingsCircle");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const { currentGroup, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("savings.manage");
@@ -693,10 +696,10 @@ export default function SavingsCirclePage() {
 
   const handleCreateCycle = async () => {
     const errors: Record<string, string> = {};
-    if (!cycleName.trim()) errors.name = t("cycleName") + " required";
-    if (!amount || Number(amount) <= 0) errors.amount = t("amount") + " > 0";
-    if (!totalRounds || Number(totalRounds) <= 0) errors.rounds = t("totalRounds") + " > 0";
-    if (!startDate) errors.date = t("startDate") + " required";
+    if (!cycleName.trim()) errors.name = t("fieldRequired", { field: t("cycleName") });
+    if (!amount || Number(amount) <= 0) errors.amount = t("fieldPositive", { field: t("amount") });
+    if (!totalRounds || Number(totalRounds) <= 0) errors.rounds = t("fieldPositive", { field: t("totalRounds") });
+    if (!startDate) errors.date = t("fieldRequired", { field: t("startDate") });
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setCreateError("");
@@ -1105,7 +1108,7 @@ export default function SavingsCirclePage() {
                       </div>
                       <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 p-2.5">
                         <p className="text-xs text-muted-foreground">{t("nextCollection")}</p>
-                        <p className="text-sm font-semibold">{nextDate.toLocaleDateString()}</p>
+                        <p className="text-sm font-semibold">{nextDate.toLocaleDateString(locale)}</p>
                       </div>
                     </div>
                   );
@@ -1153,7 +1156,7 @@ export default function SavingsCirclePage() {
                           {participants.map((p: Record<string, unknown>, idx: number) => {
                             const pid = p.id as string;
                             const membership = p.membership as Record<string, unknown> | undefined;
-                            const fullName = membership ? getMemberName(membership) : "Member";
+                            const fullName = membership ? getMemberName(membership) : "—";
                             const collectionRound = (p.collection_round as number) || 0;
                             const hasCollected = p.has_collected as boolean;
                             const membershipId = (p.membership_id as string) || (membership?.id as string) || "";
@@ -1252,6 +1255,7 @@ export default function SavingsCirclePage() {
                           participants={participants}
                           currency={currency}
                           amt={amt}
+                          locale={locale}
                           t={t}
                           tc={tc}
                         />
@@ -1302,10 +1306,10 @@ export default function SavingsCirclePage() {
                                 return (
                                   <div key={fine.id as string} className="flex items-center justify-between px-3 py-2 text-xs">
                                     <span className="font-medium">{mm ? getMemberName(mm) : "—"}</span>
-                                    <span className="text-muted-foreground capitalize">{String(fine.type).replace(/_/g, " ")}</span>
+                                    <span className="text-muted-foreground capitalize">{(fine.type as string) === "late_contribution" ? t("lateContribution") : (fine.type as string) === "absence" ? t("absence") : (fine.type as string) === "default" ? t("defaultPenaltyType") : String(fine.type).replace(/_/g, " ")}</span>
                                     <span>{formatAmount(Number(fine.amount), currency)}</span>
                                     <Badge className={`text-[10px] ${(fine.status as string) === "paid" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
-                                      {(fine.status as string) === "paid" ? t("markPaid") : t("unpaid")}
+                                      {(fine.status as string) === "paid" ? t("statusPaid") : t("unpaid")}
                                     </Badge>
                                   </div>
                                 );
@@ -1357,12 +1361,12 @@ export default function SavingsCirclePage() {
                                 <div key={issue.id as string} className={`rounded-lg border p-3 text-xs ${isResolved ? "opacity-60" : ""}`}>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Badge className={`text-[10px] ${sevColors[issue.severity as string] || sevColors.low}`}>{t((issue.severity as string) || "low")}</Badge>
-                                    <span className="font-medium capitalize">{String(issue.type).replace(/_/g, " ")}</span>
+                                    <span className="font-medium capitalize">{(issue.type as string) === "payment_delay" ? t("paymentDelay") : (issue.type as string) === "collection_dispute" ? t("collectionDispute") : (issue.type as string) === "member_default" ? t("memberDefault") : (issue.type as string) === "late_payment" ? t("latePayment") : String(issue.type).replace(/_/g, " ")}</span>
                                     {mm && <span className="text-muted-foreground">— {getMemberName(mm)}</span>}
                                     {isResolved && <Badge variant="secondary" className="text-[10px]">{t("resolved")}</Badge>}
                                   </div>
                                   <p className={`mt-1 text-muted-foreground ${isResolved ? "line-through" : ""}`}>{String(issue.description)}</p>
-                                  <p className="mt-1 text-muted-foreground">{new Date(issue.date as string).toLocaleDateString()}</p>
+                                  <p className="mt-1 text-muted-foreground">{new Date(issue.date as string).toLocaleDateString(locale)}</p>
                                 </div>
                               );
                             })}
@@ -1390,6 +1394,7 @@ export default function SavingsCirclePage() {
                     setRoundContribs={setRoundContribs}
                     queryClient={queryClient}
                     groupId={groupId}
+                    locale={locale}
                     t={t}
                     tc={tc}
                   />
@@ -1535,7 +1540,7 @@ export default function SavingsCirclePage() {
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("addParticipant")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">{addPartSelected.length} {t("participants")} selected</p>
+            <p className="text-sm text-muted-foreground">{t("membersSelected", { count: addPartSelected.length })}</p>
             <div className="max-h-60 overflow-y-auto rounded-lg border divide-y">
               {activeMembers.map((m: Record<string, unknown>) => {
                 const mid = m.id as string;
@@ -1550,7 +1555,7 @@ export default function SavingsCirclePage() {
                     className={`flex w-full items-center gap-2 p-2.5 text-left text-xs transition-colors ${alreadyEnrolled ? "opacity-50 cursor-not-allowed" : sel ? "bg-primary/5" : "hover:bg-muted/50"}`}>
                     {alreadyEnrolled ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> : sel ? <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" /> : <div className="h-3.5 w-3.5 rounded-full border shrink-0" />}
                     <span>{getMemberName(m)}</span>
-                    {alreadyEnrolled && <span className="ml-auto text-[10px] text-muted-foreground">enrolled</span>}
+                    {alreadyEnrolled && <span className="ml-auto text-[10px] text-muted-foreground">{t("alreadyEnrolled")}</span>}
                   </button>
                 );
               })}
@@ -1793,6 +1798,7 @@ function RoundBreakdownTable({
   participants,
   currency,
   amt,
+  locale,
   t,
   tc,
 }: {
@@ -1804,6 +1810,7 @@ function RoundBreakdownTable({
   participants: Record<string, unknown>[];
   currency: string;
   amt: number;
+  locale: string;
   t: ReturnType<typeof import("next-intl").useTranslations>;
   tc: ReturnType<typeof import("next-intl").useTranslations>;
 }) {
@@ -1873,7 +1880,7 @@ function RoundBreakdownTable({
                       )}
                     </TableCell>
                     <TableCell className="text-xs">R{rnd}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{dueDate.toLocaleDateString()}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{dueDate.toLocaleDateString(locale)}</TableCell>
                     <TableCell className="text-xs text-center">{cName}</TableCell>
                     <TableCell className="text-center">
                       {isCurrent ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">{t("inProgress")}</Badge>
@@ -1885,7 +1892,7 @@ function RoundBreakdownTable({
                     <TableRow>
                       <TableCell colSpan={5} className="bg-muted/30 p-3">
                         {loadingRound ? (
-                          <div className="flex items-center gap-2 py-2"><Loader2 className="h-3 w-3 animate-spin" /><span className="text-xs text-muted-foreground">Loading...</span></div>
+                          <div className="flex items-center gap-2 py-2"><Loader2 className="h-3 w-3 animate-spin" /><span className="text-xs text-muted-foreground">{tc("loading")}</span></div>
                         ) : (
                           <div className="space-y-3">
                             {/* Payments */}
@@ -1938,7 +1945,7 @@ function RoundBreakdownTable({
                                     <Badge variant="secondary" className="text-[9px]">{t("statusPending")}</Badge>
                                   )}
                                   {(collector.collected_at as string) && (
-                                    <span className="text-[10px] text-muted-foreground">{new Date(collector.collected_at as string).toLocaleDateString()}</span>
+                                    <span className="text-[10px] text-muted-foreground">{new Date(collector.collected_at as string).toLocaleDateString(locale)}</span>
                                   )}
                                 </div>
                               ) : <p className="text-[10px] text-muted-foreground">—</p>}

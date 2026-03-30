@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
@@ -37,6 +37,17 @@ export default function SignupPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
+
+  // Reset OAuth loading state when page becomes visible (user navigated back)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setIsGoogleLoading(false);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
   const [emailConfirmation, setEmailConfirmation] = useState(false);
@@ -57,7 +68,10 @@ export default function SignupPage() {
       if (oauthError) {
         setError(t("auth.signupFailed"));
         setIsGoogleLoading(false);
+        return;
       }
+      // Auto-reset after 10s in case redirect stalls
+      setTimeout(() => setIsGoogleLoading(false), 10000);
     } catch {
       setError(t("auth.signupFailed"));
       setIsGoogleLoading(false);

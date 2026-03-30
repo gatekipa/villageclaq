@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
 import { useSearchParams } from "next/navigation";
@@ -39,6 +39,17 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const redirectTo = searchParams.get("redirectTo");
 
+  // Reset OAuth loading state when page becomes visible (user navigated back)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setIsGoogleLoading(false);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
   async function handleGoogleLogin() {
     setError(null);
     setIsGoogleLoading(true);
@@ -53,8 +64,10 @@ export default function LoginPage() {
       if (oauthError) {
         setError(t("auth.loginFailed"));
         setIsGoogleLoading(false);
+        return;
       }
-      // If successful, browser will redirect — no need to reset loading
+      // Auto-reset after 10s in case redirect stalls
+      setTimeout(() => setIsGoogleLoading(false), 10000);
     } catch {
       setError(t("auth.loginFailed"));
       setIsGoogleLoading(false);

@@ -231,7 +231,7 @@ export default function ReliefEnrollmentPage() {
                 const plan = enrollment.plan as Record<string, unknown>;
                 const membership = enrollment.membership as Record<string, unknown>;
                 const profile = (membership?.profiles as Record<string, unknown>) || {};
-                const memberName = (membership?.display_name as string) || (profile.full_name as string) || "Unknown";
+                const memberName = (membership?.display_name as string) || (profile.full_name as string) || t("common.unknown");
                 const planName = (plan?.name as string) || "";
                 const enrolledAt = (enrollment.enrolled_at as string) || "";
                 const isActive = enrollment.is_active as boolean;

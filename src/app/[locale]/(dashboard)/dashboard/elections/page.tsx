@@ -904,7 +904,7 @@ export default function ElectionsPage() {
                                         name = candidate ? getCandidateName(candidate) : "—";
                                       } else if (result.option_id) {
                                         const option = election.election_options.find((o) => o.id === result.option_id);
-                                        name = option?.label || "Unknown";
+                                        name = option?.label || t("common.unknown");
                                       }
 
                                       return (

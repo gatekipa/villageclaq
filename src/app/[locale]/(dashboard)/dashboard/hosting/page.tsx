@@ -1274,7 +1274,7 @@ function HostingHistoryTab({ allAssignments, members, t }: {
 
     // Init all members
     for (const m of members) {
-      const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || "Unknown";
+      const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || t("common.unknown");
       statsMap.set(m.id, { name, total: 0, completed: 0, missed: 0, lastHosted: null, dates: [] });
     }
 
@@ -1435,7 +1435,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
     return members
       .filter((m) => !exemptedMemberIds.has(m.id))
       .map((m) => {
-        const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || "Unknown";
+        const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || t("common.unknown");
         const completed = allAssignments.filter((a) => a.membership_id === m.id && a.status === "completed");
         const lastHosted = completed.length > 0
           ? completed.sort((a, b) => b.assigned_date.localeCompare(a.assigned_date))[0].assigned_date

@@ -160,7 +160,7 @@ export default function FinancesPage() {
       const ct = obl.contribution_type as { id: string; name: string } | null;
       const typeId = ct?.id || "unknown";
       if (!typeMap.has(typeId)) {
-        typeMap.set(typeId, { name: ct?.name || "Unknown", collected: 0, target: 0 });
+        typeMap.set(typeId, { name: ct?.name || t("common.unknown"), collected: 0, target: 0 });
       }
       const entry = typeMap.get(typeId)!;
       entry.target += Number(obl.amount);
@@ -275,7 +275,7 @@ export default function FinancesPage() {
 
   if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><DashboardSkeleton /></RequirePermission>;
 
-  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message="Failed to load financial data." onRetry={() => oblRefetch()} /></RequirePermission>;
+  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => oblRefetch()} /></RequirePermission>;
 
   return (
     <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">

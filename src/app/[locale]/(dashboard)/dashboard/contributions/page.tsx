@@ -59,12 +59,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount, CURRENCIES } from "@/lib/currencies";
 
 
-const frequencyLabels: Record<string, string> = {
-  one_time: "One-time",
-  monthly: "Monthly",
-  quarterly: "Quarterly",
-  annual: "Annual",
-};
+// Frequency labels resolved via t() inside the component
 
 export default function ContributionsPage() {
   const t = useTranslations();
@@ -303,7 +298,7 @@ export default function ContributionsPage() {
                     <Label htmlFor="name">{t("contributions.nameEn")}</Label>
                     <Input
                       id="name"
-                      placeholder="e.g. Annual Dues"
+                      placeholder={t("contributions.nameEnPlaceholder")}
                       required
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
@@ -313,7 +308,7 @@ export default function ContributionsPage() {
                     <Label htmlFor="nameFr">{t("contributions.nameFr")}</Label>
                     <Input
                       id="nameFr"
-                      placeholder="ex. Cotisation annuelle"
+                      placeholder={t("contributions.nameFrPlaceholder")}
                       value={formNameFr}
                       onChange={(e) => setFormNameFr(e.target.value)}
                     />
@@ -396,13 +391,13 @@ export default function ContributionsPage() {
                 </div>
                 {createMutation.isError && (
                   <p className="text-sm text-destructive">
-                    {(createMutation.error as Error)?.message || "Failed to create contribution type."}
+                    {(createMutation.error as Error)?.message || t("contributions.createFailed")}
                   </p>
                 )}
                 <DialogFooter>
                   <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
                   <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "..." : t("common.create")}
+                    {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.create")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -499,7 +494,7 @@ export default function ContributionsPage() {
                   <div className="rounded-lg bg-muted/50 p-2.5">
                     <p className="text-xs text-muted-foreground">{t("contributions.frequency")}</p>
                     <p className="text-sm font-semibold">
-                      {frequencyLabels[type.frequency] || type.frequency}
+                      {t(`contributions.freq_${type.frequency}`)}
                     </p>
                   </div>
                 </div>

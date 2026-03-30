@@ -179,7 +179,7 @@ export default function UnpaidReportPage() {
 
   if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ListSkeleton rows={6} /></RequirePermission>;
 
-  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message="Failed to load unpaid obligations." onRetry={() => refetch()} /></RequirePermission>;
+  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => refetch()} /></RequirePermission>;
 
   return (
     <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">

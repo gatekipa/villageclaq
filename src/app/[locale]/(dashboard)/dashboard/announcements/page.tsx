@@ -397,7 +397,7 @@ export default function AnnouncementsPage() {
                   id="title-en"
                   value={titleEn}
                   onChange={(e) => setTitleEn(e.target.value)}
-                  placeholder="Enter announcement title..."
+                  placeholder={t("titlePlaceholderEn")}
                 />
               </div>
 
@@ -408,7 +408,7 @@ export default function AnnouncementsPage() {
                   id="title-fr"
                   value={titleFr}
                   onChange={(e) => setTitleFr(e.target.value)}
-                  placeholder="Entrez le titre de l'annonce..."
+                  placeholder={t("titlePlaceholderFr")}
                 />
               </div>
 
@@ -421,7 +421,7 @@ export default function AnnouncementsPage() {
                   id="content-en"
                   value={contentEn}
                   onChange={(e) => setContentEn(e.target.value)}
-                  placeholder="Write your announcement..."
+                  placeholder={t("contentPlaceholderEn")}
                   className="min-h-[120px]"
                 />
               </div>
@@ -433,7 +433,7 @@ export default function AnnouncementsPage() {
                   id="content-fr"
                   value={contentFr}
                   onChange={(e) => setContentFr(e.target.value)}
-                  placeholder="Ecrivez votre annonce..."
+                  placeholder={t("contentPlaceholderFr")}
                   className="min-h-[120px]"
                 />
               </div>
@@ -499,7 +499,7 @@ export default function AnnouncementsPage() {
                             : "border-border bg-background text-muted-foreground hover:bg-muted dark:bg-input/30"
                         }`}
                       >
-                        {role}
+                        {t(`roles.${role.toLowerCase()}`)}
                       </button>
                     ))}
                   </div>

@@ -226,7 +226,7 @@ export default function DuesMatrixPage() {
 
   if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ListSkeleton rows={8} /></RequirePermission>;
 
-  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message="Failed to load matrix data." onRetry={() => refetch()} /></RequirePermission>;
+  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => refetch()} /></RequirePermission>;
 
   return (
     <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">

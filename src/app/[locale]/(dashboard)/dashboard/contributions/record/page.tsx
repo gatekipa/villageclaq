@@ -133,7 +133,7 @@ export default function RecordPaymentPage() {
     const profile = m.profile as { full_name?: string; avatar_url?: string } | undefined;
     return {
       membershipId: m.id as string,
-      name: (m.display_name as string) || profile?.full_name || "Unknown",
+      name: (m.display_name as string) || profile?.full_name || t("common.unknown"),
       avatarUrl: profile?.avatar_url || null,
     };
   });

@@ -435,7 +435,7 @@ export default function NotificationPreferencesPage() {
       <div className="flex justify-end pb-6">
         <Button onClick={() => saveMutation.mutate()} size="lg" disabled={saveMutation.isPending}>
           <Save className="size-4" data-icon="inline-start" />
-          {saveMutation.isPending ? "Saving..." : t("preferencesSaved").split(" ")[0]}
+          {saveMutation.isPending ? t("saving") : t("save")}
         </Button>
       </div>
 

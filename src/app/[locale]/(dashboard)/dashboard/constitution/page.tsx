@@ -670,7 +670,7 @@ export default function ConstitutionPage() {
             {newDocType === "Other" && (
               <div className="space-y-2">
                 <Label>{t("amendmentTitle")}</Label>
-                <Input value={newDocCustomTitle} onChange={(e) => setNewDocCustomTitle(e.target.value)} placeholder="Custom document name..." />
+                <Input value={newDocCustomTitle} onChange={(e) => setNewDocCustomTitle(e.target.value)} placeholder={t("customDocPlaceholder")} />
               </div>
             )}
           </div>

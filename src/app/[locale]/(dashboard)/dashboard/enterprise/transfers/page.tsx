@@ -87,7 +87,7 @@ export default function TransfersPage() {
   const transferList = transfers || [];
   const memberOptions = (membersList || []).map((m: Record<string, unknown>) => {
     const profile = (m.profile || m.profiles) as Record<string, unknown> | undefined;
-    return { id: m.user_id as string, name: (profile?.full_name as string) || (m.display_name as string) || "Unknown" };
+    return { id: m.user_id as string, name: (profile?.full_name as string) || (m.display_name as string) || t("common.unknown") };
   });
   const branchOptions = memberships.map((m) => ({ id: m.group_id, name: m.group.name }));
 
@@ -122,7 +122,7 @@ export default function TransfersPage() {
             const config = statusConfig[status] || statusConfig.requested;
             const StatusIcon = config.icon;
             const member = transfer.member as Record<string, unknown> | null;
-            const memberName = (member?.full_name as string) || "Unknown";
+            const memberName = (member?.full_name as string) || t("common.unknown");
             const sourceGroup = transfer.source_group as Record<string, unknown> | null;
             const destGroup = transfer.dest_group as Record<string, unknown> | null;
             const sourceName = (sourceGroup?.name as string) || "";
@@ -172,7 +172,7 @@ export default function TransfersPage() {
             <DialogHeader><DialogTitle>{t("enterprise.memberTransfer")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="rounded-lg border p-3 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Member</span><span className="font-medium">{((selectedTransfer.member as Record<string, unknown>)?.full_name as string) || "Unknown"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Member</span><span className="font-medium">{((selectedTransfer.member as Record<string, unknown>)?.full_name as string) || t("common.unknown")}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.sourceBranch")}</span><span className="font-medium">{((selectedTransfer.source_group as Record<string, unknown>)?.name as string) || ""}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.destBranch")}</span><span className="font-medium">{((selectedTransfer.dest_group as Record<string, unknown>)?.name as string) || ""}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">{t("enterprise.transferReason")}</span><span className="font-medium">{(selectedTransfer.reason as string) || ""}</span></div>

@@ -303,6 +303,12 @@ export default function RecordPaymentPage() {
         setDupDialogOpen(true);
         return;
       }
+      // Handle concurrent payment conflict — another admin updated this obligation
+      if (err instanceof Error && err.message === "CONCURRENT_PAYMENT_CONFLICT") {
+        recordPayment.reset();
+        // Refetch stale data and let the user retry
+        return;
+      }
       // Other errors displayed via mutation state
     }
   }
@@ -789,7 +795,9 @@ export default function RecordPaymentPage() {
             {/* Error display */}
             {recordPayment.isError && (
               <p className="text-sm text-destructive">
-                {(recordPayment.error as Error)?.message || t("contributions.recordFailed")}
+                {(recordPayment.error as Error)?.message === "CONCURRENT_PAYMENT_CONFLICT"
+                  ? t("contributions.concurrentConflict")
+                  : (recordPayment.error as Error)?.message || t("contributions.recordFailed")}
               </p>
             )}
 

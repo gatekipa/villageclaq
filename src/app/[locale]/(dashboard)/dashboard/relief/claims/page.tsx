@@ -98,6 +98,8 @@ export default function ReliefClaimsPage() {
       });
       if (insertError) throw insertError;
       await queryClient.invalidateQueries({ queryKey: ["relief-claims", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["relief-plans", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
       setShowSubmitDialog(false);
       resetClaimForm();
     } catch (err) {

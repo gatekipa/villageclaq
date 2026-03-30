@@ -289,6 +289,7 @@ export default function AnnouncementsPage() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
       setDialogOpen(false);
       resetForm();
     } catch (err) {

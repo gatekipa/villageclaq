@@ -160,7 +160,7 @@ export default function ContributionsPage() {
         })
         .eq("id", editTypeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
       setShowEditDialog(false);
       resetForm();
       setEditTypeId(null);
@@ -177,7 +177,7 @@ export default function ContributionsPage() {
       .from("contribution_types")
       .update({ is_active: !currentActive })
       .eq("id", typeId);
-    await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+    await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
   }
 
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
@@ -217,8 +217,8 @@ export default function ContributionsPage() {
         }));
         await supabase.from("contribution_obligations").insert(obligations);
       }
-      await queryClient.invalidateQueries({ queryKey: ["obligations"] });
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
     } catch (err) {
       console.error("Enroll error:", err);
     } finally {
@@ -231,7 +231,7 @@ export default function ContributionsPage() {
     try {
       const supabase = createClient();
       await supabase.from("contribution_types").delete().eq("id", typeId);
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
     } finally {
       setDeletingId(null);
       setShowDeleteConfirm(null);

@@ -319,6 +319,8 @@ export default function AttendancePage() {
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["event-attendance", dialogEventId] });
       queryClient.invalidateQueries({ queryKey: ["events", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["all-event-attendances", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
 
       // Invalidate standing cache for all affected members
       for (const r of records) {

@@ -40,6 +40,7 @@ import {
   MessageCircle,
   QrCode,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -85,6 +86,7 @@ export default function InvitationsPage() {
   const [role, setRole] = useState("member");
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
 
@@ -166,11 +168,51 @@ export default function InvitationsPage() {
     if (!email || !groupId || !user) return;
     setSending(true);
     setSendSuccess(false);
+    setSendError(null);
     try {
       const supabase = createClient();
+      const trimmedEmail = email.trim().toLowerCase();
+
+      // Check for existing pending/accepted invitation to prevent duplicates
+      const { data: existing } = await supabase
+        .from("invitations")
+        .select("id, status")
+        .eq("group_id", groupId)
+        .eq("email", trimmedEmail)
+        .in("status", ["pending", "accepted"])
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        setSendError(t("invitations.duplicateInvite"));
+        return;
+      }
+
+      // Also check if email is already a member
+      const { data: existingMember } = await supabase
+        .from("memberships")
+        .select("id, profiles!memberships_user_id_fkey(id)")
+        .eq("group_id", groupId)
+        .limit(100);
+
+      // Check via profiles table for email match
+      const { data: profileMatch } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", trimmedEmail)
+        .maybeSingle();
+
+      if (profileMatch && existingMember?.some((m: Record<string, unknown>) => {
+        const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+        return (profile as Record<string, unknown> | null)?.id === profileMatch.id;
+      })) {
+        setSendError(t("invitations.alreadyMember"));
+        return;
+      }
+
       const { error } = await supabase.from("invitations").insert({
         group_id: groupId,
-        email: email.trim(),
+        email: trimmedEmail,
         role,
         invited_by: user.id,
         status: "pending",
@@ -178,11 +220,13 @@ export default function InvitationsPage() {
 
       if (!error) {
         // Send the invitation email (fire-and-forget)
-        sendInvitationEmail(email.trim());
+        sendInvitationEmail(trimmedEmail);
         setSendSuccess(true);
         setEmail("");
         setTimeout(() => setSendSuccess(false), 3000);
         queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+      } else {
+        setSendError(error.message);
       }
     } finally {
       setSending(false);
@@ -372,6 +416,12 @@ export default function InvitationsPage() {
             <p className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
               <Check className="h-4 w-4" />
               {t("invitations.inviteSent")}
+            </p>
+          )}
+          {sendError && (
+            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+              <AlertCircle className="h-4 w-4" />
+              {sendError}
             </p>
           )}
         </CardContent>

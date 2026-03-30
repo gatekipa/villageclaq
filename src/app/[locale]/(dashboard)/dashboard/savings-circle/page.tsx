@@ -85,6 +85,7 @@ function RoundManagement({
   roundContribs,
   setRoundContribs,
   queryClient,
+  groupId,
   t,
   tc,
 }: {
@@ -101,6 +102,7 @@ function RoundManagement({
   roundContribs: Record<string, unknown>[];
   setRoundContribs: (v: Record<string, unknown>[]) => void;
   queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>;
+  groupId: string | null;
   t: ReturnType<typeof import("next-intl").useTranslations>;
   tc: ReturnType<typeof import("next-intl").useTranslations>;
 }) {
@@ -166,7 +168,7 @@ function RoundManagement({
         },
         { onConflict: "cycle_id,membership_id,round_number" }
       );
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       // Refresh contributions
       const { data } = await createClient()
         .from("savings_contributions")
@@ -204,7 +206,7 @@ function RoundManagement({
         .from("savings_cycles")
         .update({ current_round: currentRound + 1 })
         .eq("id", cycleId);
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
     } finally {
       setAdvancing(false);
     }
@@ -224,7 +226,7 @@ function RoundManagement({
         has_collected: true,
         collected_at: new Date().toISOString(),
       }).eq("cycle_id", cycleId).eq("collection_round", currentRound);
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       setShowCollectionDialog(false);
     } finally { setRecordingCollection(false); }
   };
@@ -236,7 +238,7 @@ function RoundManagement({
       await supabase.from("savings_cycles").update({
         fine_rules: { late_contribution: fineLateFee, absence: fineAbsenceFee, default_penalty: fineDefaultFee },
       }).eq("id", cycleId);
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       setShowFineRulesDialog(false);
     } finally { setSavingFineRules(false); }
   };
@@ -249,7 +251,7 @@ function RoundManagement({
       const newFine = { id: crypto.randomUUID(), membership_id: fineMembershipId, type: fineType, amount: Number(fineAmount), reason: fineReason.trim(), date: new Date().toISOString().slice(0, 10), status: "unpaid" };
       const updated = [...finesLedger, newFine];
       await supabase.from("savings_cycles").update({ fines_ledger: updated }).eq("id", cycleId);
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       setShowRecordFineDialog(false);
       setFineMembershipId(""); setFineAmount(""); setFineReason("");
     } finally { setRecordingFine(false); }
@@ -261,7 +263,7 @@ function RoundManagement({
       const supabase = createClient();
       const updated = finesLedger.map((f) => (f.id as string) === fineId ? { ...f, status: "paid" } : f);
       await supabase.from("savings_cycles").update({ fines_ledger: updated }).eq("id", cycleId);
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
     } finally { setMarkingFinePaid(null); }
   };
 
@@ -629,7 +631,7 @@ const rotationIcons: Record<RotationType, typeof Repeat> = {
 export default function SavingsCirclePage() {
   const t = useTranslations("savingsCircle");
   const tc = useTranslations("common");
-  const { currentGroup } = useGroup();
+  const { currentGroup, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("savings.manage");
   const { data: cycles, isLoading, isError, error, refetch } = useSavingsCycles();
@@ -711,7 +713,7 @@ export default function SavingsCirclePage() {
         rotation_type: rotationType,
       }).eq('id', editCycleId);
       if (error) { setCreateError(error.message); return; }
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       setShowCreate(false);
       setEditCycleId(null);
       resetCreateForm();
@@ -755,7 +757,7 @@ export default function SavingsCirclePage() {
             has_collected: false,
           }));
           await supabase.from("savings_participants").insert(parts);
-          queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+          queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
         }
       }
 
@@ -1334,7 +1336,7 @@ export default function SavingsCirclePage() {
                             {t("issues")} {il.length > 0 && <Badge variant="secondary" className="text-[10px]">{il.length}</Badge>}
                           </CardTitle>
                           {isAdmin && (
-                            <IssueRecordButton cycleId={id} participants={participants} queryClient={queryClient} issuesLog={il} t={t} tc={tc} />
+                            <IssueRecordButton cycleId={id} participants={participants} queryClient={queryClient} groupId={groupId} issuesLog={il} t={t} tc={tc} />
                           )}
                         </div>
                       </CardHeader>
@@ -1387,6 +1389,7 @@ export default function SavingsCirclePage() {
                     roundContribs={roundContribs}
                     setRoundContribs={setRoundContribs}
                     queryClient={queryClient}
+                    groupId={groupId}
                     t={t}
                     tc={tc}
                   />
@@ -1407,7 +1410,7 @@ export default function SavingsCirclePage() {
                           if (!confirm(t("completeConfirm"))) return;
                           const supabase = createClient();
                           await supabase.from("savings_cycles").update({ status: "completed" }).eq("id", id);
-                          queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+                          queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
                         }}
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
@@ -1520,7 +1523,7 @@ export default function SavingsCirclePage() {
               if (!endingCycleId) return;
               const supabase = createClient();
               await supabase.from('savings_cycles').update({ status: 'completed' }).eq('id', endingCycleId);
-              queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+              queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
               setEndingCycleId(null);
             }}>{tc("confirm")}</Button>
           </DialogFooter>
@@ -1570,7 +1573,7 @@ export default function SavingsCirclePage() {
                   has_collected: false,
                 }));
                 await supabase.from("savings_participants").insert(parts);
-                queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+                queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
                 setShowAddParticipants(false);
               } finally { setAddingParts(false); }
             }}>
@@ -1660,7 +1663,7 @@ export default function SavingsCirclePage() {
                   paid_at: new Date().toISOString(),
                   status: newStatus,
                 }, { onConflict: "cycle_id,membership_id,round_number" });
-                queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+                queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
                 setShowMarkPaidDialog(false);
               } finally { setMpSaving(false); }
             }}>
@@ -1676,10 +1679,11 @@ export default function SavingsCirclePage() {
 
 // ─── Issue Record Button ──────────────────────────────────────────────────
 
-function IssueRecordButton({ cycleId, participants, queryClient, issuesLog, t, tc }: {
+function IssueRecordButton({ cycleId, participants, queryClient, groupId, issuesLog, t, tc }: {
   cycleId: string;
   participants: Record<string, unknown>[];
   queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>;
+  groupId: string | null;
   issuesLog: Array<Record<string, unknown>>;
   t: ReturnType<typeof import("next-intl").useTranslations>;
   tc: ReturnType<typeof import("next-intl").useTranslations>;
@@ -1707,7 +1711,7 @@ function IssueRecordButton({ cycleId, participants, queryClient, issuesLog, t, t
       };
       const updated = [...issuesLog, newIssue];
       await supabase.from("savings_cycles").update({ issues_log: updated }).eq("id", cycleId);
-      queryClient.invalidateQueries({ queryKey: ["savings-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       setOpen(false);
       setDescription("");
       setMembershipId("");

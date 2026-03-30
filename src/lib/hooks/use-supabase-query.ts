@@ -117,6 +117,8 @@ export function useCreateContributionType() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
     },
   });
 }
@@ -302,7 +304,9 @@ export function useRecordPayment() {
           if (gap > 0) {
             const newPaid = currentPaid + applied;
             const newStatus = newPaid >= amountDue ? "paid" : "partial";
-            await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", oblId);
+            // CAS: include current amount_paid in WHERE to detect concurrent updates
+            const { data: casData } = await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", oblId).eq("amount_paid", currentPaid).select("id");
+            if (!casData || casData.length === 0) throw new Error("CONCURRENT_PAYMENT_CONFLICT");
             const typeName = ((Array.isArray(obl.contribution_type) ? obl.contribution_type[0] : obl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
             appliedTo.push({ obligationId: oblId, typeName, amountApplied: applied });
             remaining -= applied;
@@ -343,10 +347,12 @@ export function useRecordPayment() {
           const nextNewPaid = nextCurrentPaid + nextApplied;
           const nextStatus = nextNewPaid >= nextDue ? "paid" : "partial";
 
-          await supabase.from("contribution_obligations").update({
+          // CAS: include current amount_paid in WHERE to detect concurrent updates
+          const { data: nextCasData } = await supabase.from("contribution_obligations").update({
             amount_paid: nextNewPaid,
             status: nextStatus,
-          }).eq("id", nextObl.id);
+          }).eq("id", nextObl.id).eq("amount_paid", nextCurrentPaid).select("id");
+          if (!nextCasData || nextCasData.length === 0) throw new Error("CONCURRENT_PAYMENT_CONFLICT");
 
           const nextTypeName = ((Array.isArray(nextObl.contribution_type) ? nextObl.contribution_type[0] : nextObl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
           appliedTo.push({ obligationId: nextObl.id as string, typeName: nextTypeName, amountApplied: nextApplied });
@@ -405,10 +411,12 @@ export function useRecordPayment() {
             if (nextGap <= 0) continue;
 
             const nextApplied = Math.min(remaining, nextGap);
-            await supabase.from("contribution_obligations").update({
+            // CAS: include current amount_paid in WHERE to detect concurrent updates
+            const { data: casData3 } = await supabase.from("contribution_obligations").update({
               amount_paid: nextPaid + nextApplied,
               status: (nextPaid + nextApplied) >= nextDue ? "paid" : "partial",
-            }).eq("id", nextObl.id);
+            }).eq("id", nextObl.id).eq("amount_paid", nextPaid).select("id");
+            if (!casData3 || casData3.length === 0) throw new Error("CONCURRENT_PAYMENT_CONFLICT");
 
             const nextTypeName = ((Array.isArray(nextObl.contribution_type) ? nextObl.contribution_type[0] : nextObl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
             appliedTo.push({ obligationId: nextObl.id as string, typeName: nextTypeName, amountApplied: nextApplied });
@@ -441,9 +449,12 @@ export function useRecordPayment() {
       queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
       queryClient.invalidateQueries({ queryKey: ["member-payments"] });
       queryClient.invalidateQueries({ queryKey: ["member-obligations"] });
+      // Invalidate member list (standing badges) and member detail
+      queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       // Invalidate standing cache so it recalculates on next view
       if (variables.membership_id) {
         queryClient.invalidateQueries({ queryKey: ["member-standing", variables.membership_id, groupId] });
+        queryClient.invalidateQueries({ queryKey: ["member", variables.membership_id] });
       }
     },
   });
@@ -485,6 +496,8 @@ export function useCreateEvent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
     },
   });
 }
@@ -546,6 +559,9 @@ export function useBulkCreateAttendance() {
       if (eventId) {
         queryClient.invalidateQueries({ queryKey: ["event-attendance", eventId] });
       }
+      // Invalidate aggregate attendance and dashboard stats
+      queryClient.invalidateQueries({ queryKey: ["all-event-attendances", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
       // Invalidate standing cache for all affected members
       for (const v of variables) {
         if (v.membership_id) {
@@ -633,6 +649,7 @@ export function useCreateMeetingMinutes() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
     },
   });
 }

@@ -133,7 +133,7 @@
     "events": "Events",
     "attendance": "Attendance",
     "hosting": "Hosting",
-    "minutes": "Minutes",
+    "minutes": "Meeting Minutes",
     "documents": "Documents",
     "relief": "Relief",
     "settings": "Settings",
@@ -478,7 +478,8 @@
     "groupSettings": "Group Settings",
     "noGroupSelected": "No group selected",
     "leaveGroup": "Leave Group",
-    "leaveGroupConfirm": "Are you sure you want to leave {groupName}? Your contribution and attendance history will be preserved."
+    "leaveGroupConfirm": "Are you sure you want to leave {groupName}? Your contribution and attendance history will be preserved.",
+    "leaveGroupOwnerHint": "Transfer ownership first"
   },
   "header": {
     "notifications": "Notifications",
@@ -729,7 +730,8 @@
     "memberRemovedNotifBody": "You have been removed from {groupName}.",
     "deactivateMember": "Deactivate Member",
     "activateMember": "Activate Member",
-    "autoEnrollWarning": "Member added, but automatic contribution enrollment failed. You may need to enroll them manually."
+    "autoEnrollWarning": "Member added, but automatic contribution enrollment failed. You may need to enroll them manually.",
+    "removeMemberFailed": "Failed to remove member. You may not have permission to perform this action."
   },
   "settings": {
     "title": "Group Settings",

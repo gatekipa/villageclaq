@@ -133,7 +133,7 @@
     "events": "Événements",
     "attendance": "Présence",
     "hosting": "Hébergement",
-    "minutes": "Procès-verbaux",
+    "minutes": "Comptes rendus",
     "documents": "Documents",
     "relief": "Entraide",
     "settings": "Paramètres",
@@ -478,7 +478,8 @@
     "groupSettings": "Paramètres du groupe",
     "noGroupSelected": "Aucun groupe sélectionné",
     "leaveGroup": "Quitter le groupe",
-    "leaveGroupConfirm": "Êtes-vous sûr de vouloir quitter {groupName} ? Votre historique de cotisations et de présence sera conservé."
+    "leaveGroupConfirm": "Êtes-vous sûr de vouloir quitter {groupName} ? Votre historique de cotisations et de présence sera conservé.",
+    "leaveGroupOwnerHint": "Transférez la propriété d'abord"
   },
   "header": {
     "notifications": "Notifications",
@@ -729,7 +730,8 @@
     "memberRemovedNotifBody": "Vous avez été retiré de {groupName}.",
     "deactivateMember": "Désactiver le membre",
     "activateMember": "Activer le membre",
-    "autoEnrollWarning": "Membre ajouté, mais l'inscription automatique aux cotisations a échoué. Vous devrez peut-être l'inscrire manuellement."
+    "autoEnrollWarning": "Membre ajouté, mais l'inscription automatique aux cotisations a échoué. Vous devrez peut-être l'inscrire manuellement.",
+    "removeMemberFailed": "Échec de la suppression du membre. Vous n'avez peut-être pas la permission d'effectuer cette action."
   },
   "settings": {
     "title": "Paramètres du groupe",

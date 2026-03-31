@@ -655,11 +655,12 @@ export default function MembersPage() {
       const targetName = getName(removeMemberTarget);
       const targetUserId = removeMemberTarget.user_id as string | null;
 
-      const { error: delErr } = await supabase
+      const { error: delErr, count } = await supabase
         .from("memberships")
-        .delete()
+        .delete({ count: "exact" })
         .eq("id", targetId);
       if (delErr) throw delErr;
+      if (count === 0) throw new Error(t("removeMemberFailed"));
 
       // Notify the removed member
       if (targetUserId) {

@@ -66,17 +66,28 @@ export async function calculateStanding(
   });
 
   // Rule 2: Attendance (last 12 months)
+  // Join with events to use event date (not checked_in_at which may be null)
+  // and filter by group_id to avoid cross-group contamination
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
 
   const { data: attendances } = await supabase
     .from("event_attendances")
-    .select("status, checked_in_at")
+    .select("status, checked_in_at, event:events!inner(starts_at, group_id)")
     .eq("membership_id", membershipId);
 
-  const recentAttendances = (attendances || []).filter(
-    (a) => new Date(a.checked_in_at || now) >= twelveMonthsAgo
-  );
+  const recentAttendances = (attendances || []).filter((a) => {
+    const eventRaw = a.event as unknown;
+    const event = (Array.isArray(eventRaw) ? eventRaw[0] : eventRaw) as Record<string, unknown> | null;
+    // Only count attendance for events in THIS group
+    if (event?.group_id !== groupId) return false;
+    // Use event start date (reliable) instead of checked_in_at (may be null)
+    const eventDate = event?.starts_at ? new Date(event.starts_at as string) : null;
+    if (!eventDate) return false;
+    // Only count past events (not future scheduled ones)
+    if (eventDate > now) return false;
+    return eventDate >= twelveMonthsAgo;
+  });
   const totalEvents = recentAttendances.length;
   const presentCount = recentAttendances.filter(
     (a) => a.status === "present" || a.status === "late"
@@ -126,25 +137,33 @@ export async function calculateStanding(
   });
 
   // Rule 4: Loan repayments
-  const { data: loanSchedules } = await supabase
-    .from("loan_schedule")
-    .select("id, status, loan_id, loans!inner(membership_id, status)")
-    .eq("status", "overdue");
+  // Use left join (not !inner) to avoid query failures when loan_schedule has no matching loans
+  let overdueInstCount = 0;
+  let defaultedCount = 0;
+  try {
+    const { data: loanSchedules } = await supabase
+      .from("loan_schedule")
+      .select("id, status, loan_id, loans(membership_id, status)")
+      .eq("status", "overdue");
 
-  // Filter to this member's loans that are active (repaying)
-  const memberOverdueInstallments = (loanSchedules || []).filter((s: Record<string, unknown>) => {
-    const loan = s.loans as Record<string, unknown> | null;
-    return loan && loan.membership_id === membershipId && loan.status === "repaying";
-  });
+    // Filter to this member's loans that are active (repaying)
+    overdueInstCount = (loanSchedules || []).filter((s: Record<string, unknown>) => {
+      const loan = s.loans as Record<string, unknown> | null;
+      return loan && loan.membership_id === membershipId && loan.status === "repaying";
+    }).length;
 
-  const { data: defaultedLoans } = await supabase
-    .from("loans")
-    .select("id")
-    .eq("membership_id", membershipId)
-    .eq("status", "defaulted");
+    const { data: defaultedLoans } = await supabase
+      .from("loans")
+      .select("id")
+      .eq("membership_id", membershipId)
+      .eq("status", "defaulted");
 
-  const overdueInstCount = memberOverdueInstallments.length;
-  const defaultedCount = (defaultedLoans || []).length;
+    defaultedCount = (defaultedLoans || []).length;
+  } catch {
+    // If loan tables don't exist or query fails, pass this rule
+    overdueInstCount = 0;
+    defaultedCount = 0;
+  }
   const loansPassed = overdueInstCount === 0 && defaultedCount === 0;
 
   reasons.push({

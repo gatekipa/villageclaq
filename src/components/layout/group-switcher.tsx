@@ -121,16 +121,30 @@ export function GroupSwitcher() {
             </div>
           </DropdownMenuItem>
         </Link>
-        {!isOwner && currentMembership && (
+        {currentMembership && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="flex items-center gap-2 text-destructive"
-              onClick={() => setLeaveOpen(true)}
-            >
-              <LogOut className="h-4 w-4" />
-              <span>{t("leaveGroup")}</span>
-            </DropdownMenuItem>
+            {isOwner ? (
+              <DropdownMenuItem
+                className="flex items-center gap-2 text-muted-foreground cursor-not-allowed"
+                disabled
+                onSelect={(e) => e.preventDefault()}
+              >
+                <LogOut className="h-4 w-4" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm">{t("leaveGroup")}</span>
+                  <span className="text-[11px] text-muted-foreground">{t("leaveGroupOwnerHint")}</span>
+                </div>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                className="flex items-center gap-2 text-destructive"
+                onClick={() => setLeaveOpen(true)}
+              >
+                <LogOut className="h-4 w-4" />
+                <span>{t("leaveGroup")}</span>
+              </DropdownMenuItem>
+            )}
           </>
         )}
       </DropdownMenuContent>

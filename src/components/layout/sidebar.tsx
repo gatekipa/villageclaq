@@ -35,7 +35,6 @@ import {
   MessageSquare,
   ShieldCheck,
   IdCard,
-  Scale,
   ScrollText,
   Mail,
   KeyRound,
@@ -108,7 +107,6 @@ const adminSections: NavSection[] = [
       { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
       { key: "projects", href: "/dashboard/projects", icon: FolderKanban },
       { key: "fines", href: "/dashboard/fines", icon: Gavel, anyPermission: ["disputes.manage", "finances.manage"] },
-      { key: "disputes", href: "/dashboard/disputes", icon: Scale },
     ],
   },
   {
@@ -161,7 +159,6 @@ const memberSections: NavSection[] = [
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },
-      { key: "disputes", href: "/dashboard/disputes", icon: Scale },
       { key: "notifications", href: "/dashboard/notifications", icon: Bell },
     ],
   },

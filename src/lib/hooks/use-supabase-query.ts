@@ -1031,40 +1031,6 @@ export function useAddFeedReaction() {
   });
 }
 
-// ─── Fines ─────────────────────────────────────────────────────────────────
-
-export function useFineRules() {
-  const { groupId } = useGroup();
-  return useQuery({
-    queryKey: ["fine-rules", groupId],
-    queryFn: async () => {
-      if (!groupId) return [];
-      const { data, error } = await supabase.from("fine_rules").select("*").eq("group_id", groupId).order("created_at");
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!groupId,
-  });
-}
-
-export function useFines() {
-  const { groupId } = useGroup();
-  return useQuery({
-    queryKey: ["fines", groupId],
-    queryFn: async () => {
-      if (!groupId) return [];
-      const { data, error } = await supabase
-        .from("fines")
-        .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), rule:fine_rules(id, description, trigger_type)")
-        .eq("group_id", groupId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!groupId,
-  });
-}
-
 // ─── Loans ─────────────────────────────────────────────────────────────────
 
 export function useLoans() {

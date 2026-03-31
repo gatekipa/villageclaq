@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "src/**/*.tsx"
+      instructions: |
+        VillageClaq is a multi-tenant SaaS for African community groups.
+        Review for these VillageClaq-specific patterns:
+        1. All user-facing strings MUST use t() from next-intl — no hardcoded English
+        2. Member names MUST use getMemberName() from @/lib/get-member-name — never inline display_name || full_name patterns
+        3. Money display MUST use formatAmount() from @/lib/currencies.ts — no hardcoded $ or FCFA
+        4. Dates MUST use getDateLocale(locale) from @/lib/date-utils.ts — no bare .toLocaleDateString()
+        5. Error handling MUST use showError with translated messages — no console.error-only
+        6. Permission checks MUST use hasPermission/PermissionGate — no raw isAdmin
+        7. All async buttons MUST have loading + disabled state (double-click prevention)
+        8. All mutations MUST invalidate relevant TanStack Query caches
+        9. Proxy members have user_id = NULL — code must handle null user_id gracefully
+        10. Role checks must use role IN ('admin', 'owner') — VillageClaq uses 'owner' not 'admin' for group owners
+    - path: "src/lib/**/*.ts"
+      instructions: |
+        Shared utilities for VillageClaq. Check:
+        - No direct Supabase client creation at module level (must be inside hooks/functions)
+        - logActivity() calls should be try/catch wrapped (best-effort, never break calling mutation)
+        - Standing calculation rules must PASS when data is absent (no obligations = good standing)
+    - path: "supabase/migrations/**"
+      instructions: |
+        Supabase SQL migrations for VillageClaq. Check:
+        - RLS policies MUST use IN (SELECT get_user_group_ids()) — NEVER unnest() or = ANY()
+        - Every table needs GRANT ALL ON [table] TO authenticated
+        - RLS must never self-reference the memberships table from within memberships policies
+        - Admin checks must use role IN ('owner', 'admin')
+        - All IF NOT EXISTS guards for idempotent migrations
+    - path: "messages/*.json"
+      instructions: |
+        i18n translation files. Check:
+        - en.json and fr.json must have identical key structures
+        - No placeholder values like "TODO" or "TRANSLATE ME"
+        - French translations must be actual French, not English
+    - path: "public/sw.js"
+      instructions: "Service worker for PWA. Check: no console.log in production, proper cache versioning."
+
+  path_filters:
+    - "!node_modules/**"
+    - "!.next/**"
+    - "!public/icons/**"
+    - "!package-lock.json"
+
+chat:
+  auto_reply: true

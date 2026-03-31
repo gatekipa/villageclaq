@@ -107,7 +107,7 @@ export default function MembershipCardPage() {
   // Resolve name and avatar from the correct source
   const fullName = isViewingOther
     ? getMemberName(membership as Record<string, unknown>)
-    : (currentMembership.display_name || user?.full_name || user?.display_name || "Member");
+    : getMemberName(currentMembership as unknown as Record<string, unknown>) || user?.full_name || "Member";
   const avatarUrl = isViewingOther
     ? (profile?.avatar_url as string | null)
     : (user?.avatar_url || null);

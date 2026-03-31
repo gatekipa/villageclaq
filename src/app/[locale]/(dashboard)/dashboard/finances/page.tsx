@@ -1,8 +1,9 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
+import { getDateLocale } from "@/lib/date-utils";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -139,6 +140,7 @@ function formatCompact(amount: number) {
 
 export default function FinancesPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const { currentGroup, groupId, isAdmin } = useGroup();
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
@@ -271,7 +273,7 @@ export default function FinancesPage() {
       const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
       const ct = p.contribution_type as { id: string; name: string; name_fr?: string } | null;
       const date = (p.recorded_at || p.created_at || "").slice(0, 10);
-      const shortDate = date ? new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+      const shortDate = date ? new Date(date).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric" }) : "";
       return {
         id: p.id,
         name: getMemberName(p.membership as Record<string, unknown>),

@@ -37,7 +37,7 @@ import { useGroup } from "@/lib/group-context";
 import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { ListSkeleton } from "@/components/ui/page-skeleton";
+import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 
 /** Convert markdown to plain text (strip **, ##, etc.) */
 function stripMarkdown(md: string): string {
@@ -123,7 +123,7 @@ export default function ReportDetailPage() {
   const reportDesc = t(`reports.${reportKey}.desc`);
 
   // Fetch data based on report type
-  const { data: members, isLoading: membersLoading } = useMembers();
+  const { data: members, isLoading: membersLoading, error: membersError } = useMembers();
   const { data: payments, isLoading: paymentsLoading } = usePayments(500);
   const { data: obligations, isLoading: obligationsLoading } = useObligations();
   const { data: events, isLoading: eventsLoading } = useEvents();
@@ -182,6 +182,7 @@ export default function ReportDetailPage() {
     false;
 
   if (isLoading) return <ListSkeleton rows={5} />;
+  if (membersError) return <ErrorState message={membersError.message} />;
 
   // Compute report data from real queries
   const memberList = members || [];
@@ -557,7 +558,7 @@ export default function ReportDetailPage() {
       const headerRows: string[] = [
         currentGroup?.name || "",
         reportName,
-        new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { year: "numeric", month: "long", day: "numeric" }),
+        new Date().toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "long", day: "numeric" }),
       ];
       if (aiInsights) {
         headerRows.push("");
@@ -835,7 +836,7 @@ export default function ReportDetailPage() {
   // ── WhatsApp share ──
   function handleShareWhatsApp() {
     const groupName = currentGroup?.name || "VillageClaq";
-    const dateStr = new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+    const dateStr = new Date().toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "long", day: "numeric" });
     let msg = `📊 *${reportName}*\n${groupName} — ${dateStr}\n\n`;
 
     if (aiInsights) {

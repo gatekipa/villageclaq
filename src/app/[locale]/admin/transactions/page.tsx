@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
+import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,7 @@ export default function TransactionsMonitorPage() {
             reference_number: p.reference_number as string | null,
             recorded_at: p.recorded_at as string,
             group_name: (group?.name as string) || "—",
-            member_name: (membership?.display_name as string) || (mProfile?.full_name as string) || "—",
+            member_name: membership ? getMemberName(membership as Record<string, unknown>) : "—",
             type_name: (ct?.name as string) || "—",
             recorder_name: (recorder?.full_name as string) || "—",
           };

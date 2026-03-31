@@ -38,7 +38,7 @@ import {
   Search,
   FileText,
 } from "lucide-react";
-import { EmptyState } from "@/components/ui/page-skeleton";
+import { EmptyState, ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 
 const supabase = createClient();
 
@@ -192,7 +192,7 @@ export default function ConstitutionPage() {
   const { data: members } = useMembers();
 
   // Document selector
-  const { data: allDocs = [], error: constError } = useAllDocuments(groupId);
+  const { data: allDocs = [], isLoading: docsLoading, error: constError } = useAllDocuments(groupId);
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null);
   const [showNewDocDialog, setShowNewDocDialog] = useState(false);
   const [newDocType, setNewDocType] = useState("");
@@ -445,6 +445,9 @@ export default function ConstitutionPage() {
 
   const activeDoc = draft || constitution;
   const hasContent = !!(activeDoc?.content || activeDoc?.file_url);
+
+  if (docsLoading) return <ListSkeleton rows={4} />;
+  if (constError) return <ErrorState message={(constError as Error).message} onRetry={() => queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] })} />;
 
   return (
     <div className="space-y-6">

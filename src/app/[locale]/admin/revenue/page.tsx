@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import {
   DollarSign,
   TrendingDown,
@@ -43,6 +44,8 @@ const planColors: Record<string, string> = {
 
 export default function RevenuePage() {
   const t = useTranslations("admin");
+  const locale = useLocale();
+  const dateLocale = getDateLocale(locale);
   const [loading, setLoading] = useState(true);
   const [mrr, setMrr] = useState(0);
   const [churnRate, setChurnRate] = useState(0);
@@ -54,6 +57,7 @@ export default function RevenuePage() {
   >([]);
   const [topGroups, setTopGroups] = useState<TopGroup[]>([]);
   const [upcomingRenewals, setUpcomingRenewals] = useState<UpcomingRenewal[]>([]);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchRevenueData = useCallback(async () => {
     const supabase = createClient();
@@ -97,7 +101,7 @@ export default function RevenuePage() {
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        const label = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+        const label = d.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
         monthMap.set(key, 0);
         // store label mapping
         monthMap.set(`label_${key}`, 0);
@@ -107,7 +111,7 @@ export default function RevenuePage() {
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        const label = d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+        const label = d.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
         monthMap.set(key, 0);
         monthLabels.set(key, label);
       }
@@ -224,6 +228,7 @@ export default function RevenuePage() {
       setUpcomingRenewals(renewals);
     } catch (err) {
       console.error("Error fetching revenue data:", err);
+      setFetchError(t("fetchError"));
     } finally {
       setLoading(false);
     }
@@ -250,6 +255,12 @@ export default function RevenuePage() {
         <h1 className="text-3xl font-bold tracking-tight">{t("revenue")}</h1>
         <p className="text-sm text-muted-foreground">{t("revenueSubtitle")}</p>
       </div>
+
+      {fetchError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          {fetchError}
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">

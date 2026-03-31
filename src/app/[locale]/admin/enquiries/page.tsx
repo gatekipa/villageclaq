@@ -58,6 +58,7 @@ export default function EnquiriesPage() {
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [statusChanges, setStatusChanges] = useState<Record<string, EnquiryStatus>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchEnquiries = useCallback(async () => {
     const supabase = createClient();
@@ -71,6 +72,7 @@ export default function EnquiriesPage() {
       setEnquiries(data || []);
     } catch (err) {
       console.error("Error fetching enquiries:", err);
+      setActionError(t("fetchError"));
     } finally {
       setLoading(false);
     }
@@ -123,6 +125,7 @@ export default function EnquiriesPage() {
       });
     } catch (err) {
       console.error("Error updating enquiry:", err);
+      setActionError(t("saveError"));
     } finally {
       setSaving(null);
     }
@@ -148,6 +151,13 @@ export default function EnquiriesPage() {
         <h1 className="text-3xl font-bold tracking-tight">{t("enquiries")}</h1>
         <p className="text-sm text-muted-foreground">{t("enquiriesSubtitle")}</p>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-2 underline">&times;</button>
+        </div>
+      )}
 
       {/* Filter */}
       <div className="flex flex-wrap gap-2">

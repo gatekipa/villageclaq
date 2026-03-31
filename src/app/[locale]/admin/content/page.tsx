@@ -65,6 +65,7 @@ const categoryColors: Record<string, string> = {
 
 export default function ContentPage() {
   const t = useTranslations("admin");
+  const [actionError, setActionError] = useState<string | null>(null);
   const [testimonialDialogOpen, setTestimonialDialogOpen] = useState(false);
   const [faqDialogOpen, setFaqDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,6 +100,7 @@ export default function ContentPage() {
       setFaqs(faqsRes.data || []);
     } catch (err) {
       console.error("Error fetching content:", err);
+      setActionError(t("fetchError"));
     } finally {
       setLoading(false);
     }
@@ -134,6 +136,7 @@ export default function ContentPage() {
       await fetchData();
     } catch (err) {
       console.error("Error adding testimonial:", err);
+      setActionError(t("saveError"));
     } finally {
       setSaving(false);
     }
@@ -152,6 +155,7 @@ export default function ContentPage() {
       );
     } catch (err) {
       console.error("Error toggling featured:", err);
+      setActionError(t("saveError"));
     }
   };
 
@@ -179,6 +183,7 @@ export default function ContentPage() {
       await fetchData();
     } catch (err) {
       console.error("Error adding FAQ:", err);
+      setActionError(t("saveError"));
     } finally {
       setSaving(false);
     }
@@ -199,6 +204,13 @@ export default function ContentPage() {
         <h1 className="text-3xl font-bold tracking-tight">{t("content")}</h1>
         <p className="text-sm text-muted-foreground">{t("contentSubtitle")}</p>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-2 underline">&times;</button>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="testimonials">

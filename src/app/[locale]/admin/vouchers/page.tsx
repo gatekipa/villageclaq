@@ -404,8 +404,8 @@ export default function VouchersPage() {
                           <DollarSign className="h-3 w-3" />
                         )}
                         {discountType === "percent"
-                          ? `${discountValue}% off`
-                          : `$${discountValue} off`}
+                          ? `${discountValue}% ${t("discountOff")}`
+                          : `$${discountValue} ${t("discountOff")}`}
                       </div>
                     </div>
                   </div>

@@ -1,8 +1,9 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
+import { getDateLocale } from "@/lib/date-utils";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,16 +47,16 @@ const methodColors: Record<string, string> = {
 };
 
 
-function formatDate(dateStr: string, locale: string = "en") {
-  return new Date(dateStr).toLocaleDateString("en-US", {
+function formatDate(dateStr: string, dateLocale: string = "en-US") {
+  return new Date(dateStr).toLocaleDateString(dateLocale, {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
 }
 
-function formatTime(dateStr: string, locale: string = "en") {
-  return new Date(dateStr).toLocaleTimeString("en-US", {
+function formatTime(dateStr: string, dateLocale: string = "en-US") {
+  return new Date(dateStr).toLocaleTimeString(dateLocale, {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -64,6 +65,8 @@ function formatTime(dateStr: string, locale: string = "en") {
 export default function PaymentHistoryPage() {
   const t = useTranslations();
   const tc = useTranslations("common");
+  const locale = useLocale();
+  const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId } = useGroup();
   const queryClient = useQueryClient();
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
@@ -167,7 +170,7 @@ export default function PaymentHistoryPage() {
   function handleExportCSV() {
     const headers = [t("contributions.csvDate"), t("contributions.csvMember"), t("contributions.csvType"), t("contributions.csvAmount"), t("contributions.csvCurrency"), t("contributions.csvMethod"), t("contributions.csvReference")];
     const rows = filtered.map((p) => [
-      formatDate(p.recordedAt),
+      formatDate(p.recordedAt, dateLocale),
       p.memberName,
       p.contributionTypeName,
       p.amount.toString(),
@@ -411,7 +414,7 @@ export default function PaymentHistoryPage() {
                     >
                       <td className="whitespace-nowrap px-4 py-3">
                         <div>
-                          <p className="font-medium">{formatDate(payment.recordedAt)}</p>
+                          <p className="font-medium">{formatDate(payment.recordedAt, dateLocale)}</p>
                           <p className="text-xs text-muted-foreground">{formatTime(payment.recordedAt)}</p>
                         </div>
                       </td>

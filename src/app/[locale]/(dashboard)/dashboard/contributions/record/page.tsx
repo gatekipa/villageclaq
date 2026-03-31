@@ -1,6 +1,7 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
+import { getDateLocale } from "@/lib/date-utils";
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -245,7 +246,7 @@ export default function RecordPaymentPage() {
                     amount: formattedAmt,
                     contributionType: typeName,
                     paymentMethod: method,
-                    date: new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US"),
+                    date: new Date().toLocaleDateString(getDateLocale(locale)),
                     reference: reference || undefined,
                     recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
                     paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,

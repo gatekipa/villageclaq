@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
+import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -102,7 +103,7 @@ export default function OfflinePaymentsPage() {
                 return (
                   <tr key={p.id as string} className="border-b last:border-0">
                     <td className="px-3 py-2 font-mono text-xs">{(p.id as string).slice(0, 8)}...</td>
-                    <td className="px-3 py-2">{(m?.display_name as string) || (mProfile?.full_name as string) || "—"}</td>
+                    <td className="px-3 py-2">{m ? getMemberName(m as Record<string, unknown>) : "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{(g?.name as string) || "—"}</td>
                     <td className="px-3 py-2 text-right font-medium">{formatAmount(Number(p.amount), (p.currency as string) || "XAF")}</td>
                     <td className="px-3 py-2 text-center"><Badge className={`text-[10px] ${methodBadge[(p.payment_method as string)] || ""}`}>{(p.payment_method as string).replace("_", " ")}</Badge></td>

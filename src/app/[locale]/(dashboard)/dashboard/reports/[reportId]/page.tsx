@@ -146,6 +146,26 @@ export default function ReportDetailPage() {
     enabled: !!groupId,
   });
 
+  const isLoanReport = ["21", "22", "23"].includes(reportId);
+  const { data: loanData, isLoading: loansLoading } = useQuery({
+    queryKey: ["loans-report", groupId],
+    queryFn: async () => {
+      if (!groupId) return { loans: [], schedule: [], repayments: [] };
+      const supabase = createClient();
+      const [loansRes, schedRes, repayRes] = await Promise.all([
+        supabase.from("loans").select("*, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name)), guarantor:memberships!loans_guarantor_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name))").eq("group_id", groupId).order("created_at", { ascending: false }),
+        supabase.from("loan_schedule").select("*, loan:loans!inner(id, group_id, status, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name)))").eq("loan.group_id", groupId).order("due_date", { ascending: true }),
+        supabase.from("loan_repayments").select("*, loan:loans!inner(id, group_id, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name)))").eq("loan.group_id", groupId).order("paid_at", { ascending: false }),
+      ]);
+      return {
+        loans: loansRes.data || [],
+        schedule: schedRes.data || [],
+        repayments: repayRes.data || [],
+      };
+    },
+    enabled: !!groupId && isLoanReport,
+  });
+
   // Determine loading based on report type
   const financialReports = ["1", "2", "3", "4"];
   const memberReports = ["6", "8", "9", "10"];
@@ -157,6 +177,7 @@ export default function ReportDetailPage() {
     reportId === "13" ? hostingLoading :
     reportId === "14" ? minutesLoading :
     ["16", "17", "20"].includes(reportId) ? (membersLoading || paymentsLoading || eventsLoading || obligationsLoading) :
+    isLoanReport ? loansLoading :
     false;
 
   if (isLoading) return <ListSkeleton rows={5} />;
@@ -378,6 +399,53 @@ export default function ReportDetailPage() {
     resolutionRate: disputeData.length > 0 ? Math.round((disputeData.filter(d => d.status === "resolved").length / disputeData.length) * 100) : 0,
   };
 
+  // Report 21: Loan Portfolio Summary
+  const loanList = loanData?.loans || [];
+  const loanScheduleList = loanData?.schedule || [];
+  const loanRepaymentList = loanData?.repayments || [];
+
+  const loanPortfolioStats = {
+    totalDisbursed: loanList.filter((l: Record<string, unknown>) => ["disbursed", "repaying", "completed", "defaulted", "written_off"].includes(l.status as string)).reduce((s: number, l: Record<string, unknown>) => s + Number(l.amount_approved || 0), 0),
+    totalRepaid: loanList.reduce((s: number, l: Record<string, unknown>) => s + Number(l.total_repaid || 0), 0),
+    totalOutstanding: loanList.filter((l: Record<string, unknown>) => ["disbursed", "repaying"].includes(l.status as string)).reduce((s: number, l: Record<string, unknown>) => s + (Number(l.total_repayable || 0) - Number(l.total_repaid || 0)), 0),
+    defaultRate: loanList.length > 0 ? Math.round((loanList.filter((l: Record<string, unknown>) => l.status === "defaulted" || l.status === "written_off").length / loanList.length) * 100) : 0,
+  };
+
+  const loanPortfolioRows = loanList.map((l: Record<string, unknown>) => ({
+    name: getMemberName(l.membership as Record<string, unknown>),
+    amount: Number(l.amount_approved || l.amount_requested || 0),
+    status: (l.status as string) || "pending",
+    disbursedDate: (l.disbursed_at as string) || "",
+    completedDate: (l.completed_at as string) || "",
+    outstanding: ["disbursed", "repaying"].includes(l.status as string) ? Number(l.total_repayable || 0) - Number(l.total_repaid || 0) : 0,
+    interest: Number(l.interest_rate || 0),
+    guarantor: l.guarantor ? getMemberName(l.guarantor as Record<string, unknown>) : "—",
+  }));
+
+  // Report 22: Loan Repayment Schedule (active loans only)
+  const activeSchedule = loanScheduleList.filter((s: Record<string, unknown>) => {
+    const loan = s.loan as Record<string, unknown>;
+    return ["disbursed", "repaying"].includes(loan?.status as string);
+  });
+
+  // Report 23: Overdue Loans Report
+  const overdueSchedule = loanScheduleList.filter((s: Record<string, unknown>) => {
+    const status = (s.status as string) || "pending";
+    return status === "overdue" || (status !== "paid" && new Date(s.due_date as string) < new Date());
+  }).map((s: Record<string, unknown>) => {
+    const loan = s.loan as Record<string, unknown>;
+    const daysOverdue = Math.max(0, Math.floor((Date.now() - new Date(s.due_date as string).getTime()) / 86400000));
+    return {
+      name: getMemberName(loan?.membership as Record<string, unknown>),
+      installment: Number(s.installment_number || 0),
+      dueDate: (s.due_date as string) || "",
+      amountDue: Number(s.amount_due || 0),
+      amountPaid: Number(s.amount_paid || 0),
+      overdue: Number(s.amount_due || 0) - Number(s.amount_paid || 0),
+      daysOverdue,
+    };
+  }).sort((a, b) => b.daysOverdue - a.daysOverdue);
+
   // CSV export helper for current report
   function handleExportCSV() {
     let data: Record<string, unknown>[] = [];
@@ -469,6 +537,18 @@ export default function ReportDetailPage() {
         HealthScore: `${healthScore}%`,
       }];
       filename = "group_performance";
+    } else if (reportId === "21") {
+      data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: r.amount, Status: r.status, Disbursed: r.disbursedDate ? new Date(r.disbursedDate).toLocaleDateString() : "—", Completed: r.completedDate ? new Date(r.completedDate).toLocaleDateString() : "—", Outstanding: r.outstanding, Interest: `${r.interest}%`, Guarantor: r.guarantor }));
+      filename = "loan_portfolio_summary";
+    } else if (reportId === "22") {
+      data = activeSchedule.map((s: Record<string, unknown>) => {
+        const loan = s.loan as Record<string, unknown>;
+        return { Borrower: getMemberName(loan?.membership as Record<string, unknown>), Installment: s.installment_number, DueDate: s.due_date ? new Date(s.due_date as string).toLocaleDateString() : "—", AmountDue: Number(s.amount_due || 0), AmountPaid: Number(s.amount_paid || 0), Status: s.status };
+      });
+      filename = "loan_repayment_schedule";
+    } else if (reportId === "23") {
+      data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString() : "—", AmountDue: r.amountDue, AmountPaid: r.amountPaid, Overdue: r.overdue, DaysOverdue: r.daysOverdue }));
+      filename = "overdue_loans_report";
     }
 
     if (data.length > 0) {
@@ -576,6 +656,18 @@ export default function ReportDetailPage() {
         { Metric: "Health Score", Value: `${healthScore}% (${healthLabel})` },
       ];
       filename = "group_performance";
+    } else if (reportId === "21") {
+      data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: formatAmount(r.amount, currency), Status: r.status, Disbursed: r.disbursedDate ? new Date(r.disbursedDate).toLocaleDateString() : "—", Outstanding: formatAmount(r.outstanding, currency), Interest: `${r.interest}%` }));
+      filename = "loan_portfolio_summary";
+    } else if (reportId === "22") {
+      data = activeSchedule.map((s: Record<string, unknown>) => {
+        const loan = s.loan as Record<string, unknown>;
+        return { Borrower: getMemberName(loan?.membership as Record<string, unknown>), Installment: s.installment_number, DueDate: s.due_date ? new Date(s.due_date as string).toLocaleDateString() : "—", AmountDue: formatAmount(Number(s.amount_due || 0), currency), AmountPaid: formatAmount(Number(s.amount_paid || 0), currency), Status: s.status };
+      });
+      filename = "loan_repayment_schedule";
+    } else if (reportId === "23") {
+      data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString() : "—", Overdue: formatAmount(r.overdue, currency), DaysOverdue: r.daysOverdue }));
+      filename = "overdue_loans_report";
     }
 
     if (data.length === 0) return;
@@ -1604,6 +1696,167 @@ export default function ReportDetailPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </CardContent></Card>
+      )}
+
+      {/* Report 21: Loan Portfolio Summary */}
+      {reportId === "21" && (
+        <Card><CardContent className="pt-6">
+          {loanPortfolioRows.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noLoansFound")}</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold">{formatAmount(loanPortfolioStats.totalDisbursed, currency)}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.totalDisbursedAllTime")}</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-600">{formatAmount(loanPortfolioStats.totalRepaid, currency)}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.totalRepaidAllTime")}</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-600">{formatAmount(loanPortfolioStats.totalOutstanding, currency)}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.totalOutstandingLoans")}</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-red-600">{loanPortfolioStats.defaultRate}%</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.defaultRate")}</p>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-3 font-semibold">{t("reports.loanBorrower")}</th>
+                      <th className="text-right py-2 px-3 font-semibold">{t("reports.loanAmount")}</th>
+                      <th className="text-left py-2 px-3 font-semibold">{t("reports.loanStatus")}</th>
+                      <th className="text-left py-2 px-3 font-semibold">{t("reports.loanDisbursedDate")}</th>
+                      <th className="text-left py-2 px-3 font-semibold">{t("reports.loanCompletedDate")}</th>
+                      <th className="text-right py-2 px-3 font-semibold">{t("reports.loanOutstandingBal")}</th>
+                      <th className="text-center py-2 px-3 font-semibold">{t("reports.loanInterestRate")}</th>
+                      <th className="text-left py-2 px-3 font-semibold">{t("reports.loanGuarantor")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loanPortfolioRows.map((row, i) => (
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="py-2 px-3 font-medium">{row.name}</td>
+                        <td className="text-right py-2 px-3">{formatAmount(row.amount, currency)}</td>
+                        <td className="py-2 px-3">
+                          <Badge variant={row.status === "completed" ? "default" : row.status === "defaulted" || row.status === "written_off" ? "destructive" : "secondary"}>
+                            {row.status}
+                          </Badge>
+                        </td>
+                        <td className="py-2 px-3">{row.disbursedDate ? new Date(row.disbursedDate).toLocaleDateString() : "—"}</td>
+                        <td className="py-2 px-3">{row.completedDate ? new Date(row.completedDate).toLocaleDateString() : "—"}</td>
+                        <td className="text-right py-2 px-3 font-semibold">{row.outstanding > 0 ? formatAmount(row.outstanding, currency) : "—"}</td>
+                        <td className="text-center py-2 px-3">{row.interest}%</td>
+                        <td className="py-2 px-3">{row.guarantor}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </CardContent></Card>
+      )}
+
+      {/* Report 22: Loan Repayment Schedule */}
+      {reportId === "22" && (
+        <Card><CardContent className="pt-6">
+          {activeSchedule.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noScheduleFound")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.loanBorrower")}</th>
+                    <th className="text-center py-2 px-3 font-semibold">{t("reports.installmentNo")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.scheduleDueDate")}</th>
+                    <th className="text-right py-2 px-3 font-semibold">{t("reports.scheduleAmountDue")}</th>
+                    <th className="text-right py-2 px-3 font-semibold">{t("reports.scheduleAmountPaid")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.scheduleStatus")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeSchedule.map((s: Record<string, unknown>, i: number) => {
+                    const loan = s.loan as Record<string, unknown>;
+                    const status = (s.status as string) || "pending";
+                    const isOverdue = status === "overdue" || (status !== "paid" && new Date(s.due_date as string) < new Date());
+                    return (
+                      <tr key={i} className={`border-b last:border-0 hover:bg-muted/30 ${isOverdue ? "bg-destructive/5" : ""}`}>
+                        <td className="py-2 px-3 font-medium">{getMemberName(loan?.membership as Record<string, unknown>)}</td>
+                        <td className="text-center py-2 px-3">{String(s.installment_number)}</td>
+                        <td className="py-2 px-3">{s.due_date ? new Date(s.due_date as string).toLocaleDateString() : "—"}</td>
+                        <td className="text-right py-2 px-3">{formatAmount(Number(s.amount_due || 0), currency)}</td>
+                        <td className="text-right py-2 px-3">{formatAmount(Number(s.amount_paid || 0), currency)}</td>
+                        <td className="py-2 px-3">
+                          <Badge variant={status === "paid" ? "default" : isOverdue ? "destructive" : "secondary"}>
+                            {status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent></Card>
+      )}
+
+      {/* Report 23: Overdue Loans Report */}
+      {reportId === "23" && (
+        <Card><CardContent className="pt-6">
+          {overdueSchedule.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noOverdueFound")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.loanBorrower")}</th>
+                    <th className="text-center py-2 px-3 font-semibold">{t("reports.installmentNo")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.scheduleDueDate")}</th>
+                    <th className="text-right py-2 px-3 font-semibold">{t("reports.scheduleAmountDue")}</th>
+                    <th className="text-right py-2 px-3 font-semibold">{t("reports.scheduleAmountPaid")}</th>
+                    <th className="text-right py-2 px-3 font-semibold">{t("reports.overdueAmount")}</th>
+                    <th className="text-center py-2 px-3 font-semibold">{t("reports.overdueDays")}</th>
+                    <th className="text-center py-2 px-3 font-semibold print:hidden">{t("common.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overdueSchedule.map((row, i) => (
+                    <tr key={i} className={`border-b last:border-0 hover:bg-muted/30 ${row.daysOverdue >= 30 ? "bg-destructive/5" : ""}`}>
+                      <td className="py-2 px-3 font-medium">{row.name}</td>
+                      <td className="text-center py-2 px-3">{row.installment}</td>
+                      <td className="py-2 px-3">{row.dueDate ? new Date(row.dueDate).toLocaleDateString() : "—"}</td>
+                      <td className="text-right py-2 px-3">{formatAmount(row.amountDue, currency)}</td>
+                      <td className="text-right py-2 px-3">{formatAmount(row.amountPaid, currency)}</td>
+                      <td className="text-right py-2 px-3 font-semibold text-destructive">{formatAmount(row.overdue, currency)}</td>
+                      <td className="text-center py-2 px-3">
+                        <Badge variant={row.daysOverdue >= 30 ? "destructive" : "secondary"}>
+                          {t("reports.daysOverdue", { days: row.daysOverdue })}
+                        </Badge>
+                      </td>
+                      <td className="text-center py-2 px-3 print:hidden">
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
+                          const msg = encodeURIComponent(`${t("reports.sendReminder")}: ${row.name} — ${formatAmount(row.overdue, currency)} ${t("reports.daysOverdue", { days: row.daysOverdue })}`);
+                          window.open(`https://wa.me/?text=${msg}`, "_blank");
+                        }}>
+                          <Send className="h-3 w-3 mr-1" />
+                          {t("reports.sendReminder")}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent></Card>

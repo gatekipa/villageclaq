@@ -31,6 +31,7 @@ import {
   ArrowRight,
   Printer,
   RefreshCw,
+  Landmark,
 } from "lucide-react";
 import { useDashboardStats } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -71,6 +72,10 @@ const reports: ReportDef[] = [
   { id: "18", key: "report18", icon: Vote, category: "executive" },
   { id: "19", key: "report19", icon: Scale, category: "executive" },
   { id: "20", key: "report20", icon: FileText, category: "executive" },
+  // Loans
+  { id: "21", key: "report21", icon: Landmark, category: "financial" },
+  { id: "22", key: "report22", icon: Landmark, category: "financial" },
+  { id: "23", key: "report23", icon: Landmark, category: "financial" },
 ];
 
 const categoryColors: Record<ReportCategory, string> = {

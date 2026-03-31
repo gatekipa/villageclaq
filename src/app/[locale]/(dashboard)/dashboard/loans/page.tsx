@@ -6,8 +6,17 @@ import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import { markOverdueInstallments } from "@/lib/loans";
+import { exportCSV } from "@/lib/export";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -46,6 +55,7 @@ import {
   ShieldAlert,
   ArrowDownCircle,
   HelpCircle,
+  Download,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
@@ -148,6 +158,65 @@ function useMemberContributions(membershipId: string | null, groupId: string | n
   });
 }
 
+function useAllOverdueInstallments(groupId: string | null) {
+  return useQuery({
+    queryKey: ["all-overdue-installments", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("loan_schedule")
+        .select("*, loan:loans!inner(id, group_id, amount_approved, total_repayable, currency, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name)))")
+        .eq("loan.group_id", groupId)
+        .eq("status", "overdue")
+        .order("due_date", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+    staleTime: 30_000,
+  });
+}
+
+function useAllLoanRepayments(groupId: string | null) {
+  return useQuery({
+    queryKey: ["all-loan-repayments", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("loan_repayments")
+        .select("*, loan:loans!inner(id, group_id, currency, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name)))")
+        .eq("loan.group_id", groupId)
+        .order("paid_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+    staleTime: 30_000,
+  });
+}
+
+function useAllScheduleForActiveLoans(groupId: string | null) {
+  return useQuery({
+    queryKey: ["all-schedule-active", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("loan_schedule")
+        .select("*, loan:loans!inner(id, group_id, amount_approved, total_repayable, total_repaid, status, currency, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name)))")
+        .eq("loan.group_id", groupId)
+        .in("loan.status", ["disbursed", "repaying"])
+        .order("due_date", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+    staleTime: 30_000,
+  });
+}
+
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
 type LoanStatus = "pending" | "approved" | "denied" | "disbursed" | "repaying" | "completed" | "defaulted" | "written_off";
@@ -236,6 +305,9 @@ export default function LoansAdminPage() {
   const [qlSaving, setQlSaving] = useState(false);
   const [qlError, setQlError] = useState<string | null>(null);
 
+  // Drill-down dialogs
+  const [drillDown, setDrillDown] = useState<"outstanding" | "disbursed" | "active" | "repaid" | "overdue" | null>(null);
+
   // Status action
   const [actionSaving, setActionSaving] = useState(false);
 
@@ -255,6 +327,11 @@ export default function LoansAdminPage() {
   const detailLoanId = (detailLoan?.id as string) || null;
   const { data: schedule } = useLoanSchedule(detailLoanId);
   const { data: repayments } = useLoanRepayments(detailLoanId);
+
+  // Drill-down data (lazy — only fetched when dialog is open)
+  const { data: allOverdue, isLoading: overdueLoading } = useAllOverdueInstallments(drillDown === "overdue" ? groupId ?? null : null);
+  const { data: allRepaymentsList, isLoading: repayListLoading } = useAllLoanRepayments(drillDown === "repaid" ? groupId ?? null : null);
+  const { data: allActiveSchedule, isLoading: activeSchedLoading } = useAllScheduleForActiveLoans(drillDown === "active" ? groupId ?? null : null);
 
   const allLoans = loans || [];
   const isLoading = configLoading || loansLoading;
@@ -947,14 +1024,14 @@ export default function LoansAdminPage() {
 
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-5">
-          {[
-            { label: t("totalOutstanding"), value: formatAmount(totalOutstanding, currency), icon: Landmark, color: "text-red-500" },
-            { label: t("disbursedThisYear"), value: formatAmount(disbursedThisYear, currency), icon: ArrowDownCircle, color: "text-blue-500" },
-            { label: t("repaidThisYear"), value: formatAmount(repaidThisYear, currency), icon: CheckCircle2, color: "text-emerald-500" },
-            { label: t("activeLoansCount"), value: String(activeCount), icon: Banknote, color: "text-indigo-500" },
-            { label: t("overdueInstallments"), value: String(overdueCount), icon: AlertTriangle, color: "text-amber-500" },
-          ].map((stat) => (
-            <Card key={stat.label}>
+          {([
+            { key: "outstanding" as const, label: t("totalOutstanding"), value: formatAmount(totalOutstanding, currency), icon: Landmark, color: "text-red-500" },
+            { key: "disbursed" as const, label: t("disbursedThisYear"), value: formatAmount(disbursedThisYear, currency), icon: ArrowDownCircle, color: "text-blue-500" },
+            { key: "repaid" as const, label: t("repaidThisYear"), value: formatAmount(repaidThisYear, currency), icon: CheckCircle2, color: "text-emerald-500" },
+            { key: "active" as const, label: t("activeLoansCount"), value: String(activeCount), icon: Banknote, color: "text-indigo-500" },
+            { key: "overdue" as const, label: t("overdueInstallments"), value: String(overdueCount), icon: AlertTriangle, color: "text-amber-500" },
+          ] as const).map((stat) => (
+            <Card key={stat.key} className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30" onClick={() => setDrillDown(stat.key)}>
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center gap-3">
                   <stat.icon className={`h-6 w-6 ${stat.color}`} />
@@ -1474,6 +1551,361 @@ export default function LoansAdminPage() {
                 {t("recordRepayment")}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ─── Drill-Down Dialogs ──────────────────────────────────── */}
+
+        {/* Outstanding Breakdown */}
+        <Dialog open={drillDown === "outstanding"} onOpenChange={(o) => !o && setDrillDown(null)}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("outstandingBreakdown")}</DialogTitle>
+            </DialogHeader>
+            {activeLoans.length === 0 ? (
+              <p className="py-8 text-center text-muted-foreground">{t("noDataDrillDown")}</p>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("borrower")}</TableHead>
+                        <TableHead className="text-right">{t("amountApproved")}</TableHead>
+                        <TableHead className="text-right">{t("totalRepayable")}</TableHead>
+                        <TableHead className="text-right">{t("repaid")}</TableHead>
+                        <TableHead className="text-right">{t("outstanding")}</TableHead>
+                        <TableHead>{tc("status")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activeLoans.map((l: Record<string, unknown>) => {
+                        const owed = Number(l.total_repayable || 0) - Number(l.total_repaid || 0);
+                        return (
+                          <TableRow key={l.id as string}>
+                            <TableCell className="font-medium">{getMemberName(l.membership as Record<string, unknown>)}</TableCell>
+                            <TableCell className="text-right">{formatAmount(Number(l.amount_approved || 0), currency)}</TableCell>
+                            <TableCell className="text-right">{formatAmount(Number(l.total_repayable || 0), currency)}</TableCell>
+                            <TableCell className="text-right">{formatAmount(Number(l.total_repaid || 0), currency)}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatAmount(owed, currency)}</TableCell>
+                            <TableCell><Badge className={statusConfig[(l.status as LoanStatus)]?.color}>{t(`status_${l.status as string}`)}</Badge></TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="border-t-2 font-bold">
+                        <TableCell colSpan={4} className="text-right">{tc("total")}</TableCell>
+                        <TableCell className="text-right">{formatAmount(totalOutstanding, currency)}</TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const rows = activeLoans.map((l: Record<string, unknown>) => ({
+                      [t("borrower")]: getMemberName(l.membership as Record<string, unknown>),
+                      [t("amountApproved")]: Number(l.amount_approved || 0),
+                      [t("totalRepayable")]: Number(l.total_repayable || 0),
+                      [t("repaid")]: Number(l.total_repaid || 0),
+                      [t("outstanding")]: Number(l.total_repayable || 0) - Number(l.total_repaid || 0),
+                      [tc("status")]: l.status as string,
+                    }));
+                    exportCSV(rows, "outstanding_loans");
+                  }}>
+                    <Download className="mr-2 h-4 w-4" />{t("exportCsv")}
+                  </Button>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Disbursed This Year Breakdown */}
+        <Dialog open={drillDown === "disbursed"} onOpenChange={(o) => !o && setDrillDown(null)}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("disbursedBreakdown")}</DialogTitle>
+            </DialogHeader>
+            {(() => {
+              const disbLoans = allLoans.filter((l: Record<string, unknown>) =>
+                l.disbursed_at && new Date(l.disbursed_at as string).getFullYear() === thisYear &&
+                ["disbursed", "repaying", "completed"].includes(l.status as string)
+              );
+              const disbTotal = disbLoans.reduce((s, l: Record<string, unknown>) => s + Number(l.amount_approved || 0), 0);
+              if (disbLoans.length === 0) return <p className="py-8 text-center text-muted-foreground">{t("noDataDrillDown")}</p>;
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("borrower")}</TableHead>
+                          <TableHead className="text-right">{t("amountApproved")}</TableHead>
+                          <TableHead>{t("disbursedDate")}</TableHead>
+                          <TableHead>{t("disbursementMethod")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {disbLoans.map((l: Record<string, unknown>) => (
+                          <TableRow key={l.id as string}>
+                            <TableCell className="font-medium">{getMemberName(l.membership as Record<string, unknown>)}</TableCell>
+                            <TableCell className="text-right">{formatAmount(Number(l.amount_approved || 0), currency)}</TableCell>
+                            <TableCell>{formatDate(l.disbursed_at as string)}</TableCell>
+                            <TableCell>{(l.disbursement_method as string) || "-"}</TableCell>
+                            <TableCell><Badge className={statusConfig[(l.status as LoanStatus)]?.color}>{t(`status_${l.status as string}`)}</Badge></TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="border-t-2 font-bold">
+                          <TableCell className="text-right">{tc("total")}</TableCell>
+                          <TableCell className="text-right">{formatAmount(disbTotal, currency)}</TableCell>
+                          <TableCell colSpan={3} />
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      const rows = disbLoans.map((l: Record<string, unknown>) => ({
+                        [t("borrower")]: getMemberName(l.membership as Record<string, unknown>),
+                        [t("amountApproved")]: Number(l.amount_approved || 0),
+                        [t("disbursedDate")]: formatDate(l.disbursed_at as string),
+                        [t("disbursementMethod")]: (l.disbursement_method as string) || "",
+                        [tc("status")]: l.status as string,
+                      }));
+                      exportCSV(rows, "disbursed_loans");
+                    }}>
+                      <Download className="mr-2 h-4 w-4" />{t("exportCsv")}
+                    </Button>
+                  </div>
+                </>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
+
+        {/* Active Loans Breakdown */}
+        <Dialog open={drillDown === "active"} onOpenChange={(o) => !o && setDrillDown(null)}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("activeLoansBreakdown")}</DialogTitle>
+            </DialogHeader>
+            {activeSchedLoading ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : activeLoans.length === 0 ? (
+              <p className="py-8 text-center text-muted-foreground">{t("noDataDrillDown")}</p>
+            ) : (() => {
+              const schedByLoan = new Map<string, Record<string, unknown>>();
+              for (const s of (allActiveSchedule || [])) {
+                const lId = (s as Record<string, unknown>).loan_id as string;
+                const st = (s as Record<string, unknown>).status as string;
+                if ((st === "pending" || st === "overdue") && !schedByLoan.has(lId)) {
+                  schedByLoan.set(lId, s as Record<string, unknown>);
+                }
+              }
+              const totalInstByLoan = new Map<string, number>();
+              const paidInstByLoan = new Map<string, number>();
+              for (const s of (allActiveSchedule || [])) {
+                const lId = (s as Record<string, unknown>).loan_id as string;
+                totalInstByLoan.set(lId, (totalInstByLoan.get(lId) || 0) + 1);
+                if ((s as Record<string, unknown>).status === "paid") paidInstByLoan.set(lId, (paidInstByLoan.get(lId) || 0) + 1);
+              }
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("borrower")}</TableHead>
+                          <TableHead className="text-right">{t("amountApproved")}</TableHead>
+                          <TableHead>{t("nextInstallmentDue")}</TableHead>
+                          <TableHead>{t("installmentProgress")}</TableHead>
+                          <TableHead>{tc("status")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activeLoans.map((l: Record<string, unknown>) => {
+                          const lId = l.id as string;
+                          const nextInst = schedByLoan.get(lId);
+                          const total = totalInstByLoan.get(lId) || 0;
+                          const paid = paidInstByLoan.get(lId) || 0;
+                          return (
+                            <TableRow key={lId}>
+                              <TableCell className="font-medium">{getMemberName(l.membership as Record<string, unknown>)}</TableCell>
+                              <TableCell className="text-right">{formatAmount(Number(l.amount_approved || 0), currency)}</TableCell>
+                              <TableCell>{nextInst ? formatDate(nextInst.due_date as string) : "-"}</TableCell>
+                              <TableCell>{paid}/{total}</TableCell>
+                              <TableCell><Badge className={statusConfig[(l.status as LoanStatus)]?.color}>{t(`status_${l.status as string}`)}</Badge></TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      const rows = activeLoans.map((l: Record<string, unknown>) => {
+                        const lId = l.id as string;
+                        const nextInst = schedByLoan.get(lId);
+                        const total = totalInstByLoan.get(lId) || 0;
+                        const paid = paidInstByLoan.get(lId) || 0;
+                        return {
+                          [t("borrower")]: getMemberName(l.membership as Record<string, unknown>),
+                          [t("amountApproved")]: Number(l.amount_approved || 0),
+                          [t("nextInstallmentDue")]: nextInst ? formatDate(nextInst.due_date as string) : "",
+                          [t("installmentProgress")]: `${paid}/${total}`,
+                          [tc("status")]: l.status as string,
+                        };
+                      });
+                      exportCSV(rows, "active_loans");
+                    }}>
+                      <Download className="mr-2 h-4 w-4" />{t("exportCsv")}
+                    </Button>
+                  </div>
+                </>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
+
+        {/* Repaid This Year Breakdown */}
+        <Dialog open={drillDown === "repaid"} onOpenChange={(o) => !o && setDrillDown(null)}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("repaidBreakdown")}</DialogTitle>
+            </DialogHeader>
+            {repayListLoading ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : (() => {
+              const yearRepayments = (allRepaymentsList || []).filter((r: Record<string, unknown>) =>
+                new Date(r.paid_at as string).getFullYear() === thisYear
+              );
+              const repayTotal = yearRepayments.reduce((s, r: Record<string, unknown>) => s + Number(r.amount || 0), 0);
+              if (yearRepayments.length === 0) return <p className="py-8 text-center text-muted-foreground">{t("noDataDrillDown")}</p>;
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("borrower")}</TableHead>
+                          <TableHead className="text-right">{t("repaymentAmount")}</TableHead>
+                          <TableHead>{t("paymentMethod")}</TableHead>
+                          <TableHead>{t("paidDate")}</TableHead>
+                          <TableHead>{t("referenceNumber")}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {yearRepayments.map((r: Record<string, unknown>) => {
+                          const loan = r.loan as Record<string, unknown> | null;
+                          const member = loan?.membership as Record<string, unknown> | null;
+                          return (
+                            <TableRow key={r.id as string}>
+                              <TableCell className="font-medium">{member ? getMemberName(member) : "-"}</TableCell>
+                              <TableCell className="text-right">{formatAmount(Number(r.amount || 0), currency)}</TableCell>
+                              <TableCell>{(r.payment_method as string) || "-"}</TableCell>
+                              <TableCell>{formatDate(r.paid_at as string)}</TableCell>
+                              <TableCell>{(r.reference_number as string) || "-"}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow className="border-t-2 font-bold">
+                          <TableCell className="text-right">{tc("total")}</TableCell>
+                          <TableCell className="text-right">{formatAmount(repayTotal, currency)}</TableCell>
+                          <TableCell colSpan={3} />
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      const rows = yearRepayments.map((r: Record<string, unknown>) => {
+                        const loan = r.loan as Record<string, unknown> | null;
+                        const member = loan?.membership as Record<string, unknown> | null;
+                        return {
+                          [t("borrower")]: member ? getMemberName(member) : "",
+                          [t("repaymentAmount")]: Number(r.amount || 0),
+                          [t("paymentMethod")]: (r.payment_method as string) || "",
+                          [t("paidDate")]: formatDate(r.paid_at as string),
+                          [t("referenceNumber")]: (r.reference_number as string) || "",
+                        };
+                      });
+                      exportCSV(rows, "repayments_this_year");
+                    }}>
+                      <Download className="mr-2 h-4 w-4" />{t("exportCsv")}
+                    </Button>
+                  </div>
+                </>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
+
+        {/* Overdue Installments Breakdown */}
+        <Dialog open={drillDown === "overdue"} onOpenChange={(o) => !o && setDrillDown(null)}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{t("overdueBreakdown")}</DialogTitle>
+            </DialogHeader>
+            {overdueLoading ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : (allOverdue || []).length === 0 ? (
+              <p className="py-8 text-center text-muted-foreground">{t("noDataDrillDown")}</p>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("borrower")}</TableHead>
+                        <TableHead className="text-right">{t("amountApproved")}</TableHead>
+                        <TableHead>{t("installmentNumber")}</TableHead>
+                        <TableHead className="text-right">{t("amountDue")}</TableHead>
+                        <TableHead>{t("dueDate")}</TableHead>
+                        <TableHead>{t("daysOverdueLabel")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(allOverdue || []).map((s: Record<string, unknown>) => {
+                        const loan = s.loan as Record<string, unknown> | null;
+                        const member = loan?.membership as Record<string, unknown> | null;
+                        const daysOver = Math.max(0, Math.floor((Date.now() - new Date(s.due_date as string).getTime()) / 86400000));
+                        return (
+                          <TableRow key={s.id as string} className={daysOver >= 30 ? "bg-destructive/5" : ""}>
+                            <TableCell className="font-medium">{member ? getMemberName(member) : "-"}</TableCell>
+                            <TableCell className="text-right">{formatAmount(Number(loan?.amount_approved || 0), currency)}</TableCell>
+                            <TableCell>#{s.installment_number as number}</TableCell>
+                            <TableCell className="text-right">{formatAmount(Number(s.amount_due || 0), currency)}</TableCell>
+                            <TableCell>{formatDate(s.due_date as string)}</TableCell>
+                            <TableCell><Badge variant={daysOver >= 30 ? "destructive" : "secondary"}>{t("daysOverdueValue", { days: daysOver })}</Badge></TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const rows = (allOverdue || []).map((s: Record<string, unknown>) => {
+                      const loan = s.loan as Record<string, unknown> | null;
+                      const member = loan?.membership as Record<string, unknown> | null;
+                      const daysOver = Math.max(0, Math.floor((Date.now() - new Date(s.due_date as string).getTime()) / 86400000));
+                      return {
+                        [t("borrower")]: member ? getMemberName(member) : "",
+                        [t("amountApproved")]: Number(loan?.amount_approved || 0),
+                        [t("installmentNumber")]: s.installment_number as number,
+                        [t("amountDue")]: Number(s.amount_due || 0),
+                        [t("dueDate")]: formatDate(s.due_date as string),
+                        [t("daysOverdueLabel")]: daysOver,
+                      };
+                    });
+                    exportCSV(rows, "overdue_installments");
+                  }}>
+                    <Download className="mr-2 h-4 w-4" />{t("exportCsv")}
+                  </Button>
+                </div>
+              </>
+            )}
           </DialogContent>
         </Dialog>
 

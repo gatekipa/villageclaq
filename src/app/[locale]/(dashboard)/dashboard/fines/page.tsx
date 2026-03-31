@@ -40,6 +40,8 @@ import {
   Ban,
   Search,
   Banknote,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
@@ -952,6 +954,28 @@ export default function FinesAdminPage() {
                 {!!detailDispute.description && (
                   <div className="rounded-lg border p-3">
                     <p className="text-sm whitespace-pre-wrap">{detailDispute.description as string}</p>
+                  </div>
+                )}
+                {Array.isArray(detailDispute.supporting_docs) && (detailDispute.supporting_docs as string[]).length > 0 && (
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {td("supportingDocuments")}
+                    </h4>
+                    <div className="space-y-1">
+                      {(detailDispute.supporting_docs as string[]).map((url, idx) => (
+                        <a
+                          key={idx}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm text-primary hover:underline"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                          {td("viewDocument")} {(detailDispute.supporting_docs as string[]).length > 1 ? `#${idx + 1}` : ""}
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {detailDispute.status === "resolved" && !!detailDispute.resolution && (

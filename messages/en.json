@@ -87,7 +87,8 @@
     "other": "Other",
     "refresh": "Refresh",
     "select": "Select...",
-    "member": "Member"
+    "member": "Member",
+    "uploaded": "Uploaded"
   },
   "join": {
     "invalidLink": "Invalid or Expired Link",
@@ -4511,7 +4512,12 @@
     "disputeResolvedNotifTitle": "Dispute Resolved",
     "disputeResolvedNotifBody": "Your dispute \"{subject}\" has been resolved.",
     "disputeDismissedNotifTitle": "Dispute Dismissed",
-    "disputeDismissedNotifBody": "Your dispute \"{subject}\" has been dismissed."
+    "disputeDismissedNotifBody": "Your dispute \"{subject}\" has been dismissed.",
+    "attachDocument": "Attach document",
+    "attachDocumentOptional": "Attach a photo or document to support your dispute (optional)",
+    "supportingDocuments": "Supporting documents",
+    "viewDocument": "View document",
+    "uploadFailed": "File upload failed, but you can still submit your dispute"
   },
   "countries": {
     "CM": "Cameroon",

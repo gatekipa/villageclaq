@@ -35,6 +35,8 @@ import {
   Plus,
   Loader2,
   Eye,
+  Upload,
+  FileText,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
@@ -119,6 +121,10 @@ export default function MyFinesPage() {
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
 
+  // Upload error shown temporarily
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  function showUploadError(msg: string) { setUploadError(msg); setTimeout(() => setUploadError(null), 5000); }
+
   const { data: fines, isLoading: finesLoading, error: finesError, refetch } = useMyFines();
   const { data: disputes, isLoading: disputesLoading } = useMyDisputes();
   const { data: membersList } = useMembers();
@@ -129,6 +135,8 @@ export default function MyFinesPage() {
   const [disputeDesc, setDisputeDesc] = useState("");
   const [disputeSaving, setDisputeSaving] = useState(false);
   const [disputeError, setDisputeError] = useState<string | null>(null);
+  const [disputeDocUrl, setDisputeDocUrl] = useState<string | null>(null);
+  const [disputeDocUploading, setDisputeDocUploading] = useState(false);
 
   // General dispute dialog
   const [generalDisputeOpen, setGeneralDisputeOpen] = useState(false);
@@ -138,6 +146,8 @@ export default function MyFinesPage() {
   const [gdDesc, setGdDesc] = useState("");
   const [gdSaving, setGdSaving] = useState(false);
   const [gdError, setGdError] = useState<string | null>(null);
+  const [gdDocUrl, setGdDocUrl] = useState<string | null>(null);
+  const [gdDocUploading, setGdDocUploading] = useState(false);
 
   // Dispute detail
   const [detailDispute, setDetailDispute] = useState<Record<string, unknown> | null>(null);
@@ -156,6 +166,35 @@ export default function MyFinesPage() {
     } catch { return d; }
   };
 
+  // ─── File upload helper ────────────────────────────────────────────────
+  async function handleDocUpload(
+    file: File,
+    setUrl: (url: string | null) => void,
+    setUploading: (v: boolean) => void,
+  ) {
+    if (!groupId || !currentMembership) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showUploadError(td("uploadFailed"));
+      return;
+    }
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const path = `dispute-docs/${groupId}/${currentMembership.id}/${Date.now()}-${file.name}`;
+      const { error: uploadErr } = await supabase.storage.from("receipts").upload(path, file);
+      if (uploadErr) {
+        showUploadError(td("uploadFailed"));
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+      setUrl(urlData.publicUrl);
+    } catch {
+      showUploadError(td("uploadFailed"));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   // ─── Dispute a fine ─────────────────────────────────────────────────────
   function openDisputeFine(fine: Record<string, unknown>) {
     const ftName = (fine.fine_type as Record<string, unknown> | null)?.name as string || "-";
@@ -163,6 +202,7 @@ export default function MyFinesPage() {
     setDisputeFineTypeName(ftName);
     setDisputeDesc("");
     setDisputeError(null);
+    setDisputeDocUrl(null);
   }
 
   async function handleDisputeFine() {
@@ -174,6 +214,7 @@ export default function MyFinesPage() {
 
       // Create dispute record
       const subject = `${t("disputeThisFine")}: ${disputeFineTypeName}`;
+      const supportingDocs = disputeDocUrl ? [disputeDocUrl] : [];
       const { data: disputeData, error: dErr } = await supabase.from("disputes").insert({
         group_id: groupId,
         filed_by: currentMembership.id,
@@ -182,6 +223,7 @@ export default function MyFinesPage() {
         title: subject,
         description: disputeDesc.trim() || null,
         related_fine_id: disputeFineId,
+        supporting_docs: supportingDocs,
         status: "open",
       }).select("id").single();
       if (dErr) throw dErr;
@@ -232,6 +274,7 @@ export default function MyFinesPage() {
     setGdSubject("");
     setGdDesc("");
     setGdError(null);
+    setGdDocUrl(null);
     setGeneralDisputeOpen(true);
   }
 
@@ -241,6 +284,7 @@ export default function MyFinesPage() {
     setGdError(null);
     try {
       const supabase = createClient();
+      const gdSupportingDocs = gdDocUrl ? [gdDocUrl] : [];
       const { error: e } = await supabase.from("disputes").insert({
         group_id: groupId,
         filed_by: currentMembership.id,
@@ -249,6 +293,7 @@ export default function MyFinesPage() {
         subject: gdSubject.trim(),
         title: gdSubject.trim(),
         description: gdDesc.trim() || null,
+        supporting_docs: gdSupportingDocs,
         status: "open",
       });
       if (e) throw e;
@@ -300,6 +345,12 @@ export default function MyFinesPage() {
           <Plus className="mr-2 h-4 w-4" />{t("fileGeneralDispute")}
         </Button>
       </div>
+
+      {uploadError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm text-amber-800 dark:text-amber-300">
+          {uploadError}
+        </div>
+      )}
 
       {/* Pending Fines */}
       <div className="space-y-3">
@@ -411,6 +462,38 @@ export default function MyFinesPage() {
               <Label>{t("disputeDescription")} <span className="text-red-500">*</span></Label>
               <Textarea placeholder={t("disputeDescPlaceholder")} value={disputeDesc} onChange={(e) => setDisputeDesc(e.target.value)} rows={4} />
             </div>
+            <div className="space-y-2">
+              <Label>{td("attachDocument")}</Label>
+              <p className="text-xs text-muted-foreground">{td("attachDocumentOptional")}</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="hidden"
+                  id="dispute-fine-doc-upload"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleDocUpload(file, setDisputeDocUrl, setDisputeDocUploading);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  type="button"
+                  disabled={disputeDocUploading}
+                  onClick={() => document.getElementById("dispute-fine-doc-upload")?.click()}
+                >
+                  {disputeDocUploading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : disputeDocUrl ? (
+                    <FileText className="mr-2 h-4 w-4 text-emerald-600" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  {disputeDocUrl ? tc("uploaded") : td("attachDocument")}
+                </Button>
+              </div>
+            </div>
             {disputeError && <p className="text-sm text-destructive">{disputeError}</p>}
           </div>
           <DialogFooter>
@@ -460,6 +543,38 @@ export default function MyFinesPage() {
               <Label>{t("disputeDescriptionLabel")}</Label>
               <Textarea value={gdDesc} onChange={(e) => setGdDesc(e.target.value)} rows={4} />
             </div>
+            <div className="space-y-2">
+              <Label>{td("attachDocument")}</Label>
+              <p className="text-xs text-muted-foreground">{td("attachDocumentOptional")}</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="hidden"
+                  id="general-dispute-doc-upload"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleDocUpload(file, setGdDocUrl, setGdDocUploading);
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  type="button"
+                  disabled={gdDocUploading}
+                  onClick={() => document.getElementById("general-dispute-doc-upload")?.click()}
+                >
+                  {gdDocUploading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : gdDocUrl ? (
+                    <FileText className="mr-2 h-4 w-4 text-emerald-600" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  {gdDocUrl ? tc("uploaded") : td("attachDocument")}
+                </Button>
+              </div>
+            </div>
             {gdError && <p className="text-sm text-destructive">{gdError}</p>}
           </div>
           <DialogFooter>
@@ -487,6 +602,28 @@ export default function MyFinesPage() {
               {!!detailDispute.description && (
                 <div className="rounded-lg border p-3">
                   <p className="text-sm whitespace-pre-wrap">{detailDispute.description as string}</p>
+                </div>
+              )}
+              {Array.isArray(detailDispute.supporting_docs) && (detailDispute.supporting_docs as string[]).length > 0 && (
+                <div className="rounded-lg border p-3 space-y-2">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    {td("supportingDocuments")}
+                  </h4>
+                  <div className="space-y-1">
+                    {(detailDispute.supporting_docs as string[]).map((url: string, idx: number) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <Eye className="h-3.5 w-3.5 shrink-0" />
+                        {td("viewDocument")} {(detailDispute.supporting_docs as string[]).length > 1 ? `#${idx + 1}` : ""}
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
               {(detailDispute.status === "resolved" || detailDispute.status === "dismissed") && !!detailDispute.resolution && (

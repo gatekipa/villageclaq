@@ -87,7 +87,8 @@
     "other": "Autre",
     "refresh": "Actualiser",
     "select": "Sélectionner...",
-    "member": "Membre"
+    "member": "Membre",
+    "uploaded": "Téléchargé"
   },
   "join": {
     "invalidLink": "Lien invalide ou expiré",
@@ -4511,7 +4512,12 @@
     "disputeResolvedNotifTitle": "Litige résolu",
     "disputeResolvedNotifBody": "Votre litige \"{subject}\" a été résolu.",
     "disputeDismissedNotifTitle": "Litige rejeté",
-    "disputeDismissedNotifBody": "Votre litige \"{subject}\" a été rejeté."
+    "disputeDismissedNotifBody": "Votre litige \"{subject}\" a été rejeté.",
+    "attachDocument": "Joindre un document",
+    "attachDocumentOptional": "Joindre une photo ou un document pour appuyer votre contestation (facultatif)",
+    "supportingDocuments": "Documents justificatifs",
+    "viewDocument": "Voir le document",
+    "uploadFailed": "L'envoi du fichier a échoué, mais vous pouvez toujours soumettre votre contestation"
   },
   "countries": {
     "CM": "Cameroun",

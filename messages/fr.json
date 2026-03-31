@@ -462,7 +462,11 @@
     "reliefSummary": "Fonds de secours",
     "activeFunds": "{count} fonds actifs",
     "pendingClaimsCount": "{count} en attente",
-    "emptyDescription": "Votre groupe est configuré ! Commencez par inviter des membres ou créer votre premier type de contribution."
+    "emptyDescription": "Votre groupe est configuré ! Commencez par inviter des membres ou créer votre premier type de contribution.",
+    "viewMembersCard": "Voir tous les membres",
+    "viewCollectionCard": "Voir les détails de collecte",
+    "viewEventsCard": "Voir les événements à venir",
+    "viewOutstandingCard": "Voir les soldes impayés"
   },
   "groups": {
     "switchGroup": "Changer de groupe",

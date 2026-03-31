@@ -5,6 +5,7 @@ import { formatAmount } from "@/lib/currencies";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { Link, useRouter } from "@/i18n/routing";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -175,70 +176,78 @@ export default function DashboardPage() {
 
       {/* Stats Grid — ALWAYS shown */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-medium text-muted-foreground">
-              {t("dashboard.totalMembers")}
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{stats?.totalMembers ?? 0}</div>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/members" aria-label={t("dashboard.viewMembersCard")}>
+          <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base font-medium text-muted-foreground">
+                {t("dashboard.totalMembers")}
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{stats?.totalMembers ?? 0}</div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-medium text-muted-foreground">
-              {t("dashboard.collectionRate")}
-            </CardTitle>
-            <HandCoins className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{stats?.collectionRate ?? 0}%</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("dashboard.paidThisMonth")}
-            </p>
-            <div className="mt-2 h-2 rounded-full bg-muted">
-              <div
-                className="h-2 rounded-full bg-primary transition-all"
-                style={{ width: `${stats?.collectionRate ?? 0}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/contributions" aria-label={t("dashboard.viewCollectionCard")}>
+          <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base font-medium text-muted-foreground">
+                {t("dashboard.collectionRate")}
+              </CardTitle>
+              <HandCoins className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{stats?.collectionRate ?? 0}%</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("dashboard.paidThisMonth")}
+              </p>
+              <div className="mt-2 h-2 rounded-full bg-muted">
+                <div
+                  className="h-2 rounded-full bg-primary transition-all"
+                  style={{ width: `${stats?.collectionRate ?? 0}%` }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-medium text-muted-foreground">
-              {t("dashboard.upcomingEvents")}
-            </CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{stats?.upcomingEvents ?? 0}</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("dashboard.eventsThisMonth")}
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/events" aria-label={t("dashboard.viewEventsCard")}>
+          <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base font-medium text-muted-foreground">
+                {t("dashboard.upcomingEvents")}
+              </CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold">{stats?.upcomingEvents ?? 0}</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("dashboard.eventsThisMonth")}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className={(stats?.outstanding ?? 0) > 0 ? "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20" : ""}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base font-medium text-muted-foreground">
-              {t("dashboard.outstandingBalance")}
-            </CardTitle>
-            <AlertCircle className="h-5 w-5 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-destructive">
-              {formatCurrency(stats?.outstanding ?? 0)}
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("dashboard.overdue")}
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/contributions/unpaid" aria-label={t("dashboard.viewOutstandingCard")}>
+          <Card className={cn("cursor-pointer transition-all hover:shadow-md hover:border-primary/30", (stats?.outstanding ?? 0) > 0 && "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20 hover:border-destructive/50")}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base font-medium text-muted-foreground">
+                {t("dashboard.outstandingBalance")}
+              </CardTitle>
+              <AlertCircle className="h-5 w-5 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-destructive">
+                {formatCurrency(stats?.outstanding ?? 0)}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("dashboard.overdue")}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Quick Actions */}

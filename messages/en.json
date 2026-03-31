@@ -462,7 +462,11 @@
     "reliefSummary": "Relief Funds",
     "activeFunds": "{count} active funds",
     "pendingClaimsCount": "{count} pending",
-    "emptyDescription": "Your group is set up! Start by inviting members or creating your first contribution type."
+    "emptyDescription": "Your group is set up! Start by inviting members or creating your first contribution type.",
+    "viewMembersCard": "View all members",
+    "viewCollectionCard": "View collection details",
+    "viewEventsCard": "View upcoming events",
+    "viewOutstandingCard": "View outstanding balances"
   },
   "groups": {
     "switchGroup": "Switch Group",

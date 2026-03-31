@@ -23,9 +23,9 @@ const categoryConfig: Record<string, { color: string; icon: typeof Sparkles }> =
 
 interface ChangelogEntry {
   id: string;
-  title_en: string;
+  title: string;
   title_fr: string;
-  description_en: string;
+  description: string;
   description_fr: string;
   category: string;
   version: string | null;
@@ -59,8 +59,8 @@ function ChangelogList({ entries, locale }: { entries: ChangelogEntry[]; locale:
         {entries.map((entry) => {
           const config = categoryConfig[entry.category] || categoryConfig.feature;
           const Icon = config.icon;
-          const title = locale === "fr" ? (entry.title_fr || entry.title_en) : entry.title_en;
-          const description = locale === "fr" ? (entry.description_fr || entry.description_en) : entry.description_en;
+          const title = locale === "fr" ? (entry.title_fr || entry.title) : entry.title;
+          const description = locale === "fr" ? (entry.description_fr || entry.description) : entry.description;
           const date = new Date(entry.published_at).toLocaleDateString(
             locale === "fr" ? "fr-FR" : "en-US",
             { year: "numeric", month: "long", day: "numeric" }

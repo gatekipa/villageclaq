@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import {
   Shield,
   UserX,
@@ -89,6 +90,7 @@ const actionKeys: Record<string, string> = {
 
 export default function AuditPage() {
   const t = useTranslations("admin");
+  const locale = useLocale();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [staffFilter, setStaffFilter] = useState<string>("all");
@@ -113,7 +115,7 @@ export default function AuditPage() {
             staffName: (profiles?.full_name as string) || "Staff",
             action: row.action as string,
             target: (details?.target_description as string) || `${row.target_type || ""} ${row.target_id || ""}`.trim(),
-            timestamp: new Date(row.created_at as string).toLocaleString(),
+            timestamp: new Date(row.created_at as string).toLocaleString(getDateLocale(locale)),
           };
         }));
       }

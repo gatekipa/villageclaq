@@ -142,7 +142,7 @@ export default function InvitationsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
 
-      const inviterName = user?.full_name || user?.display_name || "";
+      const inviterName = user?.full_name || user?.display_name || t("invitations.unknown");
       const groupName = currentGroup?.name || "";
       const groupType = (currentGroup as Record<string, unknown>)?.group_type as string | undefined;
       const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;

@@ -728,7 +728,8 @@
     "memberRemovedNotifTitle": "Retiré du groupe",
     "memberRemovedNotifBody": "Vous avez été retiré de {groupName}.",
     "deactivateMember": "Désactiver le membre",
-    "activateMember": "Activer le membre"
+    "activateMember": "Activer le membre",
+    "autoEnrollWarning": "Membre ajouté, mais l'inscription automatique aux cotisations a échoué. Vous devrez peut-être l'inscrire manuellement."
   },
   "settings": {
     "title": "Paramètres du groupe",

@@ -180,7 +180,9 @@ async function autoEnrollMember(supabase: ReturnType<typeof createClient>, group
   } catch (err) {
     // Non-blocking — don't fail member creation if enrollment fails
     console.error("Auto-enrollment error:", err);
+    return false;
   }
+  return true;
 }
 
 type Standing = "good" | "warning" | "suspended" | "banned";
@@ -987,7 +989,7 @@ export default function MembersPage() {
           );
         }
 
-        // Auto-enroll in active contribution types
+        // Auto-enroll in active contribution types (non-blocking)
         if (newMembershipId) {
           await autoEnrollMember(supabase, groupId, newMembershipId);
         }
@@ -1035,9 +1037,12 @@ export default function MembersPage() {
         );
       }
 
-      // Auto-enroll new member in active contribution types
+      // Auto-enroll new member in active contribution types (non-blocking)
       if (newMembershipId) {
-        await autoEnrollMember(supabase, groupId, newMembershipId);
+        const enrolled = await autoEnrollMember(supabase, groupId, newMembershipId);
+        if (!enrolled) {
+          setAddError(t("autoEnrollWarning"));
+        }
       }
 
       // Send welcome email (non-blocking)

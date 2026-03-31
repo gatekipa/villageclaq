@@ -728,7 +728,8 @@
     "memberRemovedNotifTitle": "Removed from Group",
     "memberRemovedNotifBody": "You have been removed from {groupName}.",
     "deactivateMember": "Deactivate Member",
-    "activateMember": "Activate Member"
+    "activateMember": "Activate Member",
+    "autoEnrollWarning": "Member added, but automatic contribution enrollment failed. You may need to enroll them manually."
   },
   "settings": {
     "title": "Group Settings",

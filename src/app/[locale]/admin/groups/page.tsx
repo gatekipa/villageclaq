@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ const statusConfig: Record<GroupStatus, { variant: "default" | "secondary" | "de
 
 export default function AdminGroupsPage() {
   const t = useTranslations("admin");
+  const locale = useLocale();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<GroupStatus | "all">("all");
   const [groups, setGroups] = useState<AdminGroup[]>([]);
@@ -212,7 +214,7 @@ export default function AdminGroupsPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">{t("createdDate")}</p>
-                      <p className="font-medium">{new Date(group.created_at).toLocaleDateString()}</p>
+                      <p className="font-medium">{new Date(group.created_at).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short", day: "numeric" })}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">{t("collectionRate")}</p>

@@ -205,9 +205,9 @@ function useMemberHosting(membershipId: string | null) {
       if (!membershipId) return [];
       const { data, error } = await supabase
         .from("hosting_assignments")
-        .select("id, status, scheduled_date, roster:hosting_rosters(name)")
+        .select("id, status, assigned_date, roster:hosting_rosters(name)")
         .eq("membership_id", membershipId)
-        .order("scheduled_date", { ascending: false });
+        .order("assigned_date", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -222,7 +222,7 @@ function useMemberRelief(membershipId: string | null) {
       if (!membershipId) return [];
       const { data, error } = await supabase
         .from("relief_enrollments")
-        .select("id, contribution_status, eligibility_status, relief_plan:relief_plans(id, name, name_fr)")
+        .select("id, contribution_status, is_active, relief_plan:relief_plans(id, name, name_fr)")
         .eq("membership_id", membershipId);
       if (error) throw error;
       return data || [];
@@ -777,7 +777,7 @@ export default function MemberDetailPage() {
               <div>
                 <p className="text-xs text-muted-foreground">{ts("nextHosting")}</p>
                 <p className="text-sm font-medium">
-                  {nextHosting ? new Date(nextHosting.scheduled_date as string).toLocaleDateString() : "—"}
+                  {nextHosting ? new Date(nextHosting.assigned_date as string).toLocaleDateString() : "—"}
                 </p>
               </div>
             </div>
@@ -804,7 +804,7 @@ export default function MemberDetailPage() {
                   <div key={enrollment.id as string} className="flex items-center justify-between px-4 py-3">
                     <div>
                       <p className="text-sm font-medium">{(plan?.name as string) || "—"}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{enrollment.eligibility_status as string || "—"}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{(enrollment.is_active as boolean) ? t("common.active") : t("common.inactive")}</p>
                     </div>
                     <Badge variant={isBehind ? "destructive" : "secondary"} className="text-xs capitalize">
                       {contribStatus || "—"}

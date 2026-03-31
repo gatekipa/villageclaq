@@ -72,8 +72,13 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  FileDown,
+  Send,
+  LogOut,
+  ShieldAlert,
 } from "lucide-react";
 import Papa from "papaparse";
+import { Textarea } from "@/components/ui/textarea";
 import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useGroup } from "@/lib/group-context";
@@ -81,6 +86,8 @@ import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 import { calculateStanding } from "@/lib/calculate-standing";
+import { exportCSV } from "@/lib/export";
+import { logActivity } from "@/lib/audit-log";
 import { RefreshCw } from "lucide-react";
 
 /**
@@ -238,6 +245,28 @@ export default function MembersPage() {
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
 
+  // Bulk invite state
+  const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
+  const [bulkInviteEmails, setBulkInviteEmails] = useState("");
+  const [bulkInviteSending, setBulkInviteSending] = useState(false);
+  const [bulkInviteError, setBulkInviteError] = useState<string | null>(null);
+  const [bulkInviteResult, setBulkInviteResult] = useState<{ succeeded: number; failed: number } | null>(null);
+
+  // Export state
+  const [exporting, setExporting] = useState(false);
+
+  // Transfer ownership state
+  const [ownershipDialogOpen, setOwnershipDialogOpen] = useState(false);
+  const [ownershipTarget, setOwnershipTarget] = useState<Record<string, unknown> | null>(null);
+  const [ownershipConfirmText, setOwnershipConfirmText] = useState("");
+  const [ownershipSaving, setOwnershipSaving] = useState(false);
+  const [ownershipError, setOwnershipError] = useState<string | null>(null);
+
+  // Leave group state
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaveSaving, setLeaveSaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+
   // Recalculate all standing state
   const [recalcAllLoading, setRecalcAllLoading] = useState(false);
   const ts = useTranslations("standing");
@@ -329,6 +358,223 @@ export default function MembersPage() {
       setClaimError((err as Error).message || t("claimInviteError"));
     } finally {
       setClaimSaving(false);
+    }
+  }
+
+  // ─── BUG 5 FIX: Export Members CSV ───────────────────────────────────────
+  async function handleExportMembers() {
+    if (!members || members.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      const rows = members.map((m: Record<string, unknown>) => {
+        const name = getMemberName(m);
+        const profile = m.profile as { full_name?: string; phone?: string } | undefined;
+        const phone = m.is_proxy
+          ? ((m.privacy_settings as Record<string, string>)?.proxy_phone || "")
+          : (profile?.phone || "");
+        const role = (m.role as string) || "member";
+        const standing = (m.standing as string) || "good";
+        const joinedAt = m.joined_at ? new Date(m.joined_at as string).toLocaleDateString() : "";
+        const isProxy = m.is_proxy ? "Yes" : "No";
+        return { Name: name, Phone: phone, Role: role, Standing: standing, "Joined Date": joinedAt, "Proxy Member": isProxy };
+      });
+      exportCSV(rows, `${currentGroup?.name || "group"}-members`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  // ─── BUG 4 FIX: Bulk Invite ────────────────────────────────────────────────
+  async function handleBulkInvite() {
+    if (!groupId || !user || bulkInviteSending) return;
+    setBulkInviteSending(true);
+    setBulkInviteError(null);
+    setBulkInviteResult(null);
+
+    const lines = bulkInviteEmails.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      setBulkInviteError(t("bulkInviteNoEmails"));
+      setBulkInviteSending(false);
+      return;
+    }
+
+    // Validate and deduplicate emails
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const seen = new Set<string>();
+    const validEmails: string[] = [];
+    const errors: string[] = [];
+
+    for (const line of lines) {
+      const email = line.toLowerCase();
+      if (!emailRegex.test(email)) {
+        errors.push(t("bulkInviteInvalidEmail", { email: line }));
+        continue;
+      }
+      if (seen.has(email)) {
+        continue; // Skip duplicates silently
+      }
+      seen.add(email);
+      validEmails.push(email);
+    }
+
+    if (validEmails.length === 0) {
+      setBulkInviteError(errors.join("\n"));
+      setBulkInviteSending(false);
+      return;
+    }
+
+    let succeeded = 0;
+    let failed = 0;
+    const supabase = createClient();
+
+    for (const email of validEmails) {
+      try {
+        const { error: invErr } = await supabase.from("invitations").insert({
+          group_id: groupId,
+          email,
+          role: "member",
+          status: "pending",
+          invited_by: user.id,
+        });
+        if (invErr) { failed++; continue; }
+
+        // Send email (fire-and-forget)
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            fetch("/api/email/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({
+                to: email,
+                template: "invitation",
+                data: { groupName: currentGroup?.name || "", inviterName: user.full_name || "", dashboardUrl: `${window.location.origin}/dashboard` },
+                locale,
+              }),
+            }).catch(() => {});
+          }
+        } catch { /* email non-critical */ }
+
+        succeeded++;
+      } catch {
+        failed++;
+      }
+    }
+
+    setBulkInviteResult({ succeeded, failed });
+    if (succeeded > 0) {
+      await queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+      await logActivity(supabase, { groupId, action: "invitations.bulk_sent", description: `Sent ${succeeded} bulk invitations` });
+    }
+    setBulkInviteSending(false);
+  }
+
+  // ─── BUG 6 FIX: Transfer Ownership ─────────────────────────────────────────
+  function openTransferOwnership(member: Record<string, unknown>) {
+    setOwnershipTarget(member);
+    setOwnershipConfirmText("");
+    setOwnershipError(null);
+    setOwnershipDialogOpen(true);
+  }
+
+  async function handleTransferOwnership() {
+    if (!ownershipTarget || !groupId || !currentMembership || ownershipSaving) return;
+    const groupName = currentGroup?.name || "";
+    if (ownershipConfirmText.trim() !== groupName) {
+      setOwnershipError(t("transferOwnershipMismatch"));
+      return;
+    }
+    setOwnershipSaving(true);
+    setOwnershipError(null);
+    try {
+      const supabase = createClient();
+      const targetId = ownershipTarget.id as string;
+      const targetName = getMemberName(ownershipTarget);
+
+      // Update target to owner
+      const { error: err1 } = await supabase.from("memberships").update({ role: "owner" }).eq("id", targetId);
+      if (err1) throw err1;
+
+      // Demote self to admin
+      const { error: err2 } = await supabase.from("memberships").update({ role: "admin" }).eq("id", currentMembership.id);
+      if (err2) throw err2;
+
+      // Send notification to new owner
+      if ((ownershipTarget.user_id as string)) {
+        await supabase.from("notifications").insert({
+          user_id: ownershipTarget.user_id as string,
+          group_id: groupId,
+          type: "system",
+          title: "Ownership Transferred",
+          body: `You are now the owner of ${groupName}`,
+        });
+      }
+
+      await logActivity(supabase, {
+        groupId,
+        action: "member.ownership_transferred",
+        entityType: "membership",
+        entityId: targetId,
+        description: `Ownership transferred to ${targetName}`,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["group"] });
+      setOwnershipDialogOpen(false);
+      // Reload to reflect new role
+      window.location.reload();
+    } catch (err) {
+      setOwnershipError((err as Error).message || t("transferOwnershipError"));
+    } finally {
+      setOwnershipSaving(false);
+    }
+  }
+
+  // ─── BUG 7 FIX: Leave Group ────────────────────────────────────────────────
+  async function handleLeaveGroup() {
+    if (!groupId || !currentMembership || leaveSaving) return;
+    setLeaveSaving(true);
+    setLeaveError(null);
+    try {
+      const supabase = createClient();
+
+      // Delete membership (preserves payments, attendance etc. since those reference membership_id but have ON DELETE CASCADE or standalone)
+      const { error: delErr } = await supabase
+        .from("memberships")
+        .delete()
+        .eq("id", currentMembership.id);
+      if (delErr) throw delErr;
+
+      // Notify group admins
+      if (members) {
+        const admins = members.filter((m: Record<string, unknown>) =>
+          (m.role === "owner" || m.role === "admin") && m.user_id
+        );
+        const memberName = user?.full_name || t("unnamed");
+        const notifications = admins.map((admin: Record<string, unknown>) => ({
+          user_id: admin.user_id as string,
+          group_id: groupId,
+          type: "member_left" as const,
+          title: "Member Left",
+          body: `${memberName} has left ${currentGroup?.name || "the group"}`,
+        }));
+        if (notifications.length > 0) {
+          await supabase.from("notifications").insert(notifications);
+        }
+      }
+
+      await logActivity(supabase, {
+        groupId,
+        action: "member.left_group",
+        description: `Member left the group`,
+      });
+
+      // Redirect to group selection
+      router.push("/dashboard");
+    } catch (err) {
+      setLeaveError((err as Error).message || t("leaveGroupError"));
+    } finally {
+      setLeaveSaving(false);
     }
   }
 
@@ -854,6 +1100,11 @@ export default function MembersPage() {
               <LayoutGrid className="h-4 w-4" />
             </Button>
           </div>
+          {/* Export — available to all members */}
+          <Button variant="outline" size="sm" onClick={handleExportMembers} disabled={exporting || !members?.length}>
+            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            {t("exportMembers")}
+          </Button>
           {canManageMembers && (
             <>
               <Button variant="outline" size="sm" onClick={handleRecalculateAll} disabled={recalcAllLoading}>
@@ -863,6 +1114,10 @@ export default function MembersPage() {
               <Button variant="outline" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }}>
                 <FileUp className="mr-2 h-4 w-4" />
                 {t("bulkImport")}
+              </Button>
+              <Button variant="outline" onClick={() => { setBulkInviteEmails(""); setBulkInviteError(null); setBulkInviteResult(null); setBulkInviteOpen(true); }}>
+                <Send className="mr-2 h-4 w-4" />
+                {t("bulkInvite")}
               </Button>
               <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
                 <UserPlus className="mr-2 h-4 w-4" />
@@ -1141,6 +1396,14 @@ export default function MembersPage() {
                                 <Mail className="h-4 w-4" /> {t("sendClaimInvite")}
                               </DropdownMenuItem>
                             )}
+                            {isOwner && role !== "owner" && (member.role === "admin" || member.role === "moderator") && (
+                              <DropdownMenuItem
+                                className="flex items-center gap-2"
+                                onClick={(e) => { e.stopPropagation(); openTransferOwnership(member); }}
+                              >
+                                <Crown className="h-4 w-4" /> {t("transferOwnership")}
+                              </DropdownMenuItem>
+                            )}
                             {role !== "owner" && (
                               <>
                                 <DropdownMenuSeparator />
@@ -1286,6 +1549,20 @@ export default function MembersPage() {
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* ═══ BUG 7: Leave Group Button ═══ */}
+      {currentMembership && currentMembership.role !== "owner" && (
+        <div className="mt-8 border-t pt-6">
+          <Button
+            variant="outline"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={() => { setLeaveError(null); setLeaveDialogOpen(true); }}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {t("leaveGroup")}
+          </Button>
         </div>
       )}
 
@@ -1448,11 +1725,11 @@ export default function MembersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              {t("previous") === "Previous" ? "Cancel" : "Annuler"}
+              {tCommon("cancel")}
             </Button>
             <Button onClick={handleEditMember} disabled={editSaving || !editDisplayName.trim()}>
               {editSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("previous") === "Previous" ? "Save" : "Enregistrer"}
+              {tCommon("save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1719,12 +1996,142 @@ export default function MembersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setClaimDialogOpen(false)}>
-              {locale === "fr" ? "Annuler" : "Cancel"}
+              {tCommon("cancel")}
             </Button>
             <Button onClick={handleSendClaimInvite} disabled={claimSaving || !claimEmail.trim()}>
               {claimSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("sendInvite")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ BUG 4: Bulk Invite Dialog ═══ */}
+      <Dialog open={bulkInviteOpen} onOpenChange={(open) => { setBulkInviteOpen(open); if (!open) { setBulkInviteError(null); setBulkInviteResult(null); } }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              {t("bulkInvite")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t("bulkInviteDesc")}</p>
+            <div className="space-y-2">
+              <Label>{t("bulkInviteEmails")}</Label>
+              <Textarea
+                value={bulkInviteEmails}
+                onChange={(e) => setBulkInviteEmails(e.target.value)}
+                placeholder={t("bulkInviteEmailsPlaceholder")}
+                rows={8}
+                className="font-mono text-sm"
+                disabled={bulkInviteSending}
+              />
+            </div>
+            {bulkInviteError && <p className="text-sm text-destructive whitespace-pre-line">{bulkInviteError}</p>}
+            {bulkInviteResult && (
+              <div className={`rounded-lg border p-3 text-sm ${bulkInviteResult.failed === 0 ? "border-emerald-500/50 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400" : "border-yellow-500/50 bg-yellow-500/5 text-yellow-700 dark:text-yellow-400"}`}>
+                {t("bulkInviteResults", { succeeded: bulkInviteResult.succeeded, failed: bulkInviteResult.failed })}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkInviteOpen(false)} disabled={bulkInviteSending}>
+              {tCommon("cancel")}
+            </Button>
+            <Button onClick={handleBulkInvite} disabled={bulkInviteSending || !bulkInviteEmails.trim()}>
+              {bulkInviteSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {bulkInviteSending ? t("bulkInviteSending") : t("sendInvite")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ BUG 6: Transfer Ownership Dialog ═══ */}
+      <Dialog open={ownershipDialogOpen} onOpenChange={(open) => { setOwnershipDialogOpen(open); if (!open) setOwnershipError(null); }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-amber-500" />
+              {t("transferOwnership")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {ownershipTarget && (
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-sm font-medium">{getMemberName(ownershipTarget)}</p>
+                <p className="text-xs text-muted-foreground capitalize">{(ownershipTarget.role as string) || "member"}</p>
+              </div>
+            )}
+            <div className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">{t("transferOwnershipWarning")}</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">{t("transferOwnershipDesc")}</p>
+            <div className="space-y-2">
+              <Label>{t("transferOwnershipConfirm", { groupName: currentGroup?.name || "" })}</Label>
+              <Input
+                value={ownershipConfirmText}
+                onChange={(e) => setOwnershipConfirmText(e.target.value)}
+                placeholder={t("transferOwnershipConfirmPlaceholder")}
+                disabled={ownershipSaving}
+              />
+            </div>
+            {ownershipError && <p className="text-sm text-destructive">{ownershipError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOwnershipDialogOpen(false)} disabled={ownershipSaving}>
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleTransferOwnership}
+              disabled={ownershipSaving || ownershipConfirmText.trim() !== (currentGroup?.name || "")}
+            >
+              {ownershipSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("transferOwnership")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ BUG 7: Leave Group Dialog ═══ */}
+      <Dialog open={leaveDialogOpen} onOpenChange={(open) => { setLeaveDialogOpen(open); if (!open) setLeaveError(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogOut className="h-5 w-5 text-destructive" />
+              {t("leaveGroup")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {currentMembership?.role === "owner" ? (
+              <div className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3">
+                <div className="flex items-start gap-2">
+                  <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-700 dark:text-amber-400">{t("leaveGroupOwnerWarning")}</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">{t("leaveGroupDesc")}</p>
+                <p className="text-sm font-medium">{t("leaveGroupConfirm", { groupName: currentGroup?.name || "" })}</p>
+              </>
+            )}
+            {leaveError && <p className="text-sm text-destructive">{leaveError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLeaveDialogOpen(false)} disabled={leaveSaving}>
+              {tCommon("cancel")}
+            </Button>
+            {currentMembership?.role !== "owner" && (
+              <Button variant="destructive" onClick={handleLeaveGroup} disabled={leaveSaving}>
+                {leaveSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("leaveGroupButton")}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

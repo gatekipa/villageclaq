@@ -189,6 +189,35 @@ export async function calculateStanding(
       : `${unpaidFineCount} amende(s) impayée(s) totalisant ${formatAmount(unpaidFineTotal, options?.currency || "XAF")}`,
   });
 
+  // Rule 7: Hosting — missed assignments count against standing (exempted do NOT)
+  const { data: hostingAssignments } = await supabase
+    .from("hosting_assignments")
+    .select("id, status")
+    .eq("membership_id", membershipId)
+    .in("status", ["completed", "missed"]);
+
+  const hostingCompleted = (hostingAssignments || []).filter((a) => a.status === "completed").length;
+  const hostingMissed = (hostingAssignments || []).filter((a) => a.status === "missed").length;
+  const hostingTotal = hostingCompleted + hostingMissed;
+  const hostingPassed = hostingMissed === 0;
+
+  reasons.push({
+    category: "hosting",
+    passed: hostingPassed,
+    label_en: "Hosting",
+    label_fr: "Hébergement",
+    detail_en: hostingTotal === 0
+      ? "No hosting assignments"
+      : hostingPassed
+        ? `Hosting: ${hostingCompleted}/${hostingTotal} completed`
+        : `Hosting: ${hostingMissed} missed assignment(s)`,
+    detail_fr: hostingTotal === 0
+      ? "Aucune mission d'hébergement"
+      : hostingPassed
+        ? `Hébergement: ${hostingCompleted}/${hostingTotal} terminé(s)`
+        : `Hébergement: ${hostingMissed} mission(s) manquée(s)`,
+  });
+
   // Rule 6: Disputes
   const { data: disputes } = await supabase
     .from("disputes")

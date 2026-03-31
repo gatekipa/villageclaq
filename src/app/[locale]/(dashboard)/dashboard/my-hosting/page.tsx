@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/page-skeleton";
+import { getMemberName } from "@/lib/get-member-name";
+import { getDateLocale } from "@/lib/date-utils";
+import { useLocale } from "next-intl";
 import {
   Home,
   Calendar,
@@ -25,8 +28,6 @@ import {
   BarChart3,
   AlertCircle,
 } from "lucide-react";
-
-const supabase = createClient();
 
 type HostingStatus = "upcoming" | "completed" | "missed" | "swapped" | "exempted";
 
@@ -65,6 +66,7 @@ function useMyHostingAssignments(membershipId: string | null) {
     queryKey: ["my-hosting-assignments", membershipId],
     queryFn: async () => {
       if (!membershipId) return [];
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("hosting_assignments")
         .select("*, event:events(id, title, title_fr, starts_at, location, location_map_url)")
@@ -82,7 +84,7 @@ function useHostingGroupAverage(groupId: string | null) {
     queryKey: ["hosting-group-average", groupId],
     queryFn: async () => {
       if (!groupId) return 0;
-      // Get all completed hosting assignments for this group's rosters this year
+      const supabase = createClient();
       const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0];
       const { data, error } = await supabase
         .from("hosting_assignments")
@@ -92,7 +94,6 @@ function useHostingGroupAverage(groupId: string | null) {
         .gte("assigned_date", yearStart);
       if (error) return 0;
       if (!data || data.length === 0) return 0;
-      // Count unique members
       const memberCounts: Record<string, number> = {};
       data.forEach((d: Record<string, unknown>) => {
         const mid = d.membership_id as string;
@@ -105,8 +106,21 @@ function useHostingGroupAverage(groupId: string | null) {
   });
 }
 
+function formatDateLocale(dateStr: string, locale: string): string {
+  try {
+    return new Date(dateStr + "T00:00:00").toLocaleDateString(getDateLocale(locale), {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function MyHostingPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const { groupId, currentMembership } = useGroup();
   const membershipId = currentMembership?.id || null;
 
@@ -212,7 +226,7 @@ export default function MyHostingPage() {
                 {/* Date with countdown */}
                 <div className="mt-1.5 flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-primary" />
-                  <span className="font-medium">{upcomingAssignment.assigned_date as string}</span>
+                  <span className="font-medium">{formatDateLocale(upcomingAssignment.assigned_date as string, locale)}</span>
                   <Badge variant="secondary" className="text-xs">
                     <Clock className="mr-1 h-3 w-3" />
                     {t("hosting.countdown", { days: daysUntil })}
@@ -234,7 +248,7 @@ export default function MyHostingPage() {
                 ) : null}
               </div>
 
-              <Button variant="outline" className="shrink-0">
+              <Button variant="outline" className="shrink-0" disabled>
                 <ArrowRightLeft className="mr-2 h-4 w-4" />
                 {t("hosting.swapHost")}
               </Button>
@@ -353,10 +367,10 @@ export default function MyHostingPage() {
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">
-                          {(event?.title as string) || (record.assigned_date as string)}
+                          {(event?.title as string) || formatDateLocale(record.assigned_date as string, locale)}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                          <span>{record.assigned_date as string}</span>
+                          <span>{formatDateLocale(record.assigned_date as string, locale)}</span>
                           {record.exemption_reason ? (
                             <span>{record.exemption_reason as string}</span>
                           ) : null}

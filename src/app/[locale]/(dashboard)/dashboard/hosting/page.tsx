@@ -50,6 +50,8 @@ import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useHostingRosters, useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
+import { logActivity } from "@/lib/audit-log";
+import { getMemberName } from "@/lib/get-member-name";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn } from "@/lib/utils";
@@ -162,10 +164,7 @@ function getProfileFromAssignment(a: Assignment) {
 }
 
 function getHostName(a: Assignment) {
-  // Prefer membership.display_name for proxy members, then profile.full_name
-  const membership = a.membership;
-  if (membership?.display_name) return membership.display_name;
-  return getProfileFromAssignment(a)?.full_name || "\u2014";
+  return getMemberName(a.membership as Record<string, unknown>);
 }
 
 function generateMonthlyDates(start: string, end: string): string[] {
@@ -229,6 +228,11 @@ export default function HostingPage() {
   const [activeTab, setActiveTab] = useState("assignments");
   const [publishing, setPublishing] = useState(false);
   const [planBuilderOpen, setPlanBuilderOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  function showError(msg: string) { setActionError(msg); setTimeout(() => setActionError(null), 5000); }
+  function showSuccess(msg: string) { setActionSuccess(msg); setTimeout(() => setActionSuccess(null), 3000); }
 
   // ── Stats ──────────────────────────────────────────────────────────────
 
@@ -266,9 +270,9 @@ export default function HostingPage() {
     if (counts.length > 1) {
       const max = Math.max(...counts);
       const min = Math.min(...counts);
-      fairnessLabel = max - min <= 1 ? "Good" : `${min}:${max}`;
+      fairnessLabel = max - min <= 1 ? t("good") : `${min}:${max}`;
     } else if (counts.length <= 1) {
-      fairnessLabel = "Good";
+      fairnessLabel = t("good");
     }
 
     return { nextHostName, nextHostDate, missedCount, complianceRate, fairnessLabel, memberCounts };
@@ -305,18 +309,55 @@ export default function HostingPage() {
   }, [queryClient, groupId]);
 
   const handleStatusUpdate = useCallback(async (assignmentId: string, newStatus: "completed" | "missed") => {
+    if (updatingId) return; // double-click prevention
     setUpdatingId(assignmentId);
     try {
       const supabase = createClient();
-      await supabase
+      const { error: updateErr } = await supabase
         .from("hosting_assignments")
         .update({ status: newStatus })
         .eq("id", assignmentId);
+      if (updateErr) throw updateErr;
+
+      // Find the assignment to get membership_id and date for notifications
+      const assignment = allAssignments.find((a) => a.id === assignmentId);
+      if (assignment && groupId) {
+        const dateStr = assignment.assigned_date;
+        // Send notification to assigned member
+        const notifTitle = newStatus === "completed"
+          ? t("hostCompletedNotifTitle")
+          : t("hostMissedNotifTitle");
+        const notifBody = newStatus === "completed"
+          ? t("hostCompletedNotifBody", { date: formatDate(dateStr, locale) })
+          : t("hostMissedNotifBody", { date: formatDate(dateStr, locale) });
+        await supabase.from("notifications").insert({
+          group_id: groupId,
+          membership_id: assignment.membership_id,
+          type: newStatus === "completed" ? "hosting_completed" : "hosting_missed",
+          title: notifTitle,
+          message: notifBody,
+          is_read: false,
+        });
+
+        // Audit log
+        await logActivity(supabase, {
+          groupId,
+          action: `hosting.${newStatus}`,
+          entityType: "hosting_assignment",
+          entityId: assignmentId,
+          description: `Hosting assignment marked as ${newStatus}`,
+          metadata: { membership_id: assignment.membership_id, date: dateStr },
+        });
+      }
+
       invalidateRosters();
+      showSuccess(t("statusUpdated"));
+    } catch (err) {
+      showError(t("statusUpdateFailed"));
     } finally {
       setUpdatingId(null);
     }
-  }, [invalidateRosters]);
+  }, [invalidateRosters, updatingId, allAssignments, groupId, t, locale]);
 
   const openAssignDialog = useCallback((rosterId: string, date: string) => {
     setAssignContext({ rosterId, date });
@@ -324,7 +365,7 @@ export default function HostingPage() {
   }, []);
 
   const handlePublish = useCallback(async () => {
-    if (!groupId) return;
+    if (!groupId || publishing) return;
     setPublishing(true);
     try {
       const supabase = createClient();
@@ -334,16 +375,26 @@ export default function HostingPage() {
           group_id: groupId,
           membership_id: a.membership_id,
           type: "hosting_assigned",
-          title: "Hosting Assigned",
-          message: `You are assigned to host on ${new Date(a.assigned_date).toLocaleDateString()}`,
+          title: t("hostAssignedNotifTitle"),
+          message: t("hostAssignedNotifBody", { date: formatDate(a.assigned_date, locale) }),
           is_read: false,
         }));
-        await supabase.from("notifications").insert(notifications);
+        const { error: notifErr } = await supabase.from("notifications").insert(notifications);
+        if (notifErr) throw notifErr;
       }
+      await logActivity(supabase, {
+        groupId,
+        action: "hosting.schedule_published",
+        entityType: "hosting_roster",
+        description: `Published hosting schedule with ${upcoming.length} upcoming assignments`,
+      });
+      showSuccess(t("publishSuccess"));
+    } catch {
+      showError(t("publishFailed"));
     } finally {
       setPublishing(false);
     }
-  }, [groupId, allAssignments]);
+  }, [groupId, allAssignments, publishing, t, locale]);
 
   // ── Loading / Error / Empty ────────────────────────────────────────────
 
@@ -382,6 +433,8 @@ export default function HostingPage() {
             groupId={groupId!}
             userId={user?.id || ""}
             onSuccess={invalidateRosters}
+            onError={showError}
+            onSuccessMsg={showSuccess}
           />
         </div>
       </PermissionGate>
@@ -398,6 +451,18 @@ export default function HostingPage() {
           onCreateRoster={() => setShowCreateDialog(true)}
         />
 
+        {/* Action feedback */}
+        {actionError && (
+          <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {actionError}
+          </div>
+        )}
+        {actionSuccess && (
+          <div className="rounded-md border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+            {actionSuccess}
+          </div>
+        )}
+
         {/* Stat Cards — clickable to switch tabs */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <Card className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => setActiveTab("assignments")}>
@@ -409,7 +474,7 @@ export default function HostingPage() {
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">{t("nextHost")}</p>
                   <p className="font-semibold text-sm truncate">{stats.nextHostName}</p>
-                  {stats.nextHostDate && <p className="text-xs text-muted-foreground">{formatDate(stats.nextHostDate)}</p>}
+                  {stats.nextHostDate && <p className="text-xs text-muted-foreground">{formatDate(stats.nextHostDate, locale)}</p>}
                 </div>
               </div>
             </CardContent>
@@ -498,9 +563,12 @@ export default function HostingPage() {
                 <PlanBuilder
                   roster={rosters[0]}
                   activeMembers={activeMembers}
+                  groupId={groupId}
                   t={t}
                   tc={tc}
                   onSuccess={invalidateRosters}
+                  onError={showError}
+                  onSuccessMsg={showSuccess}
                 />
               </CardContent>
             )}
@@ -617,6 +685,8 @@ export default function HostingPage() {
               isAdmin={isAdmin}
               groupId={groupId}
               onRefresh={invalidateRosters}
+              onError={showError}
+              onSuccessMsg={showSuccess}
             />
           </TabsContent>
         </Tabs>
@@ -631,15 +701,20 @@ export default function HostingPage() {
           groupId={groupId!}
           userId={user?.id || ""}
           onSuccess={invalidateRosters}
+          onError={showError}
+          onSuccessMsg={showSuccess}
         />
         <AssignHostsDialog
           open={showAssignDialog}
           onOpenChange={setShowAssignDialog}
           context={assignContext}
           activeMembers={activeMembers}
+          groupId={groupId}
           t={t}
           tc={tc}
           onSuccess={invalidateRosters}
+          onError={showError}
+          onSuccessMsg={showSuccess}
         />
       </div>
     </PermissionGate>
@@ -709,6 +784,7 @@ function RosterCard({
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
 }) {
+  const locale = useLocale();
   const assignments = roster.hosting_assignments || [];
   const monthGroups = useMemo(() => {
     const grouped = groupByMonth(assignments);
@@ -776,7 +852,7 @@ function RosterCard({
                 <div key={monthKey} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">
-                      {formatMonth(`${monthKey}-01`)}
+                      {formatMonth(`${monthKey}-01`, locale)}
                     </h4>
                     {isAdmin && (
                       <Button
@@ -813,7 +889,7 @@ function RosterCard({
                             return (
                               <tr key={a.id} className="border-b last:border-0">
                                 <td className="py-2.5 pr-4 whitespace-nowrap">
-                                  {formatDate(a.assigned_date)}
+                                  {formatDate(a.assigned_date, locale)}
                                 </td>
                                 <td className="py-2.5 pr-4">
                                   <span className="font-medium">{getHostName(a)}</span>
@@ -889,6 +965,8 @@ function CreateRosterDialog({
   groupId,
   userId,
   onSuccess,
+  onError,
+  onSuccessMsg,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -898,6 +976,8 @@ function CreateRosterDialog({
   groupId: string;
   userId: string;
   onSuccess: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
 }) {
   const [rosterName, setRosterName] = useState("");
   const [rotationType, setRotationType] = useState<RotationType>("sequential");
@@ -1002,12 +1082,22 @@ function CreateRosterDialog({
         }
       }
 
-      // 3. Done
+      // 3. Audit log
+      await logActivity(supabase, {
+        groupId,
+        action: "hosting.roster_created",
+        entityType: "hosting_roster",
+        entityId: roster.id,
+        description: `Created hosting roster "${rosterName.trim()}" (${rotationType})`,
+      });
+
       onOpenChange(false);
       resetForm();
       onSuccess();
+      onSuccessMsg(t("createSuccess"));
     } catch (err) {
       setCreateError((err as Error).message || tc("error"));
+      onError(t("createFailed"));
     } finally {
       setIsCreating(false);
     }
@@ -1026,7 +1116,7 @@ function CreateRosterDialog({
             <Input
               value={rosterName}
               onChange={(e) => setRosterName(e.target.value)}
-              placeholder="e.g., 2025 Monthly Hosting"
+              placeholder={t("planBuilderPlaceholder")}
             />
           </div>
 
@@ -1117,7 +1207,7 @@ function CreateRosterDialog({
                           )}>
                             {isSelected && <Check className="h-3 w-3" />}
                           </div>
-                          <span className="truncate">{m.profile?.full_name || m.display_name || "\u2014"}</span>
+                          <span className="truncate">{getMemberName(m as unknown as Record<string, unknown>)}</span>
                         </button>
                       );
                     })
@@ -1153,18 +1243,25 @@ function AssignHostsDialog({
   onOpenChange,
   context,
   activeMembers,
+  groupId,
   t,
   tc,
   onSuccess,
+  onError,
+  onSuccessMsg,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   context: { rosterId: string; date: string } | null;
   activeMembers: Member[];
+  groupId: string | null;
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
   onSuccess: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
 }) {
+  const locale = useLocale();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -1202,11 +1299,22 @@ function AssignHostsDialog({
         .insert(assignments);
       if (insertErr) throw insertErr;
 
+      if (groupId) {
+        await logActivity(supabase, {
+          groupId,
+          action: "hosting.hosts_assigned",
+          entityType: "hosting_assignment",
+          description: `Assigned ${selectedIds.length} host(s) for ${context.date}`,
+          metadata: { date: context.date, membershipIds: selectedIds },
+        });
+      }
+
       onOpenChange(false);
       setSelectedIds([]);
       onSuccess();
+      onSuccessMsg(t("assignSuccess"));
     } catch {
-      // silently fail for now
+      onError(t("assignFailed"));
     } finally {
       setIsAssigning(false);
     }
@@ -1220,7 +1328,7 @@ function AssignHostsDialog({
         </DialogHeader>
         {context && (
           <p className="text-sm text-muted-foreground">
-            {formatDate(context.date)}
+            {formatDate(context.date, locale)}
           </p>
         )}
         <div className="space-y-2">
@@ -1246,7 +1354,7 @@ function AssignHostsDialog({
                   )}>
                     {isSelected && <Check className="h-3 w-3" />}
                   </div>
-                  <span className="truncate">{m.profile?.full_name || m.display_name || "\u2014"}</span>
+                  <span className="truncate">{getMemberName(m as unknown as Record<string, unknown>)}</span>
                   {isSelected && <CheckCircle2 className="ml-auto h-4 w-4 text-primary" />}
                 </button>
               );
@@ -1274,6 +1382,7 @@ function HostingHistoryTab({ allAssignments, members, t }: {
   members: Member[];
   t: ReturnType<typeof useTranslations>;
 }) {
+  const locale = useLocale();
   // Per-member stats
   const memberStats = useMemo(() => {
     const statsMap = new Map<string, {
@@ -1287,7 +1396,7 @@ function HostingHistoryTab({ allAssignments, members, t }: {
 
     // Init all members
     for (const m of members) {
-      const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || t("common.unknown");
+      const name = getMemberName(m as unknown as Record<string, unknown>);
       statsMap.set(m.id, { name, total: 0, completed: 0, missed: 0, lastHosted: null, dates: [] });
     }
 
@@ -1393,7 +1502,7 @@ function HostingHistoryTab({ allAssignments, members, t }: {
 
 // ─── COMPLIANCE TAB ───────────────────────────────────────────────────────
 
-function HostingComplianceTab({ allAssignments, members, activeMembers, rosters, t, tc, isAdmin, groupId, onRefresh }: {
+function HostingComplianceTab({ allAssignments, members, activeMembers, rosters, t, tc, isAdmin, groupId, onRefresh, onError, onSuccessMsg }: {
   allAssignments: Assignment[];
   members: Member[];
   activeMembers: Member[];
@@ -1403,7 +1512,10 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
   isAdmin: boolean;
   groupId: string | null;
   onRefresh: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
 }) {
+  const locale = useLocale();
   const queryClient = useQueryClient();
 
   // Read compliance_rules from first active roster
@@ -1433,7 +1545,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
   const totalMissed = allAssignments.filter((a) => a.status === "missed").length;
   const complianceTotal = totalCompleted + totalMissed;
   const completionRate = complianceTotal > 0 ? Math.round((totalCompleted / complianceTotal) * 100) : 100;
-  const severity = completionRate >= 80 ? t("good") : completionRate >= 50 ? "At Risk" : t("critical");
+  const severity = completionRate >= 80 ? t("good") : completionRate >= 50 ? t("atRisk") : t("critical");
   const severityColor = completionRate >= 80 ? "text-emerald-600" : completionRate >= 50 ? "text-amber-600" : "text-red-600";
 
   // Exempted assignments
@@ -1448,7 +1560,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
     return members
       .filter((m) => !exemptedMemberIds.has(m.id))
       .map((m) => {
-        const name = (m.display_name as string) || ((m.profile as Record<string, unknown>)?.full_name as string) || t("common.unknown");
+        const name = getMemberName(m as unknown as Record<string, unknown>);
         const completed = allAssignments.filter((a) => a.membership_id === m.id && a.status === "completed");
         const lastHosted = completed.length > 0
           ? completed.sort((a, b) => b.assigned_date.localeCompare(a.assigned_date))[0].assigned_date
@@ -1464,11 +1576,11 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
 
   // Save compliance rules
   const handleSaveRules = async () => {
-    if (!activeRoster) return;
+    if (!activeRoster || savingRules) return;
     setSavingRules(true);
     try {
       const supabase = createClient();
-      await supabase.from("hosting_rosters").update({
+      const { error } = await supabase.from("hosting_rosters").update({
         compliance_rules: {
           required_interval_months: ruleInterval,
           required_for_relief: ruleRelief,
@@ -1476,8 +1588,21 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
           penalty_flag_days: rulePenaltyDays,
         },
       }).eq("id", activeRoster.id);
+      if (error) throw error;
+      if (groupId) {
+        await logActivity(supabase, {
+          groupId,
+          action: "hosting.rules_updated",
+          entityType: "hosting_roster",
+          entityId: activeRoster.id,
+          description: "Updated hosting compliance rules",
+        });
+      }
       onRefresh();
       setShowRulesDialog(false);
+      onSuccessMsg(t("saveRulesSuccess"));
+    } catch {
+      onError(t("saveRulesFailed"));
     } finally {
       setSavingRules(false);
     }
@@ -1485,11 +1610,11 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
 
   // Add exception
   const handleAddException = async () => {
-    if (!exMemberId || !exReason.trim() || !activeRoster) return;
+    if (!exMemberId || !exReason.trim() || !activeRoster || savingException) return;
     setSavingException(true);
     try {
       const supabase = createClient();
-      await supabase.from("hosting_assignments").insert({
+      const { error } = await supabase.from("hosting_assignments").insert({
         roster_id: activeRoster.id,
         membership_id: exMemberId,
         assigned_date: exPermanent ? new Date().toISOString().slice(0, 10) : exStartDate || new Date().toISOString().slice(0, 10),
@@ -1497,10 +1622,23 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
         exemption_reason: exReason.trim(),
         order_index: 0,
       });
+      if (error) throw error;
+      if (groupId) {
+        await logActivity(supabase, {
+          groupId,
+          action: "hosting.exemption_added",
+          entityType: "hosting_assignment",
+          description: `Added hosting exemption: ${exReason.trim()}`,
+          metadata: { membership_id: exMemberId, reason: exReason.trim() },
+        });
+      }
       onRefresh();
       setShowExceptionDialog(false);
       setExMemberId("");
       setExReason("");
+      onSuccessMsg(t("addExceptionSuccess"));
+    } catch {
+      onError(t("addExceptionFailed"));
     } finally {
       setSavingException(false);
     }
@@ -1508,11 +1646,25 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
 
   // Remove exception
   const handleRemoveException = async (assignmentId: string) => {
+    if (removingId) return;
     setRemovingId(assignmentId);
     try {
       const supabase = createClient();
-      await supabase.from("hosting_assignments").delete().eq("id", assignmentId);
+      const { error } = await supabase.from("hosting_assignments").delete().eq("id", assignmentId);
+      if (error) throw error;
+      if (groupId) {
+        await logActivity(supabase, {
+          groupId,
+          action: "hosting.exemption_removed",
+          entityType: "hosting_assignment",
+          entityId: assignmentId,
+          description: "Removed hosting exemption",
+        });
+      }
       onRefresh();
+      onSuccessMsg(t("removeExceptionSuccess"));
+    } catch {
+      onError(t("removeExceptionFailed"));
     } finally {
       setRemovingId(null);
     }
@@ -1663,7 +1815,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
                     <div>
                       <p className="text-sm font-medium">{name}</p>
                       <p className="text-xs text-muted-foreground">{a.exemption_reason || "—"}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(a.assigned_date)}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(a.assigned_date, locale)}</p>
                     </div>
                     {isAdmin && (
                       <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => handleRemoveException(a.id)} disabled={removingId === a.id}>
@@ -1801,6 +1953,7 @@ function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
 }) {
+  const locale = useLocale();
   const myAssignments = useMemo(
     () => allAssignments.filter((a) => a.membership_id === currentMembershipId).sort((a, b) => b.assigned_date.localeCompare(a.assigned_date)),
     [allAssignments, currentMembershipId]
@@ -1833,7 +1986,7 @@ function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">{t("myAssignment")}</p>
-                <p className="text-lg font-bold">{formatDate(nextAssignment.assigned_date)}</p>
+                <p className="text-lg font-bold">{formatDate(nextAssignment.assigned_date, locale)}</p>
                 {daysUntilNext !== null && daysUntilNext >= 0 && (
                   <p className="text-xs text-primary font-medium">
                     {daysUntilNext === 0 ? t("countdownToday") : t("countdown", { days: daysUntilNext })}
@@ -1879,7 +2032,7 @@ function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
                 return (
                   <div key={a.id} className="flex items-center justify-between px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium">{formatDate(a.assigned_date)}</p>
+                      <p className="text-sm font-medium">{formatDate(a.assigned_date, locale)}</p>
                     </div>
                     <Badge className={`text-xs ${statusColors[a.status] || ""}`}>
                       {t(`hostingStatus.${a.status}` as "hostingStatus.upcoming")}
@@ -1897,12 +2050,15 @@ function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
 
 // ─── PLAN BUILDER ─────────────────────────────────────────────────────────
 
-function PlanBuilder({ roster, activeMembers, t, tc, onSuccess }: {
+function PlanBuilder({ roster, activeMembers, groupId, t, tc, onSuccess, onError, onSuccessMsg }: {
   roster: Roster;
   activeMembers: Member[];
+  groupId: string | null;
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
   onSuccess: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
 }) {
   const [startMonth, setStartMonth] = useState(() => {
     const d = new Date();
@@ -1958,13 +2114,24 @@ function PlanBuilder({ roster, activeMembers, t, tc, onSuccess }: {
 
       if (assignments.length > 0) {
         const { error } = await supabase.from("hosting_assignments").insert(assignments);
-        if (error) {
-          console.error("Failed to create assignments:", error);
-        }
+        if (error) throw error;
       }
+
+      if (groupId) {
+        await logActivity(supabase, {
+          groupId,
+          action: "hosting.auto_assigned",
+          entityType: "hosting_roster",
+          entityId: roster.id,
+          description: `Auto-assigned ${assignments.length} hosting slots`,
+          metadata: { months: monthCount, hostsPerEvent },
+        });
+      }
+
       onSuccess();
-    } catch (err) {
-      console.error("Plan builder error:", err);
+      onSuccessMsg(t("planBuilderSuccess"));
+    } catch {
+      onError(t("planBuilderFailed"));
     } finally {
       setBuilding(false);
     }

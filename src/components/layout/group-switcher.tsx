@@ -35,9 +35,7 @@ export function GroupSwitcher() {
           </div>
         )}
         <span className="truncate text-sm font-medium">{currentGroup.name}</span>
-        {memberships.length > 1 && (
-          <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
-        )}
+        <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[260px]">
         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
@@ -82,8 +80,13 @@ export function GroupSwitcher() {
         <DropdownMenuSeparator />
         <Link href="/dashboard/onboarding/group">
           <DropdownMenuItem className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            <span>{t("createGroup")}</span>
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+              <Plus className="h-4 w-4" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium">{t("createGroup")}</span>
+              <span className="text-[11px] text-muted-foreground">{t("createGroupDesc")}</span>
+            </div>
           </DropdownMenuItem>
         </Link>
       </DropdownMenuContent>

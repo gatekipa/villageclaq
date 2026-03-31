@@ -473,6 +473,7 @@
     "allGroups": "All Groups",
     "manageGroups": "Manage Groups",
     "createGroup": "Create New Group",
+    "createGroupDesc": "Start a new community group",
     "currentGroup": "Current Group",
     "groupSettings": "Group Settings",
     "noGroupSelected": "No group selected"

@@ -473,6 +473,7 @@
     "allGroups": "Tous les groupes",
     "manageGroups": "Gérer les groupes",
     "createGroup": "Créer un nouveau groupe",
+    "createGroupDesc": "Démarrer un nouveau groupe communautaire",
     "currentGroup": "Groupe actuel",
     "groupSettings": "Paramètres du groupe",
     "noGroupSelected": "Aucun groupe sélectionné"

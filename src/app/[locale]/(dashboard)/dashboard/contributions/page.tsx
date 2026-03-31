@@ -34,7 +34,9 @@ import {
   Loader2,
   CheckCircle2,
   Users,
+  HelpCircle,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +65,7 @@ import { formatAmount, CURRENCIES } from "@/lib/currencies";
 
 export default function ContributionsPage() {
   const t = useTranslations();
+  const th = useTranslations("helpTips");
   const { currentGroup, isAdmin, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageContributions = hasPermission("contributions.manage");
@@ -281,7 +284,17 @@ export default function ContributionsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
+            <Tooltip>
+              <TooltipTrigger className="cursor-help">
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-sm">{th("contributionTypes")}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground">{t("contributions.subtitle")}</p>
         </div>
         {canManageContributions && (

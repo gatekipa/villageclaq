@@ -62,7 +62,9 @@ import {
   Home,
   Heart,
   Activity,
+  HelpCircle,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -234,6 +236,7 @@ function useMemberRelief(membershipId: string | null) {
 export default function MemberDetailPage() {
   const t = useTranslations();
   const ts = useTranslations("standing");
+  const th = useTranslations("helpTips");
   const params = useParams();
   const membershipId = params.id as string;
   const { groupId, currentGroup, user } = useGroup();
@@ -590,6 +593,14 @@ export default function MemberDetailPage() {
                   ? ts("atRisk")
                   : ts("notInGoodStanding")}
               </span>
+              <Tooltip>
+                <TooltipTrigger className={`cursor-help ${style.bannerText} opacity-70`}>
+                  <HelpCircle className="h-4 w-4" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p className="text-sm">{th("memberStanding")}</p>
+                </TooltipContent>
+              </Tooltip>
               <span className={`ml-auto text-sm font-medium ${style.bannerText}`}>
                 {standingData.score}%
               </span>

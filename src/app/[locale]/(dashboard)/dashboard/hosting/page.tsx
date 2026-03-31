@@ -43,7 +43,9 @@ import {
   ChevronRight,
   Check,
   UserPlus,
+  HelpCircle,
 } from "lucide-react";
+import { Tooltip as ShadcnTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useHostingRosters, useMembers } from "@/lib/hooks/use-supabase-query";
@@ -655,10 +657,21 @@ function PageHeader({
   isAdmin: boolean;
   onCreateRoster: () => void;
 }) {
+  const th = useTranslations("helpTips");
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+          <ShadcnTooltip>
+            <TooltipTrigger className="cursor-help">
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs">
+              <p className="text-sm">{th("hostingRoster")}</p>
+            </TooltipContent>
+          </ShadcnTooltip>
+        </div>
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
       {isAdmin && (

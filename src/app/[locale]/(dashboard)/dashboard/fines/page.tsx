@@ -42,7 +42,9 @@ import {
   Banknote,
   ExternalLink,
   FileText,
+  HelpCircle,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
@@ -136,6 +138,7 @@ export default function FinesAdminPage() {
   const t = useTranslations("fines");
   const td = useTranslations("disputes");
   const tc = useTranslations("common");
+  const th = useTranslations("helpTips");
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
   const { groupId, currentGroup } = useGroup();
@@ -597,7 +600,17 @@ export default function FinesAdminPage() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+              <Tooltip>
+                <TooltipTrigger className="cursor-help">
+                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p className="text-sm">{th("fineTypes")}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-muted-foreground">{t("subtitle")}</p>
           </div>
           <div className="flex flex-wrap gap-2">

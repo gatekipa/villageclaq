@@ -40,6 +40,7 @@ import {
   LayoutDashboard,
   RefreshCw,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 function getUrgency(dueDate: string): "overdue" | "due_soon" | "upcoming" {
@@ -104,6 +105,7 @@ export default function MyDashboardPage() {
   const t = useTranslations("myDashboard");
   const tCommon = useTranslations("common");
   const tStanding = useTranslations("standing");
+  const th = useTranslations("helpTips");
   const { user, currentMembership, currentGroup, groupId, loading: groupLoading } = useGroup();
   const [explainerDismissed, setExplainerDismissed] = useState(false);
 
@@ -222,11 +224,21 @@ export default function MyDashboardPage() {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <Badge className={`${standingStyle.text} border-0`}>
-                  {isGoodStanding
-                    ? t("goodStanding")
-                    : t("actionNeeded")}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className={`${standingStyle.text} border-0`}>
+                    {isGoodStanding
+                      ? t("goodStanding")
+                      : t("actionNeeded")}
+                  </Badge>
+                  <Tooltip>
+                    <TooltipTrigger className="cursor-help">
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p className="text-sm">{th("myStanding")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {isGoodStanding
                     ? t("goodStandingDesc")

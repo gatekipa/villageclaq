@@ -10,6 +10,7 @@ import { GroupSwitcher } from "./group-switcher";
 import { LanguageToggle } from "./language-toggle";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
+import { WhatsNew } from "./whats-new";
 import { cn } from "@/lib/utils";
 import { useNotifications, useUnreadNotificationCount } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
@@ -66,6 +67,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       <div className="flex items-center gap-1">
         <LanguageToggle />
         <ThemeToggle />
+        <WhatsNew />
 
         {/* Notification bell */}
         <div className="relative">

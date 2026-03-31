@@ -19,7 +19,9 @@ import {
   AlertTriangle,
   BarChart3,
   Download,
+  HelpCircle,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
 import { useContributionTypes } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
@@ -95,6 +97,7 @@ interface MemberRow {
 
 export default function DuesMatrixPage() {
   const t = useTranslations();
+  const th = useTranslations("helpTips");
   const { currentGroup } = useGroup();
   const currency = currentGroup?.currency || "XAF";
   const [view, setView] = useState<"yearly" | "monthly">("yearly");
@@ -233,7 +236,17 @@ export default function DuesMatrixPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.matrix")}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">{t("contributions.matrix")}</h1>
+            <Tooltip>
+              <TooltipTrigger className="cursor-help">
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-sm">{th("yoyMatrix")}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground">{t("contributions.matrixDesc")}</p>
         </div>
         <Button variant="outline" disabled={memberRows.length === 0} onClick={() => {

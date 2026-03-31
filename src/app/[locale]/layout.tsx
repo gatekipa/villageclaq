@@ -6,6 +6,8 @@ import { Providers } from "@/lib/providers";
 import { CookieConsent } from "@/components/ui/cookie-consent";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -65,8 +67,12 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/app-icon.svg", sizes: "180x180" }],
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -74,8 +80,8 @@ export const viewport: Viewport = {
   themeColor: "#10B981",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export default async function LocaleLayout({
@@ -99,6 +105,8 @@ export default async function LocaleLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="VillageClaq" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <Script
           id="json-ld"
           type="application/ld+json"
@@ -110,6 +118,8 @@ export default async function LocaleLayout({
           <Providers>
             {children}
             <CookieConsent />
+            <ServiceWorkerRegister />
+            <InstallPrompt />
           </Providers>
         </NextIntlClientProvider>
       </body>

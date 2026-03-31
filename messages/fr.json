@@ -3578,8 +3578,12 @@
   "pwa": {
     "installTitle": "Ajouter VillageClaq à votre écran d'accueil",
     "installDesc": "Accès rapide, fonctionne hors ligne et reste à jour",
+    "installPrompt": "Installez VillageClaq pour une meilleure expérience",
     "install": "Installer",
+    "notNow": "Pas maintenant",
     "dismiss": "Pas maintenant",
+    "iosHint": "Appuyez sur \u2b06 puis 'Ajouter à l'écran d'accueil'",
+    "installed": "VillageClaq a été installé !",
     "connectionOnline": "Synchronisé",
     "connectionPending": "{count} en attente",
     "connectionOffline": "Hors ligne"

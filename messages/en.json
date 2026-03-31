@@ -3578,8 +3578,12 @@
   "pwa": {
     "installTitle": "Add VillageClaq to your home screen",
     "installDesc": "Quick access, works offline, and stays up to date",
+    "installPrompt": "Install VillageClaq for a better experience",
     "install": "Install",
+    "notNow": "Not now",
     "dismiss": "Not now",
+    "iosHint": "Tap \u2b06 then 'Add to Home Screen' to install",
+    "installed": "VillageClaq has been installed!",
     "connectionOnline": "Synced",
     "connectionPending": "{count} Pending",
     "connectionOffline": "Offline"

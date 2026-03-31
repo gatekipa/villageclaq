@@ -335,6 +335,19 @@ export default function AttendancePage() {
         .in("event_id", eventIds);
       setAllAttendance((refreshed || []) as AttendanceRecord[]);
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId: groupId!,
+          action: "event.attendance_recorded",
+          entityType: "event",
+          entityId: dialogEventId,
+          description: `Attendance recorded for ${records.length} members`,
+          metadata: { memberCount: records.length, eventId: dialogEventId },
+        });
+      } catch { /* best-effort */ }
+
       setSuccessMessage(t("attendanceSavedDesc", { count: records.length }));
       setTimeout(() => {
         setShowDialog(false);

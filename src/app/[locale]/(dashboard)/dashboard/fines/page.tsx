@@ -362,6 +362,20 @@ export default function FinesAdminPage() {
         } catch { /* best-effort */ }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        const memberName = membership ? getMemberName(membership as Record<string, unknown>) : "";
+        await logActivity(supabase, {
+          groupId,
+          action: "fine.paid",
+          entityType: "fine",
+          entityId: detailFine.id as string,
+          description: `Fine of ${formatAmount(amt, currency)} paid by ${memberName}`,
+          metadata: { amount: amt, currency, membership_id: (membership as Record<string, unknown>)?.id },
+        });
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["fines-admin", groupId] });
       setPayOpen(false);
       setDetailOpen(false);
@@ -410,6 +424,20 @@ export default function FinesAdminPage() {
           });
         } catch { /* best-effort */ }
       }
+
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        const memberName2 = membership ? getMemberName(membership as Record<string, unknown>) : "";
+        await logActivity(supabase, {
+          groupId,
+          action: "fine.waived",
+          entityType: "fine",
+          entityId: detailFine.id as string,
+          description: `Fine waived for ${memberName2}: ${waiveReason.trim()}`,
+          metadata: { reason: waiveReason.trim(), membership_id: (membership as Record<string, unknown>)?.id },
+        });
+      } catch { /* best-effort */ }
 
       await queryClient.invalidateQueries({ queryKey: ["fines-admin", groupId] });
       setWaiveOpen(false);
@@ -534,6 +562,21 @@ export default function FinesAdminPage() {
         if (filerUserId) {
           try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeDismissedNotifTitle"), body: td("disputeDismissedNotifBody", { subject: disputeSubject }), is_read: false }); } catch { /* best-effort */ }
         }
+      }
+
+      // Audit log for dispute resolution
+      if (action === "resolve" || action === "dismiss") {
+        try {
+          const { logActivity } = await import("@/lib/audit-log");
+          await logActivity(supabase, {
+            groupId,
+            action: "dispute.resolved",
+            entityType: "dispute",
+            entityId: disputeId,
+            description: `Dispute "${disputeSubject}" ${action === "resolve" ? "resolved" : "dismissed"}`,
+            metadata: { outcome: action, subject: disputeSubject },
+          });
+        } catch { /* best-effort */ }
       }
 
       await queryClient.invalidateQueries({ queryKey: ["disputes-admin", groupId] });

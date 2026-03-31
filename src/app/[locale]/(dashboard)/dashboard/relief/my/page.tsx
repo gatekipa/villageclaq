@@ -213,6 +213,18 @@ export default function MyReliefPage() {
         }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId: groupId!,
+          action: "relief_claim.submitted",
+          entityType: "relief",
+          description: `Relief claim submitted for ${claimEventType}`,
+          metadata: { eventType: claimEventType, planId: claimPlanId, amount: claimPlanPayout },
+        });
+      } catch { /* best-effort */ }
+
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["my-relief-claims", membershipId] });
       queryClient.invalidateQueries({ queryKey: ["relief-claims"] });

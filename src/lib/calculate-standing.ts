@@ -224,10 +224,33 @@ export async function calculateStanding(
 
   // Optionally update DB (standing + standing_updated_at)
   if (options?.updateDb) {
+    // Fetch old standing to detect change
+    const { data: oldMembership } = await supabase
+      .from("memberships")
+      .select("standing")
+      .eq("id", membershipId)
+      .single();
+    const oldStanding = oldMembership?.standing as string | null;
+
     await supabase
       .from("memberships")
       .update({ standing, standing_updated_at: new Date().toISOString() })
       .eq("id", membershipId);
+
+    // Audit log if standing actually changed
+    if (oldStanding && oldStanding !== standing) {
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "member.standing_changed",
+          entityType: "membership",
+          entityId: membershipId,
+          description: `Member standing changed from ${oldStanding} to ${standing}`,
+          metadata: { oldStanding, newStanding: standing },
+        });
+      } catch { /* best-effort */ }
+    }
   }
 
   return { standing, reasons, score };

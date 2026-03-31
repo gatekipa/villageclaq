@@ -1040,6 +1040,18 @@ export default function MemberDetailPage() {
                 try {
                   const { error } = await supabase.from("memberships").update({ role: newRole }).eq("id", membershipId);
                   if (error) throw error;
+                  // Audit log
+                  try {
+                    const { logActivity } = await import("@/lib/audit-log");
+                    await logActivity(supabase, {
+                      groupId: groupId!,
+                      action: "member.role_changed",
+                      entityType: "membership",
+                      entityId: membershipId,
+                      description: `${memberName} role changed to ${newRole}`,
+                      metadata: { newRole },
+                    });
+                  } catch { /* best-effort */ }
                   await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
                   setShowRoleDialog(false);
                 } catch (err) {
@@ -1117,6 +1129,17 @@ export default function MemberDetailPage() {
                 try {
                   const { error } = await supabase.from("memberships").delete().eq("id", membershipId);
                   if (error) throw error;
+                  // Audit log
+                  try {
+                    const { logActivity } = await import("@/lib/audit-log");
+                    await logActivity(supabase, {
+                      groupId: groupId!,
+                      action: "member.removed",
+                      entityType: "membership",
+                      entityId: membershipId,
+                      description: `${memberName} was removed from the group`,
+                    });
+                  } catch { /* best-effort */ }
                   await queryClient.invalidateQueries({ queryKey: ["members"] });
                   router.push("/dashboard/members");
                 } catch (err) {

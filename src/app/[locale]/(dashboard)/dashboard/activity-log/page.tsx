@@ -7,11 +7,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
+import { exportCSV } from "@/lib/export";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -34,6 +34,9 @@ import {
   Activity,
   Clock,
   ChevronDown,
+  Download,
+  X,
+  Loader2,
 } from "lucide-react";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -90,6 +93,14 @@ const ACTION_BADGE_COLORS: Record<string, string> = {
   sent: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
   filed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   resolved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  joined: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  removed: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  changed: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  disbursed: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  published: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  submitted: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  denied: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
 function getActionBadgeColor(action: string): string {
@@ -111,10 +122,10 @@ const CATEGORY_FILTERS = [
 
 // ─── HOOK ────────────────────────────────────────────────────────────────────
 
-function useAuditLogs(category: string, searchQuery: string) {
+function useAuditLogs(category: string, searchQuery: string, dateFrom: string, dateTo: string) {
   const { groupId } = useGroup();
   return useQuery<AuditEntry[]>({
-    queryKey: ["audit-logs", groupId, category, searchQuery],
+    queryKey: ["audit-logs", groupId, category, searchQuery, dateFrom, dateTo],
     queryFn: async () => {
       if (!groupId) return [];
       const supabase = createClient();
@@ -123,7 +134,7 @@ function useAuditLogs(category: string, searchQuery: string) {
         .select("*, actor_member:memberships!left(id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(500);
 
       // Category filter
       const catFilter = CATEGORY_FILTERS.find((c) => c.key === category);
@@ -134,6 +145,14 @@ function useAuditLogs(category: string, searchQuery: string) {
       // Text search in description
       if (searchQuery.trim()) {
         query = query.ilike("description", `%${searchQuery.trim()}%`);
+      }
+
+      // Date range filter
+      if (dateFrom) {
+        query = query.gte("created_at", `${dateFrom}T00:00:00`);
+      }
+      if (dateTo) {
+        query = query.lte("created_at", `${dateTo}T23:59:59`);
       }
 
       const { data, error } = await query;
@@ -152,12 +171,16 @@ export default function ActivityLogPage() {
   const tc = useTranslations("common");
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
+  const { currentGroup } = useGroup();
 
   const [category, setCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(50);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [exporting, setExporting] = useState(false);
 
-  const { data: logs, isLoading, isError, error, refetch } = useAuditLogs(category, searchQuery);
+  const { data: logs, isLoading, isError, error, refetch } = useAuditLogs(category, searchQuery, dateFrom, dateTo);
 
   const formatTimestamp = (d: string) => {
     try {
@@ -185,6 +208,38 @@ export default function ActivityLogPage() {
     return t("system");
   };
 
+  const handleExportCSV = () => {
+    const entries = logs || [];
+    if (entries.length === 0) return;
+    setExporting(true);
+    try {
+      const rows = entries.map((entry) => ({
+        Date: new Date(entry.created_at).toLocaleString(dateLocale),
+        Actor: getActorName(entry),
+        Action: entry.action,
+        Category: entry.entity_type || "",
+        Description: entry.description || "",
+      }));
+      const groupName = currentGroup?.name || "group";
+      exportCSV(rows, `activity-log_${groupName.replace(/\s+/g, "-")}`, {
+        headerRows: [
+          `${groupName} - ${t("title")}`,
+          `${tc("exported")}: ${new Date().toLocaleString(dateLocale)}`,
+          ...(dateFrom || dateTo ? [`${t("dateRange")}: ${dateFrom || "..."} → ${dateTo || "..."}`] : []),
+        ],
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const hasDateFilter = dateFrom || dateTo;
+  const clearDateFilter = () => {
+    setDateFrom("");
+    setDateTo("");
+    setVisibleCount(50);
+  };
+
   if (isLoading) return <ListSkeleton rows={8} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;
 
@@ -196,9 +251,21 @@ export default function ActivityLogPage() {
     <RequirePermission anyOf={["settings.manage"]}>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("subtitle")}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+            <p className="text-muted-foreground">{t("subtitle")}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={exporting || entries.length === 0}
+            className="shrink-0"
+          >
+            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {t("exportCsv")}
+          </Button>
         </div>
 
         {/* Filters */}
@@ -223,6 +290,41 @@ export default function ActivityLogPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Date Range Filter */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2 flex-1">
+            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setVisibleCount(50); }}
+              className="w-full sm:w-[180px]"
+              placeholder={t("dateFrom")}
+            />
+            <span className="text-sm text-muted-foreground">→</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setVisibleCount(50); }}
+              className="w-full sm:w-[180px]"
+              placeholder={t("dateTo")}
+            />
+          </div>
+          {hasDateFilter && (
+            <Button variant="ghost" size="sm" onClick={clearDateFilter}>
+              <X className="mr-1 h-3 w-3" />
+              {t("clearDates")}
+            </Button>
+          )}
+        </div>
+
+        {/* Result count */}
+        {entries.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {t("showingEntries", { count: entries.length })}
+          </p>
+        )}
 
         {/* Entries */}
         {entries.length === 0 ? (

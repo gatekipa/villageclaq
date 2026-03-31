@@ -488,6 +488,20 @@ export default function ReliefPlansPage() {
         }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        const supabaseForLog = createClient();
+        await logActivity(supabaseForLog, {
+          groupId: groupId!,
+          action: "relief_payout.recorded",
+          entityType: "relief",
+          entityId: payoutClaimId,
+          description: `Relief payout of ${formatAmount(Number(payoutAmount), currency)} recorded`,
+          metadata: { amount: Number(payoutAmount), currency, claimId: payoutClaimId },
+        });
+      } catch { /* best-effort */ }
+
       queryClient.invalidateQueries({ queryKey: ["relief-payouts-plan"] });
       queryClient.invalidateQueries({ queryKey: ["relief-claims-plan"] });
       queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });

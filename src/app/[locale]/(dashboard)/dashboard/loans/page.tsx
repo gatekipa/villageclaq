@@ -629,6 +629,20 @@ export default function LoansAdminPage() {
         } catch { /* best-effort */ }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        const borrowerName = membership ? getMemberName(membership as Record<string, unknown>) : "";
+        await logActivity(supabase, {
+          groupId,
+          action: "loan.disbursed",
+          entityType: "loan",
+          entityId: loanId,
+          description: `Loan of ${formatAmount(Number(detailLoan.amount_approved || 0), currency)} disbursed to ${borrowerName}`,
+          metadata: { amount: detailLoan.amount_approved, currency, method: disbMethod },
+        });
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["loans-admin", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["loan-schedule", loanId] });
       setDetailDialogOpen(false);
@@ -723,6 +737,22 @@ export default function LoansAdminPage() {
               ? t("loanCompletedNotifBody")
               : t("repaymentRecordedNotifBody", { amount: formatAmount(paymentAmount, currency) }),
             is_read: false,
+          });
+        } catch { /* best-effort */ }
+      }
+
+      // Audit log
+      if (isCompleted) {
+        try {
+          const { logActivity } = await import("@/lib/audit-log");
+          const borrowerName2 = membership ? getMemberName(membership as Record<string, unknown>) : "";
+          await logActivity(supabase, {
+            groupId,
+            action: "loan.completed",
+            entityType: "loan",
+            entityId: loanId,
+            description: `Loan fully repaid by ${borrowerName2} (${formatAmount(totalRepayable, currency)})`,
+            metadata: { total_repaid: newTotalRepaid, currency },
           });
         } catch { /* best-effort */ }
       }

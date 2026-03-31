@@ -113,6 +113,18 @@ export function useCreateContributionType() {
         created_by: user.id,
       }).select().single();
       if (error) throw error;
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "contribution_type.created",
+          entityType: "payment",
+          entityId: data.id,
+          description: `Contribution type "${values.name}" created (${values.frequency}, ${values.amount} ${values.currency})`,
+          metadata: { name: values.name, amount: values.amount, currency: values.currency, frequency: values.frequency },
+        });
+      } catch { /* best-effort */ }
       return data;
     },
     onSuccess: () => {

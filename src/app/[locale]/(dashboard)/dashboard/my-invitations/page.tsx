@@ -218,6 +218,18 @@ export default function MyInvitationsPage() {
         // Email is non-critical — never block invitation acceptance
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        const supabaseForLog = createClient();
+        await logActivity(supabaseForLog, {
+          groupId,
+          action: "member.joined",
+          entityType: "membership",
+          description: isClaim ? `Member claimed proxy profile` : `New member joined the group`,
+        });
+      } catch { /* best-effort */ }
+
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
       queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       const successMsg = isClaim ? t("profileClaimed") : t("acceptSuccess");

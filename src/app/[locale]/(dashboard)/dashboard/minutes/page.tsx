@@ -481,6 +481,20 @@ export default function MinutesPage() {
         }
       }
 
+      // Audit log for publish
+      if (status === "published") {
+        try {
+          const { logActivity } = await import("@/lib/audit-log");
+          await logActivity(supabase, {
+            groupId: groupId!,
+            action: "minutes.published",
+            entityType: "event",
+            description: `Meeting minutes published: ${payload.title}`,
+            metadata: { title: payload.title },
+          });
+        } catch { /* best-effort */ }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
       setEditMode(false);
       setStandaloneMode(false);

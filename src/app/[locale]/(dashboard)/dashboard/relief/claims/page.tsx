@@ -103,6 +103,19 @@ export default function ReliefClaimsPage() {
         }); } catch { /* notification is best-effort */ }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId: groupId!,
+          action: "relief_claim.approved",
+          entityType: "relief",
+          entityId: selectedClaim.id as string,
+          description: `Relief claim approved`,
+          metadata: { claimId: selectedClaim.id },
+        });
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["relief-claims", groupId] });
       setShowReviewDialog(false);
       setSelectedClaim(null);
@@ -150,6 +163,19 @@ export default function ReliefClaimsPage() {
           is_read: false,
         }); } catch { /* notification is best-effort */ }
       }
+
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId: groupId!,
+          action: "relief_claim.denied",
+          entityType: "relief",
+          entityId: selectedClaim.id as string,
+          description: `Relief claim denied: ${reviewNotes.trim()}`,
+          metadata: { claimId: selectedClaim.id, reason: reviewNotes.trim() },
+        });
+      } catch { /* best-effort */ }
 
       await queryClient.invalidateQueries({ queryKey: ["relief-claims", groupId] });
       setShowReviewDialog(false);

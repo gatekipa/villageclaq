@@ -88,7 +88,8 @@
     "refresh": "Actualiser",
     "select": "Sélectionner...",
     "member": "Membre",
-    "uploaded": "Téléchargé"
+    "uploaded": "Téléchargé",
+    "exported": "Exporté"
   },
   "join": {
     "invalidLink": "Lien invalide ou expiré",
@@ -4449,7 +4450,26 @@
     "action_announcement_sent": "Annonce envoyée",
     "action_settings_updated": "Paramètres mis à jour",
     "action_dispute_filed": "Litige déposé",
-    "action_dispute_resolved": "Litige résolu"
+    "action_dispute_resolved": "Litige résolu",
+    "action_member_joined": "Membre rejoint",
+    "action_member_removed": "Membre retiré",
+    "action_member_role_changed": "Rôle modifié",
+    "action_member_standing_changed": "Statut modifié",
+    "action_contribution_type_created": "Type de cotisation créé",
+    "action_loan_disbursed": "Prêt décaissé",
+    "action_loan_completed": "Prêt remboursé",
+    "action_event_attendance_recorded": "Présence enregistrée",
+    "action_minutes_published": "Procès-verbal publié",
+    "action_relief_claim_submitted": "Demande de secours soumise",
+    "action_relief_claim_approved": "Demande de secours approuvée",
+    "action_relief_claim_denied": "Demande de secours refusée",
+    "action_relief_payout_recorded": "Versement enregistré",
+    "exportCsv": "Exporter CSV",
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "clearDates": "Effacer les dates",
+    "dateRange": "Période",
+    "showingEntries": "{count} entrées"
   },
   "membershipCard": {
     "title": "Carte de membre numérique",

@@ -88,7 +88,8 @@
     "refresh": "Refresh",
     "select": "Select...",
     "member": "Member",
-    "uploaded": "Uploaded"
+    "uploaded": "Uploaded",
+    "exported": "Exported"
   },
   "join": {
     "invalidLink": "Invalid or Expired Link",
@@ -4449,7 +4450,26 @@
     "action_announcement_sent": "Announcement sent",
     "action_settings_updated": "Settings updated",
     "action_dispute_filed": "Dispute filed",
-    "action_dispute_resolved": "Dispute resolved"
+    "action_dispute_resolved": "Dispute resolved",
+    "action_member_joined": "Member joined",
+    "action_member_removed": "Member removed",
+    "action_member_role_changed": "Role changed",
+    "action_member_standing_changed": "Standing changed",
+    "action_contribution_type_created": "Contribution type created",
+    "action_loan_disbursed": "Loan disbursed",
+    "action_loan_completed": "Loan completed",
+    "action_event_attendance_recorded": "Attendance recorded",
+    "action_minutes_published": "Minutes published",
+    "action_relief_claim_submitted": "Relief claim submitted",
+    "action_relief_claim_approved": "Relief claim approved",
+    "action_relief_claim_denied": "Relief claim denied",
+    "action_relief_payout_recorded": "Payout recorded",
+    "exportCsv": "Export CSV",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "clearDates": "Clear dates",
+    "dateRange": "Date range",
+    "showingEntries": "{count} entries"
   },
   "membershipCard": {
     "title": "Digital Membership Card",

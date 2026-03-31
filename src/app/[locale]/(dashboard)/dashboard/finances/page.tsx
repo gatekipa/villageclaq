@@ -22,6 +22,8 @@ import {
   ArrowRight,
   RefreshCw,
   Loader2,
+  Landmark,
+  Banknote,
 } from "lucide-react";
 import {
   BarChart,
@@ -35,12 +37,71 @@ import {
 } from "recharts";
 import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 
+
+function useLoanStats(groupId: string | null) {
+  return useQuery({
+    queryKey: ["loan-stats-finance", groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
+      const supabase = createClient();
+
+      // Active loans (approved/disbursed/repaying) — outstanding
+      const { data: activeLoans } = await supabase
+        .from("loans")
+        .select("total_repayable, total_repaid, amount_approved, disbursed_at, status")
+        .eq("group_id", groupId)
+        .in("status", ["approved", "disbursed", "repaying"]);
+
+      const outstanding = (activeLoans || []).reduce(
+        (sum, l) => sum + (Number(l.total_repayable || 0) - Number(l.total_repaid || 0)), 0
+      );
+
+      // Disbursed this year
+      const thisYear = new Date().getFullYear();
+      const { data: allLoans } = await supabase
+        .from("loans")
+        .select("amount_approved, disbursed_at, total_repaid, created_at")
+        .eq("group_id", groupId);
+
+      const disbursedThisYear = (allLoans || [])
+        .filter((l) => l.disbursed_at && new Date(l.disbursed_at).getFullYear() === thisYear)
+        .reduce((sum, l) => sum + Number(l.amount_approved || 0), 0);
+
+      const repaidThisYear = (allLoans || [])
+        .filter((l) => new Date(l.created_at).getFullYear() === thisYear)
+        .reduce((sum, l) => sum + Number(l.total_repaid || 0), 0);
+
+      // Overdue installments count
+      const { count } = await supabase
+        .from("loan_schedule")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "overdue")
+        .in("loan_id", (activeLoans || []).map(() => "").length > 0 ? [] : [""]);
+
+      // Better approach: query overdue directly with join
+      const { data: overdueInst } = await supabase
+        .from("loan_schedule")
+        .select("id, loans!inner(group_id)")
+        .eq("status", "overdue")
+        .eq("loans.group_id", groupId);
+
+      return {
+        outstanding,
+        disbursedThisYear,
+        repaidThisYear,
+        overdueCount: (overdueInst || []).length,
+        hasLoans: (allLoans || []).length > 0,
+      };
+    },
+    enabled: !!groupId,
+  });
+}
 
 function formatCompact(amount: number) {
   if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
@@ -59,6 +120,7 @@ export default function FinancesPage() {
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
   const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(5000);
   const { data: contributionTypes } = useContributionTypes();
+  const { data: loanStats } = useLoanStats(groupId || null);
 
   const isLoading = oblLoading || payLoading;
   const isError = oblError || payError;
@@ -539,6 +601,65 @@ export default function FinancesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Loan Overview Section (Fix 3) */}
+      {loanStats && loanStats.hasLoans && (
+        <>
+          <h2 className="text-lg font-semibold mt-2">{t("finances.loanOverview")}</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t("finances.loansOutstanding")}
+                </CardTitle>
+                <Landmark className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-destructive">
+                  {formatAmount(loanStats.outstanding, currency)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t("finances.loansDisbursedYear")}
+                </CardTitle>
+                <Banknote className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatAmount(loanStats.disbursedThisYear, currency)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t("finances.loansRepaidYear")}
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatAmount(loanStats.repaidThisYear, currency)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t("finances.loansOverdueCount")}
+                </CardTitle>
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{loanStats.overdueCount}</div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div></RequirePermission>
   );
 }

@@ -43,6 +43,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
@@ -184,6 +186,24 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { isAdmin, isPlatformStaff, currentGroup } = useGroup();
   const { hasPermission, hasAnyPermission, userPermissions } = usePermissions();
+  const { groupId } = useGroup();
+
+  // Check if loan_config exists for this group (lightweight query)
+  const { data: hasLoanConfig } = useQuery({
+    queryKey: ["loan-config-exists", groupId],
+    queryFn: async () => {
+      if (!groupId) return false;
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("loan_configs")
+        .select("id")
+        .eq("group_id", groupId)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!groupId,
+    staleTime: 5 * 60 * 1000, // cache 5 min
+  });
 
   // Show admin nav if user is admin/owner OR has any position-based permissions
   const showAdminNav = isAdmin || userPermissions.length > 0;
@@ -198,6 +218,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   }
 
   function itemVisible(item: NavItem): boolean {
+    // Hide loan sidebar entries when no loan config exists (except for admins who can set up)
+    if ((item.key === "loans" || item.key === "myLoans") && !hasLoanConfig && !isAdmin) return false;
     if (isAdmin) return true; // Owner/admin see everything
     if (!item.permission && !item.anyPermission) return true; // No permission required
     if (item.permission) return hasPermission(item.permission);

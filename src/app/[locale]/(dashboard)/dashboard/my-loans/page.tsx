@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
+import { markOverdueInstallments } from "@/lib/loans";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,24 @@ function useMyLoanRepayments(loanId: string | null) {
   });
 }
 
+function useMemberContributions(membershipId: string | null, groupId: string | null) {
+  return useQuery({
+    queryKey: ["member-contributions", membershipId, groupId],
+    queryFn: async () => {
+      if (!membershipId || !groupId) return 0;
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("payments")
+        .select("amount")
+        .eq("membership_id", membershipId)
+        .eq("group_id", groupId);
+      if (error) throw error;
+      return (data || []).reduce((sum, p) => sum + Number(p.amount), 0);
+    },
+    enabled: !!membershipId && !!groupId,
+  });
+}
+
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
 type LoanStatus = "pending" | "approved" | "denied" | "disbursed" | "repaying" | "completed" | "defaulted" | "written_off";
@@ -152,6 +171,19 @@ export default function MyLoansPage() {
   const { data: config, isLoading: configLoading } = useLoanConfig();
   const { data: loans, isLoading: loansLoading, error, refetch } = useMyLoans();
   const { data: membersList } = useMembers();
+
+  // Fix 1: Query member's total contributions
+  const myMembershipId = (currentMembership as unknown as Record<string, unknown>)?.id as string || null;
+  const { data: myContributionTotal } = useMemberContributions(myMembershipId, groupId || null);
+
+  // Fix 2+5: Overdue auto-marking on page load
+  const overdueChecked = useRef(false);
+  useEffect(() => {
+    if (groupId && !overdueChecked.current) {
+      overdueChecked.current = true;
+      markOverdueInstallments(groupId).catch(() => {});
+    }
+  }, [groupId]);
 
   // Apply dialog
   const [applyOpen, setApplyOpen] = useState(false);
@@ -206,6 +238,14 @@ export default function MyLoansPage() {
     const tenureOk = monthsSinceJoined >= (config.min_membership_months || 6);
     const loansOk = currentActiveCount < (config.max_active_loans_per_member || 1);
 
+    // Fix 1: Contribution-based limit
+    const contributionTotal = myContributionTotal || 0;
+    const multiplier = Number(config.max_loan_multiplier) || 3;
+    const contributionLimit = contributionTotal * multiplier;
+    const groupMax = Number(config.max_loan_amount) || 0;
+    const effectiveLimit = groupMax > 0 ? Math.min(contributionLimit, groupMax) : contributionLimit;
+    const contributionLimitOk = contributionTotal > 0;
+
     return {
       standing,
       standingOk,
@@ -217,6 +257,12 @@ export default function MyLoansPage() {
       loansOk,
       maxAmount: config.max_loan_amount,
       requireGuarantor: config.require_guarantor,
+      contributionTotal,
+      contributionLimit,
+      multiplier,
+      groupMax,
+      effectiveLimit,
+      contributionLimitOk,
     };
   }
 
@@ -465,6 +511,7 @@ export default function MyLoansPage() {
                   { label: t("checkStanding"), value: eligibility.standing, ok: eligibility.standingOk },
                   { label: t("checkTenure"), value: `${eligibility.monthsSinceJoined} ${t("months")} (${t("min")}: ${eligibility.minMonths})`, ok: eligibility.tenureOk },
                   { label: t("checkActiveLoans"), value: `${eligibility.currentActiveCount} / ${eligibility.maxActive}`, ok: eligibility.loansOk },
+                  { label: t("checkContributionLimit"), value: eligibility.contributionTotal > 0 ? formatAmount(eligibility.effectiveLimit, currency) : t("noContributions"), ok: eligibility.contributionLimitOk },
                 ].map((check) => (
                   <div key={check.label} className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">{check.label}</span>
@@ -481,10 +528,15 @@ export default function MyLoansPage() {
             <div className="space-y-2">
               <Label>{t("amountRequested")}</Label>
               <Input type="number" value={applyAmount} onChange={(e) => setApplyAmount(e.target.value)} />
-              {config && (
-                <p className="text-xs text-muted-foreground">
-                  {t("maxEligible")}: {formatAmount(Number(config.max_loan_amount), currency)}
-                </p>
+              {config && eligibility && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    {t("effectiveLoanLimit")}: {formatAmount(eligibility.effectiveLimit, currency)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t("contributionTotal")}: {formatAmount(eligibility.contributionTotal, currency)} · {t("contributionLimit")} ({eligibility.multiplier}×): {formatAmount(eligibility.contributionLimit, currency)} · {t("groupMaxLimit")}: {formatAmount(eligibility.groupMax, currency)}
+                  </p>
+                </div>
               )}
             </div>
             <div className="space-y-2">

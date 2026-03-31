@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
+import { markOverdueInstallments } from "@/lib/loans";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -127,6 +128,24 @@ function useLoanRepayments(loanId: string | null) {
   });
 }
 
+function useMemberContributions(membershipId: string | null, groupId: string | null) {
+  return useQuery({
+    queryKey: ["member-contributions", membershipId, groupId],
+    queryFn: async () => {
+      if (!membershipId || !groupId) return 0;
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("payments")
+        .select("amount")
+        .eq("membership_id", membershipId)
+        .eq("group_id", groupId);
+      if (error) throw error;
+      return (data || []).reduce((sum, p) => sum + Number(p.amount), 0);
+    },
+    enabled: !!membershipId && !!groupId,
+  });
+}
+
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
 type LoanStatus = "pending" | "approved" | "denied" | "disbursed" | "repaying" | "completed" | "defaulted" | "written_off";
@@ -216,6 +235,19 @@ export default function LoansAdminPage() {
 
   // Status action
   const [actionSaving, setActionSaving] = useState(false);
+
+  // Fix 2+5: Overdue auto-marking on page load
+  const overdueChecked = useRef(false);
+  useEffect(() => {
+    if (groupId && !overdueChecked.current) {
+      overdueChecked.current = true;
+      markOverdueInstallments(groupId).catch(() => {});
+    }
+  }, [groupId]);
+
+  // Fix 1: Query selected applicant's contributions for review dialog
+  const selectedMembershipId = selectedLoan ? ((selectedLoan.membership as Record<string, unknown>)?.id as string) || null : null;
+  const { data: selectedMemberContributions } = useMemberContributions(selectedMembershipId, groupId || null);
 
   const detailLoanId = (detailLoan?.id as string) || null;
   const { data: schedule } = useLoanSchedule(detailLoanId);
@@ -773,6 +805,14 @@ export default function LoansAdminPage() {
     const guarantorRequired = config.require_guarantor;
     const guarantorOk = !guarantorRequired || hasGuarantor || (loan.guarantor_bypassed as boolean);
 
+    // Fix 1: Contribution-based limit
+    const contributionTotal = selectedMemberContributions || 0;
+    const multiplier = Number(config.max_loan_multiplier) || 3;
+    const contributionLimit = contributionTotal * multiplier;
+    const groupMax = Number(config.max_loan_amount) || 0;
+    const effectiveLimit = groupMax > 0 ? Math.min(contributionLimit, groupMax) : contributionLimit;
+    const contributionLimitOk = contributionTotal > 0;
+
     return {
       standing,
       standingOk,
@@ -787,9 +827,14 @@ export default function LoansAdminPage() {
       guarantorBypassed: loan.guarantor_bypassed as boolean,
       guarantorOk,
       maxAmount: config.max_loan_amount,
-      multiplier: config.max_loan_multiplier,
+      multiplier,
+      contributionTotal,
+      contributionLimit,
+      groupMax,
+      effectiveLimit,
+      contributionLimitOk,
     };
-  }, [config, membersList, allLoans]);
+  }, [config, membersList, allLoans, selectedMemberContributions]);
 
   // ─── RENDER ───────────────────────────────────────────────────────────
   if (isLoading) return <RequirePermission anyOf={["contributions.manage", "finances.manage"]}><ListSkeleton rows={6} /></RequirePermission>;
@@ -1103,6 +1148,7 @@ export default function LoansAdminPage() {
                         { label: t("checkTenure"), value: `${elig.monthsSinceJoined} ${t("months")} (${t("min")}: ${elig.minMonths})`, ok: elig.tenureOk },
                         { label: t("checkActiveLoans"), value: `${elig.activeLoansCount} / ${elig.maxActive}`, ok: elig.loansOk },
                         { label: t("checkGuarantor"), value: elig.guarantorBypassed ? t("bypassed") : elig.hasGuarantor ? t("provided") : elig.guarantorRequired ? t("missing") : t("notRequired"), ok: elig.guarantorOk },
+                        { label: t("checkContributionLimit"), value: elig.contributionTotal > 0 ? formatAmount(elig.effectiveLimit, currency) : t("noContributions"), ok: elig.contributionLimitOk },
                       ].map((check) => (
                         <div key={check.label} className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">{check.label}</span>
@@ -1112,6 +1158,33 @@ export default function LoansAdminPage() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  );
+                })()}
+
+                {/* Contribution-based loan limit breakdown */}
+                {config && (() => {
+                  const elig = calculateEligibility(selectedLoan);
+                  if (!elig) return null;
+                  return (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <h4 className="text-sm font-semibold">{t("checkContributionLimit")}</h4>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">{t("contributionTotal")}</span>
+                        <span className="font-medium">{formatAmount(elig.contributionTotal, currency)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">{t("contributionLimit")} ({elig.multiplier}×)</span>
+                        <span className="font-medium">{formatAmount(elig.contributionLimit, currency)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">{t("groupMaxLimit")}</span>
+                        <span className="font-medium">{formatAmount(elig.groupMax, currency)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs border-t pt-1">
+                        <span className="font-semibold">{t("effectiveLoanLimit")}</span>
+                        <span className="font-bold text-primary">{formatAmount(elig.effectiveLimit, currency)}</span>
+                      </div>
                     </div>
                   );
                 })()}

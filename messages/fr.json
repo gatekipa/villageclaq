@@ -976,7 +976,12 @@
     "syncPayments": "Synchroniser les paiements",
     "noOverdue": "Aucun membre en retard",
     "noTypes": "Aucun type de cotisation pour le moment",
-    "noPayments": "Aucun paiement enregistré pour le moment"
+    "noPayments": "Aucun paiement enregistré pour le moment",
+    "loanOverview": "Aperçu des prêts",
+    "loansOutstanding": "Prêts en cours",
+    "loansDisbursedYear": "Décaissé cette année",
+    "loansRepaidYear": "Remboursé cette année",
+    "loansOverdueCount": "Échéances en retard"
   },
   "invitations": {
     "title": "Invitations",
@@ -4043,7 +4048,17 @@
     "guarantorDefaultNotifTitle": "Prêt garanti en défaut",
     "guarantorDefaultNotifBody": "Un prêt que vous avez garanti pour {member} a été marqué en défaut.",
     "newLoanApplicationNotifTitle": "Nouvelle demande de prêt",
-    "newLoanApplicationNotifBody": "Un membre a soumis une demande de prêt de {amount}."
+    "newLoanApplicationNotifBody": "Un membre a soumis une demande de prêt de {amount}.",
+    "contributionTotal": "Total des cotisations",
+    "contributionLimit": "Limite basée sur les cotisations",
+    "groupMaxLimit": "Limite max. du groupe",
+    "effectiveLoanLimit": "Limite effective du prêt",
+    "noContributions": "Aucune cotisation enregistrée",
+    "checkContributionLimit": "Limite de cotisation",
+    "overdueInstallmentNotifTitle": "Échéance de prêt en retard",
+    "overdueInstallmentNotifBody": "Une ou plusieurs échéances de votre prêt sont en retard. Veuillez effectuer un paiement dès que possible.",
+    "guarantorOverdueNotifTitle": "Prêt garanti en retard",
+    "guarantorOverdueNotifBody": "Un prêt que vous avez garanti a des échéances en retard. Veuillez contacter l'emprunteur."
   },
   "projects": {
     "title": "Suivi des Projets",

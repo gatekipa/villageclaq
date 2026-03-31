@@ -976,7 +976,12 @@
     "syncPayments": "Sync Payments to Obligations",
     "noOverdue": "No overdue members",
     "noTypes": "No contribution types yet",
-    "noPayments": "No payments recorded yet"
+    "noPayments": "No payments recorded yet",
+    "loanOverview": "Loan Overview",
+    "loansOutstanding": "Loans Outstanding",
+    "loansDisbursedYear": "Disbursed This Year",
+    "loansRepaidYear": "Repaid This Year",
+    "loansOverdueCount": "Overdue Installments"
   },
   "invitations": {
     "title": "Invitations",
@@ -4043,7 +4048,17 @@
     "guarantorDefaultNotifTitle": "Guaranteed Loan Defaulted",
     "guarantorDefaultNotifBody": "A loan you guaranteed for {member} has been marked as defaulted.",
     "newLoanApplicationNotifTitle": "New Loan Application",
-    "newLoanApplicationNotifBody": "A member has submitted a loan application for {amount}."
+    "newLoanApplicationNotifBody": "A member has submitted a loan application for {amount}.",
+    "contributionTotal": "Total Contributions",
+    "contributionLimit": "Contribution-Based Limit",
+    "groupMaxLimit": "Group Max Limit",
+    "effectiveLoanLimit": "Effective Loan Limit",
+    "noContributions": "No contributions recorded yet",
+    "checkContributionLimit": "Contribution Limit",
+    "overdueInstallmentNotifTitle": "Loan Installment Overdue",
+    "overdueInstallmentNotifBody": "One or more of your loan installments are past due. Please make a payment as soon as possible.",
+    "guarantorOverdueNotifTitle": "Guaranteed Loan Overdue",
+    "guarantorOverdueNotifBody": "A loan you guaranteed has overdue installments. Please follow up with the borrower."
   },
   "projects": {
     "title": "Project Fund Tracker",

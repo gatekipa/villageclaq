@@ -476,7 +476,9 @@
     "createGroupDesc": "Start a new community group",
     "currentGroup": "Current Group",
     "groupSettings": "Group Settings",
-    "noGroupSelected": "No group selected"
+    "noGroupSelected": "No group selected",
+    "leaveGroup": "Leave Group",
+    "leaveGroupConfirm": "Are you sure you want to leave {groupName}? Your contribution and attendance history will be preserved."
   },
   "header": {
     "notifications": "Notifications",
@@ -619,6 +621,8 @@
     "attendanceRecord": "Attendance Record",
     "positionHistory": "Position History",
     "noHistory": "No history yet",
+    "familyDependents": "Family & Dependents",
+    "noFamilyMembers": "No family members registered",
     "editRole": "Edit Role",
     "changeStanding": "Change Standing",
     "removeMember": "Remove Member",
@@ -720,7 +724,11 @@
     "leaveGroupOwnerWarning": "As the owner, you must transfer ownership before leaving the group.",
     "leaveGroupButton": "Leave Group",
     "selectMember": "Select a member",
-    "networkError": "Network error — please check your connection and try again."
+    "networkError": "Network error — please check your connection and try again.",
+    "memberRemovedNotifTitle": "Removed from Group",
+    "memberRemovedNotifBody": "You have been removed from {groupName}.",
+    "deactivateMember": "Deactivate Member",
+    "activateMember": "Activate Member"
   },
   "settings": {
     "title": "Group Settings",

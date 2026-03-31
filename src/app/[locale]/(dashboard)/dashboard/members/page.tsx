@@ -316,6 +316,12 @@ export default function MembersPage() {
   const [leaveSaving, setLeaveSaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
 
+  // Remove member state (Bug A)
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removeMemberTarget, setRemoveMemberTarget] = useState<Record<string, unknown> | null>(null);
+  const [removeSaving, setRemoveSaving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
   // Recalculate all standing state
   const [recalcAllLoading, setRecalcAllLoading] = useState(false);
   const ts = useTranslations("standing");
@@ -491,13 +497,14 @@ export default function MembersPage() {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) {
+            const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
             fetch("/api/email/send", {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
               body: JSON.stringify({
                 to: email,
                 template: "invitation",
-                data: { groupName: currentGroup?.name || "", inviterName: user.full_name || "", dashboardUrl: `${window.location.origin}/dashboard` },
+                data: { groupName: currentGroup?.name || "", inviterName: user.full_name || "", acceptUrl },
                 locale,
               }),
             }).catch(() => {});
@@ -624,6 +631,87 @@ export default function MembersPage() {
       setLeaveError((err as Error).message || t("leaveGroupError"));
     } finally {
       setLeaveSaving(false);
+    }
+  }
+
+  // ─── BUG A FIX: Remove Member from Members list ──────────────────────────
+  function openRemoveMember(member: Record<string, unknown>) {
+    setRemoveMemberTarget(member);
+    setRemoveError(null);
+    setRemoveDialogOpen(true);
+  }
+
+  async function handleRemoveMember() {
+    if (!removeMemberTarget || !groupId || removeSaving) return;
+    setRemoveSaving(true);
+    setRemoveError(null);
+    try {
+      const supabase = createClient();
+      const targetId = removeMemberTarget.id as string;
+      const targetName = getName(removeMemberTarget);
+      const targetUserId = removeMemberTarget.user_id as string | null;
+
+      const { error: delErr } = await supabase
+        .from("memberships")
+        .delete()
+        .eq("id", targetId);
+      if (delErr) throw delErr;
+
+      // Notify the removed member
+      if (targetUserId) {
+        try {
+          await supabase.from("notifications").insert({
+            user_id: targetUserId,
+            group_id: groupId,
+            type: "system" as const,
+            title: t("memberRemovedNotifTitle"),
+            body: t("memberRemovedNotifBody", { groupName: currentGroup?.name || "" }),
+          });
+        } catch { /* notification non-critical */ }
+      }
+
+      await logActivity(supabase, {
+        groupId,
+        action: "member.removed",
+        entityType: "membership",
+        entityId: targetId,
+        description: `${targetName} was removed from the group`,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      setRemoveDialogOpen(false);
+    } catch (err) {
+      setRemoveError((err as Error).message);
+    } finally {
+      setRemoveSaving(false);
+    }
+  }
+
+  // ─── BUG F FIX: Deactivate/Activate Member ────────────────────────────────
+  async function handleToggleActive(member: Record<string, unknown>) {
+    const id = member.id as string;
+    const standing = (member.standing as string) || "good";
+    const newStanding = standing === "suspended" ? "good" : "suspended";
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("memberships")
+        .update({ standing: newStanding })
+        .eq("id", id);
+      if (error) throw error;
+
+      const memberName = getName(member);
+      await logActivity(supabase, {
+        groupId: groupId!,
+        action: newStanding === "suspended" ? "member.deactivated" : "member.activated",
+        entityType: "membership",
+        entityId: id,
+        description: `${memberName} was ${newStanding === "suspended" ? "deactivated" : "activated"}`,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+    } catch {
+      // Silently fail — member list will refresh
     }
   }
 
@@ -1473,12 +1561,28 @@ export default function MembersPage() {
                                 <Crown className="h-4 w-4" /> {t("transferOwnership")}
                               </DropdownMenuItem>
                             )}
+                            {canManageMembers && standing !== "suspended" && role !== "owner" && (
+                              <DropdownMenuItem
+                                className="flex items-center gap-2"
+                                onClick={(e) => { e.stopPropagation(); handleToggleActive(member); }}
+                              >
+                                <ShieldAlert className="h-4 w-4" /> {t("deactivateMember")}
+                              </DropdownMenuItem>
+                            )}
+                            {canManageMembers && standing === "suspended" && role !== "owner" && (
+                              <DropdownMenuItem
+                                className="flex items-center gap-2"
+                                onClick={(e) => { e.stopPropagation(); handleToggleActive(member); }}
+                              >
+                                <ShieldCheck className="h-4 w-4" /> {t("activateMember")}
+                              </DropdownMenuItem>
+                            )}
                             {role !== "owner" && (
                               <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="flex items-center gap-2 text-destructive"
-                                  onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/members/${id}`); }}
+                                  onClick={(e) => { e.stopPropagation(); openRemoveMember(member); }}
                                 >
                                   <UserMinus className="h-4 w-4" /> {t("removeMember")}
                                 </DropdownMenuItem>
@@ -2201,6 +2305,33 @@ export default function MembersPage() {
                 {t("leaveGroupButton")}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ BUG A: Remove Member Confirmation Dialog ═══ */}
+      <Dialog open={removeDialogOpen} onOpenChange={(open) => { setRemoveDialogOpen(open); if (!open) setRemoveError(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserMinus className="h-5 w-5 text-destructive" />
+              {t("removeMember")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t("confirmRemoveMember", { name: removeMemberTarget ? getName(removeMemberTarget) : "" })}
+            </p>
+            {removeError && <p className="text-sm text-destructive">{removeError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoveDialogOpen(false)} disabled={removeSaving}>
+              {tCommon("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveMember} disabled={removeSaving}>
+              {removeSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("removeMember")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

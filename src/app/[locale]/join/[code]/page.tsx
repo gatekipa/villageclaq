@@ -33,6 +33,14 @@ export default function JoinPage() {
     async function lookupCode() {
       const supabase = createClient();
 
+      // Check if user is authenticated — RLS on join_codes requires it
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        // Redirect to signup with return URL so they come back after login
+        router.push(`/signup?redirect=/join/${code}`);
+        return;
+      }
+
       // Look up join code
       const { data: joinCode, error: codeErr } = await supabase
         .from("join_codes")
@@ -100,6 +108,10 @@ export default function JoinPage() {
       return;
     }
 
+    // Fetch profile name to set display_name (Bug H fix)
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+    const displayName = profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || null;
+
     // Create membership
     const { error: joinErr } = await supabase.from("memberships").insert({
       user_id: user.id,
@@ -107,6 +119,7 @@ export default function JoinPage() {
       role: "member",
       standing: "good",
       is_proxy: false,
+      display_name: displayName,
     });
 
     if (joinErr) {

@@ -476,7 +476,9 @@
     "createGroupDesc": "Démarrer un nouveau groupe communautaire",
     "currentGroup": "Groupe actuel",
     "groupSettings": "Paramètres du groupe",
-    "noGroupSelected": "Aucun groupe sélectionné"
+    "noGroupSelected": "Aucun groupe sélectionné",
+    "leaveGroup": "Quitter le groupe",
+    "leaveGroupConfirm": "Êtes-vous sûr de vouloir quitter {groupName} ? Votre historique de cotisations et de présence sera conservé."
   },
   "header": {
     "notifications": "Notifications",
@@ -619,6 +621,8 @@
     "attendanceRecord": "Registre de présence",
     "positionHistory": "Historique des postes",
     "noHistory": "Aucun historique",
+    "familyDependents": "Famille et personnes à charge",
+    "noFamilyMembers": "Aucun membre de la famille enregistré",
     "editRole": "Modifier le rôle",
     "changeStanding": "Changer le statut",
     "removeMember": "Retirer le membre",
@@ -720,7 +724,11 @@
     "leaveGroupOwnerWarning": "En tant que propriétaire, vous devez transférer la propriété avant de quitter le groupe.",
     "leaveGroupButton": "Quitter le groupe",
     "selectMember": "Sélectionner un membre",
-    "networkError": "Erreur réseau — veuillez vérifier votre connexion et réessayer."
+    "networkError": "Erreur réseau — veuillez vérifier votre connexion et réessayer.",
+    "memberRemovedNotifTitle": "Retiré du groupe",
+    "memberRemovedNotifBody": "Vous avez été retiré de {groupName}.",
+    "deactivateMember": "Désactiver le membre",
+    "activateMember": "Activer le membre"
   },
   "settings": {
     "title": "Paramètres du groupe",

@@ -145,6 +145,14 @@ export default function MyInvitationsPage() {
 
         // Create membership if not already a member
         if (!existing) {
+          // Fetch profile name to set display_name on the membership (Bug H fix)
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", authUser.id)
+            .single();
+          const displayName = profile?.full_name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || null;
+
           const { error: membershipErr } = await supabase
             .from("memberships")
             .insert({
@@ -153,6 +161,7 @@ export default function MyInvitationsPage() {
               role,
               standing: "good",
               is_proxy: false,
+              display_name: displayName,
             });
           if (membershipErr) throw membershipErr;
         }

@@ -63,6 +63,7 @@ import {
   Heart,
   Activity,
   HelpCircle,
+  Contact,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -231,6 +232,23 @@ function useMemberRelief(membershipId: string | null) {
   });
 }
 
+function useMemberFamily(membershipId: string | null) {
+  return useQuery({
+    queryKey: ["member-family", membershipId],
+    queryFn: async () => {
+      if (!membershipId) return [];
+      const { data, error } = await supabase
+        .from("family_members")
+        .select("id, name, relationship, date_of_birth, notes")
+        .eq("membership_id", membershipId)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!membershipId,
+  });
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function MemberDetailPage() {
@@ -279,6 +297,7 @@ export default function MemberDetailPage() {
   const { data: obligations = [] } = useMemberObligations(membershipId, groupId);
   const { data: hostingAssignments = [] } = useMemberHosting(membershipId);
   const { data: reliefEnrollments = [] } = useMemberRelief(membershipId);
+  const { data: familyMembers = [] } = useMemberFamily(membershipId);
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -856,7 +875,42 @@ export default function MemberDetailPage() {
         </Card>
       </PermissionGate>
 
-      {/* ═══════════════════════ SECTION 9: ACTIVITY TIMELINE ═══════════════════════ */}
+      {/* ═══════════════════════ SECTION 9: FAMILY & DEPENDENTS ═══════════════════════ */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Contact className="h-4 w-4 text-primary" />
+            {t("members.familyDependents")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {familyMembers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Contact className="h-8 w-8 text-muted-foreground/50" />
+              <p className="mt-2 text-sm text-muted-foreground">{t("members.noFamilyMembers")}</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {(familyMembers as Array<{ id: string; name: string; relationship: string; date_of_birth: string | null; notes: string | null }>).map((fm) => (
+                <div key={fm.id} className="flex items-center gap-3 px-4 py-3">
+                  <Heart className="h-4 w-4 text-pink-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{fm.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{fm.relationship}</p>
+                  </div>
+                  {fm.date_of_birth && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {new Date(fm.date_of_birth).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ═══════════════════════ SECTION 10: ACTIVITY TIMELINE ═══════════════════════ */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">

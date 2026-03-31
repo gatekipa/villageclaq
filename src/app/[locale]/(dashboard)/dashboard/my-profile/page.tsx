@@ -153,6 +153,16 @@ export default function MyProfilePage() {
     if (error) {
       setLoadError(error.message);
     } else {
+      // Sync display_name to all memberships for this user (Bug H fix)
+      // This ensures the admin dashboard shows the updated name
+      if (user?.id && fullName.trim()) {
+        await supabase
+          .from("memberships")
+          .update({ display_name: fullName.trim() })
+          .eq("user_id", user.id)
+          .eq("is_proxy", false)
+          .then(() => {});
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       refresh();

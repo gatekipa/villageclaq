@@ -125,14 +125,14 @@ export default function DashboardPage() {
   ] : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           {t("dashboard.welcome", { name: user?.full_name || user?.display_name || "" })}
           {isNewGroup ? " 🎉" : ""}
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-base text-muted-foreground mt-1">
           {isNewGroup ? t("dashboard.emptyDescription") : t("dashboard.overview")}
         </p>
       </div>
@@ -145,7 +145,7 @@ export default function DashboardPage() {
               <ListChecks className="h-5 w-5 text-primary" />
               {t("onboarding.gettingStarted")}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">{t("onboarding.gettingStartedSubtitle")}</p>
+            <p className="text-base text-muted-foreground">{t("onboarding.gettingStartedSubtitle")}</p>
           </CardHeader>
           <CardContent className="space-y-3">
             {onboardingTasks.map((task) => (
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="h-5 w-5 shrink-0 rounded-full border-2 border-muted-foreground/30" />
                 )}
-                <span className={task.done ? "flex-1 text-sm line-through text-muted-foreground" : "flex-1 text-sm font-medium"}>
+                <span className={task.done ? "flex-1 text-base line-through text-muted-foreground" : "flex-1 text-base font-medium"}>
                   {t(`onboarding.task${task.key.charAt(0).toUpperCase() + task.key.slice(1)}` as Parameters<typeof t>[0])}
                 </span>
                 {task.done ? (
@@ -174,29 +174,29 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Grid — ALWAYS shown */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               {t("dashboard.totalMembers")}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats?.totalMembers ?? 0}</div>
+            <div className="text-4xl font-bold">{stats?.totalMembers ?? 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               {t("dashboard.collectionRate")}
             </CardTitle>
             <HandCoins className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats?.collectionRate ?? 0}%</div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <div className="text-4xl font-bold">{stats?.collectionRate ?? 0}%</div>
+            <p className="mt-1 text-sm text-muted-foreground">
               {t("dashboard.paidThisMonth")}
             </p>
             <div className="mt-2 h-2 rounded-full bg-muted">
@@ -210,31 +210,31 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               {t("dashboard.upcomingEvents")}
             </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{stats?.upcomingEvents ?? 0}</div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <div className="text-4xl font-bold">{stats?.upcomingEvents ?? 0}</div>
+            <p className="mt-1 text-sm text-muted-foreground">
               {t("dashboard.eventsThisMonth")}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={(stats?.outstanding ?? 0) > 0 ? "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-base font-medium text-muted-foreground">
               {t("dashboard.outstandingBalance")}
             </CardTitle>
-            <AlertCircle className="h-4 w-4 text-destructive" />
+            <AlertCircle className="h-5 w-5 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-destructive">
+            <div className="text-4xl font-bold text-destructive">
               {formatCurrency(stats?.outstanding ?? 0)}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               {t("dashboard.overdue")}
             </p>
           </CardContent>
@@ -245,15 +245,15 @@ export default function DashboardPage() {
       {isAdmin && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t("dashboard.quickActions")}</CardTitle>
+            <CardTitle className="text-lg">{t("dashboard.quickActions")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <DropdownMenu>
                 <DropdownMenuTrigger className="w-full">
-                  <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
+                  <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
                     <UserPlus className="h-5 w-5 text-primary" />
-                    <span className="text-xs">{t("dashboard.addMember")}</span>
+                    <span className="text-sm">{t("dashboard.addMember")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
@@ -268,19 +268,19 @@ export default function DashboardPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
               <Link href="/dashboard/contributions/record">
-                <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
+                <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
                   <CreditCard className="h-5 w-5 text-primary" />
                   <span className="text-xs">{t("dashboard.recordPayment")}</span>
                 </Button>
               </Link>
               <Link href="/dashboard/events">
-                <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
+                <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
                   <CalendarPlus className="h-5 w-5 text-primary" />
                   <span className="text-xs">{t("dashboard.scheduleEvent")}</span>
                 </Button>
               </Link>
               <Link href="/dashboard/announcements">
-                <Button variant="outline" className="h-auto w-full flex-col gap-2 py-4">
+                <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
                   <Megaphone className="h-5 w-5 text-primary" />
                   <span className="text-xs">{t("dashboard.sendAnnouncement")}</span>
                 </Button>
@@ -291,13 +291,13 @@ export default function DashboardPage() {
       )}
 
       {/* Next Event + Recent Minutes */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         {/* Next Event Card */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("dashboard.nextEvent")}</CardTitle>
+            <CardTitle className="text-base font-semibold">{t("dashboard.nextEvent")}</CardTitle>
             <Link href="/dashboard/events">
-              <Button variant="ghost" size="sm" className="text-xs text-primary">
+              <Button variant="ghost" size="sm" className="text-sm font-medium text-primary hover:underline">
                 {t("common.viewAll")}
                 <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
@@ -315,10 +315,10 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-sm">
+                  <p className="truncate font-medium text-base">
                     {(nextEvent.title as string) || (nextEvent.title_fr as string)}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {new Date(nextEvent.starts_at as string).toLocaleTimeString(getDateLocale(locale), {
                       hour: "numeric",
                       minute: "2-digit",
@@ -327,7 +327,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">{t("dashboard.noUpcomingEvents")}</p>
+              <p className="text-base text-muted-foreground">{t("dashboard.noUpcomingEvents")}</p>
             )}
           </CardContent>
         </Card>
@@ -335,9 +335,9 @@ export default function DashboardPage() {
         {/* Recent Minutes */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{t("dashboard.recentMinutes")}</CardTitle>
+            <CardTitle className="text-base font-semibold">{t("dashboard.recentMinutes")}</CardTitle>
             <Link href="/dashboard/minutes">
-              <Button variant="ghost" size="sm" className="text-xs text-primary">
+              <Button variant="ghost" size="sm" className="text-sm font-medium text-primary hover:underline">
                 {t("common.viewAll")}
                 <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
@@ -355,7 +355,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm">
+                  <p className="font-medium text-base">
                     {(latestMinutes.event as Record<string, unknown>)?.title as string || t("dashboard.recentMinutes")}
                   </p>
                   <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
@@ -380,7 +380,7 @@ export default function DashboardPage() {
                 )}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">{t("dashboard.noRecentMinutes")}</p>
+              <p className="text-base text-muted-foreground">{t("dashboard.noRecentMinutes")}</p>
             )}
           </CardContent>
         </Card>
@@ -399,7 +399,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {payments && payments.length > 0 ? (
-            <div className="space-y-4">
+            <div className="divide-y divide-border">
               {payments.map((payment: Record<string, unknown>) => {
                 const fullName = getMemberName(payment);
                 const contribType = payment.contribution_type as Record<string, unknown> | null;
@@ -412,21 +412,21 @@ export default function DashboardPage() {
                   .substring(0, 2);
 
                 return (
-                  <div key={payment.id as string} className="flex items-center gap-3">
+                  <div key={payment.id as string} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                     <Avatar className="h-9 w-9">
                       <AvatarFallback className="bg-primary/10 text-primary text-xs">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium">{fullName}</p>
-                      <p className="text-xs text-muted-foreground">{typeName}</p>
+                      <p className="truncate text-base font-medium">{fullName}</p>
+                      <p className="text-sm text-muted-foreground">{typeName}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-primary">
+                      <p className="text-base font-semibold text-primary">
                         +{formatCurrency(payment.amount as number)}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {new Date(payment.recorded_at as string).toLocaleDateString()}
                       </p>
                     </div>
@@ -435,7 +435,7 @@ export default function DashboardPage() {
               })}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{t("dashboard.noRecentPayments")}</p>
+            <p className="text-base text-muted-foreground">{t("dashboard.noRecentPayments")}</p>
           )}
         </CardContent>
       </Card>
@@ -444,9 +444,9 @@ export default function DashboardPage() {
       {isAdmin && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">{t("dashboard.recentActivity")}</CardTitle>
+            <CardTitle className="text-lg">{t("dashboard.recentActivity")}</CardTitle>
             <Link href="/dashboard/activity-log">
-              <Button variant="ghost" size="sm" className="text-xs text-primary">
+              <Button variant="ghost" size="sm" className="text-sm font-medium text-primary hover:underline">
                 {t("common.viewAll")}
                 <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
@@ -482,7 +482,7 @@ export default function DashboardPage() {
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm">
+                        <p className="text-base">
                           <span className="font-medium">{actorName}</span>{" "}
                           <span className="text-muted-foreground">{(entry.description as string) || (entry.action as string)}</span>
                         </p>
@@ -496,7 +496,7 @@ export default function DashboardPage() {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">{t("dashboard.noRecentActivity")}</p>
+              <p className="text-base text-muted-foreground">{t("dashboard.noRecentActivity")}</p>
             )}
           </CardContent>
         </Card>

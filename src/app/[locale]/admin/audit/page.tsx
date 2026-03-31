@@ -142,7 +142,7 @@ export default function AuditPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("audit")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("audit")}</h1>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">

@@ -191,7 +191,7 @@ export default function NotificationsPage() {
             <Bell className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight">
               {t("title")}
             </h1>
             <p className="text-sm text-muted-foreground">{t("subtitle")}</p>

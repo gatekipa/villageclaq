@@ -231,7 +231,7 @@ export default function GroupSettingsPage() {
   return (
     <RequirePermission permission="settings.manage"><div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 

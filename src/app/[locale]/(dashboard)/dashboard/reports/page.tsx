@@ -161,7 +161,7 @@ export default function ReportsHubPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("reports.title")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">{t("reports.title")}</h1>
           <p className="text-muted-foreground">{t("reports.subtitle")}</p>
         </div>
         {canExport && (

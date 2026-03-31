@@ -246,7 +246,7 @@ export default function ContributionsPage() {
       <RequirePermission anyOf={["contributions.manage", "finances.view"]}><div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("contributions.title")}</h1>
             <p className="text-muted-foreground">{t("contributions.subtitle")}</p>
           </div>
         </div>
@@ -269,7 +269,7 @@ export default function ContributionsPage() {
     return (
       <RequirePermission anyOf={["contributions.manage", "finances.view"]}><div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("contributions.title")}</h1>
           <p className="text-muted-foreground">{t("contributions.subtitle")}</p>
         </div>
         <ErrorState onRetry={() => refetch()} />
@@ -285,7 +285,7 @@ export default function ContributionsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">{t("contributions.title")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("contributions.title")}</h1>
             <Tooltip>
               <TooltipTrigger className="cursor-help">
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />

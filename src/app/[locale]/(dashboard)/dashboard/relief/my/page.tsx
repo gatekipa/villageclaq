@@ -288,7 +288,7 @@ export default function MyReliefPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("relief.myRelief")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">{t("relief.myRelief")}</h1>
         <p className="text-muted-foreground">{t("relief.subtitle")}</p>
       </div>
 

@@ -223,7 +223,7 @@ export default function NotificationPreferencesPage() {
     <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-3xl">
           {t("preferences")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

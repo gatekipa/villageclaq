@@ -121,7 +121,7 @@ export default function AdminGroupsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("groups")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("groups")}</h1>
         <p className="text-muted-foreground">{t("groupsSubtitle")}</p>
       </div>
 

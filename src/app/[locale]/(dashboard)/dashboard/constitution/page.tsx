@@ -430,7 +430,7 @@ export default function ConstitutionPage() {
   if (constError) {
     return (
       <div className="space-y-6">
-        <div><h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1><p className="text-muted-foreground">{t("description")}</p></div>
+        <div><h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1><p className="text-muted-foreground">{t("description")}</p></div>
         <EmptyState icon={ScrollText} title={t("noConstitution")} description={t("noConstitutionDesc")} />
       </div>
     );
@@ -442,7 +442,7 @@ export default function ConstitutionPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1><p className="text-muted-foreground">{t("description")}</p></div>
+        <div><h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1><p className="text-muted-foreground">{t("description")}</p></div>
         <div className="flex items-center gap-2">
           {isAdmin && hasContent && draft && (
             <Button onClick={() => setShowPublishConfirm(true)} disabled={publishing}>

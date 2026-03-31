@@ -105,7 +105,7 @@ export default function AnomalyMonitoringPage() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold tracking-tight">{t("anomalyMonitoring")}</h1><p className="text-muted-foreground">{t("anomaliesSubtitle")}</p></div>
+      <div><h1 className="text-3xl font-bold tracking-tight">{t("anomalyMonitoring")}</h1><p className="text-muted-foreground">{t("anomaliesSubtitle")}</p></div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("openIssues")}</p>{loading ? <Skeleton className="h-8 w-12" /> : <p className="text-2xl font-bold">{anomalies.length}</p>}</CardContent></Card>

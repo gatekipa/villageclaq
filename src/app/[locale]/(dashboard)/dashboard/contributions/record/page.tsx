@@ -442,7 +442,7 @@ export default function RecordPaymentPage() {
     return (
       <RequirePermission anyOf={["finances.record", "finances.manage"]}><div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -464,7 +464,7 @@ export default function RecordPaymentPage() {
     return (
       <RequirePermission anyOf={["finances.record", "finances.manage"]}><div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
         </div>
         <ErrorState onRetry={() => { refetchMembers(); refetchTypes(); }} />
@@ -489,7 +489,7 @@ export default function RecordPaymentPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
         </div>
         <Button

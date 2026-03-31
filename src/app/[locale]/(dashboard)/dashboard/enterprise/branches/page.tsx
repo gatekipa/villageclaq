@@ -303,7 +303,7 @@ export default function BranchesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("branchesTitle")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("branchesTitle")}</h1>
             <p className="text-sm text-muted-foreground">{t("branchesSubtitle")}</p>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function BranchesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("branchesTitle")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("branchesTitle")}</h1>
             <p className="text-sm text-muted-foreground">{t("branchesSubtitle")}</p>
           </div>
         </div>
@@ -343,7 +343,7 @@ export default function BranchesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("branchesTitle")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("branchesTitle")}</h1>
             <p className="text-sm text-muted-foreground">{t("branchesSubtitle")}</p>
           </div>
         </div>

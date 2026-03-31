@@ -264,7 +264,7 @@ export default function PaymentHistoryPage() {
       <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("contributions.history")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("contributions.history")}</h1>
             <p className="text-muted-foreground">{t("contributions.historyDesc")}</p>
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function PaymentHistoryPage() {
     return (
       <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.history")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("contributions.history")}</h1>
           <p className="text-muted-foreground">{t("contributions.historyDesc")}</p>
         </div>
         <ErrorState onRetry={() => refetch()} />
@@ -300,7 +300,7 @@ export default function PaymentHistoryPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("contributions.history")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("contributions.history")}</h1>
           <p className="text-muted-foreground">{t("contributions.historyDesc")}</p>
         </div>
         <Button variant="outline" onClick={handleExportCSV} disabled={sortedPayments.length === 0}>

@@ -246,7 +246,7 @@ export default function RevenuePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("revenue")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("revenue")}</h1>
         <p className="text-sm text-muted-foreground">{t("revenueSubtitle")}</p>
       </div>
 

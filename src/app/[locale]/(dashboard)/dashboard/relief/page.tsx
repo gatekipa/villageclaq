@@ -26,7 +26,7 @@ export default function ReliefPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         <EmptyState
@@ -52,7 +52,7 @@ export default function ReliefPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 

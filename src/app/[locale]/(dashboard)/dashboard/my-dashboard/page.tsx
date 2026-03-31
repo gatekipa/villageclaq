@@ -204,7 +204,7 @@ export default function MyDashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">
           {t("title", { name: user?.full_name || user?.display_name || "" })}
         </h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>

@@ -211,7 +211,7 @@ export default function MyProfilePage() {
     <div className="space-y-6 pb-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-3xl">
           {t("title")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>

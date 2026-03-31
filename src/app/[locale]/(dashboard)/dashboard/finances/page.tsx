@@ -372,7 +372,7 @@ export default function FinancesPage() {
     <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("finances.title")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("finances.title")}</h1>
         <p className="text-muted-foreground">{t("finances.subtitle")}</p>
       </div>
 

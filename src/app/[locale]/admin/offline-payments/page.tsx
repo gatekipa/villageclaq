@@ -60,7 +60,7 @@ export default function OfflinePaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold tracking-tight">{t("offlinePayments")}</h1><p className="text-muted-foreground">{t("offlinePaymentsSubtitle")}</p></div>
+      <div><h1 className="text-3xl font-bold tracking-tight">{t("offlinePayments")}</h1><p className="text-muted-foreground">{t("offlinePaymentsSubtitle")}</p></div>
 
       <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/10">
         <CardContent className="p-4 flex items-start gap-3">

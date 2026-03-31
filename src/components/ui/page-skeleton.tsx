@@ -98,8 +98,8 @@ export function EmptyState({
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
         <Icon className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <h3 className="text-xl font-semibold">{title}</h3>
+      <p className="mt-1 max-w-sm text-base text-muted-foreground">{description}</p>
       {action && <div className="mt-6">{action}</div>}
     </div>
   );
@@ -114,10 +114,10 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry?: (
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
         </svg>
       </div>
-      <h3 className="text-lg font-semibold">Something went wrong</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{message || "Failed to load data. Please try again."}</p>
+      <h3 className="text-xl font-semibold">Something went wrong</h3>
+      <p className="mt-1 max-w-sm text-base text-muted-foreground">{message || "Failed to load data. Please try again."}</p>
       {onRetry && (
-        <button onClick={onRetry} className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <button onClick={onRetry} className="mt-4 rounded-md bg-primary px-4 py-2 text-base font-medium text-primary-foreground hover:bg-primary/90">
           Retry
         </button>
       )}

@@ -87,7 +87,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
               <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border bg-popover text-popover-foreground shadow-lg sm:w-96">
                 <div className="flex items-center justify-between border-b px-4 py-3">
-                  <h3 className="text-sm font-semibold">{t("notifications")}</h3>
+                  <h3 className="text-base font-semibold">{t("notifications")}</h3>
                   {unreadCount > 0 && (
                     <button onClick={markAllAsRead} className="text-xs text-emerald-600 hover:underline dark:text-emerald-400">
                       {t("markAllRead")}
@@ -98,8 +98,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center px-4 py-8 text-center">
                       <Bell className="mb-2 h-8 w-8 text-muted-foreground/40" />
-                      <p className="text-sm font-medium">{t("allCaughtUp")}</p>
-                      <p className="text-xs text-muted-foreground">{t("noNotifications")}</p>
+                      <p className="text-base font-medium">{t("allCaughtUp")}</p>
+                      <p className="text-sm text-muted-foreground">{t("noNotifications")}</p>
                     </div>
                   ) : (
                     notifications.map((notification: Record<string, unknown>) => {
@@ -126,8 +126,8 @@ export function Header({ onMenuClick }: HeaderProps) {
                             <div className="flex items-center gap-2">
                               {!isRead && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
                             </div>
-                            <p className="text-sm font-medium truncate">{notification.title as string}</p>
-                            <p className="text-xs text-muted-foreground truncate">{notification.body as string}</p>
+                            <p className="text-base font-medium truncate">{notification.title as string}</p>
+                            <p className="text-sm text-muted-foreground truncate">{notification.body as string}</p>
                             <p className="mt-0.5 text-[10px] text-muted-foreground">{timeAgo(notification.created_at as string)}</p>
                           </div>
                         </button>
@@ -136,7 +136,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                   )}
                 </div>
                 <div className="border-t px-4 py-2">
-                  <Link href="/dashboard/notifications" onClick={() => setIsOpen(false)} className="block text-center text-xs font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+                  <Link href="/dashboard/notifications" onClick={() => setIsOpen(false)} className="block text-center text-sm font-medium text-emerald-600 hover:underline dark:text-emerald-400">
                     {t("viewAll")}
                   </Link>
                 </div>

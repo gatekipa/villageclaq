@@ -66,7 +66,7 @@ export default function SubscriptionPlansPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("subscriptionPlans")}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("subscriptionPlans")}</h1>
         <p className="text-muted-foreground">{t("plansSubtitle")}</p>
       </div>
 

@@ -161,7 +161,7 @@ export default function ExchangeRatesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("exchangeRatesTitle")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("exchangeRatesTitle")}</h1>
             <p className="text-sm text-muted-foreground">{t("exchangeRatesSubtitle")}</p>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function ExchangeRatesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("exchangeRatesTitle")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("exchangeRatesTitle")}</h1>
             <p className="text-sm text-muted-foreground">{t("exchangeRatesSubtitle")}</p>
           </div>
         </div>
@@ -300,7 +300,7 @@ export default function ExchangeRatesPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t("exchangeRatesTitle")}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t("exchangeRatesTitle")}</h1>
             <p className="text-sm text-muted-foreground">{t("exchangeRatesSubtitle")}</p>
           </div>
         </div>

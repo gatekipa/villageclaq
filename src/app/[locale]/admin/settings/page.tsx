@@ -63,7 +63,7 @@ export default function AdminSettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <Settings className="h-6 w-6" />
           {t("globalSettingsTitle")}
         </h1>

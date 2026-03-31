@@ -130,7 +130,7 @@ export default function AdminSecurityPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <Database className="h-6 w-6" />
           {t("securityTitle")}
         </h1>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -44,6 +44,8 @@ import {
   Check,
   UserPlus,
   HelpCircle,
+  Pencil,
+  Power,
 } from "lucide-react";
 import { Tooltip as ShadcnTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
@@ -230,9 +232,63 @@ export default function HostingPage() {
   const [planBuilderOpen, setPlanBuilderOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [swapContext, setSwapContext] = useState<{ assignment: Assignment; rosterId: string } | null>(null);
+  const [editRosterTarget, setEditRosterTarget] = useState<Roster | null>(null);
 
   function showError(msg: string) { setActionError(msg); setTimeout(() => setActionError(null), 5000); }
   function showSuccess(msg: string) { setActionSuccess(msg); setTimeout(() => setActionSuccess(null), 3000); }
+
+  // FIX 2: Hosting Reminder — lazy eval on page load
+  useEffect(() => {
+    if (!groupId || !isAdmin) return;
+    const sendReminders = async () => {
+      try {
+        const supabase = createClient();
+        const today = new Date();
+        const reminderDate = new Date(today);
+        reminderDate.setDate(reminderDate.getDate() + 7);
+        const reminderDateStr = reminderDate.toISOString().slice(0, 10);
+        const todayStr = today.toISOString().slice(0, 10);
+
+        // Find upcoming assignments within the next 7 days
+        const { data: upcoming } = await supabase
+          .from("hosting_assignments")
+          .select("id, membership_id, assigned_date, roster_id, roster:hosting_rosters!inner(group_id)")
+          .eq("status", "upcoming")
+          .eq("hosting_rosters.group_id", groupId)
+          .gte("assigned_date", todayStr)
+          .lte("assigned_date", reminderDateStr);
+
+        if (!upcoming || upcoming.length === 0) return;
+
+        // Check which already have a reminder notification
+        for (const a of upcoming) {
+          const { data: existing } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("membership_id", a.membership_id)
+            .eq("type", "hosting_reminder")
+            .eq("group_id", groupId)
+            .like("message", `%${a.assigned_date}%`)
+            .limit(1);
+
+          if (existing && existing.length > 0) continue;
+
+          await supabase.from("notifications").insert({
+            group_id: groupId,
+            membership_id: a.membership_id,
+            type: "hosting_reminder",
+            title: t("hostReminderNotifTitle"),
+            message: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
+            is_read: false,
+          });
+        }
+      } catch {
+        // best-effort — do not show error for background reminders
+      }
+    };
+    sendReminders();
+  }, [groupId, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Stats ──────────────────────────────────────────────────────────────
 
@@ -500,7 +556,7 @@ export default function HostingPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t("fairness")}</p>
-                  <p className={cn("text-2xl font-bold", stats.fairnessLabel === "Good" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+                  <p className={cn("text-2xl font-bold", stats.fairnessLabel === t("good") ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
                     {stats.fairnessLabel}
                   </p>
                 </div>
@@ -606,7 +662,7 @@ export default function HostingPage() {
                     "text-lg font-bold",
                     fairnessData.stdDev <= 1 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
                   )}>
-                    {fairnessData.stdDev <= 1 ? "Good" : fairnessData.stdDev.toFixed(1)}
+                    {fairnessData.stdDev <= 1 ? t("good") : fairnessData.stdDev.toFixed(1)}
                   </p>
                 </div>
               </div>
@@ -646,6 +702,8 @@ export default function HostingPage() {
               onMarkComplete={(id) => handleStatusUpdate(id, "completed")}
               onMarkMissed={(id) => handleStatusUpdate(id, "missed")}
               onAssign={(date) => openAssignDialog(roster.id, date)}
+              onSwap={(a) => setSwapContext({ assignment: a, rosterId: roster.id })}
+              onEditRoster={() => setEditRosterTarget(roster)}
               t={t}
               tc={tc}
             />
@@ -716,6 +774,30 @@ export default function HostingPage() {
           onError={showError}
           onSuccessMsg={showSuccess}
         />
+        <SwapHostDialog
+          open={!!swapContext}
+          onOpenChange={(v) => { if (!v) setSwapContext(null); }}
+          assignment={swapContext?.assignment || null}
+          activeMembers={activeMembers}
+          groupId={groupId}
+          t={t}
+          tc={tc}
+          locale={locale}
+          onSuccess={invalidateRosters}
+          onError={showError}
+          onSuccessMsg={showSuccess}
+        />
+        <EditRosterDialog
+          open={!!editRosterTarget}
+          onOpenChange={(v) => { if (!v) setEditRosterTarget(null); }}
+          roster={editRosterTarget}
+          groupId={groupId}
+          t={t}
+          tc={tc}
+          onSuccess={invalidateRosters}
+          onError={showError}
+          onSuccessMsg={showSuccess}
+        />
       </div>
     </PermissionGate>
   );
@@ -770,6 +852,8 @@ function RosterCard({
   onMarkComplete,
   onMarkMissed,
   onAssign,
+  onSwap,
+  onEditRoster,
   t,
   tc,
 }: {
@@ -781,6 +865,8 @@ function RosterCard({
   onMarkComplete: (id: string) => void;
   onMarkMissed: (id: string) => void;
   onAssign: (date: string) => void;
+  onSwap: (a: Assignment) => void;
+  onEditRoster: () => void;
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
 }) {
@@ -815,6 +901,15 @@ function RosterCard({
               <span className="text-xs text-muted-foreground">
                 {assignments.length} {t("assignmentsCount") || "assignments"}
               </span>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="ml-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  onClick={(e) => { e.stopPropagation(); onEditRoster(); }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -932,6 +1027,16 @@ function RosterCard({
                                               <XCircle className="mr-1 h-3 w-3" />
                                             )}
                                             {t("markMissed")}
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-xs text-purple-600 hover:text-purple-700 dark:text-purple-400"
+                                            disabled={isUpdating}
+                                            onClick={() => onSwap(a)}
+                                          >
+                                            <ArrowRightLeft className="mr-1 h-3 w-3" />
+                                            {t("swapHost")}
                                           </Button>
                                         </>
                                       )}
@@ -2163,5 +2268,334 @@ function PlanBuilder({ roster, activeMembers, groupId, t, tc, onSuccess, onError
         {t("autoAssign")}
       </Button>
     </div>
+  );
+}
+
+// ─── Swap Host Dialog ────────────────────────────────────────────────────
+
+function SwapHostDialog({
+  open,
+  onOpenChange,
+  assignment,
+  activeMembers,
+  groupId,
+  t,
+  tc,
+  locale,
+  onSuccess,
+  onError,
+  onSuccessMsg,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  assignment: Assignment | null;
+  activeMembers: Member[];
+  groupId: string | null;
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+  locale: string;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
+}) {
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [swapping, setSwapping] = useState(false);
+
+  const availableMembers = useMemo(() => {
+    if (!assignment) return activeMembers;
+    return activeMembers.filter((m) => m.id !== assignment.membership_id);
+  }, [activeMembers, assignment]);
+
+  const handleSwap = async () => {
+    if (!assignment || !selectedMemberId || !groupId || swapping) return;
+    setSwapping(true);
+    try {
+      const supabase = createClient();
+
+      // 1. Create new assignment for the replacement host
+      const { data: newAssignment, error: insertErr } = await supabase
+        .from("hosting_assignments")
+        .insert({
+          roster_id: assignment.roster_id,
+          membership_id: selectedMemberId,
+          assigned_date: assignment.assigned_date,
+          status: "upcoming",
+          order_index: assignment.order_index,
+        })
+        .select("id")
+        .single();
+      if (insertErr) throw insertErr;
+      if (!newAssignment) throw new Error("Failed to create replacement assignment");
+
+      // 2. Mark original as swapped, link to new
+      const { error: updateErr } = await supabase
+        .from("hosting_assignments")
+        .update({ status: "swapped", swapped_with: newAssignment.id })
+        .eq("id", assignment.id);
+      if (updateErr) throw updateErr;
+
+      // 3. Notify original host
+      await supabase.from("notifications").insert({
+        group_id: groupId,
+        membership_id: assignment.membership_id,
+        type: "hosting_swapped",
+        title: t("swapNotifTitle"),
+        message: t("swapNotifBodyOld", { date: formatDate(assignment.assigned_date, locale) }),
+        is_read: false,
+      });
+
+      // 4. Notify new host
+      await supabase.from("notifications").insert({
+        group_id: groupId,
+        membership_id: selectedMemberId,
+        type: "hosting_assigned",
+        title: t("swapNotifTitle"),
+        message: t("swapNotifBodyNew", { date: formatDate(assignment.assigned_date, locale) }),
+        is_read: false,
+      });
+
+      // 5. Audit log
+      await logActivity(supabase, {
+        groupId,
+        action: "hosting.host_swapped",
+        entityType: "hosting_assignment",
+        entityId: assignment.id,
+        description: `Swapped hosting assignment on ${assignment.assigned_date}`,
+        metadata: {
+          original_membership_id: assignment.membership_id,
+          new_membership_id: selectedMemberId,
+          new_assignment_id: newAssignment.id,
+        },
+      });
+
+      onOpenChange(false);
+      setSelectedMemberId("");
+      onSuccess();
+      onSuccessMsg(t("swapSuccess"));
+    } catch {
+      onError(t("swapFailed"));
+    } finally {
+      setSwapping(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setSelectedMemberId(""); }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("swapHostTitle")}</DialogTitle>
+        </DialogHeader>
+        {assignment && (
+          <div className="space-y-1 text-sm">
+            <p className="text-muted-foreground">{t("swapHostDesc")}</p>
+            <p className="font-medium">
+              {getHostName(assignment)} — {formatDate(assignment.assigned_date, locale)}
+            </p>
+          </div>
+        )}
+        <div className="space-y-2">
+          <Label>{t("selectNewHost")}</Label>
+          <Select value={selectedMemberId} onValueChange={(v) => setSelectedMemberId(v ?? "")}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("selectNewHost")} />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMembers.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {getMemberName(m as unknown as Record<string, unknown>)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onOpenChange(false); setSelectedMemberId(""); }}>
+            {tc("cancel")}
+          </Button>
+          <Button onClick={handleSwap} disabled={swapping || !selectedMemberId}>
+            {swapping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("swapHost")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Edit Roster Dialog ──────────────────────────────────────────────────
+
+function EditRosterDialog({
+  open,
+  onOpenChange,
+  roster,
+  groupId,
+  t,
+  tc,
+  onSuccess,
+  onError,
+  onSuccessMsg,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  roster: Roster | null;
+  groupId: string | null;
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [nameFr, setNameFr] = useState("");
+  const [rotationType, setRotationType] = useState<RotationType>("sequential");
+  const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  const hasAssignments = (roster?.hosting_assignments?.length || 0) > 0;
+
+  // Sync form when roster changes
+  useEffect(() => {
+    if (roster) {
+      setName(roster.name || "");
+      setNameFr(roster.name_fr || "");
+      setRotationType(roster.rotation_type);
+    }
+  }, [roster]);
+
+  const handleSave = async () => {
+    if (!roster || !groupId || saving || !name.trim()) return;
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const updates: Record<string, unknown> = {
+        name: name.trim(),
+        name_fr: nameFr.trim() || null,
+      };
+      if (!hasAssignments) {
+        updates.rotation_type = rotationType;
+      }
+      const { error } = await supabase
+        .from("hosting_rosters")
+        .update(updates)
+        .eq("id", roster.id);
+      if (error) throw error;
+
+      await logActivity(supabase, {
+        groupId,
+        action: "hosting.roster_edited",
+        entityType: "hosting_roster",
+        entityId: roster.id,
+        description: `Edited hosting roster "${name.trim()}"`,
+      });
+
+      onOpenChange(false);
+      onSuccess();
+      onSuccessMsg(t("editSuccess"));
+    } catch {
+      onError(t("editFailed"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleActive = async () => {
+    if (!roster || !groupId || toggling) return;
+    setToggling(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("hosting_rosters")
+        .update({ is_active: !roster.is_active })
+        .eq("id", roster.id);
+      if (error) throw error;
+
+      await logActivity(supabase, {
+        groupId,
+        action: roster.is_active ? "hosting.roster_deactivated" : "hosting.roster_activated",
+        entityType: "hosting_roster",
+        entityId: roster.id,
+        description: `${roster.is_active ? "Deactivated" : "Activated"} hosting roster "${roster.name}"`,
+      });
+
+      onOpenChange(false);
+      onSuccess();
+      onSuccessMsg(t("toggleActiveSuccess"));
+    } catch {
+      onError(t("toggleActiveFailed"));
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("editRosterTitle")}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("rosterName")}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>{t("rosterNameFr")}</Label>
+            <Input value={nameFr} onChange={(e) => setNameFr(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>{t("rotationType")}</Label>
+            <Select
+              value={rotationType}
+              onValueChange={(v) => setRotationType(v as RotationType)}
+              disabled={hasAssignments}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sequential">{t("sequential")}</SelectItem>
+                <SelectItem value="random">{t("random")}</SelectItem>
+                <SelectItem value="manual">{t("manual")}</SelectItem>
+              </SelectContent>
+            </Select>
+            {hasAssignments && (
+              <p className="text-xs text-muted-foreground">{t("rotationTypeLockedDesc")}</p>
+            )}
+          </div>
+
+          {/* Toggle Active/Inactive */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">{tc("status")}</p>
+              <p className="text-xs text-muted-foreground">
+                {roster?.is_active ? tc("active") : tc("inactive")}
+              </p>
+            </div>
+            <Button
+              variant={roster?.is_active ? "destructive" : "default"}
+              size="sm"
+              onClick={handleToggleActive}
+              disabled={toggling}
+            >
+              {toggling ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Power className="mr-1 h-3 w-3" />
+              )}
+              {roster?.is_active ? tc("inactive") : tc("active")}
+            </Button>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {tc("cancel")}
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !name.trim()}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {tc("save")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

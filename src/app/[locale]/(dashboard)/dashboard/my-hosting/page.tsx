@@ -6,9 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
@@ -248,10 +246,7 @@ export default function MyHostingPage() {
                 ) : null}
               </div>
 
-              <Button variant="outline" className="shrink-0" disabled>
-                <ArrowRightLeft className="mr-2 h-4 w-4" />
-                {t("hosting.swapHost")}
-              </Button>
+              {/* Swap requests require admin — use admin hosting page */}
             </div>
           </CardContent>
         </Card>

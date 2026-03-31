@@ -164,7 +164,32 @@ export async function calculateStanding(
         : `${overdueInstCount} échéance(s) en retard`,
   });
 
-  // Rule 5: Disputes
+  // Rule 5: Unpaid Fines (pending only; disputed fines do NOT count)
+  const { data: pendingFines } = await supabase
+    .from("fines")
+    .select("id, status, amount")
+    .eq("group_id", groupId)
+    .eq("membership_id", membershipId)
+    .eq("status", "pending");
+
+  const unpaidFineCount = (pendingFines || []).length;
+  const unpaidFineTotal = (pendingFines || []).reduce((sum, f) => sum + Number(f.amount), 0);
+  const finesPassed = unpaidFineCount === 0;
+
+  reasons.push({
+    category: "fines",
+    passed: finesPassed,
+    label_en: "Fines",
+    label_fr: "Amendes",
+    detail_en: finesPassed
+      ? "No unpaid fines"
+      : `${unpaidFineCount} unpaid fine(s) totaling ${formatAmount(unpaidFineTotal, options?.currency || "XAF")}`,
+    detail_fr: finesPassed
+      ? "Aucune amende impayée"
+      : `${unpaidFineCount} amende(s) impayée(s) totalisant ${formatAmount(unpaidFineTotal, options?.currency || "XAF")}`,
+  });
+
+  // Rule 6: Disputes
   const { data: disputes } = await supabase
     .from("disputes")
     .select("id, status")

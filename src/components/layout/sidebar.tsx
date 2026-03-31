@@ -40,6 +40,7 @@ import {
   Mail,
   KeyRound,
   Landmark,
+  Gavel,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -106,6 +107,7 @@ const adminSections: NavSection[] = [
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
       { key: "projects", href: "/dashboard/projects", icon: FolderKanban },
+      { key: "fines", href: "/dashboard/fines", icon: Gavel, anyPermission: ["disputes.manage", "finances.manage"] },
       { key: "disputes", href: "/dashboard/disputes", icon: Scale },
     ],
   },
@@ -145,6 +147,7 @@ const memberSections: NavSection[] = [
       { key: "myHosting", href: "/dashboard/my-hosting", icon: Home },
       { key: "myRelief", href: "/dashboard/relief/my", icon: Heart },
       { key: "myLoans", href: "/dashboard/my-loans", icon: Landmark },
+      { key: "myFines", href: "/dashboard/my-fines", icon: Gavel },
       { key: "myFamily", href: "/dashboard/my-family", icon: Contact },
       { key: "membershipCard", href: "/dashboard/membership-card", icon: IdCard },
       { key: "changePassword", href: "/dashboard/change-password", icon: KeyRound },

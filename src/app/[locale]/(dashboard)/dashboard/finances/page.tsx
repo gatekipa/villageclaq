@@ -44,6 +44,34 @@ import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 
 
+function useFineStats(groupId: string | null) {
+  return useQuery({
+    queryKey: ["fine-stats-finance", groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
+      const supabase = createClient();
+      const { data: allFines } = await supabase
+        .from("fines")
+        .select("amount, status, paid_amount, paid_at")
+        .eq("group_id", groupId);
+
+      if (!allFines || allFines.length === 0) return null;
+
+      const outstanding = allFines
+        .filter((f) => f.status === "pending")
+        .reduce((sum, f) => sum + Number(f.amount || 0), 0);
+
+      const thisYear = new Date().getFullYear();
+      const collectedYear = allFines
+        .filter((f) => f.status === "paid" && f.paid_at && new Date(f.paid_at).getFullYear() === thisYear)
+        .reduce((sum, f) => sum + Number(f.paid_amount || f.amount || 0), 0);
+
+      return { outstanding, collectedYear };
+    },
+    enabled: !!groupId,
+  });
+}
+
 function useLoanStats(groupId: string | null) {
   return useQuery({
     queryKey: ["loan-stats-finance", groupId],
@@ -120,6 +148,7 @@ export default function FinancesPage() {
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
   const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(5000);
   const { data: contributionTypes } = useContributionTypes();
+  const { data: fineStats } = useFineStats(groupId || null);
   const { data: loanStats } = useLoanStats(groupId || null);
 
   const isLoading = oblLoading || payLoading;
@@ -601,6 +630,41 @@ export default function FinancesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Fines Overview Section */}
+      {fineStats && (
+        <>
+          <h2 className="text-lg font-semibold mt-2">{t("finances.finesOverview")}</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t("finances.finesOutstanding")}
+                </CardTitle>
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-destructive">
+                  {formatAmount(fineStats.outstanding, currency)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {t("finances.finesCollectedYear")}
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatAmount(fineStats.collectedYear, currency)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
 
       {/* Loan Overview Section (Fix 3) */}
       {loanStats && loanStats.hasLoans && (

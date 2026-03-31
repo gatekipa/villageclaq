@@ -288,6 +288,18 @@ export default function AnnouncementsPage() {
         }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "announcement.sent",
+          entityType: "announcement",
+          description: `Announcement "${titleEn}" ${asDraft ? "saved as draft" : "sent"}`,
+          metadata: { title: titleEn, isDraft: asDraft },
+        });
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
       setDialogOpen(false);

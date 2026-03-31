@@ -257,6 +257,19 @@ export default function MyFinesPage() {
         }
       } catch { /* best-effort */ }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "dispute.filed",
+          entityType: "dispute",
+          entityId: disputeData.id,
+          description: `Dispute filed against fine: ${disputeFineTypeName}`,
+          metadata: { type: "fine_dispute", fine_id: disputeFineId },
+        });
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["my-fines"] });
       await queryClient.invalidateQueries({ queryKey: ["my-disputes"] });
       setDisputeFineId(null);

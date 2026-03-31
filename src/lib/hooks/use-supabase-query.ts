@@ -437,6 +437,19 @@ export function useRecordPayment() {
         // Non-critical — standing will recalculate on next view
       }
 
+      // ─── Step 4: Audit log ──────────────────────────────────────────
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "payment.recorded",
+          entityType: "payment",
+          entityId: data.id as string,
+          description: `Payment of ${values.amount} ${values.currency || "XAF"} recorded`,
+          metadata: { amount: values.amount, currency: values.currency, membership_id: values.membership_id },
+        });
+      } catch { /* best-effort */ }
+
       return { payment: data as Record<string, unknown>, appliedTo, creditRemaining: remaining };
     },
     onSuccess: (_data, variables) => {
@@ -492,6 +505,17 @@ export function useCreateEvent() {
         created_by: user.id,
       }).select().single();
       if (error) throw error;
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "event.created",
+          entityType: "event",
+          entityId: data.id as string,
+          description: `Event "${values.title || ""}" created`,
+          metadata: { title: values.title },
+        });
+      } catch { /* best-effort */ }
       return data;
     },
     onSuccess: () => {

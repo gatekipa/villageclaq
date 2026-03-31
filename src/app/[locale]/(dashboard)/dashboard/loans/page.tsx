@@ -407,6 +407,20 @@ export default function LoansAdminPage() {
         } catch { /* best-effort */ }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        const borrowerName = membership ? getMemberName(membership as Record<string, unknown>) : "";
+        await logActivity(supabase, {
+          groupId,
+          action: "loan.approved",
+          entityType: "loan",
+          entityId: selectedLoan.id as string,
+          description: `Loan of ${formatAmount(amt, currency)} approved for ${borrowerName}`,
+          metadata: { amount: amt, currency, membership_id: (membership as Record<string, unknown>)?.id },
+        });
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["loans-admin", groupId] });
       setReviewDialogOpen(false);
       setSelectedLoan(null);

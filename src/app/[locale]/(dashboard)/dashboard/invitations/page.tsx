@@ -221,6 +221,17 @@ export default function InvitationsPage() {
       if (!error) {
         // Send the invitation email (fire-and-forget)
         sendInvitationEmail(trimmedEmail);
+        // Audit log
+        try {
+          const { logActivity } = await import("@/lib/audit-log");
+          await logActivity(supabase, {
+            groupId,
+            action: "member.invited",
+            entityType: "membership",
+            description: `Invited ${trimmedEmail} as ${role}`,
+            metadata: { email: trimmedEmail, role },
+          });
+        } catch { /* best-effort */ }
         setSendSuccess(true);
         setEmail("");
         setTimeout(() => setSendSuccess(false), 3000);

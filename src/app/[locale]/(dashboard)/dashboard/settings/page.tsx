@@ -132,6 +132,17 @@ export default function GroupSettingsPage() {
         })
         .eq("id", groupId);
       if (updateError) throw updateError;
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        await logActivity(supabase, {
+          groupId,
+          action: "settings.updated",
+          entityType: "settings",
+          description: `Group settings updated`,
+          metadata: { name: editName.trim(), currency: editCurrency, locale: editLocale },
+        });
+      } catch { /* best-effort */ }
       await queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);

@@ -31,6 +31,13 @@ import {
   Rocket,
   Mail,
   UserRoundPlus,
+  Activity,
+  Clock,
+  Gavel,
+  Landmark,
+  Heart,
+  Scale,
+  Settings,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import {
@@ -39,6 +46,8 @@ import {
   useEvents,
   useMeetingMinutes,
 } from "@/lib/hooks/use-supabase-query";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 
@@ -70,6 +79,24 @@ export default function DashboardPage() {
     if (!minutes || minutes.length === 0) return null;
     return minutes[0]; // already ordered by created_at desc
   }, [minutes]);
+
+  // Recent audit log entries (admin only, best-effort)
+  const { data: recentAuditLogs } = useQuery({
+    queryKey: ["recent-audit-logs", currentGroup?.id],
+    queryFn: async () => {
+      if (!currentGroup?.id) return [];
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("group_audit_logs")
+        .select("id, action, entity_type, description, created_at, actor_id, actor_member:memberships!left(id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name))")
+        .eq("group_id", currentGroup.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!currentGroup?.id && isAdmin,
+    staleTime: 60_000,
+  });
 
   // Show skeleton while loading
   if (isLoading) {
@@ -412,6 +439,68 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Recent Activity (admin only) */}
+      {isAdmin && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">{t("dashboard.recentActivity")}</CardTitle>
+            <Link href="/dashboard/activity-log">
+              <Button variant="ghost" size="sm" className="text-xs text-primary">
+                {t("common.viewAll")}
+                <ArrowRight className="ml-1 h-3 w-3" />
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {recentAuditLogs && recentAuditLogs.length > 0 ? (
+              <div className="space-y-3">
+                {(recentAuditLogs as Record<string, unknown>[]).map((entry) => {
+                  const entityType = (entry.entity_type as string) || "settings";
+                  const ICON_MAP: Record<string, typeof Activity> = {
+                    membership: Users, payment: CreditCard, event: Calendar,
+                    fine: Gavel, loan: Landmark, relief: Heart,
+                    dispute: Scale, announcement: Megaphone, settings: Settings,
+                  };
+                  const Icon = ICON_MAP[entityType] || Activity;
+                  const member = Array.isArray(entry.actor_member) ? entry.actor_member[0] : entry.actor_member;
+                  const actorName = member ? getMemberName(member as Record<string, unknown>) : t("dashboard.system");
+
+                  // Relative time
+                  const diffMs = Date.now() - new Date(entry.created_at as string).getTime();
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMins / 60);
+                  const diffDays = Math.floor(diffHours / 24);
+                  const timeLabel = diffMins < 1 ? t("dashboard.justNow")
+                    : diffMins < 60 ? `${diffMins}m`
+                    : diffHours < 24 ? `${diffHours}h`
+                    : `${diffDays}d`;
+
+                  return (
+                    <div key={entry.id as string} className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm">
+                          <span className="font-medium">{actorName}</span>{" "}
+                          <span className="text-muted-foreground">{(entry.description as string) || (entry.action as string)}</span>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                        <Clock className="h-3 w-3" />
+                        <span>{timeLabel}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("dashboard.noRecentActivity")}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

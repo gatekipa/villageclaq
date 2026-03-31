@@ -297,6 +297,19 @@ export default function FinesAdminPage() {
         } catch { /* best-effort */ }
       }
 
+      // Audit log
+      try {
+        const { logActivity } = await import("@/lib/audit-log");
+        const memberName = member ? getMemberName(member as Record<string, unknown>) : "";
+        await logActivity(supabase, {
+          groupId,
+          action: "fine.issued",
+          entityType: "fine",
+          description: `Fine of ${formatAmount(amt, currency)} issued to ${memberName}`,
+          metadata: { amount: amt, currency, membership_id: issueMemberId, reason: issueReason.trim() },
+        });
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["fines-admin", groupId] });
       setIssueOpen(false);
     } catch (err) {

@@ -114,6 +114,7 @@ const adminSections: NavSection[] = [
     items: [
       { key: "reports", href: "/dashboard/reports", icon: PieChart, anyPermission: ["reports.view", "reports.export"] },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },
+      { key: "activityLog", href: "/dashboard/activity-log", icon: ScrollText, permission: "settings.manage" },
     ],
   },
 ];

@@ -309,8 +309,7 @@ export default function SubGroupsPage() {
     if (!assignSearch.trim()) return members;
     const q = assignSearch.toLowerCase();
     return members.filter((m: Record<string, unknown>) => {
-      const p = m.profile as { full_name?: string } | undefined;
-      return ((m.display_name as string) || "").toLowerCase().includes(q) || (p?.full_name || "").toLowerCase().includes(q);
+      return getMemberNameShared(m).toLowerCase().includes(q);
     });
   }, [members, assignSearch]);
 
@@ -354,7 +353,7 @@ export default function SubGroupsPage() {
           <option value="">{t("selectLeader")}</option>
           {(members || []).map((m: Record<string, unknown>) => {
             const p = m.profile as { full_name?: string } | undefined;
-            return <option key={m.id as string} value={m.id as string}>{(m.display_name as string) || p?.full_name || "?"}</option>;
+            return <option key={m.id as string} value={m.id as string}>{getMemberNameShared(m)}</option>;
           })}
         </select>
       </div>
@@ -616,7 +615,7 @@ export default function SubGroupsPage() {
                     const id = tr.id as string;
                     const membership = tr.membership as Record<string, unknown> | null;
                     const profile = membership?.profiles as Record<string, unknown> | null;
-                    const memberName = (membership?.display_name as string) || (profile?.full_name as string) || "?";
+                    const memberName = getMemberNameShared(membership as Record<string, unknown>);
                     const fromName = subGroups?.find((s: Record<string, unknown>) => s.id === tr.from_subgroup_id)?.name || "—";
                     const toName = subGroups?.find((s: Record<string, unknown>) => s.id === tr.to_subgroup_id)?.name || "—";
                     const isSaving = transferSaving === id;
@@ -739,7 +738,7 @@ export default function SubGroupsPage() {
               {filteredAssignMembers.map((member: Record<string, unknown>) => {
                 const mId = member.id as string;
                 const p = member.profile as { full_name?: string; avatar_url?: string } | undefined;
-                const displayName = (member.display_name as string) || p?.full_name || "";
+                const displayName = getMemberNameShared(member);
                 const isAssigned = assignedIds.has(mId);
                 const isSaving = assignSaving === mId;
 

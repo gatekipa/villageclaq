@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -106,6 +107,7 @@ interface FeedItem {
 function useAggregatedFeed(enabled: boolean) {
   const { groupId, currentGroup } = useGroup();
   const currency = currentGroup?.currency || "XAF";
+  const locale = useLocale();
   const t = useTranslations("feed");
 
   return useQuery<FeedItem[]>({
@@ -177,7 +179,7 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `event-${e.id}`,
           entity_type: "event",
-          message: t("eventScheduled", { title: e.title as string, date: new Date(e.starts_at as string).toLocaleDateString() }),
+          message: t("eventScheduled", { title: e.title as string, date: new Date(e.starts_at as string).toLocaleDateString(getDateLocale(locale)) }),
           actor_name: t("system"),
           actor_avatar: null,
           created_at: e.created_at as string,
@@ -314,7 +316,7 @@ export default function FeedPage() {
           id: item.id as string,
           entity_type: (item.entity_type as string) || "",
           message: (item.message as string) || (item.action_message as string) || "",
-          actor_name: (profile?.full_name as string) || "Member",
+          actor_name: actor ? getMemberName(actor) : "Member",
           actor_avatar: (profile?.avatar_url as string) || null,
           created_at: (item.created_at as string) || "",
           pinned: !!item.pinned,

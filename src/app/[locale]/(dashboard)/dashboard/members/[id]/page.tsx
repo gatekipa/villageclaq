@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
+import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -255,6 +257,7 @@ export default function MemberDetailPage() {
   const t = useTranslations();
   const ts = useTranslations("standing");
   const th = useTranslations("helpTips");
+  const locale = useLocale();
   const params = useParams();
   const membershipId = params.id as string;
   const { groupId, currentGroup, user } = useGroup();
@@ -474,7 +477,7 @@ export default function MemberDetailPage() {
   }
 
   const profile = member.profile as Record<string, unknown> | undefined;
-  const memberName = (member.display_name || (profile?.full_name as string) || "?") as string;
+  const memberName = getMemberName(member as Record<string, unknown>);
   const standing = (standingData?.standing || member.standing || "good") as keyof typeof standingStyles;
   const style = standingStyles[standing] || standingStyles.good;
   const activePositions = positions.filter((p: Record<string, unknown>) => !p.ended_at);
@@ -581,7 +584,7 @@ export default function MemberDetailPage() {
                 {joinedAt && (
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
-                    {ts("memberSince", { date: new Date(joinedAt).toLocaleDateString() })}
+                    {ts("memberSince", { date: new Date(joinedAt).toLocaleDateString(getDateLocale(locale)) })}
                     {yearsOfMembership > 0 && (
                       <span className="text-xs">({ts("yearsOfMembership", { count: yearsOfMembership })})</span>
                     )}
@@ -716,7 +719,7 @@ export default function MemberDetailPage() {
             <div>
               <p className="text-xs text-muted-foreground">{ts("lastPaymentDate")}</p>
               <p className="text-sm font-medium">
-                {lastPayment ? new Date(lastPayment.recorded_at as string).toLocaleDateString() : "—"}
+                {lastPayment ? new Date(lastPayment.recorded_at as string).toLocaleDateString(getDateLocale(locale)) : "—"}
               </p>
             </div>
             <div>
@@ -796,7 +799,7 @@ export default function MemberDetailPage() {
               <div>
                 <p className="text-xs text-muted-foreground">{ts("nextHosting")}</p>
                 <p className="text-sm font-medium">
-                  {nextHosting ? new Date(nextHosting.assigned_date as string).toLocaleDateString() : "—"}
+                  {nextHosting ? new Date(nextHosting.assigned_date as string).toLocaleDateString(getDateLocale(locale)) : "—"}
                 </p>
               </div>
             </div>
@@ -900,7 +903,7 @@ export default function MemberDetailPage() {
                   </div>
                   {fm.date_of_birth && (
                     <span className="text-xs text-muted-foreground shrink-0">
-                      {new Date(fm.date_of_birth).toLocaleDateString()}
+                      {new Date(fm.date_of_birth).toLocaleDateString(getDateLocale(locale))}
                     </span>
                   )}
                 </div>
@@ -966,7 +969,7 @@ export default function MemberDetailPage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.date.toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">{item.date.toLocaleDateString(getDateLocale(locale))}</p>
                     </div>
                     <span className="text-xs font-medium shrink-0">
                       {item.type === "payment" ? (
@@ -1024,10 +1027,10 @@ export default function MemberDetailPage() {
                 onChange={(e) => setEditRole(e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
-                <option value="moderator">Moderator</option>
-                <option value="member">Member</option>
+                <option value="owner">{t("roles.owner")}</option>
+                <option value="admin">{t("roles.admin")}</option>
+                <option value="moderator">{t("roles.moderator")}</option>
+                <option value="member">{t("roles.member")}</option>
               </select>
             </div>
             {editError && <p className="text-sm text-destructive">{editError}</p>}

@@ -32,6 +32,7 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { PaymentsTab } from "@/components/settings/payments-tab";
+import { getMemberName } from "@/lib/get-member-name";
 
 function getInitials(name: string) {
   return name
@@ -68,6 +69,7 @@ export default function GroupSettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [assignPositionId, setAssignPositionId] = useState<string | null>(null);
+  const [assigningPosition, setAssigningPosition] = useState(false);
   const [newPositionTitle, setNewPositionTitle] = useState("");
   const [addingPosition, setAddingPosition] = useState(false);
   const { data: members } = useMembers();
@@ -176,16 +178,22 @@ export default function GroupSettingsPage() {
   }
 
   async function handleAssignPosition(positionId: string, membershipId: string) {
-    const supabase = createClient();
-    const { error } = await supabase.from("position_assignments").insert({
-      position_id: positionId,
-      membership_id: membershipId,
-    });
-    if (error) {
-      setSaveError(error.message);
-    } else {
-      setAssignPositionId(null);
-      await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
+    if (assigningPosition) return;
+    setAssigningPosition(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("position_assignments").insert({
+        position_id: positionId,
+        membership_id: membershipId,
+      });
+      if (error) {
+        setSaveError(error.message);
+      } else {
+        setAssignPositionId(null);
+        await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
+      }
+    } finally {
+      setAssigningPosition(false);
     }
   }
 
@@ -552,8 +560,9 @@ export default function GroupSettingsPage() {
                                       const mp = m.profile as { full_name?: string } | undefined;
                                       return (
                                         <Button key={m.id as string} variant="outline" size="sm" className="h-7 text-xs"
+                                          disabled={assigningPosition}
                                           onClick={() => handleAssignPosition(posId, m.id as string)}>
-                                          {mp?.full_name || (m.display_name as string) || "—"}
+                                          {getMemberName(m) || "—"}
                                         </Button>
                                       );
                                     })}
@@ -575,7 +584,7 @@ export default function GroupSettingsPage() {
                                 const profile = (
                                   Array.isArray(profiles) ? profiles[0] : profiles
                                 ) as { full_name?: string; avatar_url?: string } | null;
-                                const holderName = profile?.full_name || "—";
+                                const holderName = getMemberName(membership as Record<string, unknown>) || "—";
 
                                 return (
                                   <div key={i} className="flex items-center gap-2">

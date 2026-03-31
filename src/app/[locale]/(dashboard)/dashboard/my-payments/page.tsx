@@ -2,7 +2,8 @@
 import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import {
   Card,
   CardContent,
@@ -66,6 +67,7 @@ function getUrgencyBadgeClass(dueDate: string) {
 
 export default function MyPaymentsPage() {
   const t = useTranslations("myPayments");
+  const locale = useLocale();
   const { currentMembership, currentGroup, loading: groupLoading } = useGroup();
   const [activeTab, setActiveTab] = useState<"outstanding" | "history">("outstanding");
   const [search, setSearch] = useState("");
@@ -394,7 +396,7 @@ export default function MyPaymentsPage() {
               const method = (item.payment_method as string) || "cash";
               const ref = (item.reference_number as string) || "";
               const date = item.recorded_at
-                ? new Date(item.recorded_at as string).toLocaleDateString()
+                ? new Date(item.recorded_at as string).toLocaleDateString(getDateLocale(locale))
                 : "";
               const status = (item.status as string) || "confirmed";
               const isPending = status === "pending_confirmation";

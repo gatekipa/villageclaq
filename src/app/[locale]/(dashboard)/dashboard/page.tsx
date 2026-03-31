@@ -436,7 +436,7 @@ export default function DashboardPage() {
                         +{formatCurrency(payment.amount as number)}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(payment.recorded_at as string).toLocaleDateString()}
+                        {new Date(payment.recorded_at as string).toLocaleDateString(getDateLocale(locale))}
                       </p>
                     </div>
                   </div>

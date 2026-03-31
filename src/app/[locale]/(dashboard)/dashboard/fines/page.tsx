@@ -190,6 +190,7 @@ export default function FinesAdminPage() {
   const [typeAutoApply, setTypeAutoApply] = useState(false);
   const [typeSaving, setTypeSaving] = useState(false);
   const [typeError, setTypeError] = useState<string | null>(null);
+  const [togglingTypeId, setTogglingTypeId] = useState<string | null>(null);
 
   // Dispute detail dialog
   const [detailDispute, setDetailDispute] = useState<Record<string, unknown> | null>(null);
@@ -506,9 +507,15 @@ export default function FinesAdminPage() {
   }
 
   async function handleToggleTypeActive(ft: Record<string, unknown>) {
-    const supabase = createClient();
-    await supabase.from("fine_types").update({ is_active: !ft.is_active }).eq("id", ft.id as string);
-    await queryClient.invalidateQueries({ queryKey: ["fine-types", groupId] });
+    if (togglingTypeId) return;
+    setTogglingTypeId(ft.id as string);
+    try {
+      const supabase = createClient();
+      await supabase.from("fine_types").update({ is_active: !ft.is_active }).eq("id", ft.id as string);
+      await queryClient.invalidateQueries({ queryKey: ["fine-types", groupId] });
+    } finally {
+      setTogglingTypeId(null);
+    }
   }
 
   // ─── Dispute actions ─────────────────────────────────────────────────────
@@ -808,7 +815,7 @@ export default function FinesAdminPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold">{formatAmount(Number(ft.amount), currency)}</span>
                         <Button variant="ghost" size="sm" onClick={() => openEditType(ft)}><Eye className="h-4 w-4" /></Button>
-                        <Switch checked={!!ft.is_active} onCheckedChange={() => handleToggleTypeActive(ft)} />
+                        <Switch checked={!!ft.is_active} onCheckedChange={() => handleToggleTypeActive(ft)} disabled={togglingTypeId === (ft.id as string)} />
                       </div>
                     </div>
                   </CardContent>

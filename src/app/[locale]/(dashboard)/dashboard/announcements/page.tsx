@@ -162,6 +162,7 @@ export default function AnnouncementsPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [titleEn, setTitleEn] = useState("");
@@ -348,6 +349,8 @@ export default function AnnouncementsPage() {
   }
 
   async function handleUnpublish(annId: string) {
+    if (unpublishingId) return;
+    setUnpublishingId(annId);
     try {
       const supabase = createClient();
       const { error: err } = await supabase.from("announcements").update({ sent_at: null }).eq("id", annId);
@@ -355,6 +358,8 @@ export default function AnnouncementsPage() {
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
     } catch (err) {
       setMutationError((err as Error).message || tc("error"));
+    } finally {
+      setUnpublishingId(null);
     }
   }
 
@@ -729,7 +734,7 @@ export default function AnnouncementsPage() {
                               {t("editAnnouncement")}
                             </DropdownMenuItem>
                             {(announcement.sent_at as string | null) && (
-                              <DropdownMenuItem onClick={() => handleUnpublish(announcement.id as string)}>
+                              <DropdownMenuItem onClick={() => handleUnpublish(announcement.id as string)} disabled={unpublishingId === (announcement.id as string)}>
                                 <EyeOff className="mr-2 h-4 w-4" />
                                 {t("unpublishAnnouncement")}
                               </DropdownMenuItem>

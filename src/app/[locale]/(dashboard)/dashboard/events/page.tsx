@@ -154,6 +154,8 @@ export default function EventsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const [creating, setCreating] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   // Action error notification
   const [actionError, setActionError] = useState<string | null>(null);
@@ -279,7 +281,7 @@ export default function EventsPage() {
     setPreFilledBanner(
       t("preFilledFrom", {
         title: lastEvent.title as string,
-        date: new Date(lastEvent.starts_at as string).toLocaleDateString(),
+        date: new Date(lastEvent.starts_at as string).toLocaleDateString(getDateLocale(locale)),
       })
     );
     setEditEventId(null);
@@ -287,7 +289,8 @@ export default function EventsPage() {
   };
 
   const handleCreateEvent = async () => {
-    if (!formTitle || !formStartsAt) return;
+    if (!formTitle || !formStartsAt || creating) return;
+    setCreating(true);
     try {
       await createEvent.mutateAsync({
         title: formTitle,
@@ -304,6 +307,8 @@ export default function EventsPage() {
       resetForm();
     } catch (err) {
       showError((err as Error).message || tc("error"));
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -359,7 +364,9 @@ export default function EventsPage() {
   }
 
   async function handleCancelEvent(eventId: string) {
+    if (cancellingId) return;
     if (!confirm(t("cancelEventConfirm"))) return;
+    setCancellingId(eventId);
     try {
       const supabase = createClient();
       const { error: err } = await supabase.from("events").update({ status: "cancelled" }).eq("id", eventId);
@@ -367,6 +374,8 @@ export default function EventsPage() {
       await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
     } catch (err) {
       showError((err as Error).message || tc("error"));
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -633,7 +642,7 @@ export default function EventsPage() {
                               {tc("edit")}
                             </DropdownMenuItem>
                             {(event.status as string) !== "cancelled" && (
-                              <DropdownMenuItem onClick={() => handleCancelEvent(event.id as string)}>
+                              <DropdownMenuItem onClick={() => handleCancelEvent(event.id as string)} disabled={cancellingId === (event.id as string)}>
                                 <XCircle className="mr-2 h-4 w-4" />
                                 {t("cancelEvent")}
                               </DropdownMenuItem>
@@ -856,9 +865,9 @@ export default function EventsPage() {
             ) : (
               <Button
                 onClick={handleCreateEvent}
-                disabled={!formTitle || !formStartsAt || createEvent.isPending}
+                disabled={!formTitle || !formStartsAt || createEvent.isPending || creating}
               >
-                {createEvent.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {(createEvent.isPending || creating) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("saveEvent")}
               </Button>
             )}

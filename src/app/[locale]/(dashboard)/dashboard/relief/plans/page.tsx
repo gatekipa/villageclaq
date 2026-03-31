@@ -313,6 +313,7 @@ export default function ReliefPlansPage() {
   const [enrollPlanId, setEnrollPlanId] = useState<string | null>(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
   const plansList = (plans || []) as ReliefPlan[];
@@ -401,10 +402,16 @@ export default function ReliefPlansPage() {
   // ─── Deactivate Plan ──────────────────────────────────────────────────
 
   const handleDeactivatePlan = async (planId: string) => {
-    const supabase = createClient();
-    await supabase.from("relief_plans").update({ is_active: false }).eq("id", planId);
-    queryClient.invalidateQueries({ queryKey: ["relief-plans", groupId] });
-    queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
+    if (deactivatingId) return;
+    setDeactivatingId(planId);
+    try {
+      const supabase = createClient();
+      await supabase.from("relief_plans").update({ is_active: false }).eq("id", planId);
+      queryClient.invalidateQueries({ queryKey: ["relief-plans", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
+    } finally {
+      setDeactivatingId(null);
+    }
   };
 
   // ─── Approve Claim ────────────────────────────────────────────────────
@@ -703,6 +710,7 @@ export default function ReliefPlansPage() {
                               <DropdownMenuItem
                                 onClick={() => handleDeactivatePlan(plan.id)}
                                 className="text-destructive"
+                                disabled={deactivatingId === plan.id}
                               >
                                 <XCircle className="mr-2 h-4 w-4" />
                                 {t("deactivate")}

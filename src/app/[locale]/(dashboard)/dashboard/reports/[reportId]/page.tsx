@@ -5,6 +5,7 @@ import { exportCSV } from "@/lib/export";
 import { exportPDF } from "@/lib/export-pdf";
 
 import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useParams } from "next/navigation";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -237,7 +238,7 @@ export default function ReportDetailPage() {
     return {
       name: getMemberName(m),
       phone: (profile?.phone as string) || "",
-      joined: (m.joined_at as string) ? new Date(m.joined_at as string).toLocaleDateString() : "",
+      joined: (m.joined_at as string) ? new Date(m.joined_at as string).toLocaleDateString(getDateLocale(locale)) : "",
       role: (m.role as string) || "member",
       standing: (m.standing as string) || "good",
     };
@@ -251,7 +252,7 @@ export default function ReportDetailPage() {
     const status = daysSinceJoin > 365 ? "lapsed_risk" : daysSinceJoin > 270 ? "approaching_renewal" : "active";
     return {
       name: getMemberName(m),
-      joined: joinDate ? joinDate.toLocaleDateString() : "",
+      joined: joinDate ? joinDate.toLocaleDateString(getDateLocale(locale)) : "",
       daysSinceJoin,
       status,
       standing: (m.standing as string) || "good",
@@ -287,7 +288,7 @@ export default function ReportDetailPage() {
     const rate = total > 0 ? Math.round((present / total) * 100) : 0;
     return {
       title: (ev.title as string) || "Untitled",
-      date: ev.starts_at ? new Date(ev.starts_at as string).toLocaleDateString() : "",
+      date: ev.starts_at ? new Date(ev.starts_at as string).toLocaleDateString(getDateLocale(locale)) : "",
       present,
       total,
       rate,
@@ -309,7 +310,7 @@ export default function ReportDetailPage() {
     });
     return {
       title: (ev.title as string) || "Untitled",
-      date: ev.starts_at ? new Date(ev.starts_at as string).toLocaleDateString() : "",
+      date: ev.starts_at ? new Date(ev.starts_at as string).toLocaleDateString(getDateLocale(locale)) : "",
       attendees: eventAttendances,
     };
   }).filter(e => e.attendees.length > 0);
@@ -538,16 +539,16 @@ export default function ReportDetailPage() {
       }];
       filename = "group_performance";
     } else if (reportId === "21") {
-      data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: r.amount, Status: r.status, Disbursed: r.disbursedDate ? new Date(r.disbursedDate).toLocaleDateString() : "—", Completed: r.completedDate ? new Date(r.completedDate).toLocaleDateString() : "—", Outstanding: r.outstanding, Interest: `${r.interest}%`, Guarantor: r.guarantor }));
+      data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: r.amount, Status: r.status, Disbursed: r.disbursedDate ? new Date(r.disbursedDate).toLocaleDateString(getDateLocale(locale)) : "—", Completed: r.completedDate ? new Date(r.completedDate).toLocaleDateString(getDateLocale(locale)) : "—", Outstanding: r.outstanding, Interest: `${r.interest}%`, Guarantor: r.guarantor }));
       filename = "loan_portfolio_summary";
     } else if (reportId === "22") {
       data = activeSchedule.map((s: Record<string, unknown>) => {
         const loan = s.loan as Record<string, unknown>;
-        return { Borrower: getMemberName(loan?.membership as Record<string, unknown>), Installment: s.installment_number, DueDate: s.due_date ? new Date(s.due_date as string).toLocaleDateString() : "—", AmountDue: Number(s.amount_due || 0), AmountPaid: Number(s.amount_paid || 0), Status: s.status };
+        return { Borrower: getMemberName(loan?.membership as Record<string, unknown>), Installment: s.installment_number, DueDate: s.due_date ? new Date(s.due_date as string).toLocaleDateString(getDateLocale(locale)) : "—", AmountDue: Number(s.amount_due || 0), AmountPaid: Number(s.amount_paid || 0), Status: s.status };
       });
       filename = "loan_repayment_schedule";
     } else if (reportId === "23") {
-      data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString() : "—", AmountDue: r.amountDue, AmountPaid: r.amountPaid, Overdue: r.overdue, DaysOverdue: r.daysOverdue }));
+      data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString(getDateLocale(locale)) : "—", AmountDue: r.amountDue, AmountPaid: r.amountPaid, Overdue: r.overdue, DaysOverdue: r.daysOverdue }));
       filename = "overdue_loans_report";
     }
 
@@ -657,16 +658,16 @@ export default function ReportDetailPage() {
       ];
       filename = "group_performance";
     } else if (reportId === "21") {
-      data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: formatAmount(r.amount, currency), Status: r.status, Disbursed: r.disbursedDate ? new Date(r.disbursedDate).toLocaleDateString() : "—", Outstanding: formatAmount(r.outstanding, currency), Interest: `${r.interest}%` }));
+      data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: formatAmount(r.amount, currency), Status: r.status, Disbursed: r.disbursedDate ? new Date(r.disbursedDate).toLocaleDateString(getDateLocale(locale)) : "—", Outstanding: formatAmount(r.outstanding, currency), Interest: `${r.interest}%` }));
       filename = "loan_portfolio_summary";
     } else if (reportId === "22") {
       data = activeSchedule.map((s: Record<string, unknown>) => {
         const loan = s.loan as Record<string, unknown>;
-        return { Borrower: getMemberName(loan?.membership as Record<string, unknown>), Installment: s.installment_number, DueDate: s.due_date ? new Date(s.due_date as string).toLocaleDateString() : "—", AmountDue: formatAmount(Number(s.amount_due || 0), currency), AmountPaid: formatAmount(Number(s.amount_paid || 0), currency), Status: s.status };
+        return { Borrower: getMemberName(loan?.membership as Record<string, unknown>), Installment: s.installment_number, DueDate: s.due_date ? new Date(s.due_date as string).toLocaleDateString(getDateLocale(locale)) : "—", AmountDue: formatAmount(Number(s.amount_due || 0), currency), AmountPaid: formatAmount(Number(s.amount_paid || 0), currency), Status: s.status };
       });
       filename = "loan_repayment_schedule";
     } else if (reportId === "23") {
-      data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString() : "—", Overdue: formatAmount(r.overdue, currency), DaysOverdue: r.daysOverdue }));
+      data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString(getDateLocale(locale)) : "—", Overdue: formatAmount(r.overdue, currency), DaysOverdue: r.daysOverdue }));
       filename = "overdue_loans_report";
     }
 
@@ -1081,7 +1082,7 @@ export default function ReportDetailPage() {
           </CardHeader>
           <CardContent>
             {ledgerPayments.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">No payments recorded yet.</p>
+              <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noPayments")}</p>
             ) : (
               <div className="space-y-2">
                 {ledgerPayments.map((row: Record<string, unknown>, i: number) => {
@@ -1091,7 +1092,7 @@ export default function ReportDetailPage() {
                   const typeName = (contribType?.name as string) || "";
                   const method = (row.payment_method as string) || "";
                   const ref = (row.reference_number as string) || "";
-                  const date = row.recorded_at ? new Date(row.recorded_at as string).toLocaleDateString() : "";
+                  const date = row.recorded_at ? new Date(row.recorded_at as string).toLocaleDateString(getDateLocale(locale)) : "";
                   return (
                     <div key={row.id as string || i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex-1">
@@ -1132,7 +1133,7 @@ export default function ReportDetailPage() {
       {reportId === "6" && (
         <Card><CardContent className="pt-6">
           {standingData.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">No members found.</p>
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noMembers")}</p>
           ) : (
             <div className="space-y-2">
               {standingData.map((row: { name: string; standing: string }, i: number) => (
@@ -1150,7 +1151,7 @@ export default function ReportDetailPage() {
       {reportId === "7" && (
         <Card><CardContent className="pt-6">
           {sortedMatrixYears.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">No contribution data yet.</p>
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noContributions")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1188,7 +1189,7 @@ export default function ReportDetailPage() {
       {reportId === "8" && (
         <Card><CardContent className="pt-6">
           {rosterData.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">No members found.</p>
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noMembers")}</p>
           ) : (
             <div className="space-y-2">
               {rosterData.map((row: { name: string; phone: string; joined: string; role: string; standing: string }, i: number) => (
@@ -1393,7 +1394,7 @@ export default function ReportDetailPage() {
                         <td className="px-3 py-2 text-center text-emerald-600">{row.completed}</td>
                         <td className="px-3 py-2 text-center text-red-600">{row.missed}</td>
                         <td className="px-3 py-2 text-center">{row.total}</td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs">{row.lastHosted ? new Date(row.lastHosted).toLocaleDateString() : "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground text-xs">{row.lastHosted ? new Date(row.lastHosted).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                         <td className="px-3 py-2 text-center">
                           <Badge className={`text-xs ${row.rate >= 80 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : row.rate >= 50 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
                             {row.rate}%
@@ -1438,7 +1439,7 @@ export default function ReportDetailPage() {
               {filteredMinutes.map((m: Record<string, unknown>, i: number) => {
                 const event = m.event as Record<string, unknown>;
                 const title = (event?.title as string) || "Meeting";
-                const date = m.created_at ? new Date(m.created_at as string).toLocaleDateString() : "";
+                const date = m.created_at ? new Date(m.created_at as string).toLocaleDateString(getDateLocale(locale)) : "";
                 return (
                   <div key={m.id as string || i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -1459,7 +1460,7 @@ export default function ReportDetailPage() {
         <div className="space-y-3">
           {reliefPlanList.length === 0 ? (
             <Card><CardContent className="pt-6 text-center py-8">
-              <p className="text-sm text-muted-foreground">No relief plans configured.</p>
+              <p className="text-sm text-muted-foreground">{t("reports.noReliefPlans")}</p>
             </CardContent></Card>
           ) : reliefPlanList.map((plan: Record<string, unknown>, i: number) => {
             const planClaims = reliefClaimList.filter((c: Record<string, unknown>) => (c.relief_plan as Record<string, unknown>)?.id === plan.id);
@@ -1525,7 +1526,7 @@ export default function ReportDetailPage() {
       {reportId === "20" && (
         <div className="space-y-4 print:text-black">
           <h2 className="text-xl font-bold print:text-2xl">{t("reports.report20.name")}</h2>
-          <p className="text-sm text-muted-foreground print:text-gray-600">{t("reports.generatedOn", { date: new Date().toLocaleDateString() })}</p>
+          <p className="text-sm text-muted-foreground print:text-gray-600">{t("reports.generatedOn", { date: new Date().toLocaleDateString(getDateLocale(locale)) })}</p>
           <div className="grid gap-4 sm:grid-cols-2">
             <Card><CardContent className="pt-6">
               <h3 className="font-semibold mb-2">{t("members.title")}</h3>
@@ -1575,7 +1576,7 @@ export default function ReportDetailPage() {
       {reportId === "5" && (
         <Card><CardContent className="pt-6">
           {savingsCycleData.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">No savings cycles found.</p>
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noSavingsCycles")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1599,7 +1600,7 @@ export default function ReportDetailPage() {
                       <td className="text-center py-2 px-3">{row.currentRound} / {row.totalRounds}</td>
                       <td className="text-right py-2 px-3">{formatAmount(row.amount, currency)}</td>
                       <td className="py-2 px-3">{row.frequency}</td>
-                      <td className="py-2 px-3">{row.startDate ? new Date(row.startDate).toLocaleDateString() : "—"}</td>
+                      <td className="py-2 px-3">{row.startDate ? new Date(row.startDate).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1613,7 +1614,7 @@ export default function ReportDetailPage() {
       {reportId === "18" && (
         <Card><CardContent className="pt-6">
           {electionResultsData.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">No completed elections found.</p>
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noElections")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1633,7 +1634,7 @@ export default function ReportDetailPage() {
                     <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="py-2 px-3 font-medium">{row.title}</td>
                       <td className="py-2 px-3"><Badge variant="outline">{row.type}</Badge></td>
-                      <td className="py-2 px-3">{row.date ? new Date(row.date).toLocaleDateString() : "—"}</td>
+                      <td className="py-2 px-3">{row.date ? new Date(row.date).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                       <td className="py-2 px-3 font-semibold text-emerald-600 dark:text-emerald-400">{row.winner}</td>
                       <td className="text-center py-2 px-3">{row.winnerVotes}</td>
                       <td className="text-center py-2 px-3">{row.winnerPct}%</td>
@@ -1651,7 +1652,7 @@ export default function ReportDetailPage() {
       {reportId === "19" && (
         <Card><CardContent className="pt-6">
           {disputeData.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground py-8">No disputes found.</p>
+            <p className="text-center text-sm text-muted-foreground py-8">{t("reports.noDisputes")}</p>
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1689,8 +1690,8 @@ export default function ReportDetailPage() {
                         <td className="py-2 px-3"><Badge variant="outline">{d.category}</Badge></td>
                         <td className="py-2 px-3"><Badge variant={d.priority === "urgent" ? "destructive" : "secondary"}>{d.priority}</Badge></td>
                         <td className="py-2 px-3"><Badge variant={d.status === "resolved" ? "default" : "outline"}>{d.status}</Badge></td>
-                        <td className="py-2 px-3">{d.filedDate ? new Date(d.filedDate).toLocaleDateString() : "—"}</td>
-                        <td className="py-2 px-3">{d.resolvedDate ? new Date(d.resolvedDate).toLocaleDateString() : "—"}</td>
+                        <td className="py-2 px-3">{d.filedDate ? new Date(d.filedDate).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
+                        <td className="py-2 px-3">{d.resolvedDate ? new Date(d.resolvedDate).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1750,8 +1751,8 @@ export default function ReportDetailPage() {
                             {row.status}
                           </Badge>
                         </td>
-                        <td className="py-2 px-3">{row.disbursedDate ? new Date(row.disbursedDate).toLocaleDateString() : "—"}</td>
-                        <td className="py-2 px-3">{row.completedDate ? new Date(row.completedDate).toLocaleDateString() : "—"}</td>
+                        <td className="py-2 px-3">{row.disbursedDate ? new Date(row.disbursedDate).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
+                        <td className="py-2 px-3">{row.completedDate ? new Date(row.completedDate).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                         <td className="text-right py-2 px-3 font-semibold">{row.outstanding > 0 ? formatAmount(row.outstanding, currency) : "—"}</td>
                         <td className="text-center py-2 px-3">{row.interest}%</td>
                         <td className="py-2 px-3">{row.guarantor}</td>
@@ -1792,7 +1793,7 @@ export default function ReportDetailPage() {
                       <tr key={i} className={`border-b last:border-0 hover:bg-muted/30 ${isOverdue ? "bg-destructive/5" : ""}`}>
                         <td className="py-2 px-3 font-medium">{getMemberName(loan?.membership as Record<string, unknown>)}</td>
                         <td className="text-center py-2 px-3">{String(s.installment_number)}</td>
-                        <td className="py-2 px-3">{s.due_date ? new Date(s.due_date as string).toLocaleDateString() : "—"}</td>
+                        <td className="py-2 px-3">{s.due_date ? new Date(s.due_date as string).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                         <td className="text-right py-2 px-3">{formatAmount(Number(s.amount_due || 0), currency)}</td>
                         <td className="text-right py-2 px-3">{formatAmount(Number(s.amount_paid || 0), currency)}</td>
                         <td className="py-2 px-3">
@@ -1835,7 +1836,7 @@ export default function ReportDetailPage() {
                     <tr key={i} className={`border-b last:border-0 hover:bg-muted/30 ${row.daysOverdue >= 30 ? "bg-destructive/5" : ""}`}>
                       <td className="py-2 px-3 font-medium">{row.name}</td>
                       <td className="text-center py-2 px-3">{row.installment}</td>
-                      <td className="py-2 px-3">{row.dueDate ? new Date(row.dueDate).toLocaleDateString() : "—"}</td>
+                      <td className="py-2 px-3">{row.dueDate ? new Date(row.dueDate).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                       <td className="text-right py-2 px-3">{formatAmount(row.amountDue, currency)}</td>
                       <td className="text-right py-2 px-3">{formatAmount(row.amountPaid, currency)}</td>
                       <td className="text-right py-2 px-3 font-semibold text-destructive">{formatAmount(row.overdue, currency)}</td>

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, AlertTriangle, XCircle, Shield, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getMemberName } from "@/lib/get-member-name";
 
 interface VerificationData {
   memberName: string;
@@ -55,7 +56,7 @@ export default function VerificationPage() {
         const group = Array.isArray(membership.groups) ? membership.groups[0] : membership.groups;
 
         setData({
-          memberName: (membership.display_name as string) || (profile as Record<string, unknown>)?.full_name as string || (profile as Record<string, unknown>)?.display_name as string || "Member",
+          memberName: getMemberName(membership as Record<string, unknown>),
           groupName: (group as Record<string, unknown>)?.name as string || "Group",
           standing: (membership.standing as string) || "good",
           joinedAt: membership.joined_at as string,
@@ -72,7 +73,7 @@ export default function VerificationPage() {
     verify();
   }, [membershipId]);
 
-  const now = new Date().toLocaleString();
+  const now = new Date().toLocaleString(getDateLocale(locale));
 
   if (loading) {
     return (

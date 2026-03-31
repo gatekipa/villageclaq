@@ -60,6 +60,7 @@ import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { getMemberName } from "@/lib/get-member-name";
 
 // ─── Permission Modules Definition ───────────────────────────────────────────
 
@@ -677,7 +678,7 @@ export default function RolesPage() {
               {filteredMembers.map((member: Record<string, unknown>) => {
                 const mId = member.id as string;
                 const profile = member.profile as { full_name?: string; avatar_url?: string } | undefined;
-                const displayName = (member.display_name as string) || profile?.full_name || "";
+                const displayName = getMemberName(member);
                 const isAssigned = assignedMemberIds.has(mId);
                 const isSaving = assignSaving === mId;
 

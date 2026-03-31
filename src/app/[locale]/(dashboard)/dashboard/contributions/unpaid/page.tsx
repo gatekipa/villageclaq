@@ -60,6 +60,7 @@ export default function UnpaidReportPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [remindersSentCount, setRemindersSentCount] = useState(0);
+  const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
 
   // Fetch ALL non-paid obligations (pending, partial, overdue)
   const { data: allObligations, isLoading, isError, refetch } = useObligations();
@@ -143,17 +144,22 @@ export default function UnpaidReportPage() {
   }
 
   async function handleSendReminder(member: UnpaidMember) {
-    if (!member.userId || !groupId) return;
-    const supabase = createClient();
-    await supabase.from("notifications").insert({
-      user_id: member.userId,
-      group_id: groupId,
-      type: "payment_reminder",
-      title: "Payment Reminder",
-      body: `You have an outstanding balance of ${formatAmount(member.totalOutstanding, currency)}.`,
-      is_read: false,
-    });
-    setRemindersSentCount(1);
+    if (!member.userId || !groupId || sendingReminderId) return;
+    setSendingReminderId(member.id);
+    try {
+      const supabase = createClient();
+      await supabase.from("notifications").insert({
+        user_id: member.userId,
+        group_id: groupId,
+        type: "payment_reminder",
+        title: "Payment Reminder",
+        body: `You have an outstanding balance of ${formatAmount(member.totalOutstanding, currency)}.`,
+        is_read: false,
+      });
+      setRemindersSentCount(1);
+    } finally {
+      setSendingReminderId(null);
+    }
   }
 
   function handleExportCSV() {
@@ -342,7 +348,7 @@ export default function UnpaidReportPage() {
                             {t("contributions.recordPayment")}
                           </Button>
                         </Link>
-                        <Button size="sm" onClick={() => handleSendReminder(member)} disabled={!member.userId}>
+                        <Button size="sm" onClick={() => handleSendReminder(member)} disabled={!member.userId || sendingReminderId === member.id}>
                           <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
                           {t("contributions.sendReminder")}
                         </Button>

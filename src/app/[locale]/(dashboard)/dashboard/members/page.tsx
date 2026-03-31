@@ -311,6 +311,8 @@ export default function MembersPage() {
   const [ownershipSaving, setOwnershipSaving] = useState(false);
   const [ownershipError, setOwnershipError] = useState<string | null>(null);
 
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
+
   // Leave group state
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [leaveSaving, setLeaveSaving] = useState(false);
@@ -429,7 +431,7 @@ export default function MembersPage() {
           : (profile?.phone || "");
         const role = (m.role as string) || "member";
         const standing = (m.standing as string) || "good";
-        const joinedAt = m.joined_at ? new Date(m.joined_at as string).toLocaleDateString() : "";
+        const joinedAt = m.joined_at ? new Date(m.joined_at as string).toLocaleDateString(getDateLocale(locale)) : "";
         const isProxy = m.is_proxy ? "Yes" : "No";
         return { Name: name, Phone: phone, Role: role, Standing: standing, "Joined Date": joinedAt, "Proxy Member": isProxy };
       });
@@ -690,6 +692,8 @@ export default function MembersPage() {
   // ─── BUG F FIX: Deactivate/Activate Member ────────────────────────────────
   async function handleToggleActive(member: Record<string, unknown>) {
     const id = member.id as string;
+    if (togglingActiveId) return;
+    setTogglingActiveId(id);
     const standing = (member.standing as string) || "good";
     const newStanding = standing === "suspended" ? "good" : "suspended";
     try {
@@ -712,6 +716,8 @@ export default function MembersPage() {
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
     } catch {
       // Silently fail — member list will refresh
+    } finally {
+      setTogglingActiveId(null);
     }
   }
 
@@ -1564,6 +1570,7 @@ export default function MembersPage() {
                             {canManageMembers && standing !== "suspended" && role !== "owner" && (
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
+                                disabled={togglingActiveId === (member.id as string)}
                                 onClick={(e) => { e.stopPropagation(); handleToggleActive(member); }}
                               >
                                 <ShieldAlert className="h-4 w-4" /> {t("deactivateMember")}
@@ -1572,6 +1579,7 @@ export default function MembersPage() {
                             {canManageMembers && standing === "suspended" && role !== "owner" && (
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
+                                disabled={togglingActiveId === (member.id as string)}
                                 onClick={(e) => { e.stopPropagation(); handleToggleActive(member); }}
                               >
                                 <ShieldCheck className="h-4 w-4" /> {t("activateMember")}

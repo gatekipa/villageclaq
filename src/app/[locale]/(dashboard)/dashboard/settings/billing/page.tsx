@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ const plans: PlanConfig[] = [
 
 export default function BillingPage() {
   const t = useTranslations("billing");
+  const locale = useLocale();
   const { data: group, isLoading, isError, error, refetch } = useGroupSettings();
 
   if (isLoading) {
@@ -133,7 +135,7 @@ export default function BillingPage() {
               <Calendar className="h-4 w-4" />
               <span>{t("renewalDate")}:</span>
               <span className="font-medium text-foreground">
-                {new Date(renewalDate).toLocaleDateString()}
+                {new Date(renewalDate).toLocaleDateString(getDateLocale(locale))}
               </span>
             </div>
           )}

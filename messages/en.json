@@ -1005,7 +1005,21 @@
     "confirmed": "Confirmed",
     "rejected": "Rejected",
     "confirmFailed": "Failed to confirm payment. Please try again.",
-    "rejectFailed": "Failed to reject payment. Please try again."
+    "rejectFailed": "Failed to reject payment. Please try again.",
+    "csvDate": "Date",
+    "csvMember": "Member",
+    "csvType": "Type",
+    "csvAmount": "Amount",
+    "csvCurrency": "Currency",
+    "csvMethod": "Method",
+    "csvReference": "Reference",
+    "enrollError": "Failed to enroll members. Please try again.",
+    "closePeriod": "Close Period",
+    "closePeriodDesc": "Closing this period will prevent new payments from being recorded. Existing records will be preserved.",
+    "reopenPeriod": "Reopen Period",
+    "periodClosed": "Closed",
+    "closePeriodSuccess": "Period closed successfully.",
+    "reopenPeriodSuccess": "Period reopened successfully."
   },
   "finances": {
     "title": "Financial Dashboard",
@@ -1035,7 +1049,8 @@
     "loansOutstanding": "Loans Outstanding",
     "loansDisbursedYear": "Disbursed This Year",
     "loansRepaidYear": "Repaid This Year",
-    "loansOverdueCount": "Overdue Installments"
+    "loansOverdueCount": "Overdue Installments",
+    "noPaymentsToSync": "No payments to sync"
   },
   "invitations": {
     "title": "Invitations",
@@ -2404,7 +2419,14 @@
     "copyAi": "Copy insights to clipboard",
     "copiedAi": "Copied to clipboard",
     "aiFinancialInsights": "AI Financial Insights",
-    "reportHeader": "{group} — {report}"
+    "reportHeader": "{group} — {report}",
+    "noPayments": "No payments recorded yet.",
+    "noMembers": "No members found.",
+    "noContributions": "No contribution data yet.",
+    "noReliefPlans": "No relief plans configured.",
+    "noSavingsCycles": "No savings cycles found.",
+    "noElections": "No completed elections found.",
+    "noDisputes": "No disputes found."
   },
   "enterprise": {
     "title": "Enterprise Dashboard",

@@ -30,9 +30,9 @@ import {
   MoreVertical,
   Edit,
   Trash2,
-  XCircle,
+  Lock,
+  Unlock,
   Loader2,
-  CheckCircle2,
   Users,
   HelpCircle,
 } from "lucide-react";
@@ -47,7 +47,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGroup } from "@/lib/group-context";
 import {
-  useContributionTypes,
+  useAllContributionTypes,
   useCreateContributionType,
 } from "@/lib/hooks/use-supabase-query";
 import {
@@ -69,7 +69,7 @@ export default function ContributionsPage() {
   const { currentGroup, isAdmin, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageContributions = hasPermission("contributions.manage");
-  const { data: contributionTypes, isLoading, isError, refetch } = useContributionTypes();
+  const { data: contributionTypes, isLoading, isError, refetch } = useAllContributionTypes();
   const createMutation = useCreateContributionType();
   const queryClient = useQueryClient();
 
@@ -80,6 +80,7 @@ export default function ContributionsPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formNameFr, setFormNameFr] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -174,16 +175,47 @@ export default function ContributionsPage() {
     }
   }
 
-  async function handleToggleActive(typeId: string, currentActive: boolean) {
-    const supabase = createClient();
-    await supabase
-      .from("contribution_types")
-      .update({ is_active: !currentActive })
-      .eq("id", typeId);
-    await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+  const [showCloseConfirm, setShowCloseConfirm] = useState<string | null>(null);
+  const [showReopenConfirm, setShowReopenConfirm] = useState<string | null>(null);
+
+  async function handleClosePeriod(typeId: string) {
+    if (togglingId) return;
+    setTogglingId(typeId);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("contribution_types")
+        .update({ is_active: false })
+        .eq("id", typeId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+    } finally {
+      setTogglingId(null);
+      setShowCloseConfirm(null);
+    }
+  }
+
+  async function handleReopenPeriod(typeId: string) {
+    if (togglingId) return;
+    setTogglingId(typeId);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("contribution_types")
+        .update({ is_active: true })
+        .eq("id", typeId);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+    } finally {
+      setTogglingId(null);
+      setShowReopenConfirm(null);
+    }
   }
 
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
 
   async function handleEnrollAll(typeId: string, amount: number, currency: string) {
     if (!groupId) return;
@@ -224,6 +256,7 @@ export default function ContributionsPage() {
       await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
     } catch (err) {
       console.error("Enroll error:", err);
+      setEnrollError(t("contributions.enrollError"));
     } finally {
       setEnrollingId(null);
     }
@@ -432,6 +465,14 @@ export default function ContributionsPage() {
         ))}
       </div>
 
+      {/* Enroll Error */}
+      {enrollError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-center justify-between">
+          <span>{enrollError}</span>
+          <button onClick={() => setEnrollError(null)} className="ml-2 text-destructive hover:text-destructive/80">&times;</button>
+        </div>
+      )}
+
       {/* Contribution Types Grid */}
       {types.length === 0 ? (
         <EmptyState
@@ -450,14 +491,17 @@ export default function ContributionsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {types.map((type) => (
-            <Card key={type.id} className="relative overflow-hidden">
+            <Card key={type.id} className={`relative overflow-hidden${!type.is_active ? " opacity-60" : ""}`}>
               <CardHeader className="flex flex-row items-start justify-between pb-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-base truncate">{type.name}</CardTitle>
-                    <Badge variant={type.is_active ? "default" : "secondary"} className="shrink-0">
-                      {type.is_active ? t("common.active") : t("common.inactive")}
-                    </Badge>
+                    {!type.is_active && (
+                      <Badge variant="secondary" className="shrink-0">
+                        <Lock className="mr-1 h-3 w-3" />
+                        {t("contributions.periodClosed")}
+                      </Badge>
+                    )}
                   </div>
                   {type.name_fr && (
                     <p className="text-xs text-muted-foreground mt-0.5">{type.name_fr}</p>
@@ -473,13 +517,17 @@ export default function ContributionsPage() {
                         <Edit className="mr-2 h-4 w-4" />
                         {t("common.edit")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleToggleActive(type.id, type.is_active)}>
-                        {type.is_active ? (
-                          <><XCircle className="mr-2 h-4 w-4" />{t("common.deactivate")}</>
-                        ) : (
-                          <><CheckCircle2 className="mr-2 h-4 w-4" />{t("common.activate")}</>
-                        )}
-                      </DropdownMenuItem>
+                      {type.is_active ? (
+                        <DropdownMenuItem onClick={() => setShowCloseConfirm(type.id)}>
+                          <Lock className="mr-2 h-4 w-4" />
+                          {t("contributions.closePeriod")}
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => setShowReopenConfirm(type.id)}>
+                          <Unlock className="mr-2 h-4 w-4" />
+                          {t("contributions.reopenPeriod")}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => handleEnrollAll(type.id, Number(type.amount), type.currency || currentGroup?.currency || "XAF")} disabled={enrollingId === type.id}>
                         <Users className="mr-2 h-4 w-4" />
                         {enrollingId === type.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -595,6 +643,36 @@ export default function ContributionsPage() {
             <Button variant="destructive" disabled={!!deletingId} onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}>
               {deletingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Period Confirmation Dialog */}
+      <Dialog open={!!showCloseConfirm} onOpenChange={(open) => { if (!open) setShowCloseConfirm(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("contributions.closePeriod")}</DialogTitle>
+          <DialogDescription>{t("contributions.closePeriodDesc")}</DialogDescription>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
+            <Button disabled={!!togglingId} onClick={() => showCloseConfirm && handleClosePeriod(showCloseConfirm)}>
+              {togglingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
+              {t("contributions.closePeriod")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen Period Confirmation Dialog */}
+      <Dialog open={!!showReopenConfirm} onOpenChange={(open) => { if (!open) setShowReopenConfirm(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("contributions.reopenPeriod")}</DialogTitle>
+          <DialogDescription>{t("contributions.closePeriodDesc")}</DialogDescription>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
+            <Button disabled={!!togglingId} onClick={() => showReopenConfirm && handleReopenPeriod(showReopenConfirm)}>
+              {togglingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unlock className="mr-2 h-4 w-4" />}
+              {t("contributions.reopenPeriod")}
             </Button>
           </DialogFooter>
         </DialogContent>

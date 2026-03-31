@@ -1005,7 +1005,21 @@
     "confirmed": "Confirmé",
     "rejected": "Rejeté",
     "confirmFailed": "Échec de la confirmation du paiement. Veuillez réessayer.",
-    "rejectFailed": "Échec du rejet du paiement. Veuillez réessayer."
+    "rejectFailed": "Échec du rejet du paiement. Veuillez réessayer.",
+    "csvDate": "Date",
+    "csvMember": "Membre",
+    "csvType": "Type",
+    "csvAmount": "Montant",
+    "csvCurrency": "Devise",
+    "csvMethod": "Méthode",
+    "csvReference": "Référence",
+    "enrollError": "Échec de l'inscription des membres. Veuillez réessayer.",
+    "closePeriod": "Clôturer la période",
+    "closePeriodDesc": "La clôture de cette période empêchera l'enregistrement de nouveaux paiements. Les enregistrements existants seront conservés.",
+    "reopenPeriod": "Rouvrir la période",
+    "periodClosed": "Clôturé",
+    "closePeriodSuccess": "Période clôturée avec succès.",
+    "reopenPeriodSuccess": "Période rouverte avec succès."
   },
   "finances": {
     "title": "Tableau de bord financier",
@@ -1035,7 +1049,8 @@
     "loansOutstanding": "Prêts en cours",
     "loansDisbursedYear": "Décaissé cette année",
     "loansRepaidYear": "Remboursé cette année",
-    "loansOverdueCount": "Échéances en retard"
+    "loansOverdueCount": "Échéances en retard",
+    "noPaymentsToSync": "Aucun paiement à synchroniser"
   },
   "invitations": {
     "title": "Invitations",
@@ -2404,7 +2419,14 @@
     "copyAi": "Copier les analyses",
     "copiedAi": "Copié dans le presse-papiers",
     "aiFinancialInsights": "Analyses financières IA",
-    "reportHeader": "{group} — {report}"
+    "reportHeader": "{group} — {report}",
+    "noPayments": "Aucun paiement enregistré.",
+    "noMembers": "Aucun membre trouvé.",
+    "noContributions": "Aucune donnée de cotisation.",
+    "noReliefPlans": "Aucun plan d'entraide configuré.",
+    "noSavingsCycles": "Aucun cycle d'épargne trouvé.",
+    "noElections": "Aucune élection terminée trouvée.",
+    "noDisputes": "Aucun litige trouvé."
   },
   "enterprise": {
     "title": "Tableau de bord entreprise",

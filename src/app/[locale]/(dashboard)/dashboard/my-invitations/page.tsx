@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -375,7 +376,7 @@ export default function MyInvitationsPage() {
                 const group = inv.group as Record<string, unknown> | null;
                 const groupName = (group?.name as string) || "—";
                 const createdAt = inv.created_at
-                  ? new Date(inv.created_at as string).toLocaleDateString()
+                  ? new Date(inv.created_at as string).toLocaleDateString(getDateLocale(locale))
                   : "—";
                 const config = statusConfig[status] || statusConfig.pending;
                 const StatusIcon = config.icon;

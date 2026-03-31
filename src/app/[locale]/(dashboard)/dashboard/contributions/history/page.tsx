@@ -165,7 +165,7 @@ export default function PaymentHistoryPage() {
   const totalAmount = sortedPayments.reduce((sum, p) => sum + p.amount, 0);
 
   function handleExportCSV() {
-    const headers = ["Date", "Member", "Type", "Amount", "Currency", "Method", "Reference"];
+    const headers = [t("contributions.csvDate"), t("contributions.csvMember"), t("contributions.csvType"), t("contributions.csvAmount"), t("contributions.csvCurrency"), t("contributions.csvMethod"), t("contributions.csvReference")];
     const rows = filtered.map((p) => [
       formatDate(p.recordedAt),
       p.memberName,

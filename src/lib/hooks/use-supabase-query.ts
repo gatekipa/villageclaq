@@ -101,6 +101,25 @@ export function useContributionTypes() {
   });
 }
 
+export function useAllContributionTypes() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["all-contribution-types", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("contribution_types")
+        .select("*")
+        .eq("group_id", groupId)
+        .order("is_active", { ascending: false })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
 export function useCreateContributionType() {
   const queryClient = useQueryClient();
   const { groupId, user } = useGroup();

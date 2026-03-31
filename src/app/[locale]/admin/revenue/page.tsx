@@ -14,6 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
+import { formatAmount } from "@/lib/currencies";
 
 interface MrrTrendItem {
   month: string;
@@ -259,7 +260,7 @@ export default function RevenuePage() {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{t("mrr")}</p>
-              <p className="text-lg font-bold">${mrr.toLocaleString()}</p>
+              <p className="text-lg font-bold">{formatAmount(mrr, "USD")}</p>
             </div>
           </CardContent>
         </Card>
@@ -281,7 +282,7 @@ export default function RevenuePage() {
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{t("ltv")}</p>
-              <p className="text-lg font-bold">${ltv.toLocaleString()}</p>
+              <p className="text-lg font-bold">{formatAmount(ltv, "USD")}</p>
             </div>
           </CardContent>
         </Card>
@@ -322,7 +323,7 @@ export default function RevenuePage() {
                     />
                   </div>
                   <span className="w-16 shrink-0 text-right text-sm font-medium">
-                    ${item.value.toLocaleString()}
+                    {formatAmount(item.value, "USD")}
                   </span>
                 </div>
               ))}
@@ -343,7 +344,7 @@ export default function RevenuePage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{t(item.plan)}</span>
                   <span className="text-muted-foreground">
-                    ${item.amount.toLocaleString()}
+                    {formatAmount(item.amount, "USD")}
                   </span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800">
@@ -389,7 +390,7 @@ export default function RevenuePage() {
                       {group.plan}
                     </Badge>
                     <span className="text-sm font-semibold">
-                      ${group.amount.toLocaleString()}
+                      {formatAmount(group.amount, "USD")}
                     </span>
                   </div>
                 </div>
@@ -430,7 +431,7 @@ export default function RevenuePage() {
                       {item.plan}
                     </Badge>
                     {item.amount > 0 && (
-                      <span className="text-sm font-semibold">${item.amount}</span>
+                      <span className="text-sm font-semibold">{formatAmount(item.amount, "USD")}</span>
                     )}
                   </div>
                 </div>

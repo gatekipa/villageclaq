@@ -1,5 +1,6 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
+import { getMemberName } from "@/lib/get-member-name";
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -145,7 +146,7 @@ export default function RecordPaymentPage() {
     const profile = m.profile as { full_name?: string; avatar_url?: string } | undefined;
     return {
       membershipId: m.id as string,
-      name: (m.display_name as string) || profile?.full_name || t("common.unknown"),
+      name: getMemberName(m),
       avatarUrl: profile?.avatar_url || null,
     };
   });

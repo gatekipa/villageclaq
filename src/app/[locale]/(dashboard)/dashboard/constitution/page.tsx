@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -185,6 +186,7 @@ function HighlightedText({ content, query }: { content: string; query: string })
 export default function ConstitutionPage() {
   const t = useTranslations("constitution");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const { groupId, currentMembership, isAdmin } = useGroup();
   const queryClient = useQueryClient();
   const { data: members } = useMembers();
@@ -229,6 +231,7 @@ export default function ConstitutionPage() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [applyingAmendment, setApplyingAmendment] = useState(false);
+  const [amendmentActionId, setAmendmentActionId] = useState<string | null>(null);
 
   const memberCount = (members || []).length;
   const currentVersion = constitution?.version_number || 0;
@@ -333,6 +336,8 @@ export default function ConstitutionPage() {
   };
 
   const handleAmendmentAction = async (amendId: string, action: "approved" | "rejected") => {
+    if (amendmentActionId) return;
+    setAmendmentActionId(amendId);
     try {
       setActionError(null);
       const { error } = await supabase.from("constitution_amendments").update({
@@ -342,6 +347,8 @@ export default function ConstitutionPage() {
       queryClient.invalidateQueries({ queryKey: ["amendments", groupId] });
     } catch {
       setActionError(tc("error"));
+    } finally {
+      setAmendmentActionId(null);
     }
   };
 
@@ -528,7 +535,7 @@ export default function ConstitutionPage() {
                 <div className="flex items-center gap-2">
                   <Badge variant={activeDoc?.status === "published" ? "default" : "secondary"}>{activeDoc?.status === "published" ? t("published") : t("draft")}</Badge>
                   <span className="text-sm text-muted-foreground">{t("version", { number: activeDoc?.version_number || 1 })}</span>
-                  {activeDoc?.published_at && <span className="text-xs text-muted-foreground">· {new Date(activeDoc.published_at as string).toLocaleDateString()}</span>}
+                  {activeDoc?.published_at && <span className="text-xs text-muted-foreground">· {new Date(activeDoc.published_at as string).toLocaleDateString(getDateLocale(locale))}</span>}
                 </div>
                 {isAdmin && <Button variant="outline" size="sm" onClick={handleStartEdit}><Pencil className="mr-2 h-3.5 w-3.5" />{t("editConstitution")}</Button>}
               </div>
@@ -582,12 +589,12 @@ export default function ConstitutionPage() {
                         </div>
                         {(amend.section_affected as string) ? <p className="text-xs text-muted-foreground mt-1">Section: {String(amend.section_affected)}</p> : null}
                         {(amend.reason as string) ? <p className="text-xs text-muted-foreground mt-1">{String(amend.reason)}</p> : null}
-                        <p className="text-xs text-muted-foreground mt-1">{getMemberName(proposer as Record<string, unknown>)} · {new Date(amend.created_at as string).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{getMemberName(proposer as Record<string, unknown>)} · {new Date(amend.created_at as string).toLocaleDateString(getDateLocale(locale))}</p>
                       </div>
                       {isAdmin && amend.status === "proposed" && (
                         <div className="flex gap-1.5">
-                          <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => handleAmendmentAction(amend.id as string, "approved")}>{t("approve")}</Button>
-                          <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => handleAmendmentAction(amend.id as string, "rejected")}>{t("reject")}</Button>
+                          <Button size="sm" variant="default" className="h-7 text-xs" disabled={amendmentActionId === (amend.id as string)} onClick={() => handleAmendmentAction(amend.id as string, "approved")}>{t("approve")}</Button>
+                          <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={amendmentActionId === (amend.id as string)} onClick={() => handleAmendmentAction(amend.id as string, "rejected")}>{t("reject")}</Button>
                         </div>
                       )}
                       {isAdmin && amend.status === "approved" && constitution && (
@@ -620,7 +627,7 @@ export default function ConstitutionPage() {
                   <span className="text-sm font-medium">{getMemberName(ack.membership as Record<string, unknown>)}</span>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs"><CheckCircle2 className="mr-1 h-3 w-3" />{t("acknowledged")}</Badge>
-                    <span className="text-xs text-muted-foreground">{new Date(ack.acknowledged_at as string).toLocaleDateString()}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(ack.acknowledged_at as string).toLocaleDateString(getDateLocale(locale))}</span>
                   </div>
                 </div>
               ))}

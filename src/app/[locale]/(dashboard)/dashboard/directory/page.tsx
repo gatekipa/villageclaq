@@ -244,7 +244,7 @@ export default function DirectoryPage() {
                               {privacySettings.show_phone && (profile?.phone as string) ? String(profile?.phone) : "—"}
                             </TableCell>
                             <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                              {joinedAt ? new Date(joinedAt).toLocaleDateString() : "—"}
+                              {joinedAt ? new Date(joinedAt).toLocaleDateString(getDateLocale(locale)) : "—"}
                             </TableCell>
                           </TableRow>
                         );

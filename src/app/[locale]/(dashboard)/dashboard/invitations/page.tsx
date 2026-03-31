@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -466,7 +467,7 @@ export default function InvitationsPage() {
                 const inviteDate = invite.created_at
                   ? new Date(
                       invite.created_at as string
-                    ).toLocaleDateString()
+                    ).toLocaleDateString(getDateLocale(locale))
                   : "";
 
                 return (

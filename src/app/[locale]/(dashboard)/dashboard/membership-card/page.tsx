@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { DashboardSkeleton, EmptyState } from "@/components/ui/page-skeleton";
+import { getMemberName } from "@/lib/get-member-name";
 
 function getInitials(name: string | null): string {
   if (!name) return "?";
@@ -105,7 +106,7 @@ export default function MembershipCardPage() {
 
   // Resolve name and avatar from the correct source
   const fullName = isViewingOther
-    ? ((membership.display_name as string) || (profile?.full_name as string) || (profile?.display_name as string) || "Member")
+    ? getMemberName(membership as Record<string, unknown>)
     : (currentMembership.display_name || user?.full_name || user?.display_name || "Member");
   const avatarUrl = isViewingOther
     ? (profile?.avatar_url as string | null)

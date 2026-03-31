@@ -1572,7 +1572,7 @@ function HostingHistoryTab({ allAssignments, members, t }: {
                         <td className="px-3 py-2 text-center">{ms.total}</td>
                         <td className="px-3 py-2 text-center text-emerald-600">{ms.completed}</td>
                         <td className="px-3 py-2 text-center text-red-600">{ms.missed}</td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs">{ms.lastHosted ? new Date(ms.lastHosted).toLocaleDateString() : "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground text-xs">{ms.lastHosted ? new Date(ms.lastHosted).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2 justify-center">
                             <Progress value={fairScore} className="h-1.5 w-16" />
@@ -1872,7 +1872,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
                   {overdueMembers.map((m) => (
                     <tr key={m.id} className="border-b last:border-0">
                       <td className="px-4 py-2 font-medium">{m.name}</td>
-                      <td className="px-3 py-2 text-muted-foreground text-xs">{m.lastHosted ? new Date(m.lastHosted).toLocaleDateString() : t("neverHosted")}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">{m.lastHosted ? new Date(m.lastHosted).toLocaleDateString(getDateLocale(locale)) : t("neverHosted")}</td>
                       <td className="px-3 py-2 text-center text-xs">+{m.monthsOverdue} {t("months")}</td>
                       <td className="px-3 py-2 text-center">
                         <Badge className={`text-xs ${m.monthsOverdue > requiredMonths * 2 ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"}`}>
@@ -1914,7 +1914,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
           ) : (
             <div className="divide-y">
               {exemptedAssignments.map((a) => {
-                const name = a.membership?.display_name || (Array.isArray(a.membership?.profiles) ? a.membership?.profiles[0]?.full_name : a.membership?.profiles?.full_name) || "—";
+                const name = getMemberName(a.membership as Record<string, unknown>) || "—";
                 return (
                   <div key={a.id} className="flex items-center justify-between px-4 py-3">
                     <div>
@@ -2004,7 +2004,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
                 <SelectTrigger><SelectValue placeholder={t("selectMembers")} /></SelectTrigger>
                 <SelectContent>
                   {availableForExemption.map((m) => {
-                    const name = (m.display_name as string) || (m.profile as Record<string, unknown>)?.full_name as string || "—";
+                    const name = getMemberName(m as unknown as Record<string, unknown>) || "—";
                     return <SelectItem key={m.id} value={m.id}>{name}</SelectItem>;
                   })}
                 </SelectContent>

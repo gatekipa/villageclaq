@@ -884,6 +884,7 @@ function ProjectBlockers({ project, isAdmin, memberNameMap, members, milestones,
   const [delayUnit, setDelayUnit] = useState("days");
   const [assignedTo, setAssignedTo] = useState("");
   const [showResolved, setShowResolved] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const blockers = project.blockers || [];
   const active = blockers.filter((b) => (b.status as string) !== "resolved");
@@ -924,14 +925,20 @@ function ProjectBlockers({ project, isAdmin, memberNameMap, members, milestones,
   }
 
   async function handleResolve(blockerId: string) {
+    if (resolvingId) return;
     const notes = prompt(t("resolutionNotes"));
     if (notes === null) return;
-    const supabase = createClient();
-    const updated = blockers.map((b) =>
-      (b.id as string) === blockerId ? { ...b, status: "resolved", resolved_date: new Date().toISOString(), resolution_notes: notes } : b
-    );
-    await supabase.from("projects").update({ blockers: updated }).eq("id", project.id);
-    onDataChanged();
+    setResolvingId(blockerId);
+    try {
+      const supabase = createClient();
+      const updated = blockers.map((b) =>
+        (b.id as string) === blockerId ? { ...b, status: "resolved", resolved_date: new Date().toISOString(), resolution_notes: notes } : b
+      );
+      await supabase.from("projects").update({ blockers: updated }).eq("id", project.id);
+      onDataChanged();
+    } finally {
+      setResolvingId(null);
+    }
   }
 
   return (
@@ -961,7 +968,7 @@ function ProjectBlockers({ project, isAdmin, memberNameMap, members, milestones,
                     </div>
                   </div>
                   {isAdmin && (
-                    <Button size="sm" variant="ghost" className="h-6 text-[10px] text-emerald-600 shrink-0" onClick={() => handleResolve(b.id as string)}>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] text-emerald-600 shrink-0" onClick={() => handleResolve(b.id as string)} disabled={resolvingId === (b.id as string)}>
                       {t("resolveBlocker")}
                     </Button>
                   )}
@@ -1141,7 +1148,9 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
 }) {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [showUpload, setShowUpload] = useState(false);
   const [docTitle, setDocTitle] = useState("");
@@ -1174,21 +1183,27 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
   }
 
   async function handleDelete(attachId: string) {
+    if (deletingId) return;
     if (!confirm(tc("confirm") + "?")) return;
-    const supabase = createClient();
-    // Find the attachment to get its storage URL
-    const toDelete = attachments.find((a) => (a.id as string) === attachId);
-    if (toDelete?.file_url) {
-      const marker = "/group-documents/";
-      const idx = (toDelete.file_url as string).indexOf(marker);
-      if (idx !== -1) {
-        const storagePath = (toDelete.file_url as string).substring(idx + marker.length);
-        await supabase.storage.from("group-documents").remove([storagePath]).catch(() => {});
+    setDeletingId(attachId);
+    try {
+      const supabase = createClient();
+      // Find the attachment to get its storage URL
+      const toDelete = attachments.find((a) => (a.id as string) === attachId);
+      if (toDelete?.file_url) {
+        const marker = "/group-documents/";
+        const idx = (toDelete.file_url as string).indexOf(marker);
+        if (idx !== -1) {
+          const storagePath = (toDelete.file_url as string).substring(idx + marker.length);
+          await supabase.storage.from("group-documents").remove([storagePath]).catch(() => {});
+        }
       }
+      const updated = attachments.filter((a) => (a.id as string) !== attachId);
+      await supabase.from("projects").update({ attachments: updated }).eq("id", project.id);
+      onDataChanged();
+    } finally {
+      setDeletingId(null);
     }
-    const updated = attachments.filter((a) => (a.id as string) !== attachId);
-    await supabase.from("projects").update({ attachments: updated }).eq("id", project.id);
-    onDataChanged();
   }
 
   const isPhoto = (a: Record<string, unknown>) => ["photo","progress_photo"].includes((a.type as string) || "") || ((a.filename as string) || "").match(/\.(jpg|jpeg|png|webp|gif)$/i);
@@ -1221,14 +1236,14 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
                     <p className="text-sm font-medium truncate">{a.title as string}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <Badge variant="outline" className="text-[10px]">{a.type as string}</Badge>
-                      <span className="text-[10px] text-muted-foreground">{a.date ? new Date(a.date as string).toLocaleDateString() : ""}</span>
+                      <span className="text-[10px] text-muted-foreground">{a.date ? new Date(a.date as string).toLocaleDateString(getDateLocale(locale)) : ""}</span>
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <a href={a.file_url as string} target="_blank" rel="noopener noreferrer">
                       <Button size="sm" variant="ghost" className="h-6 text-[10px]">View</Button>
                     </a>
-                    {isAdmin && <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive" onClick={() => handleDelete(a.id as string)}>×</Button>}
+                    {isAdmin && <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive" onClick={() => handleDelete(a.id as string)} disabled={deletingId === (a.id as string)}>×</Button>}
                   </div>
                 </div>
               </CardContent>

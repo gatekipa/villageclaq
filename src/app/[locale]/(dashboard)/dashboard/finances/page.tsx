@@ -300,7 +300,7 @@ export default function FinancesPage() {
         .eq("group_id", groupId);
 
       if (!payments || payments.length === 0) {
-        setSyncResult("No payments to sync");
+        setSyncResult(t("finances.noPaymentsToSync"));
         return;
       }
 

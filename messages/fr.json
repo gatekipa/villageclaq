@@ -718,7 +718,8 @@
     "leaveGroupError": "Échec de la sortie du groupe",
     "leaveGroupOwnerWarning": "En tant que propriétaire, vous devez transférer la propriété avant de quitter le groupe.",
     "leaveGroupButton": "Quitter le groupe",
-    "selectMember": "Sélectionner un membre"
+    "selectMember": "Sélectionner un membre",
+    "networkError": "Erreur réseau — veuillez vérifier votre connexion et réessayer."
   },
   "settings": {
     "title": "Paramètres du groupe",

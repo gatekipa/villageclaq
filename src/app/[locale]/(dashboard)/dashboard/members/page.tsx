@@ -91,6 +91,55 @@ import { logActivity } from "@/lib/audit-log";
 import { RefreshCw } from "lucide-react";
 
 /**
+ * Detect network-level fetch errors (e.g. "TypeError: Failed to fetch").
+ * These occur when the browser cannot reach the server — not from HTTP error responses.
+ */
+function isNetworkError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("failed to fetch") ||
+    lower.includes("network") ||
+    lower.includes("load failed") || // Safari
+    lower.includes("networkerror")
+  );
+}
+
+/**
+ * Execute a Supabase RPC call with session refresh and one automatic retry.
+ * Root cause of "TypeError: Failed to fetch": expired JWT token causes the
+ * PostgREST fetch to fail at the network level. Refreshing the session
+ * before retry resolves the issue.
+ */
+async function resilientRpc<T>(
+  supabase: ReturnType<typeof createClient>,
+  fnName: string,
+  params: Record<string, unknown>,
+): Promise<{ data: T | null; error: { message: string } | null }> {
+  // First attempt
+  const first = await supabase.rpc(fnName, params);
+  if (!first.error) return { data: first.data as T, error: null };
+
+  // If it's NOT a network error, don't retry — it's a real server error
+  if (!isNetworkError(first.error.message)) {
+    return { data: null, error: { message: first.error.message } };
+  }
+
+  // Network error: refresh session and retry once
+  await supabase.auth.refreshSession();
+  // Small delay for token propagation
+  await new Promise((r) => setTimeout(r, 500));
+
+  const second = await supabase.rpc(fnName, params);
+  if (!second.error) return { data: second.data as T, error: null };
+
+  // Still failing — return a descriptive error
+  return {
+    data: null,
+    error: { message: isNetworkError(second.error.message) ? "NETWORK_ERROR" : second.error.message },
+  };
+}
+
+/**
  * Auto-enroll a new member in all active contribution types for the current year.
  */
 async function autoEnrollMember(supabase: ReturnType<typeof createClient>, groupId: string, membershipId: string) {
@@ -826,13 +875,23 @@ export default function MembersPage() {
       const role = VALID_ROLES.includes(row.role) ? row.role : "member";
 
       try {
-        const { data: newMembershipId, error: rpcError } = await supabase.rpc("create_proxy_member", {
-          p_group_id: groupId,
-          p_display_name: displayName,
-          p_phone: row.phone || null,
-          p_role: role,
-        });
-        if (rpcError) throw new Error(rpcError.message);
+        const { data: newMembershipId, error: rpcError } = await resilientRpc<string>(
+          supabase,
+          "create_proxy_member",
+          {
+            p_group_id: groupId,
+            p_display_name: displayName,
+            p_phone: row.phone || null,
+            p_role: role,
+          },
+        );
+        if (rpcError) {
+          throw new Error(
+            rpcError.message === "NETWORK_ERROR"
+              ? t("networkError")
+              : rpcError.message
+          );
+        }
 
         // Auto-enroll in active contribution types
         if (newMembershipId) {
@@ -863,14 +922,24 @@ export default function MembersPage() {
       const displayName = newTitle.trim()
         ? `${newTitle.trim()} ${newFullName.trim()}`
         : newFullName.trim();
-      const { data: newMembershipId, error: rpcError } = await supabase.rpc("create_proxy_member", {
-        p_group_id: groupId,
-        p_display_name: displayName,
-        p_phone: newPhone || null,
-        p_role: newRole,
-      });
+      const { data: newMembershipId, error: rpcError } = await resilientRpc<string>(
+        supabase,
+        "create_proxy_member",
+        {
+          p_group_id: groupId,
+          p_display_name: displayName,
+          p_phone: newPhone || null,
+          p_role: newRole,
+        },
+      );
 
-      if (rpcError) throw new Error(rpcError.message);
+      if (rpcError) {
+        throw new Error(
+          rpcError.message === "NETWORK_ERROR"
+            ? t("networkError")
+            : rpcError.message
+        );
+      }
 
       // Auto-enroll new member in active contribution types
       if (newMembershipId) {

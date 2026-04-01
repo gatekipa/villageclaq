@@ -234,33 +234,40 @@ export default function PaymentHistoryPage() {
         .eq("id", payment.id);
       if (updateErr) throw updateErr;
 
-      // Update obligation if linked
+      // Recalculate obligation if linked — sum ALL confirmed payments (consistent with edit/delete)
       if (payment.obligationId) {
-        const { data: obl } = await supabase
-          .from("contribution_obligations")
-          .select("amount, amount_paid")
-          .eq("id", payment.obligationId)
-          .single();
-        if (obl) {
-          const newPaid = Number(obl.amount_paid) + payment.amount;
-          const newStatus = newPaid >= Number(obl.amount) ? "paid" : newPaid > 0 ? "partial" : "pending";
-          await supabase
+        const { data: allPayments } = await supabase
+          .from("payments")
+          .select("amount")
+          .eq("obligation_id", payment.obligationId)
+          .eq("status", "confirmed");
+
+        if (allPayments) {
+          const totalPaid = allPayments.reduce((s, p) => s + Number(p.amount), 0);
+          const { data: obl } = await supabase
             .from("contribution_obligations")
-            .update({ amount_paid: newPaid, status: newStatus })
-            .eq("id", payment.obligationId);
+            .select("amount")
+            .eq("id", payment.obligationId)
+            .single();
+          if (obl) {
+            const newStatus = totalPaid >= Number(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
+            await supabase
+              .from("contribution_obligations")
+              .update({ amount_paid: totalPaid, status: newStatus })
+              .eq("id", payment.obligationId);
+          }
         }
       }
 
-      // Invalidate all financial caches
-      queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["member-payments"] });
-      queryClient.invalidateQueries({ queryKey: ["member-obligations"] });
-      if (payment.membershipId) {
-        queryClient.invalidateQueries({ queryKey: ["member-standing", payment.membershipId, groupId] });
+      // Recalculate standing for the affected member
+      if (payment.membershipId && groupId) {
+        try {
+          const { calculateStanding } = await import("@/lib/calculate-standing");
+          await calculateStanding(payment.membershipId, groupId, { updateDb: true, currency });
+        } catch { /* non-critical */ }
       }
+
+      invalidateFinancialCaches(payment.membershipId);
     } catch (err) {
       console.warn("Confirm payment failed:", (err as Error).message);
       setActionError(t("contributions.confirmFailed"));
@@ -360,6 +367,14 @@ export default function PaymentHistoryPage() {
         }
       }
 
+      // Recalculate standing for the affected member
+      if (editPayment.membershipId && groupId) {
+        try {
+          const { calculateStanding } = await import("@/lib/calculate-standing");
+          await calculateStanding(editPayment.membershipId, groupId, { updateDb: true, currency });
+        } catch { /* non-critical */ }
+      }
+
       invalidateFinancialCaches(editPayment.membershipId);
       setEditPayment(null);
     } catch (err) {
@@ -421,6 +436,14 @@ export default function PaymentHistoryPage() {
           details: { payment_id: deletePayment.id, amount: paymentAmount, member: deletePayment.memberName },
         });
       } catch { /* best effort */ }
+
+      // Recalculate standing for the affected member
+      if (deletePayment.membershipId && groupId) {
+        try {
+          const { calculateStanding } = await import("@/lib/calculate-standing");
+          await calculateStanding(deletePayment.membershipId, groupId, { updateDb: true, currency });
+        } catch { /* non-critical */ }
+      }
 
       invalidateFinancialCaches(deletePayment.membershipId);
       setDeletePayment(null);

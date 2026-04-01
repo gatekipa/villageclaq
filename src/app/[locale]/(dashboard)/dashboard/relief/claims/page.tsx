@@ -58,6 +58,10 @@ export default function ReliefClaimsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
 
+  // Sort state
+  const [sortField, setSortField] = useState<"date" | "amount">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
   // Review form state
   const [reviewNotes, setReviewNotes] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -240,6 +244,16 @@ export default function ReliefClaimsPage() {
     return true;
   });
 
+  const sortedFiltered = [...filtered].sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+    if (sortField === "amount") {
+      const cmp = Number(a.payout_amount || a.amount || 0) - Number(b.payout_amount || b.amount || 0);
+      return sortDir === "asc" ? cmp : -cmp;
+    }
+    // date
+    const cmp = new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime();
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
   const currency = currentGroup?.currency || "XAF";
 
   return (
@@ -262,18 +276,27 @@ export default function ReliefClaimsPage() {
             </Button>
           ))}
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">{t("relief.sortBy")}:</span>
+          <Button variant={sortField === "date" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "date") { setSortDir(d => d === "asc" ? "desc" : "asc"); } else { setSortField("date"); setSortDir("desc"); } }}>
+            {t("relief.sortDateFiled")} {sortField === "date" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+          </Button>
+          <Button variant={sortField === "amount" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "amount") { setSortDir(d => d === "asc" ? "desc" : "asc"); } else { setSortField("amount"); setSortDir("desc"); } }}>
+            {t("relief.sortAmount")} {sortField === "amount" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+          </Button>
+        </div>
       </div>
 
       {/* Claims List */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {sortedFiltered.length === 0 ? (
           <EmptyState
             icon={FileText}
             title={t("relief.noClaims")}
             description={t("relief.noClaimsDesc")}
           />
         ) : (
-          filtered.map((claim: Record<string, unknown>) => {
+          sortedFiltered.map((claim: Record<string, unknown>) => {
             const status = (claim.status as ClaimStatus) || "submitted";
             const config = claimStatusConfig[status] || claimStatusConfig.submitted;
             const StatusIcon = config.icon;

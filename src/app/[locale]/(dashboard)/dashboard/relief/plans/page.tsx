@@ -282,6 +282,10 @@ export default function ReliefPlansPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
+  // Sort state
+  const [sortField, setSortField] = useState<"created" | "name">("created");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
   // Create form state
   const [planName, setPlanName] = useState("");
   const [planDescription, setPlanDescription] = useState("");
@@ -317,6 +321,20 @@ export default function ReliefPlansPage() {
 
   const currency = currentGroup?.currency || "XAF";
   const plansList = (plans || []) as ReliefPlan[];
+
+  const sortedPlans = useMemo(() => {
+    const sorted = [...plansList];
+    sorted.sort((a, b) => {
+      if (sortField === "name") {
+        const cmp = a.name.localeCompare(b.name);
+        return sortDir === "asc" ? cmp : -cmp;
+      }
+      // created
+      const cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [plansList, sortField, sortDir]);
 
   const activeMembers = useMemo(
     () => (members || []).filter((m: Record<string, unknown>) => m.standing !== "banned" && m.standing !== "suspended"),
@@ -660,7 +678,16 @@ export default function ReliefPlansPage() {
           />
         ) : (
           <div className="space-y-4">
-            {plansList.map((plan) => {
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{t("sortBy")}:</span>
+              <Button variant={sortField === "created" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "created") { setSortDir(d => d === "asc" ? "desc" : "asc"); } else { setSortField("created"); setSortDir("desc"); } }}>
+                {t("sortCreated")} {sortField === "created" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+              </Button>
+              <Button variant={sortField === "name" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "name") { setSortDir(d => d === "asc" ? "desc" : "asc"); } else { setSortField("name"); setSortDir("asc"); } }}>
+                {t("sortName")} {sortField === "name" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+              </Button>
+            </div>
+            {sortedPlans.map((plan) => {
               const qualifyingEvents = plan.qualifying_events || [];
               const payoutRules = plan.payout_rules || {};
               const maxPayoutAmount = Number(payoutRules.max_amount) || plan.contribution_amount;

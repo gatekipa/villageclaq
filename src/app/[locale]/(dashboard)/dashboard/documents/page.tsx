@@ -104,6 +104,8 @@ export default function DocumentVaultPage() {
   const { data: documents, isLoading, isError, error, refetch } = useDocuments();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryKey | "all">("all");
+  const [sortField, setSortField] = useState<"date" | "title">("date");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
   // Upload dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -194,8 +196,18 @@ export default function DocumentVaultPage() {
         return normalizeSearch(title).includes(q) || normalizeSearch(description).includes(q) || normalizeSearch(category).includes(q) || normalizeSearch(uploaderName).includes(q);
       });
     }
+    result = [...result].sort((a, b) => {
+      if (sortField === "date") {
+        const da = (a.created_at as string) || "";
+        const db = (b.created_at as string) || "";
+        return sortDir === "asc" ? da.localeCompare(db) : db.localeCompare(da);
+      }
+      const ta = ((a.title as string) || "").toLowerCase();
+      const tb = ((b.title as string) || "").toLowerCase();
+      return sortDir === "asc" ? ta.localeCompare(tb) : tb.localeCompare(ta);
+    });
     return result;
-  }, [documents, searchQuery, categoryFilter]);
+  }, [documents, searchQuery, categoryFilter, sortField, sortDir]);
 
   if (isLoading) return <CardGridSkeleton cards={6} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;
@@ -235,6 +247,17 @@ export default function DocumentVaultPage() {
             {t("uploadDocument")}
           </Button>
         )}
+      </div>
+
+      {/* Sort Controls */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">{t("sortBy")}:</span>
+        <Button variant={sortField === "date" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "date") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("date"); setSortDir("desc"); } }}>
+          {t("date")} {sortField === "date" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+        </Button>
+        <Button variant={sortField === "title" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "title") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("title"); setSortDir("asc"); } }}>
+          {t("titleSort")} {sortField === "title" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+        </Button>
       </div>
 
       {/* Upload Document Dialog */}

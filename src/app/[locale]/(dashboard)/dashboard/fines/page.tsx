@@ -154,6 +154,8 @@ export default function FinesAdminPage() {
   const [activeTab, setActiveTab] = useState<"fines" | "disputes" | "types">("fines");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<"date" | "amount">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Issue fine dialog
   const [issueOpen, setIssueOpen] = useState(false);
@@ -237,8 +239,17 @@ export default function FinesAdminPage() {
         return name.toLowerCase().includes(q);
       });
     }
+    list = [...list].sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      let cmp = 0;
+      if (sortField === "date") {
+        cmp = new Date(a.created_at as string).getTime() - new Date(b.created_at as string).getTime();
+      } else {
+        cmp = Number(a.amount || 0) - Number(b.amount || 0);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
     return list;
-  }, [allFines, statusFilter, search]);
+  }, [allFines, statusFilter, search, sortField, sortDir]);
 
   const filteredDisputes = useMemo(() => {
     let list = allDisputes;
@@ -735,6 +746,19 @@ export default function FinesAdminPage() {
                 {s === "all" ? t("filterAll") : td(s === "under_review" ? "underReview" : s as "open" | "mediation" | "resolved" | "dismissed")}
               </Button>
             ))}
+          </div>
+        )}
+
+        {/* Sort controls */}
+        {activeTab === "fines" && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">{t("sortBy")}:</span>
+            <Button variant={sortField === "date" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "date") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("date"); setSortDir("desc"); } }}>
+              {t("sortDate")} {sortField === "date" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+            </Button>
+            <Button variant={sortField === "amount" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "amount") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("amount"); setSortDir("desc"); } }}>
+              {t("sortAmount")} {sortField === "amount" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+            </Button>
           </div>
         )}
 

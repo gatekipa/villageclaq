@@ -1135,7 +1135,12 @@
     "unknown": "Inconnu",
     "shareableLink": "Lien d'adhésion partageable",
     "scanToJoin": "Scannez pour rejoindre ce groupe",
-    "regenerateCode": "Nouveau code"
+    "regenerateCode": "Nouveau code",
+    "searchInvitations": "Rechercher par e-mail, téléphone ou code...",
+    "sortDate": "Date",
+    "sortStatus": "Statut",
+    "noSearchResults": "Aucune invitation correspondante",
+    "noSearchResultsDesc": "Essayez un autre terme de recherche."
   },
   "events": {
     "title": "Événements",
@@ -1893,7 +1898,12 @@
     "denyReasonRequired": "Veuillez fournir une raison du refus",
     "viewDocument": "Voir le document",
     "payoutMethodPlaceholder": "Mobile Money / Virement bancaire",
-    "payoutReferencePlaceholder": "REF-001"
+    "payoutReferencePlaceholder": "REF-001",
+    "sortBy": "Trier par",
+    "sortName": "Nom",
+    "sortCreated": "Création",
+    "sortDateFiled": "Date de dépôt",
+    "sortAmount": "Montant"
   },
   "myDashboard": {
     "title": "Bienvenue, {name}",
@@ -2164,7 +2174,10 @@
     "role": "Rôle",
     "email": "E-mail",
     "phone": "Téléphone",
-    "joined": "Inscrit"
+    "joined": "Inscrit",
+    "sortBy": "Trier par",
+    "sortName": "Nom",
+    "sortJoined": "Inscrit"
   },
   "subgroups": {
     "title": "Sous-groupes",
@@ -3347,6 +3360,9 @@
     "filterSent": "Envoyées",
     "filterScheduled": "Planifiées",
     "filterDraft": "Brouillons",
+    "sortBy": "Trier par",
+    "sortDate": "Date",
+    "sortTitle": "Titre",
     "announcementSent": "Annonce envoyée avec succès",
     "announcementScheduled": "Annonce planifiée",
     "editAnnouncement": "Modifier l'annonce",
@@ -3734,7 +3750,10 @@
     "documentDeleted": "Document supprimé avec succès",
     "fileTooLarge": "Le fichier dépasse la limite de 10 Mo",
     "uploading": "Téléchargement en cours...",
-    "uploadingHint": "Veuillez patienter pendant le téléchargement de votre fichier"
+    "uploadingHint": "Veuillez patienter pendant le téléchargement de votre fichier",
+    "sortBy": "Trier par",
+    "date": "Date",
+    "titleSort": "Titre"
   },
   "memberCard": {
     "title": "Carte de membre numérique",
@@ -4249,7 +4268,10 @@
     "disputeDescriptionLabel": "Description",
     "viewDispute": "Voir les détails",
     "disputeResolution": "Résolution",
-    "disputeStatus": "Statut"
+    "disputeStatus": "Statut",
+    "sortBy": "Trier par",
+    "sortDate": "Date",
+    "sortAmount": "Montant"
   },
   "loans": {
     "title": "Prêts",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { useGroup } from "@/lib/group-context";
 import { useInvitations, useJoinCodes } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { normalizeSearch } from "@/lib/utils";
 import {
   Link2,
   Copy,
@@ -42,6 +43,7 @@ import {
   QrCode,
   Loader2,
   AlertCircle,
+  Search,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -269,6 +271,10 @@ export default function InvitationsPage() {
     }
   };
 
+  const [search, setSearch] = useState("");
+  const [sortField, setSortField] = useState<"date" | "status">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const handleRevoke = async (invitationId: string) => {
     setRevokingId(invitationId);
@@ -302,6 +308,38 @@ export default function InvitationsPage() {
 
   const activeCode = joinCodes && joinCodes.length > 0 ? joinCodes[0] : null;
   const allInvitations = invitations || [];
+
+  const statusOrder: Record<string, number> = { pending: 0, accepted: 1, declined: 2, expired: 3, revoked: 4 };
+
+  const filteredInvitations = useMemo(() => {
+    let list = [...allInvitations];
+
+    // Search filter
+    if (search.trim()) {
+      const q = normalizeSearch(search);
+      list = list.filter((inv: Record<string, unknown>) => {
+        const email = normalizeSearch((inv.email as string) || "");
+        const phone = normalizeSearch((inv.phone as string) || "");
+        const code = normalizeSearch((inv.invitation_code as string) || "");
+        return email.includes(q) || phone.includes(q) || code.includes(q);
+      });
+    }
+
+    // Sort
+    list.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      if (sortField === "date") {
+        const da = new Date(a.created_at as string).getTime();
+        const db = new Date(b.created_at as string).getTime();
+        return sortDir === "asc" ? da - db : db - da;
+      }
+      // status sort
+      const sa = statusOrder[(a.status as string) || "pending"] ?? 99;
+      const sb = statusOrder[(b.status as string) || "pending"] ?? 99;
+      return sortDir === "asc" ? sa - sb : sb - sa;
+    });
+
+    return list;
+  }, [allInvitations, search, sortField, sortDir]);
 
   return (
     <RequirePermission anyOf={["members.manage", "members.invite"]}><div className="space-y-6">
@@ -462,16 +500,67 @@ export default function InvitationsPage() {
             {t("invitations.pendingInvitations")}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {allInvitations.length === 0 ? (
+        <CardContent className="space-y-4">
+          {/* Search + Sort */}
+          {allInvitations.length > 0 && (
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder={t("invitations.searchInvitations")}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={sortField === "date" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    if (sortField === "date") {
+                      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                    } else {
+                      setSortField("date");
+                      setSortDir("desc");
+                    }
+                  }}
+                >
+                  {t("invitations.sortDate")} {sortField === "date" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+                </Button>
+                <Button
+                  variant={sortField === "status" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    if (sortField === "status") {
+                      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                    } else {
+                      setSortField("status");
+                      setSortDir("asc");
+                    }
+                  }}
+                >
+                  {t("invitations.sortStatus")} {sortField === "status" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {filteredInvitations.length === 0 && allInvitations.length === 0 ? (
             <EmptyState
               icon={UserPlus}
               title={t("invitations.noInvitations")}
               description={t("invitations.noInvitationsDesc")}
             />
+          ) : filteredInvitations.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title={t("invitations.noSearchResults")}
+              description={t("invitations.noSearchResultsDesc")}
+            />
           ) : (
             <div className="space-y-3">
-              {allInvitations.map((invite: Record<string, unknown>) => {
+              {filteredInvitations.map((invite: Record<string, unknown>) => {
                 const status = (invite.status as string) || "pending";
                 const profile = invite.profile as Record<
                   string,

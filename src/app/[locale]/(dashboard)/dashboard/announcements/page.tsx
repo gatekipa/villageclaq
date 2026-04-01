@@ -428,6 +428,8 @@ export default function AnnouncementsPage() {
 
   const [annSearch, setAnnSearch] = useState("");
   const [annStatusFilter, setAnnStatusFilter] = useState<"all" | "sent" | "scheduled" | "draft">("all");
+  const [sortField, setSortField] = useState<"date" | "title">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const announcementList = useMemo(() => {
     let result = allAnnouncements as Array<Record<string, unknown>>;
@@ -449,8 +451,18 @@ export default function AnnouncementsPage() {
         return normalizeSearch(title).includes(q) || normalizeSearch(content).includes(q);
       });
     }
+    result = [...result].sort((a, b) => {
+      if (sortField === "date") {
+        const dateA = (a.sent_at as string) || (a.scheduled_at as string) || (a.created_at as string) || "";
+        const dateB = (b.sent_at as string) || (b.scheduled_at as string) || (b.created_at as string) || "";
+        return sortDir === "asc" ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+      }
+      const titleA = ((a.title as string) || "").toLowerCase();
+      const titleB = ((b.title as string) || "").toLowerCase();
+      return sortDir === "asc" ? titleA.localeCompare(titleB) : titleB.localeCompare(titleA);
+    });
     return result;
-  }, [allAnnouncements, annStatusFilter, annSearch]);
+  }, [allAnnouncements, annStatusFilter, annSearch, sortField, sortDir]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
@@ -709,6 +721,15 @@ export default function AnnouncementsPage() {
             <Button variant={annStatusFilter === "sent" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("sent")}>{t("filterSent")}</Button>
             <Button variant={annStatusFilter === "scheduled" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("scheduled")}>{t("filterScheduled")}</Button>
             <Button variant={annStatusFilter === "draft" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("draft")}>{t("filterDraft")}</Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">{t("sortBy")}:</span>
+            <Button variant={sortField === "date" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "date") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("date"); setSortDir("desc"); } }}>
+              {t("sortDate")} {sortField === "date" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+            </Button>
+            <Button variant={sortField === "title" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "title") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("title"); setSortDir("asc"); } }}>
+              {t("sortTitle")} {sortField === "title" && (sortDir === "asc" ? "\u2191" : "\u2193")}
+            </Button>
           </div>
         </div>
       )}

@@ -88,18 +88,34 @@ export default function DirectoryPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [sortField, setSortField] = useState<"name" | "joined">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
 
   const filtered = useMemo(() => {
     setPage(1); // Reset page when filters change
-    return members.filter((m: Record<string, unknown>) => {
+    const result = members.filter((m: Record<string, unknown>) => {
       const name = getMemberName(m).toLowerCase();
       const matchesSearch = name.includes(search.toLowerCase());
       const matchesRole = roleFilter === "all" || m.role === roleFilter;
       return matchesSearch && matchesRole;
     });
-  }, [members, search, roleFilter]);
+
+    result.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      let cmp = 0;
+      if (sortField === "name") {
+        cmp = getMemberName(a).localeCompare(getMemberName(b));
+      } else {
+        const dateA = (a.joined_at as string) || "";
+        const dateB = (b.joined_at as string) || "";
+        cmp = dateA.localeCompare(dateB);
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return result;
+  }, [members, search, roleFilter, sortField, sortDir]);
 
   // Loading state
   if (isLoading) {
@@ -180,6 +196,17 @@ export default function DirectoryPage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Sort Controls */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">{t("directory.sortBy")}:</span>
+        <Button variant={sortField === "name" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "name") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("name"); setSortDir("asc"); } }}>
+          {t("directory.sortName")} {sortField === "name" && (sortDir === "asc" ? "↑" : "↓")}
+        </Button>
+        <Button variant={sortField === "joined" ? "default" : "outline"} size="sm" onClick={() => { if (sortField === "joined") setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField("joined"); setSortDir("desc"); } }}>
+          {t("directory.sortJoined")} {sortField === "joined" && (sortDir === "asc" ? "↑" : "↓")}
+        </Button>
       </div>
 
       {/* Members */}

@@ -21,6 +21,7 @@ interface HeaderProps {
 
 const NOTIFICATION_ICONS: Record<string, typeof Bell> = {
   contribution_due: CreditCard,
+  contribution_received: CreditCard,
   payment_received: CreditCard,
   meeting_scheduled: Calendar,
   event_reminder: Calendar,
@@ -28,6 +29,7 @@ const NOTIFICATION_ICONS: Record<string, typeof Bell> = {
   relief_claim: Heart,
   member_joined: Users,
   announcement: Megaphone,
+  system: Bell,
 };
 
 function timeAgo(dateStr: string): string {

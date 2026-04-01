@@ -1019,6 +1019,8 @@
     "paidSoFar": "Paid so far",
     "sendReminder": "Send Reminder",
     "sendAllReminders": "Send All Reminders",
+    "paymentReminderTitle": "Payment Reminder",
+    "paymentReminderBody": "You have an outstanding balance of {amount}. Please make your payment to avoid penalties.",
     "financeDashboard": "Finance Dashboard",
     "editType": "Edit Contribution Type",
     "editTypeDesc": "Update this contribution type",

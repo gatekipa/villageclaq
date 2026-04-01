@@ -1019,6 +1019,8 @@
     "paidSoFar": "Payé jusqu'ici",
     "sendReminder": "Envoyer un rappel",
     "sendAllReminders": "Envoyer tous les rappels",
+    "paymentReminderTitle": "Rappel de paiement",
+    "paymentReminderBody": "Vous avez un solde impayé de {amount}. Veuillez effectuer votre paiement pour éviter les pénalités.",
     "financeDashboard": "Tableau de bord financier",
     "editType": "Modifier le type de cotisation",
     "editTypeDesc": "Mettre à jour ce type de cotisation",

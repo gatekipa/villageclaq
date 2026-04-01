@@ -131,9 +131,9 @@ export default function UnpaidReportPage() {
       const notifications = validMembers.map((m) => ({
         user_id: m.userId!,
         group_id: groupId!,
-        type: "payment_reminder",
-        title: "Payment Reminder",
-        body: `You have an outstanding balance of ${formatAmount(m.totalOutstanding, currency)}.`,
+        type: "contribution_due" as const,
+        title: t("contributions.paymentReminderTitle"),
+        body: t("contributions.paymentReminderBody", { amount: formatAmount(m.totalOutstanding, currency) }),
         is_read: false,
       }));
       await supabase.from("notifications").insert(notifications);
@@ -151,9 +151,9 @@ export default function UnpaidReportPage() {
       await supabase.from("notifications").insert({
         user_id: member.userId,
         group_id: groupId,
-        type: "payment_reminder",
-        title: "Payment Reminder",
-        body: `You have an outstanding balance of ${formatAmount(member.totalOutstanding, currency)}.`,
+        type: "contribution_due" as const,
+        title: t("contributions.paymentReminderTitle"),
+        body: t("contributions.paymentReminderBody", { amount: formatAmount(member.totalOutstanding, currency) }),
         is_read: false,
       });
       setRemindersSentCount(1);

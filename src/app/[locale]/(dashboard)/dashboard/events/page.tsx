@@ -399,20 +399,23 @@ export default function EventsPage() {
         const eventTitle = (cancelledEvent?.title as string) || "";
 
         // Notify all group members — most members never RSVP, so querying only
-        // event_rsvps would miss the majority of the group
+        // event_rsvps would miss the majority of the group.
+        // notifications table requires: user_id (not membership_id), body (not message),
+        // and a valid notification_type enum value (use "system" for event cancellations).
         const { data: allMembers } = await supabase
           .from("memberships")
-          .select("id")
-          .eq("group_id", groupId);
+          .select("id, user_id")
+          .eq("group_id", groupId)
+          .not("user_id", "is", null);
 
         if (allMembers && allMembers.length > 0) {
           await supabase.from("notifications").insert(
             allMembers.map((m) => ({
               group_id: groupId,
-              membership_id: m.id,
-              type: "event_cancelled",
+              user_id: m.user_id,
+              type: "system" as const,
               title: t("eventCancelledNotifTitle"),
-              message: t("eventCancelledNotifBody", { title: eventTitle }),
+              body: t("eventCancelledNotifBody", { title: eventTitle }),
               is_read: false,
             }))
           );

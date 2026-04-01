@@ -148,7 +148,7 @@ export default function DocumentVaultPage() {
       const filePath = `${groupId}/${Date.now()}-${selectedFile.name}`;
       const { error: uploadError } = await supabase.storage
         .from("group-documents")
-        .upload(filePath, selectedFile);
+        .upload(filePath, selectedFile, { upsert: true });
       if (uploadError) throw new Error(uploadError.message);
 
       const { data: urlData } = supabase.storage
@@ -397,19 +397,42 @@ export default function DocumentVaultPage() {
                         </Button>
                         <Button variant="outline" size="sm" onClick={async () => {
                           if (!doc.file_url) return;
+                          const fileUrl = doc.file_url as string;
+                          const filename = (doc.title as string || "document") + (doc.file_type ? `.${(doc.file_type as string).toLowerCase()}` : "");
                           try {
-                            const response = await fetch(doc.file_url as string);
-                            const blob = await response.blob();
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = (doc.title as string || "document") + (doc.file_type ? `.${doc.file_type}` : "");
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            document.body.removeChild(a);
+                            // Extract the storage path from the full public URL
+                            const pathMatch = fileUrl.split("/storage/v1/object/public/group-documents/")[1];
+                            if (pathMatch) {
+                              // Use Supabase client .download() to avoid CORS issues with raw fetch
+                              const supabase = createClient();
+                              const { data: blob, error: dlError } = await supabase.storage
+                                .from("group-documents")
+                                .download(decodeURIComponent(pathMatch));
+                              if (!dlError && blob) {
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                window.URL.revokeObjectURL(url);
+                                return;
+                              }
+                            }
+                            // Fallback: use getPublicUrl with download flag
+                            const supabase2 = createClient();
+                            const pathMatch2 = fileUrl.split("/storage/v1/object/public/group-documents/")[1];
+                            if (pathMatch2) {
+                              const { data: urlData } = supabase2.storage
+                                .from("group-documents")
+                                .getPublicUrl(decodeURIComponent(pathMatch2), { download: filename });
+                              window.open(urlData.publicUrl, "_blank");
+                            } else {
+                              window.open(fileUrl, "_blank");
+                            }
                           } catch {
-                            window.open(doc.file_url as string, '_blank');
+                            window.open(fileUrl, "_blank");
                           }
                         }}>
                           <Download className="mr-1.5 h-3.5 w-3.5" />

@@ -310,10 +310,12 @@ export default function ConstitutionPage() {
       }
       const memberList = (members || []) as Array<Record<string, unknown>>;
       if (memberList.length > 0) {
-        await supabase.from("notifications").insert(memberList.map((m) => ({
-          group_id: groupId, membership_id: m.id as string, type: "constitution_updated",
-          title: t("constitutionUpdatedNotif"), message: t("constitutionUpdatedNotifMsg"), is_read: false,
-        })));
+        await supabase.from("notifications").insert(
+          memberList.filter((m) => m.user_id).map((m) => ({
+            group_id: groupId, user_id: m.user_id as string, type: "system" as const,
+            title: t("constitutionUpdatedNotif"), body: t("constitutionUpdatedNotifMsg"), is_read: false,
+          }))
+        );
       }
       queryClient.invalidateQueries({ queryKey: ["constitution"] });
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
@@ -414,10 +416,12 @@ export default function ConstitutionPage() {
       const ackedIds = new Set(acknowledgments.filter((a: Record<string, unknown>) => (a.version_number as number) === currentVersion).map((a: Record<string, unknown>) => (a.membership as Record<string, unknown>)?.id));
       const pending = (members || []).filter((m: Record<string, unknown>) => !ackedIds.has(m.id));
       if (pending.length > 0) {
-        await supabase.from("notifications").insert(pending.map((m: Record<string, unknown>) => ({
-          group_id: groupId, membership_id: m.id as string, type: "constitution_reminder",
-          title: t("reviewConstitution"), message: t("reviewConstitutionMessage"), is_read: false,
-        })));
+        await supabase.from("notifications").insert(
+          pending.filter((m: Record<string, unknown>) => m.user_id).map((m: Record<string, unknown>) => ({
+            group_id: groupId, user_id: m.user_id as string, type: "system" as const,
+            title: t("reviewConstitution"), body: t("reviewConstitutionMessage"), is_read: false,
+          }))
+        );
       }
     } finally { setSendingReminder(false); }
   };

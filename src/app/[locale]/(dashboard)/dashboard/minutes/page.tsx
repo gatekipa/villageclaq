@@ -453,18 +453,21 @@ export default function MinutesPage() {
         const minutesTitle = payload.title as string;
 
         // In-app notifications
+        // notifications table requires: user_id (not membership_id), body (not message),
+        // and a valid notification_type enum value (use "system")
         try {
           const { data: allMembers } = await supabase
             .from("memberships")
-            .select("id")
-            .eq("group_id", groupId);
+            .select("id, user_id")
+            .eq("group_id", groupId)
+            .not("user_id", "is", null);
           if (allMembers && allMembers.length > 0) {
             const notifications = allMembers.map((m) => ({
               group_id: groupId,
-              membership_id: m.id,
-              type: "minutes_published",
+              user_id: m.user_id,
+              type: "system" as const,
               title: t("minutesPublished"),
-              message: t("minutesPublishedMsg", { title: minutesTitle }),
+              body: t("minutesPublishedMsg", { title: minutesTitle }),
               is_read: false,
             }));
             await supabase.from("notifications").insert(notifications);
@@ -668,19 +671,22 @@ export default function MinutesPage() {
         .eq("id", selectedEvent.id);
       if (err) throw err;
       // Notify ALL group members (not just RSVPd — most members never RSVP)
+      // notifications table requires: user_id (not membership_id), body (not message),
+      // and a valid notification_type enum value (use "system")
       try {
         const { data: allMembers } = await supabase
           .from("memberships")
-          .select("id")
-          .eq("group_id", groupId);
+          .select("id, user_id")
+          .eq("group_id", groupId)
+          .not("user_id", "is", null);
         if (allMembers && allMembers.length > 0) {
           await supabase.from("notifications").insert(
             allMembers.map((m) => ({
               group_id: groupId,
-              membership_id: m.id,
-              type: "event_cancelled",
+              user_id: m.user_id,
+              type: "system" as const,
               title: t("meetingCancelledNotifTitle"),
-              message: t("meetingCancelledNotifBody", { title: selectedEvent.title }),
+              body: t("meetingCancelledNotifBody", { title: selectedEvent.title }),
               is_read: false,
             }))
           );

@@ -202,7 +202,7 @@ export function PayNowDialog({
           .map((a) => ({
             user_id: a.user_id,
             group_id: groupId,
-            type: "payment_pending",
+            type: "contribution_received" as const,
             title: t("adminNotifTitle"),
             body: t("adminNotifBody", {
               amount: formatAmount(amountDue, currency),

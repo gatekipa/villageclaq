@@ -90,6 +90,9 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const [platformRole, setPlatformRole] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
+  // Track whether initial load is complete to prevent double-fetch on auth state change
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       const supabase = createClient();
@@ -169,6 +172,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       setLoading(false);
+      setInitialLoadDone(true);
     }
   }, [searchParams]);
 
@@ -177,6 +181,9 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   }, [fetchData]);
 
   // Listen for auth state changes (logout, token refresh, session expiry)
+  // Skip SIGNED_IN if initial load already completed — Supabase fires SIGNED_IN
+  // on page load when it detects the session cookie, causing a redundant double-fetch
+  // that triggers re-renders and the visible "flicker" on every dashboard page.
   useEffect(() => {
     const supabase = createClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -186,12 +193,17 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         setCurrentGroupId(null);
         setIsPlatformStaff(false);
         setPlatformRole(null);
-      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      } else if (event === "TOKEN_REFRESHED") {
+        // Token refresh always needs a re-fetch to get fresh data
+        fetchData();
+      } else if (event === "SIGNED_IN" && !initialLoadDone) {
+        // Only fetch on SIGNED_IN if initial load hasn't completed yet
+        // (handles real sign-in events, not the spurious one on page load)
         fetchData();
       }
     });
     return () => subscription.unsubscribe();
-  }, [fetchData]);
+  }, [fetchData, initialLoadDone]);
 
   // Persist current group selection
   useEffect(() => {

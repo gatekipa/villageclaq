@@ -224,16 +224,19 @@ export default function RecordPaymentPage() {
       const formattedAmt = formatAmount(payAmount, currency);
       const dateStr = new Date().toLocaleDateString(getDateLocale(locale));
 
-      // Resolve the member's user_id (needed for in-app + email routing)
+      // Resolve the member's user_id + phone (needed for notifications)
       let recipientUserId: string | null = null;
+      let recipientPhone: string | null = null;
       try {
         const supabase = createClient();
         const { data: membership } = await supabase
           .from("memberships")
-          .select("user_id")
+          .select("user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
           .eq("id", membershipId)
           .single();
         recipientUserId = membership?.user_id || null;
+        const profile = (Array.isArray(membership?.profiles) ? membership?.profiles[0] : membership?.profiles) as Record<string, unknown> | null;
+        recipientPhone = (profile?.phone as string) || (membership?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
 
         // In-app notification (best-effort, never blocks external sends)
         if (recipientUserId) {
@@ -251,8 +254,8 @@ export default function RecordPaymentPage() {
             console.error("[Record Payment] In-app notification insert failed:", notifErr);
           }
         }
-      } catch {
-        // Could not resolve user_id — external sends will use membershipId fallback
+      } catch (resolveErr) {
+        console.error("[Record Payment] Could not resolve member data:", resolveErr);
       }
 
       // External sends — completely independent of in-app notification success
@@ -260,61 +263,67 @@ export default function RecordPaymentPage() {
         const supabase = createClient();
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-
-        if (token && recipientUserId) {
-          // Email (fire-and-forget)
-          fetch("/api/email/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-              to: recipientUserId,
-              template: "payment-receipt",
-              data: {
-                memberName,
-                groupName: currentGroup?.name || "",
-                amount: formattedAmt,
-                contributionType: typeName,
-                paymentMethod: payMethod,
-                date: dateStr,
-                reference: payRef || undefined,
-                recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
-                paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
-              },
-              locale,
-            }),
-          }).catch(() => {});
-
-          // SMS (fire-and-forget)
-          fetch("/api/sms/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-              to: recipientUserId,
-              template: "payment-receipt",
-              data: { groupName: currentGroup?.name || "", amount: formattedAmt, contributionType: typeName },
-              locale,
-            }),
-          }).catch(() => {});
-
-          // WhatsApp (fire-and-forget)
-          console.log(`[WhatsApp] Triggering /api/whatsapp/send for ${memberName} (userId=${recipientUserId})`);
-          fetch("/api/whatsapp/send", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-              to: recipientUserId,
-              type: "payment_receipt",
-              data: { memberName, amount: formattedAmt, contributionType: typeName, groupName: currentGroup?.name || "", date: dateStr },
-              locale,
-            }),
-          }).then(async (res) => {
-            const body = await res.json().catch(() => ({}));
-            console.log(`[WhatsApp] Response: status=${res.status}`, JSON.stringify(body));
-          }).catch((err) => {
-            console.error("[WhatsApp] Fetch error:", err);
-          });
+        if (!token) {
+          console.log("[Record Payment] No session token — skipping external sends");
         } else {
-          console.log(`[Record Payment] Skipping external sends — token=${!!token} userId=${recipientUserId}`);
+          // Email + SMS: require user_id (real members only, not proxy)
+          if (recipientUserId) {
+            fetch("/api/email/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                to: recipientUserId,
+                template: "payment-receipt",
+                data: {
+                  memberName,
+                  groupName: currentGroup?.name || "",
+                  amount: formattedAmt,
+                  contributionType: typeName,
+                  paymentMethod: payMethod,
+                  date: dateStr,
+                  reference: payRef || undefined,
+                  recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
+                  paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
+                },
+                locale,
+              }),
+            }).catch(() => {});
+
+            fetch("/api/sms/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                to: recipientUserId,
+                template: "payment-receipt",
+                data: { groupName: currentGroup?.name || "", amount: formattedAmt, contributionType: typeName },
+                locale,
+              }),
+            }).catch(() => {});
+          }
+
+          // WhatsApp: send to ANY member with a phone number (including proxy members)
+          // Uses user_id (resolved to phone server-side) OR direct phone number
+          const waRecipient = recipientUserId || recipientPhone;
+          if (waRecipient) {
+            console.log(`[WhatsApp] Triggering /api/whatsapp/send for ${memberName} (to=${waRecipient})`);
+            fetch("/api/whatsapp/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                to: waRecipient,
+                type: "payment_receipt",
+                data: { memberName, amount: formattedAmt, contributionType: typeName, groupName: currentGroup?.name || "", date: dateStr },
+                locale,
+              }),
+            }).then(async (res) => {
+              const body = await res.json().catch(() => ({}));
+              console.log(`[WhatsApp] Response: status=${res.status}`, JSON.stringify(body));
+            }).catch((err) => {
+              console.error("[WhatsApp] Fetch error:", err);
+            });
+          } else {
+            console.log(`[Record Payment] No phone or userId for WhatsApp — skipping for ${memberName}`);
+          }
         }
       } catch (extErr) {
         console.error("[Record Payment] External notification error:", extErr);

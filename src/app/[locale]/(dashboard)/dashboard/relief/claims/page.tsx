@@ -34,6 +34,7 @@ import { useReliefClaims } from "@/lib/hooks/use-supabase-query";
 import { getMemberName } from "@/lib/get-member-name";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { AdminGuard } from "@/components/ui/admin-guard";
+import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 
 type ClaimStatus = "submitted" | "reviewing" | "approved" | "denied";
 
@@ -103,6 +104,31 @@ export default function ReliefClaimsPage() {
         }); } catch { /* notification is best-effort */ }
       }
 
+      // WhatsApp + Email for relief claim approved (fire-and-forget)
+      try {
+        const profile = (Array.isArray(membership?.profiles) ? (membership?.profiles as unknown[])[0] : membership?.profiles) as Record<string, unknown> | null;
+        const phone = profile?.phone as string | null;
+        const memberName = getMemberName(membership as Record<string, unknown>);
+        const plan = selectedClaim.relief_plan as Record<string, unknown> | null;
+        const planName = (plan?.name as string) || "";
+        const amount = formatAmount(Number(selectedClaim.amount || 0), currentGroup?.currency || "XAF");
+        if (phone) {
+          dispatchWhatsApp("relief_claim_approved", phone, locale, {
+            memberName, claimType: planName, amount, groupName: currentGroup?.name || "",
+          }).catch(() => {});
+        }
+        if (claimantUserId) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            fetch("/api/whatsapp/send", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+              body: JSON.stringify({ to: claimantUserId, type: "relief_claim_approved", data: { memberName, claimType: planName, amount, groupName: currentGroup?.name || "" }, locale }),
+            }).catch(() => {});
+          }
+        }
+      } catch { /* best-effort */ }
+
       // Audit log
       try {
         const { logActivity } = await import("@/lib/audit-log");
@@ -163,6 +189,20 @@ export default function ReliefClaimsPage() {
           is_read: false,
         }); } catch { /* notification is best-effort */ }
       }
+
+      // WhatsApp for relief claim denied (fire-and-forget)
+      try {
+        const profile = (Array.isArray(membership?.profiles) ? (membership?.profiles as unknown[])[0] : membership?.profiles) as Record<string, unknown> | null;
+        const phone = profile?.phone as string | null;
+        const memberName = getMemberName(membership as Record<string, unknown>);
+        const plan = selectedClaim.relief_plan as Record<string, unknown> | null;
+        const planName = (plan?.name as string) || "";
+        if (phone) {
+          dispatchWhatsApp("relief_claim_denied", phone, locale, {
+            memberName, claimType: planName, reason: reviewNotes.trim(), groupName: currentGroup?.name || "",
+          }).catch(() => {});
+        }
+      } catch { /* best-effort */ }
 
       // Audit log
       try {

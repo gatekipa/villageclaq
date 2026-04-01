@@ -54,6 +54,7 @@ import { useHostingRosters, useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { logActivity } from "@/lib/audit-log";
 import { getMemberName } from "@/lib/get-member-name";
+import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn } from "@/lib/utils";
@@ -207,7 +208,7 @@ export default function HostingPage() {
   const locale = useLocale();
   const t = useTranslations("hosting");
   const tc = useTranslations("common");
-  const { groupId, user, currentMembership } = useGroup();
+  const { groupId, user, currentMembership, currentGroup } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("hosting.manage");
   const queryClient = useQueryClient();
@@ -282,6 +283,25 @@ export default function HostingPage() {
             message: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
             is_read: false,
           });
+
+          // WhatsApp + SMS for hosting reminder (fire-and-forget)
+          try {
+            const { data: memberData } = await supabase
+              .from("memberships")
+              .select("display_name, user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
+              .eq("id", a.membership_id)
+              .single();
+            const profile = (Array.isArray(memberData?.profiles) ? memberData?.profiles[0] : memberData?.profiles) as Record<string, unknown> | null;
+            const phone = (profile?.phone as string) || (memberData?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            if (phone) {
+              const memberName = getMemberName(memberData as Record<string, unknown>);
+              dispatchWhatsApp("hosting_reminder", phone, locale, {
+                memberName,
+                hostingDate: formatDate(a.assigned_date, locale),
+                groupName: currentGroup?.name || "",
+              }).catch(() => {});
+            }
+          } catch { /* best-effort */ }
         }
       } catch {
         // best-effort — do not show error for background reminders

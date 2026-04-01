@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
+import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { markOverdueInstallments } from "@/lib/loans";
 import { exportCSV } from "@/lib/export";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -486,6 +487,20 @@ export default function LoansAdminPage() {
           });
         } catch { /* best-effort */ }
       }
+
+      // WhatsApp for loan approval (fire-and-forget)
+      try {
+        const borrowerName = membership ? getMemberName(membership as Record<string, unknown>) : "";
+        const profile = (Array.isArray(membership?.profiles) ? (membership?.profiles as unknown[])[0] : membership?.profiles) as Record<string, unknown> | null;
+        const phone = profile?.phone as string | null;
+        if (phone) {
+          dispatchWhatsApp("loan_approved", phone, locale, {
+            memberName: borrowerName,
+            amount: formatAmount(amt, currency),
+            groupName: currentGroup?.name || "",
+          }).catch(() => {});
+        }
+      } catch { /* best-effort */ }
 
       // Audit log
       try {

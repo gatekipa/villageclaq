@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
+import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -300,6 +301,24 @@ export default function FinesAdminPage() {
           });
         } catch { /* best-effort */ }
       }
+
+      // WhatsApp for fine issued (fire-and-forget)
+      try {
+        const profile = (member as Record<string, unknown>)?.profile as Record<string, unknown> | null;
+        const phone = (profile?.phone as string) || null;
+        const memberName = member ? getMemberName(member as Record<string, unknown>) : "";
+        const fineType = (fineTypes || []).find((ft: Record<string, unknown>) => ft.id === issueFineTypeId);
+        const fineTypeName = (fineType?.name as string) || "";
+        if (phone) {
+          dispatchWhatsApp("fine_issued", phone, locale, {
+            memberName,
+            fineType: fineTypeName,
+            amount: formatAmount(amt, currency),
+            reason: issueReason.trim() || "-",
+            groupName: currentGroup?.name || "",
+          }).catch(() => {});
+        }
+      } catch { /* best-effort */ }
 
       // Audit log
       try {

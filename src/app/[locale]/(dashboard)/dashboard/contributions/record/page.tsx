@@ -273,9 +273,30 @@ export default function RecordPaymentPage() {
                   locale,
                 }),
               }).catch(() => {});
+
+              // WhatsApp (fire-and-forget)
+              fetch("/api/whatsapp/send", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  to: membership.user_id,
+                  type: "payment_receipt",
+                  data: {
+                    memberName: selectedMembership.name,
+                    amount: formattedAmt,
+                    contributionType: typeName,
+                    groupName: currentGroup?.name || "",
+                    date: new Date().toLocaleDateString(getDateLocale(locale)),
+                  },
+                  locale,
+                }),
+              }).catch(() => {});
             }
           } catch {
-            // Email is non-critical
+            // Notifications are non-critical
           }
         }
       } catch {

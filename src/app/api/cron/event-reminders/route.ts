@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
+import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -168,6 +169,20 @@ export async function GET(request: Request) {
               locale: preferredLocale,
             })
           );
+          // WhatsApp (fire-and-forget)
+          dispatchWhatsApp(
+            "event_reminder",
+            phone,
+            preferredLocale,
+            {
+              memberName: templateData.memberName || "",
+              eventTitle: templateData.eventName || "",
+              eventDate: templateData.eventDate || "",
+              eventLocation: templateData.eventLocation || "",
+              groupName: templateData.groupName || "",
+            },
+          ).catch(() => {});
+
           // Remove from phoneMap so we don't double-send for proxy members below
           phoneMap.delete(m.user_id);
         }

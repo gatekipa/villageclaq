@@ -474,10 +474,33 @@ export default function MinutesPage() {
                   }).catch(() => {})
                 )
               ).catch(() => {}); // Fire and forget — never block publish
+
+              // WhatsApp (fire-and-forget) — send to all real members
+              Promise.allSettled(
+                realMembers.map((m) =>
+                  fetch("/api/whatsapp/send", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({
+                      to: m.user_id,
+                      type: "minutes_published",
+                      data: {
+                        groupName: currentGroup?.name || "",
+                        meetingTitle: minutesTitle,
+                        meetingDate,
+                      },
+                      locale,
+                    }),
+                  }).catch(() => {})
+                )
+              ).catch(() => {}); // Fire and forget
             }
           }
         } catch {
-          // Email is non-critical — never block minutes publish
+          // Notifications are non-critical — never block minutes publish
         }
       }
 

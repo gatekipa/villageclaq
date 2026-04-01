@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
+import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { formatAmount } from "@/lib/currencies";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -228,6 +229,20 @@ export async function GET(request: Request) {
               locale: (phoneInfo.locale || memberData.locale) as "en" | "fr",
             })
           );
+
+          // WhatsApp (fire-and-forget alongside SMS)
+          dispatchWhatsApp(
+            "payment_reminder",
+            phoneInfo.phone,
+            phoneInfo.locale || memberData.locale || "en",
+            {
+              memberName: memberData.memberName,
+              amount: item.amount,
+              contributionType: item.contributionType,
+              dueDate: item.dueDate,
+              groupName: item.groupName,
+            },
+          ).catch(() => {}); // Best-effort — never block cron
         }
       }
     }

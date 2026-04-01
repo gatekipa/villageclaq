@@ -160,8 +160,23 @@ export default function InvitationsPage() {
           locale,
         }),
       });
+      // WhatsApp invitation (fire-and-forget) — only if we have the recipient's phone
+      // We don't always have the phone for email invitations, so this is best-effort
+      fetch("/api/whatsapp/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          to: recipientEmail, // Will be resolved if it's a UUID; skipped otherwise
+          type: "invitation",
+          data: { inviterName, groupName, acceptUrl },
+          locale,
+        }),
+      }).catch(() => {});
     } catch {
-      // Email failure is non-fatal — invitation row already exists
+      // Notification failure is non-fatal — invitation row already exists
     }
   }
 

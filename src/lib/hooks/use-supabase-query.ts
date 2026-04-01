@@ -253,6 +253,8 @@ export function useRecordPayment() {
       reference_number?: string;
       receipt_url?: string;
       notes?: string;
+      /** ISO date string for the actual payment date (defaults to today) */
+      payment_date?: string;
       /** Set to true to bypass duplicate warning (user confirmed "Record Anyway") */
       skipDuplicateCheck?: boolean;
     }): Promise<PaymentCascadeResult> => {
@@ -292,6 +294,7 @@ export function useRecordPayment() {
         notes: values.notes || null,
         group_id: groupId,
         recorded_by: user.id,
+        ...(values.payment_date ? { payment_date: values.payment_date, recorded_at: `${values.payment_date}T${new Date().toISOString().split("T")[1]}` } : {}),
       };
 
       const { data, error } = await supabase.from("payments").insert(insertPayload).select().single();

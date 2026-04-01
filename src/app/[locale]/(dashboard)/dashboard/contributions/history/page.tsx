@@ -23,6 +23,10 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Loader2,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
@@ -31,8 +35,24 @@ import { normalizeSearch } from "@/lib/utils";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { Check, X } from "lucide-react";
 
 // Method labels resolved via t() inside component — see getMethodLabel()
@@ -70,9 +90,24 @@ export default function PaymentHistoryPage() {
   const { currentGroup, groupId } = useGroup();
   const queryClient = useQueryClient();
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission("finances.manage");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Edit payment state
+  const [editPayment, setEditPayment] = useState<typeof normalizedPayments[0] | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editMethod, setEditMethod] = useState("cash");
+  const [editReference, setEditReference] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Delete payment state
+  const [deletePayment, setDeletePayment] = useState<typeof normalizedPayments[0] | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const currency = currentGroup?.currency || "XAF";
 
@@ -253,6 +288,150 @@ export default function PaymentHistoryPage() {
     }
   }
 
+  function openEditDialog(payment: typeof normalizedPayments[0]) {
+    setEditPayment(payment);
+    setEditAmount(payment.amount.toString());
+    setEditMethod(payment.paymentMethod);
+    setEditReference(payment.referenceNumber || "");
+    setEditNotes("");
+    setEditDate(payment.recordedAt ? payment.recordedAt.slice(0, 10) : "");
+    setEditSaving(false);
+  }
+
+  function invalidateFinancialCaches(membershipId?: string) {
+    queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
+    queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
+    queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] });
+    queryClient.invalidateQueries({ queryKey: ["member-payments"] });
+    queryClient.invalidateQueries({ queryKey: ["member-obligations"] });
+    if (membershipId) {
+      queryClient.invalidateQueries({ queryKey: ["member-standing", membershipId, groupId] });
+    }
+  }
+
+  async function handleEditPayment() {
+    if (!editPayment) return;
+    setEditSaving(true);
+    setActionError(null);
+    try {
+      const supabase = createClient();
+      const newAmount = Number(editAmount);
+      if (isNaN(newAmount) || newAmount <= 0) return;
+
+      const { error: updateErr } = await supabase
+        .from("payments")
+        .update({
+          amount: newAmount,
+          payment_method: editMethod,
+          reference_number: editReference || null,
+          notes: editNotes || null,
+          recorded_at: editDate ? new Date(editDate).toISOString() : undefined,
+        })
+        .eq("id", editPayment.id);
+      if (updateErr) throw updateErr;
+
+      // Recalculate obligation if linked
+      if (editPayment.obligationId) {
+        // Get all confirmed payments for this obligation (excluding the one we just edited, then add back the new amount)
+        const { data: allPayments } = await supabase
+          .from("payments")
+          .select("amount")
+          .eq("obligation_id", editPayment.obligationId)
+          .eq("status", "confirmed");
+
+        if (allPayments) {
+          // Sum all payments (the updated amount is already in DB)
+          const totalPaid = allPayments.reduce((s, p) => s + Number(p.amount), 0);
+
+          const { data: obl } = await supabase
+            .from("contribution_obligations")
+            .select("amount")
+            .eq("id", editPayment.obligationId)
+            .single();
+
+          if (obl) {
+            const newStatus = totalPaid >= Number(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
+            await supabase
+              .from("contribution_obligations")
+              .update({ amount_paid: totalPaid, status: newStatus })
+              .eq("id", editPayment.obligationId);
+          }
+        }
+      }
+
+      invalidateFinancialCaches(editPayment.membershipId);
+      setEditPayment(null);
+    } catch (err) {
+      console.warn("Edit payment failed:", (err as Error).message);
+      setActionError(t("contributions.editPaymentError"));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleDeletePayment() {
+    if (!deletePayment) return;
+    setDeleteSaving(true);
+    setActionError(null);
+    try {
+      const supabase = createClient();
+
+      // Read the payment's obligation_id and amount before deleting
+      const paymentAmount = deletePayment.amount;
+      const obligationId = deletePayment.obligationId;
+
+      // Delete the payment
+      const { error } = await supabase
+        .from("payments")
+        .delete()
+        .eq("id", deletePayment.id);
+      if (error) throw error;
+
+      // Recalculate obligation if linked
+      if (obligationId) {
+        const { data: remainingPayments } = await supabase
+          .from("payments")
+          .select("amount")
+          .eq("obligation_id", obligationId)
+          .eq("status", "confirmed");
+
+        const totalPaid = (remainingPayments || []).reduce((s, p) => s + Number(p.amount), 0);
+
+        const { data: obl } = await supabase
+          .from("contribution_obligations")
+          .select("amount")
+          .eq("id", obligationId)
+          .single();
+
+        if (obl) {
+          const newStatus = totalPaid >= Number(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
+          await supabase
+            .from("contribution_obligations")
+            .update({ amount_paid: totalPaid, status: newStatus })
+            .eq("id", obligationId);
+        }
+      }
+
+      // Best-effort audit log
+      try {
+        await supabase.from("activity_feed").insert({
+          group_id: groupId,
+          action: "payment_deleted",
+          details: { payment_id: deletePayment.id, amount: paymentAmount, member: deletePayment.memberName },
+        });
+      } catch { /* best effort */ }
+
+      invalidateFinancialCaches(deletePayment.membershipId);
+      setDeletePayment(null);
+    } catch (err) {
+      console.warn("Delete payment failed:", (err as Error).message);
+      setActionError(t("contributions.deletePaymentError"));
+    } finally {
+      setDeleteSaving(false);
+    }
+  }
+
   const subNavItems = [
     { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
     { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
@@ -401,11 +580,16 @@ export default function PaymentHistoryPage() {
                     <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">
                       {t("contributions.statusHeader")}
                     </th>
+                    {canManage && (
+                      <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-muted-foreground">
+                        {t("contributions.actions")}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {paginated.length === 0 && search.trim() && (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">{tc("noSearchResults")}</td></tr>
+                    <tr><td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">{tc("noSearchResults")}</td></tr>
                   )}
                   {paginated.map((payment) => (
                     <tr
@@ -493,6 +677,25 @@ export default function PaymentHistoryPage() {
                           </Badge>
                         )}
                       </td>
+                      {canManage && (
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+                              <MoreVertical className="h-4 w-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditDialog(payment)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                {t("contributions.editPayment")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDeletePayment(payment)} className="text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {t("contributions.deletePayment")}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -537,6 +740,98 @@ export default function PaymentHistoryPage() {
           </CardContent>
         </Card>
       )}
+      {/* ─── Edit Payment Dialog ──────────────────────────────── */}
+      <Dialog open={!!editPayment} onOpenChange={(open) => { if (!open) setEditPayment(null); }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("contributions.editPayment")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("contributions.amount")}</Label>
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("contributions.paymentMethod")}</Label>
+              <select
+                value={editMethod}
+                onChange={(e) => setEditMethod(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+              >
+                <option value="cash">{t("contributions.cash")}</option>
+                <option value="mobile_money">{t("contributions.mobileMoney")}</option>
+                <option value="bank_transfer">{t("contributions.bankTransfer")}</option>
+                <option value="online">{t("contributions.online")}</option>
+                <option value="cashapp">{t("contributions.cashapp")}</option>
+                <option value="zelle">{t("contributions.zelle")}</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("contributions.referenceNumber")}</Label>
+              <Input
+                value={editReference}
+                onChange={(e) => setEditReference(e.target.value)}
+                placeholder={t("contributions.referenceOptional")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("contributions.notes")}</Label>
+              <Input
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder={t("contributions.notesOptional")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("contributions.paymentDate")}</Label>
+              <Input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPayment(null)} disabled={editSaving}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={handleEditPayment} disabled={editSaving || !editAmount || Number(editAmount) <= 0}>
+              {editSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Delete Payment Dialog ─────────────────────────────── */}
+      <Dialog open={!!deletePayment} onOpenChange={(open) => { if (!open) setDeletePayment(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("contributions.deletePayment")}</DialogTitle>
+            <DialogDescription>
+              {deletePayment && t("contributions.deletePaymentConfirm", {
+                amount: formatAmount(deletePayment.amount, deletePayment.currency),
+                member: deletePayment.memberName,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePayment(null)} disabled={deleteSaving}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDeletePayment} disabled={deleteSaving}>
+              {deleteSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div></RequirePermission>
   );
 }

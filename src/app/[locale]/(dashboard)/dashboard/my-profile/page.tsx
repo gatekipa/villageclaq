@@ -20,23 +20,43 @@ import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
   User,
   Camera,
   Shield,
   Save,
   CheckCircle2,
   AlertCircle,
+  LogOut,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
+import { useRouter } from "@/i18n/routing";
 
 export default function MyProfilePage() {
   const t = useTranslations("myProfile");
   const tCommon = useTranslations("common");
+  const tMembers = useTranslations("members");
+  const router = useRouter();
   const {
     user,
     currentMembership,
+    currentGroup,
     loading: groupLoading,
     refresh,
   } = useGroup();
+
+  // Leave Group state
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   // Personal Info state
   const [fullName, setFullName] = useState("");
@@ -407,7 +427,7 @@ export default function MyProfilePage() {
       </Card>
 
       {/* 2. Privacy Settings */}
-      <Card>
+      <Card id="privacy-settings">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -453,6 +473,79 @@ export default function MyProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 3. Danger Zone — Leave Group */}
+      {currentMembership && (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              {t("dangerZone")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {tMembers("leaveGroupDesc")}
+            </p>
+            {currentMembership.role === "owner" ? (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                {tMembers("leaveGroupOwnerWarning")}
+              </p>
+            ) : (
+              <Button
+                variant="destructive"
+                className="gap-2"
+                onClick={() => { setShowLeaveDialog(true); setLeaveError(null); }}
+              >
+                <LogOut className="h-4 w-4" />
+                {tMembers("leaveGroupButton")}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Leave Group Dialog */}
+      <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{tMembers("leaveGroup")}</DialogTitle>
+          <DialogDescription>
+            {tMembers("leaveGroupConfirm", { groupName: currentGroup?.name || "" })}
+          </DialogDescription>
+          {leaveError && (
+            <p className="text-sm text-destructive">{leaveError}</p>
+          )}
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>{tCommon("cancel")}</DialogClose>
+            <Button
+              variant="destructive"
+              disabled={leaving}
+              onClick={async () => {
+                setLeaving(true);
+                setLeaveError(null);
+                try {
+                  const supabase = createClient();
+                  const { error } = await supabase
+                    .from("memberships")
+                    .delete()
+                    .eq("id", currentMembership!.id);
+                  if (error) throw error;
+                  setShowLeaveDialog(false);
+                  router.push("/dashboard");
+                  refresh();
+                } catch {
+                  setLeaveError(tMembers("leaveGroupError"));
+                } finally {
+                  setLeaving(false);
+                }
+              }}
+            >
+              {leaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tMembers("leaveGroupButton")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

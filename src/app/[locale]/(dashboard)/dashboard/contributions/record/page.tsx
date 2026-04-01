@@ -2,6 +2,7 @@
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import { getDateLocale } from "@/lib/date-utils";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 
 import { useState, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -125,6 +126,8 @@ export default function RecordPaymentPage() {
   const [reference, setReference] = useState("");
   const [receiptUrl, setReceiptUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [paymentDateError, setPaymentDateError] = useState<string | null>(null);
   const [showMemberList, setShowMemberList] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSavedName, setLastSavedName] = useState("");
@@ -188,6 +191,14 @@ export default function RecordPaymentPage() {
   async function doSave(keepTypeAndMethod: boolean, skipDuplicateCheck: boolean) {
     if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
 
+    // Bug #124/#160: Validate payment date — no future dates
+    setPaymentDateError(null);
+    const today = new Date().toISOString().split("T")[0];
+    if (paymentDate > today) {
+      setPaymentDateError(t("contributions.paymentDateFuture"));
+      return;
+    }
+
     // Capture values before any state resets (closures)
     const memberName = selectedMembership.name;
     const membershipId = selectedMembership.id;
@@ -197,6 +208,7 @@ export default function RecordPaymentPage() {
     const payRef = reference;
     const payNotes = notes;
     const payReceipt = receiptUrl;
+    const payDate = paymentDate;
 
     try {
       const result = await recordPayment.mutateAsync({
@@ -208,6 +220,7 @@ export default function RecordPaymentPage() {
         reference_number: reference || undefined,
         receipt_url: receiptUrl && !receiptUrl.startsWith("pending:") ? receiptUrl : undefined,
         notes: notes || undefined,
+        payment_date: payDate,
         skipDuplicateCheck,
       });
 
@@ -219,7 +232,6 @@ export default function RecordPaymentPage() {
 
       // ─── Send payment receipt notifications ─────────────────────────────
       // Each channel is independent — one failing must NEVER block another.
-      console.log(`[Record Payment] Payment saved for ${memberName} (${membershipId}). Sending notifications...`);
       const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
       const formattedAmt = formatAmount(payAmount, currency);
       const dateStr = new Date().toLocaleDateString(getDateLocale(locale));
@@ -250,24 +262,25 @@ export default function RecordPaymentPage() {
               is_read: false,
               data: { amount: payAmount, currency, contribution_type: typeName, method: payMethod, reference: payRef || null },
             });
-          } catch (notifErr) {
-            console.error("[Record Payment] In-app notification insert failed:", notifErr);
+          } catch {
+            // Non-critical
           }
         }
-      } catch (resolveErr) {
-        console.error("[Record Payment] Could not resolve member data:", resolveErr);
+      } catch {
+        // Non-critical — continue without external notifications
       }
 
-      // External sends — completely independent of in-app notification success
+      // External sends — check member notification preferences first
       try {
         const supabase = createClient();
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        if (!token) {
-          console.log("[Record Payment] No session token — skipping external sends");
-        } else {
-          // Email + SMS: require user_id (real members only, not proxy)
-          if (recipientUserId) {
+        if (token) {
+          // Check member's notification channel preferences
+          const channels = await getEnabledChannels(supabase, recipientUserId, "payment_reminders", groupId || undefined);
+
+          // Email: require user_id (real members only) + member has email enabled
+          if (recipientUserId && channels.email) {
             fetch("/api/email/send", {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -288,7 +301,10 @@ export default function RecordPaymentPage() {
                 locale,
               }),
             }).catch(() => {});
+          }
 
+          // SMS: require user_id (real members only) + member has SMS enabled
+          if (recipientUserId && channels.sms) {
             fetch("/api/sms/send", {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -301,11 +317,10 @@ export default function RecordPaymentPage() {
             }).catch(() => {});
           }
 
-          // WhatsApp: send to ANY member with a phone number (including proxy members)
-          // Uses user_id (resolved to phone server-side) OR direct phone number
+          // WhatsApp: send to ANY member with a phone (including proxy members)
+          // For proxy members (no userId), channels.whatsapp defaults to true
           const waRecipient = recipientUserId || recipientPhone;
-          if (waRecipient) {
-            console.log(`[WhatsApp] Triggering /api/whatsapp/send for ${memberName} (to=${waRecipient})`);
+          if (waRecipient && channels.whatsapp) {
             fetch("/api/whatsapp/send", {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -315,18 +330,11 @@ export default function RecordPaymentPage() {
                 data: { memberName, amount: formattedAmt, contributionType: typeName, groupName: currentGroup?.name || "", date: dateStr },
                 locale,
               }),
-            }).then(async (res) => {
-              const body = await res.json().catch(() => ({}));
-              console.log(`[WhatsApp] Response: status=${res.status}`, JSON.stringify(body));
-            }).catch((err) => {
-              console.error("[WhatsApp] Fetch error:", err);
-            });
-          } else {
-            console.log(`[Record Payment] No phone or userId for WhatsApp — skipping for ${memberName}`);
+            }).catch(() => {});
           }
         }
-      } catch (extErr) {
-        console.error("[Record Payment] External notification error:", extErr);
+      } catch {
+        // Non-critical — notification failure must never block payment success
       }
 
       setLastSavedName(memberName);
@@ -337,6 +345,7 @@ export default function RecordPaymentPage() {
       setNotes("");
       setReceiptUrl("");
       setAmount("");
+      setPaymentDate(new Date().toISOString().split("T")[0]);
 
       if (!keepTypeAndMethod) {
         setSelectedTypeId("");
@@ -835,6 +844,23 @@ export default function RecordPaymentPage() {
                   </Button>
                 </div>
               </div>
+            </div>
+
+            {/* Bug #124: Payment Date */}
+            <div className="space-y-2">
+              <Label>{t("contributions.paymentDate")}</Label>
+              <Input
+                type="date"
+                value={paymentDate}
+                max={new Date().toISOString().split("T")[0]}
+                onChange={(e) => {
+                  setPaymentDate(e.target.value);
+                  setPaymentDateError(null);
+                }}
+              />
+              {paymentDateError && (
+                <p className="text-xs text-destructive">{paymentDateError}</p>
+              )}
             </div>
 
             {/* Notes */}

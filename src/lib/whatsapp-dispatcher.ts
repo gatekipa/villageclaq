@@ -205,7 +205,6 @@ export async function dispatchWhatsApp(
       return false;
     }
 
-    console.log(`[WhatsApp Dispatch] type=${type} phone=${formatted} locale=${locale}`);
     const components = buildComponents(type, data);
 
     const result = await sendWhatsAppMessage({

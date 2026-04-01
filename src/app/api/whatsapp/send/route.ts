@@ -55,9 +55,7 @@ export async function POST(request: Request) {
     let recipientPhone: string = to;
 
     if (UUID_REGEX.test(to)) {
-      console.log(`[WhatsApp API] Resolving UUID ${to} to phone number`);
       if (!supabaseServiceKey) {
-        console.error("[WhatsApp API] SUPABASE_SERVICE_ROLE_KEY not set — cannot resolve UUID to phone");
         return NextResponse.json(
           { success: false, error: "Service role key not configured" },
           { status: 500 },
@@ -71,14 +69,12 @@ export async function POST(request: Request) {
         .single();
 
       if (!profile?.phone) {
-        console.log(`[WhatsApp API] No phone found for UUID ${to}`);
         return NextResponse.json(
           { success: false, error: "No phone number found for user" },
           { status: 400 },
         );
       }
       recipientPhone = profile.phone;
-      console.log(`[WhatsApp API] Resolved UUID to phone: ${recipientPhone}`);
     }
 
     // Route 1: Typed dispatch (recommended)

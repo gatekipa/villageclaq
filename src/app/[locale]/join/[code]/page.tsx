@@ -37,19 +37,31 @@ export default function JoinPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
         // Redirect to signup with return URL so they come back after login
-        router.push(`/signup?redirect=/join/${code}`);
+        router.push(`/signup?redirectTo=/join/${code}`);
         return;
       }
 
       // Look up join code
       const { data: joinCode, error: codeErr } = await supabase
         .from("join_codes")
-        .select("id, group_id, code, is_active, max_uses, use_count")
+        .select("id, group_id, code, is_active, max_uses, use_count, expires_at")
         .eq("code", code)
         .eq("is_active", true)
         .maybeSingle();
 
       if (codeErr || !joinCode) {
+        setStatus("not_found");
+        return;
+      }
+
+      // Check expiry
+      if (joinCode.expires_at && new Date(joinCode.expires_at) < new Date()) {
+        setStatus("not_found");
+        return;
+      }
+
+      // Check max uses (0 or null = unlimited)
+      if (joinCode.max_uses && joinCode.max_uses > 0 && joinCode.use_count >= joinCode.max_uses) {
         setStatus("not_found");
         return;
       }
@@ -91,7 +103,7 @@ export default function JoinPage() {
 
     if (!user) {
       // Not logged in — redirect to signup with return URL
-      router.push(`/signup?redirect=/join/${code}`);
+      router.push(`/signup?redirectTo=/join/${code}`);
       return;
     }
 
@@ -128,11 +140,26 @@ export default function JoinPage() {
       return;
     }
 
-    // Increment use count (non-critical)
+    // Increment use count via raw SQL to avoid race conditions (non-critical)
     try {
-      await supabase.from("join_codes").update({ use_count: (group.member_count + 1) }).eq("code", code);
+      await supabase.rpc("increment_join_code_use_count", { p_code: code });
     } catch {
-      // Ignore — non-critical
+      // Fallback: read current count and increment
+      try {
+        const { data: codeData } = await supabase
+          .from("join_codes")
+          .select("use_count")
+          .eq("code", code)
+          .single();
+        if (codeData) {
+          await supabase
+            .from("join_codes")
+            .update({ use_count: (codeData.use_count || 0) + 1 })
+            .eq("code", code);
+        }
+      } catch {
+        // Ignore — non-critical
+      }
     }
 
     setStatus("joined");

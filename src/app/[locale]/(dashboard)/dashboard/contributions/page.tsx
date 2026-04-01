@@ -89,6 +89,8 @@ export default function ContributionsPage() {
   const [formFrequency, setFormFrequency] = useState("monthly");
   const [formDueDay, setFormDueDay] = useState("");
   const [formEnrollAll, setFormEnrollAll] = useState(true);
+  const [formIsFlexible, setFormIsFlexible] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
 
@@ -110,17 +112,26 @@ export default function ContributionsPage() {
     setFormFrequency("monthly");
     setFormDueDay("");
     setFormEnrollAll(true);
+    setFormIsFlexible(false);
+    setFormError(null);
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!formName || !formAmount) return;
+    setFormError(null);
+    if (!formName) return;
+    // Bug #118: Validate amount > 0 for non-flexible types
+    const amt = Number(formAmount);
+    if (!formIsFlexible && (isNaN(amt) || amt <= 0)) {
+      setFormError(t("contributions.amountMustBePositive"));
+      return;
+    }
     try {
       await createMutation.mutateAsync({
         name: formName,
         name_fr: formNameFr || undefined,
         description: formDescription || undefined,
-        amount: Number(formAmount),
+        amount: formIsFlexible ? (amt || 0) : amt,
         currency: formCurrency,
         frequency: formFrequency,
         due_day: formDueDay ? Number(formDueDay) : undefined,
@@ -142,12 +153,19 @@ export default function ContributionsPage() {
     setFormCurrency((type.currency as string) || currentGroup?.currency || "XAF");
     setFormFrequency((type.frequency as string) || "monthly");
     setFormDueDay(type.due_day ? String(type.due_day) : "");
+    setFormIsFlexible(!!type.is_flexible);
     setShowEditDialog(true);
   }
 
   async function handleEditSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!editTypeId || !formName || !formAmount) return;
+    setFormError(null);
+    if (!editTypeId || !formName) return;
+    const amt = Number(formAmount);
+    if (!formIsFlexible && (isNaN(amt) || amt <= 0)) {
+      setFormError(t("contributions.amountMustBePositive"));
+      return;
+    }
     setEditSaving(true);
     try {
       const supabase = createClient();
@@ -429,6 +447,19 @@ export default function ContributionsPage() {
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
+                    id="flexibleAmount"
+                    checked={formIsFlexible}
+                    onChange={(e) => setFormIsFlexible(e.target.checked)}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  <div>
+                    <Label htmlFor="flexibleAmount">{t("contributions.flexibleAmount")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("contributions.flexibleAmountHint")}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
                     id="enrollAll"
                     checked={formEnrollAll}
                     onChange={(e) => setFormEnrollAll(e.target.checked)}
@@ -436,6 +467,9 @@ export default function ContributionsPage() {
                   />
                   <Label htmlFor="enrollAll">{t("contributions.enrollAll")}</Label>
                 </div>
+                {formError && (
+                  <p className="text-sm text-destructive">{formError}</p>
+                )}
                 {createMutation.isError && (
                   <p className="text-sm text-destructive">
                     {(createMutation.error as Error)?.message || t("contributions.createFailed")}
@@ -621,6 +655,20 @@ export default function ContributionsPage() {
               <Label htmlFor="edit-dueDay">{t("contributions.dueDay")}</Label>
               <Input id="edit-dueDay" type="number" min="1" max="31" value={formDueDay} onChange={(e) => setFormDueDay(e.target.value)} />
             </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="edit-flexibleAmount"
+                checked={formIsFlexible}
+                onChange={(e) => setFormIsFlexible(e.target.checked)}
+                className="h-4 w-4 rounded border-input"
+              />
+              <div>
+                <Label htmlFor="edit-flexibleAmount">{t("contributions.flexibleAmount")}</Label>
+                <p className="text-xs text-muted-foreground">{t("contributions.flexibleAmountHint")}</p>
+              </div>
+            </div>
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
             {editError && <p className="text-sm text-destructive">{editError}</p>}
             <DialogFooter>
               <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>

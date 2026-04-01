@@ -66,6 +66,7 @@ import {
   Activity,
   HelpCircle,
   Contact,
+  Trash2,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -282,6 +283,16 @@ export default function MemberDetailPage() {
   const [actionSaving, setActionSaving] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
 
+  // Family dialog state
+  const [familyDialogOpen, setFamilyDialogOpen] = useState(false);
+  const [editingFamily, setEditingFamily] = useState<{ id: string; name: string; relationship: string; date_of_birth: string | null; notes: string | null } | null>(null);
+  const [familyName, setFamilyName] = useState("");
+  const [familyRelationship, setFamilyRelationship] = useState("spouse");
+  const [familyDob, setFamilyDob] = useState("");
+  const [familyNotes, setFamilyNotes] = useState("");
+  const [familySaving, setFamilySaving] = useState(false);
+  const [deletingFamilyId, setDeletingFamilyId] = useState<string | null>(null);
+
   // Edit form state
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editTitle, setEditTitle] = useState("");
@@ -396,6 +407,66 @@ export default function MemberDetailPage() {
       showError((err as Error).message || t("common.error"));
     } finally {
       setActionSaving(false);
+    }
+  }
+
+  // ─── Family handlers ─────────────────────────────────────────────────────
+
+  function openFamilyDialog(fm?: { id: string; name: string; relationship: string; date_of_birth: string | null; notes: string | null }) {
+    if (fm) {
+      setEditingFamily(fm);
+      setFamilyName(fm.name);
+      setFamilyRelationship(fm.relationship);
+      setFamilyDob(fm.date_of_birth || "");
+      setFamilyNotes(fm.notes || "");
+    } else {
+      setEditingFamily(null);
+      setFamilyName("");
+      setFamilyRelationship("spouse");
+      setFamilyDob("");
+      setFamilyNotes("");
+    }
+    setFamilyDialogOpen(true);
+  }
+
+  async function handleSaveFamily() {
+    if (!familyName.trim() || !membershipId) return;
+    setFamilySaving(true);
+    try {
+      const payload = {
+        membership_id: membershipId,
+        name: familyName.trim(),
+        relationship: familyRelationship,
+        date_of_birth: familyDob || null,
+        notes: familyNotes.trim() || null,
+      };
+      if (editingFamily) {
+        const { error } = await supabase.from("family_members").update(payload).eq("id", editingFamily.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("family_members").insert(payload);
+        if (error) throw error;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["member-family", membershipId] });
+      setFamilyDialogOpen(false);
+    } catch (err) {
+      showError((err as Error).message || t("common.error"));
+    } finally {
+      setFamilySaving(false);
+    }
+  }
+
+  async function handleDeleteFamily(fm: { id: string; name: string }) {
+    if (!confirm(t("members.deleteFamilyMemberConfirm", { name: fm.name }))) return;
+    setDeletingFamilyId(fm.id);
+    try {
+      const { error } = await supabase.from("family_members").delete().eq("id", fm.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["member-family", membershipId] });
+    } catch (err) {
+      showError((err as Error).message || t("common.error"));
+    } finally {
+      setDeletingFamilyId(null);
     }
   }
 
@@ -880,11 +951,16 @@ export default function MemberDetailPage() {
 
       {/* ═══════════════════════ SECTION 9: FAMILY & DEPENDENTS ═══════════════════════ */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Contact className="h-4 w-4 text-primary" />
             {t("members.familyDependents")}
           </CardTitle>
+          {(hasPermission("members.manage") || isOwner) && (
+            <Button variant="outline" size="sm" onClick={() => openFamilyDialog()}>
+              {t("members.addFamilyMember")}
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {familyMembers.length === 0 ? (
@@ -905,6 +981,22 @@ export default function MemberDetailPage() {
                     <span className="text-xs text-muted-foreground shrink-0">
                       {new Date(fm.date_of_birth).toLocaleDateString(getDateLocale(locale))}
                     </span>
+                  )}
+                  {(hasPermission("members.manage") || isOwner) && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openFamilyDialog(fm)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        disabled={deletingFamilyId === fm.id}
+                        onClick={() => handleDeleteFamily(fm)}
+                      >
+                        {deletingFamilyId === fm.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -1172,6 +1264,51 @@ export default function MemberDetailPage() {
               }}
             >
               {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Family Member Dialog */}
+      <Dialog open={familyDialogOpen} onOpenChange={(open) => { setFamilyDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingFamily ? t("members.editFamilyMember") : t("members.addFamilyMember")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("members.familyName")} <span className="text-red-500">*</span></Label>
+              <Input value={familyName} onChange={(e) => setFamilyName(e.target.value)} placeholder={t("members.familyName")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("members.familyRelationship")}</Label>
+              <Select value={familyRelationship} onValueChange={(v) => setFamilyRelationship(v ?? "")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="spouse">{t("members.familyRelSpouse")}</SelectItem>
+                  <SelectItem value="child">{t("members.familyRelChild")}</SelectItem>
+                  <SelectItem value="parent">{t("members.familyRelParent")}</SelectItem>
+                  <SelectItem value="sibling">{t("members.familyRelSibling")}</SelectItem>
+                  <SelectItem value="other">{t("members.familyRelOther")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("members.familyDateOfBirth")}</Label>
+              <Input type="date" value={familyDob} onChange={(e) => setFamilyDob(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("members.familyNotes")}</Label>
+              <Textarea value={familyNotes} onChange={(e) => setFamilyNotes(e.target.value)} placeholder={t("members.familyNotes")} rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFamilyDialogOpen(false)}>{t("common.cancel")}</Button>
+            <Button disabled={familySaving || !familyName.trim()} onClick={handleSaveFamily}>
+              {familySaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("common.save")}
             </Button>
           </DialogFooter>

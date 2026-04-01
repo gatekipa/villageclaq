@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { useGroup } from "@/lib/group-context";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { Shield } from "lucide-react";
 
@@ -71,8 +72,11 @@ export function RequirePermission({
   children: ReactNode;
 }) {
   const { hasPermission, hasAnyPermission, isLoading } = usePermissions();
+  const { loading: groupLoading } = useGroup();
 
-  if (isLoading) return <DashboardSkeleton />;
+  // Bug #286: Wait for group context to load before checking permissions
+  // Without this, isAdmin is false during loading → shows Access Denied flash
+  if (isLoading || groupLoading) return <DashboardSkeleton />;
 
   const allowed = permission
     ? hasPermission(permission)

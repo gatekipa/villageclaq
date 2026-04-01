@@ -136,6 +136,7 @@ export default function ContributionsPage() {
         frequency: formFrequency,
         due_day: formDueDay ? Number(formDueDay) : undefined,
         enroll_all_members: formEnrollAll,
+        is_flexible: formIsFlexible,
       });
       setShowCreate(false);
       resetForm();
@@ -179,6 +180,7 @@ export default function ContributionsPage() {
           currency: formCurrency,
           frequency: formFrequency,
           due_day: formDueDay ? Number(formDueDay) : null,
+          is_flexible: formIsFlexible,
         })
         .eq("id", editTypeId);
       if (error) throw error;

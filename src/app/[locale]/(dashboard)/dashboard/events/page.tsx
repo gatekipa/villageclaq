@@ -41,6 +41,7 @@ import {
   Copy,
   AlertCircle,
   Search,
+  Video,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -165,6 +166,8 @@ export default function EventsPage() {
   }
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<"date" | "name">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Create form state
   const [formTitle, setFormTitle] = useState("");
@@ -174,6 +177,7 @@ export default function EventsPage() {
   const [formStartsAt, setFormStartsAt] = useState("");
   const [formEndsAt, setFormEndsAt] = useState("");
   const [formLocation, setFormLocation] = useState("");
+  const [formMeetingLink, setFormMeetingLink] = useState("");
   const [formIsRecurring, setFormIsRecurring] = useState(false);
   const [formRecurrenceRule, setFormRecurrenceRule] = useState<string>("monthly");
   // Attendance is tracked for all events by default (no per-event toggle — no DB column exists)
@@ -204,8 +208,18 @@ export default function EventsPage() {
         return normalizeSearch(title).includes(q) || normalizeSearch(titleFr).includes(q) || normalizeSearch(location).includes(q);
       });
     }
+    // Sort
+    result = [...result].sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      let cmp = 0;
+      if (sortField === "date") {
+        cmp = new Date(a.starts_at as string).getTime() - new Date(b.starts_at as string).getTime();
+      } else {
+        cmp = ((a.title as string) || "").localeCompare((b.title as string) || "");
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
     return result;
-  }, [events, filter, now, searchQuery]);
+  }, [events, filter, now, searchQuery, sortField, sortDir]);
 
   const eventsInMonth = useMemo(() => {
     if (!events) return [];
@@ -229,6 +243,7 @@ export default function EventsPage() {
     setFormStartsAt("");
     setFormEndsAt("");
     setFormLocation("");
+    setFormMeetingLink("");
     setFormIsRecurring(false);
     setFormRecurrenceRule("monthly");
     setPreFilledBanner(null);
@@ -251,6 +266,7 @@ export default function EventsPage() {
     setFormDescription(lastEvent.description as string || "");
     setFormEventType((lastEvent.event_type as EventType) || "meeting");
     setFormLocation(lastEvent.location as string || "");
+    setFormMeetingLink(lastEvent.meeting_link as string || "");
     setFormIsRecurring(!!lastEvent.is_recurring);
     setFormRecurrenceRule((lastEvent.recurrence_rule as string) || "monthly");
 
@@ -300,6 +316,7 @@ export default function EventsPage() {
         starts_at: new Date(formStartsAt).toISOString(),
         ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : null,
         location: formLocation || null,
+        meeting_link: formMeetingLink || null,
         is_recurring: formIsRecurring,
         recurrence_rule: formIsRecurring ? formRecurrenceRule : null,
       });
@@ -327,6 +344,7 @@ export default function EventsPage() {
       setFormEndsAt("");
     }
     setFormLocation((event.location as string) || "");
+    setFormMeetingLink((event.meeting_link as string) || "");
     setFormIsRecurring(!!(event.is_recurring));
     setFormRecurrenceRule((event.recurrence_rule as string) || "monthly");
     setShowCreateDialog(true);
@@ -347,6 +365,7 @@ export default function EventsPage() {
           starts_at: new Date(formStartsAt).toISOString(),
           ends_at: formEndsAt ? new Date(formEndsAt).toISOString() : null,
           location: formLocation || null,
+          meeting_link: formMeetingLink || null,
           is_recurring: formIsRecurring,
           recurrence_rule: formIsRecurring ? formRecurrenceRule : null,
         })
@@ -372,6 +391,31 @@ export default function EventsPage() {
       const { error: err } = await supabase.from("events").update({ status: "cancelled" }).eq("id", eventId);
       if (err) throw err;
       await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
+
+      // Bug #231: Send cancellation notification to all RSVPd members
+      try {
+        const { data: rsvps } = await supabase
+          .from("event_rsvps")
+          .select("membership_id")
+          .eq("event_id", eventId)
+          .eq("response", "yes");
+
+        const cancelledEvent = (events || []).find((e: Record<string, unknown>) => e.id === eventId);
+        const eventTitle = (cancelledEvent?.title as string) || "";
+
+        if (rsvps && rsvps.length > 0) {
+          await supabase.from("notifications").insert(
+            rsvps.map((r) => ({
+              group_id: groupId,
+              membership_id: r.membership_id,
+              type: "event_cancelled",
+              title: t("eventCancelledNotifTitle"),
+              message: t("eventCancelledNotifBody", { title: eventTitle }),
+              is_read: false,
+            }))
+          );
+        }
+      } catch { /* best-effort notification */ }
     } catch (err) {
       showError((err as Error).message || tc("error"));
     } finally {
@@ -438,11 +482,28 @@ export default function EventsPage() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder={t("searchEvents")}
+          placeholder={t("searchEventsPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9"
         />
+      </div>
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">{t("sortBy")}:</span>
+        <Button
+          variant={sortField === "date" ? "default" : "outline"}
+          size="sm"
+          onClick={() => { setSortField("date"); setSortDir(prev => sortField === "date" ? (prev === "desc" ? "asc" : "desc") : "desc"); }}
+        >
+          {t("sortByDate")} {sortField === "date" && (sortDir === "desc" ? "\u2193" : "\u2191")}
+        </Button>
+        <Button
+          variant={sortField === "name" ? "default" : "outline"}
+          size="sm"
+          onClick={() => { setSortField("name"); setSortDir(prev => sortField === "name" ? (prev === "desc" ? "asc" : "desc") : "asc"); }}
+        >
+          {t("sortByName")} {sortField === "name" && (sortDir === "desc" ? "\u2193" : "\u2191")}
+        </Button>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-2">
@@ -628,6 +689,17 @@ export default function EventsPage() {
                                 {String(event.location)}
                               </span>
                             ) : null}
+                            {event.meeting_link ? (
+                              <a
+                                href={event.meeting_link as string}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-primary hover:underline"
+                              >
+                                <Video className="h-3.5 w-3.5" />
+                                {t("joinMeeting")}
+                              </a>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -812,6 +884,17 @@ export default function EventsPage() {
                 onChange={(e) => setFormLocation(e.target.value)}
                 placeholder={t("locationPlaceholder")}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("meetingLink")}</Label>
+              <Input
+                value={formMeetingLink}
+                onChange={(e) => setFormMeetingLink(e.target.value)}
+                placeholder={t("meetingLinkPlaceholder")}
+                type="url"
+              />
+              <p className="text-xs text-muted-foreground">{t("meetingLinkHint")}</p>
             </div>
 
             {/* Recurring toggle */}

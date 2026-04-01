@@ -124,7 +124,7 @@ export function useCreateContributionType() {
   const queryClient = useQueryClient();
   const { groupId, user } = useGroup();
   return useMutation({
-    mutationFn: async (values: { name: string; name_fr?: string; description?: string; amount: number; currency: string; frequency: string; due_day?: number; enroll_all_members: boolean }) => {
+    mutationFn: async (values: { name: string; name_fr?: string; description?: string; amount: number; currency: string; frequency: string; due_day?: number; enroll_all_members: boolean; is_flexible?: boolean }) => {
       if (!groupId || !user) throw new Error("No group/user");
       const { data, error } = await supabase.from("contribution_types").insert({
         ...values,

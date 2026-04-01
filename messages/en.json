@@ -134,6 +134,7 @@
     "attendance": "Attendance",
     "hosting": "Hosting",
     "minutes": "Meeting Minutes",
+    "meetings": "Meetings",
     "documents": "Documents",
     "relief": "Relief",
     "settings": "Settings",
@@ -1209,7 +1210,17 @@
     "deleteEventConfirm": "This will permanently delete this event. Are you sure?",
     "eventCancelled": "Event cancelled",
     "cancelEventConfirm": "This will cancel the event and notify attendees. Are you sure?",
-    "updateEvent": "Update Event"
+    "updateEvent": "Update Event",
+    "meetingLink": "Meeting Link",
+    "meetingLinkPlaceholder": "https://zoom.us/j/... or https://meet.google.com/...",
+    "meetingLinkHint": "Optional link for virtual meetings (Zoom, Google Meet, etc.)",
+    "joinMeeting": "Join Meeting",
+    "sortBy": "Sort by",
+    "sortByDate": "Date",
+    "sortByName": "Name",
+    "searchEventsPlaceholder": "Search events...",
+    "eventCancelledNotifTitle": "Event Cancelled",
+    "eventCancelledNotifBody": "The event \"{title}\" has been cancelled"
   },
   "attendance": {
     "title": "Attendance",
@@ -1269,7 +1280,12 @@
     "eventId": "Event ID",
     "pastRecords": "Past Attendance Records",
     "noRecordsYet": "No attendance has been recorded yet",
-    "membersRecorded": "{count} members recorded"
+    "membersRecorded": "{count} members recorded",
+    "exportAttendance": "Export CSV",
+    "eventName": "Event",
+    "memberName": "Member",
+    "status": "Status",
+    "checkInMethod": "Check-in Method"
   },
   "hosting": {
     "title": "Hosting Roster",
@@ -3645,7 +3661,9 @@
     "deleteDocument": "Delete Document",
     "confirmDeleteDocument": "Are you sure you want to delete this document? This action cannot be undone.",
     "documentDeleted": "Document deleted successfully",
-    "fileTooLarge": "File exceeds the 10MB size limit"
+    "fileTooLarge": "File exceeds the 10MB size limit",
+    "uploading": "Uploading...",
+    "uploadingHint": "Please wait while your file is being uploaded"
   },
   "memberCard": {
     "title": "Digital Membership Card",

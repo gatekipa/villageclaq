@@ -230,6 +230,7 @@ export default function ConstitutionPage() {
   const [acknowledging, setAcknowledging] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
   const [applyingAmendment, setApplyingAmendment] = useState(false);
   const [amendmentActionId, setAmendmentActionId] = useState<string | null>(null);
 
@@ -257,10 +258,22 @@ export default function ConstitutionPage() {
       if (draft) {
         await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", draft.id);
       } else {
-        await supabase.from("group_constitutions").insert({
-          group_id: groupId, title: editorTitle, content: editorContent,
-          version_number: currentVersion + 1, status: "draft",
-        });
+        // Check for existing draft first to avoid 409 conflict
+        const { data: existingDraft } = await supabase.from("group_constitutions")
+          .select("id")
+          .eq("group_id", groupId)
+          .eq("document_type", activeTitle || "Constitution")
+          .eq("status", "draft")
+          .maybeSingle();
+
+        if (existingDraft) {
+          await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", existingDraft.id);
+        } else {
+          await supabase.from("group_constitutions").insert({
+            group_id: groupId, title: editorTitle, content: editorContent,
+            version_number: currentVersion + 1, status: "draft",
+          });
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
       queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
@@ -415,22 +428,38 @@ export default function ConstitutionPage() {
       setActionError(t("fileTooLarge"));
       return;
     }
+    setFileUploading(true);
     try {
       const path = `constitutions/${groupId}/${Date.now()}-${file.name}`;
-      const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file);
+      const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file, { upsert: true });
       if (uploadErr) {
         setActionError(uploadErr.message);
         return;
       }
       const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
-      await supabase.from("group_constitutions").insert({
-        group_id: groupId, title: file.name.replace(/\.[^.]+$/, ""), file_url: urlData.publicUrl,
-        version_number: currentVersion + 1, status: "draft",
-      });
+      const { data: existingFileDraft } = await supabase.from("group_constitutions")
+        .select("id")
+        .eq("group_id", groupId)
+        .eq("document_type", activeTitle || "Constitution")
+        .eq("status", "draft")
+        .maybeSingle();
+
+      if (existingFileDraft) {
+        await supabase.from("group_constitutions").update({
+          title: file.name.replace(/\.[^.]+$/, ""), file_url: urlData.publicUrl,
+        }).eq("id", existingFileDraft.id);
+      } else {
+        await supabase.from("group_constitutions").insert({
+          group_id: groupId, title: file.name.replace(/\.[^.]+$/, ""), file_url: urlData.publicUrl,
+          version_number: currentVersion + 1, status: "draft",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
       queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
     } catch {
       setActionError(tc("error"));
+    } finally {
+      setFileUploading(false);
     }
   };
 
@@ -517,7 +546,10 @@ export default function ConstitutionPage() {
                 <Button onClick={handleStartEdit}><Pencil className="mr-2 h-4 w-4" />{t("writeConstitution")}</Button>
                 <div>
                   <input type="file" accept=".pdf,.doc,.docx" className="hidden" id="const-upload" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} />
-                  <Button variant="outline" onClick={() => document.getElementById("const-upload")?.click()}><Upload className="mr-2 h-4 w-4" />{t("uploadDocument")}</Button>
+                  <Button variant="outline" disabled={fileUploading} onClick={() => document.getElementById("const-upload")?.click()}>
+                    {fileUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                    {fileUploading ? tc("loading") : t("uploadDocument")}
+                  </Button>
                 </div>
               </div>
             ) : undefined} />

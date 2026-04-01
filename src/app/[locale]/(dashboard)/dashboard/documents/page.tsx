@@ -281,11 +281,20 @@ export default function DocumentVaultPage() {
               <p className="text-xs text-muted-foreground">{t("supportedFormats")}</p>
             </div>
             {mutationError && <p className="text-sm text-destructive">{mutationError}</p>}
+            {saving && (
+              <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div>
+                  <p className="text-sm font-medium">{t("uploading")}</p>
+                  <p className="text-xs text-muted-foreground">{t("uploadingHint")}</p>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button onClick={handleUpload} disabled={saving || !docTitle.trim() || !selectedFile}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-              {t("upload")}
+              {saving ? t("uploading") : t("upload")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -386,7 +395,23 @@ export default function DocumentVaultPage() {
                           <Eye className="mr-1.5 h-3.5 w-3.5" />
                           {t("preview")}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => { if (doc.file_url) window.open(doc.file_url as string, '_blank'); }}>
+                        <Button variant="outline" size="sm" onClick={async () => {
+                          if (!doc.file_url) return;
+                          try {
+                            const response = await fetch(doc.file_url as string);
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = (doc.title as string || "document") + (doc.file_type ? `.${doc.file_type}` : "");
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                          } catch {
+                            window.open(doc.file_url as string, '_blank');
+                          }
+                        }}>
                           <Download className="mr-1.5 h-3.5 w-3.5" />
                           {t("download")}
                         </Button>

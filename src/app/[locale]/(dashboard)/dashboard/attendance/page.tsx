@@ -37,6 +37,7 @@ import {
   ChevronUp,
   QrCode,
   RotateCcw,
+  Download,
 } from "lucide-react";
 import { useEvents, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -47,6 +48,7 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { getDateLocale } from "@/lib/date-utils";
+import { exportCSV } from "@/lib/export";
 import { QRCodeSVG } from "qrcode.react";
 
 type AttendanceStatus = "present" | "absent" | "excused" | "late";
@@ -394,12 +396,32 @@ export default function AttendancePage() {
             <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">{t("title")}</h1>
             <p className="text-muted-foreground">{t("subtitle")}</p>
           </div>
-          {hasPermission("attendance.manage") && (
-            <Button onClick={openRecordDialog}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t("recordAttendance")}
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {hasPermission("attendance.manage") && (
+              <Button variant="outline" onClick={() => {
+                if (!allAttendance.length || !events || !members) return;
+                const memberMap = new Map((members as Record<string, unknown>[]).map((m) => [m.id as string, getMemberName(m)]));
+                const eventMap = new Map((events as Record<string, unknown>[]).map((e) => [e.id as string, { title: e.title as string, date: (e.starts_at as string).split("T")[0] }]));
+                const rows = allAttendance.map((r) => ({
+                  [t("eventName")]: eventMap.get(r.event_id)?.title || "",
+                  [t("eventDate")]: eventMap.get(r.event_id)?.date || "",
+                  [t("memberName")]: memberMap.get(r.membership_id) || "",
+                  [t("status")]: r.status,
+                  [t("checkInMethod")]: r.checked_in_via,
+                }));
+                exportCSV(rows, `attendance-export-${new Date().toISOString().slice(0, 10)}`);
+              }}>
+                <Download className="mr-2 h-4 w-4" />
+                {t("exportAttendance")}
+              </Button>
+            )}
+            {hasPermission("attendance.manage") && (
+              <Button onClick={openRecordDialog}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("recordAttendance")}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Stat Cards */}

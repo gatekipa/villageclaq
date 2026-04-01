@@ -134,6 +134,7 @@
     "attendance": "Présence",
     "hosting": "Hébergement",
     "minutes": "Comptes rendus",
+    "meetings": "Réunions",
     "documents": "Documents",
     "relief": "Entraide",
     "settings": "Paramètres",
@@ -1209,7 +1210,17 @@
     "deleteEventConfirm": "Ceci supprimera définitivement cet événement. Êtes-vous sûr ?",
     "eventCancelled": "Événement annulé",
     "cancelEventConfirm": "Ceci annulera l'événement et notifiera les participants. Êtes-vous sûr ?",
-    "updateEvent": "Mettre à jour"
+    "updateEvent": "Mettre à jour",
+    "meetingLink": "Lien de réunion",
+    "meetingLinkPlaceholder": "https://zoom.us/j/... ou https://meet.google.com/...",
+    "meetingLinkHint": "Lien optionnel pour les réunions virtuelles (Zoom, Google Meet, etc.)",
+    "joinMeeting": "Rejoindre la réunion",
+    "sortBy": "Trier par",
+    "sortByDate": "Date",
+    "sortByName": "Nom",
+    "searchEventsPlaceholder": "Rechercher des événements...",
+    "eventCancelledNotifTitle": "Événement annulé",
+    "eventCancelledNotifBody": "L'événement « {title} » a été annulé"
   },
   "attendance": {
     "title": "Présence",
@@ -1269,7 +1280,12 @@
     "eventId": "ID de l'événement",
     "pastRecords": "Historique de présence",
     "noRecordsYet": "Aucune présence n'a encore été enregistrée",
-    "membersRecorded": "{count} membres enregistrés"
+    "membersRecorded": "{count} membres enregistrés",
+    "exportAttendance": "Exporter CSV",
+    "eventName": "Événement",
+    "memberName": "Membre",
+    "status": "Statut",
+    "checkInMethod": "Méthode d'enregistrement"
   },
   "hosting": {
     "title": "Tour d'hébergement",
@@ -3645,7 +3661,9 @@
     "deleteDocument": "Supprimer le document",
     "confirmDeleteDocument": "Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.",
     "documentDeleted": "Document supprimé avec succès",
-    "fileTooLarge": "Le fichier dépasse la limite de 10 Mo"
+    "fileTooLarge": "Le fichier dépasse la limite de 10 Mo",
+    "uploading": "Téléchargement en cours...",
+    "uploadingHint": "Veuillez patienter pendant le téléchargement de votre fichier"
   },
   "memberCard": {
     "title": "Carte de membre numérique",

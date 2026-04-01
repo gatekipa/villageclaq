@@ -730,7 +730,7 @@ export default function AnnouncementsPage() {
             action={canManageAnnouncements ? (
               <Button onClick={() => setDialogOpen(true)}>
                 <Megaphone className="mr-2 h-4 w-4" />
-                {t("create")}
+                {t("createAnnouncement")}
               </Button>
             ) : undefined}
           />

@@ -93,7 +93,7 @@ const adminSections: NavSection[] = [
       { key: "events", href: "/dashboard/events", icon: Calendar },
       { key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
       { key: "hosting", href: "/dashboard/hosting", icon: Home },
-      { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
+      { key: "meetings", href: "/dashboard/minutes", icon: BookOpen },
     ],
   },
   {
@@ -156,7 +156,7 @@ const memberSections: NavSection[] = [
     labelKey: "sectionGroup",
     items: [
       { key: "directory", href: "/dashboard/directory", icon: Users },
-      { key: "minutes", href: "/dashboard/minutes", icon: BookOpen },
+      { key: "meetings", href: "/dashboard/minutes", icon: BookOpen },
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },

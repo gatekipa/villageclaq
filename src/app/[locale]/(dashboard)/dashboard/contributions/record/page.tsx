@@ -217,9 +217,15 @@ export default function RecordPaymentPage() {
         setTimeout(() => setCascadeInfo(null), 8000); // longer display for cascade
       }
 
-      // Send payment receipt notification to the member
+      // ─── Send payment receipt notifications ─────────────────────────────
+      // Each channel is independent — one failing must NEVER block another.
       console.log(`[Record Payment] Payment saved for ${memberName} (${membershipId}). Sending notifications...`);
       const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
+      const formattedAmt = formatAmount(payAmount, currency);
+      const dateStr = new Date().toLocaleDateString(getDateLocale(locale));
+
+      // Resolve the member's user_id (needed for in-app + email routing)
+      let recipientUserId: string | null = null;
       try {
         const supabase = createClient();
         const { data: membership } = await supabase
@@ -227,94 +233,91 @@ export default function RecordPaymentPage() {
           .select("user_id")
           .eq("id", membershipId)
           .single();
-        if (membership?.user_id) {
-          const formattedAmt = formatAmount(payAmount, currency);
-          await supabase.from("notifications").insert({
-            user_id: membership.user_id,
-            group_id: groupId,
-            type: "contribution_received",
-            title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
-            body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: payMethod, reference: payRef || "N/A" }),
-            is_read: false,
-            data: { amount: payAmount, currency, contribution_type: typeName, method: payMethod, reference: payRef || null },
-          });
+        recipientUserId = membership?.user_id || null;
 
+        // In-app notification (best-effort, never blocks external sends)
+        if (recipientUserId) {
           try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-              const dateStr = new Date().toLocaleDateString(getDateLocale(locale));
-              // Email (fire-and-forget)
-              fetch("/api/email/send", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  to: membership.user_id,
-                  template: "payment-receipt",
-                  data: {
-                    memberName,
-                    groupName: currentGroup?.name || "",
-                    amount: formattedAmt,
-                    contributionType: typeName,
-                    paymentMethod: payMethod,
-                    date: dateStr,
-                    reference: payRef || undefined,
-                    recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
-                    paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
-                  },
-                  locale,
-                }),
-              }).catch(() => {});
-
-              // SMS (fire-and-forget)
-              fetch("/api/sms/send", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  to: membership.user_id,
-                  template: "payment-receipt",
-                  data: {
-                    groupName: currentGroup?.name || "",
-                    amount: formattedAmt,
-                    contributionType: typeName,
-                  },
-                  locale,
-                }),
-              }).catch(() => {});
-
-              // WhatsApp (fire-and-forget)
-              console.log(`[WhatsApp] About to call /api/whatsapp/send for ${memberName} (${membership.user_id})`);
-              fetch("/api/whatsapp/send", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  to: membership.user_id,
-                  type: "payment_receipt",
-                  data: {
-                    memberName,
-                    amount: formattedAmt,
-                    contributionType: typeName,
-                    groupName: currentGroup?.name || "",
-                    date: dateStr,
-                  },
-                  locale,
-                }),
-              }).catch(() => {});
-            }
-          } catch {
-            // Notifications are non-critical
+            await supabase.from("notifications").insert({
+              user_id: recipientUserId,
+              group_id: groupId,
+              type: "contribution_received",
+              title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
+              body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: payMethod, reference: payRef || "N/A" }),
+              is_read: false,
+              data: { amount: payAmount, currency, contribution_type: typeName, method: payMethod, reference: payRef || null },
+            });
+          } catch (notifErr) {
+            console.error("[Record Payment] In-app notification insert failed:", notifErr);
           }
         }
       } catch {
-        // Non-critical
+        // Could not resolve user_id — external sends will use membershipId fallback
+      }
+
+      // External sends — completely independent of in-app notification success
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        if (token && recipientUserId) {
+          // Email (fire-and-forget)
+          fetch("/api/email/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              to: recipientUserId,
+              template: "payment-receipt",
+              data: {
+                memberName,
+                groupName: currentGroup?.name || "",
+                amount: formattedAmt,
+                contributionType: typeName,
+                paymentMethod: payMethod,
+                date: dateStr,
+                reference: payRef || undefined,
+                recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
+                paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
+              },
+              locale,
+            }),
+          }).catch(() => {});
+
+          // SMS (fire-and-forget)
+          fetch("/api/sms/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              to: recipientUserId,
+              template: "payment-receipt",
+              data: { groupName: currentGroup?.name || "", amount: formattedAmt, contributionType: typeName },
+              locale,
+            }),
+          }).catch(() => {});
+
+          // WhatsApp (fire-and-forget)
+          console.log(`[WhatsApp] Triggering /api/whatsapp/send for ${memberName} (userId=${recipientUserId})`);
+          fetch("/api/whatsapp/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              to: recipientUserId,
+              type: "payment_receipt",
+              data: { memberName, amount: formattedAmt, contributionType: typeName, groupName: currentGroup?.name || "", date: dateStr },
+              locale,
+            }),
+          }).then(async (res) => {
+            const body = await res.json().catch(() => ({}));
+            console.log(`[WhatsApp] Response: status=${res.status}`, JSON.stringify(body));
+          }).catch((err) => {
+            console.error("[WhatsApp] Fetch error:", err);
+          });
+        } else {
+          console.log(`[Record Payment] Skipping external sends — token=${!!token} userId=${recipientUserId}`);
+        }
+      } catch (extErr) {
+        console.error("[Record Payment] External notification error:", extErr);
       }
 
       setLastSavedName(memberName);

@@ -1653,7 +1653,18 @@
     "eventType_agm": "AGM",
     "eventType_emergency": "Emergency",
     "eventType_other": "Other",
-    "deletePublishedConfirm": "This is a published record visible to all members. Deleting it cannot be undone. Are you sure?"
+    "deletePublishedConfirm": "This is a published record visible to all members. Deleting it cannot be undone. Are you sure?",
+    "sortByDate": "Date",
+    "sortByTitle": "Title",
+    "joinMeeting": "Join Meeting",
+    "recurringMeeting": "Recurring",
+    "cancelMeeting": "Cancel Meeting",
+    "cancelMeetingHint": "Cancels the linked event and notifies attendees",
+    "cancelMeetingConfirm": "Cancel this meeting? This will mark the event as cancelled and notify all RSVPd members.",
+    "meetingCancelled": "Meeting Cancelled",
+    "meetingCancelledNotifTitle": "Meeting Cancelled",
+    "meetingCancelledNotifBody": "The meeting \"{title}\" has been cancelled.",
+    "recurringHint": "To schedule recurring meetings, go to Events → Create Event → set recurrence."
   },
   "standing": {
     "standingCard": "Member Standing Card",

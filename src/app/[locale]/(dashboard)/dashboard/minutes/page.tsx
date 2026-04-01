@@ -41,6 +41,9 @@ import {
   Info,
   AlertCircle,
   Trash2,
+  ExternalLink,
+  ArrowUpDown,
+  Ban,
 } from "lucide-react";
 import { useMeetingMinutes, useEvents, useMembers } from "@/lib/hooks/use-supabase-query";
 import { getMemberName } from "@/lib/get-member-name";
@@ -67,6 +70,9 @@ interface EventRecord {
   event_type?: string;
   status?: string;
   location?: string;
+  meeting_link?: string;
+  is_recurring?: boolean;
+  recurrence_rule?: string;
 }
 
 interface DecisionItem {
@@ -135,6 +141,15 @@ function formatDateTime(dateStr: string, locale: string = "en") {
   }
 }
 
+function isUrl(str: string): boolean {
+  try {
+    const url = new URL(str);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 export default function MinutesPage() {
@@ -164,6 +179,9 @@ export default function MinutesPage() {
   } = useEvents();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<"date" | "title">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [cancellingMeeting, setCancellingMeeting] = useState(false);
 
   // Action error notification
   const [actionError, setActionError] = useState<string | null>(null);
@@ -224,23 +242,63 @@ export default function MinutesPage() {
       });
     }
 
-    // Search filter (accent-insensitive)
+    // Search filter (accent-insensitive) — searches event title + minutes content
     if (searchQuery.trim()) {
       const q = normalizeSearch(searchQuery);
-      list = list.filter(
-        (e) =>
-          normalizeSearch(e.title).includes(q) ||
-          (e.title_fr && normalizeSearch(e.title_fr).includes(q))
-      );
+      list = list.filter((e) => {
+        if (normalizeSearch(e.title).includes(q)) return true;
+        if (e.title_fr && normalizeSearch(e.title_fr).includes(q)) return true;
+        // Also search inside the linked minutes content
+        const m = minutesByEventId[e.id];
+        if (m) {
+          if (m.title && normalizeSearch(m.title).includes(q)) return true;
+          if (m.content_json?.text && normalizeSearch(m.content_json.text).includes(q)) return true;
+          if (m.content_json?.chaired_by && normalizeSearch(m.content_json.chaired_by).includes(q)) return true;
+        }
+        return false;
+      });
     }
 
-    return list;
-  }, [events, hasPermission("minutes.manage"), minutesByEventId, searchQuery]);
+    // Sort
+    list = [...list].sort((a, b) => {
+      if (sortField === "date") {
+        const da = new Date(a.starts_at).getTime();
+        const db = new Date(b.starts_at).getTime();
+        return sortDir === "desc" ? db - da : da - db;
+      }
+      const ta = (locale === "fr" && a.title_fr ? a.title_fr : a.title).toLowerCase();
+      const tb = (locale === "fr" && b.title_fr ? b.title_fr : b.title).toLowerCase();
+      return sortDir === "desc" ? tb.localeCompare(ta) : ta.localeCompare(tb);
+    });
 
-  // Standalone minutes (no event_id)
+    return list;
+  }, [events, hasPermission("minutes.manage"), minutesByEventId, searchQuery, sortField, sortDir, locale]);
+
+  // Standalone minutes (no event_id) — also filtered by search
   const standaloneMinutes = useMemo(() => {
-    return minutes.filter((m) => !m.event_id);
-  }, [minutes]);
+    let list = minutes.filter((m) => !m.event_id);
+    if (searchQuery.trim()) {
+      const q = normalizeSearch(searchQuery);
+      list = list.filter((m) => {
+        if (m.title && normalizeSearch(m.title).includes(q)) return true;
+        if (m.content_json?.text && normalizeSearch(m.content_json.text).includes(q)) return true;
+        if (m.content_json?.chaired_by && normalizeSearch(m.content_json.chaired_by).includes(q)) return true;
+        return false;
+      });
+    }
+    // Sort standalone
+    list = [...list].sort((a, b) => {
+      if (sortField === "date") {
+        const da = new Date(a.created_at).getTime();
+        const db = new Date(b.created_at).getTime();
+        return sortDir === "desc" ? db - da : da - db;
+      }
+      const ta = (a.title || "").toLowerCase();
+      const tb = (b.title || "").toLowerCase();
+      return sortDir === "desc" ? tb.localeCompare(ta) : ta.localeCompare(tb);
+    });
+    return list;
+  }, [minutes, searchQuery, sortField, sortDir]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
   const selectedMinutes = standaloneMode
@@ -597,6 +655,48 @@ export default function MinutesPage() {
     }
   };
 
+  // ─── Cancel meeting (linked event) ─────────────────────────────────────
+
+  const handleCancelMeeting = async () => {
+    if (!selectedEvent || !groupId || cancellingMeeting) return;
+    if (!confirm(t("cancelMeetingConfirm"))) return;
+    setCancellingMeeting(true);
+    try {
+      const { error: err } = await supabase
+        .from("events")
+        .update({ status: "cancelled" })
+        .eq("id", selectedEvent.id);
+      if (err) throw err;
+      // Notify RSVPd members
+      try {
+        const { data: rsvps } = await supabase
+          .from("event_rsvps")
+          .select("membership_id")
+          .eq("event_id", selectedEvent.id)
+          .eq("response", "yes");
+        if (rsvps && rsvps.length > 0) {
+          await supabase.from("notifications").insert(
+            rsvps.map((r) => ({
+              group_id: groupId,
+              membership_id: r.membership_id,
+              type: "event_cancelled",
+              title: t("meetingCancelledNotifTitle"),
+              message: t("meetingCancelledNotifBody", { title: selectedEvent.title }),
+              is_read: false,
+            }))
+          );
+        }
+      } catch { /* best-effort notification */ }
+      await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
+      setSelectedEventId(null);
+      setEditMode(false);
+    } catch (err) {
+      showError((err as Error).message || tc("error"));
+    } finally {
+      setCancellingMeeting(false);
+    }
+  };
+
   // ─── Attendee helpers ───────────────────────────────────────────────────
 
   const addAttendee = (membershipId: string) => {
@@ -774,6 +874,39 @@ export default function MinutesPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
             />
+          </div>
+
+          {/* Sort controls */}
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <Button
+              variant={sortField === "date" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                if (sortField === "date") {
+                  setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+                } else {
+                  setSortField("date");
+                  setSortDir("desc");
+                }
+              }}
+            >
+              {t("sortByDate")} {sortField === "date" && (sortDir === "desc" ? "↓" : "↑")}
+            </Button>
+            <Button
+              variant={sortField === "title" ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                if (sortField === "title") {
+                  setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+                } else {
+                  setSortField("title");
+                  setSortDir("asc");
+                }
+              }}
+            >
+              {t("sortByTitle")} {sortField === "title" && (sortDir === "desc" ? "↓" : "↑")}
+            </Button>
           </div>
 
           {/* New Standalone Minutes button */}
@@ -1414,19 +1547,38 @@ export default function MinutesPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Meeting details */}
-                <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-3">
+                <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>{selectedEvent ? formatDateTime(selectedEvent.starts_at) : formatDate(selectedMinutes.created_at)}</span>
                   </div>
-                  {(selectedMinutes.content_json?.location ||
-                    selectedEvent?.location) && (
+                  {(() => {
+                    const loc = selectedMinutes.content_json?.location || selectedEvent?.location;
+                    if (!loc) return null;
+                    return (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        {isUrl(loc) ? (
+                          <a href={loc} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 underline hover:text-emerald-700 dark:text-emerald-400">
+                            {loc} <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span>{loc}</span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {selectedEvent?.meeting_link && (
                     <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {selectedMinutes.content_json?.location ||
-                          selectedEvent?.location}
-                      </span>
+                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      <a
+                        href={selectedEvent.meeting_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-600 underline hover:text-emerald-700 dark:text-emerald-400"
+                      >
+                        {t("joinMeeting")} <ExternalLink className="h-3 w-3" />
+                      </a>
                     </div>
                   )}
                   {selectedMinutes.content_json?.chaired_by && (
@@ -1438,7 +1590,38 @@ export default function MinutesPage() {
                       </span>
                     </div>
                   )}
+                  {selectedEvent?.is_recurring && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline" className="text-xs">
+                        {t("recurringMeeting")} — {selectedEvent.recurrence_rule || ""}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
+
+                {/* Cancel meeting button — admin only, event-linked, not already cancelled */}
+                {hasPermission("minutes.manage") && selectedEvent && selectedEvent.status !== "cancelled" && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                      onClick={handleCancelMeeting}
+                      disabled={cancellingMeeting}
+                    >
+                      {cancellingMeeting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Ban className="mr-2 h-4 w-4" />
+                      )}
+                      {t("cancelMeeting")}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">{t("cancelMeetingHint")}</span>
+                  </div>
+                )}
+                {selectedEvent?.status === "cancelled" && (
+                  <Badge variant="destructive">{t("meetingCancelled")}</Badge>
+                )}
 
                 {/* Content text */}
                 {selectedMinutes.content_json?.text && (

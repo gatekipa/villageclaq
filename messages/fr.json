@@ -1653,7 +1653,18 @@
     "eventType_agm": "AG",
     "eventType_emergency": "Urgence",
     "eventType_other": "Autre",
-    "deletePublishedConfirm": "Ce procès-verbal publié est visible par tous les membres. La suppression est irréversible. Êtes-vous sûr ?"
+    "deletePublishedConfirm": "Ce procès-verbal publié est visible par tous les membres. La suppression est irréversible. Êtes-vous sûr ?",
+    "sortByDate": "Date",
+    "sortByTitle": "Titre",
+    "joinMeeting": "Rejoindre la réunion",
+    "recurringMeeting": "Récurrente",
+    "cancelMeeting": "Annuler la réunion",
+    "cancelMeetingHint": "Annule l'événement lié et notifie les participants",
+    "cancelMeetingConfirm": "Annuler cette réunion ? L'événement sera marqué comme annulé et tous les participants inscrits seront notifiés.",
+    "meetingCancelled": "Réunion annulée",
+    "meetingCancelledNotifTitle": "Réunion annulée",
+    "meetingCancelledNotifBody": "La réunion \"{title}\" a été annulée.",
+    "recurringHint": "Pour planifier des réunions récurrentes, allez dans Événements → Créer un événement → définir la récurrence."
   },
   "standing": {
     "standingCard": "Fiche de statut du membre",

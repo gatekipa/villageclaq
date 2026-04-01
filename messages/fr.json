@@ -1645,7 +1645,15 @@
     "nextMeetingDate": "Date de la prochaine réunion",
     "adjournment": "Levée de la séance",
     "standaloneTitle": "Titre du PV indépendant",
-    "publishedCount": "{count} publiés"
+    "publishedCount": "{count} publiés",
+    "announcementsSection": "Annonces",
+    "eventType_meeting": "Réunion",
+    "eventType_social": "Événement social",
+    "eventType_fundraiser": "Collecte de fonds",
+    "eventType_agm": "AG",
+    "eventType_emergency": "Urgence",
+    "eventType_other": "Autre",
+    "deletePublishedConfirm": "Ce procès-verbal publié est visible par tous les membres. La suppression est irréversible. Êtes-vous sûr ?"
   },
   "standing": {
     "standingCard": "Fiche de statut du membre",

@@ -1645,7 +1645,15 @@
     "nextMeetingDate": "Next Meeting Date",
     "adjournment": "Adjournment",
     "standaloneTitle": "Standalone Minutes Title",
-    "publishedCount": "{count} published"
+    "publishedCount": "{count} published",
+    "announcementsSection": "Announcements",
+    "eventType_meeting": "Meeting",
+    "eventType_social": "Social",
+    "eventType_fundraiser": "Fundraiser",
+    "eventType_agm": "AGM",
+    "eventType_emergency": "Emergency",
+    "eventType_other": "Other",
+    "deletePublishedConfirm": "This is a published record visible to all members. Deleting it cannot be undone. Are you sure?"
   },
   "standing": {
     "standingCard": "Member Standing Card",

@@ -855,7 +855,7 @@ export default function MinutesPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <h3 className="truncate text-sm font-semibold">
-                          {event.title}
+                          {locale === "fr" && event.title_fr ? event.title_fr : event.title}
                         </h3>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
@@ -866,7 +866,7 @@ export default function MinutesPage() {
                             variant="outline"
                             className="mt-1.5 text-xs"
                           >
-                            {event.event_type}
+                            {t(`eventType_${event.event_type}`)}
                           </Badge>
                         )}
                       </div>
@@ -1074,7 +1074,7 @@ export default function MinutesPage() {
                         { key: "treasurerReport", label: t("treasurerReport") },
                         { key: "oldBusiness", label: t("oldBusiness") },
                         { key: "newBusiness", label: t("newBusiness") },
-                        { key: "announcements", label: tc("announcements") || "Announcements" },
+                        { key: "announcements", label: t("announcementsSection") },
                         { key: "nextMeetingDate", label: t("nextMeetingDate") },
                         { key: "adjournment", label: t("adjournment") },
                       ].map((section) => (
@@ -1400,16 +1400,14 @@ export default function MinutesPage() {
                         <Pencil className="mr-1 h-3.5 w-3.5" />
                         {tc("edit")}
                       </Button>
-                      {selectedMinutes.status === "draft" && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setDeleteMinutesId(selectedMinutes.id)}
-                        >
-                          <Trash2 className="mr-1 h-3.5 w-3.5" />
-                          {t("deleteMinutes")}
-                        </Button>
-                      )}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setDeleteMinutesId(selectedMinutes.id)}
+                      >
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                        {t("deleteMinutes")}
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1733,7 +1731,11 @@ export default function MinutesPage() {
           <DialogHeader>
             <DialogTitle>{t("deleteMinutes")}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">{t("deleteMinutesConfirm")}</p>
+          <p className="text-sm text-muted-foreground">
+            {selectedMinutes?.status === "published"
+              ? t("deletePublishedConfirm")
+              : t("deleteMinutesConfirm")}
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteMinutesId(null)}>{tc("cancel")}</Button>
             <Button variant="destructive" onClick={handleDeleteMinutes} disabled={deleting}>

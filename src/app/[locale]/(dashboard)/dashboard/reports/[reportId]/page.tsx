@@ -954,11 +954,11 @@ export default function ReportDetailPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-bold">{groupMetrics.groupName}</h3>
-                  <p className="text-sm text-muted-foreground">Group Performance Summary</p>
+                  <p className="text-sm text-muted-foreground">{t("reports.groupPerformanceSummary")}</p>
                 </div>
                 <div className="text-right">
                   <Badge className={`text-sm px-3 py-1 ${healthColor}`}>{healthLabel}</Badge>
-                  <p className="text-xs text-muted-foreground mt-1">Health Score: {healthScore}%</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("reports.healthScoreValue", { score: healthScore })}</p>
                 </div>
               </div>
             </CardContent>
@@ -967,51 +967,51 @@ export default function ReportDetailPage() {
           {/* Metrics Grid */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Members</p>
+              <p className="text-xs text-muted-foreground">{t("reports.members")}</p>
               <p className="text-2xl font-bold">{groupMetrics.totalMembers}</p>
-              <p className="text-xs text-muted-foreground">{groupMetrics.activeMembers} active · {groupMetrics.goodStandingPct}% good standing</p>
+              <p className="text-xs text-muted-foreground">{t("reports.activeMembersDetail", { active: groupMetrics.activeMembers, pct: groupMetrics.goodStandingPct })}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Total Collected</p>
+              <p className="text-xs text-muted-foreground">{t("reports.totalCollected")}</p>
               <p className="text-2xl font-bold text-emerald-600">{formatAmount(groupMetrics.totalCollected, currency)}</p>
-              <p className="text-xs text-muted-foreground">{groupMetrics.collectionRate}% collection rate</p>
+              <p className="text-xs text-muted-foreground">{t("reports.collectionRateValue", { rate: groupMetrics.collectionRate })}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Outstanding</p>
+              <p className="text-xs text-muted-foreground">{t("reports.outstanding")}</p>
               <p className="text-2xl font-bold text-red-600">{formatAmount(groupMetrics.totalOutstanding, currency)}</p>
-              <p className="text-xs text-muted-foreground">{formatAmount(groupMetrics.totalExpected, currency)} expected</p>
+              <p className="text-xs text-muted-foreground">{t("reports.expectedAmount", { amount: formatAmount(groupMetrics.totalExpected, currency) })}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Attendance</p>
+              <p className="text-xs text-muted-foreground">{t("reports.attendance")}</p>
               <p className="text-2xl font-bold">{groupMetrics.avgAttendanceRate}%</p>
-              <p className="text-xs text-muted-foreground">{groupMetrics.totalEvents} events held</p>
+              <p className="text-xs text-muted-foreground">{t("reports.eventsHeld", { count: groupMetrics.totalEvents })}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Hosting Compliance</p>
+              <p className="text-xs text-muted-foreground">{t("reports.hostingCompliance")}</p>
               <p className="text-2xl font-bold">{groupMetrics.hostingCompletionRate}%</p>
-              <p className="text-xs text-muted-foreground">{groupMetrics.hostingExempted} exempted</p>
+              <p className="text-xs text-muted-foreground">{t("reports.exemptedCount", { count: groupMetrics.hostingExempted })}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Relief & Disputes</p>
-              <p className="text-2xl font-bold">{groupMetrics.reliefPlansActive} plans</p>
-              <p className="text-xs text-muted-foreground">{groupMetrics.reliefPendingClaims} pending · {groupMetrics.disputesOpen} disputes open</p>
+              <p className="text-xs text-muted-foreground">{t("reports.reliefAndDisputes")}</p>
+              <p className="text-2xl font-bold">{t("reports.plansCount", { count: groupMetrics.reliefPlansActive })}</p>
+              <p className="text-xs text-muted-foreground">{t("reports.pendingDisputesDetail", { pending: groupMetrics.reliefPendingClaims, disputes: groupMetrics.disputesOpen })}</p>
             </CardContent></Card>
           </div>
 
           {/* Savings & Other */}
           <div className="grid gap-4 sm:grid-cols-2">
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Savings Circles</p>
-              <p className="text-lg font-bold">{groupMetrics.savingsCyclesActive} active</p>
+              <p className="text-xs text-muted-foreground">{t("reports.savingsCircles")}</p>
+              <p className="text-lg font-bold">{t("reports.activeCount", { count: groupMetrics.savingsCyclesActive })}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
-              <p className="text-xs text-muted-foreground">Disputes</p>
-              <p className="text-lg font-bold">{groupMetrics.disputesOpen} open · {groupMetrics.disputesResolved} resolved</p>
+              <p className="text-xs text-muted-foreground">{t("reports.disputes")}</p>
+              <p className="text-lg font-bold">{t("reports.openResolvedDetail", { open: groupMetrics.disputesOpen, resolved: groupMetrics.disputesResolved })}</p>
             </CardContent></Card>
           </div>
 
           <p className="text-xs text-muted-foreground text-center">
-            Branch comparison will be available when your organization has multiple groups.
+            {t("reports.branchComparisonNotice")}
           </p>
         </div>
       )}
@@ -1031,7 +1031,7 @@ export default function ReportDetailPage() {
         <Card>
           <CardContent className="pt-6">
             {whoHasntPaid.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">All members are up to date!</p>
+              <p className="text-center text-sm text-muted-foreground py-8">{t("reports.allUpToDate")}</p>
             ) : (
               <div className="space-y-3">
                 {whoHasntPaid.map((row, i) => (
@@ -1158,7 +1158,7 @@ export default function ReportDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 px-3 font-semibold">Member</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.member")}</th>
                     {sortedMatrixYears.map(y => (
                       <th key={y} className="text-center py-2 px-3 font-semibold">{y}</th>
                     ))}
@@ -1473,10 +1473,10 @@ export default function ReportDetailPage() {
                 <CardContent className="pt-6">
                   <h3 className="font-semibold mb-3">{plan.name as string}</h3>
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <div><p className="text-xs text-muted-foreground">Plan</p><p className="font-bold text-primary">{plan.name as string}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Contribution</p><p className="font-bold">{formatAmount(Number(plan.contribution_amount || 0), currency)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">YTD Payouts</p><p className="font-bold text-destructive">{formatAmount(ytdPayouts, currency)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Pending</p><p className="font-bold">{pending}</p></div>
+                    <div><p className="text-xs text-muted-foreground">{t("reports.plan")}</p><p className="font-bold text-primary">{plan.name as string}</p></div>
+                    <div><p className="text-xs text-muted-foreground">{t("reports.contribution")}</p><p className="font-bold">{formatAmount(Number(plan.contribution_amount || 0), currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">{t("reports.ytdPayouts")}</p><p className="font-bold text-destructive">{formatAmount(ytdPayouts, currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">{t("reports.pending")}</p><p className="font-bold">{pending}</p></div>
                   </div>
                 </CardContent>
               </Card>
@@ -1583,13 +1583,13 @@ export default function ReportDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 px-3 font-semibold">Cycle Name</th>
-                    <th className="text-left py-2 px-3 font-semibold">Status</th>
-                    <th className="text-center py-2 px-3 font-semibold">Participants</th>
-                    <th className="text-center py-2 px-3 font-semibold">Round</th>
-                    <th className="text-right py-2 px-3 font-semibold">Amount</th>
-                    <th className="text-left py-2 px-3 font-semibold">Frequency</th>
-                    <th className="text-left py-2 px-3 font-semibold">Start Date</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.cycleName")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.status")}</th>
+                    <th className="text-center py-2 px-3 font-semibold">{t("reports.participants")}</th>
+                    <th className="text-center py-2 px-3 font-semibold">{t("reports.round")}</th>
+                    <th className="text-right py-2 px-3 font-semibold">{t("reports.amount")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.frequency")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.startDate")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1621,13 +1621,13 @@ export default function ReportDetailPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 px-3 font-semibold">Election</th>
-                    <th className="text-left py-2 px-3 font-semibold">Type</th>
-                    <th className="text-left py-2 px-3 font-semibold">Date</th>
-                    <th className="text-left py-2 px-3 font-semibold">Winner</th>
-                    <th className="text-center py-2 px-3 font-semibold">Votes</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.election")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.type")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.date")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.winner")}</th>
+                    <th className="text-center py-2 px-3 font-semibold">{t("reports.votes")}</th>
                     <th className="text-center py-2 px-3 font-semibold">%</th>
-                    <th className="text-center py-2 px-3 font-semibold">Total</th>
+                    <th className="text-center py-2 px-3 font-semibold">{t("reports.total")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1659,30 +1659,30 @@ export default function ReportDetailPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="rounded-lg border p-3 text-center">
                   <p className="text-2xl font-bold">{disputeStats.total}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.total")}</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
                   <p className="text-2xl font-bold text-amber-600">{disputeStats.open}</p>
-                  <p className="text-xs text-muted-foreground">Open</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.open")}</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
                   <p className="text-2xl font-bold text-emerald-600">{disputeStats.resolved}</p>
-                  <p className="text-xs text-muted-foreground">Resolved</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.resolved")}</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
                   <p className="text-2xl font-bold">{disputeStats.resolutionRate}%</p>
-                  <p className="text-xs text-muted-foreground">Resolution Rate</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.resolutionRate")}</p>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="border-b">
-                    <th className="text-left py-2 px-3 font-semibold">Title</th>
-                    <th className="text-left py-2 px-3 font-semibold">Category</th>
-                    <th className="text-left py-2 px-3 font-semibold">Priority</th>
-                    <th className="text-left py-2 px-3 font-semibold">Status</th>
-                    <th className="text-left py-2 px-3 font-semibold">Filed</th>
-                    <th className="text-left py-2 px-3 font-semibold">Resolved</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.disputeTitle")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.category")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.priority")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.status")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.filed")}</th>
+                    <th className="text-left py-2 px-3 font-semibold">{t("reports.resolved")}</th>
                   </tr></thead>
                   <tbody>
                     {disputeData.map((d, i) => (

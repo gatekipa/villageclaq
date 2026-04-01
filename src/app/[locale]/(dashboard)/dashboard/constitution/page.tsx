@@ -626,7 +626,7 @@ export default function ConstitutionPage() {
                           <span className="font-medium text-sm">{amend.title as string}</span>
                           <Badge className={`text-xs ${sc[amend.status as string] || ""}`}>{t(amend.status as "proposed")}</Badge>
                         </div>
-                        {(amend.section_affected as string) ? <p className="text-xs text-muted-foreground mt-1">Section: {String(amend.section_affected)}</p> : null}
+                        {(amend.section_affected as string) ? <p className="text-xs text-muted-foreground mt-1">{t("sectionLabel", { section: String(amend.section_affected) })}</p> : null}
                         {(amend.reason as string) ? <p className="text-xs text-muted-foreground mt-1">{String(amend.reason)}</p> : null}
                         <p className="text-xs text-muted-foreground mt-1">{getMemberName(proposer as Record<string, unknown>)} · {new Date(amend.created_at as string).toLocaleDateString(getDateLocale(locale))}</p>
                       </div>

@@ -39,6 +39,7 @@ import {
   ArrowRight,
   LayoutDashboard,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -441,9 +442,24 @@ export default function MyDashboardPage() {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                        {event.location
-                          ? ` - ${event.location as string}`
-                          : ""}
+                        {event.location ? (
+                          /^https?:\/\//i.test(event.location as string) ? (
+                            <>
+                              {" - "}
+                              <a
+                                href={event.location as string}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center gap-0.5"
+                              >
+                                {event.location as string}
+                                <ExternalLink className="h-3 w-3 inline" />
+                              </a>
+                            </>
+                          ) : (
+                            ` - ${event.location as string}`
+                          )
+                        ) : ""}
                       </p>
                     </div>
                   </div>

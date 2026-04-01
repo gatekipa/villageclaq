@@ -465,6 +465,17 @@ export default function MyEventsPage() {
                                 {event.location as string}
                                 <ExternalLink className="h-3 w-3" />
                               </a>
+                            ) : /^https?:\/\//i.test(event.location as string) ? (
+                              <a
+                                href={event.location as string}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-primary hover:underline"
+                              >
+                                <MapPin className="h-3.5 w-3.5" />
+                                {event.location as string}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
                             ) : (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-3.5 w-3.5" />

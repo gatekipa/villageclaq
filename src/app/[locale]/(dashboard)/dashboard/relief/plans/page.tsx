@@ -1699,7 +1699,7 @@ function EligibilityTracker({ plans, currency, groupId, t }: {
     }
   }
 
-  if (isLoading) return <p className="text-sm text-muted-foreground py-4">Loading...</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground py-4">{t("loading")}</p>;
 
   return (
     <div className="space-y-4">
@@ -1746,7 +1746,7 @@ function EligibilityTracker({ plans, currency, groupId, t }: {
                 <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("daysUntilEligible")}</th>
                 <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("contributionStatus")}</th>
                 <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{t("eligible")}</th>
-                <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Actions</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">{t("actions")}</th>
               </tr>
             </thead>
             <tbody>

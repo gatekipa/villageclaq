@@ -1241,7 +1241,7 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <a href={a.file_url as string} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px]">View</Button>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px]">{t("view")}</Button>
                     </a>
                     {isAdmin && <Button size="sm" variant="ghost" className="h-6 text-[10px] text-destructive" onClick={() => handleDelete(a.id as string)} disabled={deletingId === (a.id as string)}>×</Button>}
                   </div>
@@ -1261,13 +1261,13 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
             <div className="space-y-1">
               <Label>{t("documentType") || "Type"}</Label>
               <select value={docType} onChange={(e) => setDocType(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-                <option value="photo">Photo</option>
-                <option value="contract">Contract</option>
-                <option value="invoice">Invoice/Receipt</option>
-                <option value="resolution">Resolution</option>
-                <option value="permit">Permit</option>
-                <option value="report">Report</option>
-                <option value="other">Other</option>
+                <option value="photo">{t("docType_photo")}</option>
+                <option value="contract">{t("docType_contract")}</option>
+                <option value="invoice">{t("docType_invoice")}</option>
+                <option value="resolution">{t("docType_resolution")}</option>
+                <option value="permit">{t("docType_permit")}</option>
+                <option value="report">{t("docType_report")}</option>
+                <option value="other">{t("docType_other")}</option>
               </select>
             </div>
             <input type="file" accept="image/*,.pdf,.doc,.docx" id="project-doc-upload" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }} />
@@ -1422,7 +1422,7 @@ function ProjectResolutions({ project, isAdmin, currency, onDataChanged }: {
                 <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">{t("resolutionTitle")}</th>
                 <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">{t("amountAuthorized")}</th>
                 <th className="px-3 py-2 text-center text-xs font-medium text-muted-foreground">{tc("status")}</th>
-                {isAdmin && <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">Actions</th>}
+                {isAdmin && <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">{tc("actions")}</th>}
               </tr>
             </thead>
             <tbody>

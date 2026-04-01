@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { GroupProvider, useGroup } from "@/lib/group-context";
@@ -24,6 +25,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   const { loading, memberships, user } = useGroup();
   const router = useRouter();
   const pathname = usePathname();
+  const tCommon = useTranslations("common");
   const [checkingInvitations, setCheckingInvitations] = useState(false);
   const [checkedInvitations, setCheckedInvitations] = useState(false);
 
@@ -97,7 +99,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <img src="/logo-mark.svg" alt="VillageClaq" className="h-12 w-12 animate-pulse" />
-          <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
+          <p className="text-sm text-muted-foreground animate-pulse">{tCommon("loading")}</p>
         </div>
       </div>
     );
@@ -109,7 +111,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <img src="/logo-mark.svg" alt="VillageClaq" className="h-12 w-12 animate-pulse" />
-          <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
+          <p className="text-sm text-muted-foreground animate-pulse">{tCommon("loading")}</p>
         </div>
       </div>
     );

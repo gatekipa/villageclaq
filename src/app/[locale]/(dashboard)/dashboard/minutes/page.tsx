@@ -498,9 +498,9 @@ export default function MinutesPage() {
                       to: m.user_id,
                       template: "minutes-published",
                       data: {
-                        memberName: getMemberName(m),
+                        memberName: getMemberName(m) || tc("member"),
                         groupName: currentGroup?.name || "",
-                        meetingTitle: minutesTitle,
+                        meetingTitle: minutesTitle || (selectedEvent ? (locale === "fr" && selectedEvent.title_fr ? selectedEvent.title_fr : selectedEvent.title) : ""),
                         meetingDate,
                         publishedBy: publisherName,
                         minutesUrl: `${window.location.origin}/${locale}/dashboard/minutes`,
@@ -667,18 +667,17 @@ export default function MinutesPage() {
         .update({ status: "cancelled" })
         .eq("id", selectedEvent.id);
       if (err) throw err;
-      // Notify RSVPd members
+      // Notify ALL group members (not just RSVPd — most members never RSVP)
       try {
-        const { data: rsvps } = await supabase
-          .from("event_rsvps")
-          .select("membership_id")
-          .eq("event_id", selectedEvent.id)
-          .eq("response", "yes");
-        if (rsvps && rsvps.length > 0) {
+        const { data: allMembers } = await supabase
+          .from("memberships")
+          .select("id")
+          .eq("group_id", groupId);
+        if (allMembers && allMembers.length > 0) {
           await supabase.from("notifications").insert(
-            rsvps.map((r) => ({
+            allMembers.map((m) => ({
               group_id: groupId,
-              membership_id: r.membership_id,
+              membership_id: m.id,
               type: "event_cancelled",
               title: t("meetingCancelledNotifTitle"),
               message: t("meetingCancelledNotifBody", { title: selectedEvent.title }),

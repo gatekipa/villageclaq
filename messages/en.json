@@ -3214,7 +3214,8 @@
     "highValuePayments": "{count} payments exceed 5x the average amount",
     "previous": "Previous",
     "next": "Next",
-    "actions": "Actions"
+    "actions": "Actions",
+    "retry": "Retry"
   },
   "communications": {
     "notifications": "Notifications",

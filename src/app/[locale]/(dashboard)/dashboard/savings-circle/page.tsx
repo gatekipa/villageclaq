@@ -1086,7 +1086,18 @@ export default function SavingsCirclePage() {
                 {((cycle.meeting_schedule as string) || (cycle.meeting_location as string)) && (
                   <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                     {(cycle.meeting_schedule as string) && <span>📅 {t("meets")}: {cycle.meeting_schedule as string}</span>}
-                    {(cycle.meeting_location as string) && <span>📍 {cycle.meeting_location as string}</span>}
+                    {(cycle.meeting_location as string) && (
+                      <span className="inline-flex items-center gap-1">📍 {(() => {
+                        const loc = cycle.meeting_location as string;
+                        try {
+                          const url = new URL(loc);
+                          if (url.protocol === "http:" || url.protocol === "https:") {
+                            return <a href={loc} target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline hover:text-emerald-700 dark:text-emerald-400">{loc}</a>;
+                          }
+                        } catch { /* not a URL */ }
+                        return loc;
+                      })()}</span>
+                    )}
                   </div>
                 )}
                 {/* (Overview stats moved to always-visible summary row above) */}

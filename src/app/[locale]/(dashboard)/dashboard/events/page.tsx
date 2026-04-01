@@ -42,6 +42,7 @@ import {
   AlertCircle,
   Search,
   Video,
+  ExternalLink,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -392,22 +393,23 @@ export default function EventsPage() {
       if (err) throw err;
       await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
 
-      // Bug #231: Send cancellation notification to all RSVPd members
+      // Bug #231: Send cancellation notification to ALL group members (not just RSVPd)
       try {
-        const { data: rsvps } = await supabase
-          .from("event_rsvps")
-          .select("membership_id")
-          .eq("event_id", eventId)
-          .eq("response", "yes");
-
         const cancelledEvent = (events || []).find((e: Record<string, unknown>) => e.id === eventId);
         const eventTitle = (cancelledEvent?.title as string) || "";
 
-        if (rsvps && rsvps.length > 0) {
+        // Notify all group members — most members never RSVP, so querying only
+        // event_rsvps would miss the majority of the group
+        const { data: allMembers } = await supabase
+          .from("memberships")
+          .select("id")
+          .eq("group_id", groupId);
+
+        if (allMembers && allMembers.length > 0) {
           await supabase.from("notifications").insert(
-            rsvps.map((r) => ({
+            allMembers.map((m) => ({
               group_id: groupId,
-              membership_id: r.membership_id,
+              membership_id: m.id,
               type: "event_cancelled",
               title: t("eventCancelledNotifTitle"),
               message: t("eventCancelledNotifBody", { title: eventTitle }),
@@ -686,7 +688,20 @@ export default function EventsPage() {
                             {event.location ? (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-3.5 w-3.5" />
-                                {String(event.location)}
+                                {(() => {
+                                  const loc = String(event.location);
+                                  try {
+                                    const url = new URL(loc);
+                                    if (url.protocol === "http:" || url.protocol === "https:") {
+                                      return (
+                                        <a href={loc} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 underline hover:text-emerald-700 dark:text-emerald-400">
+                                          {loc} <ExternalLink className="h-3 w-3" />
+                                        </a>
+                                      );
+                                    }
+                                  } catch { /* not a URL */ }
+                                  return loc;
+                                })()}
                               </span>
                             ) : null}
                             {event.meeting_link ? (

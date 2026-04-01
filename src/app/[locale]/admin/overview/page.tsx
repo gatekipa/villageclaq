@@ -73,7 +73,7 @@ export default function PlatformOverviewPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <AlertCircle className="h-12 w-12 text-destructive mb-4" />
         <p className="text-sm text-destructive">{error}</p>
-        <button onClick={() => window.location.reload()} className="mt-4 text-sm text-primary hover:underline">Retry</button>
+        <button onClick={() => window.location.reload()} className="mt-4 text-sm text-primary hover:underline">{t("retry")}</button>
       </div>
     );
   }

@@ -218,6 +218,7 @@ export default function RecordPaymentPage() {
       }
 
       // Send payment receipt notification to the member
+      console.log(`[Record Payment] Payment saved for ${memberName} (${membershipId}). Sending notifications...`);
       const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
       try {
         const supabase = createClient();
@@ -331,10 +332,8 @@ export default function RecordPaymentPage() {
       }
 
       setTimeout(() => setShowSuccess(false), 3000);
-      setSavingMode(null);
       memberInputRef.current?.focus();
     } catch (err) {
-      setSavingMode(null);
       // Handle duplicate detection — show dialog instead of error
       if (err instanceof Error && err.message === "DUPLICATE_PAYMENT_DETECTED") {
         setDupKeepType(keepTypeAndMethod);
@@ -354,7 +353,11 @@ export default function RecordPaymentPage() {
 
   async function handleSave(keepTypeAndMethod: boolean) {
     setSavingMode(keepTypeAndMethod ? "next" : "save");
-    await doSave(keepTypeAndMethod, false);
+    try {
+      await doSave(keepTypeAndMethod, false);
+    } finally {
+      setSavingMode(null);
+    }
   }
 
   /** Called when user clicks "Record Anyway" in the duplicate warning dialog */

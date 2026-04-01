@@ -349,6 +349,7 @@
     "footerPrivacy": "Politique de confidentialité",
     "footerTerms": "Conditions d'utilisation",
     "footerRights": "Tous droits réservés.",
+    "footerCopyright": "VillageClaq par LawTekno LLC",
     "painPointsTitle": "Ça vous dit quelque chose ?",
     "painPointsSubtitle": "Chaque groupe communautaire fait face à ces problèmes. VillageClaq les résout tous.",
     "painPoint1Title": "Qui a payé quoi ?",
@@ -4047,6 +4048,8 @@
     "title": "À propos de VillageClaq",
     "story": "Construit par des Africains, pour les communautés africaines",
     "storyDesc": "VillageClaq est né d'une simple observation : des millions d'Africains gèrent les finances communautaires par la confiance et le papier. Nous apportons transparence, efficacité et fierté à chaque cercle d'épargne, union d'anciens et association villageoise — de Bamenda à Brooklyn.",
+    "legalEntity": "VillageClaq est un produit de LawTekno LLC.",
+    "footerCopyright": "VillageClaq par LawTekno LLC",
     "mission": "Notre mission",
     "missionDesc": "Donner à chaque groupe communautaire africain des outils de gestion financière de classe mondiale, en préservant les traditions d'entraide tout en construisant la confiance par la transparence.",
     "team": "Notre équipe",
@@ -4077,6 +4080,7 @@
   "terms": {
     "title": "Conditions d'utilisation",
     "lastUpdated": "Dernière mise à jour : mars 2026",
+    "legalEntity": "VillageClaq est un produit de LawTekno LLC. Ces Conditions d'utilisation régissent votre utilisation de la plateforme VillageClaq exploitée par LawTekno LLC.",
     "sections": {
       "acceptance": "Acceptation des conditions",
       "services": "Description des services",
@@ -4110,6 +4114,7 @@
   "privacy": {
     "title": "Politique de confidentialité",
     "lastUpdated": "Dernière mise à jour : mars 2026",
+    "legalEntity": "VillageClaq est un produit de LawTekno LLC. Cette Politique de confidentialité décrit comment LawTekno LLC collecte, utilise et protège vos informations personnelles via la plateforme VillageClaq.",
     "sections": {
       "collection": "Collecte de données",
       "usage": "Utilisation des données",

@@ -45,6 +45,9 @@ export default function AboutPage() {
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
           {t("storyDesc")}
         </p>
+        <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground/80">
+          {t("legalEntity")}
+        </p>
       </section>
 
       {/* Mission */}
@@ -261,7 +264,7 @@ export default function AboutPage() {
       {/* Footer */}
       <footer className="border-t border-border bg-muted/30 py-8">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <p>&copy; {new Date().getFullYear()} VillageClaq</p>
+          <p>&copy; {new Date().getFullYear()} {t("footerCopyright")}</p>
           <div className="flex gap-6">
             <Link href="/about" className="hover:text-foreground">
               {tLanding("footerAbout")}

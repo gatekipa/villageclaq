@@ -268,7 +268,7 @@ export default function ContactPage() {
       {/* Footer */}
       <footer className="border-t border-border bg-muted/30 py-8">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-          <p>&copy; {new Date().getFullYear()} VillageClaq</p>
+          <p>&copy; {new Date().getFullYear()} {tLanding("footerCopyright")}</p>
           <div className="flex gap-6">
             <Link href="/about" className="hover:text-foreground">
               {tLanding("footerAbout")}

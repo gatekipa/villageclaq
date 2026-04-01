@@ -349,6 +349,7 @@
     "footerPrivacy": "Privacy Policy",
     "footerTerms": "Terms of Service",
     "footerRights": "All rights reserved.",
+    "footerCopyright": "VillageClaq by LawTekno LLC",
     "painPointsTitle": "Sound Familiar?",
     "painPointsSubtitle": "Every community group faces these problems. VillageClaq solves them all.",
     "painPoint1Title": "Who Paid What?",
@@ -4047,6 +4048,8 @@
     "title": "About VillageClaq",
     "story": "Built by Africans, for African Communities",
     "storyDesc": "VillageClaq was born from a simple observation: millions of Africans manage community finances through trust and paper. We're bringing transparency, efficiency, and pride to every savings circle, alumni union, and village association — from Bamenda to Brooklyn.",
+    "legalEntity": "VillageClaq is a product of LawTekno LLC.",
+    "footerCopyright": "VillageClaq by LawTekno LLC",
     "mission": "Our Mission",
     "missionDesc": "To empower every African community group with world-class financial management tools, preserving the traditions of mutual aid while building trust through transparency.",
     "team": "Our Team",
@@ -4077,6 +4080,7 @@
   "terms": {
     "title": "Terms of Service",
     "lastUpdated": "Last updated: March 2026",
+    "legalEntity": "VillageClaq is a product of LawTekno LLC. These Terms of Service govern your use of the VillageClaq platform operated by LawTekno LLC.",
     "sections": {
       "acceptance": "Acceptance of Terms",
       "services": "Description of Services",
@@ -4110,6 +4114,7 @@
   "privacy": {
     "title": "Privacy Policy",
     "lastUpdated": "Last updated: March 2026",
+    "legalEntity": "VillageClaq is a product of LawTekno LLC. This Privacy Policy describes how LawTekno LLC collects, uses, and protects your personal information through the VillageClaq platform.",
     "sections": {
       "collection": "Data Collection",
       "usage": "Data Usage",

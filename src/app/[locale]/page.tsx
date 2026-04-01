@@ -665,7 +665,8 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-16 border-t pt-8 text-center text-sm text-muted-foreground">
-            &copy; 2026 {t("common.appName")}. {t("landing.footerRights")}
+            <p>&copy; 2026 {t("landing.footerCopyright")}</p>
+            <p className="mt-1">{t("landing.footerRights")}</p>
           </div>
         </div>
       </footer>

@@ -70,6 +70,9 @@ export default function PrivacyPage() {
 
         {/* Main content */}
         <div className="min-w-0 flex-1 space-y-10">
+          <p className="text-sm leading-relaxed text-muted-foreground rounded-lg border bg-muted/30 p-4">
+            {t("legalEntity")}
+          </p>
           {sectionKeys.map((key, index) => (
             <section key={key} id={`privacy-${key}`}>
               <h2 className="text-xl font-semibold text-foreground">

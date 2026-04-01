@@ -181,7 +181,7 @@ export default function PricingPage() {
 
       {/* Footer */}
       <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        <p>&copy; 2026 {tc("appName")}. {t("footerRights")}</p>
+        <p>&copy; 2026 {t("footerCopyright")}. {t("footerRights")}</p>
       </footer>
     </div>
   );

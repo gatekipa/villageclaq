@@ -194,11 +194,18 @@ export async function dispatchWhatsApp(
   try {
     // Validate phone
     const formatted = formatPhoneForWhatsApp(recipientPhone);
-    if (!formatted) return false;
+    if (!formatted) {
+      console.log(`[WhatsApp Dispatch] Invalid phone for ${type}: "${recipientPhone}"`);
+      return false;
+    }
 
     const templateName = TYPE_TO_TEMPLATE[type];
-    if (!templateName) return false;
+    if (!templateName) {
+      console.log(`[WhatsApp Dispatch] Unknown type: "${type}"`);
+      return false;
+    }
 
+    console.log(`[WhatsApp Dispatch] type=${type} phone=${formatted} locale=${locale}`);
     const components = buildComponents(type, data);
 
     const result = await sendWhatsAppMessage({
@@ -209,8 +216,8 @@ export async function dispatchWhatsApp(
     });
 
     return result.success;
-  } catch {
-    // Never throw — WhatsApp is best-effort
+  } catch (err) {
+    console.error(`[WhatsApp Dispatch] Exception for ${type}:`, err instanceof Error ? err.message : err);
     return false;
   }
 }

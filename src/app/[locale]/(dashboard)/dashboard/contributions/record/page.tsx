@@ -309,9 +309,10 @@ export default function RecordPaymentPage() {
       setMemberSearch("");
       setReference("");
       setNotes("");
+      setReceiptUrl("");
+      setAmount("");
 
       if (!keepTypeAndMethod) {
-        setAmount("");
         setSelectedTypeId("");
         setMethod("cash");
       }

@@ -61,6 +61,7 @@ export async function sendWhatsAppMessage(
 ): Promise<WhatsAppResult> {
   try {
     if (!isConfigured()) {
+      console.log("[WhatsApp] Not configured — WHATSAPP_API_TOKEN or WHATSAPP_PHONE_NUMBER_ID missing");
       return { success: false, error: "WhatsApp API not configured" };
     }
 
@@ -68,8 +69,11 @@ export async function sendWhatsAppMessage(
 
     const formattedPhone = formatPhoneForWhatsApp(params.to);
     if (!formattedPhone) {
+      console.log(`[WhatsApp] Invalid phone number: "${params.to}"`);
       return { success: false, error: `Invalid phone number: ${params.to}` };
     }
+
+    console.log(`[WhatsApp] Sending template "${params.template}" (${params.language}) to ${formattedPhone}`);
 
     const body: Record<string, unknown> = {
       messaging_product: "whatsapp",
@@ -99,11 +103,10 @@ export async function sendWhatsAppMessage(
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      const errMsg =
-        (errData as Record<string, unknown>)?.error
-          ? ((errData as Record<string, Record<string, string>>).error.message || "Unknown API error")
-          : `HTTP ${response.status}`;
-      console.warn(`[WhatsApp] Failed to send ${params.template} to ${formattedPhone}:`, errMsg);
+      const errObj = (errData as Record<string, Record<string, unknown>>)?.error;
+      const errMsg = errObj?.message as string || `HTTP ${response.status}`;
+      const errCode = errObj?.code as number | undefined;
+      console.error(`[WhatsApp] FAILED — template="${params.template}" to=${formattedPhone} status=${response.status} code=${errCode} error="${errMsg}"`);
       return { success: false, error: errMsg };
     }
 
@@ -111,10 +114,11 @@ export async function sendWhatsAppMessage(
     const messages = data.messages as Array<Record<string, string>> | undefined;
     const messageId = messages?.[0]?.id;
 
+    console.log(`[WhatsApp] SUCCESS — template="${params.template}" to=${formattedPhone} messageId=${messageId}`);
     return { success: true, messageId };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    console.warn(`[WhatsApp] Exception sending ${params.template} to ${params.to}:`, msg);
+    console.error(`[WhatsApp] EXCEPTION — template="${params.template}" to="${params.to}" error="${msg}"`);
     return { success: false, error: msg };
   }
 }

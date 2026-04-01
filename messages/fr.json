@@ -918,6 +918,7 @@
     "receiptPhoto": "Photo du reçu",
     "fileTooLargeReceipt": "Le fichier du reçu doit être inférieur à 5 Mo",
     "uploadReceipt": "Télécharger le reçu",
+    "receiptUploaded": "Reçu téléchargé",
     "paymentReceivedNotifTitle": "Paiement de {amount} reçu",
     "paymentReceivedNotifBody": "Paiement de {amount} reçu pour {type}. Méthode : {method}. Référence : {reference}.",
     "notes": "Notes",

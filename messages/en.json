@@ -918,6 +918,7 @@
     "receiptPhoto": "Receipt Photo",
     "fileTooLargeReceipt": "Receipt file must be under 5MB",
     "uploadReceipt": "Upload Receipt",
+    "receiptUploaded": "Receipt uploaded",
     "paymentReceivedNotifTitle": "Payment of {amount} received",
     "paymentReceivedNotifBody": "Payment of {amount} received for {type}. Method: {method}. Reference: {reference}.",
     "notes": "Notes",

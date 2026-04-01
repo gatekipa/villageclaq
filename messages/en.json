@@ -3327,6 +3327,7 @@
     "save": "Save",
     "saving": "Saving...",
     "preferencesSaved": "Notification preferences saved",
+    "preferencesSaveFailed": "Failed to save preferences. Please try again.",
     "announcements": "Announcements",
     "announcementsSubtitle": "Send messages to your group members",
     "createAnnouncement": "Create Announcement",
@@ -4714,7 +4715,9 @@
     "severity_low": "Low",
     "severity_medium": "Medium",
     "severity_high": "High",
-    "severity_critical": "Critical"
+    "severity_critical": "Critical",
+    "submitError": "Failed to submit feedback. Please try again.",
+    "voteError": "Failed to record vote. Please try again."
   },
   "supportWidget": {
     "needHelp": "Need help?",

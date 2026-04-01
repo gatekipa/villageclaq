@@ -3327,6 +3327,7 @@
     "save": "Enregistrer",
     "saving": "Enregistrement...",
     "preferencesSaved": "Préférences de notification sauvegardées",
+    "preferencesSaveFailed": "Échec de la sauvegarde des préférences. Veuillez réessayer.",
     "announcements": "Annonces",
     "announcementsSubtitle": "Envoyez des messages à vos membres",
     "createAnnouncement": "Créer une annonce",
@@ -4714,7 +4715,9 @@
     "severity_low": "Faible",
     "severity_medium": "Moyen",
     "severity_high": "Élevé",
-    "severity_critical": "Critique"
+    "severity_critical": "Critique",
+    "submitError": "Échec de l'envoi du commentaire. Veuillez réessayer.",
+    "voteError": "Échec de l'enregistrement du vote. Veuillez réessayer."
   },
   "supportWidget": {
     "needHelp": "Besoin d'aide ?",

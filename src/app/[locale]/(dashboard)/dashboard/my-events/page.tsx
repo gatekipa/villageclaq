@@ -126,6 +126,7 @@ export default function MyEventsPage() {
   const { data: rsvpCounts = {} } = useRsvpCounts(eventIds);
   const { data: myAttendances = [] } = useMyAttendances(membershipId);
 
+  const [actionError, setActionError] = useState<string | null>(null);
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => {
@@ -167,6 +168,10 @@ export default function MyEventsPage() {
       queryClient.invalidateQueries({ queryKey: ["my-rsvps", groupId, membershipId] });
       queryClient.invalidateQueries({ queryKey: ["rsvp-counts"] });
     },
+    onError: () => {
+      setActionError(t("myEvents.rsvpFailed"));
+      setTimeout(() => setActionError(null), 5000);
+    },
   });
 
   const deleteRsvpMutation = useMutation({
@@ -182,6 +187,10 @@ export default function MyEventsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-rsvps", groupId, membershipId] });
       queryClient.invalidateQueries({ queryKey: ["rsvp-counts"] });
+    },
+    onError: () => {
+      setActionError(t("myEvents.rsvpFailed"));
+      setTimeout(() => setActionError(null), 5000);
     },
   });
 
@@ -291,6 +300,11 @@ export default function MyEventsPage() {
 
   return (
     <div className="space-y-6">
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+          {actionError}
+        </div>
+      )}
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight sm:text-3xl">

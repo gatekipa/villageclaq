@@ -135,6 +135,7 @@ export default function NotificationPreferencesPage() {
   const [quietHoursEnd, setQuietHoursEnd] = useState("07:00");
   const [mutedGroups, setMutedGroups] = useState<Record<string, boolean>>({});
   const [showToast, setShowToast] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   // Load preferences from profile
   useEffect(() => {
@@ -193,8 +194,13 @@ export default function NotificationPreferencesPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      setSaveError(false);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+    },
+    onError: () => {
+      setSaveError(true);
+      setTimeout(() => setSaveError(false), 5000);
     },
   });
 
@@ -445,6 +451,13 @@ export default function NotificationPreferencesPage() {
           <CheckCircle className="size-4 text-emerald-500" />
           <span className="text-sm font-medium text-foreground">
             {t("preferencesSaved")}
+          </span>
+        </div>
+      )}
+      {saveError && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 shadow-lg dark:border-red-900 dark:bg-red-950 animate-in slide-in-from-bottom-4 fade-in">
+          <span className="text-sm font-medium text-red-800 dark:text-red-200">
+            {t("preferencesSaveFailed")}
           </span>
         </div>
       )}

@@ -148,6 +148,7 @@ export default function FeedbackPage() {
   const [formSeverity, setFormSeverity] = useState<Severity>("medium");
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const votedFeedbackIds = new Set(
     (userVotes || []).map((v) => v.feedback_id)
@@ -179,6 +180,10 @@ export default function FeedbackPage() {
       setFormType("general");
       setFormSeverity("medium");
     },
+    onError: () => {
+      setActionError(t("submitError"));
+      setTimeout(() => setActionError(null), 5000);
+    },
   });
 
   const upvoteMutation = useMutation({
@@ -203,6 +208,10 @@ export default function FeedbackPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feedback"] });
       queryClient.invalidateQueries({ queryKey: ["feedback-votes"] });
+    },
+    onError: () => {
+      setActionError(t("voteError"));
+      setTimeout(() => setActionError(null), 5000);
     },
   });
 
@@ -304,6 +313,11 @@ export default function FeedbackPage() {
 
   return (
     <div className="space-y-6">
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+          {actionError}
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

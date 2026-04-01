@@ -128,6 +128,7 @@ export default function RecordPaymentPage() {
   const [showMemberList, setShowMemberList] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSavedName, setLastSavedName] = useState("");
+  const [savingMode, setSavingMode] = useState<"save" | "next" | null>(null);
   const memberInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -187,6 +188,16 @@ export default function RecordPaymentPage() {
   async function doSave(keepTypeAndMethod: boolean, skipDuplicateCheck: boolean) {
     if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
 
+    // Capture values before any state resets (closures)
+    const memberName = selectedMembership.name;
+    const membershipId = selectedMembership.id;
+    const typeId = selectedTypeId;
+    const payAmount = Number(amount);
+    const payMethod = method;
+    const payRef = reference;
+    const payNotes = notes;
+    const payReceipt = receiptUrl;
+
     try {
       const result = await recordPayment.mutateAsync({
         membership_id: selectedMembership.id,
@@ -207,29 +218,30 @@ export default function RecordPaymentPage() {
       }
 
       // Send payment receipt notification to the member
-      const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === selectedTypeId)?.name as string || "";
+      const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
       try {
         const supabase = createClient();
         const { data: membership } = await supabase
           .from("memberships")
           .select("user_id")
-          .eq("id", selectedMembership.id)
+          .eq("id", membershipId)
           .single();
         if (membership?.user_id) {
-          const formattedAmt = formatAmount(Number(amount), currency);
+          const formattedAmt = formatAmount(payAmount, currency);
           await supabase.from("notifications").insert({
             user_id: membership.user_id,
             group_id: groupId,
             type: "contribution_received",
             title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
-            body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method, reference: reference || "N/A" }),
+            body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: payMethod, reference: payRef || "N/A" }),
             is_read: false,
-            data: { amount: Number(amount), currency, contribution_type: typeName, method, reference: reference || null },
+            data: { amount: payAmount, currency, contribution_type: typeName, method: payMethod, reference: payRef || null },
           });
 
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
+              const dateStr = new Date().toLocaleDateString(getDateLocale(locale));
               // Email (fire-and-forget)
               fetch("/api/email/send", {
                 method: "POST",
@@ -241,13 +253,13 @@ export default function RecordPaymentPage() {
                   to: membership.user_id,
                   template: "payment-receipt",
                   data: {
-                    memberName: selectedMembership.name,
+                    memberName,
                     groupName: currentGroup?.name || "",
                     amount: formattedAmt,
                     contributionType: typeName,
-                    paymentMethod: method,
-                    date: new Date().toLocaleDateString(getDateLocale(locale)),
-                    reference: reference || undefined,
+                    paymentMethod: payMethod,
+                    date: dateStr,
+                    reference: payRef || undefined,
                     recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
                     paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
                   },
@@ -275,6 +287,7 @@ export default function RecordPaymentPage() {
               }).catch(() => {});
 
               // WhatsApp (fire-and-forget)
+              console.log(`[WhatsApp] About to call /api/whatsapp/send for ${memberName} (${membership.user_id})`);
               fetch("/api/whatsapp/send", {
                 method: "POST",
                 headers: {
@@ -285,11 +298,11 @@ export default function RecordPaymentPage() {
                   to: membership.user_id,
                   type: "payment_receipt",
                   data: {
-                    memberName: selectedMembership.name,
+                    memberName,
                     amount: formattedAmt,
                     contributionType: typeName,
                     groupName: currentGroup?.name || "",
-                    date: new Date().toLocaleDateString(getDateLocale(locale)),
+                    date: dateStr,
                   },
                   locale,
                 }),
@@ -303,7 +316,7 @@ export default function RecordPaymentPage() {
         // Non-critical
       }
 
-      setLastSavedName(selectedMembership.name);
+      setLastSavedName(memberName);
       setShowSuccess(true);
       setSelectedMembership(null);
       setMemberSearch("");
@@ -318,8 +331,10 @@ export default function RecordPaymentPage() {
       }
 
       setTimeout(() => setShowSuccess(false), 3000);
+      setSavingMode(null);
       memberInputRef.current?.focus();
     } catch (err) {
+      setSavingMode(null);
       // Handle duplicate detection — show dialog instead of error
       if (err instanceof Error && err.message === "DUPLICATE_PAYMENT_DETECTED") {
         setDupKeepType(keepTypeAndMethod);
@@ -338,6 +353,7 @@ export default function RecordPaymentPage() {
   }
 
   async function handleSave(keepTypeAndMethod: boolean) {
+    setSavingMode(keepTypeAndMethod ? "next" : "save");
     await doSave(keepTypeAndMethod, false);
   }
 
@@ -496,7 +512,8 @@ export default function RecordPaymentPage() {
     );
   }
 
-  const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && !recordPayment.isPending;
+  const isBusy = recordPayment.isPending || savingMode !== null;
+  const canSubmit = !!selectedMembership && !!selectedTypeId && !!amount && !isBusy;
 
   if (!canRecord) {
     return (
@@ -834,7 +851,7 @@ export default function RecordPaymentPage() {
                 disabled={!canSubmit}
                 className="font-semibold"
               >
-                {recordPayment.isPending ? (
+                {savingMode === "save" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Check className="mr-2 h-4 w-4" />
@@ -847,7 +864,7 @@ export default function RecordPaymentPage() {
                 disabled={!canSubmit}
                 className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700"
               >
-                {recordPayment.isPending ? (
+                {savingMode === "next" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <CreditCard className="mr-2 h-4 w-4" />

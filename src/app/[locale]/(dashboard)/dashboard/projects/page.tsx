@@ -46,7 +46,16 @@ import {
   Shield,
   Upload,
   XCircle,
+  MoreVertical,
+  Edit,
+  Trash2,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useProjects, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
@@ -1699,6 +1708,7 @@ function ProjectReport({ project, contributions, expenses, milestones, currency,
 
 export default function ProjectsPage() {
   const t = useTranslations("projects");
+  const tc = useTranslations("common");
   const { isAdmin, currentGroup, groupId, user } = useGroup();
   const queryClient = useQueryClient();
   const { data: projects, isLoading, isError, error, refetch } = useProjects();
@@ -1707,6 +1717,9 @@ export default function ProjectsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [editProjectId, setEditProjectId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // Create form state
   const [formName, setFormName] = useState("");
@@ -1728,9 +1741,21 @@ export default function ProjectsPage() {
     setFormDeadline("");
     setFormStatus("planning");
     setMutationError(null);
+    setEditProjectId(null);
   }
 
-  async function handleCreateProject() {
+  function openEditProject(project: ProjectRecord) {
+    setEditProjectId(project.id);
+    setFormName(project.name || "");
+    setFormNameFr(project.name_fr || "");
+    setFormDescription(project.description || "");
+    setFormTarget(project.target_amount ? String(project.target_amount) : "");
+    setFormDeadline(project.deadline || "");
+    setFormStatus(project.status as "planning" | "active");
+    setDialogOpen(true);
+  }
+
+  async function handleSaveProject() {
     if (!formName.trim() || !groupId || !user) return;
     setSaving(true);
     setMutationError(null);
@@ -1742,18 +1767,34 @@ export default function ProjectsPage() {
         const typeLabel = t(`types.${formType}`);
         desc = desc ? `[${typeLabel}] ${desc}` : `[${typeLabel}]`;
       }
-      const { error: insertError } = await supabase.from("projects").insert({
-        group_id: groupId,
-        name: formName.trim(),
-        name_fr: formNameFr.trim() || null,
-        description: desc || null,
-        target_amount: formTarget ? Number(formTarget) : null,
-        currency: groupCurrency,
-        deadline: formDeadline || null,
-        status: formStatus,
-        created_by: user.id,
-      });
-      if (insertError) throw insertError;
+
+      if (editProjectId) {
+        // Edit mode
+        const { error: updateError } = await supabase.from("projects").update({
+          name: formName.trim(),
+          name_fr: formNameFr.trim() || null,
+          description: desc || null,
+          target_amount: formTarget ? Number(formTarget) : null,
+          deadline: formDeadline || null,
+          status: formStatus,
+        }).eq("id", editProjectId);
+        if (updateError) throw updateError;
+      } else {
+        // Create mode
+        const { error: insertError } = await supabase.from("projects").insert({
+          group_id: groupId,
+          name: formName.trim(),
+          name_fr: formNameFr.trim() || null,
+          description: desc || null,
+          target_amount: formTarget ? Number(formTarget) : null,
+          currency: groupCurrency,
+          deadline: formDeadline || null,
+          status: formStatus,
+          created_by: user.id,
+        });
+        if (insertError) throw insertError;
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["projects", groupId] });
       setDialogOpen(false);
       resetForm();
@@ -1761,6 +1802,21 @@ export default function ProjectsPage() {
       setMutationError((err as Error).message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteProject(projectId: string) {
+    setDeletingId(projectId);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.from("projects").delete().eq("id", projectId);
+      if (err) throw err;
+      await queryClient.invalidateQueries({ queryKey: ["projects", groupId] });
+    } catch (err) {
+      setMutationError((err as Error).message);
+    } finally {
+      setDeletingId(null);
+      setShowDeleteConfirm(null);
     }
   }
 
@@ -1825,7 +1881,7 @@ export default function ProjectsPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{t("createProject")}</DialogTitle>
+                <DialogTitle>{editProjectId ? t("editProject") : t("createProject")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 {/* Project Name */}
@@ -1936,12 +1992,12 @@ export default function ProjectsPage() {
                 <Button
                   className="w-full"
                   disabled={saving || !formName.trim()}
-                  onClick={handleCreateProject}
+                  onClick={handleSaveProject}
                 >
                   {saving && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
-                  {t("createProject")}
+                  {editProjectId ? tc("save") : t("createProject")}
                 </Button>
               </div>
             </DialogContent>
@@ -2069,54 +2125,77 @@ export default function ProjectsPage() {
                 }`}
               >
                 <CardContent className="p-4 sm:p-6 space-y-4">
-                  {/* Project header - clickable */}
-                  <button
-                    type="button"
-                    className="w-full text-left"
-                    onClick={() =>
-                      setExpandedProject(isExpanded ? null : id)
-                    }
-                  >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-base truncate">
-                            {name}
-                          </h3>
-                          <Badge
-                            variant="secondary"
-                            className={STATUS_COLORS[status]}
-                          >
-                            {t(
-                              `status_${status}` as
-                                | "status_planning"
-                                | "status_active"
-                                | "status_completed"
-                                | "status_paused"
-                            )}
-                          </Badge>
-                        </div>
-                        {description && (
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                            {description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {deadline && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <CalendarClock className="h-3.5 w-3.5" />
-                            <span>{formatDate(deadline)}</span>
+                  <div className="flex items-start gap-2">
+                    {/* Project header - clickable */}
+                    <button
+                      type="button"
+                      className="w-full text-left flex-1 min-w-0"
+                      onClick={() =>
+                        setExpandedProject(isExpanded ? null : id)
+                      }
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-base truncate">
+                              {name}
+                            </h3>
+                            <Badge
+                              variant="secondary"
+                              className={STATUS_COLORS[status]}
+                            >
+                              {t(
+                                `status_${status}` as
+                                  | "status_planning"
+                                  | "status_active"
+                                  | "status_completed"
+                                  | "status_paused"
+                              )}
+                            </Badge>
                           </div>
-                        )}
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        )}
+                          {description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {deadline && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <CalendarClock className="h-3.5 w-3.5" />
+                              <span>{formatDate(deadline)}</span>
+                            </div>
+                          )}
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    {/* Admin actions dropdown */}
+                    {isAdmin && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none">
+                          <MoreVertical className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditProject(project)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            {tc("edit")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setShowDeleteConfirm(id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {tc("delete")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
 
                   {/* Progress bar */}
                   <div className="space-y-2">
@@ -2178,6 +2257,29 @@ export default function ProjectsPage() {
           })}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <Dialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{tc("confirmDeleteTitle")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{tc("confirmDeleteDesc")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!!deletingId}
+              onClick={() => showDeleteConfirm && handleDeleteProject(showDeleteConfirm)}
+            >
+              {deletingId && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {tc("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

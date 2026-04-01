@@ -48,6 +48,7 @@ import {
   XCircle,
   FileText,
   HelpCircle,
+  Edit,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
@@ -281,6 +282,8 @@ export default function ReliefPlansPage() {
   // UI state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
+  const [editPlanId, setEditPlanId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   // Sort state
   const [sortField, setSortField] = useState<"created" | "name">("created");
@@ -362,6 +365,20 @@ export default function ReliefPlansPage() {
     setCreateError("");
   };
 
+  function openEditPlan(plan: ReliefPlan) {
+    setEditPlanId(plan.id);
+    setPlanName(plan.name);
+    setPlanDescription(plan.description || "");
+    setSelectedEvents(plan.qualifying_events as ReliefEventType[]);
+    setAutoEnroll(plan.auto_enroll);
+    setContributionAmount(String(plan.contribution_amount));
+    setContributionFrequency(plan.contribution_frequency);
+    setMaxPayout(String(plan.payout_rules?.max_amount || ""));
+    setWaitingPeriodMonths(String(Math.round(plan.waiting_period_days / 30)));
+    setRequiresGoodStanding(plan.payout_rules?.requires_good_standing !== false);
+    setShowCreateDialog(true);
+  }
+
   // ─── Create Plan Handler ───────────────────────────────────────────────
 
   const handleCreatePlan = async () => {
@@ -375,6 +392,38 @@ export default function ReliefPlansPage() {
       max_amount: Number(maxPayout) || Number(contributionAmount),
       requires_good_standing: requiresGoodStanding,
     };
+
+    // Edit mode
+    if (editPlanId) {
+      setEditSaving(true);
+      try {
+        const supabase = createClient();
+        const { error: updateError } = await supabase
+          .from("relief_plans")
+          .update({
+            name: planName.trim(),
+            description: planDescription.trim() || null,
+            qualifying_events: selectedEvents,
+            contribution_amount: Number(contributionAmount),
+            contribution_frequency: contributionFrequency,
+            payout_rules: payoutRules as Record<string, number>,
+            waiting_period_days: (Number(waitingPeriodMonths) || 6) * 30,
+            auto_enroll: autoEnroll,
+          })
+          .eq("id", editPlanId);
+        if (updateError) throw updateError;
+        queryClient.invalidateQueries({ queryKey: ["relief-plans", groupId] });
+        queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
+        setShowCreateDialog(false);
+        resetCreateForm();
+        setEditPlanId(null);
+      } catch (err) {
+        setCreateError((err as Error).message || tc("error"));
+      } finally {
+        setEditSaving(false);
+      }
+      return;
+    }
 
     try {
       const newPlan = await createPlan.mutateAsync({
@@ -733,6 +782,10 @@ export default function ReliefPlansPage() {
                               <Eye className="mr-2 h-4 w-4" />
                               {t("viewDetails")}
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEditPlan(plan)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              {t("editPlan")}
+                            </DropdownMenuItem>
                             {plan.is_active && (
                               <DropdownMenuItem
                                 onClick={() => handleDeactivatePlan(plan.id)}
@@ -836,9 +889,9 @@ export default function ReliefPlansPage() {
         </Tabs>
 
         {/* ── Create Plan Dialog ──────────────────────────────────────────── */}
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <Dialog open={showCreateDialog} onOpenChange={(open) => { setShowCreateDialog(open); if (!open) { resetCreateForm(); setEditPlanId(null); } }}>
           <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-            <DialogHeader><DialogTitle>{t("createPlan")}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editPlanId ? t("editPlan") : t("createPlan")}</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>{t("planName")} *</Label>
@@ -974,9 +1027,9 @@ export default function ReliefPlansPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>{tc("cancel")}</Button>
-              <Button onClick={handleCreatePlan} disabled={createPlan.isPending}>
-                {createPlan.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("createPlanButton")}
+              <Button onClick={handleCreatePlan} disabled={createPlan.isPending || editSaving}>
+                {(createPlan.isPending || editSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editPlanId ? tc("save") : t("createPlanButton")}
               </Button>
             </DialogFooter>
           </DialogContent>

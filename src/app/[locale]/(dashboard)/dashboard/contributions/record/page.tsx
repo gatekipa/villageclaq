@@ -119,6 +119,26 @@ export default function RecordPaymentPage() {
     return methods;
   })();
 
+  // Relief plan linking (optional — federated relief)
+  const [selectedReliefPlanId, setSelectedReliefPlanId] = useState("");
+  const { data: reliefPlansForPayment = [] } = useQuery({
+    queryKey: ["relief-plans-active", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("relief_plans")
+        .select("id, name, name_fr")
+        .eq("group_id", groupId)
+        .eq("is_active", true)
+        .order("name");
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!groupId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [memberSearch, setMemberSearch] = useState("");
   const [selectedMembership, setSelectedMembership] = useState<{ id: string; name: string } | null>(null);
   const [selectedTypeId, setSelectedTypeId] = useState("");
@@ -224,6 +244,7 @@ export default function RecordPaymentPage() {
         notes: notes || undefined,
         payment_date: payDate,
         skipDuplicateCheck,
+        ...(selectedReliefPlanId ? { relief_plan_id: selectedReliefPlanId } : {}),
       });
 
       // Show cascade info if payment was split across multiple obligations
@@ -358,6 +379,7 @@ export default function RecordPaymentPage() {
       if (!keepTypeAndMethod) {
         setSelectedTypeId("");
         setMethod("cash");
+        setSelectedReliefPlanId("");
       }
 
       setTimeout(() => setShowSuccess(false), 3000);
@@ -794,6 +816,25 @@ export default function RecordPaymentPage() {
                 ))}
               </select>
             </div>
+
+            {/* Relief Plan (optional — links payment to a relief fund) */}
+            {reliefPlansForPayment.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t("relief.selectPlan")} <span className="text-xs text-muted-foreground">({t("common.none")})</span></Label>
+                <select
+                  value={selectedReliefPlanId}
+                  onChange={(e) => setSelectedReliefPlanId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                >
+                  <option value="">{t("common.none")}</option>
+                  {reliefPlansForPayment.map((plan: Record<string, unknown>) => (
+                    <option key={plan.id as string} value={plan.id as string}>
+                      {locale === "fr" && plan.name_fr ? (plan.name_fr as string) : (plan.name as string)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Amount + Method Row */}
             <div className="grid gap-4 sm:grid-cols-2">

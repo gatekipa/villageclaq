@@ -162,14 +162,26 @@ CREATE POLICY "rls_fr_insert" ON feed_reactions
     )
   );
 
--- UPDATE/DELETE: own reactions only
+-- UPDATE/DELETE: own reactions only (via membership_id → memberships.user_id)
 CREATE POLICY "rls_fr_update" ON feed_reactions
   FOR UPDATE TO authenticated
-  USING (user_id = auth.uid());
+  USING (
+    EXISTS (
+      SELECT 1 FROM memberships m
+      WHERE m.id = feed_reactions.membership_id
+        AND m.user_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "rls_fr_delete" ON feed_reactions
   FOR DELETE TO authenticated
-  USING (user_id = auth.uid());
+  USING (
+    EXISTS (
+      SELECT 1 FROM memberships m
+      WHERE m.id = feed_reactions.membership_id
+        AND m.user_id = auth.uid()
+    )
+  );
 
 
 -- ── 4. announcement_deliveries ──────────────────────────────────
@@ -244,11 +256,15 @@ CREATE POLICY "rls_ep_insert" ON event_photos
     )
   );
 
--- UPDATE/DELETE: uploader or admin
+-- UPDATE/DELETE: uploader (via membership_id → memberships.user_id) or admin
 CREATE POLICY "rls_ep_update" ON event_photos
   FOR UPDATE TO authenticated
   USING (
-    uploaded_by = auth.uid()
+    EXISTS (
+      SELECT 1 FROM memberships m
+      WHERE m.id = event_photos.uploaded_by
+        AND m.user_id = auth.uid()
+    )
     OR EXISTS (
       SELECT 1 FROM events e
       WHERE e.id = event_photos.event_id
@@ -259,7 +275,11 @@ CREATE POLICY "rls_ep_update" ON event_photos
 CREATE POLICY "rls_ep_delete" ON event_photos
   FOR DELETE TO authenticated
   USING (
-    uploaded_by = auth.uid()
+    EXISTS (
+      SELECT 1 FROM memberships m
+      WHERE m.id = event_photos.uploaded_by
+        AND m.user_id = auth.uid()
+    )
     OR EXISTS (
       SELECT 1 FROM events e
       WHERE e.id = event_photos.event_id

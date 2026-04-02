@@ -1890,6 +1890,7 @@
     "whatHappened": "Que s'est-il passé ?",
     "tellUsBriefly": "Dites-nous brièvement (optionnel)",
     "tellUsBrieflyPlaceholder": "Partagez une brève description de la situation...",
+    "fileTooLarge": "Le fichier dépasse la limite de 10 Mo",
     "attachDocument": "Joindre une photo/document si nécessaire",
     "attachOptional": "Document justificatif optionnel",
     "estimatedPayout": "Versement estimé",

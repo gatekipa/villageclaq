@@ -70,7 +70,7 @@ export default function ReliefEnrollmentPage() {
   const { data: plans } = useReliefPlans();
   const { data: membersList } = useMembers();
   const [search, setSearch] = useState("");
-  const [planFilter, setPlanFilter] = useState("all");
+  const [planFilter, setPlanFilter] = useState("all"); // plan_id or "all"
 
   // Enroll dialog state
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
@@ -126,15 +126,20 @@ export default function ReliefEnrollmentPage() {
 
   const filtered = enrollmentList.filter((e: Record<string, unknown>) => {
     const plan = e.plan as Record<string, unknown>;
-    const planName = plan?.name as string || "";
+    const planId = plan?.id as string || "";
     const membership = e.membership as Record<string, unknown>;
     const memberName = membership ? getMemberNameShared(membership) : "";
-    if (planFilter !== "all" && planName !== planFilter) return false;
+    if (planFilter !== "all" && planId !== planFilter) return false;
     if (search && !memberName.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const planNames = [...new Set(enrollmentList.map((e: Record<string, unknown>) => ((e.plan as Record<string, unknown>)?.name as string) || ""))].filter(Boolean);
+  const planOptions = [...new Map(enrollmentList.map((e: Record<string, unknown>) => {
+    const plan = e.plan as Record<string, unknown>;
+    const id = plan?.id as string || "";
+    const name = locale === "fr" && plan?.name_fr ? (plan.name_fr as string) : (plan?.name as string) || "";
+    return [id, name] as [string, string];
+  })).entries()].filter(([id]) => Boolean(id));
 
   // Compute stats
   const now = new Date();
@@ -215,8 +220,8 @@ export default function ReliefEnrollmentPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("common.all")}</SelectItem>
-            {planNames.map((name) => (
-              <SelectItem key={name} value={name}>{name}</SelectItem>
+            {planOptions.map(([id, name]) => (
+              <SelectItem key={id} value={id}>{name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -308,7 +313,7 @@ export default function ReliefEnrollmentPage() {
                 <SelectContent>
                   {(plans || []).map((plan: Record<string, unknown>) => (
                     <SelectItem key={plan.id as string} value={plan.id as string}>
-                      {plan.name as string}
+                      {locale === "fr" && plan.name_fr ? (plan.name_fr as string) : (plan.name as string)}
                     </SelectItem>
                   ))}
                 </SelectContent>

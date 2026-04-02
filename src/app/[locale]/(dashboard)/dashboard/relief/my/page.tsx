@@ -249,7 +249,7 @@ export default function MyReliefPage() {
   const handleDocUpload = async (file: File) => {
     if (!groupId || !membershipId) return;
     if (file.size > 10 * 1024 * 1024) {
-      setClaimError(t("common.error"));
+      setClaimError(t("relief.fileTooLarge"));
       return;
     }
     try {

@@ -156,7 +156,7 @@ interface Payout {
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 
-function formatDate(dateStr: string, locale: string = "en") {
+function formatDate(dateStr: string, locale: string) {
   try {
     return new Date(dateStr).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short", day: "numeric" });
   } catch {
@@ -338,6 +338,7 @@ export default function ReliefPlansPage() {
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
   const plansList = (plans || []) as ReliefPlan[];
@@ -509,11 +510,15 @@ export default function ReliefPlansPage() {
   const handleDeactivatePlan = async (planId: string) => {
     if (deactivatingId) return;
     setDeactivatingId(planId);
+    setActionError(null);
     try {
       const supabase = createClient();
-      await supabase.from("relief_plans").update({ is_active: false }).eq("id", planId);
+      const { error: updateErr } = await supabase.from("relief_plans").update({ is_active: false }).eq("id", planId);
+      if (updateErr) throw updateErr;
       queryClient.invalidateQueries({ queryKey: ["relief-plans", groupId] });
       queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
+    } catch (err) {
+      setActionError((err as Error).message || tc("error"));
     } finally {
       setDeactivatingId(null);
     }
@@ -523,15 +528,19 @@ export default function ReliefPlansPage() {
 
   const handleApproveClaim = async (claimId: string) => {
     setIsReviewing(true);
+    setActionError(null);
     try {
       const supabase = createClient();
-      await supabase.from("relief_claims").update({
+      const { error: updateErr } = await supabase.from("relief_claims").update({
         status: "approved",
         reviewed_by: user?.id,
         reviewed_at: new Date().toISOString(),
       }).eq("id", claimId);
+      if (updateErr) throw updateErr;
       queryClient.invalidateQueries({ queryKey: ["relief-claims-plan"] });
       queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
+    } catch (err) {
+      setActionError((err as Error).message || tc("error"));
     } finally {
       setIsReviewing(false);
     }
@@ -542,19 +551,23 @@ export default function ReliefPlansPage() {
   const handleDenyClaim = async () => {
     if (!denyClaimId) return;
     setIsReviewing(true);
+    setActionError(null);
     try {
       const supabase = createClient();
-      await supabase.from("relief_claims").update({
+      const { error: updateErr } = await supabase.from("relief_claims").update({
         status: "denied",
         reviewed_by: user?.id,
         review_notes: denyReason.trim() || null,
         reviewed_at: new Date().toISOString(),
       }).eq("id", denyClaimId);
+      if (updateErr) throw updateErr;
       queryClient.invalidateQueries({ queryKey: ["relief-claims-plan"] });
       queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
       setShowDenyDialog(false);
       setDenyClaimId(null);
       setDenyReason("");
+    } catch (err) {
+      setActionError((err as Error).message || tc("error"));
     } finally {
       setIsReviewing(false);
     }
@@ -636,6 +649,7 @@ export default function ReliefPlansPage() {
   const handleEnrollMembers = async () => {
     if (!enrollPlanId || selectedMemberIds.length === 0) return;
     setIsEnrolling(true);
+    setActionError(null);
     try {
       const supabase = createClient();
       const enrollments = selectedMemberIds.map((membershipId) => ({
@@ -646,12 +660,15 @@ export default function ReliefPlansPage() {
         enrollment_type: "full_member" as const,
         collecting_group_id: groupId || null,
       }));
-      await supabase.from("relief_enrollments").insert(enrollments);
+      const { error: insertErr } = await supabase.from("relief_enrollments").insert(enrollments);
+      if (insertErr) throw insertErr;
       queryClient.invalidateQueries({ queryKey: ["relief-enrollments", enrollPlanId] });
       queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
       setShowEnrollDialog(false);
       setEnrollPlanId(null);
       setSelectedMemberIds([]);
+    } catch (err) {
+      setActionError((err as Error).message || tc("error"));
     } finally {
       setIsEnrolling(false);
     }
@@ -693,6 +710,14 @@ export default function ReliefPlansPage() {
             </Button>
           )}
         </div>
+
+        {/* Action Error Banner */}
+        {actionError && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 flex items-center justify-between">
+            <p className="text-sm text-destructive">{actionError}</p>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setActionError(null)}>✕</Button>
+          </div>
+        )}
 
         {/* ── Stat Cards ─────────────────────────────────────────────────── */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -875,6 +900,7 @@ export default function ReliefPlansPage() {
                         <PlanDetailTabs
                           plan={plan}
                           currency={currency}
+                          locale={locale}
                           isAdmin={isAdmin}
                           activeMembers={activeMembers}
                           onApproveClaim={handleApproveClaim}
@@ -1259,6 +1285,7 @@ export default function ReliefPlansPage() {
 function PlanDetailTabs({
   plan,
   currency,
+  locale,
   isAdmin,
   activeMembers,
   onApproveClaim,
@@ -1269,6 +1296,7 @@ function PlanDetailTabs({
 }: {
   plan: ReliefPlan;
   currency: string;
+  locale: string;
   isAdmin: boolean;
   activeMembers: Record<string, unknown>[];
   onApproveClaim: (claimId: string) => void;
@@ -1332,7 +1360,7 @@ function PlanDetailTabs({
                 <Badge variant="outline" className="w-fit text-[10px]">
                   {t(`enrollmentTypes.${enrollment.enrollment_type || "full_member"}`)}
                 </Badge>
-                <span className="text-muted-foreground text-xs">{enrollment.enrolled_at ? formatDate(enrollment.enrolled_at) : "—"}</span>
+                <span className="text-muted-foreground text-xs">{enrollment.enrolled_at ? formatDate(enrollment.enrolled_at, locale) : "—"}</span>
                 <Badge variant={enrollment.is_active ? "default" : "secondary"} className="w-fit text-xs">
                   {enrollment.is_active ? tc("active") : tc("inactive")}
                 </Badge>
@@ -1439,7 +1467,7 @@ function PlanDetailTabs({
                 </span>
                 <span className="font-medium">{formatAmount(payout.amount, currency)}</span>
                 <span className="text-muted-foreground text-xs">{payout.payment_method || "—"}</span>
-                <span className="text-muted-foreground text-xs">{payout.paid_at ? formatDate(payout.paid_at) : "—"}</span>
+                <span className="text-muted-foreground text-xs">{payout.paid_at ? formatDate(payout.paid_at, locale) : "—"}</span>
                 <span className="text-muted-foreground text-xs truncate">{(payout.recorder as { full_name: string | null } | null)?.full_name || "—"}</span>
               </div>
             ))}

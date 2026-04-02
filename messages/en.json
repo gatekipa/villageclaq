@@ -1890,6 +1890,7 @@
     "whatHappened": "What happened?",
     "tellUsBriefly": "Tell us briefly (optional)",
     "tellUsBrieflyPlaceholder": "Share a brief description of the situation...",
+    "fileTooLarge": "File exceeds the 10MB size limit",
     "attachDocument": "Attach photo/document if needed",
     "attachOptional": "Optional supporting document",
     "estimatedPayout": "Estimated Payout",

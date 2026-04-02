@@ -154,9 +154,12 @@ export default function ReliefRemittancesPage() {
     }
   };
 
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
   const handleUpdateStatus = async (remittanceId: string, newStatus: "confirmed" | "disputed") => {
     if (isUpdating) return;
     setIsUpdating(remittanceId);
+    setUpdateError(null);
     try {
       const supabase = createClient();
       const updatePayload: Record<string, unknown> = { status: newStatus };
@@ -164,9 +167,12 @@ export default function ReliefRemittancesPage() {
         updatePayload.confirmed_by = user?.id;
         updatePayload.confirmed_date = new Date().toISOString();
       }
-      await supabase.from("relief_remittances").update(updatePayload).eq("id", remittanceId);
+      const { error: updateErr } = await supabase.from("relief_remittances").update(updatePayload).eq("id", remittanceId);
+      if (updateErr) throw updateErr;
       queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
       queryClient.invalidateQueries({ queryKey: ["relief-branch-summary"] });
+    } catch (err) {
+      setUpdateError((err as Error).message || tc("error"));
     } finally {
       setIsUpdating(null);
     }
@@ -192,6 +198,14 @@ export default function ReliefRemittancesPage() {
           </Button>
         )}
       </div>
+
+      {/* Update Error */}
+      {updateError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 flex items-center justify-between">
+          <p className="text-sm text-destructive">{updateError}</p>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setUpdateError(null)}>✕</Button>
+        </div>
+      )}
 
       {/* Pending Remittances (HQ view) */}
       {isHq && pendingRemittances.length > 0 && (

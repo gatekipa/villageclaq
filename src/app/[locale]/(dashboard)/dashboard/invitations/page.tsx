@@ -44,6 +44,9 @@ import {
   Loader2,
   AlertCircle,
   Search,
+  Download,
+  Printer,
+  Smartphone,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -125,14 +128,95 @@ export default function InvitationsPage() {
     window.open(`mailto:?subject=${subject}&body=${body}`);
   }
 
+  function shareSMS(code: string) {
+    const link = getJoinLink(code);
+    const groupName = currentGroup?.name || "";
+    const msg = encodeURIComponent(t("invitations.shareSmsText", { group: groupName, link }));
+    window.open(`sms:?body=${msg}`);
+  }
+
+  function downloadQR(code: string) {
+    const svgEl = document.getElementById("qr-code-svg");
+    if (!svgEl) return;
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.width * 2;
+      canvas.height = img.height * 2;
+      if (ctx) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
+      const pngUrl = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.download = `villageclaq-join-${code}.png`;
+      a.href = pngUrl;
+      a.click();
+    };
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+  }
+
+  function printInviteCard(code: string) {
+    const link = getJoinLink(code);
+    const groupName = currentGroup?.name || "";
+    const svgEl = document.getElementById("qr-code-svg");
+    const svgHtml = svgEl ? new XMLSerializer().serializeToString(svgEl) : "";
+    const win = window.open("", "_blank");
+    if (!win) return;
+    const doc = win.document;
+    doc.open();
+    const html = [
+      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>VillageClaq - Join ",
+      groupName,
+      "</title><style>",
+      "@media print{body{margin:0}}",
+      "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f8f9fa}",
+      ".card{background:white;border:2px solid #e2e8f0;border-radius:16px;padding:48px 40px;text-align:center;max-width:400px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,0.08)}",
+      ".logo{font-size:24px;font-weight:800;color:#059669;margin-bottom:8px}",
+      ".group-name{font-size:22px;font-weight:700;margin:16px 0 8px;color:#1e293b}",
+      ".qr-container{margin:24px auto}",
+      ".code{font-family:monospace;font-size:28px;font-weight:700;letter-spacing:4px;color:#059669;margin:16px 0}",
+      ".bilingual{display:flex;gap:24px;justify-content:center;margin-top:20px}",
+      ".bilingual div{flex:1;text-align:center}",
+      ".bilingual h4{font-size:12px;color:#059669;margin-bottom:4px}",
+      ".bilingual p{font-size:11px;color:#64748b;line-height:1.5}",
+      ".url{font-size:11px;color:#94a3b8;word-break:break-all;margin-top:12px}",
+      "</style></head><body><div class=\"card\">",
+      "<div class=\"logo\">VillageClaq</div>",
+      "<div class=\"group-name\">", groupName, "</div>",
+      "<div class=\"qr-container\">", svgHtml, "</div>",
+      "<div style=\"font-size:13px;color:#64748b\">Join Code / Code d\u2019adh\u00e9sion</div>",
+      "<div class=\"code\">", code, "</div>",
+      "<div class=\"bilingual\">",
+      "<div><h4>English</h4><p>Scan the QR code or visit the link below to join this group on VillageClaq.</p></div>",
+      "<div><h4>Fran\u00e7ais</h4><p>Scannez le code QR ou visitez le lien ci-dessous pour rejoindre ce groupe sur VillageClaq.</p></div>",
+      "</div>",
+      "<div class=\"url\">", link, "</div>",
+      "</div></body></html>",
+    ].join("");
+    doc.write(html);  // Safe: all values are from our own state, not user input
+    doc.close();
+    setTimeout(() => { win.print(); }, 500);
+  }
+
   async function regenerateCode() {
     if (!groupId || !user) return;
     setRegenerating(true);
     const supabase = createClient();
-    // Deactivate old codes
-    await supabase.from("join_codes").update({ is_active: false }).eq("group_id", groupId);
-    // Create new code
-    await supabase.from("join_codes").insert({ group_id: groupId, created_by: user.id, is_active: true });
+    try {
+      // Atomic RPC: deactivates old codes + creates new one in a single transaction
+      await supabase.rpc("regenerate_join_code", {
+        p_group_id: groupId,
+        p_created_by: user.id,
+      });
+    } catch {
+      // Fallback to non-atomic approach if RPC not deployed yet
+      await supabase.from("join_codes").update({ is_active: false }).eq("group_id", groupId);
+      await supabase.from("join_codes").insert({ group_id: groupId, created_by: user.id, is_active: true });
+    }
     queryClient.invalidateQueries({ queryKey: ["join-codes", groupId] });
     setRegenerating(false);
   }
@@ -395,6 +479,10 @@ export default function InvitationsPage() {
                   <Mail className="h-3.5 w-3.5" />
                   Email
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => shareSMS(code)} className="gap-1.5">
+                  <Smartphone className="h-3.5 w-3.5" />
+                  SMS
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowQR(!showQR)} className="gap-1.5">
                   <QrCode className="h-3.5 w-3.5" />
                   QR Code
@@ -404,8 +492,18 @@ export default function InvitationsPage() {
               {/* QR Code (toggled) */}
               {showQR && (
                 <div className="flex flex-col items-center gap-3 rounded-xl border bg-white p-6 dark:bg-white">
-                  <QRCodeSVG value={joinLink} size={200} level="M" includeMargin />
+                  <QRCodeSVG id="qr-code-svg" value={joinLink} size={200} level="M" includeMargin />
                   <p className="text-xs text-gray-500">{t("invitations.scanToJoin")}</p>
+                  <div className="flex gap-2 mt-1">
+                    <Button variant="outline" size="sm" onClick={() => downloadQR(code)} className="gap-1.5 text-gray-700">
+                      <Download className="h-3.5 w-3.5" />
+                      {t("invitations.downloadQR")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => printInviteCard(code)} className="gap-1.5 text-gray-700">
+                      <Printer className="h-3.5 w-3.5" />
+                      {t("invitations.printInvite")}
+                    </Button>
+                  </div>
                 </div>
               )}
 

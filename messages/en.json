@@ -1161,7 +1161,7 @@
     "shareQR": "Share QR Code",
     "codeExpiry": "Expires {date}",
     "noExpiry": "No expiration",
-    "maxUses": "Max uses: {count}",
+    "maxUses": "Max uses: {max}",
     "unlimitedUses": "Unlimited uses",
     "usedCount": "{count} used",
     "pendingInvitations": "Pending Invitations",
@@ -1200,7 +1200,9 @@
     "noSearchResultsDesc": "Try a different search term.",
     "shareWhatsappText": "Join {group} on VillageClaq: {link}",
     "shareEmailSubject": "Join {group} on VillageClaq",
-    "shareEmailBody": "You've been invited to join {group} on VillageClaq.\n\nClick this link to join: {link}\n\nOr use join code: {code}"
+    "shareEmailBody": "You've been invited to join {group} on VillageClaq.\n\nClick this link to join: {link}\n\nOr use join code: {code}",
+    "shareSmsText": "Join {group} on VillageClaq: {link}",
+    "printInvite": "Print Invite"
   },
   "events": {
     "title": "Events",

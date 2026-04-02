@@ -41,11 +41,11 @@ export default function JoinClient() {
         return;
       }
 
-      // Look up join code
+      // Look up join code — case-insensitive via .ilike()
       const { data: joinCode, error: codeErr } = await supabase
         .from("join_codes")
         .select("id, group_id, code, is_active, max_uses, use_count, expires_at")
-        .eq("code", code)
+        .ilike("code", code)
         .eq("is_active", true)
         .maybeSingle();
 
@@ -102,7 +102,6 @@ export default function JoinClient() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      // Not logged in — redirect to signup with return URL
       router.push(`/signup?redirectTo=/join/${code}`);
       return;
     }
@@ -124,7 +123,7 @@ export default function JoinClient() {
       return;
     }
 
-    // Fetch profile name to set display_name (Bug H fix)
+    // Fetch profile name to set display_name
     const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
     const displayName = profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || null;
 
@@ -144,24 +143,16 @@ export default function JoinClient() {
       return;
     }
 
-    // Increment use count via RPC (non-critical)
+    // Atomically increment use count via RPC (non-critical)
+    // use_join_code validates + increments in one atomic operation.
+    // Falls back to the simpler increment RPC if the new one isn't deployed yet.
     try {
-      await supabase.rpc("increment_join_code_use_count", { p_code: code });
+      await supabase.rpc("use_join_code", { p_code: code });
     } catch {
       try {
-        const { data: codeData } = await supabase
-          .from("join_codes")
-          .select("use_count")
-          .eq("code", code)
-          .single();
-        if (codeData) {
-          await supabase
-            .from("join_codes")
-            .update({ use_count: (codeData.use_count || 0) + 1 })
-            .eq("code", code);
-        }
+        await supabase.rpc("increment_join_code_use_count", { p_code: code });
       } catch {
-        // Ignore — non-critical
+        // Non-critical — code usage tracking is best-effort
       }
     }
 

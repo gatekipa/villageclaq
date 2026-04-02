@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const { data: joinCode } = await supabase
       .from("join_codes")
       .select("group_id")
-      .eq("code", code)
+      .ilike("code", code)
       .eq("is_active", true)
       .maybeSingle();
 

@@ -40,7 +40,7 @@ export default function MyInvitationsPage() {
   const tc = useTranslations("common");
   const locale = useLocale();
   const queryClient = useQueryClient();
-  const { user, refresh, memberships } = useGroup();
+  const { user, memberships } = useGroup();
   const router = useRouter();
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -247,13 +247,12 @@ export default function MyInvitationsPage() {
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => setShowSuccess(null), 5000);
 
-      // Refresh group context to pick up the new membership, then redirect
-      // This ensures the sidebar/header appear and onboarding is bypassed
-      await refresh();
-      // Short delay so the user sees the success message before navigating
+      // Redirect after brief delay so user sees the success message.
+      // Use window.location for a full page reload to avoid DashboardGuard
+      // flicker from stale memberships during GroupProvider re-fetch.
       setTimeout(() => {
-        router.push("/dashboard");
-      }, 1500);
+        window.location.href = "/dashboard";
+      }, 1200);
     } catch (err) {
       setShowError(t("actionFailed"));
     } finally {

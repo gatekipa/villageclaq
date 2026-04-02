@@ -284,6 +284,7 @@ export default function MembersPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editRole, setEditRole] = useState("");
+  const [editOriginalRole, setEditOriginalRole] = useState("");
   const [editStanding, setEditStanding] = useState("");
   const [editIsProxy, setEditIsProxy] = useState(false);
   const [editUserId, setEditUserId] = useState<string | null>(null);
@@ -644,11 +645,43 @@ export default function MembersPage() {
   function openRemoveMember(member: Record<string, unknown>) {
     setRemoveMemberTarget(member);
     setRemoveError(null);
+    setRemoveRecordCounts(null);
     setRemoveDialogOpen(true);
+    // Check for existing records (payments, obligations)
+    checkMemberRecords(member.id as string);
+  }
+
+  const [removeRecordCounts, setRemoveRecordCounts] = useState<{ payments: number; obligations: number } | null>(null);
+  const [removeCheckingRecords, setRemoveCheckingRecords] = useState(false);
+
+  // When remove dialog opens, check for existing records
+  async function checkMemberRecords(membershipId: string) {
+    setRemoveCheckingRecords(true);
+    setRemoveRecordCounts(null);
+    try {
+      const supabase = createClient();
+      const [paymentsRes, obligationsRes] = await Promise.all([
+        supabase.from("payments").select("id", { count: "exact", head: true }).eq("membership_id", membershipId),
+        supabase.from("contribution_obligations").select("id", { count: "exact", head: true }).eq("membership_id", membershipId).neq("status", "paid"),
+      ]);
+      setRemoveRecordCounts({
+        payments: paymentsRes.count || 0,
+        obligations: obligationsRes.count || 0,
+      });
+    } catch {
+      setRemoveRecordCounts(null);
+    } finally {
+      setRemoveCheckingRecords(false);
+    }
   }
 
   async function handleRemoveMember() {
     if (!removeMemberTarget || !groupId || removeSaving) return;
+    // Prevent removing the owner
+    if ((removeMemberTarget.role as string) === "owner") {
+      setRemoveError(t("cannotRemoveOwner"));
+      return;
+    }
     setRemoveSaving(true);
     setRemoveError(null);
     try {
@@ -656,13 +689,24 @@ export default function MembersPage() {
       const targetId = removeMemberTarget.id as string;
       const targetName = getName(removeMemberTarget);
       const targetUserId = removeMemberTarget.user_id as string | null;
+      const hasRecords = removeRecordCounts && (removeRecordCounts.payments > 0 || removeRecordCounts.obligations > 0);
 
-      const { error: delErr, count } = await supabase
-        .from("memberships")
-        .delete({ count: "exact" })
-        .eq("id", targetId);
-      if (delErr) throw delErr;
-      if (count === 0) throw new Error(t("removeMemberFailed"));
+      if (hasRecords) {
+        // Soft-delete: set standing to 'banned' to preserve financial records
+        const { error: softErr } = await supabase
+          .from("memberships")
+          .update({ standing: "banned" as const })
+          .eq("id", targetId);
+        if (softErr) throw softErr;
+      } else {
+        // Hard delete: no records to preserve
+        const { error: delErr, count } = await supabase
+          .from("memberships")
+          .delete({ count: "exact" })
+          .eq("id", targetId);
+        if (delErr) throw delErr;
+        if (count === 0) throw new Error(t("removeMemberFailed"));
+      }
 
       // Notify the removed member
       if (targetUserId) {
@@ -811,6 +855,7 @@ export default function MembersPage() {
     setEditEmail("");
     setEditPhone(isProxy ? ((privacySettings?.proxy_phone as string) || "") : (profile?.phone || ""));
     setEditRole((member.role as string) || "member");
+    setEditOriginalRole((member.role as string) || "member");
     setEditStanding((member.standing as string) || "good");
     setEditIsProxy(isProxy);
     setEditUserId(isProxy ? null : (profile?.id as string || null));
@@ -823,6 +868,11 @@ export default function MembersPage() {
     if (!editMemberId || !editDisplayName.trim()) return;
     // Block non-owners from assigning the "owner" role
     if (editRole === "owner" && !isOwner) return;
+    // Prevent demoting the owner — must transfer ownership first
+    if (editOriginalRole === "owner" && editRole !== "owner") {
+      setEditError(t("cannotDemoteOwner"));
+      return;
+    }
     setEditSaving(true);
     setEditError(null);
     try {
@@ -2344,15 +2394,30 @@ export default function MembersPage() {
             <p className="text-sm text-muted-foreground">
               {t("confirmRemoveMember", { name: removeMemberTarget ? getName(removeMemberTarget) : "" })}
             </p>
+            {removeCheckingRecords && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> {tCommon("loading")}
+              </div>
+            )}
+            {removeRecordCounts && (removeRecordCounts.payments > 0 || removeRecordCounts.obligations > 0) && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">⚠ {t("memberHasRecords")}</p>
+                <ul className="mt-1 space-y-1 text-sm text-amber-700 dark:text-amber-400">
+                  {removeRecordCounts.payments > 0 && <li>{t("memberPaymentRecords", { count: removeRecordCounts.payments })}</li>}
+                  {removeRecordCounts.obligations > 0 && <li>{t("memberOutstandingObligations", { count: removeRecordCounts.obligations })}</li>}
+                </ul>
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">{t("memberSoftDeleteNote")}</p>
+              </div>
+            )}
             {removeError && <p className="text-sm text-destructive">{removeError}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRemoveDialogOpen(false)} disabled={removeSaving}>
               {tCommon("cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleRemoveMember} disabled={removeSaving}>
+            <Button variant="destructive" onClick={handleRemoveMember} disabled={removeSaving || removeCheckingRecords}>
               {removeSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("removeMember")}
+              {removeRecordCounts && (removeRecordCounts.payments > 0 || removeRecordCounts.obligations > 0) ? t("removeAndArchive") : t("removeMember")}
             </Button>
           </DialogFooter>
         </DialogContent>

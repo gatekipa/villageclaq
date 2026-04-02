@@ -76,6 +76,7 @@ export async function GET(request: Request) {
       const groupId = event.group_id as string;
       const group = (Array.isArray(event.group) ? event.group[0] : event.group) as Record<string, unknown>;
       const groupName = (group?.name as string) || "";
+      const groupLocale = ((group?.locale as string) || "en") as "en" | "fr";
       const startsAt = new Date(event.starts_at as string);
 
       // Get all non-proxy members + emails for this group
@@ -197,12 +198,12 @@ export async function GET(request: Request) {
             data: {
               groupName,
               eventName: event.title as string,
-              eventDate: startsAt.toLocaleDateString("en-US", {
+              eventDate: startsAt.toLocaleDateString(groupLocale === "fr" ? "fr-FR" : "en-US", {
                 weekday: "long", year: "numeric", month: "long", day: "numeric",
               }),
               eventLocation: (event.location as string) || "",
             },
-            locale: "en",
+            locale: groupLocale,
           })
         );
       }

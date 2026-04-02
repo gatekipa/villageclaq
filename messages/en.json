@@ -152,7 +152,7 @@
     "help": "Help Center",
     "adminPanel": "Admin Panel",
     "invitations": "Invitations",
-    "myPayments": "My Payments",
+    "myPayments": "Payments & Dues",
     "myEvents": "My Events",
     "myInvitations": "My Invitations",
     "myAttendance": "My Attendance",
@@ -808,7 +808,14 @@
     "deactivateMember": "Deactivate Member",
     "activateMember": "Activate Member",
     "autoEnrollWarning": "Member added, but automatic contribution enrollment failed. You may need to enroll them manually.",
-    "removeMemberFailed": "Failed to remove member. You may not have permission to perform this action."
+    "removeMemberFailed": "Failed to remove member. You may not have permission to perform this action.",
+    "cannotDemoteOwner": "Cannot change the owner's role. Transfer ownership first.",
+    "cannotRemoveOwner": "Cannot remove the group owner. Transfer ownership first.",
+    "memberHasRecords": "This member has existing records",
+    "memberPaymentRecords": "{count} payment record(s) on file",
+    "memberOutstandingObligations": "{count} outstanding obligation(s)",
+    "memberSoftDeleteNote": "To preserve financial records, this member will be archived (banned) rather than permanently deleted.",
+    "removeAndArchive": "Remove & Archive"
   },
   "settings": {
     "title": "Group Settings",

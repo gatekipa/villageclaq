@@ -39,7 +39,9 @@ export type PermissionKey = (typeof ALL_PERMISSION_KEYS)[number];
 
 /**
  * Hook that checks position-based permissions for the current user.
- * Owner/admin always have all permissions.
+ * Owner always has all permissions.
+ * Admin gets all permissions UNLESS they have specific position assignments
+ * (e.g. Treasurer with role=admin should only get treasurer permissions).
  * Regular members get permissions from their assigned positions via position_permissions table.
  */
 export function usePermissions() {
@@ -47,13 +49,13 @@ export function usePermissions() {
   const membershipId = currentMembership?.id;
   const isOwner = currentMembership?.role === "owner";
 
-  const { data: userPermissions = [], isLoading } = useQuery({
+  const { data: positionPermissions = [], isLoading } = useQuery({
     queryKey: ["user-permissions", groupId, membershipId],
     queryFn: async () => {
       if (!groupId || !membershipId) return [];
-      if (isOwner || isAdmin) return [];
+      if (isOwner) return []; // Owner bypasses everything — no need to fetch
 
-      // Get all active position assignments for this member
+      // Get all active position assignments for this member (admins included)
       const { data: assignments, error: aErr } = await supabase
         .from("position_assignments")
         .select("position_id")
@@ -74,18 +76,33 @@ export function usePermissions() {
 
       return [...new Set(permissions.map((p) => p.permission))];
     },
-    enabled: !!groupId && !!membershipId && !isOwner && !isAdmin,
+    enabled: !!groupId && !!membershipId && !isOwner,
     staleTime: 5 * 60 * 1000,
   });
 
+  // If user has position assignments, they are "position-scoped" even if admin
+  const hasPositionAssignments = positionPermissions.length > 0;
+
+  // Effective permissions:
+  // - Owner: full bypass
+  // - Admin WITH position assignments: use those position permissions (Treasurer, Secretary, etc.)
+  // - Admin WITHOUT position assignments: full access (general admin)
+  // - Member/Moderator WITH position assignments: use those permissions
+  // - Member/Moderator WITHOUT position assignments: no special access
+  const userPermissions = positionPermissions;
+
   /**
    * Check if the current user has a specific permission.
-   * Accepts dot-notation keys like "members.manage", "finances.record".
-   * Owner and admin always return true.
+   * Owner always returns true.
+   * Admin with position assignments: checks position permissions.
+   * Admin without position assignments: returns true (general admin).
    */
   function hasPermission(permissionKey: string): boolean {
-    if (isOwner || isAdmin) return true;
+    if (isOwner) return true;
     if (isLoading) return false;
+    // Admin without specific position assignments → full access (backward compatible)
+    if (isAdmin && !hasPositionAssignments) return true;
+    // Admin WITH position assignments OR regular member → check position permissions
     return userPermissions.includes(permissionKey);
   }
 
@@ -93,8 +110,9 @@ export function usePermissions() {
    * Check if user has ANY of the listed permissions.
    */
   function hasAnyPermission(...keys: string[]): boolean {
-    if (isOwner || isAdmin) return true;
+    if (isOwner) return true;
     if (isLoading) return false;
+    if (isAdmin && !hasPositionAssignments) return true;
     return keys.some((k) => userPermissions.includes(k));
   }
 

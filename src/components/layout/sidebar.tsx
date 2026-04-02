@@ -214,7 +214,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   });
 
   // Show admin nav if user is admin/owner OR has any position-based permissions
-  const showAdminNav = isAdmin || userPermissions.length > 0;
+  const showAdminNav = hasPermission("settings.manage") || userPermissions.length > 0;
   const sections = showAdminNav ? adminNavSections() : memberSections;
   const bottomItems = showAdminNav ? adminBottomItems : memberBottomItems;
 
@@ -227,8 +227,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   function itemVisible(item: NavItem): boolean {
     // Hide loan sidebar entries when no loan config exists (except for admins who can set up)
-    if ((item.key === "loans" || item.key === "myLoans") && !hasLoanConfig && !isAdmin) return false;
-    if (isAdmin) return true; // Owner/admin see everything
+    if ((item.key === "loans" || item.key === "myLoans") && !hasLoanConfig && !hasPermission("finances.manage")) return false;
+    // Use hasPermission which respects position-based scoping (owner bypass, admin+position scoping)
+    if (hasPermission("settings.manage")) {
+      // User has broad access — show all items (owner or unscoped admin)
+      if (!item.permission && !item.anyPermission) return true;
+      if (item.permission) return hasPermission(item.permission);
+      if (item.anyPermission) return hasAnyPermission(...item.anyPermission);
+      return true;
+    }
+    // Position-scoped user: check individual permissions
     if (!item.permission && !item.anyPermission) return true; // No permission required
     if (item.permission) return hasPermission(item.permission);
     if (item.anyPermission) return hasAnyPermission(...item.anyPermission);

@@ -138,4 +138,14 @@
     @apply font-sans;
     font-size: 17px; /* Up from 16px default — scales all rem-based values ~6% */
   }
+  /* Fix native <select>/<option> dark mode visibility — browsers don't inherit CSS variables */
+  .dark select,
+  .dark select option {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  .dark select optgroup {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
 }

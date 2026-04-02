@@ -256,23 +256,35 @@ export default function ConstitutionPage() {
     setSaving(true);
     try {
       if (draft) {
-        await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", draft.id);
+        const { error: upErr } = await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", draft.id);
+        if (upErr) throw upErr;
       } else {
-        // Check for existing draft first to avoid 409 conflict
-        const { data: existingDraft } = await supabase.from("group_constitutions")
-          .select("id")
-          .eq("group_id", groupId)
-          .eq("document_type", activeTitle || "Constitution")
-          .eq("status", "draft")
-          .maybeSingle();
-
-        if (existingDraft) {
-          await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", existingDraft.id);
-        } else {
-          await supabase.from("group_constitutions").insert({
-            group_id: groupId, title: editorTitle, content: editorContent,
-            version_number: currentVersion + 1, status: "draft",
-          });
+        // Upsert: atomically insert-or-update to avoid 409 race conditions
+        const { error: upsertErr } = await supabase.from("group_constitutions").upsert({
+          group_id: groupId,
+          document_type: activeTitle || "Constitution",
+          title: editorTitle,
+          content: editorContent,
+          version_number: currentVersion + 1,
+          status: "draft",
+        }, { onConflict: "group_id,document_type,status" }).select().single();
+        // If upsert fails (e.g. no unique constraint), fall back to check-then-insert
+        if (upsertErr) {
+          const { data: existingDraft } = await supabase.from("group_constitutions")
+            .select("id")
+            .eq("group_id", groupId)
+            .eq("document_type", activeTitle || "Constitution")
+            .eq("status", "draft")
+            .maybeSingle();
+          if (existingDraft) {
+            await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", existingDraft.id);
+          } else {
+            const { error: insErr } = await supabase.from("group_constitutions").insert({
+              group_id: groupId, title: editorTitle, content: editorContent,
+              version_number: currentVersion + 1, status: "draft",
+            });
+            if (insErr) throw insErr;
+          }
         }
       }
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
@@ -441,22 +453,35 @@ export default function ConstitutionPage() {
         return;
       }
       const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
-      const { data: existingFileDraft } = await supabase.from("group_constitutions")
-        .select("id")
-        .eq("group_id", groupId)
-        .eq("document_type", activeTitle || "Constitution")
-        .eq("status", "draft")
-        .maybeSingle();
-
-      if (existingFileDraft) {
-        await supabase.from("group_constitutions").update({
-          title: file.name.replace(/\.[^.]+$/, ""), file_url: urlData.publicUrl,
-        }).eq("id", existingFileDraft.id);
-      } else {
-        await supabase.from("group_constitutions").insert({
-          group_id: groupId, title: file.name.replace(/\.[^.]+$/, ""), file_url: urlData.publicUrl,
-          version_number: currentVersion + 1, status: "draft",
-        });
+      const fileTitle = file.name.replace(/\.[^.]+$/, "");
+      // Upsert: atomically insert-or-update to avoid 409 race conditions
+      const { error: upsertErr } = await supabase.from("group_constitutions").upsert({
+        group_id: groupId,
+        document_type: activeTitle || "Constitution",
+        title: fileTitle,
+        file_url: urlData.publicUrl,
+        version_number: currentVersion + 1,
+        status: "draft",
+      }, { onConflict: "group_id,document_type,status" }).select().single();
+      // If upsert fails (e.g. no unique constraint), fall back to check-then-insert
+      if (upsertErr) {
+        const { data: existingFileDraft } = await supabase.from("group_constitutions")
+          .select("id")
+          .eq("group_id", groupId)
+          .eq("document_type", activeTitle || "Constitution")
+          .eq("status", "draft")
+          .maybeSingle();
+        if (existingFileDraft) {
+          await supabase.from("group_constitutions").update({
+            title: fileTitle, file_url: urlData.publicUrl,
+          }).eq("id", existingFileDraft.id);
+        } else {
+          const { error: insErr } = await supabase.from("group_constitutions").insert({
+            group_id: groupId, title: fileTitle, file_url: urlData.publicUrl,
+            version_number: currentVersion + 1, status: "draft",
+          });
+          if (insErr) throw insErr;
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
       queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });

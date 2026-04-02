@@ -592,9 +592,11 @@ export default function MemberDetailPage() {
                 <DropdownMenuItem className="flex items-center gap-2" onClick={() => openEditDialog()}>
                   <Pencil className="h-4 w-4" /> {t("members.editMember")}
                 </DropdownMenuItem>
-                <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewRole(member.role as string); setShowRoleDialog(true); }}>
-                  <Edit className="h-4 w-4" /> {t("members.editRole")}
-                </DropdownMenuItem>
+                {(member?.role as string) !== "owner" && (
+                  <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewRole(member.role as string); setShowRoleDialog(true); }}>
+                    <Edit className="h-4 w-4" /> {t("members.editRole")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem className="flex items-center gap-2" onClick={() => { setNewStanding(member.standing as string || "good"); setOverrideReason(""); setShowStandingDialog(true); }}>
                   <Shield className="h-4 w-4" /> {ts("changeStandingOverride")}
                 </DropdownMenuItem>
@@ -1196,6 +1198,11 @@ export default function MemberDetailPage() {
               onClick={async () => {
                 // Block non-owners from assigning "owner" role
                 if (newRole === "owner" && !isOwner) return;
+                // Prevent demoting the owner — must transfer ownership first
+                if ((member?.role as string) === "owner" && newRole !== "owner") {
+                  showError(t("members.cannotDemoteOwner"));
+                  return;
+                }
                 setActionSaving(true);
                 try {
                   const { error } = await supabase.from("memberships").update({ role: newRole }).eq("id", membershipId);

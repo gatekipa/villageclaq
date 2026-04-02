@@ -152,7 +152,7 @@
     "help": "Centre d'aide",
     "adminPanel": "Panneau admin",
     "invitations": "Invitations",
-    "myPayments": "Mes paiements",
+    "myPayments": "Paiements & cotisations",
     "myEvents": "Mes événements",
     "myInvitations": "Mes invitations",
     "myAttendance": "Ma présence",
@@ -808,7 +808,14 @@
     "deactivateMember": "Désactiver le membre",
     "activateMember": "Activer le membre",
     "autoEnrollWarning": "Membre ajouté, mais l'inscription automatique aux cotisations a échoué. Vous devrez peut-être l'inscrire manuellement.",
-    "removeMemberFailed": "Échec de la suppression du membre. Vous n'avez peut-être pas la permission d'effectuer cette action."
+    "removeMemberFailed": "Échec de la suppression du membre. Vous n'avez peut-être pas la permission d'effectuer cette action.",
+    "cannotDemoteOwner": "Impossible de changer le rôle du propriétaire. Transférez d'abord la propriété.",
+    "cannotRemoveOwner": "Impossible de supprimer le propriétaire du groupe. Transférez d'abord la propriété.",
+    "memberHasRecords": "Ce membre a des enregistrements existants",
+    "memberPaymentRecords": "{count} enregistrement(s) de paiement au dossier",
+    "memberOutstandingObligations": "{count} obligation(s) en cours",
+    "memberSoftDeleteNote": "Pour préserver les données financières, ce membre sera archivé (banni) plutôt que supprimé définitivement.",
+    "removeAndArchive": "Supprimer et archiver"
   },
   "settings": {
     "title": "Paramètres du groupe",

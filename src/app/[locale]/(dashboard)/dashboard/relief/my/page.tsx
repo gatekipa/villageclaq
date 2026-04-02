@@ -107,6 +107,7 @@ export default function MyReliefPage() {
 
   const frequencyLabels: Record<string, string> = {
     monthly: t("relief.frequencyMonthly"),
+    quarterly: t("relief.frequencyQuarterly"),
     per_event: t("relief.frequencyPerEvent"),
     annual: t("relief.frequencyAnnual"),
   };

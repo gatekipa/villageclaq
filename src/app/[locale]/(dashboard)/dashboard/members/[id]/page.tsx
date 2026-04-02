@@ -226,7 +226,7 @@ function useMemberRelief(membershipId: string | null) {
       if (!membershipId) return [];
       const { data, error } = await supabase
         .from("relief_enrollments")
-        .select("id, contribution_status, is_active, relief_plan:relief_plans(id, name, name_fr)")
+        .select("id, contribution_status, eligibility_status, is_active, relief_plan:relief_plans(id, name, name_fr)")
         .eq("membership_id", membershipId);
       if (error) throw error;
       return data || [];
@@ -893,16 +893,22 @@ export default function MemberDetailPage() {
             <div className="divide-y">
               {reliefEnrollments.map((enrollment: Record<string, unknown>) => {
                 const plan = enrollment.relief_plan as Record<string, unknown> | null;
+                const planName = locale === "fr" && plan?.name_fr ? (plan.name_fr as string) : (plan?.name as string) || "—";
                 const contribStatus = enrollment.contribution_status as string;
                 const isBehind = contribStatus === "behind" || contribStatus === "overdue";
+                const isSuspended = contribStatus === "suspended";
+                const statusLabel = contribStatus === "up_to_date" ? t("relief.upToDate")
+                  : contribStatus === "behind" ? t("relief.behind")
+                  : contribStatus === "suspended" ? t("relief.suspended")
+                  : contribStatus || "—";
                 return (
                   <div key={enrollment.id as string} className="flex items-center justify-between px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium">{(plan?.name as string) || "—"}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{(enrollment.is_active as boolean) ? t("common.active") : t("common.inactive")}</p>
+                      <p className="text-sm font-medium">{planName}</p>
+                      <p className="text-xs text-muted-foreground">{(enrollment.is_active as boolean) ? t("common.active") : t("common.inactive")}</p>
                     </div>
-                    <Badge variant={isBehind ? "destructive" : "secondary"} className="text-xs capitalize">
-                      {contribStatus || "—"}
+                    <Badge variant={isBehind || isSuspended ? "destructive" : "secondary"} className="text-xs">
+                      {statusLabel}
                     </Badge>
                   </div>
                 );

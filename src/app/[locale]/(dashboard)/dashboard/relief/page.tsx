@@ -127,7 +127,7 @@ export default function ReliefPage() {
                   <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-sm font-semibold">{formatAmount(contributionAmount, currency)}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{t(`frequency${contributionFrequency === "monthly" ? "Monthly" : contributionFrequency === "per_event" ? "PerEvent" : "Annual"}`)}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{t(`frequency${({ monthly: "Monthly", quarterly: "Quarterly", per_event: "PerEvent", annual: "Annual" } as Record<string, string>)[contributionFrequency] || "Monthly"}`)}</p>
                   </div>
                 </div>
 

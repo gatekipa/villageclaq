@@ -78,7 +78,7 @@ interface ReliefPlan {
   description_fr: string | null;
   qualifying_events: string[];
   contribution_amount: number;
-  contribution_frequency: "monthly" | "per_event" | "annual";
+  contribution_frequency: "monthly" | "quarterly" | "per_event" | "annual";
   payout_rules: { max_amount?: number; requires_good_standing?: boolean } & Record<string, unknown>;
   waiting_period_days: number;
   auto_enroll: boolean;
@@ -885,7 +885,7 @@ export default function ReliefPlansPage() {
                           <DollarSign className="h-3 w-3" />{t("contributionAmount")}
                         </div>
                         <p className="mt-1 font-semibold text-sm">
-                          {formatAmount(plan.contribution_amount, currency)} / {t(`frequency${plan.contribution_frequency === "monthly" ? "Monthly" : plan.contribution_frequency === "per_event" ? "PerEvent" : "Annual"}`)}
+                          {formatAmount(plan.contribution_amount, currency)} / {t(`frequency${({ monthly: "Monthly", quarterly: "Quarterly", per_event: "PerEvent", annual: "Annual" } as Record<string, string>)[plan.contribution_frequency] || "Monthly"}`)}
                         </p>
                       </div>
                       <div className="rounded-lg bg-muted p-2">
@@ -1052,6 +1052,7 @@ export default function ReliefPlansPage() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="monthly">{t("frequencyMonthly")}</SelectItem>
+                      <SelectItem value="quarterly">{t("frequencyQuarterly")}</SelectItem>
                       <SelectItem value="per_event">{t("frequencyPerEvent")}</SelectItem>
                       <SelectItem value="annual">{t("frequencyAnnual")}</SelectItem>
                     </SelectContent>

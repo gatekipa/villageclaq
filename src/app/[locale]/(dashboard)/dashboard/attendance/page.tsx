@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -38,6 +39,7 @@ import {
   QrCode,
   RotateCcw,
   Download,
+  Search,
 } from "lucide-react";
 import { useEvents, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
@@ -131,6 +133,8 @@ export default function AttendancePage() {
   const [checkedInCount, setCheckedInCount] = useState(0);
   const [successMessage, setSuccessMessage] = useState("");
   const [dialogTab, setDialogTab] = useState("rollcall");
+  const [rollCallSearch, setRollCallSearch] = useState("");
+  const qrRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch all attendance records for this group's events
   useEffect(() => {
@@ -254,6 +258,7 @@ export default function AttendancePage() {
     setDialogError("");
     setSuccessMessage("");
     setDialogTab("rollcall");
+    setRollCallSearch("");
     const statuses: Record<string, AttendanceStatus> = {};
     if (members) {
       for (const m of members as Record<string, unknown>[]) {
@@ -263,6 +268,51 @@ export default function AttendancePage() {
     setMemberStatuses(statuses);
     setShowDialog(true);
   };
+
+  // Pre-populate existing attendance records when an event is selected
+  const loadExistingAttendance = useCallback(async (eventId: string) => {
+    if (!eventId || !members) return;
+    const supabase = createClient();
+    const { data: existing } = await supabase
+      .from("event_attendances")
+      .select("membership_id, status")
+      .eq("event_id", eventId);
+
+    const statuses: Record<string, AttendanceStatus> = {};
+    for (const m of members as Record<string, unknown>[]) {
+      statuses[m.id as string] = "absent";
+    }
+    if (existing) {
+      for (const record of existing) {
+        statuses[record.membership_id] = record.status as AttendanceStatus;
+      }
+    }
+    setMemberStatuses(statuses);
+  }, [members]);
+
+  // Auto-refresh checked-in count while QR tab is active
+  const refreshCheckedInCount = useCallback(async () => {
+    if (!dialogEventId) return;
+    const supabase = createClient();
+    const { count } = await supabase
+      .from("event_attendances")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", dialogEventId)
+      .in("status", ["present", "late"]);
+    setCheckedInCount(count || 0);
+  }, [dialogEventId]);
+
+  useEffect(() => {
+    if (dialogTab === "qr" && dialogEventId && showDialog) {
+      refreshCheckedInCount();
+      qrRefreshRef.current = setInterval(refreshCheckedInCount, 10000);
+      return () => {
+        if (qrRefreshRef.current) clearInterval(qrRefreshRef.current);
+      };
+    } else {
+      if (qrRefreshRef.current) clearInterval(qrRefreshRef.current);
+    }
+  }, [dialogTab, dialogEventId, showDialog, refreshCheckedInCount]);
 
   const setStatus = (memberId: string, status: AttendanceStatus) => {
     setMemberStatuses((prev) => ({ ...prev, [memberId]: status }));
@@ -629,8 +679,10 @@ export default function AttendancePage() {
               <Select
                 value={dialogEventId}
                 onValueChange={(v) => {
-                  setDialogEventId(v ?? "");
+                  const val = v ?? "";
+                  setDialogEventId(val);
                   setDialogError("");
+                  if (val) loadExistingAttendance(val);
                 }}
               >
                 <SelectTrigger>
@@ -686,10 +738,27 @@ export default function AttendancePage() {
                     </div>
                   </div>
 
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder={t("searchMembers")}
+                      value={rollCallSearch}
+                      onChange={(e) => setRollCallSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+
                   {/* Member List */}
                   <div className="space-y-2">
                     {members &&
-                      (members as Record<string, unknown>[]).map((member) => {
+                      (members as Record<string, unknown>[])
+                      .filter((member) => {
+                        if (!rollCallSearch.trim()) return true;
+                        const name = getMemberName(member).toLowerCase();
+                        return name.includes(rollCallSearch.toLowerCase());
+                      })
+                      .map((member) => {
                         const name = getMemberName(member);
                         const initials = name
                           .split(" ")
@@ -780,9 +849,21 @@ export default function AttendancePage() {
                         {t("fullScreen")}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {checkedInCount} {t("membersCheckedIn")}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        {checkedInCount} {t("membersCheckedIn")}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={refreshCheckedInCount}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <RotateCcw className="mr-1 h-3 w-3" />
+                        {t("refresh")}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{t("autoRefreshHint")}</p>
                   </div>
                 </TabsContent>
               </Tabs>

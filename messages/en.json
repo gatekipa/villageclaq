@@ -128,7 +128,13 @@
     "error": "Check-in Error",
     "eventNotFound": "Event not found or has been cancelled.",
     "checkInFailed": "Check-in failed. Please try again.",
-    "tryAgain": "Try Again"
+    "tryAgain": "Try Again",
+    "tooEarly": "Check-in Not Open Yet",
+    "tooEarlyDesc": "Check-in for {event} opens 30 minutes before the start time ({time}). Please come back later.",
+    "tooLate": "Check-in Closed",
+    "tooLateDesc": "Check-in for {event} has closed. Contact your group admin if you attended.",
+    "eventCancelled": "Event Cancelled",
+    "eventCancelledDesc": "This event has been cancelled. Check-in is not available."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1354,7 +1360,10 @@
     "eventName": "Event",
     "memberName": "Member",
     "status": "Status",
-    "checkInMethod": "Check-in Method"
+    "checkInMethod": "Check-in Method",
+    "searchMembers": "Search members...",
+    "refresh": "Refresh",
+    "autoRefreshHint": "Auto-refreshes every 10 seconds"
   },
   "hosting": {
     "title": "Hosting Roster",

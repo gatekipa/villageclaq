@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Calendar, MapPin, Clock, Loader2, AlertCircle, LogIn } from "lucide-react";
 import { Link } from "@/i18n/routing";
 
-type CheckinState = "loading" | "not_logged_in" | "not_member" | "ready" | "checking_in" | "checked_in" | "already_checked_in" | "error";
+type CheckinState = "loading" | "not_logged_in" | "not_member" | "too_early" | "too_late" | "cancelled" | "ready" | "checking_in" | "checked_in" | "already_checked_in" | "error";
 
 interface EventInfo {
   id: string;
@@ -58,8 +58,15 @@ export default function CheckInPage() {
         return;
       }
 
+      // Check for cancelled events
+      if ((evt as Record<string, unknown>).status === "cancelled") {
+        setErrorMsg(t("eventCancelled"));
+        setState("cancelled");
+        return;
+      }
+
       const groupData = Array.isArray(evt.groups) ? evt.groups[0] : evt.groups;
-      setEvent({
+      const eventInfo: EventInfo = {
         id: evt.id as string,
         title: evt.title as string,
         starts_at: evt.starts_at as string,
@@ -68,7 +75,26 @@ export default function CheckInPage() {
         event_type: evt.event_type as string,
         group_id: evt.group_id as string,
         group_name: (groupData as Record<string, unknown>)?.name as string || "",
-      });
+      };
+      setEvent(eventInfo);
+
+      // Time window validation: allow check-in from 30 min before start to 30 min after end
+      const now = new Date();
+      const startTime = new Date(eventInfo.starts_at);
+      const endTime = eventInfo.ends_at
+        ? new Date(eventInfo.ends_at)
+        : new Date(startTime.getTime() + 3 * 60 * 60 * 1000); // fallback: start + 3 hours
+      const windowStart = new Date(startTime.getTime() - 30 * 60 * 1000); // 30 min before
+      const windowEnd = new Date(endTime.getTime() + 30 * 60 * 1000); // 30 min after
+
+      if (now < windowStart) {
+        setState("too_early");
+        return;
+      }
+      if (now > windowEnd) {
+        setState("too_late");
+        return;
+      }
 
       // Check membership
       const { data: membership } = await supabase
@@ -235,6 +261,46 @@ export default function CheckInPage() {
               </div>
               <h2 className="text-xl font-bold">{t("alreadyCheckedIn")}</h2>
               <p className="text-sm text-muted-foreground">{t("alreadyCheckedInDesc", { event: event.title })}</p>
+              <Link href="/dashboard">
+                <Button variant="outline">{t("goToDashboard")}</Button>
+              </Link>
+            </div>
+          )}
+
+          {/* Too early */}
+          {state === "too_early" && event && (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h2 className="text-xl font-bold">{t("tooEarly")}</h2>
+              <p className="text-sm text-muted-foreground">{t("tooEarlyDesc", { event: event.title, time: formatTime(event.starts_at) })}</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>{t("tryAgain")}</Button>
+            </div>
+          )}
+
+          {/* Too late */}
+          {state === "too_late" && event && (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <Clock className="h-8 w-8 text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-xl font-bold">{t("tooLate")}</h2>
+              <p className="text-sm text-muted-foreground">{t("tooLateDesc", { event: event.title })}</p>
+              <Link href="/dashboard">
+                <Button variant="outline">{t("goToDashboard")}</Button>
+              </Link>
+            </div>
+          )}
+
+          {/* Cancelled event */}
+          {state === "cancelled" && (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-xl font-bold">{t("eventCancelled")}</h2>
+              <p className="text-sm text-muted-foreground">{t("eventCancelledDesc")}</p>
               <Link href="/dashboard">
                 <Button variant="outline">{t("goToDashboard")}</Button>
               </Link>

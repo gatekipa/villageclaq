@@ -128,7 +128,13 @@
     "error": "Erreur d'enregistrement",
     "eventNotFound": "Événement introuvable ou annulé.",
     "checkInFailed": "L'enregistrement a échoué. Veuillez réessayer.",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "tooEarly": "Enregistrement pas encore ouvert",
+    "tooEarlyDesc": "L'enregistrement pour {event} ouvre 30 minutes avant l'heure de début ({time}). Revenez plus tard.",
+    "tooLate": "Enregistrement fermé",
+    "tooLateDesc": "L'enregistrement pour {event} est fermé. Contactez l'administrateur de votre groupe si vous étiez présent.",
+    "eventCancelled": "Événement annulé",
+    "eventCancelledDesc": "Cet événement a été annulé. L'enregistrement n'est pas disponible."
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -1354,7 +1360,10 @@
     "eventName": "Événement",
     "memberName": "Membre",
     "status": "Statut",
-    "checkInMethod": "Méthode d'enregistrement"
+    "checkInMethod": "Méthode d'enregistrement",
+    "searchMembers": "Rechercher des membres...",
+    "refresh": "Actualiser",
+    "autoRefreshHint": "Actualisation automatique toutes les 10 secondes"
   },
   "hosting": {
     "title": "Tour d'hébergement",

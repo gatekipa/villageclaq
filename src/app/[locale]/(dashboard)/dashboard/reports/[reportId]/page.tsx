@@ -147,6 +147,36 @@ export default function ReportDetailPage() {
     enabled: !!groupId,
   });
 
+  // Report 24: Federated Relief Enrollment (HQ only)
+  const isFederatedReliefReport = reportId === "24";
+  const isHq = currentGroup?.group_level === "hq";
+  const { data: fedReliefData, isLoading: fedReliefLoading } = useQuery({
+    queryKey: ["fed-relief-report", groupId],
+    queryFn: async () => {
+      if (!groupId) return { summaryRows: [], sharedPlans: [] };
+      const supabase = createClient();
+      // Fetch shared plans from this HQ group
+      const { data: plans, error: plansErr } = await supabase
+        .from("relief_plans")
+        .select("id, name, name_fr")
+        .eq("group_id", groupId)
+        .eq("shared_from_org", true)
+        .eq("is_active", true);
+      if (plansErr) throw plansErr;
+      const sharedPlans = plans || [];
+      if (sharedPlans.length === 0) return { summaryRows: [], sharedPlans };
+      // Fetch branch summary view
+      const planIds = sharedPlans.map((p: { id: string }) => p.id);
+      const { data: rows, error: rowsErr } = await supabase
+        .from("relief_branch_summary")
+        .select("*")
+        .in("relief_plan_id", planIds);
+      if (rowsErr) throw rowsErr;
+      return { summaryRows: rows || [], sharedPlans };
+    },
+    enabled: !!groupId && isFederatedReliefReport && isHq,
+  });
+
   const isLoanReport = ["21", "22", "23"].includes(reportId);
   const { data: loanData, isLoading: loansLoading } = useQuery({
     queryKey: ["loans-report", groupId],
@@ -179,6 +209,7 @@ export default function ReportDetailPage() {
     reportId === "14" ? minutesLoading :
     ["16", "17", "20"].includes(reportId) ? (membersLoading || paymentsLoading || eventsLoading || obligationsLoading) :
     isLoanReport ? loansLoading :
+    isFederatedReliefReport ? fedReliefLoading :
     false;
 
   if (isLoading) return <ListSkeleton rows={5} />;
@@ -551,6 +582,9 @@ export default function ReportDetailPage() {
     } else if (reportId === "23") {
       data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString(getDateLocale(locale)) : "—", AmountDue: r.amountDue, AmountPaid: r.amountPaid, Overdue: r.overdue, DaysOverdue: r.daysOverdue }));
       filename = "overdue_loans_report";
+    } else if (reportId === "24") {
+      data = fedRows.map(r => ({ Plan: r.planName, Branch: r.branch, Enrolled: r.enrolled, FullMembers: r.fullMembers, ReliefOnly: r.reliefOnly, External: r.external, PaidThisMonth: r.paidThisMonth, Collected: r.collected }));
+      filename = "federated_relief_enrollment";
     }
 
     if (data.length > 0) {
@@ -670,6 +704,9 @@ export default function ReportDetailPage() {
     } else if (reportId === "23") {
       data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: r.dueDate ? new Date(r.dueDate).toLocaleDateString(getDateLocale(locale)) : "—", Overdue: formatAmount(r.overdue, currency), DaysOverdue: r.daysOverdue }));
       filename = "overdue_loans_report";
+    } else if (reportId === "24") {
+      data = fedRows.map(r => ({ Plan: r.planName, Branch: r.branch, Enrolled: r.enrolled, FullMembers: r.fullMembers, ReliefOnly: r.reliefOnly, External: r.external, PaidThisMonth: r.paidThisMonth, Collected: formatAmount(r.collected, currency) }));
+      filename = "federated_relief_enrollment";
     }
 
     if (data.length === 0) return;
@@ -783,6 +820,25 @@ export default function ReportDetailPage() {
   );
   const healthLabel = healthScore > 85 ? "Excellent" : healthScore > 70 ? "Good" : healthScore > 50 ? "Fair" : "Needs Attention";
   const healthColor = healthScore > 85 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : healthScore > 70 ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : healthScore > 50 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+
+  // Report 24: Federated Relief Enrollment data
+  type FedRow = { planName: string; branch: string; enrolled: number; fullMembers: number; reliefOnly: number; external: number; paidThisMonth: number; collected: number; };
+  const fedSummaryRows = (fedReliefData?.summaryRows || []) as Record<string, unknown>[];
+  const fedSharedPlans = (fedReliefData?.sharedPlans || []) as { id: string; name: string; name_fr: string }[];
+  const fedRows: FedRow[] = fedSummaryRows.map((r) => ({
+    planName: (locale === "fr" && (r.plan_name_fr as string)) ? (r.plan_name_fr as string) : (r.plan_name as string) || "",
+    branch: (r.branch_name as string) || t("reports.fedHqOnly"),
+    enrolled: Number(r.enrolled_count || 0),
+    fullMembers: Number(r.full_member_count || 0),
+    reliefOnly: Number(r.relief_only_count || 0),
+    external: Number(r.external_count || 0),
+    paidThisMonth: Number(r.paid_this_month || 0),
+    collected: Number(r.collected_this_month || 0),
+  }));
+  const fedTotalEnrolled = fedRows.reduce((s, r) => s + r.enrolled, 0);
+  const fedBranchCount = new Set(fedSummaryRows.map(r => r.collecting_group_id).filter(Boolean)).size;
+  const fedTotalCollected = fedRows.reduce((s, r) => s + r.collected, 0);
+  const fedTotalRemitted = fedSummaryRows.reduce((s, r) => s + Number((r as Record<string, unknown>).total_remitted || 0), 0);
 
   // ── Lazy AI fetch — doesn't block page load ──
   const fetchAiInsights = useCallback(async () => {
@@ -1862,6 +1918,107 @@ export default function ReportDetailPage() {
             </div>
           )}
         </CardContent></Card>
+      )}
+
+      {/* Report 24: Federated Relief Enrollment (HQ only) */}
+      {reportId === "24" && (
+        <>
+          {!isHq ? (
+            <Card><CardContent className="pt-6">
+              <p className="text-center text-sm text-muted-foreground py-8">{t("reports.fedHqOnly")}</p>
+            </CardContent></Card>
+          ) : fedRows.length === 0 ? (
+            <Card><CardContent className="pt-6">
+              <p className="text-center text-sm text-muted-foreground py-8">{t("reports.fedNoEnrollments")}</p>
+            </CardContent></Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Stat cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold">{fedTotalEnrolled}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.fedEnrolledMembers")}</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-600">{fedBranchCount}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.fedBranchesCollecting")}</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-600">{formatAmount(fedTotalCollected, currency)}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.fedCollectedThisMonth")}</p>
+                </div>
+                <div className="rounded-lg border p-3 text-center">
+                  <p className="text-2xl font-bold text-amber-600">{formatAmount(fedTotalRemitted, currency)}</p>
+                  <p className="text-xs text-muted-foreground">{t("reports.fedTotalRemitted")}</p>
+                </div>
+              </div>
+
+              {/* Enrollment table */}
+              <Card><CardContent className="pt-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-3 font-semibold">{t("reports.fedPlanName")}</th>
+                        <th className="text-left py-2 px-3 font-semibold">{t("reports.fedBranch")}</th>
+                        <th className="text-right py-2 px-3 font-semibold">{t("reports.fedEnrolled")}</th>
+                        <th className="text-right py-2 px-3 font-semibold">{t("reports.fedFullMembers")}</th>
+                        <th className="text-right py-2 px-3 font-semibold">{t("reports.fedReliefOnly")}</th>
+                        <th className="text-right py-2 px-3 font-semibold">{t("reports.fedExternal")}</th>
+                        <th className="text-right py-2 px-3 font-semibold">{t("reports.fedPaidThisMonth")}</th>
+                        <th className="text-right py-2 px-3 font-semibold">{t("reports.fedCollected")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fedRows.map((row, i) => {
+                        // Visual differentiation: highlight rows with external or relief_only enrollments
+                        const hasExternal = row.external > 0;
+                        const hasReliefOnly = row.reliefOnly > 0;
+                        const rowBg = hasExternal
+                          ? "bg-purple-50/50 dark:bg-purple-900/10"
+                          : hasReliefOnly
+                          ? "bg-blue-50/50 dark:bg-blue-900/10"
+                          : "";
+                        return (
+                          <tr key={i} className={`border-b last:border-0 hover:bg-muted/30 ${rowBg}`}>
+                            <td className="py-2 px-3 font-medium">{row.planName}</td>
+                            <td className="py-2 px-3">{row.branch}</td>
+                            <td className="text-right py-2 px-3 font-semibold">{row.enrolled}</td>
+                            <td className="text-right py-2 px-3">{row.fullMembers}</td>
+                            <td className="text-right py-2 px-3">
+                              {row.reliefOnly > 0 ? (
+                                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">{row.reliefOnly}</Badge>
+                              ) : "0"}
+                            </td>
+                            <td className="text-right py-2 px-3">
+                              {row.external > 0 ? (
+                                <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">{row.external}</Badge>
+                              ) : "0"}
+                            </td>
+                            <td className="text-right py-2 px-3">{row.paidThisMonth}</td>
+                            <td className="text-right py-2 px-3 font-semibold">{formatAmount(row.collected, currency)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    {/* Totals row */}
+                    <tfoot>
+                      <tr className="border-t-2 font-bold">
+                        <td className="py-2 px-3" colSpan={2}>{t("reports.total")}</td>
+                        <td className="text-right py-2 px-3">{fedTotalEnrolled}</td>
+                        <td className="text-right py-2 px-3">{fedRows.reduce((s, r) => s + r.fullMembers, 0)}</td>
+                        <td className="text-right py-2 px-3">{fedRows.reduce((s, r) => s + r.reliefOnly, 0)}</td>
+                        <td className="text-right py-2 px-3">{fedRows.reduce((s, r) => s + r.external, 0)}</td>
+                        <td className="text-right py-2 px-3">{fedRows.reduce((s, r) => s + r.paidThisMonth, 0)}</td>
+                        <td className="text-right py-2 px-3">{formatAmount(fedTotalCollected, currency)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardContent></Card>
+            </div>
+          )}
+        </>
       )}
 
       {/* PDF Footer branding */}

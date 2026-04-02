@@ -32,10 +32,12 @@ import {
   Printer,
   RefreshCw,
   Landmark,
+  HeartHandshake,
 } from "lucide-react";
 import { useDashboardStats } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useSubscription } from "@/lib/hooks/use-subscription";
+import { useGroup } from "@/lib/group-context";
 import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { Lock } from "lucide-react";
 
@@ -79,6 +81,8 @@ const reports: ReportDef[] = [
   { id: "21", key: "report21", icon: Landmark, category: "financial" },
   { id: "22", key: "report22", icon: Landmark, category: "financial" },
   { id: "23", key: "report23", icon: Landmark, category: "financial" },
+  // Federated Relief (HQ only)
+  { id: "24", key: "report24", icon: HeartHandshake, category: "operations" },
 ];
 
 const categoryColors: Record<ReportCategory, string> = {
@@ -98,6 +102,7 @@ const categoryIconColors: Record<ReportCategory, string> = {
 export default function ReportsHubPage() {
   const t = useTranslations();
   const locale = useLocale();
+  const { currentGroup } = useGroup();
   const { hasPermission } = usePermissions();
   const canViewReports = hasPermission("reports.view");
   const canExport = hasPermission("reports.export");
@@ -156,7 +161,10 @@ export default function ReportsHubPage() {
 
   const categories: ReportCategory[] = ["financial", "membership", "operations", "executive"];
 
+  const isHq = currentGroup?.group_level === "hq";
   const filtered = reports.filter((r) => {
+    // Report 24 (Federated Relief) is HQ-only
+    if (r.id === "24" && !isHq) return false;
     if (activeCategory !== "all" && r.category !== activeCategory) return false;
     if (search) {
       const name = t(`reports.${r.key}.name`).toLowerCase();

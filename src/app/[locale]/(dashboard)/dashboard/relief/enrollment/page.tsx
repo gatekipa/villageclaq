@@ -99,6 +99,11 @@ export default function ReliefEnrollmentPage() {
     setEnrollError(null);
     try {
       const supabase = createClient();
+      // Compute eligible_date from plan's waiting_period_days (trigger will also auto-compute as safety net)
+      const selectedPlan = (plans || []).find((p: Record<string, unknown>) => (p.id as string) === enrollPlanId);
+      const waitDays = selectedPlan ? Number((selectedPlan as Record<string, unknown>).waiting_period_days) || 180 : 180;
+      const enrollDate = new Date();
+      const eligibleDate = new Date(enrollDate.getTime() + waitDays * 86400000).toISOString().split("T")[0];
       const rows = selectedMemberIds.map((membershipId) => ({
         plan_id: enrollPlanId,
         membership_id: membershipId,
@@ -106,6 +111,7 @@ export default function ReliefEnrollmentPage() {
         contribution_status: "up_to_date",
         enrollment_type: enrollmentType,
         collecting_group_id: groupId || null,
+        eligible_date: eligibleDate,
       }));
       const { error: insertError } = await supabase.from("relief_enrollments").insert(rows);
       if (insertError) throw insertError;
@@ -141,21 +147,12 @@ export default function ReliefEnrollmentPage() {
     return [id, name] as [string, string];
   })).entries()].filter(([id]) => Boolean(id));
 
-  // Compute stats
-  const now = new Date();
+  // Compute stats — eligibility_status is now authoritative from DB (set by trigger/batch sync)
   const eligibleCount = enrollmentList.filter((e: Record<string, unknown>) => {
-    const plan = e.plan as Record<string, unknown>;
-    const waitDays = (plan?.waiting_period_days as number) || 180;
-    const enrolledAt = new Date(e.enrolled_at as string);
-    const eligibleDate = new Date(enrolledAt.getTime() + waitDays * 86400000);
-    return eligibleDate <= now && (e.is_active as boolean);
+    return (e.eligibility_status as string) === "eligible" && (e.is_active as boolean);
   }).length;
   const waitingCount = enrollmentList.filter((e: Record<string, unknown>) => {
-    const plan = e.plan as Record<string, unknown>;
-    const waitDays = (plan?.waiting_period_days as number) || 180;
-    const enrolledAt = new Date(e.enrolled_at as string);
-    const eligibleDate = new Date(enrolledAt.getTime() + waitDays * 86400000);
-    return eligibleDate > now && (e.is_active as boolean);
+    return (e.eligibility_status as string) === "waiting_period" && (e.is_active as boolean);
   }).length;
   const behindCount = enrollmentList.filter((e: Record<string, unknown>) => (e.contribution_status as string) === "behind").length;
 
@@ -247,11 +244,15 @@ export default function ReliefEnrollmentPage() {
                 const isActive = enrollment.is_active as boolean;
                 const contributionStatus = (enrollment.contribution_status as string) || "up_to_date";
 
-                const waitDays = (plan?.waiting_period_days as number) || 180;
+                const eligibilityStatus = (enrollment.eligibility_status as string) || "waiting_period";
+                const isEligible = eligibilityStatus === "eligible";
+                const isWaiting = eligibilityStatus === "waiting_period" && isActive;
+                // eligible_date from DB (authoritative), fallback to client computation for display only
                 const enrolledDate = new Date(enrolledAt);
-                const eligibleDate = new Date(enrolledDate.getTime() + waitDays * 86400000);
-                const isEligible = eligibleDate <= now;
-                const isWaiting = eligibleDate > now && isActive;
+                const waitDays = (plan?.waiting_period_days as number) || 180;
+                const eligibleDate = enrollment.eligible_date
+                  ? new Date(enrollment.eligible_date as string)
+                  : new Date(enrolledDate.getTime() + waitDays * 86400000);
 
                 return (
                   <div key={enrollment.id as string} className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">

@@ -111,16 +111,21 @@ export default function MyReliefPage() {
     annual: t("relief.frequencyAnnual"),
   };
 
-  // Transform enrollments
+  // Transform enrollments — eligibility_status is now authoritative from DB (trigger + batch sync)
   const myPlans = enrollments.map((enrollment: Record<string, unknown>) => {
     const plan = enrollment.plan as Record<string, unknown>;
     const enrolledAt = new Date(enrollment.enrolled_at as string);
     const waitingDays = (plan.waiting_period_days as number) || 180;
-    const eligibleFrom = new Date(enrolledAt.getTime() + waitingDays * 86400000);
+    // eligible_date from DB (authoritative), fallback to client computation for countdown display
+    const eligibleFrom = enrollment.eligible_date
+      ? new Date(enrollment.eligible_date as string)
+      : new Date(enrolledAt.getTime() + waitingDays * 86400000);
     const now = new Date();
     const contribStatus = (enrollment.contribution_status as string) || "up_to_date";
-    const isEligible = now >= eligibleFrom && contribStatus === "up_to_date";
-    const isWaiting = now < eligibleFrom;
+    const dbEligibility = (enrollment.eligibility_status as string) || "waiting_period";
+    // DB eligibility_status is the time-based source of truth; combine with contribution_status for full eligibility
+    const isEligible = dbEligibility === "eligible" && contribStatus === "up_to_date";
+    const isWaiting = dbEligibility === "waiting_period";
     const qualifyingEvents = (plan.qualifying_events as EventType[]) || [];
     const payoutRules = (plan.payout_rules as Record<string, number>) || {};
     const maxPayout = Number(payoutRules.max_amount) || Number(plan.contribution_amount) || 0;

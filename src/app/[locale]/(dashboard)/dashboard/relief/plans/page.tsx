@@ -484,6 +484,9 @@ export default function ReliefPlansPage() {
           .in("standing", ["good", "warning"]);
 
         if (activeMemberships && activeMemberships.length > 0) {
+          // eligible_date: enrolled_at + waiting_period_days (trigger also auto-computes as safety net)
+          const wpDays = (Number(waitingPeriodMonths) || 6) * 30;
+          const eDate = new Date(Date.now() + wpDays * 86400000).toISOString().split("T")[0];
           const enrollments = activeMemberships.map((m: { id: string }) => ({
             plan_id: newPlan.id,
             membership_id: m.id,
@@ -491,6 +494,7 @@ export default function ReliefPlansPage() {
             contribution_status: "up_to_date",
             enrollment_type: "full_member" as const,
             collecting_group_id: groupId || null,
+            eligible_date: eDate,
           }));
           await supabase.from("relief_enrollments").insert(enrollments);
         }
@@ -652,6 +656,10 @@ export default function ReliefPlansPage() {
     setActionError(null);
     try {
       const supabase = createClient();
+      // Compute eligible_date from plan's waiting_period_days (trigger also auto-computes as safety net)
+      const enrollPlan = (plans || []).find((p: Record<string, unknown>) => (p.id as string) === enrollPlanId);
+      const wpDays = enrollPlan ? Number((enrollPlan as Record<string, unknown>).waiting_period_days) || 180 : 180;
+      const eDate = new Date(Date.now() + wpDays * 86400000).toISOString().split("T")[0];
       const enrollments = selectedMemberIds.map((membershipId) => ({
         plan_id: enrollPlanId,
         membership_id: membershipId,
@@ -659,6 +667,7 @@ export default function ReliefPlansPage() {
         contribution_status: "up_to_date",
         enrollment_type: "full_member" as const,
         collecting_group_id: groupId || null,
+        eligible_date: eDate,
       }));
       const { error: insertErr } = await supabase.from("relief_enrollments").insert(enrollments);
       if (insertErr) throw insertErr;
@@ -1862,20 +1871,26 @@ function EligibilityTracker({ plans, currency, groupId, t }: {
     enabled: !!groupId && plans.length > 0,
   });
 
-  // Calculate eligibility for each enrollment
+  // Eligibility + contribution status are now authoritative from DB (trigger + batch sync)
   const enriched = enrollments.map((e: Record<string, unknown>) => {
     const plan = e.plan as Record<string, unknown>;
-    const enrollDate = new Date(e.enrolled_at as string);
-    const waitDays = Number(plan?.waiting_period_days) || 180;
-    const eligibleDate = new Date(enrollDate.getTime() + waitDays * 86400000);
-    const today = new Date();
     const contribStatus = (e.contribution_status as string) || "up_to_date";
-    let eligibility = "waiting_period";
+    const dbEligibility = (e.eligibility_status as string) || "waiting_period";
+
+    // Composite eligibility: DB eligibility_status + contribution_status
+    // If contribution is behind/suspended, display as ineligible regardless of time-based status
+    let eligibility = dbEligibility;
     if (contribStatus === "behind" || contribStatus === "suspended") {
       eligibility = "ineligible";
-    } else if (today >= eligibleDate) {
-      eligibility = "eligible";
     }
+
+    // eligible_date from DB (authoritative), fallback to client computation for display only
+    const enrollDate = new Date(e.enrolled_at as string);
+    const waitDays = Number(plan?.waiting_period_days) || 180;
+    const eligibleDate = e.eligible_date
+      ? new Date(e.eligible_date as string)
+      : new Date(enrollDate.getTime() + waitDays * 86400000);
+    const today = new Date();
     const daysLeft = Math.max(0, Math.ceil((eligibleDate.getTime() - today.getTime()) / 86400000));
 
     return {

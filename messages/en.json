@@ -104,7 +104,10 @@
     "alreadyMemberDesc": "You're already in {group}.",
     "goToDashboard": "Go to Dashboard",
     "errorTitle": "Something went wrong",
-    "tryAgain": "Try Again"
+    "tryAgain": "Try Again",
+    "shareTheNews": "Share the news!",
+    "joinedShareText": "I just joined {group} on VillageClaq! 🎉 Join us: {link}",
+    "skipToDashboard": "Go to Dashboard"
   },
   "checkin": {
     "verifying": "Verifying your membership...",
@@ -468,7 +471,23 @@
     "viewMembersCard": "View all members",
     "viewCollectionCard": "View collection details",
     "viewEventsCard": "View upcoming events",
-    "viewOutstandingCard": "View outstanding balances"
+    "viewOutstandingCard": "View outstanding balances",
+    "growYourGroup": "Grow your group",
+    "growYourGroupDesc": "Invite members to get the most out of VillageClaq",
+    "inviteMembers": "Invite Members",
+    "dismissCard": "Dismiss",
+    "milestoneTitle": "Milestone reached!",
+    "milestoneMemberCount": "🎉 {count} Members!",
+    "milestoneMemberDesc": "{group} just reached {count} members!",
+    "milestoneCollectionRate": "💯 100% Collection This Month!",
+    "milestoneCollectionDesc": "Every member paid — outstanding work by {group}!",
+    "milestoneAnniversary": "🎂 1 Year Anniversary!",
+    "milestoneAnniversaryDesc": "{group} has been going strong for a full year!",
+    "milestonePaymentCount": "🏆 {count} Payments Recorded!",
+    "milestonePaymentDesc": "{group} has recorded {count} payments — the community is thriving!",
+    "milestoneShareWhatsApp": "Share on WhatsApp",
+    "milestonePoweredBy": "Manage your community group at villageclaq.com",
+    "milestoneDismiss": "Nice!"
   },
   "groups": {
     "switchGroup": "Switch Group",
@@ -953,6 +972,8 @@
     "paymentSaved": "Payment recorded successfully!",
     "receiptSent": "Receipt notification sent to member",
     "shareWhatsApp": "Share via WhatsApp",
+    "shareReceiptText": "Payment confirmed ✅\n\nMember: {name}\nAmount: {amount}\nType: {type}\nDate: {date}\nGroup: {group}\n\nManaged by VillageClaq — villageclaq.com",
+    "done": "Done",
     "amountDiffers": "Expected: {expected}",
     "quickTipsTitle": "Quick Tips for Fast Recording",
     "quickTip1": "Use \"Save & Next\" to batch-record payments — it keeps the contribution type and method",

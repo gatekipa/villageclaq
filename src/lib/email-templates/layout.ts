@@ -41,7 +41,7 @@ export function emailLayout(body: string, locale: "en" | "fr" = "en"): string {
             <td style="padding:20px 32px; background:#f1f5f9; border-top:1px solid #e2e8f0; text-align:center;">
               <p style="margin:0; font-size:12px; color:#94a3b8;">${footer}</p>
               <p style="margin:4px 0 0; font-size:11px; color:#cbd5e1;">
-                <a href="https://villageclaq.com" style="color:#64748b; text-decoration:none;">villageclaq.com</a>
+                ${locale === "fr" ? "Géré par" : "Managed by"} <a href="https://villageclaq.com?ref=email" style="color:#64748b; text-decoration:none; font-weight:600;">VillageClaq</a> — <a href="https://villageclaq.com?ref=email" style="color:#64748b; text-decoration:none;">villageclaq.com</a>
               </p>
               <p style="color:#94a3b8;font-size:11px;text-align:center;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;">
                 <a href="https://villageclaq.com/${locale}/dashboard/my-profile" style="color:#94a3b8;text-decoration:underline;">${locale === "fr" ? "Gérer les préférences email" : "Manage email preferences"}</a>

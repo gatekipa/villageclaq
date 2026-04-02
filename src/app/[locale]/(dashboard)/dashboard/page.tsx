@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
@@ -39,6 +39,9 @@ import {
   Heart,
   Scale,
   Settings,
+  MessageCircle,
+  X,
+  Sparkles,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import {
@@ -98,6 +101,77 @@ export default function DashboardPage() {
     enabled: !!currentGroup?.id && isAdmin,
     staleTime: 60_000,
   });
+
+  // ─── Invite CTA: dismissible card for small groups (admin only) ─────
+  const [inviteDismissed, setInviteDismissed] = useState(false);
+  useEffect(() => {
+    if (currentGroup?.id) {
+      const key = `vc_invite_cta_dismissed_${currentGroup.id}`;
+      if (localStorage.getItem(key) === "1") setInviteDismissed(true);
+    }
+  }, [currentGroup?.id]);
+  const dismissInviteCta = useCallback(() => {
+    if (currentGroup?.id) {
+      localStorage.setItem(`vc_invite_cta_dismissed_${currentGroup.id}`, "1");
+    }
+    setInviteDismissed(true);
+  }, [currentGroup?.id]);
+  const showInviteCta = isAdmin && !inviteDismissed && (stats?.totalMembers ?? 0) < 5;
+
+  // ─── Milestone detection ──────────────────────────────────────────────
+  const [milestone, setMilestone] = useState<{ key: string; title: string; desc: string } | null>(null);
+  useEffect(() => {
+    if (!stats || !currentGroup) return;
+    const groupId = currentGroup.id;
+    const shownKey = `vc_milestones_shown_${groupId}`;
+    const shown: string[] = JSON.parse(localStorage.getItem(shownKey) || "[]");
+
+    const memberCount = stats.totalMembers ?? 0;
+    const collectionRate = stats.collectionRate ?? 0;
+    const groupName = currentGroup.name;
+
+    // Check milestones in priority order (highest first)
+    const memberMilestones = [100, 50, 25, 10];
+    for (const threshold of memberMilestones) {
+      const mk = `members_${threshold}`;
+      if (memberCount >= threshold && !shown.includes(mk)) {
+        setMilestone({
+          key: mk,
+          title: t("dashboard.milestoneMemberCount", { count: threshold }),
+          desc: t("dashboard.milestoneMemberDesc", { group: groupName, count: threshold }),
+        });
+        return;
+      }
+    }
+
+    // 100% collection
+    if (collectionRate === 100 && memberCount > 1) {
+      const monthKey = `collection_100_${new Date().toISOString().slice(0, 7)}`;
+      if (!shown.includes(monthKey)) {
+        setMilestone({
+          key: monthKey,
+          title: t("dashboard.milestoneCollectionRate"),
+          desc: t("dashboard.milestoneCollectionDesc", { group: groupName }),
+        });
+        return;
+      }
+    }
+  }, [stats, currentGroup, t]);
+
+  const dismissMilestone = useCallback(() => {
+    if (!milestone || !currentGroup) return;
+    const shownKey = `vc_milestones_shown_${currentGroup.id}`;
+    const shown: string[] = JSON.parse(localStorage.getItem(shownKey) || "[]");
+    shown.push(milestone.key);
+    localStorage.setItem(shownKey, JSON.stringify(shown));
+    setMilestone(null);
+  }, [milestone, currentGroup]);
+
+  const shareMilestoneWhatsApp = useCallback(() => {
+    if (!milestone || !currentGroup) return;
+    const text = `${milestone.title}\n\n${milestone.desc}\n\n${t("dashboard.milestonePoweredBy")}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  }, [milestone, currentGroup, t]);
 
   // Show skeleton while loading
   if (isLoading) {
@@ -170,6 +244,60 @@ export default function DashboardPage() {
                 ) : null}
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Invite Members CTA (admin, < 5 members, dismissible) */}
+      {showInviteCta && (
+        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <UserPlus className="h-6 w-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold">{t("dashboard.growYourGroup")}</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.growYourGroupDesc")}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link href="/dashboard/invitations">
+                <Button size="sm" className="gap-1.5">
+                  <UserPlus className="h-3.5 w-3.5" />
+                  {t("dashboard.inviteMembers")}
+                </Button>
+              </Link>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={dismissInviteCta}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Milestone Achievement Card */}
+      {milestone && (
+        <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 overflow-hidden">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
+              <Sparkles className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-emerald-800 dark:text-emerald-300">{milestone.title}</p>
+              <p className="text-sm text-emerald-700/80 dark:text-emerald-400/80">{milestone.desc}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={shareMilestoneWhatsApp}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                {t("dashboard.milestoneShareWhatsApp")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={dismissMilestone}>
+                {t("dashboard.milestoneDismiss")}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

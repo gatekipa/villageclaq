@@ -28,6 +28,7 @@ import {
   Users,
   CheckSquare,
   Square,
+  MessageCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -131,6 +132,7 @@ export default function RecordPaymentPage() {
   const [showMemberList, setShowMemberList] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastSavedName, setLastSavedName] = useState("");
+  const [lastSavedDetails, setLastSavedDetails] = useState<{ name: string; amount: string; type: string; date: string } | null>(null);
   const [savingMode, setSavingMode] = useState<"save" | "next" | null>(null);
   const memberInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -338,6 +340,12 @@ export default function RecordPaymentPage() {
       }
 
       setLastSavedName(memberName);
+      setLastSavedDetails({
+        name: memberName,
+        amount: formattedAmt,
+        type: typeName,
+        date: dateStr,
+      });
       setShowSuccess(true);
       setSelectedMembership(null);
       setMemberSearch("");
@@ -580,22 +588,56 @@ export default function RecordPaymentPage() {
         ))}
       </div>
 
-      {/* Success Toast */}
+      {/* Success Card with WhatsApp Share */}
       {showSuccess && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg bg-primary px-4 py-3 text-primary-foreground shadow-lg animate-in slide-in-from-bottom-4">
-          <Check className="h-5 w-5" />
-          <div>
-            <p className="text-sm font-medium">{t("contributions.paymentSaved")}</p>
-            <p className="text-xs opacity-90">{lastSavedName}</p>
+        <div className="fixed bottom-4 right-4 z-50 w-80 rounded-xl border bg-card p-4 shadow-2xl animate-in slide-in-from-bottom-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+              <Check className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">{t("contributions.paymentSaved")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{lastSavedName}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={() => setShowSuccess(false)}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-primary-foreground hover:text-primary-foreground/80 hover:bg-primary-foreground/10"
-            onClick={() => setShowSuccess(false)}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
+          <div className="mt-3 flex gap-2">
+            {lastSavedDetails && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 gap-1.5 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
+                onClick={() => {
+                  const text = t("contributions.shareReceiptText", {
+                    name: lastSavedDetails.name,
+                    amount: lastSavedDetails.amount,
+                    type: lastSavedDetails.type,
+                    date: lastSavedDetails.date,
+                    group: currentGroup?.name || "",
+                  });
+                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                }}
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                {t("contributions.shareWhatsApp")}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs"
+              onClick={() => setShowSuccess(false)}
+            >
+              {t("contributions.done")}
+            </Button>
+          </div>
         </div>
       )}
 

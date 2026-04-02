@@ -104,7 +104,10 @@
     "alreadyMemberDesc": "Vous êtes déjà dans {group}.",
     "goToDashboard": "Aller au tableau de bord",
     "errorTitle": "Une erreur est survenue",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "shareTheNews": "Partagez la nouvelle !",
+    "joinedShareText": "Je viens de rejoindre {group} sur VillageClaq ! 🎉 Rejoignez-nous : {link}",
+    "skipToDashboard": "Aller au tableau de bord"
   },
   "checkin": {
     "verifying": "Vérification de votre adhésion...",
@@ -468,7 +471,23 @@
     "viewMembersCard": "Voir tous les membres",
     "viewCollectionCard": "Voir les détails de collecte",
     "viewEventsCard": "Voir les événements à venir",
-    "viewOutstandingCard": "Voir les soldes impayés"
+    "viewOutstandingCard": "Voir les soldes impayés",
+    "growYourGroup": "Développez votre groupe",
+    "growYourGroupDesc": "Invitez des membres pour tirer le meilleur parti de VillageClaq",
+    "inviteMembers": "Inviter des membres",
+    "dismissCard": "Masquer",
+    "milestoneTitle": "Étape franchie !",
+    "milestoneMemberCount": "🎉 {count} Membres !",
+    "milestoneMemberDesc": "{group} vient d'atteindre {count} membres !",
+    "milestoneCollectionRate": "💯 100% de collecte ce mois !",
+    "milestoneCollectionDesc": "Tous les membres ont payé — excellent travail de {group} !",
+    "milestoneAnniversary": "🎂 1 an d'anniversaire !",
+    "milestoneAnniversaryDesc": "{group} est actif depuis un an !",
+    "milestonePaymentCount": "🏆 {count} Paiements enregistrés !",
+    "milestonePaymentDesc": "{group} a enregistré {count} paiements — la communauté prospère !",
+    "milestoneShareWhatsApp": "Partager sur WhatsApp",
+    "milestonePoweredBy": "Gérez votre groupe communautaire sur villageclaq.com",
+    "milestoneDismiss": "Super !"
   },
   "groups": {
     "switchGroup": "Changer de groupe",
@@ -953,6 +972,8 @@
     "paymentSaved": "Paiement enregistré avec succès !",
     "receiptSent": "Notification de reçu envoyée au membre",
     "shareWhatsApp": "Partager via WhatsApp",
+    "shareReceiptText": "Paiement confirmé ✅\n\nMembre : {name}\nMontant : {amount}\nType : {type}\nDate : {date}\nGroupe : {group}\n\nGéré par VillageClaq — villageclaq.com",
+    "done": "Terminé",
     "amountDiffers": "Attendu : {expected}",
     "quickTipsTitle": "Conseils pour un enregistrement rapide",
     "quickTip1": "Utilisez « Enregistrer et suivant » pour saisir en lot — le type et la méthode sont conservés",

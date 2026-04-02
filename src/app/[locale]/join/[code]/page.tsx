@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, CheckCircle2, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Users, CheckCircle2, Loader2, AlertCircle, ArrowLeft, MessageCircle } from "lucide-react";
 
 interface GroupInfo {
   id: string;
@@ -163,7 +163,6 @@ export default function JoinPage() {
     }
 
     setStatus("joined");
-    setTimeout(() => router.push("/dashboard"), 2000);
   }
 
   return (
@@ -232,7 +231,25 @@ export default function JoinPage() {
                 <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
               </div>
               <h2 className="text-lg font-semibold">{tj("welcomeTo", { group: group?.name || "" })}</h2>
-              <p className="text-sm text-muted-foreground">{tj("redirecting")}</p>
+              <div className="flex flex-col gap-2 w-full mt-2">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
+                  onClick={() => {
+                    const joinLink = `${window.location.origin}/join/${code}`;
+                    const text = tj("joinedShareText", { group: group?.name || "", link: joinLink });
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                  }}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {tj("shareTheNews")}
+                </Button>
+                <Link href="/dashboard" className="w-full">
+                  <Button variant="default" className="w-full">
+                    {tj("skipToDashboard")}
+                  </Button>
+                </Link>
+              </div>
             </div>
           )}
 

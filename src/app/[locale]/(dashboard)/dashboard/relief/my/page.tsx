@@ -80,7 +80,7 @@ export default function MyReliefPage() {
       if (!membershipId) return [];
       const { data, error } = await supabase
         .from("relief_enrollments")
-        .select("*, plan:relief_plans!inner(id, name, name_fr, qualifying_events, contribution_amount, contribution_frequency, payout_rules, waiting_period_days)")
+        .select("*, plan:relief_plans!inner(id, name, name_fr, qualifying_events, contribution_amount, contribution_frequency, payout_rules, waiting_period_days, shared_from_org, collection_mode, claim_processing), collecting_group:groups!relief_enrollments_collecting_group_id_fkey(id, name)")
         .eq("membership_id", membershipId)
         .eq("is_active", true);
       if (error) throw error;
@@ -129,6 +129,11 @@ export default function MyReliefPage() {
     const daysPassed = Math.max(0, waitingDays - daysLeft);
     const waitProgress = waitingDays > 0 ? Math.min(100, Math.round((daysPassed / waitingDays) * 100)) : 100;
 
+    const collectingGroup = enrollment.collecting_group as Record<string, unknown> | null;
+    const enrollmentType = (enrollment.enrollment_type as string) || "full_member";
+    const sharedFromOrg = (plan.shared_from_org as boolean) || false;
+    const claimProcessing = (plan.claim_processing as string) || "hq_only";
+
     return {
       id: enrollment.id as string,
       planId: plan.id as string,
@@ -145,6 +150,10 @@ export default function MyReliefPage() {
       maxPayout,
       daysLeft,
       waitProgress,
+      enrollmentType,
+      collectingBranchName: (collectingGroup?.name as string) || null,
+      sharedFromOrg,
+      claimProcessing,
     };
   });
 
@@ -308,8 +317,14 @@ export default function MyReliefPage() {
             {myPlans.map((plan) => (
               <Card key={plan.id} className={plan.isEligible ? "border-emerald-200 dark:border-emerald-800" : ""}>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{plan.planName}</CardTitle>
+                  <div className="flex items-center justify-between flex-wrap gap-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="text-base">{plan.planName}</CardTitle>
+                      {plan.sharedFromOrg && (
+                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">{t("relief.sharedPlanBadge")}</Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px]">{t(`relief.enrollmentTypes.${plan.enrollmentType}`)}</Badge>
+                    </div>
                     {plan.isWaiting ? (
                       <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                         <Clock className="mr-1 h-3 w-3" />{t("relief.waiting")}
@@ -329,6 +344,12 @@ export default function MyReliefPage() {
                       <span className="flex items-center gap-1 text-muted-foreground"><Calendar className="h-3 w-3" />{t("relief.enrollmentDate")}</span>
                       <span className="font-medium">{plan.enrolledAt}</span>
                     </div>
+                    {plan.collectingBranchName && (
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-muted-foreground">{t("relief.collectingBranch")}</span>
+                        <span className="font-medium text-xs">{plan.collectingBranchName}</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-muted-foreground"><Shield className="h-3 w-3" />{t("relief.eligibilityDate")}</span>
                       <span className="font-medium">{plan.eligibleFrom}</span>
@@ -366,6 +387,16 @@ export default function MyReliefPage() {
                       {t("relief.contributionsBehind")}
                     </div>
                   )}
+                  {plan.enrollmentType === "relief_only" && (
+                    <div className="rounded-md bg-blue-50 dark:bg-blue-950/20 p-2 text-xs text-blue-700 dark:text-blue-400">
+                      {t("relief.reliefOnlyInfo")}
+                    </div>
+                  )}
+                  {plan.enrollmentType === "external" && (
+                    <div className="rounded-md bg-purple-50 dark:bg-purple-950/20 p-2 text-xs text-purple-700 dark:text-purple-400">
+                      {t("relief.externalInfo")}
+                    </div>
+                  )}
                   <div className="pt-2 border-t">
                     <p className="text-xs font-medium text-muted-foreground mb-1">{t("relief.qualifyingEvents")}:</p>
                     <div className="flex flex-wrap gap-1">
@@ -374,7 +405,7 @@ export default function MyReliefPage() {
                       ))}
                     </div>
                   </div>
-                  {plan.isEligible && (
+                  {plan.isEligible && plan.enrollmentType !== "external" && (
                     <Button className="w-full" size="sm" onClick={() => openClaimDialog(plan.planId, plan.maxPayout)}>
                       <Plus className="mr-1 h-3.5 w-3.5" />{t("relief.submitClaim")}
                     </Button>

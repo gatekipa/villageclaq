@@ -78,11 +78,13 @@ export default function ReliefEnrollmentPage() {
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [enrollSaving, setEnrollSaving] = useState(false);
   const [enrollError, setEnrollError] = useState<string | null>(null);
+  const [enrollmentType, setEnrollmentType] = useState<"full_member" | "relief_only" | "external">("full_member");
 
   function resetEnrollForm() {
     setEnrollPlanId("");
     setSelectedMemberIds([]);
     setEnrollError(null);
+    setEnrollmentType("full_member");
   }
 
   function toggleMemberSelection(id: string) {
@@ -102,6 +104,8 @@ export default function ReliefEnrollmentPage() {
         membership_id: membershipId,
         is_active: true,
         contribution_status: "up_to_date",
+        enrollment_type: enrollmentType,
+        collecting_group_id: groupId || null,
       }));
       const { error: insertError } = await supabase.from("relief_enrollments").insert(rows);
       if (insertError) throw insertError;
@@ -256,6 +260,9 @@ export default function ReliefEnrollmentPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="text-[10px]">
+                        {t(`relief.enrollmentTypes.${(enrollment.enrollment_type as string) || "full_member"}`)}
+                      </Badge>
                       <div className="text-xs text-muted-foreground">
                         {t("relief.enrollmentDate")}: {enrolledAt ? new Date(enrolledAt).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }) : ""}
                       </div>
@@ -306,6 +313,23 @@ export default function ReliefEnrollmentPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("relief.enrollmentTypeLabel")}</Label>
+              <Select value={enrollmentType} onValueChange={(v) => setEnrollmentType((v || "full_member") as "full_member" | "relief_only" | "external")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="full_member">{t("relief.enrollmentTypes.full_member")}</SelectItem>
+                  <SelectItem value="relief_only">{t("relief.enrollmentTypes.relief_only")}</SelectItem>
+                  <SelectItem value="external">{t("relief.enrollmentTypes.external")}</SelectItem>
+                </SelectContent>
+              </Select>
+              {enrollmentType === "relief_only" && (
+                <p className="text-xs text-muted-foreground">{t("relief.reliefOnlyInfo")}</p>
+              )}
+              {enrollmentType === "external" && (
+                <p className="text-xs text-muted-foreground">{t("relief.externalInfo")}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("relief.selectMembers")}</Label>

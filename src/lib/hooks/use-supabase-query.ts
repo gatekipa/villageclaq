@@ -257,6 +257,8 @@ export function useRecordPayment() {
       payment_date?: string;
       /** Set to true to bypass duplicate warning (user confirmed "Record Anyway") */
       skipDuplicateCheck?: boolean;
+      /** Optional: link payment to a relief plan (federated relief) */
+      relief_plan_id?: string;
     }): Promise<PaymentCascadeResult> => {
       if (!groupId || !user) throw new Error("No group/user");
 
@@ -295,6 +297,7 @@ export function useRecordPayment() {
         group_id: groupId,
         recorded_by: user.id,
         ...(values.payment_date ? { payment_date: values.payment_date, recorded_at: `${values.payment_date}T${new Date().toISOString().split("T")[1]}` } : {}),
+        ...(values.relief_plan_id ? { relief_plan_id: values.relief_plan_id } : {}),
       };
 
       const { data, error } = await supabase.from("payments").insert(insertPayload).select().single();

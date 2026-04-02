@@ -130,6 +130,8 @@ const adminEnterprise: NavSection = {
     { key: "enterprise", href: "/dashboard/enterprise", icon: Activity },
     { key: "branches", href: "/dashboard/enterprise/branches", icon: GitBranch },
     { key: "exchangeRates", href: "/dashboard/enterprise/exchange-rates", icon: RefreshCw },
+    { key: "reliefRollup", href: "/dashboard/enterprise/relief-rollup", icon: Heart, permission: "relief.manage" },
+    { key: "remittances", href: "/dashboard/relief/remittances", icon: Landmark, permission: "relief.manage" },
   ],
 };
 

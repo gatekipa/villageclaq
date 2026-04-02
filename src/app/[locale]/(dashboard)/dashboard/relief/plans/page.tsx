@@ -86,6 +86,12 @@ interface ReliefPlan {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Federated relief fields
+  shared_from_org: boolean;
+  collection_mode: "branch_collect" | "hq_collect" | "either";
+  claim_processing: "hq_only" | "branch_delegated" | "branch_with_approval";
+  relief_only_rules: Record<string, unknown> | null;
+  external_rules: Record<string, unknown> | null;
 }
 
 interface Enrollment {
@@ -95,6 +101,10 @@ interface Enrollment {
   enrolled_at: string;
   is_active: boolean;
   contribution_status: string;
+  // Federated relief fields
+  enrollment_type: "full_member" | "relief_only" | "external";
+  collecting_group_id: string | null;
+  collecting_group?: { id: string; name: string } | null;
   membership?: {
     id: string;
     display_name: string | null;
@@ -198,7 +208,7 @@ function usePlanEnrollments(planId: string | null) {
       if (!planId) return [];
       const { data, error } = await supabase
         .from("relief_enrollments")
-        .select("*, membership:memberships!relief_enrollments_membership_id_fkey(id, display_name, user_id, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .select("*, membership:memberships!relief_enrollments_membership_id_fkey(id, display_name, user_id, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url)), collecting_group:groups!relief_enrollments_collecting_group_id_fkey(id, name)")
         .eq("plan_id", planId)
         .order("enrolled_at", { ascending: false });
       if (error) throw error;
@@ -273,6 +283,8 @@ export default function ReliefPlansPage() {
   const { currentGroup, groupId, user } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("relief.manage");
+  const isHq = currentGroup?.group_level === "hq";
+  const isBranch = currentGroup?.group_level === "branch";
   const queryClient = useQueryClient();
   const { data: plans, isLoading, error, refetch } = useReliefPlans();
   const { data: members } = useMembers();
@@ -300,6 +312,11 @@ export default function ReliefPlansPage() {
   const [waitingPeriodMonths, setWaitingPeriodMonths] = useState("6");
   const [requiresGoodStanding, setRequiresGoodStanding] = useState(true);
   const [createError, setCreateError] = useState("");
+
+  // Federation fields (HQ only)
+  const [sharedFromOrg, setSharedFromOrg] = useState(false);
+  const [collectionMode, setCollectionMode] = useState("branch_collect");
+  const [claimProcessing, setClaimProcessing] = useState("hq_only");
 
   // Claim review state
   const [showDenyDialog, setShowDenyDialog] = useState(false);
@@ -363,6 +380,9 @@ export default function ReliefPlansPage() {
     setWaitingPeriodMonths("6");
     setRequiresGoodStanding(true);
     setCreateError("");
+    setSharedFromOrg(false);
+    setCollectionMode("branch_collect");
+    setClaimProcessing("hq_only");
   };
 
   function openEditPlan(plan: ReliefPlan) {
@@ -376,6 +396,9 @@ export default function ReliefPlansPage() {
     setMaxPayout(String(plan.payout_rules?.max_amount || ""));
     setWaitingPeriodMonths(String(Math.round(plan.waiting_period_days / 30)));
     setRequiresGoodStanding(plan.payout_rules?.requires_good_standing !== false);
+    setSharedFromOrg(plan.shared_from_org || false);
+    setCollectionMode(plan.collection_mode || "branch_collect");
+    setClaimProcessing(plan.claim_processing || "hq_only");
     setShowCreateDialog(true);
   }
 
@@ -398,9 +421,7 @@ export default function ReliefPlansPage() {
       setEditSaving(true);
       try {
         const supabase = createClient();
-        const { error: updateError } = await supabase
-          .from("relief_plans")
-          .update({
+        const updatePayload: Record<string, unknown> = {
             name: planName.trim(),
             description: planDescription.trim() || null,
             qualifying_events: selectedEvents,
@@ -409,7 +430,16 @@ export default function ReliefPlansPage() {
             payout_rules: payoutRules as Record<string, number>,
             waiting_period_days: (Number(waitingPeriodMonths) || 6) * 30,
             auto_enroll: autoEnroll,
-          })
+        };
+        // Only include federation fields if HQ group
+        if (isHq) {
+            updatePayload.shared_from_org = sharedFromOrg;
+            updatePayload.collection_mode = collectionMode;
+            updatePayload.claim_processing = claimProcessing;
+        }
+        const { error: updateError } = await supabase
+          .from("relief_plans")
+          .update(updatePayload)
           .eq("id", editPlanId);
         if (updateError) throw updateError;
         queryClient.invalidateQueries({ queryKey: ["relief-plans", groupId] });
@@ -426,7 +456,7 @@ export default function ReliefPlansPage() {
     }
 
     try {
-      const newPlan = await createPlan.mutateAsync({
+      const basePayload = {
         name: planName.trim(),
         description: planDescription.trim() || undefined,
         qualifying_events: selectedEvents,
@@ -435,7 +465,13 @@ export default function ReliefPlansPage() {
         payout_rules: payoutRules as Record<string, number>,
         waiting_period_days: (Number(waitingPeriodMonths) || 6) * 30,
         auto_enroll: autoEnroll,
-      });
+        ...(isHq ? {
+          shared_from_org: sharedFromOrg,
+          collection_mode: collectionMode,
+          claim_processing: claimProcessing,
+        } : {}),
+      };
+      const newPlan = await createPlan.mutateAsync(basePayload);
 
       // If auto-enroll, batch-enroll all active memberships
       if (autoEnroll && newPlan?.id) {
@@ -452,6 +488,8 @@ export default function ReliefPlansPage() {
             membership_id: m.id,
             is_active: true,
             contribution_status: "up_to_date",
+            enrollment_type: "full_member" as const,
+            collecting_group_id: groupId || null,
           }));
           await supabase.from("relief_enrollments").insert(enrollments);
         }
@@ -605,6 +643,8 @@ export default function ReliefPlansPage() {
         membership_id: membershipId,
         is_active: true,
         contribution_status: "up_to_date",
+        enrollment_type: "full_member" as const,
+        collecting_group_id: groupId || null,
       }));
       await supabase.from("relief_enrollments").insert(enrollments);
       queryClient.invalidateQueries({ queryKey: ["relief-enrollments", enrollPlanId] });
@@ -758,6 +798,9 @@ export default function ReliefPlansPage() {
                               {t(`eventTypes.${qualifyingEvents[0]}`)}
                               {qualifyingEvents.length > 1 && ` +${qualifyingEvents.length - 1}`}
                             </Badge>
+                          )}
+                          {plan.shared_from_org && (
+                            <Badge className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">{t("sharedPlanBadge")}</Badge>
                           )}
                           {plan.auto_enroll ? (
                             <Badge variant="destructive" className="text-xs">{t("mandatory")}</Badge>
@@ -1023,6 +1066,71 @@ export default function ReliefPlansPage() {
                 </div>
               </button>
 
+              {/* Federation Fields (HQ only) */}
+              {isHq && (
+                <>
+                  <Separator />
+                  <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-3 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs">{t("sharedPlanBadge")}</Badge>
+                      <span className="text-xs text-muted-foreground">{t("hqOnlyField")}</span>
+                    </div>
+                    {/* Share with branches toggle */}
+                    <button
+                      type="button"
+                      onClick={() => setSharedFromOrg(!sharedFromOrg)}
+                      className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${sharedFromOrg ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                    >
+                      {sharedFromOrg ? (
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <div className="h-4 w-4 rounded-sm border shrink-0" />
+                      )}
+                      <div>
+                        <span className="text-sm font-medium">{t("sharedFromOrg")}</span>
+                        <p className="text-xs text-muted-foreground">{t("federatedPlanNote")}</p>
+                      </div>
+                    </button>
+                    {sharedFromOrg && (
+                      <>
+                        <div className="space-y-2">
+                          <Label>{t("collectionMode")}</Label>
+                          <Select value={collectionMode} onValueChange={(v) => setCollectionMode(v ?? "branch_collect")}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="branch_collect">{t("collectionModes.branch_collect")}</SelectItem>
+                              <SelectItem value="hq_collect">{t("collectionModes.hq_collect")}</SelectItem>
+                              <SelectItem value="either">{t("collectionModes.either")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("claimProcessing")}</Label>
+                          <Select value={claimProcessing} onValueChange={(v) => setClaimProcessing(v ?? "hq_only")}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="hq_only">{t("claimProcessingModes.hq_only")}</SelectItem>
+                              <SelectItem value="branch_delegated">{t("claimProcessingModes.branch_delegated")}</SelectItem>
+                              <SelectItem value="branch_with_approval">{t("claimProcessingModes.branch_with_approval")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Read-only federation badge for branches viewing shared plans */}
+              {isBranch && editPlanId && (plansList.find(p => p.id === editPlanId)?.shared_from_org) && (
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-xs">{t("sharedPlanBadge")}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t("readOnlyForBranch")}</p>
+                </div>
+              )}
+
               {createError && <p className="text-sm text-destructive">{createError}</p>}
             </div>
             <DialogFooter>
@@ -1205,16 +1313,25 @@ function PlanDetailTabs({
         ) : !enrollments || enrollments.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">{t("noEnrollments")}</p>
         ) : (
-          <div className="rounded-lg border divide-y">
-            <div className="grid grid-cols-4 gap-2 p-3 text-xs font-medium text-muted-foreground bg-muted/50">
+          <div className="rounded-lg border divide-y overflow-x-auto">
+            <div className="grid grid-cols-5 gap-2 p-3 text-xs font-medium text-muted-foreground bg-muted/50 min-w-[600px]">
               <span>{t("claimant")}</span>
+              <span>{t("enrollmentTypeLabel")}</span>
               <span>{t("enrollmentDate")}</span>
               <span>{tc("status")}</span>
               <span>{t("contributionStatus")}</span>
             </div>
             {enrollments.map((enrollment) => (
-              <div key={enrollment.id} className="grid grid-cols-4 gap-2 p-3 text-sm items-center">
-                <span className="truncate">{getMemberName(enrollment.membership as { display_name: string | null; profiles?: { full_name: string | null } | null })}</span>
+              <div key={enrollment.id} className="grid grid-cols-5 gap-2 p-3 text-sm items-center min-w-[600px]">
+                <div className="truncate">
+                  <span>{getMemberName(enrollment.membership as { display_name: string | null; profiles?: { full_name: string | null } | null })}</span>
+                  {enrollment.collecting_group && (
+                    <span className="block text-[10px] text-muted-foreground">{(enrollment.collecting_group as { name: string }).name}</span>
+                  )}
+                </div>
+                <Badge variant="outline" className="w-fit text-[10px]">
+                  {t(`enrollmentTypes.${enrollment.enrollment_type || "full_member"}`)}
+                </Badge>
                 <span className="text-muted-foreground text-xs">{enrollment.enrolled_at ? formatDate(enrollment.enrolled_at) : "—"}</span>
                 <Badge variant={enrollment.is_active ? "default" : "secondary"} className="w-fit text-xs">
                   {enrollment.is_active ? tc("active") : tc("inactive")}

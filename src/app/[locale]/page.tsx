@@ -474,15 +474,18 @@ export default function HomePage() {
               {t("landing.pricingSubtitle")}
             </p>
           </div>
-          <div className="mx-auto mt-20 grid max-w-6xl items-center gap-8 lg:grid-cols-3">
+          <p className="mt-3 text-sm font-medium text-primary">
+            {t("landing.pricingTagline")}
+          </p>
+          <div className="mx-auto mt-20 grid max-w-7xl items-start gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Free */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg sm:p-10">
+            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("landing.pricingFree")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-5xl font-extrabold tracking-tight">{t("landing.pricingFreePrice")}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingFreePrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingFreePeriod")}</span>
               </div>
-              <ul className="mt-8 space-y-4">
+              <ul className="mt-8 space-y-3">
                 {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -499,19 +502,45 @@ export default function HomePage() {
               </Link>
             </div>
 
+            {/* Starter */}
+            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+              <h3 className="text-xl font-bold">{t("landing.pricingStarter")}</h3>
+              <div className="mt-6 flex items-baseline gap-1">
+                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingStarterPrice")}</span>
+                <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingStarterPeriod")}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t("landing.pricingStarterXaf")}</p>
+              <p className="text-xs text-primary font-medium">{t("landing.pricingStarterAnnual")}</p>
+              <ul className="mt-6 space-y-3">
+                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
+                  <li key={n} className="flex items-start gap-3 text-sm">
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Check className="h-3 w-3 text-primary" />
+                    </div>
+                    {t(`landing.pricingStarterFeature${n}`)}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-10 block">
+                <Button variant="outline" size="lg" className="w-full text-base font-semibold" disabled>
+                  {t("tiers.comingSoon")}
+                </Button>
+              </div>
+            </div>
+
             {/* Pro (elevated) */}
-            <div className="relative rounded-2xl border-2 border-primary bg-card p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/15 sm:p-10 lg:scale-105">
+            <div className="relative rounded-2xl border-2 border-primary bg-card p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/15">
               <Badge className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 text-sm shadow-md">
                 {t("landing.pricingProBadge")}
               </Badge>
               <h3 className="text-xl font-bold">{t("landing.pricingPro")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-5xl font-extrabold tracking-tight">{t("landing.pricingProPrice")}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingProPrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingProPeriod")}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{t("landing.pricingProXaf")}</p>
               <p className="text-xs text-primary font-medium">{t("landing.pricingProAnnual")}</p>
-              <ul className="mt-6 space-y-4">
+              <ul className="mt-6 space-y-3">
                 {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -529,13 +558,15 @@ export default function HomePage() {
             </div>
 
             {/* Enterprise */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg sm:p-10">
+            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("landing.pricingOrg")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-5xl font-extrabold tracking-tight">{t("landing.pricingOrgPrice")}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingOrgPrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingOrgPeriod")}</span>
               </div>
-              <ul className="mt-8 space-y-4">
+              <p className="mt-1 text-xs text-muted-foreground">{t("landing.pricingOrgXaf")}</p>
+              <p className="text-xs text-primary font-medium">{t("landing.pricingOrgAnnual")}</p>
+              <ul className="mt-8 space-y-3">
                 {(["1", "2", "3", "4", "5"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">

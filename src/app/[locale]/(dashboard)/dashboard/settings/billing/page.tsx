@@ -16,6 +16,7 @@ import {
   Sparkles,
   Zap,
   ArrowRight,
+  Star,
 } from "lucide-react";
 import { useSubscription } from "@/lib/hooks/use-subscription";
 import { TIERS, type TierName } from "@/lib/subscription-tiers";
@@ -27,6 +28,7 @@ export default function BillingPage() {
     tier,
     limits,
     isFreeTier,
+    isStarterTier,
     isProTier,
     isEnterprise,
     counts,
@@ -36,6 +38,7 @@ export default function BillingPage() {
 
   const tierIcons: Record<TierName, typeof Zap> = {
     free: Zap,
+    starter: Star,
     pro: Crown,
     enterprise: Sparkles,
   };
@@ -63,13 +66,19 @@ export default function BillingPage() {
     },
   ];
 
-  // Pricing display
-  const proPrice = useXafPricing
-    ? `${TIERS.pro.price.xaf.monthly.toLocaleString()} FCFA/${t("month")}`
-    : `$${TIERS.pro.price.usd.monthly}/${t("month")}`;
-  const proYearly = useXafPricing
-    ? `${TIERS.pro.price.xaf.yearly.toLocaleString()} FCFA/${t("year")}`
-    : `$${TIERS.pro.price.usd.yearly}/${t("year")}`;
+  // Determine upgrade target
+  const upgradeTarget: TierName | null = isFreeTier ? "starter" : isStarterTier ? "pro" : isProTier ? "enterprise" : null;
+  const upgradeConfig = upgradeTarget ? TIERS[upgradeTarget] : null;
+  const upgradePrice = upgradeConfig
+    ? useXafPricing
+      ? `${upgradeConfig.price.xaf.monthly.toLocaleString()} FCFA/${t("month")}`
+      : `$${upgradeConfig.price.usd.monthly}/${t("month")}`
+    : "";
+  const upgradeYearly = upgradeConfig
+    ? useXafPricing
+      ? `${upgradeConfig.price.xaf.yearly.toLocaleString()} FCFA/${t("year")}`
+      : `$${upgradeConfig.price.usd.yearly}/${t("year")}`
+    : "";
 
   return (
     <div className="space-y-6">
@@ -127,8 +136,8 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {/* Upgrade CTA (Free tier only) */}
-      {isFreeTier && (
+      {/* Upgrade CTA (non-enterprise tiers) */}
+      {upgradeTarget && upgradeConfig && (
         <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-primary/10">
           <CardContent className="p-6 space-y-4">
             <div className="flex items-start gap-3">
@@ -136,18 +145,18 @@ export default function BillingPage() {
                 <Sparkles className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="font-bold text-lg">{t("proCtaTitle")}</h3>
-                <p className="text-sm text-muted-foreground">{t("proCtaDesc")}</p>
+                <h3 className="font-bold text-lg">{t("upgradeCtaTitle", { tier: upgradeConfig.name })}</h3>
+                <p className="text-sm text-muted-foreground">{t("upgradeCtaDesc")}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{proPrice}</span>
+              <span className="font-semibold text-foreground">{upgradePrice}</span>
               <span>•</span>
-              <span>{proYearly}</span>
+              <span>{upgradeYearly}</span>
             </div>
             <Link href={pricingUrl}>
               <Button className="gap-2">
-                {t("upgradeToPro")}
+                {t("upgradeTo", { tier: upgradeConfig.name })}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -158,16 +167,24 @@ export default function BillingPage() {
       {/* Plan Comparison */}
       <div>
         <h2 className="text-lg font-semibold mb-4">{t("learnMore")}</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {(["free", "pro", "enterprise"] as const).map((tierKey) => {
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {(["free", "starter", "pro", "enterprise"] as const).map((tierKey) => {
             const tierConfig = TIERS[tierKey];
             const isCurrent = tier === tierKey;
             const Icon = tierIcons[tierKey];
             const features = tierKey === "free"
-              ? [t("tierFeatureMembers", { "0": tierConfig.maxMembers }), t("tierFeatureContribTypes", { "0": tierConfig.maxContributionTypes }), t("tierFeatureBasicReports")]
+              ? [t("tierFeatureMembers", { "0": tierConfig.maxMembers }), t("tierFeatureContribTypes", { "0": tierConfig.maxContributionTypes }), t("tierFeatureBasicReports2")]
+              : tierKey === "starter"
+              ? [t("tierFeatureMembers", { "0": tierConfig.maxMembers }), t("tierFeatureStarterReports"), t("tierFeatureReliefSavings"), t("tierFeatureElectionsFines")]
               : tierKey === "pro"
               ? [t("tierFeatureMembers", { "0": tierConfig.maxMembers }), t("tierFeatureUnlimitedContribTypes"), t("tierFeatureAllReportsAI"), t("tierFeaturePrioritySupport")]
               : [t("tierFeatureUnlimitedMembers"), t("tierFeatureEverythingPro"), t("tierFeatureSubGroups"), t("tierFeatureDedicatedSupport")];
+
+            const priceDisplay = tierKey === "free"
+              ? `$0/${t("month")}`
+              : tierKey === "enterprise"
+              ? (useXafPricing ? `${tierConfig.price.xaf.monthly.toLocaleString()} FCFA/${t("month")}` : `$${tierConfig.price.usd.monthly}/${t("month")}`)
+              : (useXafPricing ? `${tierConfig.price.xaf.monthly.toLocaleString()} FCFA/${t("month")}` : `$${tierConfig.price.usd.monthly}/${t("month")}`);
 
             return (
               <Card
@@ -186,9 +203,7 @@ export default function BillingPage() {
                       <Badge className="bg-emerald-600 text-white text-xs">{t("currentPlan")}</Badge>
                     )}
                   </div>
-                  <p className="text-2xl font-bold mt-2">
-                    {tierKey === "free" ? `$0/${t("month")}` : tierKey === "pro" ? `$${tierConfig.price.usd.monthly}/${t("month")}` : t("customPricing")}
-                  </p>
+                  <p className="text-2xl font-bold mt-2">{priceDisplay}</p>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <ul className="space-y-2">

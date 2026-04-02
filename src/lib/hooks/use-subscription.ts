@@ -9,7 +9,10 @@ import {
   type TierName,
   type TierLimits,
   isReportAvailable as checkReport,
+  reportRequiredTier,
+  featureRequiredTier,
   FREE_REPORT_IDS,
+  STARTER_REPORT_IDS,
 } from "@/lib/subscription-tiers";
 
 export type FeatureKey = keyof TierLimits["features"];
@@ -124,7 +127,16 @@ export function useSubscription() {
     return checkReport(reportId, tier);
   }
 
+  function getReportRequiredTier(reportId: string): TierName {
+    return reportRequiredTier(reportId);
+  }
+
+  function getFeatureRequiredTier(feature: FeatureKey): TierName {
+    return featureRequiredTier(feature);
+  }
+
   const isFreeTier = tier === "free";
+  const isStarterTier = tier === "starter";
   const isProTier = tier === "pro";
   const isEnterprise = tier === "enterprise";
   const pricingUrl = `/${locale}/pricing`;
@@ -139,7 +151,10 @@ export function useSubscription() {
     canUseFeature,
     isAtLimit,
     isReportAvailable,
+    getReportRequiredTier,
+    getFeatureRequiredTier,
     isFreeTier,
+    isStarterTier,
     isProTier,
     isEnterprise,
     pricingUrl,
@@ -147,5 +162,6 @@ export function useSubscription() {
     userGroupCount: userGroupCount || 0,
     useXafPricing,
     FREE_REPORT_IDS,
+    STARTER_REPORT_IDS,
   };
 }

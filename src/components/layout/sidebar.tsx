@@ -58,6 +58,8 @@ interface NavItem {
   anyPermission?: string[];
   /** If set, show a small "Pro" badge next to the item label */
   proBadge?: boolean;
+  /** If set, show a badge with this tier name (e.g. "Starter") */
+  tierBadge?: string;
 }
 
 interface NavSection {
@@ -102,9 +104,9 @@ const adminSections: NavSection[] = [
   {
     labelKey: "sectionGroupFeatures",
     items: [
-      { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw },
-      { key: "elections", href: "/dashboard/elections", icon: Vote },
-      { key: "relief", href: "/dashboard/relief", icon: Heart },
+      { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw, tierBadge: "Starter" },
+      { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadge: "Starter" },
+      { key: "relief", href: "/dashboard/relief", icon: Heart, tierBadge: "Starter" },
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
@@ -299,9 +301,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   >
                     <item.icon className="h-5 w-5 shrink-0" />
                     <span className="flex-1">{t(item.key)}</span>
-                    {item.proBadge && (
+                    {(item.proBadge || item.tierBadge) && (
                       <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
-                        Pro
+                        {item.tierBadge || "Pro"}
                       </Badge>
                     )}
                   </Link>

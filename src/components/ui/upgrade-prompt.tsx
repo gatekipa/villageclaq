@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Lock, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
 import { useSubscription, type FeatureKey } from "@/lib/hooks/use-subscription";
-import { TIERS } from "@/lib/subscription-tiers";
+import { TIERS, featureRequiredTier, type TierName } from "@/lib/subscription-tiers";
 
 interface LimitPromptProps {
   /** Resource type to check */
@@ -20,14 +20,29 @@ interface LimitPromptProps {
 }
 
 /**
+ * Get the appropriate upgrade tier and its pricing display.
+ */
+function getUpgradeInfo(currentTier: TierName, useXaf: boolean, tMonth: string) {
+  // Determine next tier to upgrade to
+  const tierOrder: TierName[] = ["free", "starter", "pro", "enterprise"];
+  const currentIdx = tierOrder.indexOf(currentTier);
+  const nextTier = currentIdx < tierOrder.length - 1 ? tierOrder[currentIdx + 1] : "enterprise";
+  const tierConfig = TIERS[nextTier];
+  const price = useXaf
+    ? `${tierConfig.price.xaf.monthly.toLocaleString()} FCFA/${tMonth}`
+    : `$${tierConfig.price.usd.monthly}/${tMonth}`;
+  return { nextTier, tierLabel: tierConfig.name, price };
+}
+
+/**
  * Shows resource usage progress bar with upgrade CTA when at limit.
  *
- * - "inline" variant: small badge like "23/30 members"
+ * - "inline" variant: small badge like "12/15 members"
  * - "card" variant: full card with progress bar and upgrade button
  */
 export function LimitPrompt({ resource, label, variant = "card" }: LimitPromptProps) {
   const t = useTranslations("tiers");
-  const { isAtLimit, isFreeTier, pricingUrl, useXafPricing } = useSubscription();
+  const { isAtLimit, tier, pricingUrl, useXafPricing } = useSubscription();
 
   const check = isAtLimit(resource);
   if (check.max === -1) return null; // unlimited — no prompt needed
@@ -49,9 +64,7 @@ export function LimitPrompt({ resource, label, variant = "card" }: LimitPromptPr
   // Card variant
   if (!check.atLimit && pct < 80) return null; // Only show card when near limit or at limit
 
-  const proPrice = useXafPricing
-    ? `${TIERS.pro.price.xaf.monthly.toLocaleString()} FCFA/${t("month")}`
-    : `$${TIERS.pro.price.usd.monthly}/${t("month")}`;
+  const { tierLabel, price } = getUpgradeInfo(tier, useXafPricing, t("month"));
 
   return (
     <Card className={check.atLimit
@@ -63,8 +76,11 @@ export function LimitPrompt({ resource, label, variant = "card" }: LimitPromptPr
           <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
           <span className="text-sm font-medium">
             {check.current}/{check.max} {resourceLabel}
-            {isFreeTier && (
+            {tier === "free" && (
               <Badge variant="secondary" className="ml-2 text-[10px]">{t("free")}</Badge>
+            )}
+            {tier === "starter" && (
+              <Badge variant="secondary" className="ml-2 text-[10px]">{t("starter")}</Badge>
             )}
           </span>
         </div>
@@ -76,7 +92,7 @@ export function LimitPrompt({ resource, label, variant = "card" }: LimitPromptPr
             </p>
             <Link href={pricingUrl}>
               <Button size="sm" className="gap-1 text-xs h-7">
-                {t("upgradeToPro")} — {proPrice}
+                {t("upgradeTo", { tier: tierLabel })} — {price}
                 <ArrowRight className="h-3 w-3" />
               </Button>
             </Link>
@@ -114,11 +130,12 @@ export function FeatureLock({ feature, featureName, description, variant = "inli
     return <>{children}</>;
   }
 
-  const proPrice = useXafPricing
-    ? `${TIERS.pro.price.xaf.monthly.toLocaleString()} FCFA/${t("month")}`
-    : `$${TIERS.pro.price.usd.monthly}/${t("month")}`;
-
-  const requiredTier = feature === "subGroups" || feature === "customBranding" ? "Enterprise" : "Pro";
+  const requiredTier = featureRequiredTier(feature);
+  const requiredLabel = TIERS[requiredTier].name;
+  const requiredConfig = TIERS[requiredTier];
+  const price = useXafPricing
+    ? `${requiredConfig.price.xaf.monthly.toLocaleString()} FCFA/${t("month")}`
+    : `$${requiredConfig.price.usd.monthly}/${t("month")}`;
 
   if (variant === "page") {
     return (
@@ -128,7 +145,7 @@ export function FeatureLock({ feature, featureName, description, variant = "inli
         </div>
         <h2 className="text-xl font-bold">{featureName}</h2>
         <Badge className="mt-2 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-          {requiredTier}
+          {requiredLabel}
         </Badge>
         {description && (
           <p className="mt-3 text-sm text-muted-foreground">{description}</p>
@@ -136,7 +153,7 @@ export function FeatureLock({ feature, featureName, description, variant = "inli
         <Link href={pricingUrl} className="mt-6">
           <Button className="gap-2">
             <Sparkles className="h-4 w-4" />
-            {t("upgradeTo", { tier: requiredTier })} — {proPrice}
+            {t("upgradeTo", { tier: requiredLabel })} — {price}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>
@@ -156,7 +173,7 @@ export function FeatureLock({ feature, featureName, description, variant = "inli
         <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">{featureName}</p>
-          <p className="text-xs text-muted-foreground">{t("requiresTier", { tier: requiredTier })}</p>
+          <p className="text-xs text-muted-foreground">{t("requiresTier", { tier: requiredLabel })}</p>
         </div>
         <Link href={pricingUrl}>
           <Button size="sm" variant="outline" className="text-xs h-7 shrink-0">
@@ -169,15 +186,25 @@ export function FeatureLock({ feature, featureName, description, variant = "inli
 }
 
 /**
- * Small "Pro" badge to display next to sidebar items that require Pro tier.
+ * Small tier badge to display next to sidebar items that require a paid tier.
+ * Shows "Starter" or "Pro" depending on which tier the feature requires.
  */
-export function ProBadge() {
+export function TierBadge({ tier }: { tier?: string }) {
+  const label = tier || "Pro";
   return (
     <Badge
       variant="secondary"
       className="ml-auto text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0"
     >
-      Pro
+      {label}
     </Badge>
   );
+}
+
+/**
+ * Small "Pro" badge to display next to sidebar items that require Pro tier.
+ * @deprecated Use TierBadge instead for flexibility.
+ */
+export function ProBadge() {
+  return <TierBadge tier="Pro" />;
 }

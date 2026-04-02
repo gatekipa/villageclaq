@@ -9,17 +9,20 @@ import { PublicNavbar } from "@/components/layout/public-navbar";
 import { BackButton } from "@/components/ui/back-button";
 
 const comparisonRows = [
-  { key: "compMembers", free: true, pro: true, enterprise: true },
-  { key: "compDues", free: true, pro: true, enterprise: true },
-  { key: "compAttendance", free: true, pro: true, enterprise: true },
-  { key: "compReports", free: "compReportsBasic", pro: "compReportsFull", enterprise: "compReportsAll" },
-  { key: "compElections", free: false, pro: true, enterprise: true },
-  { key: "compRelief", free: false, pro: true, enterprise: true },
-  { key: "compAI", free: false, pro: true, enterprise: true },
-  { key: "compDocVault", free: false, pro: true, enterprise: true },
-  { key: "compMultiBranch", free: false, pro: false, enterprise: true },
-  { key: "compCustomRoles", free: false, pro: false, enterprise: true },
-  { key: "compPrioritySupport", free: false, pro: false, enterprise: true },
+  { key: "compMembers", free: "compMembers15", starter: "compMembers50", pro: "compMembers200", enterprise: "compMembersUnlimited" },
+  { key: "compDues", free: true, starter: true, pro: true, enterprise: true },
+  { key: "compAttendance", free: true, starter: true, pro: true, enterprise: true },
+  { key: "compReports", free: "compReports2", starter: "compReports10", pro: "compReportsAll", enterprise: "compReportsAll" },
+  { key: "compReliefSavings", free: false, starter: true, pro: true, enterprise: true },
+  { key: "compElections", free: false, starter: true, pro: true, enterprise: true },
+  { key: "compFines", free: false, starter: true, pro: true, enterprise: true },
+  { key: "compLoans", free: false, starter: false, pro: true, enterprise: true },
+  { key: "compAI", free: false, starter: false, pro: true, enterprise: true },
+  { key: "compDocVault", free: "compDocs3", starter: "compDocs20", pro: "compDocsUnlimited", enterprise: "compDocsUnlimited" },
+  { key: "compCsvExport", free: false, starter: true, pro: true, enterprise: true },
+  { key: "compMultiBranch", free: false, starter: false, pro: false, enterprise: true },
+  { key: "compCustomBranding", free: false, starter: false, pro: false, enterprise: true },
+  { key: "compPrioritySupport", free: false, starter: false, pro: true, enterprise: true },
 ] as const;
 
 export default function PricingPage() {
@@ -29,7 +32,7 @@ export default function PricingPage() {
   function renderCell(value: boolean | string) {
     if (value === true) return <Check className="mx-auto h-5 w-5 text-emerald-500" />;
     if (value === false) return <X className="mx-auto h-5 w-5 text-muted-foreground/30" />;
-    return <span className="text-sm">{t(value as "compReportsBasic")}</span>;
+    return <span className="text-sm">{t(value as "compReports2")}</span>;
   }
 
   return (
@@ -46,21 +49,24 @@ export default function PricingPage() {
           <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
             {t("pricingPageSubtitle")}
           </p>
+          <p className="mt-2 text-sm font-medium text-primary">
+            {t("pricingTagline")}
+          </p>
         </div>
       </div>
 
       {/* Pricing Cards */}
       <section className="pb-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid items-center gap-8 lg:grid-cols-3">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid items-start gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Free */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg sm:p-10">
+            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("pricingFree")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-5xl font-extrabold tracking-tight">{t("pricingFreePrice")}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{t("pricingFreePrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("pricingFreePeriod")}</span>
               </div>
-              <ul className="mt-8 space-y-4">
+              <ul className="mt-8 space-y-3">
                 {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -77,19 +83,45 @@ export default function PricingPage() {
               </Link>
             </div>
 
+            {/* Starter */}
+            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+              <h3 className="text-xl font-bold">{t("pricingStarter")}</h3>
+              <div className="mt-6 flex items-baseline gap-1">
+                <span className="text-4xl font-extrabold tracking-tight">{t("pricingStarterPrice")}</span>
+                <span className="text-sm font-medium text-muted-foreground">{t("pricingStarterPeriod")}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t("pricingStarterXaf")}</p>
+              <p className="text-xs text-primary font-medium">{t("pricingStarterAnnual")}</p>
+              <ul className="mt-6 space-y-3">
+                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
+                  <li key={n} className="flex items-start gap-3 text-sm">
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Check className="h-3 w-3 text-primary" />
+                    </div>
+                    {t(`pricingStarterFeature${n}`)}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-10 block">
+                <Button variant="outline" size="lg" className="w-full text-base font-semibold" disabled>
+                  {tc("comingSoon") || "Coming Soon"}
+                </Button>
+              </div>
+            </div>
+
             {/* Pro */}
-            <div className="relative rounded-2xl border-2 border-primary bg-card p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl sm:p-10 lg:scale-105">
+            <div className="relative rounded-2xl border-2 border-primary bg-card p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl">
               <Badge className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 text-sm shadow-md">
                 {t("pricingProBadge")}
               </Badge>
               <h3 className="text-xl font-bold">{t("pricingPro")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-5xl font-extrabold tracking-tight">{t("pricingProPrice")}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{t("pricingProPrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("pricingProPeriod")}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{t("pricingProXaf")}</p>
               <p className="text-xs text-primary font-medium">{t("pricingProAnnual")}</p>
-              <ul className="mt-6 space-y-4">
+              <ul className="mt-6 space-y-3">
                 {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -107,13 +139,15 @@ export default function PricingPage() {
             </div>
 
             {/* Enterprise */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg sm:p-10">
+            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("pricingOrg")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-5xl font-extrabold tracking-tight">{t("pricingOrgPrice")}</span>
+                <span className="text-4xl font-extrabold tracking-tight">{t("pricingOrgPrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("pricingOrgPeriod")}</span>
               </div>
-              <ul className="mt-8 space-y-4">
+              <p className="mt-1 text-xs text-muted-foreground">{t("pricingOrgXaf")}</p>
+              <p className="text-xs text-primary font-medium">{t("pricingOrgAnnual")}</p>
+              <ul className="mt-8 space-y-3">
                 {(["1", "2", "3", "4", "5"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -135,7 +169,7 @@ export default function PricingPage() {
 
       {/* Comparison Table */}
       <section className="border-t bg-slate-50 dark:bg-slate-900/50 py-24">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
             {t("pricingCompare")}
           </h2>
@@ -145,6 +179,7 @@ export default function PricingPage() {
                 <tr className="border-b">
                   <th className="py-4 text-left font-medium text-muted-foreground">{t("pricingFeature")}</th>
                   <th className="py-4 text-center font-bold">{t("pricingFree")}</th>
+                  <th className="py-4 text-center font-bold">{t("pricingStarter")}</th>
                   <th className="py-4 text-center font-bold text-primary">{t("pricingPro")}</th>
                   <th className="py-4 text-center font-bold">{t("pricingOrg")}</th>
                 </tr>
@@ -154,6 +189,7 @@ export default function PricingPage() {
                   <tr key={row.key} className="border-b">
                     <td className="py-3 font-medium">{t(row.key as "compMembers")}</td>
                     <td className="py-3 text-center">{renderCell(row.free)}</td>
+                    <td className="py-3 text-center">{renderCell(row.starter)}</td>
                     <td className="py-3 text-center bg-primary/5">{renderCell(row.pro)}</td>
                     <td className="py-3 text-center">{renderCell(row.enterprise)}</td>
                   </tr>

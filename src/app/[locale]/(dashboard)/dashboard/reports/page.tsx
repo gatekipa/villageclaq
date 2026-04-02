@@ -101,7 +101,7 @@ export default function ReportsHubPage() {
   const { hasPermission } = usePermissions();
   const canViewReports = hasPermission("reports.view");
   const canExport = hasPermission("reports.export");
-  const { isReportAvailable, canUseFeature, isFreeTier } = useSubscription();
+  const { isReportAvailable, canUseFeature, isFreeTier, getReportRequiredTier } = useSubscription();
   const tt = useTranslations("tiers");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ReportCategory | "all">("all");
@@ -256,6 +256,8 @@ export default function ReportsHubPage() {
                   const ReportIcon = report.icon;
                   const href = report.linkOverride || `/dashboard/reports/${report.id}`;
                   const isLocked = !isReportAvailable(report.id);
+                  const requiredTier = isLocked ? getReportRequiredTier(report.id) : null;
+                  const tierLabel = requiredTier === "starter" ? "Starter" : "Pro";
                   return (
                     <Card key={report.id} className={`group transition-shadow hover:shadow-md ${isLocked ? "opacity-75" : ""}`}>
                       <CardContent className="p-4">
@@ -270,11 +272,11 @@ export default function ReportsHubPage() {
                                 <Badge variant="secondary" className="text-[10px]">{t("reports.placeholder")}</Badge>
                               )}
                               {isLocked && (
-                                <Badge variant="secondary" className="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Pro</Badge>
+                                <Badge variant="secondary" className="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{tierLabel}</Badge>
                               )}
                             </div>
                             <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                              {isLocked ? tt("reportLocked") : t(`reports.${report.key}.desc`)}
+                              {isLocked ? tt("reportLockedTier", { tier: tierLabel }) : t(`reports.${report.key}.desc`)}
                             </p>
                           </div>
                         </div>

@@ -2,7 +2,8 @@
 import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { getDateLocale } from "@/lib/date-utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
@@ -98,6 +99,7 @@ interface MemberRow {
 export default function DuesMatrixPage() {
   const t = useTranslations();
   const th = useTranslations("helpTips");
+  const locale = useLocale();
   const { currentGroup } = useGroup();
   const currency = currentGroup?.currency || "XAF";
   const [view, setView] = useState<"yearly" | "monthly">("yearly");
@@ -203,12 +205,12 @@ export default function DuesMatrixPage() {
   // Format column labels
   const columnLabels = useMemo(() => {
     if (view === "yearly") return columns; // e.g. "2023", "2024"
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return columns.map((ym) => {
       const [y, m] = ym.split("-");
-      return `${monthNames[parseInt(m, 10) - 1]} ${y}`;
+      const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+      return `${d.toLocaleDateString(getDateLocale(locale), { month: "short" })} ${y}`;
     });
-  }, [columns, view]);
+  }, [columns, view, locale]);
 
   // Calculate column totals
   const columnTotals = columns.map((col) => {

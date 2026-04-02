@@ -67,7 +67,7 @@ const methodColors: Record<string, string> = {
 };
 
 
-function formatDate(dateStr: string, dateLocale: string = "en-US") {
+function formatDate(dateStr: string, dateLocale: string) {
   return new Date(dateStr).toLocaleDateString(dateLocale, {
     month: "short",
     day: "numeric",
@@ -75,7 +75,7 @@ function formatDate(dateStr: string, dateLocale: string = "en-US") {
   });
 }
 
-function formatTime(dateStr: string, dateLocale: string = "en-US") {
+function formatTime(dateStr: string, dateLocale: string) {
   return new Date(dateStr).toLocaleTimeString(dateLocale, {
     hour: "2-digit",
     minute: "2-digit",
@@ -622,7 +622,7 @@ export default function PaymentHistoryPage() {
                       <td className="whitespace-nowrap px-4 py-3">
                         <div>
                           <p className="font-medium">{formatDate(payment.recordedAt, dateLocale)}</p>
-                          <p className="text-xs text-muted-foreground">{formatTime(payment.recordedAt)}</p>
+                          <p className="text-xs text-muted-foreground">{formatTime(payment.recordedAt, dateLocale)}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">

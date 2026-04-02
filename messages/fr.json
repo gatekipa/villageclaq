@@ -1178,7 +1178,12 @@
     "loansDisbursedYear": "Décaissé cette année",
     "loansRepaidYear": "Remboursé cette année",
     "loansOverdueCount": "Échéances en retard",
-    "noPaymentsToSync": "Aucun paiement à synchroniser"
+    "noPaymentsToSync": "Aucun paiement à synchroniser",
+    "paymentFallback": "Paiement",
+    "contribution": "Cotisation",
+    "syncSuccess": "{updated} obligations synchronisées à partir de {total} paiements",
+    "syncError": "Erreur : {message}",
+    "remindersSentSuccess": "{count} rappel(s) envoyé(s) avec succès"
   },
   "invitations": {
     "title": "Invitations",

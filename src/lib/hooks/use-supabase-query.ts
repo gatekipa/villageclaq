@@ -19,7 +19,7 @@ export function useDashboardStats() {
         supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId),
         supabase.from("events").select("id", { count: "exact", head: true }).eq("group_id", groupId).gte("starts_at", new Date().toISOString()),
         supabase.from("contribution_obligations").select("amount, amount_paid, status").eq("group_id", groupId),
-        supabase.from("payments").select("amount").eq("group_id", groupId),
+        supabase.from("payments").select("amount").eq("group_id", groupId).is("relief_plan_id", null), // Exclude relief payments
       ]);
 
       const obligations = obligationsRes.data || [];
@@ -189,6 +189,7 @@ export function usePayments(limit = 50) {
         .from("payments")
         .select("*, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
         .eq("group_id", groupId)
+        .is("relief_plan_id", null) // Exclude relief payments from dues views
         .order("recorded_at", { ascending: false })
         .limit(limit);
       if (error) throw error;

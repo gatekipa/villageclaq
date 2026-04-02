@@ -103,7 +103,7 @@ export default function UnpaidReportPage() {
 
       const contributionType = obl.contribution_type as { id: string; name: string; name_fr?: string } | null;
       member.obligations.push({
-        type: contributionType?.name || "Contribution",
+        type: contributionType?.name || t("contributions.contribution"),
         period: obl.period_label || obl.due_date?.slice(0, 7) || "",
         amount: amountDue,
         amountPaid: amountPaid,
@@ -193,7 +193,7 @@ export default function UnpaidReportPage() {
       {remindersSentCount > 0 && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            ✅ {remindersSentCount} reminder(s) sent successfully
+            ✅ {t("contributions.remindersSentSuccess", { count: remindersSentCount })}
           </p>
           <Button variant="ghost" size="sm" onClick={() => setRemindersSentCount(0)} className="h-7 text-xs">
             {t("common.close")}

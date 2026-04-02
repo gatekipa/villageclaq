@@ -195,13 +195,11 @@ export default function FinancesPage() {
     const payments = allPayments || [];
     const now = new Date();
     const months: { key: string; label: string }[] = [];
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
         key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: monthNames[d.getMonth()],
+        label: d.toLocaleDateString(getDateLocale(locale), { month: "short" }),
       });
     }
 
@@ -277,7 +275,7 @@ export default function FinancesPage() {
       return {
         id: p.id,
         name: getMemberName(p.membership as Record<string, unknown>),
-        type: ct?.name || "Payment",
+        type: ct?.name || t("contributions.paymentFallback"),
         amount: Number(p.amount),
         method: p.payment_method || "cash",
         date: shortDate,
@@ -295,11 +293,12 @@ export default function FinancesPage() {
     setSyncResult(null);
     try {
       const supabase = createClient();
-      // Get all payments for this group
+      // Get all dues payments for this group (exclude relief payments)
       const { data: payments } = await supabase
         .from("payments")
         .select("id, membership_id, contribution_type_id, amount, group_id, recorded_at")
-        .eq("group_id", groupId);
+        .eq("group_id", groupId)
+        .is("relief_plan_id", null);
 
       if (!payments || payments.length === 0) {
         setSyncResult(t("finances.noPaymentsToSync"));
@@ -345,13 +344,13 @@ export default function FinancesPage() {
         await new Promise((r) => setTimeout(r, 30));
       }
 
-      setSyncResult(`Synced ${updated} obligations from ${payments.length} payments`);
+      setSyncResult(t("contributions.syncSuccess", { updated, total: payments.length }));
       queryClient.invalidateQueries({ queryKey: ["obligations"] });
       queryClient.invalidateQueries({ queryKey: ["matrix-data"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       queryClient.invalidateQueries({ queryKey: ["aggregated-feed"] });
     } catch (err) {
-      setSyncResult(`Error: ${(err as Error).message}`);
+      setSyncResult(t("contributions.syncError", { message: (err as Error).message }));
     } finally {
       setSyncing(false);
     }

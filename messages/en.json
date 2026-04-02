@@ -1178,7 +1178,12 @@
     "loansDisbursedYear": "Disbursed This Year",
     "loansRepaidYear": "Repaid This Year",
     "loansOverdueCount": "Overdue Installments",
-    "noPaymentsToSync": "No payments to sync"
+    "noPaymentsToSync": "No payments to sync",
+    "paymentFallback": "Payment",
+    "contribution": "Contribution",
+    "syncSuccess": "Synced {updated} obligations from {total} payments",
+    "syncError": "Error: {message}",
+    "remindersSentSuccess": "{count} reminder(s) sent successfully"
   },
   "invitations": {
     "title": "Invitations",

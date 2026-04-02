@@ -113,7 +113,7 @@ export function PaymentsTab() {
     setBankTransferEnabled(cfg.bank_transfer_enabled as boolean ?? false);
     setFlutterwaveEnabled(cfg.flutterwave_enabled as boolean ?? false);
 
-    setCashappTag((cfg.cashapp_tag as string) || "");
+    setCashappTag(((cfg.cashapp_tag as string) || "").replace(/^\$+/, ""));
     setCashappDisplayName((cfg.cashapp_display_name as string) || "");
 
     setZelleEmail((cfg.zelle_email as string) || "");
@@ -153,6 +153,10 @@ export function PaymentsTab() {
     const errors: string[] = [];
     if (cashappEnabled && !cashappTag.trim()) errors.push(t("pay.cashAppTagRequired"));
     if (zelleEnabled && !zelleEmail.trim() && !zellePhone.trim()) errors.push(t("pay.zelleContactRequired"));
+    if (zelleEnabled && zellePhone.trim()) {
+      const digits = zellePhone.replace(/\D/g, "");
+      if (digits.length < 10 || digits.length > 15) errors.push(t("pay.zellePhoneInvalid"));
+    }
     if (mobileMoneyEnabled && !mobileProviders.some((p) => p.number.trim())) errors.push(t("pay.mobileNumberRequired"));
     if (bankTransferEnabled && !bankAccountNumber.trim()) errors.push(t("pay.bankAccountRequired"));
     if (errors.length > 0) {
@@ -171,7 +175,7 @@ export function PaymentsTab() {
         mobile_money_enabled: mobileMoneyEnabled,
         bank_transfer_enabled: bankTransferEnabled,
         flutterwave_enabled: flutterwaveEnabled,
-        cashapp_tag: cashappEnabled ? cashappTag.trim() || null : null,
+        cashapp_tag: cashappEnabled ? (cashappTag.trim() ? `$${cashappTag.trim().replace(/^\$+/, "")}` : null) : null,
         cashapp_display_name: cashappEnabled ? cashappDisplayName.trim() || null : null,
         zelle_email: zelleEnabled ? zelleEmail.trim() || null : null,
         zelle_phone: zelleEnabled ? zellePhone.trim() || null : null,
@@ -261,11 +265,19 @@ export function PaymentsTab() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs">{t("pay.cashappTag")}</Label>
-                <Input
-                  value={cashappTag}
-                  onChange={(e) => setCashappTag(e.target.value)}
-                  placeholder={t("pay.cashappTagPlaceholder")}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                  <Input
+                    value={cashappTag}
+                    onChange={(e) => {
+                      // Strip leading $ if user types it — we display it automatically
+                      const v = e.target.value.replace(/^\$+/, "");
+                      setCashappTag(v);
+                    }}
+                    placeholder={t("pay.cashappTagPlaceholder")}
+                    className="pl-7"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">{t("pay.cashappName")}</Label>
@@ -307,10 +319,22 @@ export function PaymentsTab() {
               <div className="space-y-1">
                 <Label className="text-xs">{t("pay.zellePhone")}</Label>
                 <Input
+                  type="tel"
                   value={zellePhone}
-                  onChange={(e) => setZellePhone(e.target.value)}
+                  onChange={(e) => {
+                    // Allow only digits, spaces, dashes, parens, and leading +
+                    const v = e.target.value.replace(/[^0-9+\-() ]/g, "");
+                    setZellePhone(v);
+                  }}
                   placeholder={t("pay.zellePhonePlaceholder")}
                 />
+                {zellePhone.trim() && (() => {
+                  const digits = zellePhone.replace(/\D/g, "");
+                  if (digits.length < 10 || digits.length > 15) {
+                    return <p className="text-xs text-destructive mt-1">{t("pay.zellePhoneInvalid")}</p>;
+                  }
+                  return null;
+                })()}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">{t("pay.zelleName")}</Label>
@@ -348,7 +372,7 @@ export function PaymentsTab() {
                     <select
                       value={provider.provider}
                       onChange={(e) => updateProvider(index, "provider", e.target.value)}
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:bg-input/30"
+                      className="flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     >
                       {MOBILE_MONEY_PROVIDERS.map((p) => (
                         <option key={p} value={p}>

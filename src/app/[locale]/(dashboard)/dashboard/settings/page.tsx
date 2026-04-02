@@ -24,9 +24,27 @@ import {
   Share2,
   LogOut,
   AlertTriangle,
+  Bell,
+  Power,
+  ArrowRightLeft,
+  ExternalLink,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { useRouter } from "@/i18n/routing";
+import { useRouter, Link } from "@/i18n/routing";
 import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
 import { CURRENCIES } from "@/lib/currencies";
 import { useGroup } from "@/lib/group-context";
@@ -68,6 +86,7 @@ export default function GroupSettingsPage() {
   const [editCountry, setEditCountry] = useState("");
   const [editRegion, setEditRegion] = useState("");
   const [editCity, setEditCity] = useState("");
+  const [editDateFormat, setEditDateFormat] = useState("DD/MM/YYYY");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -98,6 +117,14 @@ export default function GroupSettingsPage() {
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
 
+  // Danger zone
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const [dangerError, setDangerError] = useState<string | null>(null);
+
   // Populate form when data loads
   useEffect(() => {
     if (group) {
@@ -110,6 +137,7 @@ export default function GroupSettingsPage() {
       setEditCountry((settings.country as string) || "");
       setEditRegion((settings.state_region as string) || (g.state_region as string) || "");
       setEditCity((settings.city as string) || (g.city as string) || "");
+      setEditDateFormat((settings.date_format as string) || "DD/MM/YYYY");
 
       // Load sharing controls from group data
       const sc = g.sharing_controls as Record<string, boolean> | null;
@@ -126,21 +154,32 @@ export default function GroupSettingsPage() {
     setSaveSuccess(false);
     try {
       const supabase = createClient();
-      const { error: updateError } = await supabase
+
+      // Merge new settings into existing settings JSONB to avoid wiping other keys
+      const existingSettings = (groupData?.settings as Record<string, unknown>) || {};
+      const mergedSettings = {
+        ...existingSettings,
+        country: editCountry,
+        state_region: editRegion,
+        city: editCity,
+        date_format: editDateFormat,
+      };
+
+      // Use .select().single() to detect RLS-blocked updates (0 rows → error)
+      const { data: updated, error: updateError } = await supabase
         .from("groups")
         .update({
           name: editName.trim(),
           description: editDescription.trim() || null,
           currency: editCurrency,
           locale: editLocale,
-          settings: {
-            country: editCountry,
-            state_region: editRegion,
-            city: editCity,
-          },
+          settings: mergedSettings,
         })
-        .eq("id", groupId);
+        .eq("id", groupId)
+        .select()
+        .single();
       if (updateError) throw updateError;
+      if (!updated) throw new Error("Update failed — check admin permissions");
       // Audit log
       try {
         const { logActivity } = await import("@/lib/audit-log");
@@ -152,9 +191,19 @@ export default function GroupSettingsPage() {
           metadata: { name: editName.trim(), currency: editCurrency, locale: editLocale },
         });
       } catch { /* best-effort */ }
-      await queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] });
+      // Invalidate ALL group-related caches so GroupProvider and all consumers refresh
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["group-settings"] }),
+        queryClient.invalidateQueries({ queryKey: ["group", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["memberships"] }),
+      ]);
+      // Force re-fetch group context by reloading after a brief delay
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        window.location.reload();
+      }, 1000);
     } catch (err) {
       setSaveError((err as Error).message);
     } finally {
@@ -207,6 +256,52 @@ export default function GroupSettingsPage() {
     } finally {
       setLeaving(false);
       setShowLeaveConfirm(false);
+    }
+  }
+
+  async function handleDeactivateGroup() {
+    if (!groupId) return;
+    setDeactivating(true);
+    setDangerError(null);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase
+        .from("groups")
+        .update({ is_active: false })
+        .eq("id", groupId)
+        .select()
+        .single();
+      if (err) throw err;
+      await queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      setShowDeactivateConfirm(false);
+      window.location.reload();
+    } catch (err) {
+      setDangerError((err as Error).message);
+    } finally {
+      setDeactivating(false);
+    }
+  }
+
+  async function handleTransferOwnership() {
+    if (!groupId || !transferTargetId || !currentMembership) return;
+    setTransferring(true);
+    setDangerError(null);
+    try {
+      const supabase = createClient();
+      const myId = (currentMembership as unknown as Record<string, unknown>).id as string;
+      // Demote current owner to admin
+      const { error: e1 } = await supabase.from("memberships").update({ role: "admin" }).eq("id", myId);
+      if (e1) throw e1;
+      // Promote new owner
+      const { error: e2 } = await supabase.from("memberships").update({ role: "owner" }).eq("id", transferTargetId);
+      if (e2) throw e2;
+      await queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      setShowTransferDialog(false);
+      window.location.reload();
+    } catch (err) {
+      setDangerError((err as Error).message);
+    } finally {
+      setTransferring(false);
     }
   }
 
@@ -282,9 +377,11 @@ export default function GroupSettingsPage() {
           <TabsTrigger value="localization" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("localizationTab")}</TabsTrigger>
           <TabsTrigger value="payments" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("paymentsTab")}</TabsTrigger>
           <TabsTrigger value="positions" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("positionsTab")}</TabsTrigger>
+          <TabsTrigger value="notifications" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("notificationsTab")}</TabsTrigger>
           {isBranch && (
             <TabsTrigger value="data-sharing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("dataSharingTab")}</TabsTrigger>
           )}
+          <TabsTrigger value="danger" className="px-3 py-1.5 text-sm font-medium text-destructive/70 data-[active]:bg-destructive/10 data-[active]:text-destructive data-[active]:shadow-sm">{t("dangerZone")}</TabsTrigger>
         </TabsList>
 
         {/* Group Info Tab */}
@@ -331,11 +428,16 @@ export default function GroupSettingsPage() {
                                 const { error: upErr } = await supabase.storage.from("group-documents").upload(path, file, { upsert: true });
                                 if (upErr) throw upErr;
                                 const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
-                                const { error: updateErr } = await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId);
+                                const { data: logoUpdated, error: updateErr } = await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId).select().single();
                                 if (updateErr) throw updateErr;
-                                queryClient.invalidateQueries({ queryKey: ["group-settings"] });
+                                if (!logoUpdated) throw new Error("Logo update failed — check permissions");
+                                await Promise.all([
+                                  queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] }),
+                                  queryClient.invalidateQueries({ queryKey: ["group-settings"] }),
+                                  queryClient.invalidateQueries({ queryKey: ["memberships"] }),
+                                ]);
                                 setSaveSuccess(true);
-                                setTimeout(() => setSaveSuccess(false), 3000);
+                                setTimeout(() => { setSaveSuccess(false); window.location.reload(); }, 1000);
                               } catch (err) {
                                 setSaveError((err as Error).message || t("logoUploadFailed"));
                               } finally { setUploadingLogo(false); }
@@ -378,7 +480,7 @@ export default function GroupSettingsPage() {
                         <select
                           value={editCurrency}
                           onChange={(e) => setEditCurrency(e.target.value)}
-                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                           <option value="XAF">XAF</option>
                           <option value="XOF">XOF</option>
@@ -399,7 +501,7 @@ export default function GroupSettingsPage() {
                         <select
                           value={editLocale}
                           onChange={(e) => setEditLocale(e.target.value)}
-                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          className="mt-1 flex h-9 w-full rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
                           <option value="en">English</option>
                           <option value="fr">Français</option>
@@ -459,7 +561,7 @@ export default function GroupSettingsPage() {
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("country")}</Label>
                       {canManageSettings ? (
-                        <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
+                        <select className="mt-1 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
                           <option value="">—</option>
                           <optgroup label={tCountries("westAfrica")}>
                             {["Cameroon","Nigeria","Ghana","Senegal","Côte d'Ivoire","Togo","Benin","Burkina Faso","Mali","Guinea","Sierra Leone","Liberia","Niger","Gambia"].map(c => <option key={c} value={c}>{c}</option>)}
@@ -484,7 +586,7 @@ export default function GroupSettingsPage() {
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("defaultLocale")}</Label>
                       {canManageSettings ? (
-                        <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editLocale} onChange={(e) => setEditLocale(e.target.value)}>
+                        <select className="mt-1 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm" value={editLocale} onChange={(e) => setEditLocale(e.target.value)}>
                           <option value="en">English</option>
                           <option value="fr">Français</option>
                         </select>
@@ -493,6 +595,22 @@ export default function GroupSettingsPage() {
                       )}
                     </div>
                   </div>
+                  {/* Date Format */}
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">{t("dateFormat")}</Label>
+                    {canManageSettings ? (
+                      <select className="mt-1 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm" value={editDateFormat} onChange={(e) => setEditDateFormat(e.target.value)}>
+                        <option value="DD/MM/YYYY">15/03/2026 (DD/MM/YYYY)</option>
+                        <option value="MM/DD/YYYY">03/15/2026 (MM/DD/YYYY)</option>
+                        <option value="YYYY-MM-DD">2026-03-15 (YYYY-MM-DD)</option>
+                        <option value="D MMMM YYYY">15 March 2026</option>
+                        <option value="MMMM D, YYYY">March 15, 2026</option>
+                      </select>
+                    ) : (
+                      <p className="mt-1 text-sm font-medium">{editDateFormat || "DD/MM/YYYY"}</p>
+                    )}
+                  </div>
+
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("stateRegion")}</Label>
@@ -513,7 +631,7 @@ export default function GroupSettingsPage() {
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("currency")}</Label>
                       {canManageSettings ? (
-                        <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm" value={editCurrency} onChange={(e) => setEditCurrency(e.target.value)}>
+                        <select className="mt-1 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm" value={editCurrency} onChange={(e) => setEditCurrency(e.target.value)}>
                           {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
                         </select>
                       ) : (
@@ -702,7 +820,132 @@ export default function GroupSettingsPage() {
             </Card>
           </TabsContent>
         )}
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="mt-6 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Bell className="h-4 w-4" />
+                {t("notificationsTab")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">{t("notificationsSettingsDesc")}</p>
+              <Link href="/dashboard/settings/notifications">
+                <Button variant="outline" className="gap-2">
+                  <Bell className="h-4 w-4" />
+                  {t("manageNotifications")}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Danger Zone Tab */}
+        <TabsContent value="danger" className="mt-6 space-y-6">
+          {dangerError && (
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {dangerError}
+            </div>
+          )}
+
+          {/* Deactivate Group */}
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base text-destructive">
+                <Power className="h-4 w-4" />
+                {t("deactivateGroup")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">{t("deactivateGroupDesc")}</p>
+              {!showDeactivateConfirm ? (
+                <Button variant="destructive" size="sm" onClick={() => setShowDeactivateConfirm(true)}>
+                  <Power className="mr-2 h-4 w-4" />
+                  {t("deactivateGroup")}
+                </Button>
+              ) : (
+                <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 space-y-3">
+                  <p className="text-sm font-medium text-destructive">{t("deactivateConfirmMsg")}</p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="destructive" size="sm" onClick={handleDeactivateGroup} disabled={deactivating}>
+                      {deactivating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {t("confirmDeactivate")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowDeactivateConfirm(false)}>
+                      {t("cancelLeave")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Transfer Ownership */}
+          {(currentMembership as unknown as Record<string, unknown>)?.role === "owner" && (
+            <Card className="border-destructive/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-destructive">
+                  <ArrowRightLeft className="h-4 w-4" />
+                  {t("transferOwnership")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">{t("transferOwnershipDesc")}</p>
+                <Button variant="destructive" size="sm" onClick={() => setShowTransferDialog(true)}>
+                  <ArrowRightLeft className="mr-2 h-4 w-4" />
+                  {t("transferOwnership")}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
       </Tabs>
+
+      {/* Transfer Ownership Dialog */}
+      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5 text-destructive" />
+              {t("transferOwnership")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t("transferOwnershipDialogDesc")}</p>
+            <div className="space-y-2">
+              <Label>{t("selectNewOwner")}</Label>
+              <Select value={transferTargetId} onValueChange={(v) => setTransferTargetId(v || "")}>
+                <SelectTrigger><SelectValue placeholder={t("selectNewOwner")} /></SelectTrigger>
+                <SelectContent>
+                  {(members || [])
+                    .filter((m: Record<string, unknown>) => {
+                      const role = m.role as string;
+                      const id = m.id as string;
+                      const myId = (currentMembership as unknown as Record<string, unknown>)?.id as string;
+                      return (role === "admin" || role === "moderator") && id !== myId;
+                    })
+                    .map((m: Record<string, unknown>) => (
+                      <SelectItem key={m.id as string} value={m.id as string}>
+                        {getMemberName(m)}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTransferDialog(false)}>{t("cancelLeave")}</Button>
+            <Button variant="destructive" onClick={handleTransferOwnership} disabled={transferring || !transferTargetId}>
+              {transferring && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("confirmTransfer")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Leave Group Section — visible to all non-owner members */}
       {currentMembership && (currentMembership as unknown as Record<string, unknown>).role !== "owner" && (

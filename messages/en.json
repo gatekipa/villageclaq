@@ -927,7 +927,8 @@
       "mobileNumberPlaceholder": "+237 6XX XXX XXX",
       "bankAccountNumberPlaceholder": "XXXX XXXX XXXX",
       "bankSwiftPlaceholder": "XXXXUSXX",
-      "flutterwaveCurrencyPlaceholder": "NGN, USD, XAF..."
+      "flutterwaveCurrencyPlaceholder": "NGN, USD, XAF...",
+      "zellePhoneInvalid": "Phone number must be 10–15 digits"
     },
     "statusActive": "Active",
     "statusInactive": "Inactive",
@@ -948,7 +949,20 @@
     "leaveGroupDesc": "You will lose access to this group and all its data. This action cannot be undone.",
     "confirmLeave": "Yes, Leave Group",
     "cancelLeave": "Cancel",
-    "cannotLeaveAsOwner": "Group owners cannot leave. Transfer ownership first."
+    "cannotLeaveAsOwner": "Group owners cannot leave. Transfer ownership first.",
+    "notificationsTab": "Notifications",
+    "notificationsSettingsDesc": "Manage email, push, and in-app notification preferences for this group.",
+    "manageNotifications": "Manage Notifications",
+    "dangerZone": "Danger Zone",
+    "deactivateGroup": "Deactivate Group",
+    "deactivateGroupDesc": "Deactivating the group will hide it from all members. This can be reversed later.",
+    "deactivateConfirmMsg": "Are you sure you want to deactivate this group? Members will lose access until it is reactivated.",
+    "confirmDeactivate": "Yes, Deactivate",
+    "transferOwnership": "Transfer Ownership",
+    "transferOwnershipDesc": "Transfer group ownership to another admin. You will be demoted to admin.",
+    "transferOwnershipDialogDesc": "Select a member to become the new owner. You will become an admin.",
+    "selectNewOwner": "Select new owner",
+    "confirmTransfer": "Transfer Ownership"
   },
   "contributions": {
     "title": "Contributions",

@@ -927,7 +927,8 @@
       "mobileNumberPlaceholder": "+237 6XX XXX XXX",
       "bankAccountNumberPlaceholder": "XXXX XXXX XXXX",
       "bankSwiftPlaceholder": "XXXXUSXX",
-      "flutterwaveCurrencyPlaceholder": "NGN, USD, XAF..."
+      "flutterwaveCurrencyPlaceholder": "NGN, USD, XAF...",
+      "zellePhoneInvalid": "Le numéro de téléphone doit contenir 10 à 15 chiffres"
     },
     "statusActive": "Actif",
     "statusInactive": "Inactif",
@@ -948,7 +949,20 @@
     "leaveGroupDesc": "Vous perdrez l'accès à ce groupe et à toutes ses données. Cette action est irréversible.",
     "confirmLeave": "Oui, quitter le groupe",
     "cancelLeave": "Annuler",
-    "cannotLeaveAsOwner": "Les propriétaires ne peuvent pas quitter. Transférez d'abord la propriété."
+    "cannotLeaveAsOwner": "Les propriétaires ne peuvent pas quitter. Transférez d'abord la propriété.",
+    "notificationsTab": "Notifications",
+    "notificationsSettingsDesc": "Gérez les préférences de notifications par email, push et dans l'application pour ce groupe.",
+    "manageNotifications": "Gérer les notifications",
+    "dangerZone": "Zone de danger",
+    "deactivateGroup": "Désactiver le groupe",
+    "deactivateGroupDesc": "La désactivation du groupe le masquera pour tous les membres. Cela peut être annulé ultérieurement.",
+    "deactivateConfirmMsg": "Êtes-vous sûr de vouloir désactiver ce groupe ? Les membres perdront l'accès jusqu'à la réactivation.",
+    "confirmDeactivate": "Oui, désactiver",
+    "transferOwnership": "Transférer la propriété",
+    "transferOwnershipDesc": "Transférez la propriété du groupe à un autre administrateur. Vous serez rétrogradé en administrateur.",
+    "transferOwnershipDialogDesc": "Sélectionnez un membre pour devenir le nouveau propriétaire. Vous deviendrez administrateur.",
+    "selectNewOwner": "Sélectionner le nouveau propriétaire",
+    "confirmTransfer": "Transférer la propriété"
   },
   "contributions": {
     "title": "Cotisations",

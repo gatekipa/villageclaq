@@ -68,6 +68,8 @@ import { createClient } from "@/lib/supabase/client";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName as getMemberNameShared } from "@/lib/get-member-name";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { FeatureLock } from "@/components/ui/upgrade-prompt";
 
 const supabase = createClient();
 
@@ -372,6 +374,20 @@ export default function SubGroupsPage() {
       {formError && <p className="text-sm text-destructive">{formError}</p>}
     </div>
   );
+
+  const { canUseFeature: canUseTierFeature } = useSubscription();
+  const tTiers = useTranslations("tiers");
+
+  if (!canUseTierFeature("committees")) {
+    return (
+      <FeatureLock
+        feature="committees"
+        featureName={t("title")}
+        description={tTiers("committeesLockedDesc")}
+        variant="page"
+      />
+    );
+  }
 
   return (
     <RequirePermission permission="members.manage">

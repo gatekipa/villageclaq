@@ -62,6 +62,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useGroup } from "@/lib/group-context";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 
@@ -987,6 +989,20 @@ export default function LoansAdminPage() {
 
   const currentList = activeTab === "applications" ? filterBySearch(applicationLoans) :
     activeTab === "active" ? filterBySearch(activeLoans) : filterBySearch(historyLoans);
+
+  const { canUseFeature } = useSubscription();
+  const tt = useTranslations("tiers");
+
+  if (!canUseFeature("loans")) {
+    return (
+      <FeatureLock
+        feature="loans"
+        featureName={t("title")}
+        description={tt("loansLockedDesc")}
+        variant="page"
+      />
+    );
+  }
 
   return (
     <RequirePermission anyOf={["contributions.manage", "finances.manage"]}>

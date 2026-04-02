@@ -483,7 +483,7 @@ export default function HomePage() {
                 <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingFreePeriod")}</span>
               </div>
               <ul className="mt-8 space-y-4">
-                {(["1", "2", "3", "4"] as const).map((n) => (
+                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3 w-3 text-primary" />
@@ -509,8 +509,10 @@ export default function HomePage() {
                 <span className="text-5xl font-extrabold tracking-tight">{t("landing.pricingProPrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingProPeriod")}</span>
               </div>
-              <ul className="mt-8 space-y-4">
-                {(["1", "2", "3", "4", "5"] as const).map((n) => (
+              <p className="mt-1 text-xs text-muted-foreground">{t("landing.pricingProXaf")}</p>
+              <p className="text-xs text-primary font-medium">{t("landing.pricingProAnnual")}</p>
+              <ul className="mt-6 space-y-4">
+                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3 w-3 text-primary" />
@@ -519,14 +521,14 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className="mt-10 block">
-                <Button size="lg" className="w-full text-base font-semibold shadow-md shadow-primary/20">
-                  {t("common.getStarted")}
+              <div className="mt-10 block">
+                <Button size="lg" className="w-full text-base font-semibold shadow-md shadow-primary/20" disabled>
+                  {t("tiers.comingSoon")}
                 </Button>
-              </Link>
+              </div>
             </div>
 
-            {/* Organization */}
+            {/* Enterprise */}
             <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg sm:p-10">
               <h3 className="text-xl font-bold">{t("landing.pricingOrg")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
@@ -543,7 +545,7 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className="mt-10 block">
+              <Link href="/contact" className="mt-10 block">
                 <Button variant="outline" size="lg" className="w-full text-base font-semibold">
                   {t("common.contactUs")}
                 </Button>

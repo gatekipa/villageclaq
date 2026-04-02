@@ -61,7 +61,7 @@ export default function PricingPage() {
                 <span className="text-sm font-medium text-muted-foreground">{t("pricingFreePeriod")}</span>
               </div>
               <ul className="mt-8 space-y-4">
-                {(["1", "2", "3", "4"] as const).map((n) => (
+                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3 w-3 text-primary" />
@@ -87,8 +87,10 @@ export default function PricingPage() {
                 <span className="text-5xl font-extrabold tracking-tight">{t("pricingProPrice")}</span>
                 <span className="text-sm font-medium text-muted-foreground">{t("pricingProPeriod")}</span>
               </div>
-              <ul className="mt-8 space-y-4">
-                {(["1", "2", "3", "4", "5"] as const).map((n) => (
+              <p className="mt-1 text-xs text-muted-foreground">{t("pricingProXaf")}</p>
+              <p className="text-xs text-primary font-medium">{t("pricingProAnnual")}</p>
+              <ul className="mt-6 space-y-4">
+                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
                   <li key={n} className="flex items-start gap-3 text-sm">
                     <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <Check className="h-3 w-3 text-primary" />
@@ -97,12 +99,11 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className="mt-10 block">
-                <Button size="lg" className="w-full text-base font-semibold shadow-md shadow-primary/20">
-                  {tc("getStarted")}
-                  <ArrowRight className="ml-2 h-4 w-4" />
+              <div className="mt-10 block">
+                <Button size="lg" className="w-full text-base font-semibold shadow-md shadow-primary/20" disabled>
+                  {tc("comingSoon") || "Coming Soon"}
                 </Button>
-              </Link>
+              </div>
             </div>
 
             {/* Enterprise */}

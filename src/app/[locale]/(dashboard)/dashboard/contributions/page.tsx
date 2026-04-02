@@ -59,6 +59,8 @@ import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 
 import { formatAmount, CURRENCIES } from "@/lib/currencies";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { LimitPrompt } from "@/components/ui/upgrade-prompt";
 
 
 // Frequency labels resolved via t() inside the component
@@ -334,11 +336,15 @@ export default function ContributionsPage() {
 
   return (
     <RequirePermission anyOf={["contributions.manage", "finances.view"]}><div className="space-y-6">
+      {/* Contribution Types Limit Prompt */}
+      <LimitPrompt resource="contributionTypes" variant="card" />
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold tracking-tight">{t("contributions.title")}</h1>
+            <LimitPrompt resource="contributionTypes" variant="inline" />
             <Tooltip>
               <TooltipTrigger className="cursor-help">
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />

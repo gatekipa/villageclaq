@@ -88,6 +88,8 @@ import { getMemberName } from "@/lib/get-member-name";
 import { calculateStanding } from "@/lib/calculate-standing";
 import { exportCSV } from "@/lib/export";
 import { logActivity } from "@/lib/audit-log";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { LimitPrompt } from "@/components/ui/upgrade-prompt";
 import { RefreshCw } from "lucide-react";
 
 /**
@@ -1241,11 +1243,17 @@ export default function MembersPage() {
 
   return (
     <div className="space-y-6">
+      {/* Member Limit Prompt */}
+      <LimitPrompt resource="members" variant="card" />
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-muted-foreground">{t("subtitle")}</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+            <p className="text-muted-foreground">{t("subtitle")}</p>
+          </div>
+          <LimitPrompt resource="members" variant="inline" />
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}

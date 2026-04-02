@@ -35,6 +35,9 @@ import {
 } from "lucide-react";
 import { useDashboardStats } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { FeatureLock } from "@/components/ui/upgrade-prompt";
+import { Lock } from "lucide-react";
 
 type ReportCategory = "financial" | "membership" | "operations" | "executive";
 
@@ -98,6 +101,8 @@ export default function ReportsHubPage() {
   const { hasPermission } = usePermissions();
   const canViewReports = hasPermission("reports.view");
   const canExport = hasPermission("reports.export");
+  const { isReportAvailable, canUseFeature, isFreeTier } = useSubscription();
+  const tt = useTranslations("tiers");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<ReportCategory | "all">("all");
   const [aiInsight, setAiInsight] = useState<string | null>(null);
@@ -177,7 +182,15 @@ export default function ReportsHubPage() {
       </div>
 
       {/* AI Insights Card — hidden when AI is unavailable */}
-      {!aiHidden && (
+      {!aiHidden && !canUseFeature("aiInsights") && (
+        <FeatureLock
+          feature="aiInsights"
+          featureName={tt("aiInsightsLocked")}
+          description={tt("aiInsightsLockedDesc")}
+          variant="inline"
+        />
+      )}
+      {!aiHidden && canUseFeature("aiInsights") && (
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
           <CardContent className="flex items-start gap-4 pt-6">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -242,12 +255,13 @@ export default function ReportsHubPage() {
                 {categoryReports.map((report) => {
                   const ReportIcon = report.icon;
                   const href = report.linkOverride || `/dashboard/reports/${report.id}`;
+                  const isLocked = !isReportAvailable(report.id);
                   return (
-                    <Card key={report.id} className="group transition-shadow hover:shadow-md">
+                    <Card key={report.id} className={`group transition-shadow hover:shadow-md ${isLocked ? "opacity-75" : ""}`}>
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
                           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted ${categoryIconColors[report.category]}`}>
-                            <ReportIcon className="h-5 w-5" />
+                            {isLocked ? <Lock className="h-5 w-5 text-amber-500" /> : <ReportIcon className="h-5 w-5" />}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
@@ -255,19 +269,31 @@ export default function ReportsHubPage() {
                               {report.isPlaceholder && (
                                 <Badge variant="secondary" className="text-[10px]">{t("reports.placeholder")}</Badge>
                               )}
+                              {isLocked && (
+                                <Badge variant="secondary" className="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Pro</Badge>
+                              )}
                             </div>
                             <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                              {t(`reports.${report.key}.desc`)}
+                              {isLocked ? tt("reportLocked") : t(`reports.${report.key}.desc`)}
                             </p>
                           </div>
                         </div>
                         <div className="mt-3 flex justify-end">
-                          <Link href={href}>
-                            <Button size="sm" variant={report.isPlaceholder ? "outline" : "default"} disabled={report.isPlaceholder || !canViewReports} className="h-7 text-xs">
-                              {t("reports.generate")}
-                              <ArrowRight className="ml-1 h-3 w-3" />
-                            </Button>
-                          </Link>
+                          {isLocked ? (
+                            <Link href={`/${locale}/pricing`}>
+                              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-800">
+                                <Lock className="h-3 w-3" />
+                                {tt("upgrade")}
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Link href={href}>
+                              <Button size="sm" variant={report.isPlaceholder ? "outline" : "default"} disabled={report.isPlaceholder || !canViewReports} className="h-7 text-xs">
+                                {t("reports.generate")}
+                                <ArrowRight className="ml-1 h-3 w-3" />
+                              </Button>
+                            </Link>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

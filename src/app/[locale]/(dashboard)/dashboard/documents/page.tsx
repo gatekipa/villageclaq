@@ -37,6 +37,8 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { normalizeSearch } from "@/lib/utils";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { LimitPrompt } from "@/components/ui/upgrade-prompt";
 
 type CategoryKey =
   | "constitution"
@@ -214,10 +216,16 @@ export default function DocumentVaultPage() {
 
   return (
     <div className="space-y-6">
+      {/* Document Limit Prompt */}
+      <LimitPrompt resource="documents" variant="card" />
+
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("subtitle")}</p>
+      <div className="flex items-center gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        <LimitPrompt resource="documents" variant="inline" />
       </div>
 
       {/* Search + Category Filter + Upload */}

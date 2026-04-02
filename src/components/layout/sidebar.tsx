@@ -46,6 +46,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { LucideIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface NavItem {
   key: string;
@@ -55,6 +56,8 @@ interface NavItem {
   permission?: string;
   /** If set, show when user has ANY of these permissions */
   anyPermission?: string[];
+  /** If set, show a small "Pro" badge next to the item label */
+  proBadge?: boolean;
 }
 
 interface NavSection {
@@ -84,7 +87,7 @@ const adminSections: NavSection[] = [
     items: [
       { key: "contributions", href: "/dashboard/contributions", icon: HandCoins, anyPermission: ["contributions.manage", "finances.view", "finances.manage", "finances.record"] },
       { key: "finances", href: "/dashboard/finances", icon: CreditCard, anyPermission: ["finances.manage", "finances.view"] },
-      { key: "loans", href: "/dashboard/loans", icon: Landmark, anyPermission: ["contributions.manage", "finances.manage"] },
+      { key: "loans", href: "/dashboard/loans", icon: Landmark, anyPermission: ["contributions.manage", "finances.manage"], proBadge: true },
     ],
   },
   {
@@ -295,7 +298,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     )}
                   >
                     <item.icon className="h-5 w-5 shrink-0" />
-                    {t(item.key)}
+                    <span className="flex-1">{t(item.key)}</span>
+                    {item.proBadge && (
+                      <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
+                        Pro
+                      </Badge>
+                    )}
                   </Link>
                 ))}
               </div>

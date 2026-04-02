@@ -86,6 +86,7 @@ function RoundManagement({
   setRoundContribs,
   queryClient,
   groupId,
+  userId,
   locale,
   t,
   tc,
@@ -104,6 +105,7 @@ function RoundManagement({
   setRoundContribs: (v: Record<string, unknown>[]) => void;
   queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>;
   groupId: string | null;
+  userId: string | null;
   locale: string;
   t: ReturnType<typeof import("next-intl").useTranslations>;
   tc: ReturnType<typeof import("next-intl").useTranslations>;
@@ -167,6 +169,7 @@ function RoundManagement({
           amount: cycleAmount,
           paid_at: new Date().toISOString(),
           status: "paid",
+          recorded_by: userId,
         },
         { onConflict: "cycle_id,membership_id,round_number" }
       );
@@ -227,6 +230,9 @@ function RoundManagement({
       await supabase.from("savings_participants").update({
         has_collected: true,
         collected_at: new Date().toISOString(),
+        payout_amount: amountGiven,
+        payout_method: collectionMethod,
+        payout_notes: collectionNotes || null,
       }).eq("cycle_id", cycleId).eq("collection_round", currentRound);
       queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       setShowCollectionDialog(false);
@@ -634,7 +640,7 @@ export default function SavingsCirclePage() {
   const t = useTranslations("savingsCircle");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const { currentGroup, groupId } = useGroup();
+  const { currentGroup, groupId, user } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("savings.manage");
   const { data: cycles, isLoading, isError, error, refetch } = useSavingsCycles();
@@ -704,17 +710,22 @@ export default function SavingsCirclePage() {
     if (Object.keys(errors).length > 0) return;
     setCreateError("");
 
-    // Edit mode
+    // Edit mode — only allow name, start_date changes on active cycles
+    // Amount, frequency, rotation, rounds are locked once active to prevent financial inconsistency
     if (editCycleId) {
       const supabase = createClient();
-      const { error } = await supabase.from('savings_cycles').update({
-        name: cycleName.trim(),
-        amount: Number(amount),
-        frequency,
-        total_rounds: Number(totalRounds),
-        start_date: startDate,
-        rotation_type: rotationType,
-      }).eq('id', editCycleId);
+      const editingCycle = (cycles || []).find((c: Record<string, unknown>) => (c.id as string) === editCycleId);
+      const isActive = editingCycle && (editingCycle.status as string) === "active" && ((editingCycle.current_round as number) || 1) > 1;
+      const updateFields: Record<string, unknown> = { name: cycleName.trim() };
+      if (!isActive) {
+        // Only allow full edits if cycle hasn't progressed past round 1
+        updateFields.amount = Number(amount);
+        updateFields.frequency = frequency;
+        updateFields.total_rounds = Number(totalRounds);
+        updateFields.start_date = startDate;
+        updateFields.rotation_type = rotationType;
+      }
+      const { error } = await supabase.from('savings_cycles').update(updateFields).eq('id', editCycleId);
       if (error) { setCreateError(error.message); return; }
       queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
       setShowCreate(false);
@@ -1405,6 +1416,7 @@ export default function SavingsCirclePage() {
                     setRoundContribs={setRoundContribs}
                     queryClient={queryClient}
                     groupId={groupId}
+                    userId={user?.id || null}
                     locale={locale}
                     t={t}
                     tc={tc}
@@ -1678,6 +1690,8 @@ export default function SavingsCirclePage() {
                   payment_method: mpMethod,
                   paid_at: new Date().toISOString(),
                   status: newStatus,
+                  recorded_by: user?.id || null,
+                  notes: mpNotes || null,
                 }, { onConflict: "cycle_id,membership_id,round_number" });
                 queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
                 setShowMarkPaidDialog(false);

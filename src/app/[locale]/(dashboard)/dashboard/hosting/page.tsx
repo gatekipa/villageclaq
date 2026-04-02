@@ -264,23 +264,32 @@ export default function HostingPage() {
 
         // Check which already have a reminder notification
         for (const a of upcoming) {
+          // Resolve user_id from membership
+          const { data: memberData } = await supabase
+            .from("memberships")
+            .select("user_id")
+            .eq("id", a.membership_id)
+            .single();
+          const recipientUserId = memberData?.user_id as string | null;
+          if (!recipientUserId) continue; // skip proxy members
+
           const { data: existing } = await supabase
             .from("notifications")
             .select("id")
-            .eq("membership_id", a.membership_id)
-            .eq("type", "hosting_reminder")
+            .eq("user_id", recipientUserId)
+            .eq("type", "system")
             .eq("group_id", groupId)
-            .like("message", `%${a.assigned_date}%`)
+            .like("body", `%${a.assigned_date}%`)
             .limit(1);
 
           if (existing && existing.length > 0) continue;
 
           await supabase.from("notifications").insert({
             group_id: groupId,
-            membership_id: a.membership_id,
-            type: "hosting_reminder",
+            user_id: recipientUserId,
+            type: "system",
             title: t("hostReminderNotifTitle"),
-            message: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
+            body: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
             is_read: false,
           });
 
@@ -399,6 +408,10 @@ export default function HostingPage() {
       const assignment = allAssignments.find((a) => a.id === assignmentId);
       if (assignment && groupId) {
         const dateStr = assignment.assigned_date;
+        // Resolve user_id from membership
+        const memberMatch = members.find((m) => m.id === assignment.membership_id);
+        const statusUserId = (memberMatch as unknown as Record<string, unknown>)?.user_id as string | null
+          || ((memberMatch as unknown as Record<string, unknown>)?.profiles as Record<string, unknown>)?.id as string | null;
         // Send notification to assigned member
         const notifTitle = newStatus === "completed"
           ? t("hostCompletedNotifTitle")
@@ -406,14 +419,16 @@ export default function HostingPage() {
         const notifBody = newStatus === "completed"
           ? t("hostCompletedNotifBody", { date: formatDate(dateStr, locale) })
           : t("hostMissedNotifBody", { date: formatDate(dateStr, locale) });
-        await supabase.from("notifications").insert({
-          group_id: groupId,
-          membership_id: assignment.membership_id,
-          type: newStatus === "completed" ? "hosting_completed" : "hosting_missed",
-          title: notifTitle,
-          message: notifBody,
-          is_read: false,
-        });
+        if (statusUserId) {
+          await supabase.from("notifications").insert({
+            group_id: groupId,
+            user_id: statusUserId,
+            type: "system",
+            title: notifTitle,
+            body: notifBody,
+            is_read: false,
+          });
+        }
 
         // Audit log
         await logActivity(supabase, {
@@ -447,16 +462,26 @@ export default function HostingPage() {
       const supabase = createClient();
       const upcoming = allAssignments.filter((a) => a.status === "upcoming");
       if (upcoming.length > 0) {
-        const notifications = upcoming.map((a) => ({
-          group_id: groupId,
-          membership_id: a.membership_id,
-          type: "hosting_assigned",
-          title: t("hostAssignedNotifTitle"),
-          message: t("hostAssignedNotifBody", { date: formatDate(a.assigned_date, locale) }),
-          is_read: false,
-        }));
-        const { error: notifErr } = await supabase.from("notifications").insert(notifications);
-        if (notifErr) throw notifErr;
+        // Resolve user_ids from membership data, skip proxy members
+        const notifications = upcoming
+          .map((a) => {
+            const m = members.find((mem) => mem.id === a.membership_id);
+            const uid = (m as unknown as Record<string, unknown>)?.user_id as string | null
+              || ((m as unknown as Record<string, unknown>)?.profiles as Record<string, unknown>)?.id as string | null;
+            if (!uid) return null;
+            return {
+              group_id: groupId,
+              user_id: uid,
+              type: "system" as const,
+              title: t("hostAssignedNotifTitle"),
+              body: t("hostAssignedNotifBody", { date: formatDate(a.assigned_date, locale) }),
+              is_read: false,
+            };
+          })
+          .filter(Boolean);
+        if (notifications.length > 0) {
+          await supabase.from("notifications").insert(notifications);
+        }
       }
       await logActivity(supabase, {
         groupId,
@@ -2354,25 +2379,35 @@ function SwapHostDialog({
         .eq("id", assignment.id);
       if (updateErr) throw updateErr;
 
-      // 3. Notify original host
-      await supabase.from("notifications").insert({
-        group_id: groupId,
-        membership_id: assignment.membership_id,
-        type: "hosting_swapped",
-        title: t("swapNotifTitle"),
-        message: t("swapNotifBodyOld", { date: formatDate(assignment.assigned_date, locale) }),
-        is_read: false,
-      });
+      // 3. Notify original host (resolve user_id)
+      const origMember = activeMembers.find((m) => m.id === assignment.membership_id);
+      const origUserId = (origMember as unknown as Record<string, unknown>)?.user_id as string | null
+        || ((origMember as unknown as Record<string, unknown>)?.profiles as Record<string, unknown>)?.id as string | null;
+      if (origUserId) {
+        await supabase.from("notifications").insert({
+          group_id: groupId,
+          user_id: origUserId,
+          type: "system",
+          title: t("swapNotifTitle"),
+          body: t("swapNotifBodyOld", { date: formatDate(assignment.assigned_date, locale) }),
+          is_read: false,
+        });
+      }
 
-      // 4. Notify new host
-      await supabase.from("notifications").insert({
-        group_id: groupId,
-        membership_id: selectedMemberId,
-        type: "hosting_assigned",
-        title: t("swapNotifTitle"),
-        message: t("swapNotifBodyNew", { date: formatDate(assignment.assigned_date, locale) }),
-        is_read: false,
-      });
+      // 4. Notify new host (resolve user_id)
+      const newMember = activeMembers.find((m) => m.id === selectedMemberId);
+      const newUserId = (newMember as unknown as Record<string, unknown>)?.user_id as string | null
+        || ((newMember as unknown as Record<string, unknown>)?.profiles as Record<string, unknown>)?.id as string | null;
+      if (newUserId) {
+        await supabase.from("notifications").insert({
+          group_id: groupId,
+          user_id: newUserId,
+          type: "system",
+          title: t("swapNotifTitle"),
+          body: t("swapNotifBodyNew", { date: formatDate(assignment.assigned_date, locale) }),
+          is_read: false,
+        });
+      }
 
       // 5. Audit log
       await logActivity(supabase, {

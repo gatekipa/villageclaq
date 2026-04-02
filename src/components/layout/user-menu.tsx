@@ -13,10 +13,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function UserMenu() {
   const t = useTranslations();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useGroup();
 
   const displayName = user?.full_name || user?.display_name || "User";
@@ -30,6 +32,7 @@ export function UserMenu() {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    queryClient.removeQueries();
     router.push("/login");
   }
 

@@ -565,8 +565,8 @@ export default function MembersPage() {
           user_id: ownershipTarget.user_id as string,
           group_id: groupId,
           type: "system",
-          title: "Ownership Transferred",
-          body: `You are now the owner of ${groupName}`,
+          title: t("ownershipTransferredNotifTitle"),
+          body: t("ownershipTransferredNotifBody", { groupName }),
         });
       }
 
@@ -615,8 +615,8 @@ export default function MembersPage() {
           user_id: admin.user_id as string,
           group_id: groupId,
           type: "member_left" as const,
-          title: "Member Left",
-          body: `${memberName} has left ${currentGroup?.name || "the group"}`,
+          title: t("memberLeftNotifTitle"),
+          body: t("memberLeftNotifBody", { memberName, groupName: currentGroup?.name || "" }),
         }));
         if (notifications.length > 0) {
           await supabase.from("notifications").insert(notifications);

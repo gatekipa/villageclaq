@@ -106,8 +106,10 @@
     "errorTitle": "Something went wrong",
     "tryAgain": "Try Again",
     "shareTheNews": "Share the news!",
-    "joinedShareText": "I just joined {group} on VillageClaq! 🎉 Join us: {link}",
-    "skipToDashboard": "Go to Dashboard"
+    "joinedShareText": "I just joined {group} on VillageClaq! Join us: {link}",
+    "skipToDashboard": "Go to Dashboard",
+    "bannedTitle": "Unable to Join",
+    "bannedDesc": "Your membership in this group has been revoked. Contact the group administrator for more information."
   },
   "checkin": {
     "verifying": "Verifying your membership...",
@@ -1195,7 +1197,10 @@
     "sortDate": "Date",
     "sortStatus": "Status",
     "noSearchResults": "No matching invitations",
-    "noSearchResultsDesc": "Try a different search term."
+    "noSearchResultsDesc": "Try a different search term.",
+    "shareWhatsappText": "Join {group} on VillageClaq: {link}",
+    "shareEmailSubject": "Join {group} on VillageClaq",
+    "shareEmailBody": "You've been invited to join {group} on VillageClaq.\n\nClick this link to join: {link}\n\nOr use join code: {code}"
   },
   "events": {
     "title": "Events",

@@ -112,16 +112,16 @@ export default function InvitationsPage() {
 
   function shareWhatsApp(code: string) {
     const link = getJoinLink(code);
-    const groupName = currentGroup?.name || "our group";
-    const msg = encodeURIComponent(`Join ${groupName} on VillageClaq: ${link}`);
+    const groupName = currentGroup?.name || "";
+    const msg = encodeURIComponent(t("invitations.shareWhatsappText", { group: groupName, link }));
     window.open(`https://wa.me/?text=${msg}`, "_blank");
   }
 
   function shareEmail(code: string) {
     const link = getJoinLink(code);
-    const groupName = currentGroup?.name || "our group";
-    const subject = encodeURIComponent(`Join ${groupName} on VillageClaq`);
-    const body = encodeURIComponent(`You've been invited to join ${groupName} on VillageClaq.\n\nClick this link to join: ${link}\n\nOr use join code: ${code}`);
+    const groupName = currentGroup?.name || "";
+    const subject = encodeURIComponent(t("invitations.shareEmailSubject", { group: groupName }));
+    const body = encodeURIComponent(t("invitations.shareEmailBody", { group: groupName, link, code }));
     window.open(`mailto:?subject=${subject}&body=${body}`);
   }
 

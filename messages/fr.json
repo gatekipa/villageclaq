@@ -106,8 +106,10 @@
     "errorTitle": "Une erreur est survenue",
     "tryAgain": "Réessayer",
     "shareTheNews": "Partagez la nouvelle !",
-    "joinedShareText": "Je viens de rejoindre {group} sur VillageClaq ! 🎉 Rejoignez-nous : {link}",
-    "skipToDashboard": "Aller au tableau de bord"
+    "joinedShareText": "Je viens de rejoindre {group} sur VillageClaq ! Rejoignez-nous : {link}",
+    "skipToDashboard": "Aller au tableau de bord",
+    "bannedTitle": "Impossible de rejoindre",
+    "bannedDesc": "Votre adhésion à ce groupe a été révoquée. Contactez l'administrateur du groupe pour plus d'informations."
   },
   "checkin": {
     "verifying": "Vérification de votre adhésion...",
@@ -1195,7 +1197,10 @@
     "sortDate": "Date",
     "sortStatus": "Statut",
     "noSearchResults": "Aucune invitation correspondante",
-    "noSearchResultsDesc": "Essayez un autre terme de recherche."
+    "noSearchResultsDesc": "Essayez un autre terme de recherche.",
+    "shareWhatsappText": "Rejoignez {group} sur VillageClaq : {link}",
+    "shareEmailSubject": "Rejoignez {group} sur VillageClaq",
+    "shareEmailBody": "Vous êtes invité(e) à rejoindre {group} sur VillageClaq.\n\nCliquez sur ce lien pour rejoindre : {link}\n\nOu utilisez le code : {code}"
   },
   "events": {
     "title": "Événements",

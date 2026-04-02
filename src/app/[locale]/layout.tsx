@@ -57,13 +57,13 @@ export const metadata: Metadata = {
     siteName: "VillageClaq",
     title: "VillageClaq — Community Management for Africa & Diaspora",
     description: "Track contributions, manage meetings, and build transparency for your community group.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "VillageClaq — Community Management Platform" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "VillageClaq — Community Management Platform" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "VillageClaq — Community Management for Africa & Diaspora",
     description: "The all-in-one platform for community savings groups across Africa and the diaspora.",
-    images: ["/og-image.png"],
+    images: ["/opengraph-image"],
   },
   manifest: "/manifest.json",
   icons: {

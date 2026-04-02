@@ -943,7 +943,12 @@
     "sharing_events": "Event Calendar",
     "sharing_minutes": "Meeting Minutes",
     "sharing_relief": "Relief Fund Status",
-    "dataSharingSaved": "Data sharing settings saved"
+    "dataSharingSaved": "Data sharing settings saved",
+    "leaveGroup": "Leave Group",
+    "leaveGroupDesc": "You will lose access to this group and all its data. This action cannot be undone.",
+    "confirmLeave": "Yes, Leave Group",
+    "cancelLeave": "Cancel",
+    "cannotLeaveAsOwner": "Group owners cannot leave. Transfer ownership first."
   },
   "contributions": {
     "title": "Contributions",
@@ -3439,6 +3444,7 @@
     "announcementScheduled": "Announcement scheduled",
     "editAnnouncement": "Edit Announcement",
     "updateAnnouncement": "Update Announcement",
+    "publishAnnouncement": "Publish Now",
     "unpublishAnnouncement": "Unpublish",
     "deleteAnnouncement": "Delete Announcement",
     "deleteAnnouncementConfirm": "This will permanently delete this announcement. Are you sure?",

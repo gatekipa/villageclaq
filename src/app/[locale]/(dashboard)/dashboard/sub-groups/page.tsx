@@ -134,6 +134,8 @@ export default function SubGroupsPage() {
   const tc = useTranslations("common");
   const { groupId, currentMembership } = useGroup();
   const queryClient = useQueryClient();
+  const { canUseFeature: canUseTierFeature } = useSubscription();
+  const tTiers = useTranslations("tiers");
   const { data: subGroups, isLoading, isError, error, refetch } = useSubGroups(groupId);
   const { data: members } = useMembers();
   const { data: pendingTransfers = [] } = useSubGroupTransfers(groupId);
@@ -374,9 +376,6 @@ export default function SubGroupsPage() {
       {formError && <p className="text-sm text-destructive">{formError}</p>}
     </div>
   );
-
-  const { canUseFeature: canUseTierFeature } = useSubscription();
-  const tTiers = useTranslations("tiers");
 
   if (!canUseTierFeature("committees")) {
     return (

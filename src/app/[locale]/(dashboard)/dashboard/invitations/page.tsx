@@ -376,20 +376,6 @@ export default function InvitationsPage() {
 
   const isLoading = groupLoading || invLoading || codesLoading;
 
-  if (isLoading) return <RequirePermission anyOf={["members.manage", "members.invite"]}><ListSkeleton rows={5} /></RequirePermission>;
-
-  if (invError || codesError) {
-    return (
-      <RequirePermission anyOf={["members.manage", "members.invite"]}><ErrorState
-        message={(invError || codesError)?.message}
-        onRetry={() => {
-          refetchInv();
-          refetchCodes();
-        }}
-      /></RequirePermission>
-    );
-  }
-
   const activeCode = joinCodes && joinCodes.length > 0 ? joinCodes[0] : null;
   const allInvitations = invitations || [];
 
@@ -424,6 +410,20 @@ export default function InvitationsPage() {
 
     return list;
   }, [allInvitations, search, sortField, sortDir]);
+
+  if (isLoading) return <RequirePermission anyOf={["members.manage", "members.invite"]}><ListSkeleton rows={5} /></RequirePermission>;
+
+  if (invError || codesError) {
+    return (
+      <RequirePermission anyOf={["members.manage", "members.invite"]}><ErrorState
+        message={(invError || codesError)?.message}
+        onRetry={() => {
+          refetchInv();
+          refetchCodes();
+        }}
+      /></RequirePermission>
+    );
+  }
 
   return (
     <RequirePermission anyOf={["members.manage", "members.invite"]}><div className="space-y-6">

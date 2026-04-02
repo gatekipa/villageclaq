@@ -943,7 +943,12 @@
     "sharing_events": "Calendrier des événements",
     "sharing_minutes": "Procès-verbaux des réunions",
     "sharing_relief": "Statut du fonds d'entraide",
-    "dataSharingSaved": "Paramètres de partage sauvegardés"
+    "dataSharingSaved": "Paramètres de partage sauvegardés",
+    "leaveGroup": "Quitter le groupe",
+    "leaveGroupDesc": "Vous perdrez l'accès à ce groupe et à toutes ses données. Cette action est irréversible.",
+    "confirmLeave": "Oui, quitter le groupe",
+    "cancelLeave": "Annuler",
+    "cannotLeaveAsOwner": "Les propriétaires ne peuvent pas quitter. Transférez d'abord la propriété."
   },
   "contributions": {
     "title": "Cotisations",
@@ -3439,6 +3444,7 @@
     "announcementScheduled": "Annonce planifiée",
     "editAnnouncement": "Modifier l'annonce",
     "updateAnnouncement": "Mettre à jour l'annonce",
+    "publishAnnouncement": "Publier maintenant",
     "unpublishAnnouncement": "Dépublier",
     "deleteAnnouncement": "Supprimer l'annonce",
     "deleteAnnouncementConfirm": "Ceci supprimera définitivement cette annonce. Êtes-vous sûr ?",

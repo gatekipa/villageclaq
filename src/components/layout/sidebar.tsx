@@ -161,9 +161,11 @@ const memberSections: NavSection[] = [
     labelKey: "sectionGroup",
     items: [
       { key: "directory", href: "/dashboard/directory", icon: Users },
+      { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadge: "Starter" },
       { key: "meetings", href: "/dashboard/minutes", icon: BookOpen },
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
+      { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
       { key: "badges", href: "/dashboard/badges", icon: Trophy },
       { key: "notifications", href: "/dashboard/notifications", icon: Bell },
     ],

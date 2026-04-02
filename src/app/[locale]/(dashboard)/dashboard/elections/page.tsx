@@ -58,7 +58,7 @@ import {
   AlertCircle,
   Search,
 } from "lucide-react";
-import { useElections, useCreateElection, useMembers } from "@/lib/hooks/use-supabase-query";
+import { useElections, useCreateElection, useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -179,6 +179,7 @@ export default function ElectionsPage() {
   const { data: elections, isLoading, isError, error, refetch } = useElections();
   const createElection = useCreateElection();
   const { data: members } = useMembers();
+  const { data: positions } = useGroupPositions();
 
   // ─── State ────────────────────────────────────────────────────────────────
 
@@ -198,6 +199,7 @@ export default function ElectionsPage() {
   // Add candidate dialog
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [candidateMembershipId, setCandidateMembershipId] = useState("");
+  const [candidatePositionId, setCandidatePositionId] = useState("");
   const [candidateStatement, setCandidateStatement] = useState("");
   const [candidateLoading, setCandidateLoading] = useState(false);
 
@@ -376,12 +378,14 @@ export default function ElectionsPage() {
       const { error: err } = await supabase.from("election_candidates").insert({
         election_id: selectedElectionId,
         membership_id: candidateMembershipId,
+        position_id: candidatePositionId || null,
         statement: candidateStatement.trim() || null,
       });
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
       setShowAddCandidate(false);
       setCandidateMembershipId("");
+      setCandidatePositionId("");
       setCandidateStatement("");
     } catch (err) {
       showError(t("addCandidateFailed"));
@@ -1053,7 +1057,7 @@ export default function ElectionsPage() {
       </Dialog>
 
       {/* ─── Add Candidate Dialog ────────────────────────────────────────────── */}
-      <Dialog open={showAddCandidate} onOpenChange={(open) => { setShowAddCandidate(open); if (!open) { setCandidateMembershipId(""); setCandidateStatement(""); } }}>
+      <Dialog open={showAddCandidate} onOpenChange={(open) => { setShowAddCandidate(open); if (!open) { setCandidateMembershipId(""); setCandidatePositionId(""); setCandidateStatement(""); } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("addCandidate")}</DialogTitle>
@@ -1072,6 +1076,21 @@ export default function ElectionsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {positions && positions.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t("position")}</Label>
+                <Select value={candidatePositionId} onValueChange={(v) => setCandidatePositionId(v ?? "")}>
+                  <SelectTrigger><SelectValue placeholder={t("selectPosition")} /></SelectTrigger>
+                  <SelectContent>
+                    {(positions as Array<Record<string, unknown>>).map((pos) => (
+                      <SelectItem key={pos.id as string} value={pos.id as string}>
+                        {pos.title as string}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>{t("candidateStatement")}</Label>
               <Textarea

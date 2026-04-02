@@ -386,6 +386,52 @@ export default function AnnouncementsPage() {
     }
   }
 
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+
+  async function handlePublish(annId: string) {
+    if (publishingId) return;
+    setPublishingId(annId);
+    try {
+      const supabase = createClient();
+      const now = new Date().toISOString();
+      const { error: err } = await supabase.from("announcements").update({ sent_at: now }).eq("id", annId);
+      if (err) throw err;
+
+      // Send in-app notifications for the published announcement
+      try {
+        const ann = allAnnouncements.find((a: Record<string, unknown>) => (a.id as string) === annId) as Record<string, unknown> | undefined;
+        const annChannels = (ann?.channels as string[]) || [];
+        if (annChannels.includes("in_app") || annChannels.length === 0) {
+          const { data: allMembers } = await supabase
+            .from("memberships")
+            .select("user_id")
+            .eq("group_id", groupId!)
+            .not("user_id", "is", null);
+          const recipientIds = (allMembers || []).map((m) => m.user_id).filter((id) => id && id !== user?.id);
+          for (let i = 0; i < recipientIds.length; i += 50) {
+            const batch = recipientIds.slice(i, i + 50).map((userId) => ({
+              user_id: userId,
+              group_id: groupId,
+              type: "announcement",
+              title: (ann?.title as string) || "",
+              body: ((ann?.content as string) || "").slice(0, 200),
+              is_read: false,
+            }));
+            await supabase.from("notifications").insert(batch);
+          }
+        }
+      } catch {
+        // Non-critical — don't fail the publish if notifications fail
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
+    } catch (err) {
+      setMutationError((err as Error).message || tc("error"));
+    } finally {
+      setPublishingId(null);
+    }
+  }
+
   async function handleUnpublish(annId: string) {
     if (unpublishingId) return;
     setUnpublishingId(annId);
@@ -420,9 +466,6 @@ export default function AnnouncementsPage() {
   const filteredMembers = memberNames.filter((m: string) =>
     m.toLowerCase().includes(memberSearch.toLowerCase())
   );
-
-  if (isLoading) return <ListSkeleton rows={5} />;
-  if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
 
   const allAnnouncements = announcements || [];
 
@@ -463,6 +506,9 @@ export default function AnnouncementsPage() {
     });
     return result;
   }, [allAnnouncements, annStatusFilter, annSearch, sortField, sortDir]);
+
+  if (isLoading) return <ListSkeleton rows={5} />;
+  if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-4 sm:p-6">
@@ -792,6 +838,12 @@ export default function AnnouncementsPage() {
                               <Edit className="mr-2 h-4 w-4" />
                               {t("editAnnouncement")}
                             </DropdownMenuItem>
+                            {!(announcement.sent_at as string | null) && (
+                              <DropdownMenuItem onClick={() => handlePublish(announcement.id as string)} disabled={publishingId === (announcement.id as string)}>
+                                <Send className="mr-2 h-4 w-4" />
+                                {t("publishAnnouncement")}
+                              </DropdownMenuItem>
+                            )}
                             {(announcement.sent_at as string | null) && (
                               <DropdownMenuItem onClick={() => handleUnpublish(announcement.id as string)} disabled={unpublishingId === (announcement.id as string)}>
                                 <EyeOff className="mr-2 h-4 w-4" />

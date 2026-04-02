@@ -22,8 +22,11 @@ import {
   UserPlus,
   Camera,
   Share2,
+  LogOut,
+  AlertTriangle,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useRouter } from "@/i18n/routing";
 import { useGroupSettings, useGroupPositions, useMembers } from "@/lib/hooks/use-supabase-query";
 import { CURRENCIES } from "@/lib/currencies";
 import { useGroup } from "@/lib/group-context";
@@ -44,9 +47,10 @@ function getInitials(name: string) {
 }
 
 export default function GroupSettingsPage() {
+  const router = useRouter();
   const t = useTranslations("settings");
   const tCountries = useTranslations("countries");
-  const { groupId, currentGroup } = useGroup();
+  const { groupId, currentGroup, currentMembership, user } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
   const queryClient = useQueryClient();
@@ -90,6 +94,9 @@ export default function GroupSettingsPage() {
   const [savingSharing, setSavingSharing] = useState(false);
   const [sharingSaveError, setSharingSaveError] = useState<string | null>(null);
   const [sharingSaveSuccess, setSharingSaveSuccess] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   // Populate form when data loads
   useEffect(() => {
@@ -174,6 +181,32 @@ export default function GroupSettingsPage() {
       setSharingSaveError((err as Error).message);
     } finally {
       setSavingSharing(false);
+    }
+  }
+
+  async function handleLeaveGroup() {
+    if (!currentMembership || !groupId) return;
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      const supabase = createClient();
+      const membershipRole = (currentMembership as unknown as Record<string, unknown>).role as string;
+      if (membershipRole === "owner") {
+        setLeaveError(t("cannotLeaveAsOwner"));
+        return;
+      }
+      const { error: delError } = await supabase
+        .from("memberships")
+        .delete()
+        .eq("id", (currentMembership as unknown as Record<string, unknown>).id as string);
+      if (delError) throw delError;
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      router.push("/dashboard");
+    } catch (err) {
+      setLeaveError((err as Error).message);
+    } finally {
+      setLeaving(false);
+      setShowLeaveConfirm(false);
     }
   }
 
@@ -670,6 +703,43 @@ export default function GroupSettingsPage() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Leave Group Section — visible to all non-owner members */}
+      {currentMembership && (currentMembership as unknown as Record<string, unknown>).role !== "owner" && (
+        <Card className="mt-8 border-destructive/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-destructive">
+              <LogOut className="h-4 w-4" />
+              {t("leaveGroup")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">{t("leaveGroupDesc")}</p>
+            {leaveError && (
+              <p className="flex items-center gap-2 text-sm text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                {leaveError}
+              </p>
+            )}
+            {!showLeaveConfirm ? (
+              <Button variant="destructive" size="sm" onClick={() => setShowLeaveConfirm(true)}>
+                <LogOut className="mr-2 h-4 w-4" />
+                {t("leaveGroup")}
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button variant="destructive" size="sm" onClick={handleLeaveGroup} disabled={leaving}>
+                  {leaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertTriangle className="mr-2 h-4 w-4" />}
+                  {t("confirmLeave")}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowLeaveConfirm(false)}>
+                  {t("cancelLeave")}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div></RequirePermission>
   );
 }

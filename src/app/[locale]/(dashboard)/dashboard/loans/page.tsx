@@ -247,6 +247,9 @@ export default function LoansAdminPage() {
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
 
+  const { canUseFeature } = useSubscription();
+  const tt = useTranslations("tiers");
+
   const { data: config, isLoading: configLoading } = useLoanConfig();
   const { data: loans, isLoading: loansLoading, error, refetch } = useLoansData();
   const { data: membersList } = useMembers();
@@ -989,9 +992,6 @@ export default function LoansAdminPage() {
 
   const currentList = activeTab === "applications" ? filterBySearch(applicationLoans) :
     activeTab === "active" ? filterBySearch(activeLoans) : filterBySearch(historyLoans);
-
-  const { canUseFeature } = useSubscription();
-  const tt = useTranslations("tiers");
 
   if (!canUseFeature("loans")) {
     return (

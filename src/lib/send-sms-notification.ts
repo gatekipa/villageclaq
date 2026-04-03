@@ -7,6 +7,8 @@ import {
   welcomeSms,
   minutesPublishedSms,
   paymentPendingSms,
+  hostingReminderSms,
+  standingChangedSms,
 } from "@/lib/notifications/sms-templates";
 
 // ─── Template Types ─────────────────────────────────────────────────────────
@@ -17,7 +19,9 @@ export type SmsTemplate =
   | "payment-receipt"
   | "welcome"
   | "minutes-published"
-  | "payment-pending";
+  | "payment-pending"
+  | "hosting-reminder"
+  | "standing-changed";
 
 interface SendSmsNotificationParams {
   to: string; // E.164 phone number
@@ -142,6 +146,21 @@ function buildMessage(
         groupName: (data.groupName as string) || "",
         memberName: (data.memberName as string) || "",
         amount: (data.amount as string) || "",
+        locale,
+      });
+
+    case "hosting-reminder":
+      return hostingReminderSms({
+        groupName: (data.groupName as string) || "",
+        date: (data.date as string) || (data.hostingDate as string) || "",
+        location: (data.location as string) || "",
+        locale,
+      });
+
+    case "standing-changed":
+      return standingChangedSms({
+        groupName: (data.groupName as string) || "",
+        newStatus: (data.newStatus as string) || "",
         locale,
       });
 

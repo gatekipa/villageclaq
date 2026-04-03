@@ -288,7 +288,7 @@ export async function calculateStanding(
       .update({ standing, standing_updated_at: new Date().toISOString() })
       .eq("id", membershipId);
 
-    // Audit log if standing actually changed
+    // Audit log + notifications if standing actually changed
     if (oldStanding && oldStanding !== standing) {
       try {
         const { logActivity } = await import("@/lib/audit-log");
@@ -300,6 +300,50 @@ export async function calculateStanding(
           description: `Member standing changed from ${oldStanding} to ${standing}`,
           metadata: { oldStanding, newStanding: standing },
         });
+      } catch { /* best-effort */ }
+
+      // In-app notification to the member (best-effort)
+      try {
+        const { data: membership } = await supabase
+          .from("memberships")
+          .select("user_id, display_name")
+          .eq("id", membershipId)
+          .single();
+        if (membership?.user_id) {
+          await supabase.from("notifications").insert({
+            user_id: membership.user_id,
+            group_id: groupId,
+            type: "system" as const,
+            title: standing === "good"
+              ? "Standing restored to Good"
+              : `Standing changed to ${standing}`,
+            body: standing === "good"
+              ? "Your membership standing has been restored. Thank you for your contributions."
+              : "Your membership standing has changed. Check your dashboard for details.",
+            is_read: false,
+          });
+        }
+        // WhatsApp notification (best-effort, fire-and-forget)
+        const phone = membership?.user_id
+          ? undefined // phone resolved later if needed
+          : undefined;
+        // Get phone from profile for WhatsApp
+        if (membership?.user_id) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("phone")
+            .eq("id", membership.user_id)
+            .single();
+          if (profile?.phone) {
+            const { dispatchWhatsApp } = await import("@/lib/whatsapp-dispatcher");
+            const { data: group } = await supabase.from("groups").select("name").eq("id", groupId).single();
+            await dispatchWhatsApp("standing_changed", profile.phone as string, "en", {
+              memberName: (membership.display_name as string) || "",
+              newStatus: standing,
+              groupName: group?.name || "",
+            }).catch(() => {});
+          }
+        }
       } catch { /* best-effort */ }
     }
   }

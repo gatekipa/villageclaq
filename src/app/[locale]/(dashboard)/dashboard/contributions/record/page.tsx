@@ -502,6 +502,43 @@ export default function RecordPaymentPage() {
         }
       }
 
+      // Send in-app notifications for successful bulk payments (best-effort)
+      if (successCount > 0) {
+        try {
+          const supabase = createClient();
+          const typeName = bulkType
+            ? (locale === "fr" && (bulkType as Record<string, unknown>).name_fr
+                ? (bulkType as Record<string, unknown>).name_fr as string
+                : (bulkType as Record<string, unknown>).name as string)
+            : "";
+          const formattedAmt = formatAmount(Number(bulkAmount), currency);
+          // Build notification rows for members with user_id
+          const memberIds = Array.from(bulkSelected);
+          const notifRows: Array<Record<string, unknown>> = [];
+          for (const mid of memberIds) {
+            const raw = (members || []).find((m: Record<string, unknown>) => m.id === mid) as Record<string, unknown> | undefined;
+            const userId = (raw?.user_id as string | null) || null;
+            if (!userId) continue; // skip proxy members for in-app
+            notifRows.push({
+              user_id: userId,
+              group_id: groupId,
+              type: "contribution_received",
+              title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
+              body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: bulkMethod, reference: bulkNotes || "N/A" }),
+              is_read: false,
+            });
+          }
+          if (notifRows.length > 0) {
+            // Batch insert (max 50 at a time)
+            for (let i = 0; i < notifRows.length; i += 50) {
+              await supabase.from("notifications").insert(notifRows.slice(i, i + 50));
+            }
+          }
+        } catch {
+          // Non-critical — bulk notification failure must never block
+        }
+      }
+
       setBulkSuccess(successCount);
       if (dupCount > 0) {
         setBulkDupCount(dupCount);

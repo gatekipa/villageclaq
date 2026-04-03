@@ -197,6 +197,8 @@ function mapTypeToSmsTemplate(type: WhatsAppNotificationType): string | null {
     payment_reminder: "payment-reminder",
     event_reminder: "event-reminder",
     minutes_published: "minutes-published",
+    hosting_reminder: "hosting-reminder",
+    standing_changed: "standing-changed",
     welcome: "welcome",
   };
   return map[type] || null;

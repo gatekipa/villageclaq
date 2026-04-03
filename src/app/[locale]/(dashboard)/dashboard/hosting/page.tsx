@@ -525,11 +525,12 @@ export default function HostingPage() {
             title: t("hostAssignedNotifTitle"),
             body: t("hostAssignedNotifBody", { date: "" }),
             data: { groupName: currentGroup?.name || "" },
+            emailTemplate: "notification",
             smsTemplate: "hosting-assignment",
             whatsappType: "hosting_assignment",
             inAppType: "hosting_assignment",
             locale,
-            channels: { whatsapp: true, sms: true },
+            channels: { inApp: true, email: true, sms: true, whatsapp: true },
             prefType: "hosting_reminders",
           }).catch(() => {});
         } catch { /* best-effort */ }
@@ -1521,11 +1522,12 @@ function AssignHostsDialog({
             title: t("hostAssignedNotifTitle"),
             body: t("hostAssignedNotifBody", { date: context.date }),
             data: { groupName, date: context.date, hostingDate: context.date },
+            emailTemplate: "notification",
             smsTemplate: "hosting-assignment",
             whatsappType: "hosting_assignment",
             inAppType: "hosting_assignment",
             locale,
-            channels: { inApp: true, sms: true, whatsapp: true },
+            channels: { inApp: true, email: true, sms: true, whatsapp: true },
             prefType: "hosting_reminders",
           }).catch(() => {});
         } catch { /* best-effort */ }

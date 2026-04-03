@@ -196,9 +196,11 @@ export default function ReliefRemittancesPage() {
               title: t(newStatus === "confirmed" ? "remittanceConfirmedTitle" : "remittanceDisputedTitle"),
               body: t(newStatus === "confirmed" ? "remittanceConfirmedBody" : "remittanceDisputedBody", { amount: amt }),
               data: { groupName: branchName, amount: amt, status: newStatus },
+              emailTemplate: "notification",
+              smsTemplate: "remittance-status",
               whatsappType: waType,
               locale,
-              channels: { inApp: true, whatsapp: true },
+              channels: { inApp: true, email: true, sms: true, whatsapp: true },
               prefType: "relief_updates",
             }).catch(() => {});
           }

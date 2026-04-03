@@ -235,10 +235,11 @@ export function PayNowDialog({
             date: new Date().toISOString().slice(0, 10),
           },
           emailTemplate: "payment-receipt",
+          smsTemplate: "payment-receipt",
           whatsappType: "payment_receipt",
           inAppType: "contribution_received",
           locale: "en",
-          channels: { email: true, whatsapp: true },
+          channels: { email: true, sms: true, whatsapp: true },
           prefType: "payment_reminders",
         }).catch(() => {});
       } catch { /* best-effort */ }

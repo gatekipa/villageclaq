@@ -133,10 +133,12 @@ export default function ReliefEnrollmentPage() {
           title: t("relief.enrolledNotifTitle"),
           body: t("relief.enrolledNotifBody", { planName }),
           data: { groupName, planName, memberName: "" },
+          emailTemplate: "notification",
+          smsTemplate: "relief-enrollment",
           whatsappType: "relief_enrollment",
           inAppType: "relief",
           locale,
-          channels: { inApp: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: true },
           prefType: "relief_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }

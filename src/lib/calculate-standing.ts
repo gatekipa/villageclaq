@@ -325,29 +325,77 @@ export async function calculateStanding(
             data: { link: "/dashboard/members" },
           });
         }
-        // WhatsApp notification (best-effort, fire-and-forget)
+        // Email + SMS + WhatsApp notifications (best-effort, fire-and-forget)
         if (membership?.user_id) {
-          let sendWhatsapp = true;
+          let sendEmail = true, sendSms = true, sendWhatsapp = true;
           try {
             const prefs = await getEnabledChannels(supabase, membership.user_id, "standing_changes", groupId);
+            sendEmail = prefs.email;
+            sendSms = prefs.sms;
             sendWhatsapp = prefs.whatsapp;
           } catch { /* fail-open */ }
 
-          if (sendWhatsapp) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("phone")
-              .eq("id", membership.user_id)
-              .single();
-            if (profile?.phone) {
-              const { dispatchWhatsApp } = await import("@/lib/whatsapp-dispatcher");
-              const { data: group } = await supabase.from("groups").select("name").eq("id", groupId).single();
-              await dispatchWhatsApp("standing_changed", profile.phone as string, "en", {
-                memberName: (membership.display_name as string) || "",
-                newStatus: standing,
-                groupName: group?.name || "",
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("phone")
+            .eq("id", membership.user_id)
+            .single();
+          const { data: group } = await supabase.from("groups").select("name").eq("id", groupId).single();
+          const memberName = (membership.display_name as string) || "";
+          const groupName = group?.name || "";
+          const phone = profile?.phone as string | null;
+
+          // Email via API route (fire-and-forget)
+          if (sendEmail) {
+            try {
+              const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
+              fetch(`${origin}/api/email/send`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  to: membership.user_id,
+                  template: "notification",
+                  data: {
+                    title: standing === "good" ? "Standing Restored" : `Standing Changed to ${standing}`,
+                    body: standing === "good"
+                      ? "Your membership standing has been restored. Thank you for your contributions."
+                      : "Your membership standing has changed. Check your dashboard for details.",
+                    groupName,
+                    memberName,
+                  },
+                  locale: "en",
+                }),
               }).catch(() => {});
-            }
+            } catch { /* best-effort */ }
+          }
+
+          // SMS (fire-and-forget)
+          if (sendSms && phone) {
+            try {
+              const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
+              fetch(`${origin}/api/sms/send`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  to: phone,
+                  template: "standing-changed",
+                  data: { groupName, newStatus: standing },
+                  locale: "en",
+                }),
+              }).catch(() => {});
+            } catch { /* best-effort */ }
+          }
+
+          // WhatsApp (fire-and-forget)
+          if (sendWhatsapp && phone) {
+            try {
+              const { dispatchWhatsApp } = await import("@/lib/whatsapp-dispatcher");
+              await dispatchWhatsApp("standing_changed", phone, "en", {
+                memberName,
+                newStatus: standing,
+                groupName,
+              }).catch(() => {});
+            } catch { /* best-effort */ }
           }
         }
       } catch { /* best-effort */ }

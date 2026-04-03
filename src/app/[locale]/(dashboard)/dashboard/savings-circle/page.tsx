@@ -972,13 +972,17 @@ export default function SavingsCirclePage() {
       {/* Njangi Treasury */}
       {(() => {
         const allContribs = cycles.reduce((sum: number, c: Record<string, unknown>) => {
-          const p = ((c.savings_participants as unknown[]) || []).length;
-          const round = (c.current_round as number) || 1;
-          return sum + Number(c.amount) * p * Math.max(0, round - 1);
+          const contribs = ((c.savings_contributions as Record<string, unknown>[]) || []);
+          return sum + contribs.reduce((s: number, sc: Record<string, unknown>) => s + Number(sc.amount), 0);
         }, 0);
         const allPayouts = cycles.reduce((sum: number, c: Record<string, unknown>) => {
-          const p = ((c.savings_participants as Record<string, unknown>[]) || []).filter((pp) => pp.has_collected);
-          return sum + p.length * Number(c.amount) * (((c.savings_participants as unknown[]) || []).length);
+          const participants = ((c.savings_participants as Record<string, unknown>[]) || []);
+          const collected = participants.filter((pp) => pp.has_collected);
+          return sum + collected.reduce((s: number, pp: Record<string, unknown>) => {
+            const recordedPayout = Number(pp.payout_amount);
+            // Use actual payout_amount if recorded, otherwise estimate as pot size
+            return s + (recordedPayout > 0 ? recordedPayout : Number(c.amount) * participants.length);
+          }, 0);
         }, 0);
         return (
           <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
@@ -1143,10 +1147,10 @@ export default function SavingsCirclePage() {
                       {t("round")} {currentRound} {t("of")} {totalRnds}
                     </span>
                     <span className="font-medium text-foreground">
-                      {Math.round((currentRound / totalRnds) * 100)}%
+                      {Math.round(((currentRound - 1) / totalRnds) * 100)}%
                     </span>
                   </div>
-                  <Progress value={currentRound} max={totalRnds} />
+                  <Progress value={currentRound - 1} max={totalRnds} />
                 </div>
 
                 {/* Participants list */}
@@ -1185,8 +1189,10 @@ export default function SavingsCirclePage() {
                             // Fines from finesLedger
                             const finesLedger = ((cycle.fines_ledger as Array<Record<string, unknown>>) || []);
                             const unpaidFines = finesLedger.filter((f) => (f.membership_id as string) === membershipId && (f.status as string) === "unpaid").reduce((s, f) => s + Number(f.amount), 0);
-                            // Estimate total contributed = (currentRound - 1) rounds worth if sequential
-                            const totalContrib = Math.max(0, currentRound - 1) * amt;
+                            // Compute actual total contributed from savings_contributions
+                            const memberContribs = ((cycle.savings_contributions as Record<string, unknown>[]) || [])
+                              .filter((sc: Record<string, unknown>) => (sc.membership_id as string) === membershipId);
+                            const totalContrib = memberContribs.reduce((s: number, sc: Record<string, unknown>) => s + Number(sc.amount), 0);
 
                             return (
                               <TableRow key={pid}>
@@ -1240,9 +1246,13 @@ export default function SavingsCirclePage() {
                 {/* ── Treasury ────────────────────────────────────── */}
                 {(() => {
                   const totalExpected = totalRnds * totalMembers * amt;
-                  const totalReceived = Math.max(0, currentRound - 1) * totalMembers * amt;
-                  const collectedCount = participants.filter((p: Record<string, unknown>) => p.has_collected).length;
-                  const totalPayouts = collectedCount * potSize;
+                  const cycleContribs = ((cycle.savings_contributions as Record<string, unknown>[]) || []);
+                  const totalReceived = cycleContribs.reduce((s: number, sc: Record<string, unknown>) => s + Number(sc.amount), 0);
+                  const collectedParticipants = participants.filter((p: Record<string, unknown>) => p.has_collected);
+                  const totalPayouts = collectedParticipants.reduce((s: number, pp: Record<string, unknown>) => {
+                    const recordedPayout = Number(pp.payout_amount);
+                    return s + (recordedPayout > 0 ? recordedPayout : potSize);
+                  }, 0);
                   const balance = totalReceived - totalPayouts;
                   const rate = totalExpected > 0 ? Math.round((totalReceived / totalExpected) * 100) : 0;
                   const fl = (cycle.fines_ledger as Array<Record<string, unknown>>) || [];
@@ -1601,6 +1611,9 @@ export default function SavingsCirclePage() {
                   has_collected: false,
                 }));
                 await supabase.from("savings_participants").insert(parts);
+                // Update total_rounds so new participants' collection rounds are reachable
+                const newTotalRounds = maxRound + addPartSelected.length;
+                await supabase.from("savings_cycles").update({ total_rounds: newTotalRounds }).eq("id", addPartCycleId);
                 queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });
                 setShowAddParticipants(false);
               } finally { setAddingParts(false); }
@@ -1680,7 +1693,7 @@ export default function SavingsCirclePage() {
 
                 const previousPaid = Number(existing?.amount) || 0;
                 const totalPaid = previousPaid + newPayment;
-                const newStatus = totalPaid >= mpContribAmount ? "paid" : totalPaid > 0 ? "partial" : "unpaid";
+                const newStatus = totalPaid >= mpContribAmount ? "paid" : totalPaid > 0 ? "late" : "pending";
 
                 await supabase.from("savings_contributions").upsert({
                   cycle_id: mpCycleId,

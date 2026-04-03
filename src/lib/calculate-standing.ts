@@ -237,12 +237,12 @@ export async function calculateStanding(
         : `Hébergement: ${hostingMissed} mission(s) manquée(s)`,
   });
 
-  // Rule 6: Disputes
+  // Rule 6: Disputes (filed BY or AGAINST this member)
   const { data: disputes } = await supabase
     .from("disputes")
     .select("id, status")
     .eq("group_id", groupId)
-    .eq("filed_by", membershipId)
+    .or(`filed_by.eq.${membershipId},against_membership_id.eq.${membershipId}`)
     .in("status", ["open", "under_review"]);
 
   const openDisputes = (disputes || []).length;
@@ -253,8 +253,8 @@ export async function calculateStanding(
     passed: disputesPassed,
     label_en: "Disputes",
     label_fr: "Litiges",
-    detail_en: disputesPassed ? "No pending disputes" : `${openDisputes} open disputes`,
-    detail_fr: disputesPassed ? "Aucun litige en cours" : `${openDisputes} litiges en cours`,
+    detail_en: disputesPassed ? "No pending disputes" : `${openDisputes} open dispute(s)`,
+    detail_fr: disputesPassed ? "Aucun litige en cours" : `${openDisputes} litige(s) en cours`,
   });
 
   // Calculate standing

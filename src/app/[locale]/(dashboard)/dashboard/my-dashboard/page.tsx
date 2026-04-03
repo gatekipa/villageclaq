@@ -258,7 +258,7 @@ export default function MyDashboardPage() {
                       <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
                     )}
                     <span className={reason.passed ? "text-muted-foreground" : "text-foreground font-medium"}>
-                      {reason.detail_en}
+                      {locale === "fr" ? reason.detail_fr : reason.detail_en}
                     </span>
                   </div>
                 ))}

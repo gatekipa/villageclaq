@@ -34,7 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
-import { useMemberStanding } from "@/lib/hooks/use-member-standing";
+import { useMemberStandingDetailed } from "@/lib/hooks/use-member-standing";
 import { calculateStanding } from "@/lib/calculate-standing";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -304,7 +304,7 @@ export default function MemberDetailPage() {
 
   // Data queries
   const { data: member, isLoading: memberLoading, error: memberError } = useMemberDetail(membershipId);
-  const { data: standingData, refetch: refetchStanding } = useMemberStanding(membershipId, groupId);
+  const { data: standingData, refetch: refetchStanding } = useMemberStandingDetailed(membershipId, groupId, currentGroup?.currency);
   const { data: payments = [] } = useMemberPayments(membershipId, groupId);
   const { data: attendances = [] } = useMemberAttendance(membershipId);
   const { data: positions = [] } = useMemberPositions(membershipId);
@@ -712,7 +712,7 @@ export default function MemberDetailPage() {
                     <XCircle className="h-4 w-4 text-red-500 shrink-0" />
                   )}
                   <span className={reason.passed ? "text-muted-foreground" : "text-foreground font-medium"}>
-                    {reason.detail_en}
+                    {locale === "fr" ? reason.detail_fr : reason.detail_en}
                   </span>
                 </div>
               ))}

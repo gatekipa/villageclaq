@@ -2952,7 +2952,7 @@ function RequestSwapDialog({
       );
       const { data: adminMembers } = await supabase
         .from("memberships")
-        .select("user_id")
+        .select("user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
         .eq("group_id", groupId)
         .in("role", ["admin", "owner"])
         .not("user_id", "is", null);
@@ -2994,8 +2994,12 @@ function RequestSwapDialog({
         const { notifyFromClient } = await import("@/lib/notify-client");
         if (adminMembers) {
           for (const admin of adminMembers.filter((m) => m.user_id !== userId)) {
+            const adminProf = (Array.isArray(admin.profiles) ? admin.profiles[0] : admin.profiles) as Record<string, unknown> | null;
+            const adminPriv = (admin.privacy_settings as Record<string, unknown>) || null;
+            const adminPhone = (adminProf?.phone as string) || (adminPriv?.proxy_phone as string) || null;
             notifyFromClient({
               recipientUserId: admin.user_id,
+              recipientPhone: adminPhone,
               groupId,
               title: t("swapRequestNotifTitle"),
               body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: formatDate(assignment.assigned_date, locale) }),
@@ -3208,8 +3212,14 @@ function SwapRequestsAdminTab({
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         if (requesterUserId) {
+          const requesterMember = activeMembers.find((m) => (m as unknown as Record<string, unknown>).user_id === requesterUserId);
+          const reqRaw = requesterMember as unknown as Record<string, unknown> | undefined;
+          const reqProf = (Array.isArray(reqRaw?.profiles) ? (reqRaw?.profiles as unknown[])[0] : reqRaw?.profiles ?? reqRaw?.profile) as Record<string, unknown> | null;
+          const reqPriv = (reqRaw?.privacy_settings as Record<string, unknown>) || null;
+          const reqPhone = (reqProf?.phone as string) || (reqPriv?.proxy_phone as string) || null;
           notifyFromClient({
             recipientUserId: requesterUserId,
+            recipientPhone: reqPhone,
             groupId,
             title: t("swapApprovedNotifTitle"),
             body: t("swapApprovedNotifBody", { date: formatDate(assignedDate, locale) }),
@@ -3271,8 +3281,14 @@ function SwapRequestsAdminTab({
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         if (requesterUserId) {
+          const reqMember = activeMembers.find((m) => (m as unknown as Record<string, unknown>).user_id === requesterUserId);
+          const reqRaw = reqMember as unknown as Record<string, unknown> | undefined;
+          const reqProf = (Array.isArray(reqRaw?.profiles) ? (reqRaw?.profiles as unknown[])[0] : reqRaw?.profiles ?? reqRaw?.profile) as Record<string, unknown> | null;
+          const reqPriv = (reqRaw?.privacy_settings as Record<string, unknown>) || null;
+          const reqPhone = (reqProf?.phone as string) || (reqPriv?.proxy_phone as string) || null;
           notifyFromClient({
             recipientUserId: requesterUserId,
+            recipientPhone: reqPhone,
             groupId,
             title: t("swapRejectedNotifTitle"),
             body: t("swapRejectedNotifBody", { date: formatDate(assignedDate, locale), reason: rejectNotes.trim() }),

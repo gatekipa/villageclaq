@@ -322,7 +322,8 @@ export default function FinesAdminPage() {
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const profile = (member as Record<string, unknown>)?.profile as Record<string, unknown> | null;
-        const phone = (profile?.phone as string) || null;
+        const privSettings = ((member as Record<string, unknown>)?.privacy_settings as Record<string, unknown>) || null;
+        const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
         const memberName = member ? getMemberName(member as Record<string, unknown>) : "";
         const fineType = (fineTypes || []).find((ft: Record<string, unknown>) => ft.id === issueFineTypeId);
         const fineTypeName = (fineType?.name as string) || "";

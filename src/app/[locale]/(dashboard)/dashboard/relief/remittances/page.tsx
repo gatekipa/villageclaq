@@ -179,7 +179,7 @@ export default function ReliefRemittancesPage() {
         if (branchGroupId) {
           const { data: branchAdmins } = await supabase
             .from("memberships")
-            .select("user_id, profiles:profiles!memberships_user_id_fkey(phone)")
+            .select("user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
             .eq("group_id", branchGroupId)
             .in("role", ["owner", "admin"])
             .not("user_id", "is", null);
@@ -187,7 +187,8 @@ export default function ReliefRemittancesPage() {
             const { notifyBulkFromClient } = await import("@/lib/notify-client");
             const recipients = branchAdmins.map((a) => {
               const prof = (Array.isArray(a.profiles) ? a.profiles[0] : a.profiles) as Record<string, unknown> | null;
-              return { userId: a.user_id as string, phone: (prof?.phone as string) || null };
+              const privSettings = (a.privacy_settings as Record<string, unknown>) || null;
+              return { userId: a.user_id as string, phone: (prof?.phone as string) || (privSettings?.proxy_phone as string) || null };
             });
             const waType = newStatus === "confirmed" ? "remittance_confirmed" : "remittance_disputed";
             notifyBulkFromClient(recipients, {

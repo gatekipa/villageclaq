@@ -113,7 +113,8 @@ export default function ReliefClaimsPage() {
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const profile = (Array.isArray(membership?.profiles) ? (membership?.profiles as unknown[])[0] : membership?.profiles) as Record<string, unknown> | null;
-        const phone = profile?.phone as string | null;
+        const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
+        const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
         const memberName = getMemberName(membership as Record<string, unknown>);
         const plan = selectedClaim.relief_plan as Record<string, unknown> | null;
         const planName = (plan?.name as string) || "";
@@ -201,7 +202,8 @@ export default function ReliefClaimsPage() {
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const profile = (Array.isArray(membership?.profiles) ? (membership?.profiles as unknown[])[0] : membership?.profiles) as Record<string, unknown> | null;
-        const phone = profile?.phone as string | null;
+        const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
+        const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
         const memberName = getMemberName(membership as Record<string, unknown>);
         const plan = selectedClaim.relief_plan as Record<string, unknown> | null;
         const planName = (plan?.name as string) || "";

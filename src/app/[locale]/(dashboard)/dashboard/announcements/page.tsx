@@ -295,14 +295,14 @@ export default function AnnouncementsPage() {
           const { notifyBulkFromClient } = await import("@/lib/notify-client");
           const { data: phoneMembersData } = await supabase
             .from("memberships")
-            .select("user_id, display_name, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
-            .eq("group_id", groupId)
-            .not("user_id", "is", null);
+            .select("user_id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
+            .eq("group_id", groupId);
 
           const phoneMembers = (phoneMembersData || []).filter((m) => m.user_id !== user.id);
           const recipients = phoneMembers.map((m) => {
             const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
-            const phone = (profile?.phone as string) || (m.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
+            const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
             return { userId: m.user_id as string | null, phone };
           });
           const annTitle = (locale === "fr" && titleFr) ? titleFr : titleEn;

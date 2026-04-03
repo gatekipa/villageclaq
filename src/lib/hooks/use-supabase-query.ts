@@ -761,7 +761,7 @@ export function useReliefClaims() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("relief_claims")
-        .select("*, relief_plan:relief_plans!inner(id, name, name_fr, group_id), membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .select("*, relief_plan:relief_plans!inner(id, name, name_fr, group_id), membership:memberships!inner(id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone))")
         .eq("relief_plan.group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;

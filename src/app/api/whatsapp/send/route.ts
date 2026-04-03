@@ -122,20 +122,49 @@ export async function POST(request: Request) {
         );
       }
       const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
+
+      // 1. Check profiles.phone
       const { data: profile } = await serviceClient
         .from("profiles")
         .select("phone")
         .eq("id", to)
         .single();
 
-      if (!profile?.phone) {
-        console.log("[WA-ROUTE] 400 — UUID", to.slice(0, 8), "has no phone in profiles table");
+      let resolvedPhone = profile?.phone || null;
+
+      // 2. Fallback: check memberships.privacy_settings.proxy_phone
+      if (!resolvedPhone) {
+        console.log("[WA-ROUTE] profiles.phone is NULL for", to.slice(0, 8), "— checking memberships");
+        const { data: memberRows } = await serviceClient
+          .from("memberships")
+          .select("privacy_settings")
+          .eq("user_id", to)
+          .limit(5);
+        if (memberRows) {
+          for (const row of memberRows) {
+            const ps = row.privacy_settings as Record<string, unknown> | null;
+            const pp = ps?.proxy_phone as string | undefined;
+            if (pp) { resolvedPhone = pp; break; }
+          }
+        }
+      }
+
+      // 3. Fallback: check auth.users.phone (for phone-auth signups)
+      if (!resolvedPhone) {
+        try {
+          const { data: { user: authUser } } = await serviceClient.auth.admin.getUserById(to);
+          if (authUser?.phone) resolvedPhone = authUser.phone;
+        } catch { /* best-effort */ }
+      }
+
+      if (!resolvedPhone) {
+        console.log("[WA-ROUTE] 400 — UUID", to.slice(0, 8), "has no phone in profiles, memberships, or auth");
         return NextResponse.json(
           { success: false, error: "No phone number found for user" },
           { status: 400 },
         );
       }
-      recipientPhone = profile.phone;
+      recipientPhone = resolvedPhone;
       console.log("[WA-ROUTE] Resolved UUID to phone:", recipientPhone.slice(0, 6) + "***");
     }
 

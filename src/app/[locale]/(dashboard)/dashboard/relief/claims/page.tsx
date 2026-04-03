@@ -105,6 +105,7 @@ export default function ReliefClaimsPage() {
           title: t("relief.claimApprovedNotifTitle"),
           body: t("relief.claimApprovedNotifBody"),
           is_read: false,
+          data: { link: "/dashboard/relief/claims" },
         }); } catch { /* notification is best-effort */ }
       }
 
@@ -127,8 +128,10 @@ export default function ReliefClaimsPage() {
           emailTemplate: "notification",
           smsTemplate: "relief-claim-approved",
           whatsappType: "relief_claim_approved",
+          inAppType: "relief",
           locale,
           channels: { email: true, sms: true, whatsapp: true },
+          prefType: "relief_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }
 
@@ -190,6 +193,7 @@ export default function ReliefClaimsPage() {
           title: t("relief.claimDeniedNotifTitle"),
           body: reviewNotes.trim(),
           is_read: false,
+          data: { link: "/dashboard/relief/claims" },
         }); } catch { /* notification is best-effort */ }
       }
 
@@ -211,8 +215,10 @@ export default function ReliefClaimsPage() {
           emailTemplate: "notification",
           smsTemplate: "relief-claim-denied",
           whatsappType: "relief_claim_denied",
+          inAppType: "relief",
           locale,
           channels: { email: true, sms: true, whatsapp: true },
+          prefType: "relief_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }
 

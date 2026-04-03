@@ -50,6 +50,7 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 import { CURRENCIES } from "@/lib/currencies";
 import { formatAmount } from "@/lib/currencies";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -198,25 +199,33 @@ export default function BranchesPage() {
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session?.access_token) {
-              const inviterName = user.full_name || user.display_name || "";
-              const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
-              await fetch("/api/email/send", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  to: presidentEmail,
-                  template: "invitation",
-                  data: {
-                    groupName: formName,
-                    inviterName,
-                    acceptUrl,
+              let sendEmail = true;
+              try {
+                const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", newBranch.id);
+                sendEmail = prefs.email;
+              } catch { /* fail-open */ }
+
+              if (sendEmail) {
+                const inviterName = user.full_name || user.display_name || "";
+                const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
+                await fetch("/api/email/send", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${session.access_token}`,
                   },
-                  locale,
-                }),
-              });
+                  body: JSON.stringify({
+                    to: presidentEmail,
+                    template: "invitation",
+                    data: {
+                      groupName: formName,
+                      inviterName,
+                      acceptUrl,
+                    },
+                    locale,
+                  }),
+                });
+              }
             }
           } catch {
             // Email send failed — invitation record still exists

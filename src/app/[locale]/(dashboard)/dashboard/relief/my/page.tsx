@@ -223,6 +223,7 @@ export default function MyReliefPage() {
             title: t("relief.newClaimNotifTitle"),
             body: t("relief.newClaimNotifBody"),
             is_read: false,
+            data: { link: "/dashboard/relief/claims" },
           }));
           try { await supabase.from("notifications").insert(notifications); } catch { /* best-effort */ }
         }

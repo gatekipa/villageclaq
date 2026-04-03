@@ -54,6 +54,7 @@ export async function markOverdueInstallments(groupId: string): Promise<number> 
     title: string;
     body: string;
     is_read: boolean;
+    data?: Record<string, unknown>;
   }> = [];
 
   for (const inst of overdueInstallments) {
@@ -73,6 +74,7 @@ export async function markOverdueInstallments(groupId: string): Promise<number> 
         title: "Loan Installment Overdue",
         body: "One or more of your loan installments are past due. Please make a payment as soon as possible.",
         is_read: false,
+        data: { link: "/dashboard/loans" },
       });
     }
 
@@ -87,6 +89,7 @@ export async function markOverdueInstallments(groupId: string): Promise<number> 
         title: "Guaranteed Loan Overdue",
         body: "A loan you guaranteed has overdue installments. Please follow up with the borrower.",
         is_read: false,
+        data: { link: "/dashboard/loans" },
       });
     }
   }

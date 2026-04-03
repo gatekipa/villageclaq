@@ -192,13 +192,14 @@ export default function ReliefRemittancesPage() {
             const waType = newStatus === "confirmed" ? "remittance_confirmed" : "remittance_disputed";
             notifyBulkFromClient(recipients, {
               groupId: branchGroupId,
-              inAppType: "system",
+              inAppType: "remittance",
               title: t(newStatus === "confirmed" ? "remittanceConfirmedTitle" : "remittanceDisputedTitle"),
               body: t(newStatus === "confirmed" ? "remittanceConfirmedBody" : "remittanceDisputedBody", { amount: amt }),
               data: { groupName: branchName, amount: amt, status: newStatus },
               whatsappType: waType,
               locale,
               channels: { inApp: true, whatsapp: true },
+              prefType: "relief_updates",
             }).catch(() => {});
           }
         }

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -93,20 +94,29 @@ export async function GET(request: Request) {
           const phone = (profile?.phone as string) || null;
           const fullName = (profile?.full_name as string) || "";
 
-          // In-app notification
+          // Fetch notification preferences (fail-open)
+          let channels = { in_app: true, email: true, sms: false, whatsapp: false, push: false };
           try {
-            await supabase.from("notifications").insert({
-              user_id: userId,
-              group_id: groupId,
-              type: "system",
-              title: `Your ${tier} subscription expires in ${daysLeft} days`,
-              body: `${groupName}: Renew to keep your features.`,
-              is_read: false,
-            });
-          } catch { /* best-effort */ }
+            channels = await getEnabledChannels(supabase, userId, "subscription_updates", groupId);
+          } catch { /* fail-open: use defaults */ }
 
-          // Email
-          if (email) {
+          // In-app notification (always enabled)
+          if (channels.in_app) {
+            try {
+              await supabase.from("notifications").insert({
+                user_id: userId,
+                group_id: groupId,
+                type: "system",
+                title: `Your ${tier} subscription expires in ${daysLeft} days`,
+                body: `${groupName}: Renew to keep your features.`,
+                is_read: false,
+                data: { link: "/dashboard/settings" },
+              });
+            } catch { /* best-effort */ }
+          }
+
+          // Email (only if channel enabled)
+          if (email && channels.email) {
             try {
               await sendEmail({
                 to: email,
@@ -123,8 +133,8 @@ export async function GET(request: Request) {
             } catch { /* best-effort */ }
           }
 
-          // SMS
-          if (phone) {
+          // SMS (only if channel enabled)
+          if (phone && channels.sms) {
             try {
               await sendSmsNotification({
                 to: phone,
@@ -135,8 +145,8 @@ export async function GET(request: Request) {
             } catch { /* best-effort */ }
           }
 
-          // WhatsApp
-          if (phone) {
+          // WhatsApp (only if channel enabled)
+          if (phone && channels.whatsapp) {
             try {
               await dispatchWhatsApp("subscription_expiring", phone, "en", {
                 planName: tier,

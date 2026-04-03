@@ -417,6 +417,7 @@ export default function EventsPage() {
               title: t("eventCancelledNotifTitle"),
               body: t("eventCancelledNotifBody", { title: eventTitle }),
               is_read: false,
+              data: { link: "/dashboard/events" },
             }))
           );
         }

@@ -134,8 +134,10 @@ export default function ReliefEnrollmentPage() {
           body: t("relief.enrolledNotifBody", { planName }),
           data: { groupName, planName, memberName: "" },
           whatsappType: "relief_enrollment",
+          inAppType: "relief",
           locale,
           channels: { inApp: true, whatsapp: true },
+          prefType: "relief_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }
 

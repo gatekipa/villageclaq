@@ -3,10 +3,47 @@
  * Sends notifications via API routes (email, SMS, WhatsApp) from client components.
  * All sends are fire-and-forget — never throws, never blocks mutations.
  *
- * For server-side notifications (cron jobs, server actions), use notifyMember() from notify.ts.
+ * PREFERENCE ENFORCEMENT: Every send checks member preferences via getEnabledChannels().
+ * The caller's `channels` param is an UPPER BOUND — getEnabledChannels() further restricts
+ * based on member settings. In-app is always sent (cannot opt out).
+ *
+ * DEEP LINKS: Every in-app notification INSERT includes a `link` field in the `data` JSONB.
+ *
+ * For server-side notifications (cron jobs, server actions), use getEnabledChannels() directly.
  */
 
 import { createClient } from "@/lib/supabase/client";
+import { getEnabledChannels, type NotificationTypeKey } from "@/lib/notification-prefs";
+
+// ─── Deep Link Map ─────────────────────────────────────────────────────────
+
+const NOTIFICATION_DEEP_LINKS: Record<string, string> = {
+  contribution_received: "/dashboard/my-payments",
+  payment: "/dashboard/my-payments",
+  payment_reminder: "/dashboard/my-payments",
+  event_reminder: "/dashboard/my-events",
+  hosting_reminder: "/dashboard/my-hosting",
+  hosting_assignment: "/dashboard/my-hosting",
+  minutes_published: "/dashboard/minutes",
+  relief: "/dashboard/relief/my",
+  relief_claim: "/dashboard/relief/my",
+  standing: "/dashboard/my-dashboard",
+  announcement: "/dashboard/announcements",
+  loan: "/dashboard/my-loans",
+  fine: "/dashboard/my-fines",
+  member_joined: "/dashboard/members",
+  new_member: "/dashboard/members",
+  system: "/dashboard/notifications",
+  remittance: "/dashboard/relief/remittances",
+  subscription: "/dashboard/settings/billing",
+  election: "/dashboard/elections",
+  invitation: "/dashboard/invitations",
+};
+
+/** Resolve a deep link for a notification type */
+export function getNotificationLink(type: string): string {
+  return NOTIFICATION_DEEP_LINKS[type] || "/dashboard/notifications";
+}
 
 export interface ClientNotifyParams {
   /** Recipient user ID (for in-app + resolving email/phone) */
@@ -31,18 +68,23 @@ export interface ClientNotifyParams {
   whatsappType?: string;
   /** Locale for bilingual sends */
   locale?: string;
-  /** Which channels to send on */
+  /** Which channels the CALLER wants to send on (upper bound — prefs further restrict) */
   channels: {
     inApp?: boolean;
     email?: boolean;
     sms?: boolean;
     whatsapp?: boolean;
   };
+  /** Notification preference category — used to check member preferences */
+  prefType?: NotificationTypeKey;
+  /** Override deep link (auto-resolved from inAppType if not set) */
+  link?: string;
 }
 
 /**
  * Send notifications from client components via API routes.
- * Each channel is independent. All fire-and-forget.
+ * Checks member preferences before each external channel send.
+ * In-app is always sent. Each channel is independent. All fire-and-forget.
  */
 export async function notifyFromClient(params: ClientNotifyParams): Promise<void> {
   const {
@@ -58,9 +100,28 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
     whatsappType,
     locale = "en",
     channels,
+    prefType,
+    link,
   } = params;
 
   const supabase = createClient();
+
+  // ─── Check member preferences ─────────────────────────────────────────────
+  let enabledEmail = !!channels.email;
+  let enabledSms = !!channels.sms;
+  let enabledWhatsapp = !!channels.whatsapp;
+
+  if (prefType) {
+    try {
+      const prefs = await getEnabledChannels(supabase, recipientUserId || null, prefType, groupId);
+      enabledEmail = enabledEmail && prefs.email;
+      enabledSms = enabledSms && prefs.sms;
+      enabledWhatsapp = enabledWhatsapp && prefs.whatsapp;
+    } catch { /* on error, send anyway (fail-open) */ }
+  }
+
+  // ─── Resolve deep link ────────────────────────────────────────────────────
+  const deepLink = link || getNotificationLink(inAppType);
 
   // Get session token for API calls
   let accessToken: string | null = null;
@@ -69,7 +130,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
     accessToken = session?.access_token || null;
   } catch { /* best-effort */ }
 
-  // ─── In-App Notification ──────────────────────────────────────────────────
+  // ─── In-App Notification (always sent — cannot opt out) ───────────────────
   if (channels.inApp && recipientUserId) {
     try {
       await supabase.from("notifications").insert({
@@ -78,6 +139,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
         type: inAppType,
         title,
         body,
+        data: { link: deepLink },
         is_read: false,
       });
     } catch { /* best-effort */ }
@@ -86,7 +148,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
   if (!accessToken) return; // Can't call API routes without auth
 
   // ─── Email ────────────────────────────────────────────────────────────────
-  if (channels.email && (recipientUserId || data.email)) {
+  if (enabledEmail && (recipientUserId || data.email)) {
     try {
       fetch("/api/email/send", {
         method: "POST",
@@ -102,7 +164,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
   }
 
   // ─── SMS ──────────────────────────────────────────────────────────────────
-  if (channels.sms && smsTemplate && (recipientPhone || recipientUserId)) {
+  if (enabledSms && smsTemplate && (recipientPhone || recipientUserId)) {
     try {
       fetch("/api/sms/send", {
         method: "POST",
@@ -118,7 +180,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
   }
 
   // ─── WhatsApp ─────────────────────────────────────────────────────────────
-  if (channels.whatsapp && whatsappType && (recipientPhone || recipientUserId)) {
+  if (enabledWhatsapp && whatsappType && (recipientPhone || recipientUserId)) {
     try {
       fetch("/api/whatsapp/send", {
         method: "POST",
@@ -136,8 +198,8 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
 
 /**
  * Send bulk notifications from client components.
- * For each recipient, fires all enabled channels.
- * All fire-and-forget. Uses batched in-app inserts.
+ * For each recipient, checks preferences and fires enabled channels.
+ * All fire-and-forget. Uses batched in-app inserts with deep links.
  */
 export async function notifyBulkFromClient(
   recipients: Array<{
@@ -156,7 +218,10 @@ export async function notifyBulkFromClient(
     accessToken = session?.access_token || null;
   } catch { /* best-effort */ }
 
-  // ─── Batch In-App ─────────────────────────────────────────────────────────
+  // ─── Resolve deep link ────────────────────────────────────────────────────
+  const deepLink = params.link || getNotificationLink(params.inAppType || "system");
+
+  // ─── Batch In-App (always sent) ──────────────────────────────────────────
   if (params.channels.inApp) {
     try {
       const rows = recipients
@@ -167,6 +232,7 @@ export async function notifyBulkFromClient(
           type: params.inAppType || "system",
           title: params.title,
           body: params.body,
+          data: { link: deepLink },
           is_read: false,
         }));
       for (let i = 0; i < rows.length; i += 50) {
@@ -177,12 +243,26 @@ export async function notifyBulkFromClient(
 
   if (!accessToken) return;
 
-  // ─── Per-recipient external channels ──────────────────────────────────────
+  // ─── Per-recipient external channels (with preference check) ──────────────
   for (const r of recipients) {
     const to = r.phone || r.userId;
     if (!to) continue;
 
-    if (params.channels.email && r.userId) {
+    // Check this member's preferences
+    let enabledEmail = !!params.channels.email;
+    let enabledSms = !!params.channels.sms;
+    let enabledWhatsapp = !!params.channels.whatsapp;
+
+    if (params.prefType) {
+      try {
+        const prefs = await getEnabledChannels(supabase, r.userId || null, params.prefType, params.groupId);
+        enabledEmail = enabledEmail && prefs.email;
+        enabledSms = enabledSms && prefs.sms;
+        enabledWhatsapp = enabledWhatsapp && prefs.whatsapp;
+      } catch { /* fail-open */ }
+    }
+
+    if (enabledEmail && r.userId) {
       try {
         fetch("/api/email/send", {
           method: "POST",
@@ -197,7 +277,7 @@ export async function notifyBulkFromClient(
       } catch { /* best-effort */ }
     }
 
-    if (params.channels.sms && params.smsTemplate) {
+    if (enabledSms && params.smsTemplate) {
       try {
         fetch("/api/sms/send", {
           method: "POST",
@@ -212,7 +292,7 @@ export async function notifyBulkFromClient(
       } catch { /* best-effort */ }
     }
 
-    if (params.channels.whatsapp && params.whatsappType) {
+    if (enabledWhatsapp && params.whatsappType) {
       try {
         fetch("/api/whatsapp/send", {
           method: "POST",

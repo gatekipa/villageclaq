@@ -616,6 +616,7 @@ export default function ReliefPlansPage() {
             title: t("relief.payoutNotifTitle"),
             body: t("relief.payoutNotifBody", { amount: formatAmount(Number(payoutAmount), currency) }),
             is_read: false,
+            data: { link: "/dashboard/relief" },
           }); } catch { /* best-effort */ }
         }
       }

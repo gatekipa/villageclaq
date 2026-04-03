@@ -50,6 +50,7 @@ import { getMemberName } from "@/lib/get-member-name";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ListSkeleton,
@@ -469,6 +470,7 @@ export default function MinutesPage() {
               title: t("minutesPublished"),
               body: t("minutesPublishedMsg", { title: minutesTitle }),
               is_read: false,
+              data: { link: "/dashboard/minutes" },
             }));
             await supabase.from("notifications").insert(notifications);
           }
@@ -488,75 +490,86 @@ export default function MinutesPage() {
                 : new Date().toLocaleDateString(getDateLocale(locale));
               const publisherName = user?.full_name || user?.display_name || tc("admin");
 
-              // Email (fire-and-forget)
+              // Notify each member via their preferred channels
+              const prefSupabase = createClient();
               Promise.allSettled(
-                realMembers.map((m) =>
-                  fetch("/api/email/send", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                      to: m.user_id,
-                      template: "minutes-published",
-                      data: {
-                        memberName: getMemberName(m) || tc("member"),
-                        groupName: currentGroup?.name || "",
-                        meetingTitle: minutesTitle || (selectedEvent ? (locale === "fr" && selectedEvent.title_fr ? selectedEvent.title_fr : selectedEvent.title) : ""),
-                        meetingDate,
-                        publishedBy: publisherName,
-                        minutesUrl: `${window.location.origin}/${locale}/dashboard/minutes`,
-                      },
-                      locale,
-                    }),
-                  }).catch(() => {})
-                )
-              ).catch(() => {});
+                realMembers.map(async (m) => {
+                  const uid = m.user_id as string;
+                  let sendEmail = true, sendSms = true, sendWhatsapp = true;
+                  try {
+                    const prefs = await getEnabledChannels(prefSupabase, uid, "minutes_published", groupId!);
+                    sendEmail = prefs.email;
+                    sendSms = prefs.sms;
+                    sendWhatsapp = prefs.whatsapp;
+                  } catch { /* fail-open */ }
 
-              // SMS (fire-and-forget) — send to all real members
-              Promise.allSettled(
-                realMembers.map((m) =>
-                  fetch("/api/sms/send", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                      to: m.user_id,
-                      template: "minutes-published",
-                      data: {
-                        groupName: currentGroup?.name || "",
-                        meetingTitle: minutesTitle,
-                      },
-                      locale,
-                    }),
-                  }).catch(() => {})
-                )
-              ).catch(() => {}); // Fire and forget — never block publish
+                  const emailData = {
+                    memberName: getMemberName(m) || tc("member"),
+                    groupName: currentGroup?.name || "",
+                    meetingTitle: minutesTitle || (selectedEvent ? (locale === "fr" && selectedEvent.title_fr ? selectedEvent.title_fr : selectedEvent.title) : ""),
+                    meetingDate,
+                    publishedBy: publisherName,
+                    minutesUrl: `${window.location.origin}/${locale}/dashboard/minutes`,
+                  };
 
-              // WhatsApp (fire-and-forget) — send to all real members
-              Promise.allSettled(
-                realMembers.map((m) =>
-                  fetch("/api/whatsapp/send", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({
-                      to: m.user_id,
-                      type: "minutes_published",
-                      data: {
-                        groupName: currentGroup?.name || "",
-                        meetingTitle: minutesTitle,
-                        meetingDate,
+                  // Email (fire-and-forget)
+                  if (sendEmail) {
+                    fetch("/api/email/send", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${session.access_token}`,
                       },
-                      locale,
-                    }),
-                  }).catch(() => {})
-                )
+                      body: JSON.stringify({
+                        to: uid,
+                        template: "minutes-published",
+                        data: emailData,
+                        locale,
+                      }),
+                    }).catch(() => {});
+                  }
+
+                  // SMS (fire-and-forget)
+                  if (sendSms) {
+                    fetch("/api/sms/send", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                      body: JSON.stringify({
+                        to: uid,
+                        template: "minutes-published",
+                        data: {
+                          groupName: currentGroup?.name || "",
+                          meetingTitle: minutesTitle,
+                        },
+                        locale,
+                      }),
+                    }).catch(() => {});
+                  }
+
+                  // WhatsApp (fire-and-forget)
+                  if (sendWhatsapp) {
+                    fetch("/api/whatsapp/send", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                      body: JSON.stringify({
+                        to: uid,
+                        type: "minutes_published",
+                        data: {
+                          groupName: currentGroup?.name || "",
+                          meetingTitle: minutesTitle,
+                          meetingDate,
+                        },
+                        locale,
+                      }),
+                    }).catch(() => {});
+                  }
+                })
               ).catch(() => {}); // Fire and forget
             }
           }
@@ -688,6 +701,7 @@ export default function MinutesPage() {
               title: t("meetingCancelledNotifTitle"),
               body: t("meetingCancelledNotifBody", { title: selectedEvent.title }),
               is_read: false,
+              data: { link: "/dashboard/minutes" },
             }))
           );
         }

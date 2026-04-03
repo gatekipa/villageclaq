@@ -198,6 +198,7 @@ export default function JoinClient() {
           title: `${memberName} joined ${group.name}`,
           body: `A new member joined via join code.`,
           is_read: false,
+          data: { link: "/dashboard/members" },
         }));
         await supabase.from("notifications").insert(notifications);
       }

@@ -281,6 +281,7 @@ export default function AnnouncementsPage() {
                 title: titleEn,
                 body: (contentEn || "").slice(0, 200),
                 is_read: false,
+                data: { link: "/dashboard/announcements" },
               }));
               await supabase.from("notifications").insert(batch);
             }
@@ -314,8 +315,10 @@ export default function AnnouncementsPage() {
             emailTemplate: "notification",
             smsTemplate: "announcement",
             whatsappType: "announcement",
+            inAppType: "announcement",
             locale,
             channels: { email: true, sms: true, whatsapp: true },
+            prefType: "announcements",
           }).catch(() => {});
         } catch { /* notification failure is non-critical */ }
       }
@@ -409,6 +412,7 @@ export default function AnnouncementsPage() {
               title: (ann?.title as string) || "",
               body: ((ann?.content as string) || "").slice(0, 200),
               is_read: false,
+              data: { link: "/dashboard/announcements" },
             }));
             await supabase.from("notifications").insert(batch);
           }

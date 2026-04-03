@@ -291,6 +291,7 @@ export default function HostingPage() {
             title: t("hostReminderNotifTitle"),
             body: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
             is_read: false,
+            data: { link: "/dashboard/hosting" },
           });
 
           // WhatsApp + SMS + Email for hosting reminder (fire-and-forget via API routes)
@@ -320,8 +321,10 @@ export default function HostingPage() {
               emailTemplate: "notification",
               smsTemplate: "hosting-reminder",
               whatsappType: "hosting_reminder",
+              inAppType: "hosting_reminder",
               locale,
               channels: { email: true, sms: true, whatsapp: true },
+              prefType: "hosting_reminders",
             }).catch(() => {});
           } catch { /* best-effort */ }
         }
@@ -440,6 +443,7 @@ export default function HostingPage() {
             title: notifTitle,
             body: notifBody,
             is_read: false,
+            data: { link: "/dashboard/hosting" },
           });
         }
 
@@ -489,6 +493,7 @@ export default function HostingPage() {
               title: t("hostAssignedNotifTitle"),
               body: t("hostAssignedNotifBody", { date: formatDate(a.assigned_date, locale) }),
               is_read: false,
+              data: { link: "/dashboard/hosting" },
             };
           })
           .filter(Boolean);
@@ -522,8 +527,10 @@ export default function HostingPage() {
             data: { groupName: currentGroup?.name || "" },
             smsTemplate: "hosting-assignment",
             whatsappType: "hosting_assignment",
+            inAppType: "hosting_assignment",
             locale,
             channels: { whatsapp: true, sms: true },
+            prefType: "hosting_reminders",
           }).catch(() => {});
         } catch { /* best-effort */ }
       }
@@ -1516,8 +1523,10 @@ function AssignHostsDialog({
             data: { groupName, date: context.date, hostingDate: context.date },
             smsTemplate: "hosting-assignment",
             whatsappType: "hosting_assignment",
+            inAppType: "hosting_assignment",
             locale,
             channels: { inApp: true, sms: true, whatsapp: true },
+            prefType: "hosting_reminders",
           }).catch(() => {});
         } catch { /* best-effort */ }
       }
@@ -2454,6 +2463,7 @@ function SwapHostDialog({
           title: t("swapNotifTitle"),
           body: t("swapNotifBodyOld", { date: formatDate(assignment.assigned_date, locale) }),
           is_read: false,
+          data: { link: "/dashboard/hosting" },
         });
       }
 
@@ -2469,6 +2479,7 @@ function SwapHostDialog({
           title: t("swapNotifTitle"),
           body: t("swapNotifBodyNew", { date: formatDate(assignment.assigned_date, locale) }),
           is_read: false,
+          data: { link: "/dashboard/hosting" },
         });
       }
 

@@ -283,7 +283,7 @@ export default function RecordPaymentPage() {
               title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
               body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: payMethod, reference: payRef || "N/A" }),
               is_read: false,
-              data: { amount: payAmount, currency, contribution_type: typeName, method: payMethod, reference: payRef || null },
+              data: { link: "/dashboard/my-payments", amount: payAmount, currency, contribution_type: typeName, method: payMethod, reference: payRef || null },
             });
           } catch {
             // Non-critical
@@ -526,6 +526,7 @@ export default function RecordPaymentPage() {
               title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
               body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: bulkMethod, reference: bulkNotes || "N/A" }),
               is_read: false,
+              data: { link: "/dashboard/my-payments" },
             });
           }
           if (notifRows.length > 0) {
@@ -535,7 +536,7 @@ export default function RecordPaymentPage() {
             }
           }
 
-          // Email + SMS + WhatsApp for each member (fire-and-forget)
+          // Email + SMS + WhatsApp for each member (fire-and-forget, respecting preferences)
           try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
@@ -548,10 +549,19 @@ export default function RecordPaymentPage() {
                 const phone = (prof?.phone as string) || (rawMember.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
                 const to = phone || uid;
                 if (!to) continue;
+
+                let sendEmail = true, sendSms = true, sendWhatsapp = true;
+                try {
+                  const prefs = await getEnabledChannels(supabase, uid || (null as unknown as string), "payment_reminders", groupId || undefined);
+                  sendEmail = prefs.email;
+                  sendSms = prefs.sms;
+                  sendWhatsapp = prefs.whatsapp;
+                } catch { /* fail-open */ }
+
                 const memberName = getMemberName(rawMember);
                 const sendData = { memberName, amount: formattedAmt, contributionType: typeName, type: typeName, groupName: currentGroup?.name || "", date: new Date().toISOString().slice(0, 10) };
                 // Email
-                if (uid) {
+                if (uid && sendEmail) {
                   fetch("/api/email/send", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -559,17 +569,21 @@ export default function RecordPaymentPage() {
                   }).catch(() => {});
                 }
                 // SMS
-                fetch("/api/sms/send", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ to, template: "payment-receipt", data: sendData, locale }),
-                }).catch(() => {});
+                if (sendSms) {
+                  fetch("/api/sms/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ to, template: "payment-receipt", data: sendData, locale }),
+                  }).catch(() => {});
+                }
                 // WhatsApp
-                fetch("/api/whatsapp/send", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ to, type: "payment_receipt", data: sendData, locale }),
-                }).catch(() => {});
+                if (sendWhatsapp) {
+                  fetch("/api/whatsapp/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ to, type: "payment_receipt", data: sendData, locale }),
+                  }).catch(() => {});
+                }
               }
             }
           } catch { /* best-effort */ }

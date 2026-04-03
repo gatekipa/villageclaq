@@ -326,6 +326,7 @@ export default function ConstitutionPage() {
           memberList.filter((m) => m.user_id).map((m) => ({
             group_id: groupId, user_id: m.user_id as string, type: "system" as const,
             title: t("constitutionUpdatedNotif"), body: t("constitutionUpdatedNotifMsg"), is_read: false,
+            data: { link: "/dashboard/constitution" },
           }))
         );
       }
@@ -432,6 +433,7 @@ export default function ConstitutionPage() {
           pending.filter((m: Record<string, unknown>) => m.user_id).map((m: Record<string, unknown>) => ({
             group_id: groupId, user_id: m.user_id as string, type: "system" as const,
             title: t("reviewConstitution"), body: t("reviewConstitutionMessage"), is_read: false,
+            data: { link: "/dashboard/constitution" },
           }))
         );
       }

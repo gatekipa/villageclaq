@@ -489,6 +489,7 @@ export default function LoansAdminPage() {
             title: t("loanApprovedNotifTitle"),
             body: t("loanApprovedNotifBody", { amount: formatAmount(amt, currency) }),
             is_read: false,
+            data: { link: "/dashboard/loans" },
           });
         } catch { /* best-effort */ }
       }
@@ -509,8 +510,10 @@ export default function LoansAdminPage() {
           emailTemplate: "notification",
           smsTemplate: "loan-approved",
           whatsappType: "loan_approved",
+          inAppType: "loan",
           locale,
           channels: { email: true, sms: true, whatsapp: true },
+          prefType: "loan_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }
 
@@ -571,6 +574,7 @@ export default function LoansAdminPage() {
             title: t("loanDeniedNotifTitle"),
             body: denialReason.trim(),
             is_read: false,
+            data: { link: "/dashboard/loans" },
           });
         } catch { /* best-effort */ }
       }
@@ -640,6 +644,7 @@ export default function LoansAdminPage() {
             title: t("loanApprovedNotifTitle"),
             body: t("loanApprovedNotifBody", { amount: formatAmount(amt, currency) }),
             is_read: false,
+            data: { link: "/dashboard/loans" },
           });
         } catch { /* best-effort */ }
       }
@@ -658,6 +663,7 @@ export default function LoansAdminPage() {
               title: t("guarantorNotifTitle"),
               body: t("guarantorNotifBody", { member: borrowerName, amount: formatAmount(amt, currency) }),
               is_read: false,
+              data: { link: "/dashboard/loans" },
             });
           } catch { /* best-effort */ }
         }
@@ -732,6 +738,7 @@ export default function LoansAdminPage() {
             title: t("loanDisbursedNotifTitle"),
             body: t("loanDisbursedNotifBody", { amount: formatAmount(Number(detailLoan.amount_approved || 0), currency) }),
             is_read: false,
+            data: { link: "/dashboard/loans" },
           });
         } catch { /* best-effort */ }
       }
@@ -844,6 +851,7 @@ export default function LoansAdminPage() {
               ? t("loanCompletedNotifBody")
               : t("repaymentRecordedNotifBody", { amount: formatAmount(paymentAmount, currency) }),
             is_read: false,
+            data: { link: "/dashboard/loans" },
           });
         } catch { /* best-effort */ }
       }
@@ -898,6 +906,7 @@ export default function LoansAdminPage() {
             title: newStatus === "defaulted" ? t("loanDefaultedNotifTitle") : t("loanWrittenOffNotifTitle"),
             body: newStatus === "defaulted" ? t("loanDefaultedNotifBody") : t("loanWrittenOffNotifBody"),
             is_read: false,
+            data: { link: "/dashboard/loans" },
           });
         } catch { /* best-effort */ }
       }
@@ -914,6 +923,7 @@ export default function LoansAdminPage() {
               title: t("guarantorDefaultNotifTitle"),
               body: t("guarantorDefaultNotifBody", { member: getMemberName(membership) }),
               is_read: false,
+              data: { link: "/dashboard/loans" },
             });
           } catch { /* best-effort */ }
         }

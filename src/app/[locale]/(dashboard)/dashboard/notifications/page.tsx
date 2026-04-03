@@ -15,6 +15,8 @@ import { useGroup } from "@/lib/group-context";
 import { useNotifications } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@/i18n/routing";
+import { getNotificationLink } from "@/lib/notify-client";
 import {
   Bell,
   Check,
@@ -103,8 +105,9 @@ function getTimeGroup(timestamp: Date, now: Date): TimeGroup {
 export default function NotificationsPage() {
   const locale = useLocale();
   const t = useTranslations("notifications");
-  const { user, loading: groupLoading } = useGroup();
+  const { user, groupId, loading: groupLoading } = useGroup();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const {
     data: notifications,
@@ -155,11 +158,13 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     if (!user) return;
     const supabase = createClient();
-    await supabase
+    let query = supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", user.id)
       .eq("is_read", false);
+    if (groupId) query = query.eq("group_id", groupId);
+    await query;
     queryClient.invalidateQueries({
       queryKey: ["notifications", user.id],
     });
@@ -241,6 +246,10 @@ export default function NotificationsPage() {
                     }`}
                     onClick={() => {
                       if (!isRead) markAsRead(notif.id as string);
+                      // Navigate to deep link if present
+                      const notifData = notif.data as Record<string, unknown> | null;
+                      const link = (notifData?.link as string) || getNotificationLink(type);
+                      if (link) router.push(link);
                     }}
                   >
                     <CardContent className="flex items-start gap-3 p-3 sm:p-4">

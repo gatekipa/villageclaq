@@ -83,6 +83,7 @@ import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 import { calculateStanding } from "@/lib/calculate-standing";
@@ -390,23 +391,31 @@ export default function MembersPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
-          fetch("/api/email/send", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              to: claimEmail.trim(),
-              template: "welcome",
-              data: {
-                memberName,
-                groupName: currentGroup?.name || "",
-                dashboardUrl: `${window.location.origin}/dashboard/my-invitations`,
+          let sendEmail = true;
+          try {
+            const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", groupId!);
+            sendEmail = prefs.email;
+          } catch { /* fail-open */ }
+
+          if (sendEmail) {
+            fetch("/api/email/send", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
               },
-              locale,
-            }),
-          }).catch(() => {}); // Fire and forget
+              body: JSON.stringify({
+                to: claimEmail.trim(),
+                template: "welcome",
+                data: {
+                  memberName,
+                  groupName: currentGroup?.name || "",
+                  dashboardUrl: `${window.location.origin}/dashboard/my-invitations`,
+                },
+                locale,
+              }),
+            }).catch(() => {}); // Fire and forget
+          }
         }
       } catch {
         // Email is non-critical
@@ -511,17 +520,25 @@ export default function MembersPage() {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) {
-            const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
-            fetch("/api/email/send", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-              body: JSON.stringify({
-                to: email,
-                template: "invitation",
-                data: { groupName: currentGroup?.name || "", inviterName: user.full_name || "", acceptUrl },
-                locale,
-              }),
-            }).catch(() => {});
+            let sendEmail = true;
+            try {
+              const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", groupId!);
+              sendEmail = prefs.email;
+            } catch { /* fail-open */ }
+
+            if (sendEmail) {
+              const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
+              fetch("/api/email/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+                body: JSON.stringify({
+                  to: email,
+                  template: "invitation",
+                  data: { groupName: currentGroup?.name || "", inviterName: user.full_name || "", acceptUrl },
+                  locale,
+                }),
+              }).catch(() => {});
+            }
           }
         } catch { /* email non-critical */ }
 
@@ -577,6 +594,7 @@ export default function MembersPage() {
           type: "system",
           title: t("ownershipTransferredNotifTitle"),
           body: t("ownershipTransferredNotifBody", { groupName }),
+          data: { link: "/dashboard/members" },
         });
       }
 
@@ -627,6 +645,7 @@ export default function MembersPage() {
           type: "member_left" as const,
           title: t("memberLeftNotifTitle"),
           body: t("memberLeftNotifBody", { memberName, groupName: currentGroup?.name || "" }),
+          data: { link: "/dashboard/members" },
         }));
         if (notifications.length > 0) {
           await supabase.from("notifications").insert(notifications);
@@ -724,6 +743,7 @@ export default function MembersPage() {
             type: "system" as const,
             title: t("memberRemovedNotifTitle"),
             body: t("memberRemovedNotifBody", { groupName: currentGroup?.name || "" }),
+            data: { link: "/dashboard/members" },
           });
         } catch { /* notification non-critical */ }
       }
@@ -1121,25 +1141,33 @@ export default function MembersPage() {
           .eq("id", newMembershipId)
           .single();
         if (newMembership?.user_id) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.access_token) {
-            fetch("/api/email/send", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                to: newMembership.user_id,
-                template: "welcome",
-                data: {
-                  memberName: displayName,
-                  groupName: currentGroup?.name || "",
-                  dashboardUrl: `${window.location.origin}/dashboard`,
+          let sendEmail = true;
+          try {
+            const prefs = await getEnabledChannels(supabase, newMembership.user_id, "new_member", groupId!);
+            sendEmail = prefs.email;
+          } catch { /* fail-open */ }
+
+          if (sendEmail) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.access_token) {
+              fetch("/api/email/send", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
                 },
-                locale,
-              }),
-            }).catch(() => {}); // Fire and forget
+                body: JSON.stringify({
+                  to: newMembership.user_id,
+                  template: "welcome",
+                  data: {
+                    memberName: displayName,
+                    groupName: currentGroup?.name || "",
+                    dashboardUrl: `${window.location.origin}/dashboard`,
+                  },
+                  locale,
+                }),
+              }).catch(() => {}); // Fire and forget
+            }
           }
         }
       } catch {

@@ -252,6 +252,7 @@ export default function MyFinesPage() {
             title: t("fineDisputedNotifTitle"),
             body: t("fineDisputedNotifBody", { member: memberName, amount: formatAmount(Number((allFines.find((f: Record<string, unknown>) => f.id === disputeFineId) as Record<string, unknown>)?.amount || 0), currency) }),
             is_read: false,
+            data: { link: "/dashboard/fines" },
           }));
           try { await supabase.from("notifications").insert(notifications); } catch { /* best-effort */ }
         }
@@ -328,6 +329,7 @@ export default function MyFinesPage() {
             title: td("disputeFiledNotifTitle"),
             body: td("disputeFiledNotifBody", { member: memberName, subject: gdSubject.trim() }),
             is_read: false,
+            data: { link: "/dashboard/fines" },
           }));
           try { await supabase.from("notifications").insert(notifications); } catch { /* best-effort */ }
         }

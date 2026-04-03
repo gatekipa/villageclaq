@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 import { useGroup } from "@/lib/group-context";
 import {
   Globe,
@@ -582,23 +583,31 @@ export default function GroupOnboardingPage() {
       if (emailInvites.length > 0) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
-          const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
-          const groupName = name;
-          const acceptUrl = `https://villageclaq.com/${locale}/login?next=/dashboard/my-invitations`;
-          for (const inv of emailInvites) {
-            fetch("/api/email/send", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                to: inv.value.trim(),
-                template: "invitation",
-                data: { groupName, inviterName, acceptUrl },
-                locale,
-              }),
-            }).catch(() => {}); // Non-fatal
+          let sendEmail = true;
+          try {
+            const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", group.id);
+            sendEmail = prefs.email;
+          } catch { /* fail-open */ }
+
+          if (sendEmail) {
+            const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
+            const groupName = name;
+            const acceptUrl = `https://villageclaq.com/${locale}/login?next=/dashboard/my-invitations`;
+            for (const inv of emailInvites) {
+              fetch("/api/email/send", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  to: inv.value.trim(),
+                  template: "invitation",
+                  data: { groupName, inviterName, acceptUrl },
+                  locale,
+                }),
+              }).catch(() => {}); // Non-fatal
+            }
           }
         }
       }

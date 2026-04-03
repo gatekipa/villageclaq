@@ -313,6 +313,7 @@ export default function FinesAdminPage() {
             title: t("fineIssuedNotifTitle"),
             body: t("fineIssuedNotifBody", { amount: formatAmount(amt, currency), reason: issueReason.trim() || "-" }),
             is_read: false,
+            data: { link: "/dashboard/my-fines" },
           });
         } catch { /* best-effort */ }
       }
@@ -335,8 +336,10 @@ export default function FinesAdminPage() {
           emailTemplate: "notification",
           smsTemplate: "fine-issued",
           whatsappType: "fine_issued",
+          inAppType: "fine",
           locale,
           channels: { email: true, sms: true, whatsapp: true },
+          prefType: "fine_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }
 
@@ -401,6 +404,7 @@ export default function FinesAdminPage() {
             title: t("finePaidNotifTitle"),
             body: t("finePaidNotifBody", { amount: formatAmount(amt, currency) }),
             is_read: false,
+            data: { link: "/dashboard/my-fines" },
           });
         } catch { /* best-effort */ }
       }
@@ -464,6 +468,7 @@ export default function FinesAdminPage() {
             title: t("fineWaivedNotifTitle"),
             body: t("fineWaivedNotifBody", { reason: waiveReason.trim() }),
             is_read: false,
+            data: { link: "/dashboard/my-fines" },
           });
         } catch { /* best-effort */ }
       }
@@ -581,12 +586,12 @@ export default function FinesAdminPage() {
       if (action === "start_review") {
         await supabase.from("disputes").update({ status: "under_review", assigned_to: user.id }).eq("id", disputeId);
         if (filerUserId) {
-          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeStatusNotifTitle"), body: td("disputeStatusNotifBody", { subject: disputeSubject, status: td("underReview") }), is_read: false }); } catch { /* best-effort */ }
+          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeStatusNotifTitle"), body: td("disputeStatusNotifBody", { subject: disputeSubject, status: td("underReview") }), is_read: false, data: { link: "/dashboard/my-fines" } }); } catch { /* best-effort */ }
         }
       } else if (action === "mediation") {
         await supabase.from("disputes").update({ status: "mediation" }).eq("id", disputeId);
         if (filerUserId) {
-          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeStatusNotifTitle"), body: td("disputeStatusNotifBody", { subject: disputeSubject, status: td("mediation") }), is_read: false }); } catch { /* best-effort */ }
+          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeStatusNotifTitle"), body: td("disputeStatusNotifBody", { subject: disputeSubject, status: td("mediation") }), is_read: false, data: { link: "/dashboard/my-fines" } }); } catch { /* best-effort */ }
         }
       } else if (action === "resolve") {
         await supabase.from("disputes").update({ status: "resolved", resolution: resolveText.trim() || null, resolved_by: user.id, resolved_at: new Date().toISOString() }).eq("id", disputeId);
@@ -597,7 +602,7 @@ export default function FinesAdminPage() {
           await queryClient.invalidateQueries({ queryKey: ["fines-admin", groupId] });
         }
         if (filerUserId) {
-          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeResolvedNotifTitle"), body: td("disputeResolvedNotifBody", { subject: disputeSubject }), is_read: false }); } catch { /* best-effort */ }
+          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeResolvedNotifTitle"), body: td("disputeResolvedNotifBody", { subject: disputeSubject }), is_read: false, data: { link: "/dashboard/my-fines" } }); } catch { /* best-effort */ }
         }
       } else if (action === "dismiss") {
         if (!dismissReason.trim()) return;
@@ -609,7 +614,7 @@ export default function FinesAdminPage() {
           await queryClient.invalidateQueries({ queryKey: ["fines-admin", groupId] });
         }
         if (filerUserId) {
-          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeDismissedNotifTitle"), body: td("disputeDismissedNotifBody", { subject: disputeSubject }), is_read: false }); } catch { /* best-effort */ }
+          try { await supabase.from("notifications").insert({ user_id: filerUserId, group_id: groupId, type: "system", title: td("disputeDismissedNotifTitle"), body: td("disputeDismissedNotifBody", { subject: disputeSubject }), is_read: false, data: { link: "/dashboard/my-fines" } }); } catch { /* best-effort */ }
         }
       }
 

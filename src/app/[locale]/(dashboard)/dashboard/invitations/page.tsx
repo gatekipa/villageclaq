@@ -24,6 +24,7 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { useInvitations, useJoinCodes } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 import { useQueryClient } from "@tanstack/react-query";
 import { normalizeSearch } from "@/lib/utils";
 import {
@@ -233,34 +234,46 @@ export default function InvitationsPage() {
       const groupType = (currentGroup as Record<string, unknown>)?.group_type as string | undefined;
       const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
 
-      await fetch("/api/email/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          to: recipientEmail,
-          template: "invitation",
-          data: { groupName, groupType, inviterName, acceptUrl },
-          locale,
-        }),
-      });
+      // Check recipient preferences (null userId = not yet a user, defaults apply)
+      let sendEmail = true, sendWhatsapp = true;
+      try {
+        const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", groupId!);
+        sendEmail = prefs.email;
+        sendWhatsapp = prefs.whatsapp;
+      } catch { /* fail-open */ }
+
+      if (sendEmail) {
+        await fetch("/api/email/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            to: recipientEmail,
+            template: "invitation",
+            data: { groupName, groupType, inviterName, acceptUrl },
+            locale,
+          }),
+        });
+      }
       // WhatsApp invitation (fire-and-forget) — only if we have the recipient's phone
       // We don't always have the phone for email invitations, so this is best-effort
-      fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          to: recipientEmail, // Will be resolved if it's a UUID; skipped otherwise
-          type: "invitation",
-          data: { inviterName, groupName, acceptUrl },
-          locale,
-        }),
-      }).catch(() => {});
+      if (sendWhatsapp) {
+        fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            to: recipientEmail, // Will be resolved if it's a UUID; skipped otherwise
+            type: "invitation",
+            data: { inviterName, groupName, acceptUrl },
+            locale,
+          }),
+        }).catch(() => {});
+      }
     } catch {
       // Notification failure is non-fatal — invitation row already exists
     }

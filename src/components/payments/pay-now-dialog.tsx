@@ -210,7 +210,7 @@ export function PayNowDialog({
               method: selectedMethod,
             }),
             is_read: false,
-            data: { payment_method: selectedMethod, amount: amountDue, currency },
+            data: { link: "/dashboard/my-payments", payment_method: selectedMethod, amount: amountDue, currency },
           }));
         if (notifications.length > 0) {
           await supabase.from("notifications").insert(notifications);
@@ -236,8 +236,10 @@ export function PayNowDialog({
           },
           emailTemplate: "payment-receipt",
           whatsappType: "payment_receipt",
+          inAppType: "contribution_received",
           locale: "en",
           channels: { email: true, whatsapp: true },
+          prefType: "payment_reminders",
         }).catch(() => {});
       } catch { /* best-effort */ }
 

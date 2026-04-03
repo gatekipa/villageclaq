@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { getEnabledChannels } from "@/lib/notification-prefs";
 import { useGroup } from "@/lib/group-context";
 import { useRouter } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -179,7 +180,7 @@ export default function MyInvitationsPage() {
         .eq("id", invitationId);
       if (error) throw error;
 
-      // Send welcome email (fire-and-forget)
+      // Send welcome notifications (fire-and-forget)
       // Guard: only send if user has an id (they always do since they're logged in)
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -187,42 +188,54 @@ export default function MyInvitationsPage() {
           const memberName = isClaim
             ? (claimMembership?.display_name as string) || user?.full_name || "Member"
             : user?.full_name || user?.display_name || authUser.email || "Member";
+
+          let sendEmail = true, sendSms = true;
+          try {
+            const prefs = await getEnabledChannels(supabase, authUser.id, "new_member", groupId);
+            sendEmail = prefs.email;
+            sendSms = prefs.sms;
+          } catch { /* fail-open */ }
+
           // Email (fire-and-forget)
-          fetch("/api/email/send", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              to: authUser.id,
-              template: "welcome",
-              data: {
-                memberName,
-                groupName,
-                dashboardUrl: `${window.location.origin}/${locale}/dashboard`,
+          if (sendEmail) {
+            fetch("/api/email/send", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
               },
-              locale,
-            }),
-          }).catch(() => {});
+              body: JSON.stringify({
+                to: authUser.id,
+                template: "welcome",
+                data: {
+                  memberName,
+                  groupName,
+                  dashboardUrl: `${window.location.origin}/${locale}/dashboard`,
+                },
+                locale,
+              }),
+            }).catch(() => {});
+          }
 
           // SMS (fire-and-forget)
-          fetch("/api/sms/send", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              to: authUser.id,
-              template: "welcome",
-              data: {
-                memberName,
-                groupName,
+          if (sendSms) {
+            fetch("/api/sms/send", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
               },
-              locale,
-            }),
-          }).catch(() => {});
+              body: JSON.stringify({
+                to: authUser.id,
+                template: "welcome",
+                data: {
+                  memberName,
+                  groupName,
+                },
+                locale,
+              }),
+            }).catch(() => {});
+          }
         }
       } catch {
         // Email is non-critical — never block invitation acceptance

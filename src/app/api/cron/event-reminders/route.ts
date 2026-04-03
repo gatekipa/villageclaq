@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
+import { getEnabledChannels } from "@/lib/notification-prefs";
+import type { EnabledChannels } from "@/lib/notification-prefs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -114,6 +116,18 @@ export async function GET(request: Request) {
         continue;
       }
 
+      // ── Batch-fetch notification preferences for all members in this group ──
+      const prefsMap = new Map<string, EnabledChannels>();
+      for (const m of emailList.filter((m) => m.user_id)) {
+        try {
+          const channels = await getEnabledChannels(supabase, m.user_id, "event_reminders", groupId);
+          prefsMap.set(m.user_id, channels);
+        } catch {
+          // Fail-open: allow defaults
+          prefsMap.set(m.user_id, { in_app: true, email: true, sms: false, whatsapp: false, push: false });
+        }
+      }
+
       // Build and send emails + SMS
       const emailPromises: Promise<{ success: boolean; error?: string }>[] = [];
       const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
@@ -122,6 +136,7 @@ export async function GET(request: Request) {
         const email = m.email;
         const memberName = m.display_name || "Member";
         const preferredLocale = (m.preferred_locale || "en") as "en" | "fr";
+        const channels = prefsMap.get(m.user_id) || { in_app: true, email: true, sms: false, whatsapp: false, push: false };
 
         const eventName = preferredLocale === "fr"
           ? ((event.title_fr as string) || (event.title as string))
@@ -146,22 +161,24 @@ export async function GET(request: Request) {
           eventsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/events`,
         };
 
-        // Email
-        emailPromises.push(
-          sendEmail({
-            to: email,
-            template: "event-reminder",
-            data: templateData,
-            locale: preferredLocale,
-          }).then((result) => ({
-            success: result.success,
-            error: result.error,
-          }))
-        );
+        // Email (only if channel enabled)
+        if (channels.email) {
+          emailPromises.push(
+            sendEmail({
+              to: email,
+              template: "event-reminder",
+              data: templateData,
+              locale: preferredLocale,
+            }).then((result) => ({
+              success: result.success,
+              error: result.error,
+            }))
+          );
+        }
 
-        // SMS (if this member has a phone)
+        // SMS (if this member has a phone and channel enabled)
         const phone = phoneMap.get(m.user_id);
-        if (phone) {
+        if (phone && channels.sms) {
           smsPromises.push(
             sendSmsNotification({
               to: phone,
@@ -170,7 +187,10 @@ export async function GET(request: Request) {
               locale: preferredLocale,
             })
           );
-          // WhatsApp (fire-and-forget)
+        }
+
+        // WhatsApp (if this member has a phone and channel enabled)
+        if (phone && channels.whatsapp) {
           dispatchWhatsApp(
             "event_reminder",
             phone,
@@ -183,8 +203,10 @@ export async function GET(request: Request) {
               groupName: templateData.groupName || "",
             },
           ).catch(() => {});
+        }
 
-          // Remove from phoneMap so we don't double-send for proxy members below
+        // Remove from phoneMap so we don't double-send for proxy members below
+        if (phone) {
           phoneMap.delete(m.user_id);
         }
       }

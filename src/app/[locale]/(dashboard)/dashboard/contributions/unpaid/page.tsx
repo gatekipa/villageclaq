@@ -135,6 +135,7 @@ export default function UnpaidReportPage() {
         title: t("contributions.paymentReminderTitle"),
         body: t("contributions.paymentReminderBody", { amount: formatAmount(m.totalOutstanding, currency) }),
         is_read: false,
+        data: { link: "/dashboard/my-payments" },
       }));
       await supabase.from("notifications").insert(notifications);
       setRemindersSentCount(validMembers.length);
@@ -155,6 +156,7 @@ export default function UnpaidReportPage() {
         title: t("contributions.paymentReminderTitle"),
         body: t("contributions.paymentReminderBody", { amount: formatAmount(member.totalOutstanding, currency) }),
         is_read: false,
+        data: { link: "/dashboard/my-payments" },
       });
       setRemindersSentCount(1);
     } finally {

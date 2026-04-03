@@ -1,8 +1,16 @@
 /**
- * Unified notification dispatcher.
+ * Unified notification dispatcher (SERVER-SIDE).
  * Sends notifications across channels: in-app, email, SMS, WhatsApp.
  * Each channel is independent — one failure doesn't block others.
  * All sends are best-effort (try/catch wrapped).
+ *
+ * TODO: This module currently has ZERO callers. All consumers use either:
+ *   - `notifyFromClient()` / `notifyBulkFromClient()` from `@/lib/notify-client.ts` (client-side)
+ *   - Direct fetch() calls to API routes (being migrated to the above)
+ *   - Direct dispatchWhatsApp() calls
+ * Refactor remaining direct-fetch consumers to use this module for server-side sends,
+ * or consolidate into notify-client.ts. Do NOT delete — the types and architecture are
+ * the canonical reference for the notification system.
  *
  * Usage:
  *   await notifyMember({
@@ -88,12 +96,16 @@ export async function notifyMember(params: NotifyParams): Promise<NotifyResult> 
       // Dynamic import to avoid circular dependencies with Supabase client
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
+      const notifType = mapTypeToNotificationType(type);
+      const { getNotificationLink } = await import("@/lib/notify-client");
+      const deepLink = getNotificationLink(notifType);
       await supabase.from("notifications").insert({
         user_id: recipientUserId,
         group_id: groupId,
-        type: mapTypeToNotificationType(type),
+        type: notifType,
         title: data.title || data.groupName || "",
         body: data.body || data.memberName || "",
+        data: { link: deepLink },
       });
       result.inApp = true;
     } catch { /* in-app notification is best-effort */ }

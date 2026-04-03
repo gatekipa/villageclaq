@@ -21,7 +21,10 @@ export type NotificationTypeKey =
   | "standing_changes"
   | "announcements"
   | "hosting_reminders"
-  | "new_member";
+  | "new_member"
+  | "loan_updates"
+  | "fine_updates"
+  | "subscription_updates";
 
 /** Default channel states when user has no saved preferences */
 const DEFAULT_CHANNELS: Record<NotificationChannel, boolean> = {
@@ -42,6 +45,9 @@ const DEFAULT_TYPE_PREFS: Record<NotificationTypeKey, Record<NotificationChannel
   announcements: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
   hosting_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
   new_member: { in_app: true, email: false, sms: false, whatsapp: false, push: false },
+  loan_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  fine_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  subscription_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
 };
 
 export interface EnabledChannels {

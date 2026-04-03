@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
+import { getNotificationLink } from "@/lib/notify-client";
 import { Bell, Menu, Calendar, CreditCard, FileText, Heart, Users, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { WhatsNew } from "./whats-new";
 import { cn } from "@/lib/utils";
 import { useNotifications, useUnreadNotificationCount } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
+import { useGroup } from "@/lib/group-context";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -44,6 +46,8 @@ function timeAgo(dateStr: string): string {
 export function Header({ onMenuClick }: HeaderProps) {
   const t = useTranslations("header");
   const [isOpen, setIsOpen] = useState(false);
+  const { groupId } = useGroup();
+  const router = useRouter();
   const { data: notifications = [] } = useNotifications(5);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
 
@@ -54,7 +58,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   async function markAllAsRead() {
     const supabase = createClient();
-    await supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
+    let query = supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
+    if (groupId) query = query.eq("group_id", groupId);
+    await query;
   }
 
   return (
@@ -112,6 +118,12 @@ export function Header({ onMenuClick }: HeaderProps) {
                           key={notification.id as string}
                           onClick={() => {
                             if (!isRead) markAsRead(notification.id as string);
+                            const notifData = notification.data as Record<string, unknown> | null;
+                            const link = (notifData?.link as string) || getNotificationLink(notification.type as string);
+                            if (link) {
+                              setIsOpen(false);
+                              router.push(link);
+                            }
                           }}
                           className={cn(
                             "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",

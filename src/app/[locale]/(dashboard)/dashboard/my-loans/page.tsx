@@ -315,6 +315,7 @@ export default function MyLoansPage() {
               title: t("newLoanApplicationNotifTitle"),
               body: t("newLoanApplicationNotifBody", { amount: formatAmount(amt, currency) }),
               is_read: false,
+              data: { link: "/dashboard/loans" },
             }));
             try { await supabase.from("notifications").insert(notifications); } catch { /* best-effort */ }
           }
@@ -335,6 +336,7 @@ export default function MyLoansPage() {
               title: t("guarantorNotifTitle"),
               body: t("guarantorNotifBody", { member: getMemberName(currentMembership as unknown as Record<string, unknown>), amount: formatAmount(amt, currency) }),
               is_read: false,
+              data: { link: "/dashboard/loans" },
             });
           } catch { /* best-effort */ }
         }

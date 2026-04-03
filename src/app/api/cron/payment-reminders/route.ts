@@ -4,6 +4,8 @@ import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { formatAmount } from "@/lib/currencies";
+import { getEnabledChannels } from "@/lib/notification-prefs";
+import type { EnabledChannels } from "@/lib/notification-prefs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -177,6 +179,27 @@ export async function GET(request: Request) {
       }
     }
 
+    // ── Batch-fetch notification preferences for all affected users ──
+    const prefsMap = new Map<string, EnabledChannels>();
+    for (const [userId] of byUser) {
+      try {
+        // Use the first obligation's group_id for preference check
+        const firstObligation = realObligations.find((o: Record<string, unknown>) => {
+          const m = (Array.isArray(o.membership) ? (o.membership as Record<string, unknown>[])[0] : o.membership) as Record<string, unknown>;
+          return m?.user_id === userId;
+        });
+        const membershipRaw = firstObligation
+          ? (Array.isArray(firstObligation.membership) ? (firstObligation.membership as Record<string, unknown>[])[0] : firstObligation.membership) as Record<string, unknown>
+          : null;
+        const gid = membershipRaw?.group_id as string | undefined;
+        const channels = await getEnabledChannels(supabase, userId, "payment_reminders", gid);
+        prefsMap.set(userId, channels);
+      } catch {
+        // Fail-open: if preference check errors, allow all defaults
+        prefsMap.set(userId, { in_app: true, email: true, sms: false, whatsapp: false, push: false });
+      }
+    }
+
     // ── Send emails + SMS per member per overdue obligation ──
     const emailPromises: Promise<{ userId: string; success: boolean; error?: string }>[] = [];
     const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
@@ -184,6 +207,7 @@ export async function GET(request: Request) {
     for (const [userId, memberData] of byUser) {
       const email = emailMap.get(userId);
       const phoneInfo = phoneMap.get(userId);
+      const channels = prefsMap.get(userId) || { in_app: true, email: true, sms: false, whatsapp: false, push: false };
 
       if (!email && !phoneInfo) {
         errors.push(`No email or phone found for user ${userId}`);
@@ -203,8 +227,8 @@ export async function GET(request: Request) {
           paymentsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/my-payments`,
         };
 
-        // Email
-        if (email) {
+        // Email (only if channel enabled)
+        if (email && channels.email) {
           emailPromises.push(
             sendEmail({
               to: email,
@@ -219,8 +243,8 @@ export async function GET(request: Request) {
           );
         }
 
-        // SMS (fire-and-forget alongside email)
-        if (phoneInfo) {
+        // SMS (only if channel enabled)
+        if (phoneInfo && channels.sms) {
           smsPromises.push(
             sendSmsNotification({
               to: phoneInfo.phone,
@@ -229,8 +253,10 @@ export async function GET(request: Request) {
               locale: (phoneInfo.locale || memberData.locale) as "en" | "fr",
             })
           );
+        }
 
-          // WhatsApp (fire-and-forget alongside SMS)
+        // WhatsApp (only if channel enabled)
+        if (phoneInfo && channels.whatsapp) {
           dispatchWhatsApp(
             "payment_reminder",
             phoneInfo.phone,

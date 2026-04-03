@@ -130,7 +130,7 @@ export default function ReliefClaimsPage() {
           whatsappType: "relief_claim_approved",
           inAppType: "relief",
           locale,
-          channels: { email: true, sms: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: true },
           prefType: "relief_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }
@@ -217,7 +217,7 @@ export default function ReliefClaimsPage() {
           whatsappType: "relief_claim_denied",
           inAppType: "relief",
           locale,
-          channels: { email: true, sms: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: true },
           prefType: "relief_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }

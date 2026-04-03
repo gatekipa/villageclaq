@@ -206,7 +206,18 @@ export default function NotificationPreferencesPage() {
 
   function toggleChannel(key: ChannelKey) {
     if (key === "in_app") return;
-    setChannelEnabled((prev) => ({ ...prev, [key]: !prev[key] }));
+    const newValue = !channelEnabled[key];
+    setChannelEnabled((prev) => ({ ...prev, [key]: newValue }));
+    // Cascade: when enabling a global channel, auto-enable it for all
+    // notification types so the AND gate in getEnabledChannels() passes.
+    // When disabling, auto-disable for all types.
+    setTypePreferences((prev) => {
+      const updated = { ...prev };
+      for (const typeKey of Object.keys(updated) as NotificationType[]) {
+        updated[typeKey] = { ...updated[typeKey], [key]: newValue };
+      }
+      return updated;
+    });
   }
 
   function toggleTypeChannel(type: NotificationType, channel: ChannelKey) {

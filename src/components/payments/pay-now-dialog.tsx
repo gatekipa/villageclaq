@@ -239,7 +239,7 @@ export function PayNowDialog({
           whatsappType: "payment_receipt",
           inAppType: "contribution_received",
           locale: "en",
-          channels: { email: true, sms: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: true },
           prefType: "payment_reminders",
         }).catch(() => {});
       } catch { /* best-effort */ }

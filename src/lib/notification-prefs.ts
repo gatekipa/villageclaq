@@ -127,8 +127,9 @@ export async function getEnabledChannels(
 
     return result;
   } catch {
-    // On error, return safe defaults
-    return { in_app: true, email: true, sms: false, whatsapp: false, push: false };
+    // On error, fail-OPEN for all external channels so user-enabled
+    // channels aren't silently blocked by transient query failures.
+    return { in_app: true, email: true, sms: true, whatsapp: true, push: false };
   }
 }
 

@@ -512,7 +512,7 @@ export default function LoansAdminPage() {
           whatsappType: "loan_approved",
           inAppType: "loan",
           locale,
-          channels: { email: true, sms: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: true },
           prefType: "loan_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }

@@ -3005,7 +3005,7 @@ function RequestSwapDialog({
               whatsappType: "hosting_reminder",
               inAppType: "system",
               locale,
-              channels: { email: true, sms: true, whatsapp: true },
+              channels: { inApp: true, email: true, sms: true, whatsapp: true },
               prefType: "hosting_reminders",
             }).catch(() => {});
           }
@@ -3219,7 +3219,7 @@ function SwapRequestsAdminTab({
             whatsappType: "hosting_reminder",
             inAppType: "system",
             locale,
-            channels: { email: true, sms: true, whatsapp: true },
+            channels: { inApp: true, email: true, sms: true, whatsapp: true },
             prefType: "hosting_reminders",
           }).catch(() => {});
         }
@@ -3280,7 +3280,7 @@ function SwapRequestsAdminTab({
             emailTemplate: "notification",
             inAppType: "system",
             locale,
-            channels: { email: true, sms: true, whatsapp: true },
+            channels: { inApp: true, email: true, sms: true, whatsapp: true },
             prefType: "hosting_reminders",
           }).catch(() => {});
         }

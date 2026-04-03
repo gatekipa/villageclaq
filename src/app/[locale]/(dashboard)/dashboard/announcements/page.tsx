@@ -317,7 +317,7 @@ export default function AnnouncementsPage() {
             whatsappType: "announcement",
             inAppType: "announcement",
             locale,
-            channels: { email: true, sms: true, whatsapp: true },
+            channels: { inApp: true, email: true, sms: true, whatsapp: true },
             prefType: "announcements",
           }).catch(() => {});
         } catch { /* notification failure is non-critical */ }

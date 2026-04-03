@@ -338,7 +338,7 @@ export default function FinesAdminPage() {
           whatsappType: "fine_issued",
           inAppType: "fine",
           locale,
-          channels: { email: true, sms: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: true },
           prefType: "fine_updates",
         }).catch(() => {});
       } catch { /* best-effort */ }

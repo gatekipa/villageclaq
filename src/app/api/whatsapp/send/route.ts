@@ -80,6 +80,7 @@ export async function POST(request: Request) {
     // Verify caller is authenticated
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      console.log("[WA-ROUTE] 401 — missing or invalid Authorization header");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -101,7 +102,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { to, type, template, language, components, text, data, locale } = body;
 
+    console.log("[WA-ROUTE] to:", to, "type:", type || template || "(text)", "isUUID:", /^[0-9a-f]{8}-/i.test(to || ""));
+
     if (!to) {
+      console.log("[WA-ROUTE] 400 — missing 'to' field");
       return NextResponse.json({ error: "Missing required field: to" }, { status: 400 });
     }
 
@@ -111,6 +115,7 @@ export async function POST(request: Request) {
 
     if (UUID_REGEX.test(to)) {
       if (!supabaseServiceKey) {
+        console.log("[WA-ROUTE] 500 — SUPABASE_SERVICE_ROLE_KEY not configured");
         return NextResponse.json(
           { success: false, error: "Service role key not configured" },
           { status: 500 },
@@ -124,12 +129,14 @@ export async function POST(request: Request) {
         .single();
 
       if (!profile?.phone) {
+        console.log("[WA-ROUTE] 400 — UUID", to.slice(0, 8), "has no phone in profiles table");
         return NextResponse.json(
           { success: false, error: "No phone number found for user" },
           { status: 400 },
         );
       }
       recipientPhone = profile.phone;
+      console.log("[WA-ROUTE] Resolved UUID to phone:", recipientPhone.slice(0, 6) + "***");
     }
 
     // ── Rate limit check ──
@@ -194,6 +201,7 @@ export async function POST(request: Request) {
       });
     }
 
+    console.log("[WA-ROUTE] 400 — no type, template, or text provided");
     return NextResponse.json(
       { error: "Must provide type, template, or text" },
       { status: 400 },

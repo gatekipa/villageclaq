@@ -292,13 +292,19 @@ export async function notifyBulkFromClient(
       } catch { /* best-effort */ }
     }
 
-    if (enabledWhatsapp && params.whatsappType) {
+    // WhatsApp requires a real phone number — sending a UUID forces the
+    // API route to resolve it via profiles.phone, which is NULL for most
+    // users (profile trigger only sets full_name + avatar_url).
+    // Skip WhatsApp entirely when we only have a UUID and no phone.
+    const waTo = r.phone || to;
+    const hasPhone = !!r.phone; // true = real phone, false = UUID fallback
+    if (enabledWhatsapp && params.whatsappType && hasPhone) {
       try {
         fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify({
-            to,
+            to: waTo,
             type: params.whatsappType,
             data: params.data,
             locale: params.locale || "en",

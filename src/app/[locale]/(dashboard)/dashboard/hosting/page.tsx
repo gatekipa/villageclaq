@@ -54,7 +54,6 @@ import { useHostingRosters, useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { logActivity } from "@/lib/audit-log";
 import { getMemberName } from "@/lib/get-member-name";
-import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn } from "@/lib/utils";
@@ -361,10 +360,12 @@ export default function HostingPage() {
     const complianceTotal = completedCount + missedCount;
     const complianceRate = complianceTotal > 0 ? Math.round((completedCount / complianceTotal) * 100) : 100;
 
-    // Fairness
+    // Fairness — only count active assignments (not swapped/exempted)
     const memberCounts: Record<string, number> = {};
     for (const a of allAssignments) {
-      if (a.membership_id) memberCounts[a.membership_id] = (memberCounts[a.membership_id] || 0) + 1;
+      if (a.membership_id && a.status !== "swapped" && a.status !== "exempted") {
+        memberCounts[a.membership_id] = (memberCounts[a.membership_id] || 0) + 1;
+      }
     }
     const counts = Object.values(memberCounts);
     let fairnessLabel = t("fairness");
@@ -1625,6 +1626,8 @@ function HostingHistoryTab({ allAssignments, members, t }: {
     }
 
     for (const a of allAssignments) {
+      // Skip swapped/exempted — they don't count toward fairness or totals
+      if (a.status === "swapped" || a.status === "exempted") continue;
       const entry = statsMap.get(a.membership_id);
       if (!entry) continue;
       entry.total++;

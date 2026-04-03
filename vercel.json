@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/relief-sync",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/subscription-reminders",
+      "schedule": "0 9 * * *"
     }
   ]
 }

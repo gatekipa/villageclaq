@@ -2072,6 +2072,12 @@
     "remittanceSubmitted": "Remittance submitted successfully",
     "remittanceConfirmed": "Remittance confirmed",
     "remittanceDisputed": "Remittance disputed",
+    "remittanceConfirmedTitle": "Remittance Confirmed",
+    "remittanceConfirmedBody": "Your remittance of {amount} has been confirmed by HQ.",
+    "remittanceDisputedTitle": "Remittance Disputed",
+    "remittanceDisputedBody": "Your remittance of {amount} has been disputed. Please contact HQ.",
+    "enrolledNotifTitle": "Enrolled in Relief Plan",
+    "enrolledNotifBody": "You have been enrolled in {planName}. Check the app for details.",
     "pendingRemittances": "Pending Remittances",
     "hqRollup": "HQ Relief Rollup",
     "hqRollupDesc": "Cross-branch relief enrollment and collection overview",
@@ -2160,7 +2166,9 @@
     "successDetail": "The treasurer will review and confirm your payment shortly.",
     "done": "Done",
     "adminNotifTitle": "Payment submitted for confirmation",
-    "adminNotifBody": "A member submitted a {method} payment of {amount} for {type}. Please confirm."
+    "adminNotifBody": "A member submitted a {method} payment of {amount} for {type}. Please confirm.",
+    "paymentSubmittedTitle": "Payment submitted",
+    "paymentSubmittedBody": "Your {type} payment of {amount} has been submitted and is pending confirmation."
   },
   "myAttendance": {
     "title": "My Attendance",

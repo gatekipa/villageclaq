@@ -56,7 +56,7 @@ import { Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
-import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
+
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { normalizeSearch } from "@/lib/utils";
@@ -289,41 +289,34 @@ export default function AnnouncementsPage() {
           // Non-critical — don't fail the announcement if notifications fail
         }
 
-        // WhatsApp + Email for announcement (fire-and-forget)
+        // WhatsApp + Email + SMS for announcement (fire-and-forget)
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          // Get members with phone numbers for WhatsApp
+          const { notifyBulkFromClient } = await import("@/lib/notify-client");
           const { data: phoneMembersData } = await supabase
             .from("memberships")
             .select("user_id, display_name, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
             .eq("group_id", groupId)
             .not("user_id", "is", null);
 
-          const phoneMembers = phoneMembersData || [];
-          for (const m of phoneMembers) {
+          const phoneMembers = (phoneMembersData || []).filter((m) => m.user_id !== user.id);
+          const recipients = phoneMembers.map((m) => {
             const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
-            const phone = profile?.phone as string | null;
-            if (phone && m.user_id !== user.id) {
-              dispatchWhatsApp("announcement", phone, locale, {
-                groupName: currentGroup?.name || "",
-                title: titleEn || titleFr || "",
-                body: (contentEn || contentFr || "").slice(0, 100),
-              }).catch(() => {});
-            }
-            // Email (fire-and-forget)
-            if (session?.access_token && m.user_id && m.user_id !== user.id) {
-              fetch("/api/email/send", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-                body: JSON.stringify({
-                  to: m.user_id,
-                  template: "welcome", // reuse welcome template as generic notification
-                  data: { memberName: getMemberName(m as Record<string, unknown>), groupName: currentGroup?.name || "", dashboardUrl: `${window.location.origin}/${locale}/dashboard` },
-                  locale,
-                }),
-              }).catch(() => {});
-            }
-          }
+            const phone = (profile?.phone as string) || (m.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            return { userId: m.user_id as string | null, phone };
+          });
+          const annTitle = (locale === "fr" && titleFr) ? titleFr : titleEn;
+          const annBody = (locale === "fr" && contentFr) ? contentFr : contentEn;
+          notifyBulkFromClient(recipients, {
+            groupId: groupId!,
+            title: annTitle,
+            body: (annBody || "").slice(0, 200),
+            data: { groupName: currentGroup?.name || "", title: annTitle, body: (annBody || "").slice(0, 100) },
+            emailTemplate: "notification",
+            smsTemplate: "announcement",
+            whatsappType: "announcement",
+            locale,
+            channels: { email: true, sms: true, whatsapp: true },
+          }).catch(() => {});
         } catch { /* notification failure is non-critical */ }
       }
 

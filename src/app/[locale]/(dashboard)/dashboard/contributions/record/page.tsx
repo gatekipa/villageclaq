@@ -534,6 +534,45 @@ export default function RecordPaymentPage() {
               await supabase.from("notifications").insert(notifRows.slice(i, i + 50));
             }
           }
+
+          // Email + SMS + WhatsApp for each member (fire-and-forget)
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (token) {
+              for (const mid of memberIds) {
+                const rawMember = (members || []).find((m: Record<string, unknown>) => m.id === mid) as Record<string, unknown> | undefined;
+                if (!rawMember) continue;
+                const uid = (rawMember.user_id as string | null) || null;
+                const prof = (Array.isArray(rawMember.profiles) ? (rawMember.profiles as unknown[])[0] : rawMember.profiles) as Record<string, unknown> | null;
+                const phone = (prof?.phone as string) || (rawMember.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+                const to = phone || uid;
+                if (!to) continue;
+                const memberName = getMemberName(rawMember);
+                const sendData = { memberName, amount: formattedAmt, contributionType: typeName, type: typeName, groupName: currentGroup?.name || "", date: new Date().toISOString().slice(0, 10) };
+                // Email
+                if (uid) {
+                  fetch("/api/email/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ to: uid, template: "payment-receipt", data: sendData, locale }),
+                  }).catch(() => {});
+                }
+                // SMS
+                fetch("/api/sms/send", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ to, template: "payment-receipt", data: sendData, locale }),
+                }).catch(() => {});
+                // WhatsApp
+                fetch("/api/whatsapp/send", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ to, type: "payment_receipt", data: sendData, locale }),
+                }).catch(() => {});
+              }
+            }
+          } catch { /* best-effort */ }
         } catch {
           // Non-critical — bulk notification failure must never block
         }

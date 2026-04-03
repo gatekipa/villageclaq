@@ -187,6 +187,19 @@ function mapTypeToEmailTemplate(type: WhatsAppNotificationType): string | null {
     minutes_published: "minutes-published",
     invitation: "invitation",
     welcome: "welcome",
+    // All others use the generic "notification" template
+    hosting_reminder: "notification",
+    hosting_assignment: "notification",
+    relief_claim_approved: "notification",
+    relief_claim_denied: "notification",
+    announcement: "notification",
+    loan_approved: "notification",
+    fine_issued: "notification",
+    standing_changed: "notification",
+    relief_enrollment: "notification",
+    remittance_confirmed: "notification",
+    remittance_disputed: "notification",
+    subscription_expiring: "notification",
   };
   return map[type] || null;
 }
@@ -200,6 +213,16 @@ function mapTypeToSmsTemplate(type: WhatsAppNotificationType): string | null {
     hosting_reminder: "hosting-reminder",
     standing_changed: "standing-changed",
     welcome: "welcome",
+    hosting_assignment: "hosting-assignment",
+    relief_enrollment: "relief-enrollment",
+    remittance_confirmed: "remittance-status",
+    remittance_disputed: "remittance-status",
+    subscription_expiring: "subscription-expiring",
+    relief_claim_approved: "relief-claim-approved",
+    relief_claim_denied: "relief-claim-denied",
+    announcement: "announcement",
+    loan_approved: "loan-approved",
+    fine_issued: "fine-issued",
   };
   return map[type] || null;
 }

@@ -5,6 +5,7 @@ import { paymentReminderEmail, paymentReminderSubject } from "./email-templates/
 import { eventReminderEmail, eventReminderSubject } from "./email-templates/event-reminder";
 import { minutesPublishedEmail, minutesPublishedSubject } from "./email-templates/minutes-published";
 import { invitationEmail, invitationSubject } from "./email-templates/invitation";
+import { notificationEmail, notificationSubject } from "./email-templates/notification";
 
 export type EmailTemplate =
   | "welcome"
@@ -12,7 +13,8 @@ export type EmailTemplate =
   | "payment-reminder"
   | "event-reminder"
   | "minutes-published"
-  | "invitation";
+  | "invitation"
+  | "notification";
 
 interface SendEmailParams {
   to: string;
@@ -68,6 +70,11 @@ export async function sendEmail({
       case "invitation":
         html = invitationEmail(data as unknown as Parameters<typeof invitationEmail>[0], locale);
         subject = invitationSubject((data.groupName as string) || "", locale);
+        break;
+
+      case "notification":
+        html = notificationEmail(data as unknown as Parameters<typeof notificationEmail>[0], locale);
+        subject = notificationSubject((data.title as string) || "");
         break;
 
       default:

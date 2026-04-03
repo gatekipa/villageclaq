@@ -9,6 +9,15 @@ import {
   paymentPendingSms,
   hostingReminderSms,
   standingChangedSms,
+  hostingAssignmentSms,
+  reliefEnrollmentSms,
+  remittanceStatusSms,
+  subscriptionExpiringSms,
+  reliefClaimApprovedSms,
+  reliefClaimDeniedSms,
+  announcementSms,
+  loanApprovedSms,
+  fineIssuedSms,
 } from "@/lib/notifications/sms-templates";
 
 // ─── Template Types ─────────────────────────────────────────────────────────
@@ -21,7 +30,16 @@ export type SmsTemplate =
   | "minutes-published"
   | "payment-pending"
   | "hosting-reminder"
-  | "standing-changed";
+  | "standing-changed"
+  | "hosting-assignment"
+  | "relief-enrollment"
+  | "remittance-status"
+  | "subscription-expiring"
+  | "relief-claim-approved"
+  | "relief-claim-denied"
+  | "announcement"
+  | "loan-approved"
+  | "fine-issued";
 
 interface SendSmsNotificationParams {
   to: string; // E.164 phone number
@@ -161,6 +179,71 @@ function buildMessage(
       return standingChangedSms({
         groupName: (data.groupName as string) || "",
         newStatus: (data.newStatus as string) || "",
+        locale,
+      });
+
+    case "hosting-assignment":
+      return hostingAssignmentSms({
+        groupName: (data.groupName as string) || "",
+        date: (data.date as string) || (data.hostingDate as string) || "",
+        locale,
+      });
+
+    case "relief-enrollment":
+      return reliefEnrollmentSms({
+        groupName: (data.groupName as string) || "",
+        planName: (data.planName as string) || "",
+        locale,
+      });
+
+    case "remittance-status":
+      return remittanceStatusSms({
+        groupName: (data.groupName as string) || "",
+        amount: (data.amount as string) || "",
+        status: (data.status as string) || "confirmed",
+        locale,
+      });
+
+    case "subscription-expiring":
+      return subscriptionExpiringSms({
+        planName: (data.planName as string) || "",
+        days: (data.days as string) || "",
+        locale,
+      });
+
+    case "relief-claim-approved":
+      return reliefClaimApprovedSms({
+        groupName: (data.groupName as string) || "",
+        amount: (data.amount as string) || "",
+        locale,
+      });
+
+    case "relief-claim-denied":
+      return reliefClaimDeniedSms({
+        groupName: (data.groupName as string) || "",
+        reason: (data.reason as string) || "",
+        locale,
+      });
+
+    case "announcement":
+      return announcementSms({
+        groupName: (data.groupName as string) || "",
+        title: (data.title as string) || "",
+        locale,
+      });
+
+    case "loan-approved":
+      return loanApprovedSms({
+        groupName: (data.groupName as string) || "",
+        amount: (data.amount as string) || "",
+        locale,
+      });
+
+    case "fine-issued":
+      return fineIssuedSms({
+        groupName: (data.groupName as string) || "",
+        amount: (data.amount as string) || "",
+        reason: (data.reason as string) || "",
         locale,
       });
 

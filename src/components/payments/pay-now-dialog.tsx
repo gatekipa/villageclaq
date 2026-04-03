@@ -217,6 +217,30 @@ export function PayNowDialog({
         }
       }
 
+      // Notify the paying member via Email + WhatsApp (fire-and-forget)
+      try {
+        const { notifyFromClient } = await import("@/lib/notify-client");
+        const ctName = obligation.contribution_type?.name || "";
+        notifyFromClient({
+          recipientUserId: user.id,
+          groupId: groupId!,
+          title: t("paymentSubmittedTitle"),
+          body: t("paymentSubmittedBody", { amount: formatAmount(amountDue, currency), type: ctName }),
+          data: {
+            memberName: "",
+            amount: formatAmount(amountDue, currency),
+            contributionType: ctName,
+            type: ctName,
+            groupName: "",
+            date: new Date().toISOString().slice(0, 10),
+          },
+          emailTemplate: "payment-receipt",
+          whatsappType: "payment_receipt",
+          locale: "en",
+          channels: { email: true, whatsapp: true },
+        }).catch(() => {});
+      } catch { /* best-effort */ }
+
       // Invalidate caches
       queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
       queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });

@@ -293,23 +293,36 @@ export default function HostingPage() {
             is_read: false,
           });
 
-          // WhatsApp + SMS for hosting reminder (fire-and-forget)
+          // WhatsApp + SMS + Email for hosting reminder (fire-and-forget via API routes)
           try {
-            const { data: memberData } = await supabase
+            const { notifyFromClient } = await import("@/lib/notify-client");
+            const { data: memberData2 } = await supabase
               .from("memberships")
               .select("display_name, user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
               .eq("id", a.membership_id)
               .single();
-            const profile = (Array.isArray(memberData?.profiles) ? memberData?.profiles[0] : memberData?.profiles) as Record<string, unknown> | null;
-            const phone = (profile?.phone as string) || (memberData?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
-            if (phone) {
-              const memberName = getMemberName(memberData as Record<string, unknown>);
-              dispatchWhatsApp("hosting_reminder", phone, locale, {
-                memberName,
-                hostingDate: formatDate(a.assigned_date, locale),
+            const profile2 = (Array.isArray(memberData2?.profiles) ? memberData2?.profiles[0] : memberData2?.profiles) as Record<string, unknown> | null;
+            const phone2 = (profile2?.phone as string) || (memberData2?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            const memberName2 = getMemberName(memberData2 as Record<string, unknown>);
+            notifyFromClient({
+              recipientUserId: null,
+              recipientPhone: phone2,
+              groupId: groupId!,
+              title: t("hostReminderNotifTitle"),
+              body: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
+              data: {
                 groupName: currentGroup?.name || "",
-              }).catch(() => {});
-            }
+                memberName: memberName2,
+                hostingDate: formatDate(a.assigned_date, locale),
+                date: formatDate(a.assigned_date, locale),
+                location: "",
+              },
+              emailTemplate: "notification",
+              smsTemplate: "hosting-reminder",
+              whatsappType: "hosting_reminder",
+              locale,
+              channels: { email: true, sms: true, whatsapp: true },
+            }).catch(() => {});
           } catch { /* best-effort */ }
         }
       } catch {
@@ -489,6 +502,32 @@ export default function HostingPage() {
         entityType: "hosting_roster",
         description: `Published hosting schedule with ${upcoming.length} upcoming assignments`,
       });
+
+      // WhatsApp + SMS for assigned members (fire-and-forget)
+      if (upcoming.length > 0) {
+        try {
+          const { notifyBulkFromClient } = await import("@/lib/notify-client");
+          const recipients = upcoming.map((a) => {
+            const m = members.find((mem) => mem.id === a.membership_id);
+            const raw = m as unknown as Record<string, unknown>;
+            const uid = (raw?.user_id as string) || ((raw?.profiles as Record<string, unknown>)?.id as string) || null;
+            const profile = (Array.isArray(raw?.profiles) ? (raw?.profiles as unknown[])[0] : raw?.profiles) as Record<string, unknown> | null;
+            const phone = (profile?.phone as string) || (raw?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            return { userId: uid, phone };
+          });
+          notifyBulkFromClient(recipients, {
+            groupId: groupId!,
+            title: t("hostAssignedNotifTitle"),
+            body: t("hostAssignedNotifBody", { date: "" }),
+            data: { groupName: currentGroup?.name || "" },
+            smsTemplate: "hosting-assignment",
+            whatsappType: "hosting_assignment",
+            locale,
+            channels: { whatsapp: true, sms: true },
+          }).catch(() => {});
+        } catch { /* best-effort */ }
+      }
+
       showSuccess(t("publishSuccess"));
     } catch {
       showError(t("publishFailed"));
@@ -1457,6 +1496,30 @@ function AssignHostsDialog({
           description: `Assigned ${selectedIds.length} host(s) for ${context.date}`,
           metadata: { date: context.date, membershipIds: selectedIds },
         });
+
+        // Notify assigned members — In-App + WhatsApp + SMS (fire-and-forget)
+        try {
+          const { notifyBulkFromClient } = await import("@/lib/notify-client");
+          const recipients = selectedIds.map((mid) => {
+            const m = activeMembers.find((mem) => mem.id === mid);
+            const raw = m as unknown as Record<string, unknown>;
+            const uid = (raw?.user_id as string) || ((raw?.profiles as Record<string, unknown>)?.id as string) || null;
+            const profile = (Array.isArray(raw?.profiles) ? (raw?.profiles as unknown[])[0] : raw?.profiles) as Record<string, unknown> | null;
+            const phone = (profile?.phone as string) || (raw?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            return { userId: uid, phone };
+          });
+          const groupName = (await supabase.from("groups").select("name").eq("id", groupId).single()).data?.name || "";
+          notifyBulkFromClient(recipients, {
+            groupId,
+            title: t("hostAssignedNotifTitle"),
+            body: t("hostAssignedNotifBody", { date: context.date }),
+            data: { groupName, date: context.date, hostingDate: context.date },
+            smsTemplate: "hosting-assignment",
+            whatsappType: "hosting_assignment",
+            locale,
+            channels: { inApp: true, sms: true, whatsapp: true },
+          }).catch(() => {});
+        } catch { /* best-effort */ }
       }
 
       onOpenChange(false);

@@ -29,6 +29,11 @@ export const WA_TEMPLATES = {
   FINE_ISSUED: "villageclaq_fine_issued",
   STANDING_CHANGED: "villageclaq_standing_changed",
   WELCOME: "villageclaq_welcome",
+  HOSTING_ASSIGNMENT: "villageclaq_hosting_assignment",
+  RELIEF_ENROLLMENT: "villageclaq_relief_enrollment",
+  REMITTANCE_CONFIRMED: "villageclaq_remittance_confirmed",
+  REMITTANCE_DISPUTED: "villageclaq_remittance_disputed",
+  SUBSCRIPTION_EXPIRING: "villageclaq_subscription_expiring",
 } as const;
 
 // ─── Helpers: build body-only components ────────────────────────────────────
@@ -173,4 +178,41 @@ export function buildWelcomeParams(data: {
   groupName: string;
 }): WhatsAppTemplateComponent[] {
   return bodyParams(data.memberName, data.groupName);
+}
+
+export function buildHostingAssignmentParams(data: {
+  memberName: string;
+  hostingDate: string;
+  groupName: string;
+}): WhatsAppTemplateComponent[] {
+  return bodyParams(data.memberName, data.hostingDate, data.groupName);
+}
+
+export function buildReliefEnrollmentParams(data: {
+  memberName: string;
+  planName: string;
+  groupName: string;
+}): WhatsAppTemplateComponent[] {
+  return bodyParams(data.memberName, data.planName, data.groupName);
+}
+
+export function buildRemittanceConfirmedParams(data: {
+  amount: string;
+  groupName: string;
+}): WhatsAppTemplateComponent[] {
+  return bodyParams(data.amount, data.groupName);
+}
+
+export function buildRemittanceDisputedParams(data: {
+  amount: string;
+  groupName: string;
+}): WhatsAppTemplateComponent[] {
+  return bodyParams(data.amount, data.groupName);
+}
+
+export function buildSubscriptionExpiringParams(data: {
+  planName: string;
+  days: string;
+}): WhatsAppTemplateComponent[] {
+  return bodyParams(data.planName, data.days);
 }

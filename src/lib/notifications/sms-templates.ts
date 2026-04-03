@@ -151,3 +151,165 @@ export function standingChangedSms(params: StandingChangedSmsParams): string {
     `[VillageClaq] ${groupName}: Votre statut est devenu ${newStatus}. Verifiez l'app pour details.`
   ).slice(0, 160);
 }
+
+// ─── Hosting Assignment ────────────────────────────────────────────────────
+
+interface HostingAssignmentSmsParams {
+  groupName: string;
+  date: string;
+  locale: Locale;
+}
+
+export function hostingAssignmentSms(params: HostingAssignmentSmsParams): string {
+  const { groupName, date, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: You've been assigned to host on ${date}. Check the app for details.`,
+    `[VillageClaq] ${groupName}: Vous etes assigne pour accueillir le ${date}. Verifiez l'app.`
+  ).slice(0, 160);
+}
+
+// ─── Relief Enrollment ─────────────────────────────────────────────────────
+
+interface ReliefEnrollmentSmsParams {
+  groupName: string;
+  planName: string;
+  locale: Locale;
+}
+
+export function reliefEnrollmentSms(params: ReliefEnrollmentSmsParams): string {
+  const { groupName, planName, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: You've been enrolled in ${planName}. Check the app for details.`,
+    `[VillageClaq] ${groupName}: Vous etes inscrit au ${planName}. Verifiez l'app pour details.`
+  ).slice(0, 160);
+}
+
+// ─── Remittance Status ─────────────────────────────────────────────────────
+
+interface RemittanceStatusSmsParams {
+  groupName: string;
+  amount: string;
+  status: string; // "confirmed" | "disputed"
+  locale: Locale;
+}
+
+export function remittanceStatusSms(params: RemittanceStatusSmsParams): string {
+  const { groupName, amount, status, locale } = params;
+  if (status === "confirmed") {
+    return t(
+      locale,
+      `[VillageClaq] ${groupName}: Your remittance of ${amount} has been confirmed by HQ.`,
+      `[VillageClaq] ${groupName}: Votre versement de ${amount} a ete confirme par le siege.`
+    ).slice(0, 160);
+  }
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: Your remittance of ${amount} has been disputed. Contact leadership.`,
+    `[VillageClaq] ${groupName}: Votre versement de ${amount} a ete conteste. Contactez la direction.`
+  ).slice(0, 160);
+}
+
+// ─── Subscription Expiring ─────────────────────────────────────────────────
+
+interface SubscriptionExpiringSmsParams {
+  planName: string;
+  days: string;
+  locale: Locale;
+}
+
+export function subscriptionExpiringSms(params: SubscriptionExpiringSmsParams): string {
+  const { planName, days, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] Your ${planName} subscription expires in ${days} days. Renew to keep your features.`,
+    `[VillageClaq] Votre abonnement ${planName} expire dans ${days} jours. Renouvelez pour garder vos fonctions.`
+  ).slice(0, 160);
+}
+
+// ─── Relief Claim Approved ─────────────────────────────────────────────────
+
+interface ReliefClaimApprovedSmsParams {
+  groupName: string;
+  amount: string;
+  locale: Locale;
+}
+
+export function reliefClaimApprovedSms(params: ReliefClaimApprovedSmsParams): string {
+  const { groupName, amount, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: Your relief claim has been approved. Payout: ${amount}.`,
+    `[VillageClaq] ${groupName}: Votre demande de secours a ete approuvee. Versement: ${amount}.`
+  ).slice(0, 160);
+}
+
+// ─── Relief Claim Denied ───────────────────────────────────────────────────
+
+interface ReliefClaimDeniedSmsParams {
+  groupName: string;
+  reason: string;
+  locale: Locale;
+}
+
+export function reliefClaimDeniedSms(params: ReliefClaimDeniedSmsParams): string {
+  const { groupName, reason, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: Your relief claim was denied. Reason: ${reason}`,
+    `[VillageClaq] ${groupName}: Votre demande de secours a ete refusee. Raison: ${reason}`
+  ).slice(0, 160);
+}
+
+// ─── Announcement ──────────────────────────────────────────────────────────
+
+interface AnnouncementSmsParams {
+  groupName: string;
+  title: string;
+  locale: Locale;
+}
+
+export function announcementSms(params: AnnouncementSmsParams): string {
+  const { groupName, title, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: New announcement — ${title}. Open the app to read.`,
+    `[VillageClaq] ${groupName}: Nouvelle annonce — ${title}. Ouvrez l'app pour lire.`
+  ).slice(0, 160);
+}
+
+// ─── Loan Approved ─────────────────────────────────────────────────────────
+
+interface LoanApprovedSmsParams {
+  groupName: string;
+  amount: string;
+  locale: Locale;
+}
+
+export function loanApprovedSms(params: LoanApprovedSmsParams): string {
+  const { groupName, amount, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: Your loan of ${amount} has been approved. Check the app for details.`,
+    `[VillageClaq] ${groupName}: Votre pret de ${amount} a ete approuve. Verifiez l'app pour details.`
+  ).slice(0, 160);
+}
+
+// ─── Fine Issued ───────────────────────────────────────────────────────────
+
+interface FineIssuedSmsParams {
+  groupName: string;
+  amount: string;
+  reason: string;
+  locale: Locale;
+}
+
+export function fineIssuedSms(params: FineIssuedSmsParams): string {
+  const { groupName, amount, reason, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] ${groupName}: A fine of ${amount} was issued. Reason: ${reason}`,
+    `[VillageClaq] ${groupName}: Une amende de ${amount} a ete emise. Raison: ${reason}`
+  ).slice(0, 160);
+}

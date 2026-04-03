@@ -169,6 +169,41 @@ export default function ReliefRemittancesPage() {
       }
       const { error: updateErr } = await supabase.from("relief_remittances").update(updatePayload).eq("id", remittanceId);
       if (updateErr) throw updateErr;
+
+      // Notify branch admins — In-App + WhatsApp (fire-and-forget)
+      try {
+        const remittance = remittances.find((r: Record<string, unknown>) => (r.id as string) === remittanceId) as Record<string, unknown> | undefined;
+        const branchGroupId = (remittance?.branch_group_id as string) || "";
+        const amt = formatAmount(Number(remittance?.amount || 0), currency);
+        const branchName = ((remittance?.branch_group as Record<string, unknown>)?.name as string) || "";
+        if (branchGroupId) {
+          const { data: branchAdmins } = await supabase
+            .from("memberships")
+            .select("user_id, profiles:profiles!memberships_user_id_fkey(phone)")
+            .eq("group_id", branchGroupId)
+            .in("role", ["owner", "admin"])
+            .not("user_id", "is", null);
+          if (branchAdmins && branchAdmins.length > 0) {
+            const { notifyBulkFromClient } = await import("@/lib/notify-client");
+            const recipients = branchAdmins.map((a) => {
+              const prof = (Array.isArray(a.profiles) ? a.profiles[0] : a.profiles) as Record<string, unknown> | null;
+              return { userId: a.user_id as string, phone: (prof?.phone as string) || null };
+            });
+            const waType = newStatus === "confirmed" ? "remittance_confirmed" : "remittance_disputed";
+            notifyBulkFromClient(recipients, {
+              groupId: branchGroupId,
+              inAppType: "system",
+              title: t(newStatus === "confirmed" ? "remittanceConfirmedTitle" : "remittanceDisputedTitle"),
+              body: t(newStatus === "confirmed" ? "remittanceConfirmedBody" : "remittanceDisputedBody", { amount: amt }),
+              data: { groupName: branchName, amount: amt, status: newStatus },
+              whatsappType: waType,
+              locale,
+              channels: { inApp: true, whatsapp: true },
+            }).catch(() => {});
+          }
+        }
+      } catch { /* best-effort */ }
+
       queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
       queryClient.invalidateQueries({ queryKey: ["relief-branch-summary"] });
     } catch (err) {

@@ -2072,6 +2072,12 @@
     "remittanceSubmitted": "Remise soumise avec succès",
     "remittanceConfirmed": "Remise confirmée",
     "remittanceDisputed": "Remise contestée",
+    "remittanceConfirmedTitle": "Remise confirmée",
+    "remittanceConfirmedBody": "Votre remise de {amount} a été confirmée par le siège.",
+    "remittanceDisputedTitle": "Remise contestée",
+    "remittanceDisputedBody": "Votre remise de {amount} a été contestée. Veuillez contacter le siège.",
+    "enrolledNotifTitle": "Inscrit au plan d'entraide",
+    "enrolledNotifBody": "Vous avez été inscrit au {planName}. Vérifiez l'app pour les détails.",
     "pendingRemittances": "Remises en attente",
     "hqRollup": "Synthèse entraide du siège",
     "hqRollupDesc": "Vue d'ensemble des inscriptions et collectes entre branches",
@@ -2201,7 +2207,9 @@
     "successDetail": "Le trésorier examinera et confirmera votre paiement sous peu.",
     "done": "Terminé",
     "adminNotifTitle": "Paiement soumis pour confirmation",
-    "adminNotifBody": "Un membre a soumis un paiement {method} de {amount} pour {type}. Veuillez confirmer."
+    "adminNotifBody": "Un membre a soumis un paiement {method} de {amount} pour {type}. Veuillez confirmer.",
+    "paymentSubmittedTitle": "Paiement soumis",
+    "paymentSubmittedBody": "Votre paiement {type} de {amount} a été soumis et est en attente de confirmation."
   },
   "myAttendance": {
     "title": "Ma Présence",

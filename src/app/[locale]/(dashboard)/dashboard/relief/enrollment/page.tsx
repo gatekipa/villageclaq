@@ -64,7 +64,7 @@ export default function ReliefEnrollmentPage() {
   const t = useTranslations();
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
   const queryClient = useQueryClient();
   const { data: enrollments, isLoading, error, refetch } = useReliefEnrollments();
   const { data: plans } = useReliefPlans();
@@ -115,6 +115,30 @@ export default function ReliefEnrollmentPage() {
       }));
       const { error: insertError } = await supabase.from("relief_enrollments").insert(rows);
       if (insertError) throw insertError;
+
+      // Notify enrolled members — In-App + WhatsApp (fire-and-forget)
+      try {
+        const { notifyBulkFromClient } = await import("@/lib/notify-client");
+        const planName = selectedPlan ? (locale === "fr" && (selectedPlan as Record<string, unknown>).name_fr ? (selectedPlan as Record<string, unknown>).name_fr as string : (selectedPlan as Record<string, unknown>).name as string) : "";
+        const groupName = currentGroup?.name || "";
+        const recipients = selectedMemberIds.map((mid) => {
+          const m = (membersList || []).find((mem: Record<string, unknown>) => (mem.id as string) === mid) as Record<string, unknown> | undefined;
+          const uid = (m?.user_id as string) || null;
+          const prof = (Array.isArray(m?.profiles) ? (m?.profiles as unknown[])[0] : m?.profiles) as Record<string, unknown> | null;
+          const phone = (prof?.phone as string) || (m?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+          return { userId: uid, phone };
+        });
+        notifyBulkFromClient(recipients, {
+          groupId: groupId!,
+          title: t("relief.enrolledNotifTitle"),
+          body: t("relief.enrolledNotifBody", { planName }),
+          data: { groupName, planName, memberName: "" },
+          whatsappType: "relief_enrollment",
+          locale,
+          channels: { inApp: true, whatsapp: true },
+        }).catch(() => {});
+      } catch { /* best-effort */ }
+
       await queryClient.invalidateQueries({ queryKey: ["relief-enrollments", groupId] });
       setEnrollDialogOpen(false);
       resetEnrollForm();

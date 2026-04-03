@@ -22,6 +22,11 @@ import {
   buildFineIssuedParams,
   buildStandingChangedParams,
   buildWelcomeParams,
+  buildHostingAssignmentParams,
+  buildReliefEnrollmentParams,
+  buildRemittanceConfirmedParams,
+  buildRemittanceDisputedParams,
+  buildSubscriptionExpiringParams,
 } from "@/lib/whatsapp-templates";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
 
@@ -42,7 +47,12 @@ export type WhatsAppNotificationType =
   | "loan_overdue"
   | "fine_issued"
   | "standing_changed"
-  | "welcome";
+  | "welcome"
+  | "hosting_assignment"
+  | "relief_enrollment"
+  | "remittance_confirmed"
+  | "remittance_disputed"
+  | "subscription_expiring";
 
 const TYPE_TO_TEMPLATE: Record<WhatsAppNotificationType, string> = {
   payment_receipt: WA_TEMPLATES.PAYMENT_RECEIPT,
@@ -60,6 +70,11 @@ const TYPE_TO_TEMPLATE: Record<WhatsAppNotificationType, string> = {
   fine_issued: WA_TEMPLATES.FINE_ISSUED,
   standing_changed: WA_TEMPLATES.STANDING_CHANGED,
   welcome: WA_TEMPLATES.WELCOME,
+  hosting_assignment: WA_TEMPLATES.HOSTING_ASSIGNMENT,
+  relief_enrollment: WA_TEMPLATES.RELIEF_ENROLLMENT,
+  remittance_confirmed: WA_TEMPLATES.REMITTANCE_CONFIRMED,
+  remittance_disputed: WA_TEMPLATES.REMITTANCE_DISPUTED,
+  subscription_expiring: WA_TEMPLATES.SUBSCRIPTION_EXPIRING,
 };
 
 // ─── Component Builder ──────────────────────────────────────────────────────
@@ -169,6 +184,33 @@ function buildComponents(
       return buildWelcomeParams({
         memberName: d.memberName || "",
         groupName: d.groupName || "",
+      });
+    case "hosting_assignment":
+      return buildHostingAssignmentParams({
+        memberName: d.memberName || "",
+        hostingDate: d.hostingDate || d.date || "",
+        groupName: d.groupName || "",
+      });
+    case "relief_enrollment":
+      return buildReliefEnrollmentParams({
+        memberName: d.memberName || "",
+        planName: d.planName || "",
+        groupName: d.groupName || "",
+      });
+    case "remittance_confirmed":
+      return buildRemittanceConfirmedParams({
+        amount: d.amount || "",
+        groupName: d.groupName || "",
+      });
+    case "remittance_disputed":
+      return buildRemittanceDisputedParams({
+        amount: d.amount || "",
+        groupName: d.groupName || "",
+      });
+    case "subscription_expiring":
+      return buildSubscriptionExpiringParams({
+        planName: d.planName || "",
+        days: d.days || "",
       });
     default:
       return [];

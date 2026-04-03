@@ -106,7 +106,14 @@ export async function sendWhatsAppMessage(
       const errObj = (errData as Record<string, Record<string, unknown>>)?.error;
       const errMsg = errObj?.message as string || `HTTP ${response.status}`;
       const errCode = errObj?.code as number | undefined;
-      console.error(`[WhatsApp] FAILED — template="${params.template}" to=${formattedPhone} status=${response.status} code=${errCode} error="${errMsg}"`);
+
+      // Detect Meta rate limiting: HTTP 429 or error code 131056 (rate limit hit)
+      const isRateLimited = response.status === 429 || errCode === 131056;
+      if (isRateLimited) {
+        console.warn(`[WhatsApp] RATE LIMITED — template="${params.template}" to=${formattedPhone} code=${errCode}`);
+      } else {
+        console.error(`[WhatsApp] FAILED — template="${params.template}" to=${formattedPhone} status=${response.status} code=${errCode} error="${errMsg}"`);
+      }
       return { success: false, error: errMsg };
     }
 

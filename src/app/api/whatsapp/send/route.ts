@@ -6,10 +6,65 @@ import { dispatchWhatsApp, type WhatsAppNotificationType } from "@/lib/whatsapp-
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// ─── Rate Limiter (in-memory sliding window) ─────────────────────────────────
+// Conservative: 50 msg/sec — well under Meta's 80/sec standard tier limit.
+// Overflow is queued to notifications_queue for the drain worker.
+
+const RATE_LIMIT_MAX = 50;
+const RATE_LIMIT_WINDOW_MS = 1000;
+const sendTimestamps: number[] = [];
+
+function acquireRateSlot(): boolean {
+  const now = Date.now();
+  // Purge timestamps outside the window
+  while (sendTimestamps.length > 0 && now - sendTimestamps[0] >= RATE_LIMIT_WINDOW_MS) {
+    sendTimestamps.shift();
+  }
+  if (sendTimestamps.length >= RATE_LIMIT_MAX) {
+    return false; // Rate limited
+  }
+  sendTimestamps.push(now);
+  return true;
+}
+
+/**
+ * Queue a WhatsApp message to notifications_queue for the drain worker.
+ * Returns true if queued successfully.
+ */
+async function queueWhatsAppMessage(
+  recipient: string,
+  params: Record<string, unknown>,
+): Promise<boolean> {
+  if (!supabaseServiceKey) return false;
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    await supabase.from("notifications_queue").insert({
+      channel: "whatsapp",
+      template: (params.type as string) || (params.template as string) || "generic",
+      data: {
+        recipient,
+        whatsappType: params.type || undefined,
+        whatsappData: params.data || {},
+        template: params.template || undefined,
+        language: params.locale || params.language || "en",
+        components: params.components || undefined,
+        locale: params.locale || params.language || "en",
+      },
+      status: "queued",
+    });
+    return true;
+  } catch (err) {
+    console.warn("[WhatsApp] Failed to queue message:", err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 /**
  * POST /api/whatsapp/send
  * Send a WhatsApp message via Meta Cloud API.
  * Auth: Bearer token (user JWT) — validates caller is authenticated.
+ *
+ * Rate limited: 50 messages/second. Overflow queued to notifications_queue.
  *
  * Body options:
  * 1. Template message: { to, type, data, locale }
@@ -77,6 +132,14 @@ export async function POST(request: Request) {
       recipientPhone = profile.phone;
     }
 
+    // ── Rate limit check ──
+    if (!acquireRateSlot()) {
+      // Over rate limit — queue for drain worker
+      console.warn(`[WhatsApp] Rate limited — queuing message to ${recipientPhone}`);
+      const queued = await queueWhatsAppMessage(recipientPhone, body);
+      return NextResponse.json({ success: true, queued: true, sent: false, rateLimited: true }, { status: queued ? 202 : 429 });
+    }
+
     // Route 1: Typed dispatch (recommended)
     if (type) {
       const success = await dispatchWhatsApp(
@@ -85,6 +148,15 @@ export async function POST(request: Request) {
         locale || language || "en",
         data || {},
       );
+
+      // If Meta returns rate limit error, queue for retry
+      if (!success) {
+        const queued = await queueWhatsAppMessage(recipientPhone, body);
+        if (queued) {
+          return NextResponse.json({ success: true, queued: true, sent: false });
+        }
+      }
+
       return NextResponse.json({ success });
     }
 
@@ -96,6 +168,15 @@ export async function POST(request: Request) {
         language: language || locale || "en",
         components,
       });
+
+      // If failed, queue for retry
+      if (!result.success) {
+        const queued = await queueWhatsAppMessage(recipientPhone, body);
+        if (queued) {
+          return NextResponse.json({ success: true, queued: true, sent: false, error: result.error });
+        }
+      }
+
       return NextResponse.json({
         success: result.success,
         messageId: result.messageId,

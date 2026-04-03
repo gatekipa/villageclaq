@@ -111,6 +111,7 @@ interface MinutesRecord {
   created_by: string;
   created_at: string;
   updated_at: string;
+  file_url?: string | null;
   event?: EventRecord;
 }
 
@@ -159,7 +160,7 @@ export default function MinutesPage() {
   const tc = useTranslations("common");
   const { groupId, user, currentGroup } = useGroup();
   const { hasPermission } = usePermissions();
-  // Permission check — used inline throughout, no hasPermission("minutes.manage") shortcut
+  const canManageMinutes = hasPermission("minutes.manage");
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -184,11 +185,16 @@ export default function MinutesPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [cancellingMeeting, setCancellingMeeting] = useState(false);
 
-  // Action error notification
+  // Action notifications
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   function showError(msg: string) {
     setActionError(msg);
     setTimeout(() => setActionError(null), 5000);
+  }
+  function showSuccess(msg: string) {
+    setActionSuccess(msg);
+    setTimeout(() => setActionSuccess(null), 3000);
   }
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [standaloneMode, setStandaloneMode] = useState(false);
@@ -236,7 +242,7 @@ export default function MinutesPage() {
     let list = events;
 
     // Non-admins only see events with published minutes
-    if (!hasPermission("minutes.manage")) {
+    if (!canManageMinutes) {
       list = list.filter((e) => {
         const m = minutesByEventId[e.id];
         return m && m.status === "published";
@@ -273,7 +279,7 @@ export default function MinutesPage() {
     });
 
     return list;
-  }, [events, hasPermission("minutes.manage"), minutesByEventId, searchQuery, sortField, sortDir, locale]);
+  }, [events, canManageMinutes, minutesByEventId, searchQuery, sortField, sortDir, locale]);
 
   // Standalone minutes (no event_id) — also filtered by search
   const standaloneMinutes = useMemo(() => {
@@ -316,7 +322,7 @@ export default function MinutesPage() {
   // ─── Editor initialization ──────────────────────────────────────────────
 
   const initEditor = useCallback(
-    (minutesData: MinutesRecord | null, event: EventRecord | null) => {
+    async (minutesData: MinutesRecord | null, event: EventRecord | null) => {
       if (minutesData) {
         const content = minutesData.content_json || ({} as ContentJson);
         setEditorLocation(content.location || event?.location || "");
@@ -334,13 +340,32 @@ export default function MinutesPage() {
         setRichTextInitContent(template);
         setEditorDecisions([]);
         setEditorActionItems([]);
-        setEditorAttendees([]);
+
+        // Auto-populate attendees from event attendance records
+        if (event?.id) {
+          try {
+            const { data: attendance } = await supabase
+              .from("event_attendances")
+              .select("membership_id")
+              .eq("event_id", event.id)
+              .eq("status", "present");
+            if (attendance && attendance.length > 0) {
+              setEditorAttendees(attendance.map((a) => a.membership_id));
+            } else {
+              setEditorAttendees([]);
+            }
+          } catch {
+            setEditorAttendees([]);
+          }
+        } else {
+          setEditorAttendees([]);
+        }
       }
       setUploadedFileName(null);
       setUploadedFile(null);
       setEditorTab("rich");
     },
-    [t]
+    [t, supabase]
   );
 
   const handleSelectEvent = (eventId: string) => {
@@ -595,6 +620,7 @@ export default function MinutesPage() {
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
       setEditMode(false);
       setStandaloneMode(false);
+      showSuccess(status === "published" ? t("minutesPublished") : t("minutesSaved"));
     } catch (err) {
       showError((err as Error).message || tc("error"));
     } finally {
@@ -625,7 +651,7 @@ export default function MinutesPage() {
     minutesRecord: MinutesRecord,
     actionIndex: number
   ) => {
-    if (!hasPermission("minutes.manage") || !groupId) return;
+    if (!canManageMinutes || !groupId) return;
     const items = [...(minutesRecord.action_items_json || [])];
     const current = items[actionIndex];
     if (!current) return;
@@ -861,6 +887,15 @@ export default function MinutesPage() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
+      {/* Success notification */}
+      {actionSuccess && (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {actionSuccess}
+          <button onClick={() => setActionSuccess(null)} className="ml-auto text-emerald-600/70 hover:text-emerald-800 dark:hover:text-emerald-300">✕</button>
+        </div>
+      )}
+
       {/* Error notification */}
       {actionError && (
         <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -871,7 +906,7 @@ export default function MinutesPage() {
       )}
 
       {/* Read-only notice for members */}
-      {!hasPermission("minutes.manage") && (
+      {!canManageMinutes && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400" />
           <p className="text-sm text-blue-800 dark:text-blue-300">
@@ -929,7 +964,7 @@ export default function MinutesPage() {
           </div>
 
           {/* New Standalone Minutes button */}
-          {hasPermission("minutes.manage") && (
+          {canManageMinutes && (
             <Button
               variant="outline"
               className="w-full"
@@ -951,7 +986,7 @@ export default function MinutesPage() {
           {standaloneMinutes.length > 0 && (
             <div className="space-y-2">
               {standaloneMinutes
-                .filter((m) => hasPermission("minutes.manage") || m.status === "published")
+                .filter((m) => canManageMinutes || m.status === "published")
                 .map((m) => (
                 <Card
                   key={m.id}
@@ -1041,7 +1076,7 @@ export default function MinutesPage() {
                 <p className="text-muted-foreground">{t("selectEvent")}</p>
               </div>
             </Card>
-          ) : editMode && hasPermission("minutes.manage") ? (
+          ) : editMode && canManageMinutes ? (
             /* Editor mode */
             <Card>
               <CardHeader>
@@ -1393,14 +1428,23 @@ export default function MinutesPage() {
                           updateActionItem(i, "description", e.target.value)
                         }
                       />
-                      <Input
-                        placeholder={t("assignedTo")}
+                      <Select
                         value={a.assignee}
-                        onChange={(e) =>
-                          updateActionItem(i, "assignee", e.target.value)
+                        onValueChange={(v) =>
+                          updateActionItem(i, "assignee", v ?? "")
                         }
-                        className="sm:w-32"
-                      />
+                      >
+                        <SelectTrigger className="sm:w-40">
+                          <SelectValue placeholder={t("selectMember")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(members || []).map((m: Record<string, unknown>) => (
+                            <SelectItem key={m.id as string} value={m.id as string}>
+                              {getMemberName(m)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Input
                         type="date"
                         value={a.deadline}
@@ -1532,7 +1576,7 @@ export default function MinutesPage() {
                       </p>
                     )}
                   </div>
-                  {hasPermission("minutes.manage") && (
+                  {canManageMinutes && (
                     <div className="flex gap-2">
                       {selectedMinutes.status === "published" && (
                         <Button
@@ -1619,7 +1663,7 @@ export default function MinutesPage() {
                 </div>
 
                 {/* Cancel meeting button — admin only, event-linked, not already cancelled */}
-                {hasPermission("minutes.manage") && selectedEvent && selectedEvent.status !== "cancelled" && (
+                {canManageMinutes && selectedEvent && selectedEvent.status !== "cancelled" && (
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -1640,6 +1684,25 @@ export default function MinutesPage() {
                 )}
                 {selectedEvent?.status === "cancelled" && (
                   <Badge variant="destructive">{t("meetingCancelled")}</Badge>
+                )}
+
+                {/* File Attachment */}
+                {selectedMinutes.file_url && (
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/20 p-3">
+                    <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{t("uploadFile")}</p>
+                    </div>
+                    <a
+                      href={selectedMinutes.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:underline shrink-0"
+                    >
+                      {t("downloadPDF")}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
                 )}
 
                 {/* Content text */}
@@ -1735,7 +1798,7 @@ export default function MinutesPage() {
                                     {item.description}
                                   </td>
                                   <td className="py-2 pr-4">
-                                    {item.assignee}
+                                    {memberNameMap[item.assignee] || item.assignee || "\u2014"}
                                   </td>
                                   <td className="py-2 pr-4">
                                     {item.deadline
@@ -1782,7 +1845,7 @@ export default function MinutesPage() {
                 )}
               </CardContent>
             </Card>
-          ) : hasPermission("minutes.manage") ? (
+          ) : canManageMinutes ? (
             /* No minutes exist for this event - admin can create */
             <Card className="flex min-h-[300px] flex-col items-center justify-center">
               <div className="text-center">
@@ -1868,14 +1931,14 @@ export default function MinutesPage() {
                       <td className="py-2 pr-4 text-muted-foreground">
                         {entry.meetingTitle}
                       </td>
-                      <td className="py-2 pr-4">{entry.item.assignee}</td>
+                      <td className="py-2 pr-4">{memberNameMap[entry.item.assignee] || entry.item.assignee || "\u2014"}</td>
                       <td className="py-2 pr-4">
                         {entry.item.deadline
                           ? formatDate(entry.item.deadline)
                           : "\u2014"}
                       </td>
                       <td className="py-2">
-                        {hasPermission("minutes.manage") ? (
+                        {canManageMinutes ? (
                           <Button
                             variant="ghost"
                             size="sm"

@@ -111,7 +111,12 @@
     "skipToDashboard": "Aller au tableau de bord",
     "bannedTitle": "Impossible de rejoindre",
     "bannedDesc": "Votre adhésion à ce groupe a été révoquée. Contactez l'administrateur du groupe pour plus d'informations.",
-    "groupFull": "Ce groupe a atteint sa limite de membres. Contactez l'administrateur du groupe."
+    "groupFull": "Ce groupe a atteint sa limite de membres. Contactez l'administrateur du groupe.",
+    "addPhoneTitle": "Ajoutez votre numéro de téléphone",
+    "addPhoneDesc": "Recevez des notifications WhatsApp sur les réunions, cotisations et mises à jour du groupe.",
+    "savePhone": "Enregistrer",
+    "phoneSaved": "Téléphone enregistré !",
+    "skipPhone": "Passer pour le moment"
   },
   "checkin": {
     "verifying": "Vérification de votre adhésion...",

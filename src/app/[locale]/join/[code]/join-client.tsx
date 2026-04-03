@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, CheckCircle2, Loader2, AlertCircle, ArrowLeft, MessageCircle, ShieldAlert } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, CheckCircle2, Loader2, AlertCircle, ArrowLeft, MessageCircle, ShieldAlert, Phone, Check } from "lucide-react";
 
 interface GroupInfo {
   id: string;
@@ -28,6 +29,10 @@ export default function JoinClient() {
   const [status, setStatus] = useState<"loading" | "found" | "not_found" | "joining" | "joined" | "error" | "already_member" | "banned">("loading");
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const [existingPhone, setExistingPhone] = useState<string | null>(null);
 
   useEffect(() => {
     async function lookupCode() {
@@ -246,7 +251,43 @@ export default function JoinClient() {
     // Audit log (fire-and-forget)
     logJoinActivity(supabase, group.id);
 
+    // Check if user already has a phone number
+    try {
+      const supabase2 = createClient();
+      const { data: { user: currentUser } } = await supabase2.auth.getUser();
+      if (currentUser) {
+        const { data: prof } = await supabase2.from("profiles").select("phone").eq("id", currentUser.id).single();
+        if (prof?.phone) {
+          setExistingPhone(prof.phone);
+        }
+      }
+    } catch {
+      // Non-critical
+    }
+
     setStatus("joined");
+  }
+
+  async function handleSavePhone() {
+    if (!phoneInput.trim() || phoneSaving) return;
+    setPhoneSaving(true);
+    try {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+      const { error: phoneErr } = await supabase
+        .from("profiles")
+        .update({ phone: phoneInput.trim() })
+        .eq("id", authUser.id);
+      if (!phoneErr) {
+        setPhoneSaved(true);
+        setExistingPhone(phoneInput.trim());
+      }
+    } catch {
+      // Non-critical — they can add it later
+    } finally {
+      setPhoneSaving(false);
+    }
   }
 
   return (
@@ -315,6 +356,43 @@ export default function JoinClient() {
                 <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
               </div>
               <h2 className="text-lg font-semibold">{tj("welcomeTo", { group: group?.name || "" })}</h2>
+
+              {/* Phone prompt — only shown if user has no phone yet */}
+              {!existingPhone && !phoneSaved && (
+                <div className="w-full rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Phone className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{tj("addPhoneTitle")}</p>
+                  </div>
+                  <p className="text-xs text-amber-700/80 dark:text-amber-400/70 mb-3">{tj("addPhoneDesc")}</p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="tel"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      placeholder="+1 234 567 8900"
+                      className="flex-1 h-9 text-sm bg-white dark:bg-background"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSavePhone}
+                      disabled={!phoneInput.trim() || phoneSaving}
+                      className="h-9"
+                    >
+                      {phoneSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : tj("savePhone")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Phone saved confirmation */}
+              {phoneSaved && (
+                <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-4 w-4" />
+                  {tj("phoneSaved")}
+                </div>
+              )}
+
               <div className="flex flex-col gap-2 w-full mt-2">
                 <Button
                   variant="outline"

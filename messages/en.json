@@ -111,7 +111,12 @@
     "skipToDashboard": "Go to Dashboard",
     "bannedTitle": "Unable to Join",
     "bannedDesc": "Your membership in this group has been revoked. Contact the group administrator for more information.",
-    "groupFull": "This group has reached its member limit. Contact the group administrator."
+    "groupFull": "This group has reached its member limit. Contact the group administrator.",
+    "addPhoneTitle": "Add your phone number",
+    "addPhoneDesc": "Get WhatsApp notifications about meetings, dues, and group updates.",
+    "savePhone": "Save",
+    "phoneSaved": "Phone saved!",
+    "skipPhone": "Skip for now"
   },
   "checkin": {
     "verifying": "Verifying your membership...",

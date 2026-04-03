@@ -88,13 +88,15 @@ export async function getEnabledChannels(
   }
 
   try {
-    const { data } = await supabase
-      .from("profiles")
-      .select("notification_preferences")
-      .eq("id", userId)
-      .single();
+    // Use SECURITY DEFINER RPC to read ANY user's notification_preferences
+    // bypassing RLS (profiles SELECT policy is auth.uid() = id, so a
+    // client-side query for a DIFFERENT user returns 0 rows / PGRST116).
+    const { data, error } = await supabase
+      .rpc("get_notification_preferences", { p_user_id: userId });
 
-    const prefs = (data?.notification_preferences as Record<string, unknown>) || {};
+    if (error) throw error;
+
+    const prefs = (data as Record<string, unknown>) || {};
 
     // Global channel toggles
     const globalChannels: Record<NotificationChannel, boolean> = {

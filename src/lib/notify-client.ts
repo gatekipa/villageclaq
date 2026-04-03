@@ -244,7 +244,6 @@ export async function notifyBulkFromClient(
   if (!accessToken) return;
 
   // ─── Per-recipient external channels (with preference check) ──────────────
-  console.log(`[NOTIFY-BULK] Starting external sends for ${recipients.length} recipients, channels:`, JSON.stringify(params.channels));
   for (const r of recipients) {
     const to = r.phone || r.userId;
     if (!to) continue;
@@ -257,14 +256,11 @@ export async function notifyBulkFromClient(
     if (params.prefType) {
       try {
         const prefs = await getEnabledChannels(supabase, r.userId || null, params.prefType, params.groupId);
-        console.log(`[NOTIFY-BULK] prefs for ${r.userId?.slice(0,8)}:`, JSON.stringify(prefs));
         enabledEmail = enabledEmail && prefs.email;
         enabledSms = enabledSms && prefs.sms;
         enabledWhatsapp = enabledWhatsapp && prefs.whatsapp;
       } catch { /* fail-open */ }
     }
-
-    console.log(`[NOTIFY-BULK] ${r.userId?.slice(0,8)}: email=${enabledEmail} sms=${enabledSms} wa=${enabledWhatsapp} phone=${!!r.phone} to=${to?.slice(0,8)}`);
 
     if (enabledEmail && r.userId) {
       try {

@@ -3638,6 +3638,13 @@
     "addToGoogleCalendar": "Add to Google Calendar",
     "downloadIcs": "Download .ics File",
     "syncToCalendar": "Sync to Calendar",
+    "roles": {
+      "president": "President",
+      "secretary": "Secretary",
+      "treasurer": "Treasurer",
+      "elder": "Elder",
+      "member": "Member"
+    },
     "emailTemplates": {
       "paymentReceipt": "Payment Receipt",
       "paymentReminder": "Payment Reminder",

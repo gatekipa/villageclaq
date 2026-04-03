@@ -111,7 +111,7 @@ const adminSections: NavSection[] = [
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
       { key: "projects", href: "/dashboard/projects", icon: FolderKanban },
-      { key: "fines", href: "/dashboard/fines", icon: Gavel, anyPermission: ["disputes.manage", "finances.manage"] },
+      { key: "fines", href: "/dashboard/fines", icon: Gavel, anyPermission: ["disputes.manage", "finances.manage"], tierBadge: "Starter" },
     ],
   },
   {

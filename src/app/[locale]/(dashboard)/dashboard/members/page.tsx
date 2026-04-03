@@ -232,6 +232,8 @@ export default function MembersPage() {
   const { data: positions } = useGroupPositions();
   const { hasPermission, isOwner } = usePermissions();
   const canManageMembers = hasPermission("members.manage");
+  const { isAtLimit } = useSubscription();
+  const memberLimit = isAtLimit("members");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [standingFilter, setStandingFilter] = useState("all");
@@ -449,6 +451,11 @@ export default function MembersPage() {
   // ─── BUG 4 FIX: Bulk Invite ────────────────────────────────────────────────
   async function handleBulkInvite() {
     if (!groupId || !user || bulkInviteSending) return;
+    // Enforce member limit before sending invites
+    if (memberLimit.atLimit) {
+      setBulkInviteError(t("memberLimitReached"));
+      return;
+    }
     setBulkInviteSending(true);
     setBulkInviteError(null);
     setBulkInviteResult(null);
@@ -1064,6 +1071,11 @@ export default function MembersPage() {
 
   async function handleAddMember() {
     if (!newFullName.trim() || !groupId || !user) return;
+    // Enforce member limit before creating
+    if (memberLimit.atLimit) {
+      setAddError(t("memberLimitReached"));
+      return;
+    }
     setAddSaving(true);
     setAddError(null);
     try {
@@ -1338,15 +1350,15 @@ export default function MembersPage() {
                 {recalcAllLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                 {ts("recalculateAll")}
               </Button>
-              <Button variant="outline" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }}>
+              <Button variant="outline" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }} disabled={memberLimit.atLimit}>
                 <FileUp className="mr-2 h-4 w-4" />
                 {t("bulkImport")}
               </Button>
-              <Button variant="outline" onClick={() => { setBulkInviteEmails(""); setBulkInviteError(null); setBulkInviteResult(null); setBulkInviteOpen(true); }}>
+              <Button variant="outline" onClick={() => { setBulkInviteEmails(""); setBulkInviteError(null); setBulkInviteResult(null); setBulkInviteOpen(true); }} disabled={memberLimit.atLimit}>
                 <Send className="mr-2 h-4 w-4" />
                 {t("bulkInvite")}
               </Button>
-              <Button variant="outline" onClick={() => setAddDialogOpen(true)}>
+              <Button variant="outline" onClick={() => setAddDialogOpen(true)} disabled={memberLimit.atLimit}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 {t("addProxyMember")}
               </Button>

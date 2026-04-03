@@ -48,6 +48,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { createClient } from "@/lib/supabase/client";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -143,6 +145,8 @@ export default function FinesAdminPage() {
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
   const { groupId, currentGroup } = useGroup();
+  const { canUseFeature } = useSubscription();
+  const tt = useTranslations("tiers");
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
 
@@ -628,6 +632,17 @@ export default function FinesAdminPage() {
   }
 
   // ─── RENDER ────────────────────────────────────────────────────────────
+  if (!canUseFeature("fines")) {
+    return (
+      <FeatureLock
+        feature="fines"
+        featureName={t("title")}
+        description={tt("finesLockedDesc")}
+        variant="page"
+      />
+    );
+  }
+
   if (isLoading) return <RequirePermission anyOf={["disputes.manage", "finances.manage"]}><ListSkeleton rows={6} /></RequirePermission>;
   if (finesError) return <RequirePermission anyOf={["disputes.manage", "finances.manage"]}><ErrorState message={(finesError as Error).message} onRetry={() => refetch()} /></RequirePermission>;
 

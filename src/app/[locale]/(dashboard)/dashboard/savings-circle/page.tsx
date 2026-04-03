@@ -50,6 +50,8 @@ import {
 import { useSavingsCycles, useCreateSavingsCycle, useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -643,6 +645,8 @@ export default function SavingsCirclePage() {
   const { currentGroup, groupId, user } = useGroup();
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("savings.manage");
+  const { canUseFeature } = useSubscription();
+  const tt = useTranslations("tiers");
   const { data: cycles, isLoading, isError, error, refetch } = useSavingsCycles();
   const { data: membersRaw } = useMembers();
   const createCycle = useCreateSavingsCycle();
@@ -781,6 +785,17 @@ export default function SavingsCirclePage() {
       setCreateError((err as Error).message || tc("error"));
     }
   };
+
+  if (!canUseFeature("savingsCircle")) {
+    return (
+      <FeatureLock
+        feature="savingsCircle"
+        featureName={t("title")}
+        description={tt("savingsLockedDesc")}
+        variant="page"
+      />
+    );
+  }
 
   if (isLoading) return <CardGridSkeleton cards={2} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;

@@ -110,7 +110,8 @@
     "joinedShareText": "Je viens de rejoindre {group} sur VillageClaq ! Rejoignez-nous : {link}",
     "skipToDashboard": "Aller au tableau de bord",
     "bannedTitle": "Impossible de rejoindre",
-    "bannedDesc": "Votre adhésion à ce groupe a été révoquée. Contactez l'administrateur du groupe pour plus d'informations."
+    "bannedDesc": "Votre adhésion à ce groupe a été révoquée. Contactez l'administrateur du groupe pour plus d'informations.",
+    "groupFull": "Ce groupe a atteint sa limite de membres. Contactez l'administrateur du groupe."
   },
   "checkin": {
     "verifying": "Vérification de votre adhésion...",
@@ -811,6 +812,7 @@
     "deactivateMember": "Désactiver le membre",
     "activateMember": "Activer le membre",
     "autoEnrollWarning": "Membre ajouté, mais l'inscription automatique aux cotisations a échoué. Vous devrez peut-être l'inscrire manuellement.",
+    "memberLimitReached": "Votre groupe a atteint sa limite de membres. Veuillez mettre à jour votre abonnement pour ajouter plus de membres.",
     "removeMemberFailed": "Échec de la suppression du membre. Vous n'avez peut-être pas la permission d'effectuer cette action.",
     "cannotDemoteOwner": "Impossible de changer le rôle du propriétaire. Transférez d'abord la propriété.",
     "cannotRemoveOwner": "Impossible de supprimer le propriétaire du groupe. Transférez d'abord la propriété.",

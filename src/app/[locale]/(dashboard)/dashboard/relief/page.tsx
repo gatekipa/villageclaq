@@ -8,14 +8,29 @@ import { Heart, DollarSign, Clock, Shield, Plus } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { useReliefPlans } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { formatAmount } from "@/lib/currencies";
 
 
 export default function ReliefPage() {
   const t = useTranslations("relief");
+  const tt = useTranslations("tiers");
   const { currentGroup } = useGroup();
+  const { canUseFeature } = useSubscription();
   const { data: plans, isLoading, isError, error, refetch } = useReliefPlans();
+
+  if (!canUseFeature("reliefPlans")) {
+    return (
+      <FeatureLock
+        feature="reliefPlans"
+        featureName={t("title")}
+        description={tt("reliefLockedDesc")}
+        variant="page"
+      />
+    );
+  }
 
   if (isLoading) return <CardGridSkeleton cards={3} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;

@@ -62,6 +62,8 @@ import { useElections, useCreateElection, useMembers, useGroupPositions } from "
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { useSubscription } from "@/lib/hooks/use-subscription";
+import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
@@ -173,6 +175,8 @@ export default function ElectionsPage() {
   const tc = useTranslations("common");
   const { groupId, user, currentMembership } = useGroup();
   const { hasPermission } = usePermissions();
+  const { canUseFeature } = useSubscription();
+  const tt = useTranslations("tiers");
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -476,6 +480,17 @@ export default function ElectionsPage() {
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
+
+  if (!canUseFeature("elections")) {
+    return (
+      <FeatureLock
+        feature="elections"
+        featureName={t("title")}
+        description={tt("electionsLockedDesc")}
+        variant="page"
+      />
+    );
+  }
 
   if (isLoading) return <ListSkeleton rows={4} />;
   if (isError) return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;

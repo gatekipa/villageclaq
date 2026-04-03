@@ -123,6 +123,31 @@ export default function JoinClient() {
       return;
     }
 
+    // Check member limit before joining
+    try {
+      const { TIERS } = await import("@/lib/subscription-tiers");
+      const { data: sub } = await supabase
+        .from("group_subscriptions")
+        .select("tier")
+        .eq("group_id", group.id)
+        .maybeSingle();
+      const tier = (sub?.tier || "free") as keyof typeof TIERS;
+      const maxMembers = TIERS[tier]?.maxMembers ?? 15;
+      if (maxMembers !== -1) {
+        const { count } = await supabase
+          .from("memberships")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", group.id);
+        if ((count || 0) >= maxMembers) {
+          setError(tj("groupFull"));
+          setStatus("error");
+          return;
+        }
+      }
+    } catch {
+      // Best-effort — if subscription check fails, allow join
+    }
+
     // Fetch profile name to set display_name
     const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
     const displayName = profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || null;

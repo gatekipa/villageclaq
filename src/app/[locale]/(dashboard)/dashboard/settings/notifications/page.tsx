@@ -107,19 +107,19 @@ const NOTIFICATION_TYPES: TypeConfig[] = [
 const DEFAULT_CHANNELS: Record<ChannelKey, boolean> = {
   in_app: true,
   email: true,
-  sms: false,
-  whatsapp: false,
+  sms: true,
+  whatsapp: true,
   push: false,
 };
 
 const DEFAULT_TYPE_PREFS: Record<NotificationType, Record<ChannelKey, boolean>> = {
-  payment_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  event_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  minutes_published: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
-  relief_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  standing_changes: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
-  announcements: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  hosting_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  payment_reminders: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  event_reminders: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  minutes_published: { in_app: true, email: true, sms: true, whatsapp: true, push: false },
+  relief_updates: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  standing_changes: { in_app: true, email: true, sms: true, whatsapp: true, push: false },
+  announcements: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  hosting_reminders: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
   new_member: { in_app: true, email: false, sms: false, whatsapp: false, push: false },
 };
 

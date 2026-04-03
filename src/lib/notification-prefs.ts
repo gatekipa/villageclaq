@@ -26,27 +26,31 @@ export type NotificationTypeKey =
   | "fine_updates"
   | "subscription_updates";
 
-/** Default channel states when user has no saved preferences */
+/** Default channel states when user has no saved preferences.
+ *  SMS and WhatsApp default to ON (opt-OUT model) — this is a group
+ *  communication tool where admins expect members to receive messages
+ *  unless the member explicitly disables a channel in Settings. */
 const DEFAULT_CHANNELS: Record<NotificationChannel, boolean> = {
   in_app: true,
   email: true,
-  sms: false,
-  whatsapp: false,
+  sms: true,
+  whatsapp: true,
   push: false,
 };
 
-/** Default per-type channel matrix */
+/** Default per-type channel matrix — SMS/WhatsApp ON for all types
+ *  except new_member (low-priority, internal admin notification). */
 const DEFAULT_TYPE_PREFS: Record<NotificationTypeKey, Record<NotificationChannel, boolean>> = {
-  payment_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  event_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  minutes_published: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
-  relief_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  standing_changes: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
-  announcements: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  hosting_reminders: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  payment_reminders: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  event_reminders: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  minutes_published: { in_app: true, email: true, sms: true, whatsapp: true, push: false },
+  relief_updates: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  standing_changes: { in_app: true, email: true, sms: true, whatsapp: true, push: false },
+  announcements: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  hosting_reminders: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
   new_member: { in_app: true, email: false, sms: false, whatsapp: false, push: false },
-  loan_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
-  fine_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: true },
+  loan_updates: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  fine_updates: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
   subscription_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
 };
 

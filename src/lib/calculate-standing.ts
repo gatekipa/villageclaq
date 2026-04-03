@@ -88,8 +88,11 @@ export async function calculateStanding(
     if (eventDate > now) return false;
     return eventDate >= twelveMonthsAgo;
   });
-  const totalEvents = recentAttendances.length;
-  const presentCount = recentAttendances.filter(
+  // Exclude excused absences from the denominator — members should not
+  // be penalized for absences they were granted permission for
+  const nonExcused = recentAttendances.filter((a) => a.status !== "excused");
+  const totalEvents = nonExcused.length;
+  const presentCount = nonExcused.filter(
     (a) => a.status === "present" || a.status === "late"
   ).length;
   const rate = totalEvents > 0 ? Math.round((presentCount / totalEvents) * 100) : 100;

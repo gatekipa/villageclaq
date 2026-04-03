@@ -74,13 +74,14 @@ export default function MyAttendancePage() {
 
   const { data: records = [], isLoading, error, refetch } = useMyAttendanceRecords(membershipId);
 
-  // Compute stats
+  // Compute stats — exclude excused from denominator to match standing calculation
   const totalEvents = records.length;
   const presentCount = records.filter((r: Record<string, unknown>) => r.status === "present" || r.status === "late").length;
   const absentCount = records.filter((r: Record<string, unknown>) => r.status === "absent").length;
   const excusedCount = records.filter((r: Record<string, unknown>) => r.status === "excused").length;
   const lateCount = records.filter((r: Record<string, unknown>) => r.status === "late").length;
-  const attendanceRate = totalEvents > 0 ? Math.round((presentCount / totalEvents) * 100) : 0;
+  const nonExcusedCount = totalEvents - excusedCount;
+  const attendanceRate = nonExcusedCount > 0 ? Math.round((presentCount / nonExcusedCount) * 100) : 0;
 
   // Current streak (consecutive present/late from most recent)
   const currentStreak = useMemo(() => {
@@ -310,7 +311,7 @@ export default function MyAttendancePage() {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {(event?.title as string) || ""}
+                        {(locale === "fr" && event?.title_fr ? event.title_fr as string : event?.title as string) || ""}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {event?.starts_at ? new Date(event.starts_at as string).toLocaleDateString(getDateLocale(locale)) : ""}

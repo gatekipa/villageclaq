@@ -73,7 +73,7 @@ export default function MyInvitationsPage() {
       // and accepted invitations (user_id stamped on acceptance)
       const { data, error } = await supabase
         .from("invitations")
-        .select("*, group:groups!inner(id, name), claim_membership:memberships!invitations_claim_membership_id_fkey(id, display_name, role)")
+        .select("*, group:groups(id, name), claim_membership:memberships!invitations_claim_membership_id_fkey(id, display_name, role)")
         .or(`email.eq.${authUser.email},user_id.eq.${authUser.id}`)
         .order("created_at", { ascending: false });
 

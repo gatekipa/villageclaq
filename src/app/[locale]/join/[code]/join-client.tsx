@@ -33,7 +33,7 @@ export default function JoinClient() {
     async function lookupCode() {
       const supabase = createClient();
 
-      // Check if user is authenticated — RLS on join_codes requires it
+      // Check if user is authenticated
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
         // Redirect to signup with return URL so they come back after login
@@ -41,7 +41,26 @@ export default function JoinClient() {
         return;
       }
 
-      // Look up join code — case-insensitive via .ilike()
+      // Use SECURITY DEFINER RPC to look up join code + group info.
+      // This bypasses the groups RLS policy that blocks non-members from
+      // reading group data — the exact bug that caused "Invalid or Expired Link".
+      const { data: rpcResult, error: rpcErr } = await supabase
+        .rpc("lookup_join_code", { p_code: code });
+
+      if (!rpcErr && rpcResult) {
+        // RPC found the code and returned group info
+        setGroup({
+          id: rpcResult.group_id,
+          name: rpcResult.name,
+          description: rpcResult.description,
+          group_type: rpcResult.group_type,
+          member_count: rpcResult.member_count,
+        });
+        setStatus("found");
+        return;
+      }
+
+      // Fallback: try direct queries (works for existing members re-visiting)
       const { data: joinCode, error: codeErr } = await supabase
         .from("join_codes")
         .select("id, group_id, code, is_active, max_uses, use_count, expires_at")
@@ -66,7 +85,7 @@ export default function JoinClient() {
         return;
       }
 
-      // Get group info
+      // Get group info (only works if user is already a member due to RLS)
       const { data: groupData } = await supabase
         .from("groups")
         .select("id, name, description, group_type")
@@ -74,6 +93,8 @@ export default function JoinClient() {
         .single();
 
       if (!groupData) {
+        // Groups RLS blocked the query — non-member can't read group data.
+        // The RPC should have handled this; if we're here, the RPC isn't deployed yet.
         setStatus("not_found");
         return;
       }
@@ -106,6 +127,51 @@ export default function JoinClient() {
       return;
     }
 
+    // Fetch profile name to set display_name
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+    const displayName = profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || null;
+
+    // Try atomic RPC first — validates code, checks limits, creates membership
+    const { data: rpcResult, error: rpcErr } = await supabase
+      .rpc("join_group_via_code", { p_code: code, p_display_name: displayName });
+
+    if (!rpcErr && rpcResult) {
+      const result = typeof rpcResult === "string" ? JSON.parse(rpcResult) : rpcResult;
+
+      if (result.status === "success") {
+        // Fire-and-forget: notify admins
+        notifyAdmins(supabase, group, displayName, user.email);
+        // Fire-and-forget: audit log
+        logJoinActivity(supabase, group.id);
+        setStatus("joined");
+        return;
+      }
+
+      // Handle specific error codes from RPC
+      switch (result.code) {
+        case "banned":
+          setStatus("banned");
+          return;
+        case "already_member":
+          setStatus("already_member");
+          return;
+        case "group_full":
+          setError(tj("groupFull"));
+          setStatus("error");
+          return;
+        case "invalid_code":
+        case "expired_code":
+        case "max_uses_reached":
+          setStatus("not_found");
+          return;
+        default:
+          setError(t("error"));
+          setStatus("error");
+          return;
+      }
+    }
+
+    // Fallback: direct queries if RPC isn't deployed yet
     // Check if already a member (including banned)
     const { data: existing } = await supabase
       .from("memberships")
@@ -148,10 +214,6 @@ export default function JoinClient() {
       // Best-effort — if subscription check fails, allow join
     }
 
-    // Fetch profile name to set display_name
-    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
-    const displayName = profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || null;
-
     // Create membership
     const { error: joinErr } = await supabase.from("memberships").insert({
       user_id: user.id,
@@ -169,8 +231,6 @@ export default function JoinClient() {
     }
 
     // Atomically increment use count via RPC (non-critical)
-    // use_join_code validates + increments in one atomic operation.
-    // Falls back to the simpler increment RPC if the new one isn't deployed yet.
     try {
       await supabase.rpc("use_join_code", { p_code: code });
     } catch {
@@ -182,42 +242,9 @@ export default function JoinClient() {
     }
 
     // Notify group admins (fire-and-forget)
-    try {
-      const { data: admins } = await supabase
-        .from("memberships")
-        .select("user_id")
-        .eq("group_id", group.id)
-        .in("role", ["owner", "admin"]);
-
-      if (admins && admins.length > 0) {
-        const memberName = displayName || user.email || "New member";
-        const notifications = admins.map((admin) => ({
-          user_id: admin.user_id,
-          group_id: group.id,
-          type: "member_joined" as const,
-          title: `${memberName} joined ${group.name}`,
-          body: `A new member joined via join code.`,
-          is_read: false,
-          data: { link: "/dashboard/members" },
-        }));
-        await supabase.from("notifications").insert(notifications);
-      }
-    } catch {
-      // Non-critical
-    }
-
+    notifyAdmins(supabase, group, displayName, user.email);
     // Audit log (fire-and-forget)
-    try {
-      const { logActivity } = await import("@/lib/audit-log");
-      await logActivity(supabase, {
-        groupId: group.id,
-        action: "member.joined",
-        entityType: "membership",
-        description: `New member joined via join code`,
-      });
-    } catch {
-      // Non-critical
-    }
+    logJoinActivity(supabase, group.id);
 
     setStatus("joined");
   }
@@ -350,4 +377,48 @@ export default function JoinClient() {
       </Card>
     </div>
   );
+}
+
+// ── Fire-and-forget helpers ─────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function notifyAdmins(supabase: any, group: GroupInfo, memberName: string | null, email: string | undefined) {
+  try {
+    const { data: admins } = await supabase
+      .from("memberships")
+      .select("user_id")
+      .eq("group_id", group.id)
+      .in("role", ["owner", "admin"]);
+
+    if (admins && admins.length > 0) {
+      const name = memberName || email || "New member";
+      const notifications = admins.map((admin: { user_id: string }) => ({
+        user_id: admin.user_id,
+        group_id: group.id,
+        type: "member_joined" as const,
+        title: `${name} joined ${group.name}`,
+        body: `A new member joined via join code.`,
+        is_read: false,
+        data: { link: "/dashboard/members" },
+      }));
+      await supabase.from("notifications").insert(notifications);
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logJoinActivity(supabase: any, groupId: string) {
+  try {
+    const { logActivity } = await import("@/lib/audit-log");
+    await logActivity(supabase, {
+      groupId,
+      action: "member.joined",
+      entityType: "membership",
+      description: `New member joined via join code`,
+    });
+  } catch {
+    // Non-critical
+  }
 }

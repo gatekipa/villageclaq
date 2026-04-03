@@ -16,38 +16,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const supabase = await createClient();
 
-    // Look up the join code → group (uses service-level access for metadata, no RLS issue)
-    const { data: joinCode } = await supabase
-      .from("join_codes")
-      .select("group_id")
-      .ilike("code", code)
-      .eq("is_active", true)
-      .maybeSingle();
+    // Use SECURITY DEFINER RPC to look up join code + group info.
+    // Direct queries fail because generateMetadata runs with anon key (not
+    // service role) and the groups RLS policy blocks non-members.
+    const { data: rpcResult } = await supabase
+      .rpc("lookup_join_code", { p_code: code });
 
-    if (!joinCode) {
+    // Fallback title if RPC isn't deployed yet or code is invalid
+    if (!rpcResult) {
       return {
         title: locale === "fr" ? "Rejoindre un groupe | VillageClaq" : "Join a Group | VillageClaq",
       };
     }
 
-    const { data: group } = await supabase
-      .from("groups")
-      .select("name, description, group_type")
-      .eq("id", joinCode.group_id)
-      .single();
-
-    if (!group) {
-      return {
-        title: locale === "fr" ? "Rejoindre un groupe | VillageClaq" : "Join a Group | VillageClaq",
-      };
-    }
-
-    const { count } = await supabase
-      .from("memberships")
-      .select("id", { count: "exact", head: true })
-      .eq("group_id", joinCode.group_id);
-
-    const memberCount = count || 0;
+    const group = rpcResult;
+    const memberCount = group.member_count || 0;
     const title = locale === "fr"
       ? `Rejoindre ${group.name} sur VillageClaq`
       : `Join ${group.name} on VillageClaq`;

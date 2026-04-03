@@ -117,6 +117,30 @@ interface Member {
   profile?: { full_name?: string; avatar_url?: string; phone?: string } | null;
 }
 
+type SwapRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+interface SwapRequest {
+  id: string;
+  from_assignment_id: string;
+  to_assignment_id: string | null;
+  requested_by: string;
+  proposed_membership_id: string | null;
+  reason: string | null;
+  status: SwapRequestStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  created_at: string;
+  from_assignment?: {
+    id: string;
+    assigned_date: string;
+    status: string;
+    membership_id: string;
+    membership?: Record<string, unknown>;
+  };
+  proposed_member?: Record<string, unknown> | null;
+}
+
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const statusConfig: Record<HostingStatus, { color: string; icon: typeof CheckCircle2 }> = {
@@ -235,104 +259,75 @@ export default function HostingPage() {
   const [swapContext, setSwapContext] = useState<{ assignment: Assignment; rosterId: string } | null>(null);
   const [editRosterTarget, setEditRosterTarget] = useState<Roster | null>(null);
 
+  // Swap requests state
+  const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([]);
+  const [swapRequestsLoading, setSwapRequestsLoading] = useState(false);
+
   function showError(msg: string) { setActionError(msg); setTimeout(() => setActionError(null), 5000); }
   function showSuccess(msg: string) { setActionSuccess(msg); setTimeout(() => setActionSuccess(null), 3000); }
 
-  // FIX 2: Hosting Reminder — lazy eval on page load
-  useEffect(() => {
-    if (!groupId || !isAdmin) return;
-    const sendReminders = async () => {
-      try {
-        const supabase = createClient();
-        const today = new Date();
-        const reminderDate = new Date(today);
-        reminderDate.setDate(reminderDate.getDate() + 7);
-        const reminderDateStr = reminderDate.toISOString().slice(0, 10);
-        const todayStr = today.toISOString().slice(0, 10);
+  // ── Load swap requests for admin ──────────────────────────────────────
+  const loadSwapRequests = useCallback(async () => {
+    if (!groupId) return;
+    setSwapRequestsLoading(true);
+    try {
+      const supabase = createClient();
+      const { data: rosterIds } = await supabase
+        .from("hosting_rosters")
+        .select("id")
+        .eq("group_id", groupId);
+      if (!rosterIds || rosterIds.length === 0) { setSwapRequests([]); return; }
+      const ids = rosterIds.map((r) => r.id);
 
-        // Find upcoming assignments within the next 7 days
-        const { data: upcoming } = await supabase
-          .from("hosting_assignments")
-          .select("id, membership_id, assigned_date, roster_id, roster:hosting_rosters!inner(group_id)")
-          .eq("status", "upcoming")
-          .eq("hosting_rosters.group_id", groupId)
-          .gte("assigned_date", todayStr)
-          .lte("assigned_date", reminderDateStr);
-
-        if (!upcoming || upcoming.length === 0) return;
-
-        // Check which already have a reminder notification
-        for (const a of upcoming) {
-          // Resolve user_id from membership
-          const { data: memberData } = await supabase
-            .from("memberships")
-            .select("user_id")
-            .eq("id", a.membership_id)
-            .single();
-          const recipientUserId = memberData?.user_id as string | null;
-          if (!recipientUserId) continue; // skip proxy members
-
-          const { data: existing } = await supabase
-            .from("notifications")
+      const { data, error: err } = await supabase
+        .from("hosting_swap_requests")
+        .select(`
+          id,
+          from_assignment_id,
+          to_assignment_id,
+          requested_by,
+          proposed_membership_id,
+          reason,
+          status,
+          reviewed_by,
+          reviewed_at,
+          review_notes,
+          created_at,
+          from_assignment:hosting_assignments!hosting_swap_requests_from_assignment_id_fkey(
+            id, assigned_date, status, membership_id,
+            membership:memberships!inner(id, display_name, is_proxy, user_id, profiles:profiles!memberships_user_id_fkey(full_name))
+          ),
+          proposed_member:memberships!hosting_swap_requests_proposed_membership_id_fkey(
+            id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(full_name)
+          )
+        `)
+        .in("from_assignment_id", (
+          await supabase
+            .from("hosting_assignments")
             .select("id")
-            .eq("user_id", recipientUserId)
-            .eq("type", "system")
-            .eq("group_id", groupId)
-            .like("body", `%${a.assigned_date}%`)
-            .limit(1);
+            .in("roster_id", ids)
+        ).data?.map((a) => a.id) || [])
+        .order("created_at", { ascending: false });
 
-          if (existing && existing.length > 0) continue;
+      if (err) { console.warn("[SwapRequests]", err.message); return; }
+      setSwapRequests((data || []) as unknown as SwapRequest[]);
+    } catch {
+      // best-effort
+    } finally {
+      setSwapRequestsLoading(false);
+    }
+  }, [groupId]);
 
-          await supabase.from("notifications").insert({
-            group_id: groupId,
-            user_id: recipientUserId,
-            type: "system",
-            title: t("hostReminderNotifTitle"),
-            body: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
-            is_read: false,
-            data: { link: "/dashboard/hosting" },
-          });
+  useEffect(() => {
+    if (isAdmin && groupId) loadSwapRequests();
+  }, [isAdmin, groupId, loadSwapRequests]);
 
-          // WhatsApp + SMS + Email for hosting reminder (fire-and-forget via API routes)
-          try {
-            const { notifyFromClient } = await import("@/lib/notify-client");
-            const { data: memberData2 } = await supabase
-              .from("memberships")
-              .select("display_name, user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
-              .eq("id", a.membership_id)
-              .single();
-            const profile2 = (Array.isArray(memberData2?.profiles) ? memberData2?.profiles[0] : memberData2?.profiles) as Record<string, unknown> | null;
-            const phone2 = (profile2?.phone as string) || (memberData2?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
-            const memberName2 = getMemberName(memberData2 as Record<string, unknown>);
-            notifyFromClient({
-              recipientUserId: null,
-              recipientPhone: phone2,
-              groupId: groupId!,
-              title: t("hostReminderNotifTitle"),
-              body: t("hostReminderNotifBody", { date: formatDate(a.assigned_date, locale) }),
-              data: {
-                groupName: currentGroup?.name || "",
-                memberName: memberName2,
-                hostingDate: formatDate(a.assigned_date, locale),
-                date: formatDate(a.assigned_date, locale),
-                location: "",
-              },
-              emailTemplate: "notification",
-              smsTemplate: "hosting-reminder",
-              whatsappType: "hosting_reminder",
-              inAppType: "hosting_reminder",
-              locale,
-              channels: { email: true, sms: true, whatsapp: true },
-              prefType: "hosting_reminders",
-            }).catch(() => {});
-          } catch { /* best-effort */ }
-        }
-      } catch {
-        // best-effort — do not show error for background reminders
-      }
-    };
-    sendReminders();
-  }, [groupId, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pendingSwapCount = useMemo(
+    () => swapRequests.filter((r) => r.status === "pending").length,
+    [swapRequests],
+  );
+
+  // Hosting reminders are handled by /api/cron/hosting-reminders (runs daily at 07:00 UTC)
 
   // ── Stats ──────────────────────────────────────────────────────────────
 
@@ -685,11 +680,21 @@ export default function HostingPage() {
 
         {/* ── Top-Level Tabs ──────────────────────────────────────────── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className={cn("grid w-full", isAdmin ? "grid-cols-5" : "grid-cols-4")}>
             <TabsTrigger value="assignments">{t("allAssignments")}</TabsTrigger>
             <TabsTrigger value="myhosting">{t("myAssignment")}</TabsTrigger>
             <TabsTrigger value="history">{t("historyTab")}</TabsTrigger>
             <TabsTrigger value="compliance">{t("complianceTab")}</TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="swaprequests" className="relative">
+                {t("swapRequestsTab")}
+                {pendingSwapCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                    {pendingSwapCount}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* ═══ TAB: All Assignments ════════════════════════════════════ */}
@@ -810,8 +815,16 @@ export default function HostingPage() {
             <MyHostingTab
               allAssignments={allAssignments}
               currentMembershipId={currentMembership?.id || null}
+              activeMembers={activeMembers}
+              groupId={groupId}
+              userId={user?.id || null}
+              swapRequests={swapRequests}
+              onSwapRequestSubmitted={() => { loadSwapRequests(); invalidateRosters(); }}
               t={t}
               tc={tc}
+              locale={locale}
+              onError={showError}
+              onSuccessMsg={showSuccess}
             />
           </TabsContent>
 
@@ -840,6 +853,25 @@ export default function HostingPage() {
               onSuccessMsg={showSuccess}
             />
           </TabsContent>
+
+          {/* ═══ TAB: Swap Requests (Admin Only) ══════════════════════════ */}
+          {isAdmin && (
+            <TabsContent value="swaprequests" className="mt-4">
+              <SwapRequestsAdminTab
+                swapRequests={swapRequests}
+                loading={swapRequestsLoading}
+                groupId={groupId}
+                userId={user?.id || null}
+                activeMembers={activeMembers}
+                t={t}
+                tc={tc}
+                locale={locale}
+                onRefresh={() => { loadSwapRequests(); invalidateRosters(); }}
+                onError={showError}
+                onSuccessMsg={showSuccess}
+              />
+            </TabsContent>
+          )}
         </Tabs>
 
         {/* Dialogs */}
@@ -873,6 +905,7 @@ export default function HostingPage() {
           assignment={swapContext?.assignment || null}
           activeMembers={activeMembers}
           groupId={groupId}
+          userId={user?.id || null}
           t={t}
           tc={tc}
           locale={locale}
@@ -2174,17 +2207,44 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
 
 // ─── MY HOSTING TAB ───────────────────────────────────────────────────────
 
-function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
+function MyHostingTab({ allAssignments, currentMembershipId, activeMembers, groupId, userId, swapRequests, onSwapRequestSubmitted, t, tc, locale, onError, onSuccessMsg }: {
   allAssignments: Assignment[];
   currentMembershipId: string | null;
+  activeMembers: Member[];
+  groupId: string | null;
+  userId: string | null;
+  swapRequests: SwapRequest[];
+  onSwapRequestSubmitted: () => void;
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
+  locale: string;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
 }) {
-  const locale = useLocale();
+  const [requestSwapAssignment, setRequestSwapAssignment] = useState<Assignment | null>(null);
+
   const myAssignments = useMemo(
     () => allAssignments.filter((a) => a.membership_id === currentMembershipId).sort((a, b) => b.assigned_date.localeCompare(a.assigned_date)),
     [allAssignments, currentMembershipId]
   );
+
+  // Map assignment_id → swap request for this member
+  const mySwapRequestMap = useMemo(() => {
+    const map = new Map<string, SwapRequest>();
+    for (const sr of swapRequests) {
+      if (sr.from_assignment_id) {
+        const fromAssignment = sr.from_assignment as Record<string, unknown> | undefined;
+        const assignmentMembershipId = fromAssignment?.membership_id as string | undefined;
+        if (assignmentMembershipId === currentMembershipId) {
+          // Only keep the most recent request per assignment
+          if (!map.has(sr.from_assignment_id) || new Date(sr.created_at) > new Date(map.get(sr.from_assignment_id)!.created_at)) {
+            map.set(sr.from_assignment_id, sr);
+          }
+        }
+      }
+    }
+    return map;
+  }, [swapRequests, currentMembershipId]);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const nextAssignment = myAssignments.find((a) => a.status === "upcoming" && a.assigned_date >= todayStr);
@@ -2201,25 +2261,53 @@ function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
     return <p className="text-sm text-muted-foreground py-8 text-center">{t("noAssignments")}</p>;
   }
 
+  const swapRequestBadge = (sr: SwapRequest) => {
+    const colors: Record<SwapRequestStatus, string> = {
+      pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+      approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+      rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+      cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+    };
+    const labels: Record<SwapRequestStatus, string> = {
+      pending: t("swapStatusPending"),
+      approved: t("swapStatusApproved"),
+      rejected: t("swapStatusRejected"),
+      cancelled: t("swapStatusCancelled"),
+    };
+    return <Badge className={`text-[10px] ${colors[sr.status]}`}>{labels[sr.status]}</Badge>;
+  };
+
   return (
     <div className="space-y-6">
       {/* Next Assignment */}
       {nextAssignment ? (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-primary/10 p-3">
-                <Home className="h-6 w-6 text-primary" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-primary/10 p-3">
+                  <Home className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t("myAssignment")}</p>
+                  <p className="text-lg font-bold">{formatDate(nextAssignment.assigned_date, locale)}</p>
+                  {daysUntilNext !== null && daysUntilNext >= 0 && (
+                    <p className="text-xs text-primary font-medium">
+                      {daysUntilNext === 0 ? t("countdownToday") : t("countdown", { days: daysUntilNext })}
+                    </p>
+                  )}
+                  {mySwapRequestMap.has(nextAssignment.id) && (
+                    <div className="mt-1">{swapRequestBadge(mySwapRequestMap.get(nextAssignment.id)!)}</div>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t("myAssignment")}</p>
-                <p className="text-lg font-bold">{formatDate(nextAssignment.assigned_date, locale)}</p>
-                {daysUntilNext !== null && daysUntilNext >= 0 && (
-                  <p className="text-xs text-primary font-medium">
-                    {daysUntilNext === 0 ? t("countdownToday") : t("countdown", { days: daysUntilNext })}
-                  </p>
-                )}
-              </div>
+              {/* Request Swap button — only show if no pending request exists */}
+              {!mySwapRequestMap.has(nextAssignment.id) || mySwapRequestMap.get(nextAssignment.id)?.status === "rejected" || mySwapRequestMap.get(nextAssignment.id)?.status === "cancelled" ? (
+                <Button variant="outline" size="sm" onClick={() => setRequestSwapAssignment(nextAssignment)}>
+                  <ArrowRightLeft className="mr-1 h-3 w-3" />
+                  {t("swapRequest")}
+                </Button>
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -2256,14 +2344,33 @@ function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
                   swapped: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
                   exempted: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
                 };
+                const sr = mySwapRequestMap.get(a.id);
                 return (
                   <div key={a.id} className="flex items-center justify-between px-4 py-3">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium">{formatDate(a.assigned_date, locale)}</p>
+                      {sr && (
+                        <div className="flex items-center gap-2 mt-1">
+                          {swapRequestBadge(sr)}
+                          {sr.status === "rejected" && sr.review_notes && (
+                            <span className="text-[10px] text-muted-foreground">{sr.review_notes}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <Badge className={`text-xs ${statusColors[a.status] || ""}`}>
-                      {t(`hostingStatus.${a.status}` as "hostingStatus.upcoming")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`text-xs ${statusColors[a.status] || ""}`}>
+                        {t(`hostingStatus.${a.status}` as "hostingStatus.upcoming")}
+                      </Badge>
+                      {a.status === "upcoming" && (!sr || sr.status === "rejected" || sr.status === "cancelled") && (
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setRequestSwapAssignment(a)}>
+                          <ArrowRightLeft className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {sr?.status === "pending" && (
+                        <CancelSwapButton requestId={sr.id} t={t} onSuccess={onSwapRequestSubmitted} onError={onError} onSuccessMsg={onSuccessMsg} />
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -2271,6 +2378,23 @@ function MyHostingTab({ allAssignments, currentMembershipId, t, tc }: {
           )}
         </CardContent>
       </Card>
+
+      {/* Request Swap Dialog */}
+      <RequestSwapDialog
+        open={!!requestSwapAssignment}
+        onOpenChange={(v) => { if (!v) setRequestSwapAssignment(null); }}
+        assignment={requestSwapAssignment}
+        activeMembers={activeMembers}
+        currentMembershipId={currentMembershipId}
+        groupId={groupId}
+        userId={userId}
+        t={t}
+        tc={tc}
+        locale={locale}
+        onSuccess={() => { setRequestSwapAssignment(null); onSwapRequestSubmitted(); }}
+        onError={onError}
+        onSuccessMsg={onSuccessMsg}
+      />
     </div>
   );
 }
@@ -2401,6 +2525,7 @@ function SwapHostDialog({
   assignment,
   activeMembers,
   groupId,
+  userId,
   t,
   tc,
   locale,
@@ -2413,6 +2538,7 @@ function SwapHostDialog({
   assignment: Assignment | null;
   activeMembers: Member[];
   groupId: string | null;
+  userId: string | null;
   t: ReturnType<typeof useTranslations>;
   tc: ReturnType<typeof useTranslations>;
   locale: string;
@@ -2434,29 +2560,20 @@ function SwapHostDialog({
     try {
       const supabase = createClient();
 
-      // 1. Create new assignment for the replacement host
-      const { data: newAssignment, error: insertErr } = await supabase
-        .from("hosting_assignments")
-        .insert({
-          roster_id: assignment.roster_id,
-          membership_id: selectedMemberId,
-          assigned_date: assignment.assigned_date,
-          status: "upcoming",
-          order_index: assignment.order_index,
-        })
-        .select("id")
-        .single();
-      if (insertErr) throw insertErr;
-      if (!newAssignment) throw new Error("Failed to create replacement assignment");
+      // Atomic swap via RPC — both insert + update in one transaction
+      const { data: newAssignmentId, error: rpcErr } = await supabase.rpc(
+        "swap_hosting_assignment",
+        {
+          p_original_assignment_id: assignment.id,
+          p_replacement_membership_id: selectedMemberId,
+          p_replacement_date: assignment.assigned_date,
+          p_swapped_by: userId,
+        },
+      );
+      if (rpcErr) throw rpcErr;
+      if (!newAssignmentId) throw new Error("RPC returned no assignment ID");
 
-      // 2. Mark original as swapped, link to new
-      const { error: updateErr } = await supabase
-        .from("hosting_assignments")
-        .update({ status: "swapped", swapped_with: newAssignment.id })
-        .eq("id", assignment.id);
-      if (updateErr) throw updateErr;
-
-      // 3. Notify original host (resolve user_id)
+      // Notify original host
       const origMember = activeMembers.find((m) => m.id === assignment.membership_id);
       const origUserId = (origMember as unknown as Record<string, unknown>)?.user_id as string | null
         || ((origMember as unknown as Record<string, unknown>)?.profiles as Record<string, unknown>)?.id as string | null;
@@ -2468,11 +2585,11 @@ function SwapHostDialog({
           title: t("swapNotifTitle"),
           body: t("swapNotifBodyOld", { date: formatDate(assignment.assigned_date, locale) }),
           is_read: false,
-          data: { link: "/dashboard/hosting" },
+          data: { link: "/dashboard/my-hosting" },
         });
       }
 
-      // 4. Notify new host (resolve user_id)
+      // Notify new host
       const newMember = activeMembers.find((m) => m.id === selectedMemberId);
       const newUserId = (newMember as unknown as Record<string, unknown>)?.user_id as string | null
         || ((newMember as unknown as Record<string, unknown>)?.profiles as Record<string, unknown>)?.id as string | null;
@@ -2484,11 +2601,11 @@ function SwapHostDialog({
           title: t("swapNotifTitle"),
           body: t("swapNotifBodyNew", { date: formatDate(assignment.assigned_date, locale) }),
           is_read: false,
-          data: { link: "/dashboard/hosting" },
+          data: { link: "/dashboard/my-hosting" },
         });
       }
 
-      // 5. Audit log
+      // Audit log
       await logActivity(supabase, {
         groupId,
         action: "hosting.host_swapped",
@@ -2498,7 +2615,7 @@ function SwapHostDialog({
         metadata: {
           original_membership_id: assignment.membership_id,
           new_membership_id: selectedMemberId,
-          new_assignment_id: newAssignment.id,
+          new_assignment_id: newAssignmentId,
         },
       });
 
@@ -2731,5 +2848,612 @@ function EditRosterDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Cancel Swap Request Button ──────────────────────────────────────────
+
+function CancelSwapButton({ requestId, t, onSuccess, onError, onSuccessMsg }: {
+  requestId: string;
+  t: ReturnType<typeof useTranslations>;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
+}) {
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancel = async () => {
+    if (cancelling) return;
+    setCancelling(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("hosting_swap_requests")
+        .update({ status: "cancelled" })
+        .eq("id", requestId);
+      if (error) throw error;
+      onSuccess();
+      onSuccessMsg(t("swapRequestCancelled"));
+    } catch {
+      onError(t("swapRequestCancelFailed"));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  return (
+    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-destructive" onClick={handleCancel} disabled={cancelling}>
+      {cancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+    </Button>
+  );
+}
+
+// ─── Request Swap Dialog (Member Self-Service) ───────────────────────────
+
+function RequestSwapDialog({
+  open,
+  onOpenChange,
+  assignment,
+  activeMembers,
+  currentMembershipId,
+  groupId,
+  userId,
+  t,
+  tc,
+  locale,
+  onSuccess,
+  onError,
+  onSuccessMsg,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  assignment: Assignment | null;
+  activeMembers: Member[];
+  currentMembershipId: string | null;
+  groupId: string | null;
+  userId: string | null;
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+  locale: string;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
+}) {
+  const [proposedMemberId, setProposedMemberId] = useState("");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const availableMembers = useMemo(() => {
+    return activeMembers.filter((m) => m.id !== currentMembershipId);
+  }, [activeMembers, currentMembershipId]);
+
+  const handleSubmit = async () => {
+    if (!assignment || !proposedMemberId || !reason.trim() || !groupId || !userId || submitting) return;
+    setSubmitting(true);
+    try {
+      const supabase = createClient();
+
+      // Insert swap request
+      const { error: insertErr } = await supabase
+        .from("hosting_swap_requests")
+        .insert({
+          from_assignment_id: assignment.id,
+          to_assignment_id: null,
+          requested_by: userId,
+          proposed_membership_id: proposedMemberId,
+          reason: reason.trim(),
+          status: "pending",
+        });
+      if (insertErr) throw insertErr;
+
+      // Notify group admins (in-app)
+      const requesterName = getMemberName(
+        activeMembers.find((m) => m.id === currentMembershipId) as unknown as Record<string, unknown>
+      );
+      const { data: adminMembers } = await supabase
+        .from("memberships")
+        .select("user_id")
+        .eq("group_id", groupId)
+        .in("role", ["admin", "owner"])
+        .not("user_id", "is", null);
+
+      if (adminMembers && adminMembers.length > 0) {
+        const adminNotifications = adminMembers
+          .filter((m) => m.user_id !== userId)
+          .map((m) => ({
+            user_id: m.user_id!,
+            group_id: groupId,
+            type: "system" as const,
+            title: t("swapRequestNotifTitle"),
+            body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: formatDate(assignment.assigned_date, locale) }),
+            is_read: false,
+            data: { link: "/dashboard/hosting" },
+          }));
+        if (adminNotifications.length > 0) {
+          await supabase.from("notifications").insert(adminNotifications);
+        }
+      }
+
+      // Notify proposed replacement member
+      const proposedMember = activeMembers.find((m) => m.id === proposedMemberId);
+      const proposedUserId = (proposedMember as unknown as Record<string, unknown>)?.user_id as string | null;
+      if (proposedUserId) {
+        await supabase.from("notifications").insert({
+          user_id: proposedUserId,
+          group_id: groupId,
+          type: "system",
+          title: t("swapRequestNotifTitle"),
+          body: t("swapRequestNotifBodyTarget", { memberName: requesterName, date: formatDate(assignment.assigned_date, locale) }),
+          is_read: false,
+          data: { link: "/dashboard/my-hosting" },
+        });
+      }
+
+      // Notify via external channels (fire-and-forget)
+      try {
+        const { notifyFromClient } = await import("@/lib/notify-client");
+        if (adminMembers) {
+          for (const admin of adminMembers.filter((m) => m.user_id !== userId)) {
+            notifyFromClient({
+              recipientUserId: admin.user_id,
+              groupId,
+              title: t("swapRequestNotifTitle"),
+              body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: formatDate(assignment.assigned_date, locale) }),
+              data: { groupName: "", memberName: requesterName, date: formatDate(assignment.assigned_date, locale) },
+              emailTemplate: "notification",
+              smsTemplate: "hosting-reminder",
+              whatsappType: "hosting_reminder",
+              inAppType: "system",
+              locale,
+              channels: { email: true, sms: true, whatsapp: true },
+              prefType: "hosting_reminders",
+            }).catch(() => {});
+          }
+        }
+      } catch { /* best-effort */ }
+
+      onOpenChange(false);
+      setProposedMemberId("");
+      setReason("");
+      onSuccess();
+      onSuccessMsg(t("swapRequestSubmitted"));
+    } catch {
+      onError(t("swapRequestSubmitFailed"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setProposedMemberId(""); setReason(""); } }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("requestSwapTitle")}</DialogTitle>
+        </DialogHeader>
+        {assignment && (
+          <div className="text-sm text-muted-foreground">
+            <p>{t("requestSwapDesc")}</p>
+            <p className="font-medium text-foreground mt-1">{formatDate(assignment.assigned_date, locale)}</p>
+          </div>
+        )}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("proposedReplacement")}</Label>
+            <Select value={proposedMemberId} onValueChange={(v) => setProposedMemberId(v ?? "")}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("selectNewHost")} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMembers.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {getMemberName(m as unknown as Record<string, unknown>)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{t("swapRequestReason")} *</Label>
+            <textarea
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={t("swapRequestReasonPlaceholder")}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onOpenChange(false); setProposedMemberId(""); setReason(""); }}>
+            {tc("cancel")}
+          </Button>
+          <Button onClick={handleSubmit} disabled={submitting || !proposedMemberId || !reason.trim()}>
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("swapRequest")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Swap Requests Admin Tab ─────────────────────────────────────────────
+
+function SwapRequestsAdminTab({
+  swapRequests,
+  loading,
+  groupId,
+  userId,
+  activeMembers,
+  t,
+  tc,
+  locale,
+  onRefresh,
+  onError,
+  onSuccessMsg,
+}: {
+  swapRequests: SwapRequest[];
+  loading: boolean;
+  groupId: string | null;
+  userId: string | null;
+  activeMembers: Member[];
+  t: ReturnType<typeof useTranslations>;
+  tc: ReturnType<typeof useTranslations>;
+  locale: string;
+  onRefresh: () => void;
+  onError: (msg: string) => void;
+  onSuccessMsg: (msg: string) => void;
+}) {
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejectDialogRequest, setRejectDialogRequest] = useState<SwapRequest | null>(null);
+  const [rejectNotes, setRejectNotes] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  const pendingRequests = useMemo(
+    () => swapRequests.filter((r) => r.status === "pending"),
+    [swapRequests],
+  );
+  const resolvedRequests = useMemo(
+    () => swapRequests.filter((r) => r.status !== "pending").slice(0, 20),
+    [swapRequests],
+  );
+
+  const getRequestMemberName = (sr: SwapRequest, field: "from_assignment" | "proposed_member") => {
+    if (field === "from_assignment") {
+      const fa = sr.from_assignment;
+      if (!fa?.membership) return "—";
+      return getMemberName(fa.membership as Record<string, unknown>);
+    }
+    if (field === "proposed_member" && sr.proposed_member) {
+      return getMemberName(sr.proposed_member as Record<string, unknown>);
+    }
+    return "—";
+  };
+
+  const handleApprove = async (sr: SwapRequest) => {
+    if (!groupId || !userId || !sr.proposed_membership_id || processingId) return;
+    setProcessingId(sr.id);
+    try {
+      const supabase = createClient();
+
+      // 1. Execute atomic swap via RPC
+      const { data: newAssignmentId, error: rpcErr } = await supabase.rpc(
+        "swap_hosting_assignment",
+        {
+          p_original_assignment_id: sr.from_assignment_id,
+          p_replacement_membership_id: sr.proposed_membership_id,
+          p_replacement_date: sr.from_assignment?.assigned_date || null,
+          p_swapped_by: userId,
+        },
+      );
+      if (rpcErr) throw rpcErr;
+
+      // 2. Update swap request status
+      const { error: updateErr } = await supabase
+        .from("hosting_swap_requests")
+        .update({
+          status: "approved",
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+          to_assignment_id: newAssignmentId,
+        })
+        .eq("id", sr.id);
+      if (updateErr) throw updateErr;
+
+      // 3. Notify requester
+      const requesterUserId = sr.requested_by;
+      const assignedDate = sr.from_assignment?.assigned_date || "";
+      if (requesterUserId) {
+        await supabase.from("notifications").insert({
+          user_id: requesterUserId,
+          group_id: groupId,
+          type: "system",
+          title: t("swapApprovedNotifTitle"),
+          body: t("swapApprovedNotifBody", { date: formatDate(assignedDate, locale) }),
+          is_read: false,
+          data: { link: "/dashboard/my-hosting" },
+        });
+      }
+
+      // 4. Notify replacement member
+      const proposedMember = activeMembers.find((m) => m.id === sr.proposed_membership_id);
+      const proposedUserId = (proposedMember as unknown as Record<string, unknown>)?.user_id as string | null;
+      if (proposedUserId) {
+        await supabase.from("notifications").insert({
+          user_id: proposedUserId,
+          group_id: groupId,
+          type: "system",
+          title: t("swapApprovedNotifTitle"),
+          body: t("swapApprovedTargetNotifBody", { date: formatDate(assignedDate, locale) }),
+          is_read: false,
+          data: { link: "/dashboard/my-hosting" },
+        });
+      }
+
+      // 5. Audit log
+      await logActivity(supabase, {
+        groupId,
+        action: "hosting.swap_request_approved",
+        entityType: "hosting_swap_request",
+        entityId: sr.id,
+        description: `Approved hosting swap request for ${assignedDate}`,
+        metadata: {
+          original_assignment_id: sr.from_assignment_id,
+          new_assignment_id: newAssignmentId,
+          proposed_membership_id: sr.proposed_membership_id,
+        },
+      });
+
+      // 6. Notify via external channels (fire-and-forget)
+      try {
+        const { notifyFromClient } = await import("@/lib/notify-client");
+        if (requesterUserId) {
+          notifyFromClient({
+            recipientUserId: requesterUserId,
+            groupId,
+            title: t("swapApprovedNotifTitle"),
+            body: t("swapApprovedNotifBody", { date: formatDate(assignedDate, locale) }),
+            data: { date: formatDate(assignedDate, locale), groupName: "" },
+            emailTemplate: "notification",
+            smsTemplate: "hosting-reminder",
+            whatsappType: "hosting_reminder",
+            inAppType: "system",
+            locale,
+            channels: { email: true, sms: true, whatsapp: true },
+            prefType: "hosting_reminders",
+          }).catch(() => {});
+        }
+      } catch { /* best-effort */ }
+
+      onRefresh();
+      onSuccessMsg(t("swapRequestApproved"));
+    } catch {
+      onError(t("swapRequestApproveFailed"));
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectDialogRequest || !groupId || !userId || rejecting || !rejectNotes.trim()) return;
+    setRejecting(true);
+    const sr = rejectDialogRequest;
+    try {
+      const supabase = createClient();
+
+      const { error } = await supabase
+        .from("hosting_swap_requests")
+        .update({
+          status: "rejected",
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+          review_notes: rejectNotes.trim(),
+        })
+        .eq("id", sr.id);
+      if (error) throw error;
+
+      // Notify requester
+      const requesterUserId = sr.requested_by;
+      const assignedDate = sr.from_assignment?.assigned_date || "";
+      if (requesterUserId) {
+        await supabase.from("notifications").insert({
+          user_id: requesterUserId,
+          group_id: groupId,
+          type: "system",
+          title: t("swapRejectedNotifTitle"),
+          body: t("swapRejectedNotifBody", { date: formatDate(assignedDate, locale), reason: rejectNotes.trim() }),
+          is_read: false,
+          data: { link: "/dashboard/my-hosting" },
+        });
+      }
+
+      // Notify via external channels (fire-and-forget)
+      try {
+        const { notifyFromClient } = await import("@/lib/notify-client");
+        if (requesterUserId) {
+          notifyFromClient({
+            recipientUserId: requesterUserId,
+            groupId,
+            title: t("swapRejectedNotifTitle"),
+            body: t("swapRejectedNotifBody", { date: formatDate(assignedDate, locale), reason: rejectNotes.trim() }),
+            data: { date: formatDate(assignedDate, locale), reason: rejectNotes.trim(), groupName: "" },
+            emailTemplate: "notification",
+            inAppType: "system",
+            locale,
+            channels: { email: true, sms: true, whatsapp: true },
+            prefType: "hosting_reminders",
+          }).catch(() => {});
+        }
+      } catch { /* best-effort */ }
+
+      // Audit log
+      await logActivity(supabase, {
+        groupId,
+        action: "hosting.swap_request_rejected",
+        entityType: "hosting_swap_request",
+        entityId: sr.id,
+        description: `Rejected hosting swap request for ${assignedDate}`,
+        metadata: { reason: rejectNotes.trim() },
+      });
+
+      setRejectDialogRequest(null);
+      setRejectNotes("");
+      onRefresh();
+      onSuccessMsg(t("swapRequestRejected"));
+    } catch {
+      onError(t("swapRequestRejectFailed"));
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  if (loading) {
+    return <ListSkeleton rows={3} />;
+  }
+
+  const statusBadgeColors: Record<SwapRequestStatus, string> = {
+    pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+    approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+    rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+    cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Pending Requests */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-amber-500" />
+            {t("pendingSwapRequests")} ({pendingRequests.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {pendingRequests.length === 0 ? (
+            <div className="py-8 text-center">
+              <ArrowRightLeft className="mx-auto h-8 w-8 text-muted-foreground/30" />
+              <p className="mt-2 text-sm text-muted-foreground">{t("noSwapRequests")}</p>
+              <p className="text-xs text-muted-foreground">{t("noSwapRequestsDesc")}</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {pendingRequests.map((sr) => {
+                const requesterName = getRequestMemberName(sr, "from_assignment");
+                const proposedName = getRequestMemberName(sr, "proposed_member");
+                const assignedDate = sr.from_assignment?.assigned_date || "";
+                return (
+                  <div key={sr.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">{requesterName}</span>
+                          <span className="text-xs text-muted-foreground">→</span>
+                          <span className="text-sm font-medium text-primary">{proposedName}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatDate(assignedDate, locale)}
+                        </p>
+                        {sr.reason && (
+                          <p className="text-xs text-muted-foreground mt-1 italic">&ldquo;{sr.reason}&rdquo;</p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {t("requestDate")}: {new Date(sr.created_at).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 text-xs"
+                          onClick={() => handleApprove(sr)}
+                          disabled={processingId === sr.id}
+                        >
+                          {processingId === sr.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="mr-1 h-3 w-3" />}
+                          {t("approve")}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-xs"
+                          onClick={() => { setRejectDialogRequest(sr); setRejectNotes(""); }}
+                          disabled={!!processingId}
+                        >
+                          <XCircle className="mr-1 h-3 w-3" />
+                          {t("reject")}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Resolved Requests (recent) */}
+      {resolvedRequests.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{t("hostingHistory")}</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {resolvedRequests.map((sr) => {
+                const requesterName = getRequestMemberName(sr, "from_assignment");
+                const proposedName = getRequestMemberName(sr, "proposed_member");
+                const assignedDate = sr.from_assignment?.assigned_date || "";
+                return (
+                  <div key={sr.id} className="px-4 py-2 flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1 text-xs">
+                        <span className="font-medium">{requesterName}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="font-medium">{proposedName}</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{formatDate(assignedDate, locale)}</p>
+                      {sr.review_notes && (
+                        <p className="text-[10px] text-muted-foreground italic">{sr.review_notes}</p>
+                      )}
+                    </div>
+                    <Badge className={`text-[10px] ${statusBadgeColors[sr.status]}`}>
+                      {sr.status === "approved" ? t("swapStatusApproved") : sr.status === "rejected" ? t("swapStatusRejected") : t("swapStatusCancelled")}
+                    </Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reject Dialog */}
+      <Dialog open={!!rejectDialogRequest} onOpenChange={(v) => { if (!v) { setRejectDialogRequest(null); setRejectNotes(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("reject")} — {t("swapRequest")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>{t("rejectReason")} *</Label>
+            <textarea
+              className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              rows={3}
+              value={rejectNotes}
+              onChange={(e) => setRejectNotes(e.target.value)}
+              placeholder={t("rejectReasonPlaceholder")}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRejectDialogRequest(null); setRejectNotes(""); }}>
+              {tc("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleReject} disabled={rejecting || !rejectNotes.trim()}>
+              {rejecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("reject")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

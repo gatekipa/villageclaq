@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/drain-notification-queue",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/hosting-reminders",
+      "schedule": "0 7 * * *"
     }
   ]
 }

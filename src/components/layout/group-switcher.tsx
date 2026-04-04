@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronsUpDown, Check, Plus, LogOut, Loader2, UserPlus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { JoinByCodeDialog } from "@/components/ui/join-by-code-dialog";
 import { Link, useRouter } from "@/i18n/routing";
 import {
@@ -69,6 +70,9 @@ export function GroupSwitcher() {
           </div>
         )}
         <span className="truncate text-sm font-medium">{currentGroup.name}</span>
+        {(currentMembership as unknown as Record<string, unknown>)?.membership_status === "pending_approval" && (
+          <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+        )}
         <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[260px]">
@@ -107,6 +111,11 @@ export function GroupSwitcher() {
               </div>
               {isCurrent && (
                 <Check className="ml-auto h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              )}
+              {(m as unknown as Record<string, unknown>).membership_status === "pending_approval" && (
+                <Badge variant="outline" className="ml-auto shrink-0 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-400 text-[10px] px-1.5 py-0">
+                  {tCommon("pending")}
+                </Badge>
               )}
             </DropdownMenuItem>
           );

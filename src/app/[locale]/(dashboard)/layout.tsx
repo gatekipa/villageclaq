@@ -4,12 +4,14 @@ import { useState, useEffect, Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
-import { GroupProvider, useGroup } from "@/lib/group-context";
+import { GroupProvider, useGroup, type GroupMembership } from "@/lib/group-context";
 import { useRouter, usePathname } from "@/i18n/routing";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
 import { SupportWidget } from "@/components/ui/support-widget";
 import { createClient } from "@/lib/supabase/client";
+import { Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /**
  * Pages that invited users (with 0 memberships) should be able to access
@@ -21,8 +23,65 @@ const INVITE_SAFE_PATHS = [
   "/dashboard/onboarding",
 ];
 
+function PendingApprovalScreen({
+  currentMembership,
+  memberships,
+}: {
+  currentMembership: GroupMembership;
+  memberships: GroupMembership[];
+}) {
+  const tj = useTranslations("join");
+  const tCommon = useTranslations("common");
+  const router = useRouter();
+  const supabase = createClient();
+  const activeMemberships = memberships.filter(
+    (m) => m.membership_status !== "pending_approval"
+  );
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 p-4">
+      <img src="/logo-mark.svg" alt="VillageClaq" className="mb-8 h-10 w-10" />
+      <div className="w-full max-w-sm rounded-2xl border bg-card p-8 shadow-sm text-center space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30 mx-auto">
+          <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold">{tj("pendingApprovalInterstitialTitle")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {tj("pendingApprovalInterstitialDesc", { group: currentMembership.group.name })}
+          </p>
+        </div>
+        {activeMemberships.length > 0 && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              router.push("/dashboard");
+              // Force group context to pick a non-pending membership
+              setTimeout(() => window.location.reload(), 100);
+            }}
+          >
+            {tj("pendingApprovalInterstitialSwitch")}
+          </Button>
+        )}
+        <button
+          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          onClick={handleSignOut}
+        >
+          {tCommon("signOut")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DashboardGuard({ children }: { children: React.ReactNode }) {
-  const { loading, memberships, user } = useGroup();
+  const { loading, memberships, user, currentMembership } = useGroup();
   const router = useRouter();
   const pathname = usePathname();
   const tCommon = useTranslations("common");
@@ -114,6 +173,16 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
           <p className="text-sm text-muted-foreground animate-pulse">{tCommon("loading")}</p>
         </div>
       </div>
+    );
+  }
+
+  // Pending approval interstitial — user joined but hasn't been approved yet
+  if (!loading && currentMembership?.membership_status === "pending_approval") {
+    return (
+      <PendingApprovalScreen
+        currentMembership={currentMembership}
+        memberships={memberships}
+      />
     );
   }
 

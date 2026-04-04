@@ -117,6 +117,12 @@ export default function GroupSettingsPage() {
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState<string | null>(null);
 
+  // Join approval state
+  const [requireJoinApproval, setRequireJoinApproval] = useState(false);
+  const [savingApproval, setSavingApproval] = useState(false);
+  const [approvalSaveError, setApprovalSaveError] = useState<string | null>(null);
+  const [approvalSaveSuccess, setApprovalSaveSuccess] = useState(false);
+
   // Danger zone
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
@@ -144,6 +150,9 @@ export default function GroupSettingsPage() {
       if (sc) {
         setSharingControls({ ...sharingDefaults, ...sc });
       }
+
+      // Load join approval setting
+      setRequireJoinApproval(!!((settings as Record<string, unknown>).require_join_approval));
     }
   }, [group]);
 
@@ -230,6 +239,43 @@ export default function GroupSettingsPage() {
       setSharingSaveError((err as Error).message);
     } finally {
       setSavingSharing(false);
+    }
+  }
+
+  async function handleSaveApproval(newValue: boolean) {
+    if (!groupId) return;
+    setSavingApproval(true);
+    setApprovalSaveError(null);
+    setApprovalSaveSuccess(false);
+    try {
+      const supabase = createClient();
+      const existingSettings = (groupData?.settings as Record<string, unknown>) || {};
+      const mergedSettings = { ...existingSettings, require_join_approval: newValue };
+      const { error: updateError } = await supabase
+        .from("groups")
+        .update({ settings: mergedSettings })
+        .eq("id", groupId);
+      if (updateError) throw updateError;
+
+      // If turning OFF approval, auto-approve all pending members
+      if (!newValue) {
+        await supabase
+          .from("memberships")
+          .update({ membership_status: "active" })
+          .eq("group_id", groupId)
+          .eq("membership_status", "pending_approval");
+      }
+
+      setRequireJoinApproval(newValue);
+      await queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] });
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+      setApprovalSaveSuccess(true);
+      setTimeout(() => setApprovalSaveSuccess(false), 3000);
+    } catch (err) {
+      setApprovalSaveError((err as Error).message);
+      setRequireJoinApproval(!newValue);
+    } finally {
+      setSavingApproval(false);
     }
   }
 
@@ -541,6 +587,33 @@ export default function GroupSettingsPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">—</p>
               )}
+            </CardContent>
+          </Card>
+          {/* Access Control Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Shield className="h-4 w-4" />
+                {t("accessControlTitle")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">{t("accessControlDesc")}</p>
+              <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">{t("requireJoinApproval")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("requireJoinApprovalDesc")}</p>
+                </div>
+                <Switch
+                  checked={requireJoinApproval}
+                  onCheckedChange={(checked: boolean) => {
+                    if (canManageSettings && !savingApproval) handleSaveApproval(checked);
+                  }}
+                  disabled={!canManageSettings || savingApproval}
+                />
+              </div>
+              {approvalSaveError && <p className="text-sm text-destructive">{approvalSaveError}</p>}
+              {approvalSaveSuccess && <p className="text-sm text-emerald-600 dark:text-emerald-400">{t("saved")}</p>}
             </CardContent>
           </Card>
         </TabsContent>

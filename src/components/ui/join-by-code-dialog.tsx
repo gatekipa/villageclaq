@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Users, Loader2, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Users, Loader2, AlertCircle, CheckCircle2, ArrowRight, Clock } from "lucide-react";
 
 interface GroupPreview {
   group_id: string;
@@ -24,7 +24,7 @@ interface GroupPreview {
   member_count: number;
 }
 
-type DialogState = "idle" | "looking" | "found" | "joining" | "success" | "error";
+type DialogState = "idle" | "looking" | "found" | "joining" | "success" | "error" | "pending";
 
 interface JoinByCodeDialogProps {
   open: boolean;
@@ -123,8 +123,18 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
         return;
       }
 
+      if (result.status === "pending_approval") {
+        notifyAdminsOfPendingJoin(supabase, group, displayName, user.email);
+        logJoinActivity(supabase, group.group_id);
+        setState("pending");
+        return;
+      }
+
       // Handle specific RPC error codes
       switch (result.code) {
+        case "already_pending":
+          setState("pending");
+          return;
         case "already_member":
           setState("error");
           setError(t("alreadyMemberCode"));
@@ -244,7 +254,7 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
     }
   }
 
-  const isLocked = state === "looking" || state === "joining" || state === "success";
+  const isLocked = state === "looking" || state === "joining" || state === "success" || state === "pending";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -257,8 +267,8 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
         </DialogHeader>
 
         <div className="space-y-4 pt-1">
-          {/* Code input row — always visible except on success */}
-          {state !== "success" && (
+          {/* Code input row — always visible except on success or pending */}
+          {state !== "success" && state !== "pending" && (
             <div className="space-y-1.5">
               <Label htmlFor="join-code-input">{t("codeInputLabel")}</Label>
               <div className="flex gap-2">
@@ -338,6 +348,20 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
             </div>
           )}
 
+          {/* Pending approval state */}
+          {state === "pending" && group && (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <Clock className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold">{t("pendingApprovalTitle")}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{t("pendingApprovalDesc", { group: group.name })}</p>
+              </div>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{tCommon("close")}</Button>
+            </div>
+          )}
+
           {/* Success state */}
           {state === "success" && group && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
@@ -380,6 +404,33 @@ async function notifyAdmins(supabase: any, group: GroupPreview, memberName: stri
         type: "member_joined" as const,
         title: `${name} joined ${group.name}`,
         body: `A new member joined via join code.`,
+        is_read: false,
+        data: { link: "/dashboard/members" },
+      }));
+      await supabase.from("notifications").insert(notifications);
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function notifyAdminsOfPendingJoin(supabase: any, group: GroupPreview, memberName: string | null, email: string | undefined) {
+  try {
+    const { data: admins } = await supabase
+      .from("memberships")
+      .select("user_id")
+      .eq("group_id", group.group_id)
+      .in("role", ["owner", "admin"]);
+
+    if (admins && admins.length > 0) {
+      const name = memberName || email || "New member";
+      const notifications = admins.map((admin: { user_id: string }) => ({
+        user_id: admin.user_id,
+        group_id: group.group_id,
+        type: "system" as const,
+        title: `${name} requested to join ${group.name}`,
+        body: `A new member is awaiting your approval. Review their request in the Members section.`,
         is_read: false,
         data: { link: "/dashboard/members" },
       }));

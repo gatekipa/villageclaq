@@ -10,6 +10,7 @@ export interface GroupMembership {
   group_id: string;
   role: "owner" | "admin" | "moderator" | "member";
   standing: "good" | "warning" | "suspended" | "banned";
+  membership_status: "active" | "pending_approval";
   display_name: string | null;
   joined_at: string;
   privacy_settings: Record<string, boolean> | null;
@@ -148,7 +149,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       const { data: membershipData } = await supabase
         .from("memberships")
         .select(`
-          id, group_id, role, standing, display_name, joined_at, privacy_settings,
+          id, group_id, role, standing, membership_status, display_name, joined_at, privacy_settings,
           group:groups!inner(id, name, group_type, currency, locale, logo_url, settings, is_active, created_by, organization_id, group_level, sharing_controls)
         `)
         .eq("user_id", authUser.id)

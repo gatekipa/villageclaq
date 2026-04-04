@@ -128,7 +128,13 @@
     "addPhoneDesc": "Recevez des notifications WhatsApp sur les réunions, cotisations et mises à jour du groupe.",
     "savePhone": "Enregistrer",
     "phoneSaved": "Téléphone enregistré !",
-    "skipPhone": "Passer pour le moment"
+    "skipPhone": "Passer pour le moment",
+    "pendingApprovalTitle": "Demande en attente d'approbation",
+    "pendingApprovalDesc": "Votre demande pour rejoindre {group} a été soumise. Un administrateur l'examinera bientôt. Vous serez notifié(e) dès qu'une décision sera prise.",
+    "alreadyPending": "Vous avez déjà une demande en attente pour rejoindre ce groupe",
+    "pendingApprovalInterstitialTitle": "En attente d'approbation",
+    "pendingApprovalInterstitialDesc": "Votre demande pour rejoindre {group} est en cours d'examen par un administrateur. Vous serez notifié(e) dès qu'une décision sera prise.",
+    "pendingApprovalInterstitialSwitch": "Changer de groupe"
   },
   "checkin": {
     "verifying": "Vérification de votre adhésion...",
@@ -839,7 +845,16 @@
     "memberPaymentRecords": "{count} enregistrement(s) de paiement au dossier",
     "memberOutstandingObligations": "{count} obligation(s) en cours",
     "memberSoftDeleteNote": "Pour préserver les données financières, ce membre sera archivé (banni) plutôt que supprimé définitivement.",
-    "removeAndArchive": "Supprimer et archiver"
+    "removeAndArchive": "Supprimer et archiver",
+    "pendingApprovals": "Approbations en attente",
+    "pendingApprovalsDesc": "Ces membres attendent l'approbation de l'administrateur pour rejoindre le groupe.",
+    "approveAction": "Approuver",
+    "rejectAction": "Rejeter",
+    "requestedToJoin": "Demande de rejoindre",
+    "approvedNotifTitle": "Votre demande a été approuvée !",
+    "approvedNotifBody": "Vous êtes maintenant un membre actif de {groupName}.",
+    "rejectedNotifTitle": "Demande de rejoindre refusée",
+    "rejectedNotifBody": "Votre demande pour rejoindre {groupName} n'a pas été approuvée. Contactez l'administrateur du groupe pour plus d'informations."
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -993,7 +1008,11 @@
     "transferOwnershipDesc": "Transférez la propriété du groupe à un autre administrateur. Vous serez rétrogradé en administrateur.",
     "transferOwnershipDialogDesc": "Sélectionnez un membre pour devenir le nouveau propriétaire. Vous deviendrez administrateur.",
     "selectNewOwner": "Sélectionner le nouveau propriétaire",
-    "confirmTransfer": "Transférer la propriété"
+    "confirmTransfer": "Transférer la propriété",
+    "accessControlTitle": "Contrôle d'accès",
+    "accessControlDesc": "Contrôlez comment les nouveaux membres rejoignent ce groupe.",
+    "requireJoinApproval": "Exiger une approbation pour rejoindre",
+    "requireJoinApprovalDesc": "Les nouveaux membres qui rejoignent via un code doivent être approuvés par un administrateur avant de pouvoir accéder au groupe."
   },
   "contributions": {
     "title": "Cotisations",

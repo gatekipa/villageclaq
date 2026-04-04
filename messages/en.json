@@ -128,7 +128,13 @@
     "addPhoneDesc": "Get WhatsApp notifications about meetings, dues, and group updates.",
     "savePhone": "Save",
     "phoneSaved": "Phone saved!",
-    "skipPhone": "Skip for now"
+    "skipPhone": "Skip for now",
+    "pendingApprovalTitle": "Request Pending Approval",
+    "pendingApprovalDesc": "Your request to join {group} has been submitted. An admin will review it soon. You'll get notified when a decision is made.",
+    "alreadyPending": "You already have a pending request to join this group",
+    "pendingApprovalInterstitialTitle": "Awaiting Approval",
+    "pendingApprovalInterstitialDesc": "Your request to join {group} is pending admin review. You'll be notified once a decision is made.",
+    "pendingApprovalInterstitialSwitch": "Switch to Another Group"
   },
   "checkin": {
     "verifying": "Verifying your membership...",
@@ -839,7 +845,16 @@
     "memberPaymentRecords": "{count} payment record(s) on file",
     "memberOutstandingObligations": "{count} outstanding obligation(s)",
     "memberSoftDeleteNote": "To preserve financial records, this member will be archived (banned) rather than permanently deleted.",
-    "removeAndArchive": "Remove & Archive"
+    "removeAndArchive": "Remove & Archive",
+    "pendingApprovals": "Pending Approvals",
+    "pendingApprovalsDesc": "These members are waiting for admin approval to join the group.",
+    "approveAction": "Approve",
+    "rejectAction": "Reject",
+    "requestedToJoin": "Requested to join",
+    "approvedNotifTitle": "Your request was approved!",
+    "approvedNotifBody": "You are now an active member of {groupName}.",
+    "rejectedNotifTitle": "Join request declined",
+    "rejectedNotifBody": "Your request to join {groupName} was not approved. Contact the group admin for more information."
   },
   "settings": {
     "title": "Group Settings",
@@ -993,7 +1008,11 @@
     "transferOwnershipDesc": "Transfer group ownership to another admin. You will be demoted to admin.",
     "transferOwnershipDialogDesc": "Select a member to become the new owner. You will become an admin.",
     "selectNewOwner": "Select new owner",
-    "confirmTransfer": "Transfer Ownership"
+    "confirmTransfer": "Transfer Ownership",
+    "accessControlTitle": "Access Control",
+    "accessControlDesc": "Control how new members join this group.",
+    "requireJoinApproval": "Require join approval",
+    "requireJoinApprovalDesc": "New members who join via code must be approved by an admin before they can access the group."
   },
   "contributions": {
     "title": "Contributions",

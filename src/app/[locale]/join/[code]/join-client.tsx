@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Users, CheckCircle2, Loader2, AlertCircle, ArrowLeft, MessageCircle, ShieldAlert, Phone, Check } from "lucide-react";
+import { Users, CheckCircle2, Loader2, AlertCircle, ArrowLeft, MessageCircle, ShieldAlert, Phone, Check, Clock } from "lucide-react";
 
 interface GroupInfo {
   id: string;
@@ -26,7 +26,7 @@ export default function JoinClient() {
   const tj = useTranslations("join");
   const router = useRouter();
 
-  const [status, setStatus] = useState<"loading" | "found" | "not_found" | "joining" | "joined" | "error" | "already_member" | "banned">("loading");
+  const [status, setStatus] = useState<"loading" | "found" | "not_found" | "joining" | "joined" | "error" | "already_member" | "banned" | "pending_approval">("loading");
   const [group, setGroup] = useState<GroupInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phoneInput, setPhoneInput] = useState("");
@@ -152,6 +152,13 @@ export default function JoinClient() {
         return;
       }
 
+      if (result.status === "pending_approval") {
+        notifyAdminsOfPendingJoin(supabase, group, displayName, user.email);
+        logJoinActivity(supabase, group.id);
+        setStatus("pending_approval");
+        return;
+      }
+
       // Handle specific error codes from RPC
       switch (result.code) {
         case "banned":
@@ -159,6 +166,9 @@ export default function JoinClient() {
           return;
         case "already_member":
           setStatus("already_member");
+          return;
+        case "already_pending":
+          setStatus("pending_approval");
           return;
         case "group_full":
           setError(tj("groupFull"));
@@ -413,6 +423,23 @@ export default function JoinClient() {
             </div>
           )}
 
+          {status === "pending_approval" && group && (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h2 className="text-lg font-semibold">{tj("pendingApprovalTitle")}</h2>
+              <p className="text-sm text-muted-foreground">
+                {tj("pendingApprovalDesc", { group: group.name })}
+              </p>
+              <Link href="/">
+                <Button variant="outline" className="gap-2">
+                  <ArrowLeft className="h-4 w-4" /> {tj("goHome")}
+                </Button>
+              </Link>
+            </div>
+          )}
+
           {status === "already_member" && (
             <div className="flex flex-col items-center gap-4 py-8 text-center">
               <CheckCircle2 className="h-12 w-12 text-primary" />
@@ -474,6 +501,33 @@ async function notifyAdmins(supabase: any, group: GroupInfo, memberName: string 
         type: "member_joined" as const,
         title: `${name} joined ${group.name}`,
         body: `A new member joined via join code.`,
+        is_read: false,
+        data: { link: "/dashboard/members" },
+      }));
+      await supabase.from("notifications").insert(notifications);
+    }
+  } catch {
+    // Non-critical
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function notifyAdminsOfPendingJoin(supabase: any, group: GroupInfo, memberName: string | null, email: string | undefined) {
+  try {
+    const { data: admins } = await supabase
+      .from("memberships")
+      .select("user_id")
+      .eq("group_id", group.id)
+      .in("role", ["owner", "admin"]);
+
+    if (admins && admins.length > 0) {
+      const name = memberName || email || "New member";
+      const notifications = admins.map((admin: { user_id: string }) => ({
+        user_id: admin.user_id,
+        group_id: group.id,
+        type: "system" as const,
+        title: `${name} requested to join ${group.name}`,
+        body: `A new member is awaiting your approval. Review their request in the Members section.`,
         is_read: false,
         data: { link: "/dashboard/members" },
       }));

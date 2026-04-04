@@ -76,6 +76,7 @@ import {
   Send,
   LogOut,
   ShieldAlert,
+  Clock,
 } from "lucide-react";
 import Papa from "papaparse";
 import { Textarea } from "@/components/ui/textarea";
@@ -320,6 +321,8 @@ export default function MembersPage() {
   const [ownershipError, setOwnershipError] = useState<string | null>(null);
 
   const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   // Leave group state
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -797,6 +800,100 @@ export default function MembersPage() {
     }
   }
 
+  async function handleApprove(member: Record<string, unknown>) {
+    const id = member.id as string;
+    if (approvingId) return;
+    setApprovingId(id);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("memberships")
+        .update({ membership_status: "active" })
+        .eq("id", id);
+      if (error) throw error;
+
+      // Auto-enroll in contribution types
+      await autoEnrollMember(supabase, groupId!, id);
+
+      // Notify the approved member
+      const userId = member.user_id as string | null;
+      if (userId) {
+        try {
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            group_id: groupId,
+            type: "member_joined",
+            title: t("approvedNotifTitle"),
+            body: t("approvedNotifBody", { groupName: currentGroup?.name || "" }),
+            data: { link: "/dashboard" },
+          });
+        } catch { /* non-critical */ }
+      }
+
+      const memberName = getMemberName(member);
+      await logActivity(supabase, {
+        groupId: groupId!,
+        action: "member.approved",
+        entityType: "membership",
+        entityId: id,
+        description: `${memberName} was approved to join`,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+    } catch {
+      // Silently fail — list will refresh
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  async function handleReject(member: Record<string, unknown>) {
+    const id = member.id as string;
+    if (rejectingId) return;
+    setRejectingId(id);
+    try {
+      const supabase = createClient();
+
+      // Notify the rejected user first (before deleting)
+      const userId = member.user_id as string | null;
+      if (userId) {
+        try {
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            group_id: groupId,
+            type: "system",
+            title: t("rejectedNotifTitle"),
+            body: t("rejectedNotifBody", { groupName: currentGroup?.name || "" }),
+            data: {},
+          });
+        } catch { /* non-critical */ }
+      }
+
+      // Hard delete the pending membership
+      const { error } = await supabase
+        .from("memberships")
+        .delete()
+        .eq("id", id)
+        .eq("membership_status", "pending_approval");
+      if (error) throw error;
+
+      const memberName = getMemberName(member);
+      await logActivity(supabase, {
+        groupId: groupId!,
+        action: "member.rejected",
+        entityType: "membership",
+        entityId: id,
+        description: `${memberName}'s join request was rejected`,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
+    } catch {
+      // Silently fail
+    } finally {
+      setRejectingId(null);
+    }
+  }
+
   // Auto-open proxy member dialog when navigated with ?addProxy=true
   useEffect(() => {
     if (searchParams.get("addProxy") === "true" && canManageMembers) {
@@ -1184,9 +1281,15 @@ export default function MembersPage() {
     }
   }
 
+  const pendingMembers = useMemo(() => {
+    if (!members) return [];
+    return members.filter((m: Record<string, unknown>) => m.membership_status === "pending_approval");
+  }, [members]);
+
   const filtered = useMemo(() => {
     if (!members) return [];
-    let result = members;
+    // Exclude pending_approval members from the main list — they appear in the pending section above
+    let result = members.filter((m: Record<string, unknown>) => m.membership_status !== "pending_approval");
 
     // Search filter (accent-insensitive)
     if (search.trim()) {
@@ -1400,6 +1503,75 @@ export default function MembersPage() {
           )}
         </div>
       </div>
+
+      {/* Pending Approvals Section */}
+      {canManageMembers && pendingMembers.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 dark:border-amber-800/50 dark:bg-amber-950/20 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <h3 className="font-semibold text-sm">{t("pendingApprovals")} ({pendingMembers.length})</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">{t("pendingApprovalsDesc")}</p>
+          <div className="space-y-2">
+            {pendingMembers.map((member: Record<string, unknown>) => {
+              const name = getMemberName(member);
+              const initials = name
+                .split(" ")
+                .map((n: string) => n[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+              const profile = member.profile as { avatar_url?: string } | undefined;
+              return (
+                <div key={member.id as string} className="flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-slate-900 border p-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={name} />}
+                      <AvatarFallback className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 text-xs">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground">{t("requestedToJoin")}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                      onClick={() => handleApprove(member)}
+                      disabled={approvingId === (member.id as string) || !!rejectingId}
+                    >
+                      {approvingId === (member.id as string) ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                      )}
+                      {t("approveAction")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 border-red-300 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                      onClick={() => handleReject(member)}
+                      disabled={rejectingId === (member.id as string) || !!approvingId}
+                    >
+                      {rejectingId === (member.id as string) ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <XCircle className="h-3 w-3 mr-1" />
+                      )}
+                      {t("rejectAction")}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Search + Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -94,6 +94,17 @@
     "exported": "Exporté"
   },
   "join": {
+    "enterCode": "Entrer le code d'adhésion",
+    "enterCodePlaceholder": "ex. ABC123",
+    "codeInputLabel": "Code d'adhésion",
+    "joinByCode": "Rejoindre un groupe",
+    "joinByCodeDesc": "Vous avez un code ? Entrez-le ci-dessous pour rejoindre un groupe.",
+    "lookupCode": "Rechercher",
+    "lookingUp": "Recherche en cours...",
+    "joining": "Adhésion en cours...",
+    "invalidCode": "Code invalide ou expiré",
+    "joinGroupName": "Rejoindre {name}",
+    "alreadyMemberCode": "Vous êtes déjà membre de ce groupe",
     "invalidLink": "Lien invalide ou expiré",
     "invalidLinkDesc": "Ce lien d'adhésion n'est plus actif. Demandez un nouveau lien à l'administrateur de votre groupe.",
     "goHome": "Retour à l'accueil",
@@ -547,7 +558,9 @@
     "noGroupSelected": "Aucun groupe sélectionné",
     "leaveGroup": "Quitter le groupe",
     "leaveGroupConfirm": "Êtes-vous sûr de vouloir quitter {groupName} ? Votre historique de cotisations et de présence sera conservé.",
-    "leaveGroupOwnerHint": "Transférez la propriété d'abord"
+    "leaveGroupOwnerHint": "Transférez la propriété d'abord",
+    "joinGroup": "Rejoindre un groupe",
+    "joinGroupDesc": "Entrez un code pour rejoindre"
   },
   "header": {
     "notifications": "Notifications",

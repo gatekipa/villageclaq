@@ -94,6 +94,17 @@
     "exported": "Exported"
   },
   "join": {
+    "enterCode": "Enter join code",
+    "enterCodePlaceholder": "e.g. ABC123",
+    "codeInputLabel": "Join code",
+    "joinByCode": "Join a Group",
+    "joinByCodeDesc": "Have a join code? Enter it below to join a group.",
+    "lookupCode": "Look up",
+    "lookingUp": "Looking up...",
+    "joining": "Joining...",
+    "invalidCode": "Invalid or expired code",
+    "joinGroupName": "Join {name}",
+    "alreadyMemberCode": "You're already a member of this group",
     "invalidLink": "Invalid or Expired Link",
     "invalidLinkDesc": "This join link is no longer active. Ask your group admin for a new one.",
     "goHome": "Go Home",
@@ -547,7 +558,9 @@
     "noGroupSelected": "No group selected",
     "leaveGroup": "Leave Group",
     "leaveGroupConfirm": "Are you sure you want to leave {groupName}? Your contribution and attendance history will be preserved.",
-    "leaveGroupOwnerHint": "Transfer ownership first"
+    "joinGroup": "Join a Group",
+    "joinGroupDesc": "Enter a code to join",
+    "leaveGroupOwnerHint":"Transfer ownership first"
   },
   "header": {
     "notifications": "Notifications",

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronsUpDown, Check, Plus, LogOut, Loader2 } from "lucide-react";
+import { ChevronsUpDown, Check, Plus, LogOut, Loader2, UserPlus } from "lucide-react";
+import { JoinByCodeDialog } from "@/components/ui/join-by-code-dialog";
 import { Link, useRouter } from "@/i18n/routing";
 import {
   DropdownMenu,
@@ -31,6 +32,7 @@ export function GroupSwitcher() {
   const { memberships, currentGroup, currentMembership, groupId, switchGroup, user } = useGroup();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveSaving, setLeaveSaving] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
 
   async function handleLeaveGroup() {
     if (!currentMembership || leaveSaving) return;
@@ -121,6 +123,18 @@ export function GroupSwitcher() {
             </div>
           </DropdownMenuItem>
         </Link>
+        <DropdownMenuItem
+          className="flex items-center gap-2"
+          onClick={() => setJoinOpen(true)}
+        >
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            <UserPlus className="h-4 w-4" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-medium">{t("joinGroup")}</span>
+            <span className="text-[11px] text-muted-foreground">{t("joinGroupDesc")}</span>
+          </div>
+        </DropdownMenuItem>
         {currentMembership && (
           <>
             <DropdownMenuSeparator />
@@ -149,6 +163,9 @@ export function GroupSwitcher() {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+
+    {/* Join by Code Dialog */}
+    <JoinByCodeDialog open={joinOpen} onOpenChange={setJoinOpen} />
 
     {/* Leave Group Confirmation Dialog */}
     <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>

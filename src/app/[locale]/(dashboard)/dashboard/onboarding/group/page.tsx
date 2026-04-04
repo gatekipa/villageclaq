@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/i18n/routing";
+import { JoinByCodeDialog } from "@/components/ui/join-by-code-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { useGroup } from "@/lib/group-context";
@@ -24,6 +25,7 @@ import {
   Camera,
   Loader2,
   LogOut,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,6 +124,7 @@ const SAVINGS_SUGGESTIONS = [
 export default function GroupOnboardingPage() {
   const t = useTranslations("onboarding");
   const tCountries = useTranslations("countries");
+  const tJoin = useTranslations("join");
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
@@ -131,6 +134,7 @@ export default function GroupOnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setupProgress, setSetupProgress] = useState<string | null>(null);
+  const [joinOpen, setJoinOpen] = useState(false);
 
   // Step 1: Profile
   const [fullName, setFullName] = useState("");
@@ -742,6 +746,27 @@ export default function GroupOnboardingPage() {
         </div>
       )}
 
+      {/* Join a Group — alternative to creating one */}
+      <div className="mb-6 w-full rounded-xl border border-dashed bg-card p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+            <UserPlus className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">{tJoin("joinByCode")}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{tJoin("joinByCodeDesc")}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => setJoinOpen(true)}
+          >
+            {tJoin("enterCode")}
+          </Button>
+        </div>
+      </div>
+
       {/* Progress bar with step names */}
       <div className="mb-8 w-full">
         <div className="flex justify-between mb-2">
@@ -1267,6 +1292,9 @@ export default function GroupOnboardingPage() {
           {savingLater ? t("saving") : t("saveLater")}
         </button>
       </div>
+
+      {/* Join by code dialog */}
+      <JoinByCodeDialog open={joinOpen} onOpenChange={setJoinOpen} />
     </div>
   );
 }

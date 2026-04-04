@@ -854,7 +854,8 @@
     "approvedNotifTitle": "Votre demande a été approuvée !",
     "approvedNotifBody": "Vous êtes maintenant un membre actif de {groupName}.",
     "rejectedNotifTitle": "Demande de rejoindre refusée",
-    "rejectedNotifBody": "Votre demande pour rejoindre {groupName} n'a pas été approuvée. Contactez l'administrateur du groupe pour plus d'informations."
+    "rejectedNotifBody": "Votre demande pour rejoindre {groupName} n'a pas été approuvée. Contactez l'administrateur du groupe pour plus d'informations.",
+    "ownerRoleProtected": "Le rôle de propriétaire ne peut être modifié que via le transfert de propriété dans les Paramètres."
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -1012,7 +1013,18 @@
     "accessControlTitle": "Contrôle d'accès",
     "accessControlDesc": "Contrôlez comment les nouveaux membres rejoignent ce groupe.",
     "requireJoinApproval": "Exiger une approbation pour rejoindre",
-    "requireJoinApprovalDesc": "Les nouveaux membres qui rejoignent via un code doivent être approuvés par un administrateur avant de pouvoir accéder au groupe."
+    "requireJoinApprovalDesc": "Les nouveaux membres qui rejoignent via un code doivent être approuvés par un administrateur avant de pouvoir accéder au groupe.",
+    "errors": {
+      "updateFailed": "Mise à jour échouée. Vous n'avez peut-être pas la permission d'effectuer ce changement.",
+      "logoUpdateFailed": "Mise à jour du logo échouée. Vous n'avez peut-être pas la permission.",
+      "transferFailed": "Le transfert de propriété a échoué. Vous êtes toujours le propriétaire."
+    },
+    "deactivateGroupScreen": {
+      "title": "Groupe désactivé",
+      "desc": "Ce groupe a été désactivé. Toutes les données sont conservées.",
+      "reactivate": "Réactiver le groupe",
+      "switch": "Changer de groupe"
+    }
   },
   "contributions": {
     "title": "Cotisations",

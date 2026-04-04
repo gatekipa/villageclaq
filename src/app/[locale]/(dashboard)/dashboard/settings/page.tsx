@@ -174,8 +174,7 @@ export default function GroupSettingsPage() {
         date_format: editDateFormat,
       };
 
-      // Use .select().single() to detect RLS-blocked updates (0 rows → error)
-      const { data: updated, error: updateError } = await supabase
+      const { data: updatedRows, error: updateError } = await supabase
         .from("groups")
         .update({
           name: editName.trim(),
@@ -185,10 +184,9 @@ export default function GroupSettingsPage() {
           settings: mergedSettings,
         })
         .eq("id", groupId)
-        .select()
-        .single();
+        .select();
       if (updateError) throw updateError;
-      if (!updated) throw new Error("Update failed — check admin permissions");
+      if (!updatedRows || updatedRows.length === 0) throw new Error(t("errors.updateFailed"));
       // Audit log
       try {
         const { logActivity } = await import("@/lib/audit-log");
@@ -311,13 +309,13 @@ export default function GroupSettingsPage() {
     setDangerError(null);
     try {
       const supabase = createClient();
-      const { error: err } = await supabase
+      const { data: deactivatedRows, error: err } = await supabase
         .from("groups")
         .update({ is_active: false })
         .eq("id", groupId)
-        .select()
-        .single();
+        .select();
       if (err) throw err;
+      if (!deactivatedRows || deactivatedRows.length === 0) throw new Error(t("errors.updateFailed"));
       await queryClient.invalidateQueries({ queryKey: ["memberships"] });
       setShowDeactivateConfirm(false);
       window.location.reload();
@@ -334,13 +332,15 @@ export default function GroupSettingsPage() {
     setDangerError(null);
     try {
       const supabase = createClient();
-      const myId = (currentMembership as unknown as Record<string, unknown>).id as string;
-      // Demote current owner to admin
-      const { error: e1 } = await supabase.from("memberships").update({ role: "admin" }).eq("id", myId);
-      if (e1) throw e1;
-      // Promote new owner
-      const { error: e2 } = await supabase.from("memberships").update({ role: "owner" }).eq("id", transferTargetId);
-      if (e2) throw e2;
+      const { data: result, error: rpcErr } = await supabase.rpc("transfer_group_ownership", {
+        p_group_id: groupId,
+        p_new_owner_membership_id: transferTargetId,
+      });
+      if (rpcErr) throw rpcErr;
+      const parsed = typeof result === "string" ? JSON.parse(result) : result;
+      if (parsed?.status !== "success") {
+        throw new Error(t("errors.transferFailed"));
+      }
       await queryClient.invalidateQueries({ queryKey: ["memberships"] });
       setShowTransferDialog(false);
       window.location.reload();
@@ -474,9 +474,9 @@ export default function GroupSettingsPage() {
                                 const { error: upErr } = await supabase.storage.from("group-documents").upload(path, file, { upsert: true });
                                 if (upErr) throw upErr;
                                 const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
-                                const { data: logoUpdated, error: updateErr } = await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId).select().single();
+                                const { data: logoUpdatedRows, error: updateErr } = await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId).select();
                                 if (updateErr) throw updateErr;
-                                if (!logoUpdated) throw new Error("Logo update failed — check permissions");
+                                if (!logoUpdatedRows || logoUpdatedRows.length === 0) throw new Error(t("errors.logoUpdateFailed"));
                                 await Promise.all([
                                   queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] }),
                                   queryClient.invalidateQueries({ queryKey: ["group-settings"] }),

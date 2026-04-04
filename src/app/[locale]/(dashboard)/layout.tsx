@@ -10,7 +10,7 @@ import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
 import { SupportWidget } from "@/components/ui/support-widget";
 import { createClient } from "@/lib/supabase/client";
-import { Clock } from "lucide-react";
+import { Clock, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -67,6 +67,73 @@ function PendingApprovalScreen({
             }}
           >
             {tj("pendingApprovalInterstitialSwitch")}
+          </Button>
+        )}
+        <button
+          className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          onClick={handleSignOut}
+        >
+          {tCommon("signOut")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DeactivatedGroupScreen({
+  currentMembership,
+  memberships,
+}: {
+  currentMembership: GroupMembership;
+  memberships: GroupMembership[];
+}) {
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
+  const router = useRouter();
+  const supabase = createClient();
+  const isOwner = currentMembership.role === "owner";
+  const otherActiveMemberships = memberships.filter(
+    (m) => m.group_id !== currentMembership.group_id && m.group?.is_active !== false
+  );
+
+  async function handleReactivate() {
+    await supabase.from("groups").update({ is_active: true }).eq("id", currentMembership.group_id);
+    window.location.reload();
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 p-4">
+      <img src="/logo-mark.svg" alt="VillageClaq" className="mb-8 h-10 w-10" />
+      <div className="w-full max-w-sm rounded-2xl border bg-card p-8 shadow-sm text-center space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 mx-auto">
+          <Archive className="h-8 w-8 text-slate-500 dark:text-slate-400" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold">{t("deactivateGroupScreen.title")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t("deactivateGroupScreen.desc")}
+          </p>
+        </div>
+        {isOwner && (
+          <Button className="w-full" onClick={handleReactivate}>
+            {t("deactivateGroupScreen.reactivate")}
+          </Button>
+        )}
+        {otherActiveMemberships.length > 0 && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              router.push("/dashboard");
+              setTimeout(() => window.location.reload(), 100);
+            }}
+          >
+            {t("deactivateGroupScreen.switch")}
           </Button>
         )}
         <button
@@ -180,6 +247,16 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   if (!loading && currentMembership?.membership_status === "pending_approval") {
     return (
       <PendingApprovalScreen
+        currentMembership={currentMembership}
+        memberships={memberships}
+      />
+    );
+  }
+
+  // Deactivated group interstitial — group is archived, show reactivate/switch options
+  if (!loading && currentMembership && currentMembership.group?.is_active === false && !isOnboardingPage && !isInviteSafePage) {
+    return (
+      <DeactivatedGroupScreen
         currentMembership={currentMembership}
         memberships={memberships}
       />

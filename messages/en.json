@@ -854,7 +854,8 @@
     "approvedNotifTitle": "Your request was approved!",
     "approvedNotifBody": "You are now an active member of {groupName}.",
     "rejectedNotifTitle": "Join request declined",
-    "rejectedNotifBody": "Your request to join {groupName} was not approved. Contact the group admin for more information."
+    "rejectedNotifBody": "Your request to join {groupName} was not approved. Contact the group admin for more information.",
+    "ownerRoleProtected": "Owner role can only be changed via Transfer Ownership in Settings."
   },
   "settings": {
     "title": "Group Settings",
@@ -1012,7 +1013,18 @@
     "accessControlTitle": "Access Control",
     "accessControlDesc": "Control how new members join this group.",
     "requireJoinApproval": "Require join approval",
-    "requireJoinApprovalDesc": "New members who join via code must be approved by an admin before they can access the group."
+    "requireJoinApprovalDesc": "New members who join via code must be approved by an admin before they can access the group.",
+    "errors": {
+      "updateFailed": "Update failed. You may not have permission to make this change.",
+      "logoUpdateFailed": "Logo update failed. You may not have permission.",
+      "transferFailed": "Ownership transfer failed. You are still the owner."
+    },
+    "deactivateGroupScreen": {
+      "title": "Group Deactivated",
+      "desc": "This group has been deactivated. All data is preserved.",
+      "reactivate": "Reactivate Group",
+      "switch": "Switch to Another Group"
+    }
   },
   "contributions": {
     "title": "Contributions",

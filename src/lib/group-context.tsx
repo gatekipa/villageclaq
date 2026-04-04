@@ -160,16 +160,14 @@ export function GroupProvider({ children }: { children: ReactNode }) {
           ...m,
           group: Array.isArray(m.group) ? m.group[0] : m.group,
         })) as GroupMembership[];
-        // Filter out deactivated groups — members shouldn't interact with them
-        const active = normalized.filter((m) => m.group?.is_active !== false);
-        setMemberships(active);
+        setMemberships(normalized);
 
         const urlGroupId = searchParams.get("group");
         const storedGroupId = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-        const targetGroupId = urlGroupId || storedGroupId || active[0]?.group_id || null;
+        const targetGroupId = urlGroupId || storedGroupId || normalized[0]?.group_id || null;
 
-        const valid = active.find((m) => m.group_id === targetGroupId);
-        setCurrentGroupId(valid ? targetGroupId : active[0]?.group_id || null);
+        const valid = normalized.find((m) => m.group_id === targetGroupId);
+        setCurrentGroupId(valid ? targetGroupId : normalized[0]?.group_id || null);
       }
     } finally {
       setLoading(false);

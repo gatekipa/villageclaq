@@ -581,13 +581,15 @@ export default function MembersPage() {
       const targetId = ownershipTarget.id as string;
       const targetName = getMemberName(ownershipTarget);
 
-      // Update target to owner
-      const { error: err1 } = await supabase.from("memberships").update({ role: "owner" }).eq("id", targetId);
-      if (err1) throw err1;
-
-      // Demote self to admin
-      const { error: err2 } = await supabase.from("memberships").update({ role: "admin" }).eq("id", currentMembership.id);
-      if (err2) throw err2;
+      const { data: result, error: rpcErr } = await supabase.rpc("transfer_group_ownership", {
+        p_group_id: groupId,
+        p_new_owner_membership_id: targetId,
+      });
+      if (rpcErr) throw rpcErr;
+      const parsed = typeof result === "string" ? JSON.parse(result) : result;
+      if (parsed?.status !== "success") {
+        throw new Error(t("transferOwnershipError"));
+      }
 
       // Send notification to new owner
       if ((ownershipTarget.user_id as string)) {
@@ -2156,7 +2158,8 @@ export default function MembersPage() {
               <select
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                disabled={editOriginalRole === "owner"}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {/* Owner role option: only visible to owners. Prevents admins from assigning/stealing ownership. */}
                 {isOwner && <option value="owner">{tr("owner")}</option>}
@@ -2164,6 +2167,9 @@ export default function MembersPage() {
                 <option value="moderator">{tr("moderator")}</option>
                 <option value="member">{tr("member")}</option>
               </select>
+              {editOriginalRole === "owner" && (
+                <p className="text-xs text-muted-foreground">{t("ownerRoleProtected")}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("standing")}</Label>

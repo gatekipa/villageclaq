@@ -35,13 +35,22 @@ export function PublicNavbar({ heroOverlay = true }: PublicNavbarProps) {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        {/* Logo */}
-        <Link href="/" className="flex items-center shrink-0" onClick={() => setMobileOpen(false)}>
-          {isTransparent ? (
-            <Logo variant="horizontal" textColor="light" size="md" />
-          ) : (
-            <Logo variant="horizontal" textColor="dark" size="md" />
-          )}
+        {/* Logo — sm on mobile to prevent crowding hamburger, md on desktop */}
+        <Link href="/" className="flex items-center shrink-0 min-w-0" onClick={() => setMobileOpen(false)}>
+          <span className="md:hidden">
+            {isTransparent ? (
+              <Logo variant="horizontal" textColor="light" size="sm" />
+            ) : (
+              <Logo variant="horizontal" textColor="dark" size="sm" />
+            )}
+          </span>
+          <span className="hidden md:inline-flex">
+            {isTransparent ? (
+              <Logo variant="horizontal" textColor="light" size="md" />
+            ) : (
+              <Logo variant="horizontal" textColor="dark" size="md" />
+            )}
+          </span>
         </Link>
 
         {/* Desktop nav — hidden on mobile */}

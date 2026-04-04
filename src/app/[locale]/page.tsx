@@ -112,20 +112,20 @@ export default function HomePage() {
               {t("landing.heroSubtitle")}
             </p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link href="/signup">
+              <Link href="/signup" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full bg-white text-emerald-900 shadow-xl shadow-black/20 hover:bg-emerald-50 sm:w-auto text-base px-8 py-6 font-semibold"
+                  className="w-full bg-white text-emerald-900 shadow-xl shadow-black/20 hover:bg-emerald-50 text-base px-8 py-6 font-semibold"
                 >
                   {t("common.startFree")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/login">
+              <Link href="/login" className="w-full sm:w-auto">
                 <Button
                   variant="outline"
                   size="lg"
-                  className="w-full border-white/20 bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 sm:w-auto text-base px-8 py-6"
+                  className="w-full border-white/20 bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 text-base px-8 py-6"
                 >
                   {t("auth.login")}
                 </Button>
@@ -216,7 +216,7 @@ export default function HomePage() {
       {/* ── Stats Bar ── */}
       <section className="relative bg-emerald-50 dark:bg-emerald-950/50 py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:gap-8 lg:grid-cols-4">
             {[
               { value: "500+", label: t("landing.statsGroups"), icon: Users },
               { value: "10,000+", label: t("landing.statsMembers"), icon: Globe },
@@ -241,7 +241,7 @@ export default function HomePage() {
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               {t("landing.painPointsTitle")}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
@@ -275,7 +275,7 @@ export default function HomePage() {
       <section className="py-24 sm:py-32 bg-slate-50 dark:bg-slate-900/50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               {t("landing.featuresTitle")}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
@@ -305,7 +305,7 @@ export default function HomePage() {
       <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               {t("landing.howItWorks")}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
@@ -343,7 +343,7 @@ export default function HomePage() {
               <Star className="mr-1.5 h-3.5 w-3.5" />
               {t("landing.builtForYou")}
             </Badge>
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               {t("landing.builtForYou")}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
@@ -388,7 +388,7 @@ export default function HomePage() {
       <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               {t("landing.trustedBy")}
             </h2>
           </div>
@@ -467,19 +467,19 @@ export default function HomePage() {
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               {t("landing.pricingTitle")}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
               {t("landing.pricingSubtitle")}
             </p>
           </div>
-          <p className="mt-3 text-sm font-medium text-primary">
+          <p className="mt-3 text-center text-sm font-medium text-primary">
             {t("landing.pricingTagline")}
           </p>
           <div className="mx-auto mt-20 grid max-w-7xl items-start gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Free */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("landing.pricingFree")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingFreePrice")}</span>
@@ -503,7 +503,7 @@ export default function HomePage() {
             </div>
 
             {/* Starter */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("landing.pricingStarter")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingStarterPrice")}</span>
@@ -529,7 +529,7 @@ export default function HomePage() {
             </div>
 
             {/* Pro (elevated) */}
-            <div className="relative rounded-2xl border-2 border-primary bg-card p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/15">
+            <div className="relative rounded-2xl border-2 border-primary bg-card p-5 sm:p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/15">
               <Badge className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 text-sm shadow-md">
                 {t("landing.pricingProBadge")}
               </Badge>
@@ -558,7 +558,7 @@ export default function HomePage() {
             </div>
 
             {/* Enterprise */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("landing.pricingOrg")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingOrgPrice")}</span>
@@ -590,7 +590,7 @@ export default function HomePage() {
       <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           <div className="text-center">
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
               {t("landing.faqTitle")}
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
@@ -621,7 +621,7 @@ export default function HomePage() {
           <div className="absolute left-1/2 top-0 h-40 w-96 -translate-x-1/2 rounded-full bg-emerald-300/5 blur-3xl" />
         </div>
         <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
             {t("landing.ctaTitle")}
           </h2>
           <p className="mt-6 text-lg text-emerald-100/80 sm:text-xl">
@@ -631,20 +631,20 @@ export default function HomePage() {
             {t("landing.trustedBy")}
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link href="/signup">
+            <Link href="/signup" className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="bg-white text-emerald-900 shadow-xl shadow-black/20 hover:bg-emerald-50 text-base px-10 py-6 font-semibold"
+                className="w-full bg-white text-emerald-900 shadow-xl shadow-black/20 hover:bg-emerald-50 text-base px-10 py-6 font-semibold"
               >
                 {t("common.startFree")}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/login">
+            <Link href="/login" className="w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="lg"
-                className="border-white/30 bg-transparent text-white hover:bg-white/10 text-base px-8 py-6 font-medium"
+                className="w-full border-white/30 bg-transparent text-white hover:bg-white/10 text-base px-8 py-6 font-medium"
               >
                 {t("auth.login")}
               </Button>

@@ -43,7 +43,7 @@ export default function PricingPage() {
       <div className="px-4 pt-24 pb-12 text-center sm:pt-32">
         <div className="mx-auto max-w-3xl">
           <BackButton href="/" label={tc("backToHome")} className="mb-6 mx-auto w-fit" />
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-6xl">
             {t("pricingPageTitle")}
           </h1>
           <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
@@ -60,7 +60,7 @@ export default function PricingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid items-start gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Free */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("pricingFree")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold tracking-tight">{t("pricingFreePrice")}</span>
@@ -84,7 +84,7 @@ export default function PricingPage() {
             </div>
 
             {/* Starter */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("pricingStarter")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold tracking-tight">{t("pricingStarterPrice")}</span>
@@ -110,7 +110,7 @@ export default function PricingPage() {
             </div>
 
             {/* Pro */}
-            <div className="relative rounded-2xl border-2 border-primary bg-card p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl">
+            <div className="relative rounded-2xl border-2 border-primary bg-card p-5 sm:p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl">
               <Badge className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 text-sm shadow-md">
                 {t("pricingProBadge")}
               </Badge>
@@ -139,7 +139,7 @@ export default function PricingPage() {
             </div>
 
             {/* Enterprise */}
-            <div className="relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
+            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
               <h3 className="text-xl font-bold">{t("pricingOrg")}</h3>
               <div className="mt-6 flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold tracking-tight">{t("pricingOrgPrice")}</span>
@@ -170,7 +170,7 @@ export default function PricingPage() {
       {/* Comparison Table */}
       <section className="border-t bg-slate-50 dark:bg-slate-900/50 py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
-          <h2 className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
             {t("pricingCompare")}
           </h2>
           <div className="mt-12 overflow-x-auto">
@@ -203,11 +203,11 @@ export default function PricingPage() {
       {/* Footer CTA */}
       <section className="py-20 text-center">
         <div className="mx-auto max-w-2xl px-4">
-          <h2 className="text-3xl font-bold">{t("ctaTitle")}</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl">{t("ctaTitle")}</h2>
           <p className="mt-4 text-muted-foreground">{t("ctaSubtitle")}</p>
           <div className="mt-8 flex justify-center gap-4">
-            <Link href="/signup">
-              <Button size="lg" className="text-base font-semibold px-8">
+            <Link href="/signup" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full text-base font-semibold px-8">
                 {tc("startFree")}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

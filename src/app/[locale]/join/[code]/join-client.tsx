@@ -197,12 +197,10 @@ export default function JoinClient() {
     // Check member limit before joining
     try {
       const { TIERS } = await import("@/lib/subscription-tiers");
-      const { data: sub } = await supabase
-        .from("group_subscriptions")
-        .select("tier")
-        .eq("group_id", group.id)
-        .maybeSingle();
-      const tier = (sub?.tier || "free") as keyof typeof TIERS;
+      // SECURITY DEFINER RPC bypasses RLS — non-members cannot read group_subscriptions directly
+      const { data: tierData } = await supabase
+        .rpc("get_group_subscription_tier", { p_group_id: group.id });
+      const tier = ((tierData as string | null) || "free") as keyof typeof TIERS;
       const maxMembers = TIERS[tier]?.maxMembers ?? 15;
       if (maxMembers !== -1) {
         const { count } = await supabase

@@ -1,5 +1,6 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
+import { formatDateWithGroupFormat } from "@/lib/format";
 
 import { useState, useEffect, Fragment } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -112,6 +113,8 @@ function RoundManagement({
   t: ReturnType<typeof import("next-intl").useTranslations>;
   tc: ReturnType<typeof import("next-intl").useTranslations>;
 }) {
+  const { currentGroup: cg } = useGroup();
+  const groupDateFormat = ((cg?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [advancing, setAdvancing] = useState(false);
   const [showCollectionDialog, setShowCollectionDialog] = useState(false);
@@ -446,7 +449,7 @@ function RoundManagement({
                   <div key={i} className="flex items-center justify-between px-3 py-2 text-xs">
                     <span>R{ch.collection_round as number}</span>
                     <span className="font-medium">{getMemberName(ch.membership as Record<string, unknown>)}</span>
-                    <span className="text-muted-foreground">{ch.collected_at ? new Date(ch.collected_at as string).toLocaleDateString(locale) : "—"}</span>
+                    <span className="text-muted-foreground">{ch.collected_at ? formatDateWithGroupFormat(ch.collected_at as string, groupDateFormat, locale) : "—"}</span>
                     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("collected")}</Badge>
                   </div>
                 ))}
@@ -643,6 +646,7 @@ export default function SavingsCirclePage() {
   const tc = useTranslations("common");
   const locale = useLocale();
   const { currentGroup, groupId, user } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("savings.manage");
   const { canUseFeature } = useSubscription();
@@ -1149,7 +1153,7 @@ export default function SavingsCirclePage() {
                       </div>
                       <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 p-2.5">
                         <p className="text-xs text-muted-foreground">{t("nextCollection")}</p>
-                        <p className="text-sm font-semibold">{nextDate.toLocaleDateString(locale)}</p>
+                        <p className="text-sm font-semibold">{formatDateWithGroupFormat(nextDate.toISOString(), groupDateFormat, locale)}</p>
                       </div>
                     </div>
                   );
@@ -1413,7 +1417,7 @@ export default function SavingsCirclePage() {
                                     {isResolved && <Badge variant="secondary" className="text-[10px]">{t("resolved")}</Badge>}
                                   </div>
                                   <p className={`mt-1 text-muted-foreground ${isResolved ? "line-through" : ""}`}>{String(issue.description)}</p>
-                                  <p className="mt-1 text-muted-foreground">{new Date(issue.date as string).toLocaleDateString(locale)}</p>
+                                  <p className="mt-1 text-muted-foreground">{formatDateWithGroupFormat(issue.date as string, groupDateFormat, locale)}</p>
                                 </div>
                               );
                             })}
@@ -1867,6 +1871,8 @@ function RoundBreakdownTable({
   t: ReturnType<typeof import("next-intl").useTranslations>;
   tc: ReturnType<typeof import("next-intl").useTranslations>;
 }) {
+  const { currentGroup: cg } = useGroup();
+  const groupDateFormat = ((cg?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
   const [roundData, setRoundData] = useState<Record<string, unknown>[]>([]);
   const [loadingRound, setLoadingRound] = useState(false);
@@ -1933,7 +1939,7 @@ function RoundBreakdownTable({
                       )}
                     </TableCell>
                     <TableCell className="text-xs">R{rnd}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{dueDate.toLocaleDateString(locale)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatDateWithGroupFormat(dueDate.toISOString(), groupDateFormat, locale)}</TableCell>
                     <TableCell className="text-xs text-center">{cName}</TableCell>
                     <TableCell className="text-center">
                       {isCurrent ? <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-[10px]">{t("inProgress")}</Badge>
@@ -1998,7 +2004,7 @@ function RoundBreakdownTable({
                                     <Badge variant="secondary" className="text-[9px]">{t("statusPending")}</Badge>
                                   )}
                                   {(collector.collected_at as string) && (
-                                    <span className="text-[10px] text-muted-foreground">{new Date(collector.collected_at as string).toLocaleDateString(locale)}</span>
+                                    <span className="text-[10px] text-muted-foreground">{formatDateWithGroupFormat(collector.collected_at as string, groupDateFormat, locale)}</span>
                                   )}
                                 </div>
                               ) : <p className="text-[10px] text-muted-foreground">—</p>}

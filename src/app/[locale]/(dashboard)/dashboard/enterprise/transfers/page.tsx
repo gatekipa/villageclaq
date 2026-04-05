@@ -41,7 +41,7 @@ import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { getMemberName } from "@/lib/get-member-name";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 
 type TransferStatus = "requested" | "source_approved" | "dest_approved" | "completed" | "rejected";
 
@@ -95,6 +95,7 @@ export default function TransfersPage() {
   const tc = useTranslations("common");
   const locale = useLocale();
   const { currentGroup, groupId } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
   const { data: transfers, isLoading, error, refetch } = useTransfers(groupId);
@@ -337,7 +338,7 @@ export default function TransfersPage() {
             const destName = (destGroup?.name as string) || "—";
             const reason = (transfer.reason as string) || "";
             const createdAt = transfer.created_at
-              ? new Date(transfer.created_at as string).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short", day: "numeric" })
+              ? formatDateWithGroupFormat(transfer.created_at as string, groupDateFormat, locale)
               : "";
             const isLoading = actionLoading === id;
 

@@ -3,7 +3,6 @@ import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -425,7 +424,7 @@ export default function MyDashboardPage() {
                   <div key={event.id as string} className="flex items-start gap-3">
                     <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                       <span className="text-xs font-medium text-primary">
-                        {startDate.toLocaleDateString(getDateLocale(locale), {
+                        {startDate.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
                           month: "short",
                         })}
                       </span>

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -159,13 +159,9 @@ const rotationBadgeColors: Record<RotationType, string> = {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string, locale: string = "en") {
+function formatDate(dateStr: string, locale: string = "en", groupFmt: string = "DD/MM/YYYY") {
   try {
-    return new Date(dateStr + "T00:00:00").toLocaleDateString(getDateLocale(locale), {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDateWithGroupFormat(dateStr + "T00:00:00", groupFmt);
   } catch {
     return dateStr;
   }
@@ -173,7 +169,7 @@ function formatDate(dateStr: string, locale: string = "en") {
 
 function formatMonth(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr + "T00:00:00").toLocaleDateString(getDateLocale(locale), {
+    return new Date(dateStr + "T00:00:00").toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
       year: "numeric",
       month: "long",
     });
@@ -232,6 +228,8 @@ export default function HostingPage() {
   const t = useTranslations("hosting");
   const tc = useTranslations("common");
   const { groupId, user, currentMembership, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("hosting.manage");
   const queryClient = useQueryClient();
@@ -429,8 +427,8 @@ export default function HostingPage() {
           ? t("hostCompletedNotifTitle")
           : t("hostMissedNotifTitle");
         const notifBody = newStatus === "completed"
-          ? t("hostCompletedNotifBody", { date: formatDate(dateStr, locale) })
-          : t("hostMissedNotifBody", { date: formatDate(dateStr, locale) });
+          ? t("hostCompletedNotifBody", { date: fmtDate(dateStr) })
+          : t("hostMissedNotifBody", { date: fmtDate(dateStr) });
         if (statusUserId) {
           await supabase.from("notifications").insert({
             group_id: groupId,
@@ -487,7 +485,7 @@ export default function HostingPage() {
               user_id: uid,
               type: "system" as const,
               title: t("hostAssignedNotifTitle"),
-              body: t("hostAssignedNotifBody", { date: formatDate(a.assigned_date, locale) }),
+              body: t("hostAssignedNotifBody", { date: fmtDate(a.assigned_date) }),
               is_read: false,
               data: { link: "/dashboard/hosting" },
             };
@@ -618,7 +616,7 @@ export default function HostingPage() {
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">{t("nextHost")}</p>
                   <p className="font-semibold text-sm truncate">{stats.nextHostName}</p>
-                  {stats.nextHostDate && <p className="text-xs text-muted-foreground">{formatDate(stats.nextHostDate, locale)}</p>}
+                  {stats.nextHostDate && <p className="text-xs text-muted-foreground">{fmtDate(stats.nextHostDate)}</p>}
                 </div>
               </div>
             </CardContent>
@@ -997,6 +995,9 @@ function RosterCard({
   tc: ReturnType<typeof useTranslations>;
 }) {
   const locale = useLocale();
+  const { currentGroup: _cg } = useGroup();
+  const groupDateFormat = ((_cg?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const assignments = roster.hosting_assignments || [];
   const monthGroups = useMemo(() => {
     const grouped = groupByMonth(assignments);
@@ -1073,7 +1074,7 @@ function RosterCard({
                 <div key={monthKey} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium">
-                      {formatMonth(`${monthKey}-01`, locale)}
+                      {formatMonth(`${monthKey}-01`)}
                     </h4>
                     {isAdmin && (
                       <Button
@@ -1110,7 +1111,7 @@ function RosterCard({
                             return (
                               <tr key={a.id} className="border-b last:border-0">
                                 <td className="py-2.5 pr-4 whitespace-nowrap">
-                                  {formatDate(a.assigned_date, locale)}
+                                  {fmtDate(a.assigned_date)}
                                 </td>
                                 <td className="py-2.5 pr-4">
                                   <span className="font-medium">{getHostName(a)}</span>
@@ -1493,6 +1494,9 @@ function AssignHostsDialog({
   onSuccessMsg: (msg: string) => void;
 }) {
   const locale = useLocale();
+  const { currentGroup: _cg2 } = useGroup();
+  const groupDateFormat = ((_cg2?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -1586,7 +1590,7 @@ function AssignHostsDialog({
         </DialogHeader>
         {context && (
           <p className="text-sm text-muted-foreground">
-            {formatDate(context.date, locale)}
+            {fmtDate(context.date)}
           </p>
         )}
         <div className="space-y-2">
@@ -1641,6 +1645,9 @@ function HostingHistoryTab({ allAssignments, members, t }: {
   t: ReturnType<typeof useTranslations>;
 }) {
   const locale = useLocale();
+  const { currentGroup: _cg3 } = useGroup();
+  const groupDateFormat = ((_cg3?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   // Per-member stats
   const memberStats = useMemo(() => {
     const statsMap = new Map<string, {
@@ -1727,7 +1734,7 @@ function HostingHistoryTab({ allAssignments, members, t }: {
                         <td className="px-3 py-2 text-center">{ms.total}</td>
                         <td className="px-3 py-2 text-center text-emerald-600">{ms.completed}</td>
                         <td className="px-3 py-2 text-center text-red-600">{ms.missed}</td>
-                        <td className="px-3 py-2 text-muted-foreground text-xs">{ms.lastHosted ? new Date(ms.lastHosted).toLocaleDateString(getDateLocale(locale)) : "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground text-xs">{ms.lastHosted ? formatDateWithGroupFormat(ms.lastHosted, groupDateFormat, locale) : "—"}</td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2 justify-center">
                             <Progress value={fairScore} className="h-1.5 w-16" />
@@ -1776,6 +1783,9 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
   onSuccessMsg: (msg: string) => void;
 }) {
   const locale = useLocale();
+  const { currentGroup: _cg4 } = useGroup();
+  const groupDateFormat = ((_cg4?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const queryClient = useQueryClient();
 
   // Read compliance_rules from first active roster
@@ -2027,7 +2037,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
                   {overdueMembers.map((m) => (
                     <tr key={m.id} className="border-b last:border-0">
                       <td className="px-4 py-2 font-medium">{m.name}</td>
-                      <td className="px-3 py-2 text-muted-foreground text-xs">{m.lastHosted ? new Date(m.lastHosted).toLocaleDateString(getDateLocale(locale)) : t("neverHosted")}</td>
+                      <td className="px-3 py-2 text-muted-foreground text-xs">{m.lastHosted ? formatDateWithGroupFormat(m.lastHosted, groupDateFormat, locale) : t("neverHosted")}</td>
                       <td className="px-3 py-2 text-center text-xs">+{m.monthsOverdue} {t("months")}</td>
                       <td className="px-3 py-2 text-center">
                         <Badge className={`text-xs ${m.monthsOverdue > requiredMonths * 2 ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"}`}>
@@ -2075,7 +2085,7 @@ function HostingComplianceTab({ allAssignments, members, activeMembers, rosters,
                     <div>
                       <p className="text-sm font-medium">{name}</p>
                       <p className="text-xs text-muted-foreground">{a.exemption_reason || "—"}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(a.assigned_date, locale)}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDate(a.assigned_date)}</p>
                     </div>
                     {isAdmin && (
                       <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => handleRemoveException(a.id)} disabled={removingId === a.id}>
@@ -2221,6 +2231,9 @@ function MyHostingTab({ allAssignments, currentMembershipId, activeMembers, grou
   onError: (msg: string) => void;
   onSuccessMsg: (msg: string) => void;
 }) {
+  const { currentGroup: _cg5 } = useGroup();
+  const groupDateFormat = ((_cg5?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const [requestSwapAssignment, setRequestSwapAssignment] = useState<Assignment | null>(null);
 
   const myAssignments = useMemo(
@@ -2290,7 +2303,7 @@ function MyHostingTab({ allAssignments, currentMembershipId, activeMembers, grou
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t("myAssignment")}</p>
-                  <p className="text-lg font-bold">{formatDate(nextAssignment.assigned_date, locale)}</p>
+                  <p className="text-lg font-bold">{fmtDate(nextAssignment.assigned_date)}</p>
                   {daysUntilNext !== null && daysUntilNext >= 0 && (
                     <p className="text-xs text-primary font-medium">
                       {daysUntilNext === 0 ? t("countdownToday") : t("countdown", { days: daysUntilNext })}
@@ -2348,7 +2361,7 @@ function MyHostingTab({ allAssignments, currentMembershipId, activeMembers, grou
                 return (
                   <div key={a.id} className="flex items-center justify-between px-4 py-3">
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{formatDate(a.assigned_date, locale)}</p>
+                      <p className="text-sm font-medium">{fmtDate(a.assigned_date)}</p>
                       {sr && (
                         <div className="flex items-center gap-2 mt-1">
                           {swapRequestBadge(sr)}
@@ -2546,6 +2559,9 @@ function SwapHostDialog({
   onError: (msg: string) => void;
   onSuccessMsg: (msg: string) => void;
 }) {
+  const { currentGroup: _cg6 } = useGroup();
+  const groupDateFormat = ((_cg6?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [swapping, setSwapping] = useState(false);
 
@@ -2583,7 +2599,7 @@ function SwapHostDialog({
           user_id: origUserId,
           type: "system",
           title: t("swapNotifTitle"),
-          body: t("swapNotifBodyOld", { date: formatDate(assignment.assigned_date, locale) }),
+          body: t("swapNotifBodyOld", { date: fmtDate(assignment.assigned_date) }),
           is_read: false,
           data: { link: "/dashboard/my-hosting" },
         });
@@ -2599,7 +2615,7 @@ function SwapHostDialog({
           user_id: newUserId,
           type: "system",
           title: t("swapNotifTitle"),
-          body: t("swapNotifBodyNew", { date: formatDate(assignment.assigned_date, locale) }),
+          body: t("swapNotifBodyNew", { date: fmtDate(assignment.assigned_date) }),
           is_read: false,
           data: { link: "/dashboard/my-hosting" },
         });
@@ -2640,7 +2656,7 @@ function SwapHostDialog({
           <div className="space-y-1 text-sm">
             <p className="text-muted-foreground">{t("swapHostDesc")}</p>
             <p className="font-medium">
-              {getHostName(assignment)} — {formatDate(assignment.assigned_date, locale)}
+              {getHostName(assignment)} — {fmtDate(assignment.assigned_date)}
             </p>
           </div>
         )}
@@ -2919,6 +2935,9 @@ function RequestSwapDialog({
   onError: (msg: string) => void;
   onSuccessMsg: (msg: string) => void;
 }) {
+  const { currentGroup: _cg7 } = useGroup();
+  const groupDateFormat = ((_cg7?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const [proposedMemberId, setProposedMemberId] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -2965,7 +2984,7 @@ function RequestSwapDialog({
             group_id: groupId,
             type: "system" as const,
             title: t("swapRequestNotifTitle"),
-            body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: formatDate(assignment.assigned_date, locale) }),
+            body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: fmtDate(assignment.assigned_date) }),
             is_read: false,
             data: { link: "/dashboard/hosting" },
           }));
@@ -2983,7 +3002,7 @@ function RequestSwapDialog({
           group_id: groupId,
           type: "system",
           title: t("swapRequestNotifTitle"),
-          body: t("swapRequestNotifBodyTarget", { memberName: requesterName, date: formatDate(assignment.assigned_date, locale) }),
+          body: t("swapRequestNotifBodyTarget", { memberName: requesterName, date: fmtDate(assignment.assigned_date) }),
           is_read: false,
           data: { link: "/dashboard/my-hosting" },
         });
@@ -3002,8 +3021,8 @@ function RequestSwapDialog({
               recipientPhone: adminPhone,
               groupId,
               title: t("swapRequestNotifTitle"),
-              body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: formatDate(assignment.assigned_date, locale) }),
-              data: { groupName: "", memberName: requesterName, date: formatDate(assignment.assigned_date, locale) },
+              body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: fmtDate(assignment.assigned_date) }),
+              data: { groupName: "", memberName: requesterName, date: fmtDate(assignment.assigned_date) },
               emailTemplate: "notification",
               smsTemplate: "hosting-reminder",
               whatsappType: "hosting_reminder",
@@ -3037,7 +3056,7 @@ function RequestSwapDialog({
         {assignment && (
           <div className="text-sm text-muted-foreground">
             <p>{t("requestSwapDesc")}</p>
-            <p className="font-medium text-foreground mt-1">{formatDate(assignment.assigned_date, locale)}</p>
+            <p className="font-medium text-foreground mt-1">{fmtDate(assignment.assigned_date)}</p>
           </div>
         )}
         <div className="space-y-4">
@@ -3108,6 +3127,9 @@ function SwapRequestsAdminTab({
   onError: (msg: string) => void;
   onSuccessMsg: (msg: string) => void;
 }) {
+  const { currentGroup: _cg8 } = useGroup();
+  const groupDateFormat = ((_cg8?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const fmtDate = (d: string) => formatDate(d, locale, groupDateFormat);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectDialogRequest, setRejectDialogRequest] = useState<SwapRequest | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
@@ -3173,7 +3195,7 @@ function SwapRequestsAdminTab({
           group_id: groupId,
           type: "system",
           title: t("swapApprovedNotifTitle"),
-          body: t("swapApprovedNotifBody", { date: formatDate(assignedDate, locale) }),
+          body: t("swapApprovedNotifBody", { date: fmtDate(assignedDate) }),
           is_read: false,
           data: { link: "/dashboard/my-hosting" },
         });
@@ -3188,7 +3210,7 @@ function SwapRequestsAdminTab({
           group_id: groupId,
           type: "system",
           title: t("swapApprovedNotifTitle"),
-          body: t("swapApprovedTargetNotifBody", { date: formatDate(assignedDate, locale) }),
+          body: t("swapApprovedTargetNotifBody", { date: fmtDate(assignedDate) }),
           is_read: false,
           data: { link: "/dashboard/my-hosting" },
         });
@@ -3222,8 +3244,8 @@ function SwapRequestsAdminTab({
             recipientPhone: reqPhone,
             groupId,
             title: t("swapApprovedNotifTitle"),
-            body: t("swapApprovedNotifBody", { date: formatDate(assignedDate, locale) }),
-            data: { date: formatDate(assignedDate, locale), groupName: "" },
+            body: t("swapApprovedNotifBody", { date: fmtDate(assignedDate) }),
+            data: { date: fmtDate(assignedDate), groupName: "" },
             emailTemplate: "notification",
             smsTemplate: "hosting-reminder",
             whatsappType: "hosting_reminder",
@@ -3271,7 +3293,7 @@ function SwapRequestsAdminTab({
           group_id: groupId,
           type: "system",
           title: t("swapRejectedNotifTitle"),
-          body: t("swapRejectedNotifBody", { date: formatDate(assignedDate, locale), reason: rejectNotes.trim() }),
+          body: t("swapRejectedNotifBody", { date: fmtDate(assignedDate), reason: rejectNotes.trim() }),
           is_read: false,
           data: { link: "/dashboard/my-hosting" },
         });
@@ -3291,8 +3313,8 @@ function SwapRequestsAdminTab({
             recipientPhone: reqPhone,
             groupId,
             title: t("swapRejectedNotifTitle"),
-            body: t("swapRejectedNotifBody", { date: formatDate(assignedDate, locale), reason: rejectNotes.trim() }),
-            data: { date: formatDate(assignedDate, locale), reason: rejectNotes.trim(), groupName: "" },
+            body: t("swapRejectedNotifBody", { date: fmtDate(assignedDate), reason: rejectNotes.trim() }),
+            data: { date: fmtDate(assignedDate), reason: rejectNotes.trim(), groupName: "" },
             emailTemplate: "notification",
             inAppType: "system",
             locale,
@@ -3367,13 +3389,13 @@ function SwapRequestsAdminTab({
                           <span className="text-sm font-medium text-primary">{proposedName}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatDate(assignedDate, locale)}
+                          {fmtDate(assignedDate)}
                         </p>
                         {sr.reason && (
                           <p className="text-xs text-muted-foreground mt-1 italic">&ldquo;{sr.reason}&rdquo;</p>
                         )}
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {t("requestDate")}: {new Date(sr.created_at).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US")}
+                          {t("requestDate")}: {formatDateWithGroupFormat(sr.created_at, groupDateFormat, locale)}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
@@ -3427,7 +3449,7 @@ function SwapRequestsAdminTab({
                         <span className="text-muted-foreground">→</span>
                         <span className="font-medium">{proposedName}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground">{formatDate(assignedDate, locale)}</p>
+                      <p className="text-[10px] text-muted-foreground">{fmtDate(assignedDate)}</p>
                       {sr.review_notes && (
                         <p className="text-[10px] text-muted-foreground italic">{sr.review_notes}</p>
                       )}

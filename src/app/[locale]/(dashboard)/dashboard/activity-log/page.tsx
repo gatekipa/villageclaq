@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -170,8 +170,9 @@ export default function ActivityLogPage() {
   const t = useTranslations("activityLog");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const dateLocale = locale === "fr" ? "fr-FR" : "en-US";
 
   const [category, setCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,7 +196,7 @@ export default function ActivityLogPage() {
       if (diffMins < 60) return t("minutesAgo", { count: diffMins });
       if (diffHours < 24) return t("hoursAgo", { count: diffHours });
       if (diffDays < 7) return t("daysAgo", { count: diffDays });
-      return date.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      return formatDateWithGroupFormat(date, groupDateFormat, locale);
     } catch {
       return d;
     }

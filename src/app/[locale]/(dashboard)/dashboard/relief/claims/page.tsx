@@ -3,7 +3,7 @@
 import { formatAmount } from "@/lib/currencies";
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,8 +48,8 @@ const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof Check
 export default function ReliefClaimsPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const { data: claims, isLoading, error, refetch } = useReliefClaims();
 
@@ -325,7 +325,7 @@ export default function ReliefClaimsPage() {
             const description = (claim.description as string) || "";
             const claimReviewNotes = (claim.review_notes as string) || "";
             const createdAt = claim.created_at
-              ? new Date(claim.created_at as string).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" })
+              ? formatDateWithGroupFormat(claim.created_at as string, groupDateFormat, locale)
               : "";
 
             return (

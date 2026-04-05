@@ -3,7 +3,6 @@ import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
@@ -208,7 +207,7 @@ export default function DuesMatrixPage() {
     return columns.map((ym) => {
       const [y, m] = ym.split("-");
       const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
-      return `${d.toLocaleDateString(getDateLocale(locale), { month: "short" })} ${y}`;
+      return `${d.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" })} ${y}`;
     });
   }, [columns, view, locale]);
 

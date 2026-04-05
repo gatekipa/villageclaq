@@ -49,7 +49,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { exportCSV } from "@/lib/export";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -105,7 +105,8 @@ export default function AttendancePage() {
   const t = useTranslations("attendance");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const { groupId, user } = useGroup();
+  const { groupId, user, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   // Permission check for attendance management (used alongside PermissionGate)
   const queryClient = useQueryClient();
@@ -569,7 +570,7 @@ export default function AttendancePage() {
                       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
                         <p className="font-medium">{record.event_title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(record.event_date).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric", year: "numeric" })}
+                          {formatDateWithGroupFormat(record.event_date, groupDateFormat, locale)}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -697,7 +698,7 @@ export default function AttendancePage() {
                     allEvents.map((event) => (
                       <SelectItem key={event.id as string} value={event.id as string}>
                         {event.title as string} &mdash;{" "}
-                        {new Date(event.starts_at as string).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric" })}
+                        {new Date(event.starts_at as string).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" })}
                       </SelectItem>
                     ))
                   )}

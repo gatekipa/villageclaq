@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useLocale } from "next-intl";
 import {
   Home,
@@ -104,22 +104,12 @@ function useHostingGroupAverage(groupId: string | null) {
   });
 }
 
-function formatDateLocale(dateStr: string, locale: string): string {
-  try {
-    return new Date(dateStr + "T00:00:00").toLocaleDateString(getDateLocale(locale), {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
 
 export default function MyHostingPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const { groupId, currentMembership } = useGroup();
+  const { groupId, currentMembership, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const membershipId = currentMembership?.id || null;
 
   const { data: assignments = [], isLoading, error, refetch } = useMyHostingAssignments(membershipId);
@@ -224,7 +214,7 @@ export default function MyHostingPage() {
                 {/* Date with countdown */}
                 <div className="mt-1.5 flex items-center gap-2 text-sm">
                   <Calendar className="h-4 w-4 text-primary" />
-                  <span className="font-medium">{formatDateLocale(upcomingAssignment.assigned_date as string, locale)}</span>
+                  <span className="font-medium">{formatDateWithGroupFormat((upcomingAssignment.assigned_date as string) + "T00:00:00", groupDateFormat, locale)}</span>
                   <Badge variant="secondary" className="text-xs">
                     <Clock className="mr-1 h-3 w-3" />
                     {t("hosting.countdown", { days: daysUntil })}
@@ -362,10 +352,10 @@ export default function MyHostingPage() {
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">
-                          {(event?.title as string) || formatDateLocale(record.assigned_date as string, locale)}
+                          {(event?.title as string) || formatDateWithGroupFormat((record.assigned_date as string) + "T00:00:00", groupDateFormat, locale)}
                         </p>
                         <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                          <span>{formatDateLocale(record.assigned_date as string, locale)}</span>
+                          <span>{formatDateWithGroupFormat((record.assigned_date as string) + "T00:00:00", groupDateFormat, locale)}</span>
                           {record.exemption_reason ? (
                             <span>{record.exemption_reason as string}</span>
                           ) : null}

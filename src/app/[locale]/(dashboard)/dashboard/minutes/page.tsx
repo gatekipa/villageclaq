@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,21 +117,9 @@ interface MinutesRecord {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function formatDate(dateStr: string, locale: string = "en") {
-  try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
 function formatDateTime(dateStr: string, locale: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
+    return new Date(dateStr).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -159,6 +147,8 @@ export default function MinutesPage() {
   const t = useTranslations("minutes");
   const tc = useTranslations("common");
   const { groupId, user, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+  const formatDate = (dateStr: string) => formatDateWithGroupFormat(dateStr, groupDateFormat, locale);
   const { hasPermission } = usePermissions();
   const canManageMinutes = hasPermission("minutes.manage");
   const queryClient = useQueryClient();
@@ -511,8 +501,8 @@ export default function MinutesPage() {
             );
             if (realMembers.length > 0) {
               const meetingDate = selectedEvent?.starts_at
-                ? new Date(selectedEvent.starts_at).toLocaleDateString(getDateLocale(locale))
-                : new Date().toLocaleDateString(getDateLocale(locale));
+                ? formatDateWithGroupFormat(selectedEvent.starts_at, groupDateFormat, locale)
+                : formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
               const publisherName = user?.full_name || user?.display_name || tc("admin");
 
               // Notify each member via their preferred channels

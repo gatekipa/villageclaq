@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -69,7 +69,8 @@ function useMyAttendanceRecords(membershipId: string | null) {
 export default function MyAttendancePage() {
   const t = useTranslations();
   const locale = useLocale();
-  const { currentMembership } = useGroup();
+  const { currentMembership, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const membershipId = currentMembership?.id || null;
 
   const { data: records = [], isLoading, error, refetch } = useMyAttendanceRecords(membershipId);
@@ -314,7 +315,7 @@ export default function MyAttendancePage() {
                         {(locale === "fr" && event?.title_fr ? event.title_fr as string : event?.title as string) || ""}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {event?.starts_at ? new Date(event.starts_at as string).toLocaleDateString(getDateLocale(locale)) : ""}
+                        {event?.starts_at ? formatDateWithGroupFormat(event.starts_at as string, groupDateFormat, locale) : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

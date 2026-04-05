@@ -3,7 +3,7 @@ import { formatAmount } from "@/lib/currencies";
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -56,9 +56,9 @@ const claimStatusConfig: Record<ClaimStatus, { color: string; icon: typeof Check
 export default function MyReliefPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const supabase = createClient();
   const { currentMembership, currentGroup, groupId } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const membershipId = currentMembership?.id;
   const currency = currentGroup?.currency || "XAF";
@@ -145,8 +145,8 @@ export default function MyReliefPage() {
       planId: plan.id as string,
       planName: (plan.name as string) || "",
       planNameFr: (plan.name_fr as string) || "",
-      enrolledAt: enrolledAt.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }),
-      eligibleFrom: eligibleFrom.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }),
+      enrolledAt: formatDateWithGroupFormat(enrolledAt.toISOString(), groupDateFormat, locale),
+      eligibleFrom: formatDateWithGroupFormat(eligibleFrom.toISOString(), groupDateFormat, locale),
       isEligible,
       isWaiting,
       contributionStatus: contribStatus,
@@ -172,7 +172,7 @@ export default function MyReliefPage() {
       eventType: claim.event_type as EventType,
       amount: Number(claim.amount) || 0,
       status: claim.status as ClaimStatus,
-      date: new Date(claim.created_at as string).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }),
+      date: formatDateWithGroupFormat(claim.created_at as string, groupDateFormat, locale),
       description: (claim.description as string) || "",
       reviewNotes: claim.review_notes as string | undefined,
     };

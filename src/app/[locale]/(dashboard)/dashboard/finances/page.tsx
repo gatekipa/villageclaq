@@ -1,6 +1,6 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
-import { getDateLocale } from "@/lib/date-utils";
+
 
 import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -199,7 +199,7 @@ export default function FinancesPage() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
         key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: d.toLocaleDateString(getDateLocale(locale), { month: "short" }),
+        label: d.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" }),
       });
     }
 
@@ -271,7 +271,7 @@ export default function FinancesPage() {
       const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
       const ct = p.contribution_type as { id: string; name: string; name_fr?: string } | null;
       const date = (p.recorded_at || p.created_at || "").slice(0, 10);
-      const shortDate = date ? new Date(date).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric" }) : "";
+      const shortDate = date ? new Date(date).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" }) : "";
       return {
         id: p.id,
         name: getMemberName(p.membership as Record<string, unknown>),

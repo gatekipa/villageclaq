@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { normalizeSearch } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -228,6 +228,7 @@ export default function MembersPage() {
   const tt = useTranslations("transfers");
   const router = useRouter();
   const { groupId, user, currentGroup, currentMembership } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
@@ -450,7 +451,7 @@ export default function MembersPage() {
           : (profile?.phone || "");
         const role = (m.role as string) || "member";
         const standing = (m.standing as string) || "good";
-        const joinedAt = m.joined_at ? new Date(m.joined_at as string).toLocaleDateString(getDateLocale(locale)) : "";
+        const joinedAt = m.joined_at ? formatDateWithGroupFormat(m.joined_at as string, groupDateFormat, locale) : "";
         const isProxy = m.is_proxy ? "Yes" : "No";
         return { Name: name, Phone: phone, Role: role, Standing: standing, "Joined Date": joinedAt, "Proxy Member": isProxy };
       });
@@ -1426,11 +1427,7 @@ export default function MembersPage() {
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
+      return formatDateWithGroupFormat(dateStr, groupDateFormat, locale);
     } catch {
       return dateStr;
     }

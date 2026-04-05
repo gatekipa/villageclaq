@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -157,9 +157,9 @@ function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function formatDate(dateStr: string, locale: string = "en") {
+function formatDate(dateStr: string, locale: string = "en", groupFmt: string = "DD/MM/YYYY") {
   try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short", day: "numeric" });
+    return formatDateWithGroupFormat(dateStr, groupFmt, locale);
   } catch { return dateStr; }
 }
 
@@ -167,7 +167,8 @@ export default function RolesPage() {
   const locale = useLocale();
   const t = useTranslations("roles");
   const tc = useTranslations("common");
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const { data: positions, isLoading, isError, error, refetch } = useGroupPositions();
   const { data: members } = useMembers();
@@ -473,7 +474,7 @@ export default function RolesPage() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <span className="text-sm text-muted-foreground">
-                          {createdAt ? formatDate(createdAt) : "—"}
+                          {createdAt ? formatDate(createdAt, locale, groupDateFormat) : "—"}
                         </span>
                       </TableCell>
                       <TableCell>

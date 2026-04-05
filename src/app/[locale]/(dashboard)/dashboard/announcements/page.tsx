@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
@@ -136,21 +136,13 @@ function getStatusBadge(announcement: Record<string, unknown>, t: (key: string) 
   );
 }
 
-function formatDate(dateStr: string, locale: string = "en") {
-  return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default function AnnouncementsPage() {
   const locale = useLocale();
   const t = useTranslations("communications");
   const tc = useTranslations("common");
   const { groupId, user, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const canManageAnnouncements = hasPermission("announcements.manage");
   const queryClient = useQueryClient();
@@ -870,8 +862,8 @@ export default function AnnouncementsPage() {
                     <Clock className="size-3.5" />
                     <span>
                       {!sentAt && scheduledAt
-                        ? `${t("scheduledFor")}: ${formatDate(scheduledAt, locale)}`
-                        : dateStr ? formatDate(dateStr, locale) : ""}
+                        ? `${t("scheduledFor")}: ${formatDateWithGroupFormat(scheduledAt, groupDateFormat, locale)}`
+                        : dateStr ? formatDateWithGroupFormat(dateStr, groupDateFormat, locale) : ""}
                     </span>
                   </div>
 

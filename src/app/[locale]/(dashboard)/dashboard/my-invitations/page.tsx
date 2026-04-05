@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
@@ -41,7 +41,8 @@ export default function MyInvitationsPage() {
   const tc = useTranslations("common");
   const locale = useLocale();
   const queryClient = useQueryClient();
-  const { user, memberships } = useGroup();
+  const { user, memberships, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const router = useRouter();
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -388,7 +389,7 @@ export default function MyInvitationsPage() {
                 const group = inv.group as Record<string, unknown> | null;
                 const groupName = (group?.name as string) || "—";
                 const createdAt = inv.created_at
-                  ? new Date(inv.created_at as string).toLocaleDateString(getDateLocale(locale))
+                  ? formatDateWithGroupFormat(inv.created_at as string, groupDateFormat, locale)
                   : "—";
                 const config = statusConfig[status] || statusConfig.pending;
                 const StatusIcon = config.icon;

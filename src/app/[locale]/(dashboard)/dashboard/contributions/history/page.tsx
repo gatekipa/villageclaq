@@ -1,6 +1,7 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
 import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -67,14 +68,6 @@ const methodColors: Record<string, string> = {
 };
 
 
-function formatDate(dateStr: string, dateLocale: string) {
-  return new Date(dateStr).toLocaleDateString(dateLocale, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 function formatTime(dateStr: string, dateLocale: string) {
   return new Date(dateStr).toLocaleTimeString(dateLocale, {
     hour: "2-digit",
@@ -88,6 +81,7 @@ export default function PaymentHistoryPage() {
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
   const { hasPermission } = usePermissions();
@@ -205,7 +199,7 @@ export default function PaymentHistoryPage() {
   function handleExportCSV() {
     const headers = [t("contributions.csvDate"), t("contributions.csvMember"), t("contributions.csvType"), t("contributions.csvAmount"), t("contributions.csvCurrency"), t("contributions.csvMethod"), t("contributions.csvReference")];
     const rows = filtered.map((p) => [
-      formatDate(p.recordedAt, dateLocale),
+      formatDateWithGroupFormat(p.recordedAt, groupDateFormat, locale),
       p.memberName,
       p.contributionTypeName,
       p.amount.toString(),
@@ -621,7 +615,7 @@ export default function PaymentHistoryPage() {
                     >
                       <td className="whitespace-nowrap px-4 py-3">
                         <div>
-                          <p className="font-medium">{formatDate(payment.recordedAt, dateLocale)}</p>
+                          <p className="font-medium">{formatDateWithGroupFormat(payment.recordedAt, groupDateFormat, locale)}</p>
                           <p className="text-xs text-muted-foreground">{formatTime(payment.recordedAt, dateLocale)}</p>
                         </div>
                       </td>

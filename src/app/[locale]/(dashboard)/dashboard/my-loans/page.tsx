@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import { markOverdueInstallments } from "@/lib/loans";
@@ -163,8 +163,8 @@ export default function MyLoansPage() {
   const t = useTranslations("loans");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { groupId, currentGroup, currentMembership } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
 
@@ -219,11 +219,7 @@ export default function MyLoansPage() {
       return s === "completed" || s === "denied" || s === "defaulted" || s === "written_off";
     }), [allLoans]);
 
-  const formatDate = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" });
-    } catch { return d; }
-  };
+  const formatDate = (d: string) => formatDateWithGroupFormat(d, groupDateFormat, locale);
 
   // ─── Eligibility pre-check ──────────────────────────────────────────
   function getEligibility() {

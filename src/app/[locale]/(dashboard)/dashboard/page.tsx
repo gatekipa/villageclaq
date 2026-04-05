@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { Link, useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +60,7 @@ export default function DashboardPage() {
   const t = useTranslations();
   const router = useRouter();
   const { currentGroup, user, isAdmin } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);
@@ -445,7 +446,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                   <span className="text-xs font-medium text-primary">
-                    {new Date(nextEvent.starts_at as string).toLocaleDateString(getDateLocale(locale), { month: "short" })}
+                    {new Date(nextEvent.starts_at as string).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" })}
                   </span>
                   <span className="text-lg font-bold leading-none text-primary">
                     {new Date(nextEvent.starts_at as string).getDate()}
@@ -456,7 +457,7 @@ export default function DashboardPage() {
                     {(nextEvent.title as string) || (nextEvent.title_fr as string)}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(nextEvent.starts_at as string).toLocaleTimeString(getDateLocale(locale), {
+                    {new Date(nextEvent.starts_at as string).toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", {
                       hour: "numeric",
                       minute: "2-digit",
                     })}
@@ -485,7 +486,7 @@ export default function DashboardPage() {
               <div className="flex items-start gap-3 rounded-lg border p-3">
                 <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                   <span className="text-xs font-medium text-primary">
-                    {new Date(latestMinutes.created_at as string).toLocaleDateString(getDateLocale(locale), { month: "short" })}
+                    {new Date(latestMinutes.created_at as string).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" })}
                   </span>
                   <span className="text-lg font-bold leading-none text-primary">
                     {new Date(latestMinutes.created_at as string).getDate()}
@@ -564,7 +565,7 @@ export default function DashboardPage() {
                         +{formatCurrency(payment.amount as number)}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(payment.recorded_at as string).toLocaleDateString(getDateLocale(locale))}
+                        {formatDateWithGroupFormat(payment.recorded_at as string, groupDateFormat, locale)}
                       </p>
                     </div>
                   </div>

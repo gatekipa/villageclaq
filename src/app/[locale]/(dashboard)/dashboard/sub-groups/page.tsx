@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,11 +120,6 @@ function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function formatDate(dateStr: string, locale: string = "en") {
-  try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short", day: "numeric" });
-  } catch { return dateStr; }
-}
 
 export default function SubGroupsPage() {
   const locale = useLocale();

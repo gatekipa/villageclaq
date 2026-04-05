@@ -3,7 +3,7 @@ import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -156,9 +156,9 @@ interface Payout {
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 
-function formatDate(dateStr: string, locale: string) {
+function formatDate(dateStr: string, locale: string, groupFmt: string = "DD/MM/YYYY") {
   try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short", day: "numeric" });
+    return formatDateWithGroupFormat(dateStr, groupFmt, locale);
   } catch {
     return dateStr;
   }
@@ -281,6 +281,7 @@ export default function ReliefPlansPage() {
   const tc = useTranslations("common");
   const th = useTranslations("helpTips");
   const { currentGroup, groupId, user } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const isAdmin = hasPermission("relief.manage");
   const isHq = currentGroup?.group_level === "hq";
@@ -1318,6 +1319,8 @@ function PlanDetailTabs({
 }) {
   const t = useTranslations("relief");
   const tc = useTranslations("common");
+  const { currentGroup: _cgPdt } = useGroup();
+  const groupDateFormat = ((_cgPdt?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   const { data: enrollments, isLoading: enrollLoading } = usePlanEnrollments(plan.id);
   const { data: claims, isLoading: claimsLoading } = usePlanClaims(plan.id);
@@ -1371,7 +1374,7 @@ function PlanDetailTabs({
                 <Badge variant="outline" className="w-fit text-[10px]">
                   {t(`enrollmentTypes.${enrollment.enrollment_type || "full_member"}`)}
                 </Badge>
-                <span className="text-muted-foreground text-xs">{enrollment.enrolled_at ? formatDate(enrollment.enrolled_at, locale) : "—"}</span>
+                <span className="text-muted-foreground text-xs">{enrollment.enrolled_at ? formatDate(enrollment.enrolled_at, locale, groupDateFormat) : "—"}</span>
                 <Badge variant={enrollment.is_active ? "default" : "secondary"} className="w-fit text-xs">
                   {enrollment.is_active ? tc("active") : tc("inactive")}
                 </Badge>
@@ -1478,7 +1481,7 @@ function PlanDetailTabs({
                 </span>
                 <span className="font-medium">{formatAmount(payout.amount, currency)}</span>
                 <span className="text-muted-foreground text-xs">{payout.payment_method || "—"}</span>
-                <span className="text-muted-foreground text-xs">{payout.paid_at ? formatDate(payout.paid_at, locale) : "—"}</span>
+                <span className="text-muted-foreground text-xs">{payout.paid_at ? formatDate(payout.paid_at, locale, groupDateFormat) : "—"}</span>
                 <span className="text-muted-foreground text-xs truncate">{(payout.recorder as { full_name: string | null } | null)?.full_name || "—"}</span>
               </div>
             ))}
@@ -1846,6 +1849,8 @@ function EligibilityTracker({ plans, currency, groupId, t }: {
   t: ReturnType<typeof useTranslations>;
 }) {
   const locale = useLocale();
+  const { currentGroup: _cgEt } = useGroup();
+  const groupDateFormat = ((_cgEt?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const supabase = createClient();
   const queryClient = useQueryClient();
   const [planFilter, setPlanFilter] = useState("all");
@@ -1901,8 +1906,8 @@ function EligibilityTracker({ plans, currency, groupId, t }: {
       memberName: getMemberName(e.membership as { display_name: string | null; profiles?: { full_name: string | null } | null }),
       planName: (plan?.name as string) || "—",
       planId: (plan?.id as string) || "",
-      enrolledAt: formatDate(e.enrolled_at as string, locale),
-      eligibleDate: formatDate(eligibleDate.toISOString(), locale),
+      enrolledAt: formatDate(e.enrolled_at as string, locale, groupDateFormat),
+      eligibleDate: formatDate(eligibleDate.toISOString(), locale, groupDateFormat),
       daysLeft,
       contribStatus,
       eligibility,

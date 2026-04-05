@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { cn, normalizeSearch } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,8 @@ export default function EventsPage() {
   const locale = useLocale();
   const t = useTranslations("events");
   const tc = useTranslations("common");
-  const { groupId, currentMembership, user } = useGroup();
+  const { groupId, currentMembership, user, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const { data: events, isLoading, isError, error, refetch } = useEvents();
   const createEvent = useCreateEvent();
@@ -189,7 +190,7 @@ export default function EventsPage() {
   const month = calendarDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const monthName = calendarDate.toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" });
+  const monthName = calendarDate.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", year: "numeric" });
 
   const now = new Date().toISOString();
 
@@ -298,7 +299,7 @@ export default function EventsPage() {
     setPreFilledBanner(
       t("preFilledFrom", {
         title: lastEvent.title as string,
-        date: new Date(lastEvent.starts_at as string).toLocaleDateString(getDateLocale(locale)),
+        date: formatDateWithGroupFormat(lastEvent.starts_at as string, groupDateFormat, locale),
       })
     );
     setEditEventId(null);
@@ -569,7 +570,7 @@ export default function EventsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-px">
-              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(getDateLocale(locale), { weekday: "short" })).map((day) => (
+              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { weekday: "short" })).map((day) => (
                 <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
                   {day}
                 </div>
@@ -655,7 +656,7 @@ export default function EventsPage() {
                       <div className="flex gap-4 flex-1 min-w-0">
                         <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                           <span className="text-xs font-medium text-primary">
-                            {startsAt.toLocaleDateString(getDateLocale(locale), { month: "short" })}
+                            {startsAt.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" })}
                           </span>
                           <span className="text-xl font-bold leading-none text-primary">
                             {startsAt.getDate()}
@@ -686,8 +687,8 @@ export default function EventsPage() {
                           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3.5 w-3.5" />
-                              {startsAt.toLocaleTimeString(getDateLocale(locale), { hour: "2-digit", minute: "2-digit" })}
-                              {endsAt && ` - ${endsAt.toLocaleTimeString(getDateLocale(locale), { hour: "2-digit", minute: "2-digit" })}`}
+                              {startsAt.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+                              {endsAt && ` - ${endsAt.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}`}
                             </span>
                             {event.location ? (
                               <span className="flex items-center gap-1">

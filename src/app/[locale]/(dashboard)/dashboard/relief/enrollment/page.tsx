@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { getMemberName as getMemberNameShared } from "@/lib/get-member-name";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,8 +63,8 @@ function getInitials(name: string) {
 export default function ReliefEnrollmentPage() {
   const t = useTranslations();
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { groupId, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const { data: enrollments, isLoading, error, refetch } = useReliefEnrollments();
   const { data: plans } = useReliefPlans();
@@ -298,10 +298,10 @@ export default function ReliefEnrollmentPage() {
                         {t(`relief.enrollmentTypes.${(enrollment.enrollment_type as string) || "full_member"}`)}
                       </Badge>
                       <div className="text-xs text-muted-foreground">
-                        {t("relief.enrollmentDate")}: {enrolledAt ? new Date(enrolledAt).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }) : ""}
+                        {t("relief.enrollmentDate")}: {enrolledAt ? formatDateWithGroupFormat(enrolledAt, groupDateFormat, locale) : ""}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {t("relief.eligibilityDate")}: {eligibleDate.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" })}
+                        {t("relief.eligibilityDate")}: {formatDateWithGroupFormat(eligibleDate.toISOString(), groupDateFormat, locale)}
                       </div>
                       {isWaiting ? (
                         <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">

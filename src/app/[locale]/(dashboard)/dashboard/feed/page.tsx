@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +107,7 @@ interface FeedItem {
 function useAggregatedFeed(enabled: boolean) {
   const { groupId, currentGroup } = useGroup();
   const currency = currentGroup?.currency || "XAF";
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const locale = useLocale();
   const t = useTranslations("feed");
 
@@ -179,7 +180,7 @@ function useAggregatedFeed(enabled: boolean) {
         items.push({
           id: `event-${e.id}`,
           entity_type: "event",
-          message: t("eventScheduled", { title: e.title as string, date: new Date(e.starts_at as string).toLocaleDateString(getDateLocale(locale)) }),
+          message: t("eventScheduled", { title: e.title as string, date: formatDateWithGroupFormat(e.starts_at as string, groupDateFormat, locale) }),
           actor_name: t("system"),
           actor_avatar: null,
           created_at: e.created_at as string,

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -116,8 +116,8 @@ export default function MyFinesPage() {
   const td = useTranslations("disputes");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { groupId, currentGroup, currentMembership } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
 
@@ -160,11 +160,7 @@ export default function MyFinesPage() {
   const pendingFines = useMemo(() => allFines.filter((f: Record<string, unknown>) => f.status === "pending"), [allFines]);
   const historyFines = useMemo(() => allFines.filter((f: Record<string, unknown>) => f.status !== "pending"), [allFines]);
 
-  const formatDate = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" });
-    } catch { return d; }
-  };
+  const formatDate = (d: string) => formatDateWithGroupFormat(d, groupDateFormat, locale);
 
   // ─── File upload helper ────────────────────────────────────────────────
   async function handleDocUpload(

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -262,6 +262,7 @@ export default function MemberDetailPage() {
   const params = useParams();
   const membershipId = params.id as string;
   const { groupId, currentGroup, user } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission, isOwner } = usePermissions();
   const currency = currentGroup?.currency || "XAF";
   const router = useRouter();
@@ -657,7 +658,7 @@ export default function MemberDetailPage() {
                 {joinedAt && (
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
-                    {ts("memberSince", { date: new Date(joinedAt).toLocaleDateString(getDateLocale(locale)) })}
+                    {ts("memberSince", { date: formatDateWithGroupFormat(joinedAt, groupDateFormat, locale) })}
                     {yearsOfMembership > 0 && (
                       <span className="text-xs">({ts("yearsOfMembership", { count: yearsOfMembership })})</span>
                     )}
@@ -792,7 +793,7 @@ export default function MemberDetailPage() {
             <div>
               <p className="text-xs text-muted-foreground">{ts("lastPaymentDate")}</p>
               <p className="text-sm font-medium">
-                {lastPayment ? new Date(lastPayment.recorded_at as string).toLocaleDateString(getDateLocale(locale)) : "—"}
+                {lastPayment ? formatDateWithGroupFormat(lastPayment.recorded_at as string, groupDateFormat, locale) : "—"}
               </p>
             </div>
             <div>
@@ -872,7 +873,7 @@ export default function MemberDetailPage() {
               <div>
                 <p className="text-xs text-muted-foreground">{ts("nextHosting")}</p>
                 <p className="text-sm font-medium">
-                  {nextHosting ? new Date(nextHosting.assigned_date as string).toLocaleDateString(getDateLocale(locale)) : "—"}
+                  {nextHosting ? formatDateWithGroupFormat(nextHosting.assigned_date as string, groupDateFormat, locale) : "—"}
                 </p>
               </div>
             </div>
@@ -987,7 +988,7 @@ export default function MemberDetailPage() {
                   </div>
                   {fm.date_of_birth && (
                     <span className="text-xs text-muted-foreground shrink-0">
-                      {new Date(fm.date_of_birth).toLocaleDateString(getDateLocale(locale))}
+                      {formatDateWithGroupFormat(fm.date_of_birth, groupDateFormat, locale)}
                     </span>
                   )}
                   {(hasPermission("members.manage") || isOwner) && (
@@ -1069,7 +1070,7 @@ export default function MemberDetailPage() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.date.toLocaleDateString(getDateLocale(locale))}</p>
+                      <p className="text-xs text-muted-foreground">{formatDateWithGroupFormat(item.date, groupDateFormat, locale)}</p>
                     </div>
                     <span className="text-xs font-medium shrink-0">
                       {item.type === "payment" ? (

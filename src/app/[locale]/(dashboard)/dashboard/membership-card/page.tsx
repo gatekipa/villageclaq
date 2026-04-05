@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -120,7 +119,7 @@ export default function MembershipCardPage() {
   const memberId = `${membershipId.slice(0, 4).toUpperCase()}-${membershipId.slice(4, 8).toUpperCase()}`;
   const joinedAt = (membership.joined_at as string) || null;
   const memberSince = joinedAt
-    ? new Date(joinedAt).toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" })
+    ? new Date(joinedAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", year: "numeric" })
     : "—";
   const groupName = currentGroup?.name || "—";
   const verifyUrl = typeof window !== "undefined"

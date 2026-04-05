@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
@@ -71,10 +71,10 @@ export default function BranchesPage() {
   const t = useTranslations("enterprise");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const queryClient = useQueryClient();
   const supabase = createClient();
   const { currentGroup, groupId, isAdmin, user } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
 
   const [search, setSearch] = useState("");
@@ -499,11 +499,7 @@ export default function BranchesPage() {
                     </span>
                     <span>{branch.currency}</span>
                     <span>
-                      {new Date(branch.created_at).toLocaleDateString(dateLocale, {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatDateWithGroupFormat(branch.created_at, groupDateFormat, locale)}
                     </span>
                   </div>
                   {canCreateBranch && (

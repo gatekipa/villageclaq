@@ -5,7 +5,7 @@ import { exportCSV } from "@/lib/export";
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -94,13 +94,9 @@ const PROJECT_TYPES = [
 const PAYMENT_METHODS = ["cash", "mobile_money", "bank_transfer", "card"] as const;
 
 
-function formatDate(dateStr: string, locale: string = "en") {
+function formatDate(dateStr: string, locale: string = "en", groupFmt: string = "DD/MM/YYYY") {
   try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDateWithGroupFormat(dateStr, groupFmt, locale);
   } catch {
     return dateStr;
   }
@@ -558,6 +554,9 @@ function ProjectDetail({
   onDataChanged: () => void;
 }) {
   const t = useTranslations("projects");
+  const locale = useLocale();
+  const { currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [completingId, setCompletingId] = useState<string | null>(null);
 
   const contributions = project.contributions || [];
@@ -684,7 +683,7 @@ function ProjectDetail({
                             {c.payment_method ? t(`method_${c.payment_method}`) : "-"}
                           </td>
                           <td className="p-2 hidden sm:table-cell text-muted-foreground">
-                            {c.paid_at ? formatDate(c.paid_at) : "-"}
+                            {c.paid_at ? formatDate(c.paid_at, locale, groupDateFormat) : "-"}
                           </td>
                         </tr>
                       ))}
@@ -732,7 +731,7 @@ function ProjectDetail({
                           <td className="p-2">{e.description}</td>
                           <td className="p-2 text-right font-medium">{formatAmount(Number(e.amount), currency)}</td>
                           <td className="p-2 hidden sm:table-cell text-muted-foreground">
-                            {e.spent_at ? formatDate(e.spent_at) : "-"}
+                            {e.spent_at ? formatDate(e.spent_at, locale, groupDateFormat) : "-"}
                           </td>
                         </tr>
                       ))}
@@ -810,12 +809,12 @@ function ProjectDetail({
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         {m.target_date && (
                           <span>
-                            {t("targetDate")}: {formatDate(m.target_date)}
+                            {t("targetDate")}: {formatDate(m.target_date, locale, groupDateFormat)}
                           </span>
                         )}
                         {isCompleted && m.completed_at && (
                           <span className="text-emerald-600 dark:text-emerald-400">
-                            {t("completedOn")}: {formatDate(m.completed_at)}
+                            {t("completedOn")}: {formatDate(m.completed_at, locale, groupDateFormat)}
                           </span>
                         )}
                       </div>
@@ -1158,6 +1157,8 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
   const locale = useLocale();
+  const { currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState("all");
@@ -1245,7 +1246,7 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
                     <p className="text-sm font-medium truncate">{a.title as string}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <Badge variant="outline" className="text-[10px]">{a.type as string}</Badge>
-                      <span className="text-[10px] text-muted-foreground">{a.date ? new Date(a.date as string).toLocaleDateString(getDateLocale(locale)) : ""}</span>
+                      <span className="text-[10px] text-muted-foreground">{a.date ? formatDateWithGroupFormat(a.date as string, groupDateFormat, locale) : ""}</span>
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -1369,6 +1370,9 @@ function ProjectResolutions({ project, isAdmin, currency, onDataChanged }: {
 }) {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
+  const locale = useLocale();
+  const { currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [showDialog, setShowDialog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
@@ -1437,7 +1441,7 @@ function ProjectResolutions({ project, isAdmin, currency, onDataChanged }: {
             <tbody>
               {resolutions.map((r) => (
                 <tr key={r.id as string} className="border-b last:border-0">
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{(r.meeting_date as string) ? formatDate(r.meeting_date as string) : "—"}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">{(r.meeting_date as string) ? formatDate(r.meeting_date as string, locale, groupDateFormat) : "—"}</td>
                   <td className="px-3 py-2 text-sm font-medium">{r.title as string}</td>
                   <td className="px-3 py-2 text-right text-sm">{(r.amount_authorized as number) ? formatAmount(Number(r.amount_authorized), currency) : "—"}</td>
                   <td className="px-3 py-2 text-center"><Badge className={`text-[10px] ${statusColors[(r.status as string)] || ""}`}>{String(r.status).replace(/_/g, " ")}</Badge></td>
@@ -1709,7 +1713,9 @@ function ProjectReport({ project, contributions, expenses, milestones, currency,
 export default function ProjectsPage() {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const { isAdmin, currentGroup, groupId, user } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const { data: projects, isLoading, isError, error, refetch } = useProjects();
   const { data: members } = useMembers();
@@ -2163,7 +2169,7 @@ export default function ProjectsPage() {
                           {deadline && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <CalendarClock className="h-3.5 w-3.5" />
-                              <span>{formatDate(deadline)}</span>
+                              <span>{formatDate(deadline, locale, groupDateFormat)}</span>
                             </div>
                           )}
                           {isExpanded ? (

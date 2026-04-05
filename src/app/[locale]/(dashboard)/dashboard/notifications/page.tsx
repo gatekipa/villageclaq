@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +81,7 @@ function getRelativeTime(
   if (diffDays === 1) return t("timeAgo.yesterday");
   if (diffDays < 7) return t("timeAgo.daysAgo", { count: diffDays });
 
-  return timestamp.toLocaleDateString(getDateLocale(locale), {
+  return timestamp.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
     month: "short",
     day: "numeric",
   });

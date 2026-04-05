@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 
@@ -143,8 +143,8 @@ export default function FinesAdminPage() {
   const tc = useTranslations("common");
   const th = useTranslations("helpTips");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { groupId, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { canUseFeature } = useSubscription();
   const tt = useTranslations("tiers");
   const queryClient = useQueryClient();
@@ -212,11 +212,7 @@ export default function FinesAdminPage() {
   const allDisputes = disputes || [];
   const allTypes = fineTypes || [];
 
-  const formatDate = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" });
-    } catch { return d; }
-  };
+  const formatDate = (d: string) => formatDateWithGroupFormat(d, groupDateFormat, locale);
 
   // ─── Stats ──────────────────────────────────────────────────────────────
   const stats = useMemo(() => {

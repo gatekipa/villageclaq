@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
+import { useGroup } from "@/lib/group-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,18 +91,6 @@ const STATUS_COLORS: Record<FeedbackStatus, string> = {
   closed: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500",
 };
 
-function formatDate(dateStr: string, locale: string = "en") {
-  try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
 function useFeedback() {
   return useQuery({
     queryKey: ["feedback"],
@@ -139,6 +128,8 @@ function useUserVotes() {
 export default function FeedbackPage() {
   const locale = useLocale();
   const t = useTranslations("feedback");
+  const { currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const { data: feedbackItems, isLoading, isError, error, refetch } = useFeedback();
   const { data: userVotes } = useUserVotes();
@@ -299,7 +290,7 @@ export default function FeedbackPage() {
                     )}
                     <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      {formatDate(item.created_at)}
+                      {formatDateWithGroupFormat(item.created_at, groupDateFormat, locale)}
                     </div>
                   </div>
                 </div>

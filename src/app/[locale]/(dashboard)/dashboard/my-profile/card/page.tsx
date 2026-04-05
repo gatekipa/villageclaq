@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,7 +49,7 @@ export default function MembershipCardPage() {
   const StandingIcon = standing.icon;
   const memberRole = currentMembership.role || "member";
   const joinedAt = currentMembership.joined_at
-    ? new Date(currentMembership.joined_at).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "long" })
+    ? new Date(currentMembership.joined_at).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { year: "numeric", month: "long" })
     : "";
   const membershipId = currentMembership.id;
   const initials = getInitials(memberName);

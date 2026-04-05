@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -65,7 +65,8 @@ export default function MyFamilyPage() {
   const locale = useLocale();
   const t = useTranslations("family");
   const tc = useTranslations("common");
-  const { currentMembership, loading: groupLoading } = useGroup();
+  const { currentMembership, loading: groupLoading, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
 
   const {
@@ -159,11 +160,7 @@ export default function MyFamilyPage() {
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
+      return formatDateWithGroupFormat(dateStr, groupDateFormat, locale);
     } catch {
       return dateStr;
     }

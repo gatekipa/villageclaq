@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,22 +15,11 @@ import {
   ErrorState,
 } from "@/components/ui/page-skeleton";
 
-function formatDate(dateStr: string, locale: string = "en") {
-  try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
 export default function BadgesPage() {
   const locale = useLocale();
   const t = useTranslations("badges");
-  const { currentMembership } = useGroup();
+  const { currentMembership, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const {
     data: allBadges,
     isLoading: badgesLoading,
@@ -162,7 +151,7 @@ export default function BadgesPage() {
                     </p>
                     {earnedAt && (
                       <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                        {t("earnedOn")} {formatDate(earnedAt)}
+                        {t("earnedOn")} {formatDateWithGroupFormat(earnedAt, groupDateFormat, locale)}
                       </p>
                     )}
                     <Button variant="outline" size="sm" className="w-full mt-1">
@@ -230,7 +219,7 @@ export default function BadgesPage() {
                         </Badge>
                         {earnedAt && (
                           <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                            {t("earnedOn")} {formatDate(earnedAt)}
+                            {t("earnedOn")} {formatDateWithGroupFormat(earnedAt, groupDateFormat, locale)}
                           </p>
                         )}
                       </>

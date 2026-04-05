@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +82,8 @@ const filterRoles = ["all", "owner", "admin", "moderator", "member"] as const;
 export default function DirectoryPage() {
   const locale = useLocale();
   const t = useTranslations();
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { data: members = [], isLoading, error, refetch } = useMembers();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -271,7 +272,7 @@ export default function DirectoryPage() {
                               {privacySettings.show_phone && (profile?.phone as string) ? String(profile?.phone) : "—"}
                             </TableCell>
                             <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                              {joinedAt ? new Date(joinedAt).toLocaleDateString(getDateLocale(locale)) : "—"}
+                              {joinedAt ? formatDateWithGroupFormat(joinedAt, groupDateFormat, locale) : "—"}
                             </TableCell>
                           </TableRow>
                         );
@@ -384,11 +385,7 @@ export default function DirectoryPage() {
                           <Calendar className="h-3.5 w-3.5 shrink-0" />
                           <span>
                             {t("directory.memberSince", {
-                              date: new Date(joinedAt).toLocaleDateString(getDateLocale(locale), {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              }),
+                              date: formatDateWithGroupFormat(joinedAt, groupDateFormat, locale),
                             })}
                           </span>
                         </div>

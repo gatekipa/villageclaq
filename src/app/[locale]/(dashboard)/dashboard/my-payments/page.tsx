@@ -3,7 +3,7 @@ import { formatAmount } from "@/lib/currencies";
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -69,6 +69,7 @@ export default function MyPaymentsPage() {
   const t = useTranslations("myPayments");
   const locale = useLocale();
   const { currentMembership, currentGroup, loading: groupLoading } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [activeTab, setActiveTab] = useState<"outstanding" | "history">("outstanding");
   const [search, setSearch] = useState("");
 
@@ -396,7 +397,7 @@ export default function MyPaymentsPage() {
               const method = (item.payment_method as string) || "cash";
               const ref = (item.reference_number as string) || "";
               const date = item.recorded_at
-                ? new Date(item.recorded_at as string).toLocaleDateString(getDateLocale(locale))
+                ? formatDateWithGroupFormat(item.recorded_at as string, groupDateFormat, locale)
                 : "";
               const status = (item.status as string) || "confirmed";
               const isPending = status === "pending_confirmation";

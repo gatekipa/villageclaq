@@ -24,7 +24,6 @@ import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
-import { getDateLocale } from "@/lib/date-utils";
 
 function useEnterpriseBranches(organizationId: string | null) {
   return useQuery({
@@ -272,7 +271,7 @@ export default function EnterpriseDashboardPage() {
                         </div>
                         <div className="text-center text-xs">
                           <p className="text-sm text-muted-foreground">
-                            {new Date(branch.created_at as string).toLocaleDateString(getDateLocale(locale), { year: "numeric", month: "short" })}
+                            {new Date(branch.created_at as string).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { year: "numeric", month: "short" })}
                           </p>
                         </div>
                         <Link href="/dashboard/enterprise/branches">

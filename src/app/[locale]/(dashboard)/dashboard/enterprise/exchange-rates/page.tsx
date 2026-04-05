@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -82,11 +82,11 @@ export default function ExchangeRatesPage() {
   const t = useTranslations("enterprise");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const queryClient = useQueryClient();
   const supabase = createClient();
 
   const { currentGroup, groupId, user } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -269,17 +269,6 @@ export default function ExchangeRatesPage() {
     }
   }
 
-  function formatDate(dateStr: string) {
-    try {
-      return new Date(dateStr + "T00:00:00").toLocaleDateString(dateLocale, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
-  }
 
   const isFormValid =
     formData.from_currency &&
@@ -353,7 +342,7 @@ export default function ExchangeRatesPage() {
                       <Badge variant="outline">{rate.to_currency}</Badge>
                     </TableCell>
                     <TableCell className="font-mono">{rate.rate}</TableCell>
-                    <TableCell>{formatDate(rate.effective_date)}</TableCell>
+                    <TableCell>{formatDateWithGroupFormat(rate.effective_date + "T00:00:00", groupDateFormat, locale)}</TableCell>
                     {canManage && (
                       <TableCell>
                         <div className="flex items-center gap-1">

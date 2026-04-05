@@ -1,7 +1,7 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 
 import { useState, useRef, useEffect } from "react";
@@ -58,6 +58,7 @@ export default function RecordPaymentPage() {
   const t = useTranslations();
   const locale = useLocale();
   const { currentGroup, groupId, user: currentUser } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const canRecord = hasPermission("finances.record") || hasPermission("finances.manage");
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
@@ -257,7 +258,7 @@ export default function RecordPaymentPage() {
       // Each channel is independent — one failing must NEVER block another.
       const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
       const formattedAmt = formatAmount(payAmount, currency);
-      const dateStr = new Date().toLocaleDateString(getDateLocale(locale));
+      const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
 
       // Resolve the member's user_id + phone (needed for notifications)
       let recipientUserId: string | null = null;

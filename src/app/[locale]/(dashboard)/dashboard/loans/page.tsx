@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 
@@ -242,8 +242,8 @@ export default function LoansAdminPage() {
   const tc = useTranslations("common");
   const th = useTranslations("helpTips");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { groupId, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
 
@@ -1002,11 +1002,7 @@ export default function LoansAdminPage() {
   if (isLoading) return <RequirePermission anyOf={["contributions.manage", "finances.manage"]}><ListSkeleton rows={6} /></RequirePermission>;
   if (error) return <RequirePermission anyOf={["contributions.manage", "finances.manage"]}><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></RequirePermission>;
 
-  const formatDate = (d: string) => {
-    try {
-      return new Date(d).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" });
-    } catch { return d; }
-  };
+  const formatDate = (d: string) => formatDateWithGroupFormat(d, groupDateFormat, locale);
 
   const currentList = activeTab === "applications" ? filterBySearch(applicationLoans) :
     activeTab === "active" ? filterBySearch(activeLoans) : filterBySearch(historyLoans);

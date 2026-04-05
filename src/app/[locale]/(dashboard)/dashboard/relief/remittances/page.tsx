@@ -36,7 +36,7 @@ import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { formatAmount } from "@/lib/currencies";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 type RemittanceStatus = "pending" | "confirmed" | "disputed";
@@ -52,8 +52,8 @@ export default function ReliefRemittancesPage() {
   const t = useTranslations("relief");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId, user } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || "XAF";
@@ -266,7 +266,7 @@ export default function ReliefRemittancesPage() {
                       <p className="font-medium text-sm">{(branch?.name as string) || "—"}</p>
                       <p className="text-xs text-muted-foreground">
                         {locale === "fr" && plan?.name_fr ? (plan.name_fr as string) : (plan?.name as string) || "—"} ·{" "}
-                        {new Date(rem.remitted_date as string).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" })}
+                        {formatDateWithGroupFormat(rem.remitted_date as string, groupDateFormat, locale)}
                       </p>
                       {(rem.reference as string) ? <p className="text-xs text-muted-foreground">{t("remittanceReference")}: {rem.reference as string}</p> : null}
                       {(rem.notes as string) ? <p className="text-xs text-muted-foreground mt-1">{rem.notes as string}</p> : null}
@@ -343,7 +343,7 @@ export default function ReliefRemittancesPage() {
                         <td className="px-3 py-2 text-right font-medium">{formatAmount(Number(rem.amount), (rem.currency as string) || currency)}</td>
                         <td className="px-3 py-2 text-muted-foreground text-xs">{t(`remittanceMethods.${(rem.method as string) || "other"}`)}</td>
                         <td className="px-3 py-2 text-muted-foreground text-xs">
-                          {rem.remitted_date ? new Date(rem.remitted_date as string).toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                          {rem.remitted_date ? formatDateWithGroupFormat(rem.remitted_date as string, groupDateFormat, locale) : "—"}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <Badge className={cfg.color}>

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,7 @@ export default function InvitationsPage() {
   const t = useTranslations();
   const locale = useLocale();
   const { groupId, user, isAdmin, currentGroup, loading: groupLoading } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
 
   const {
@@ -680,9 +681,7 @@ export default function InvitationsPage() {
                 const sentBy =
                   (profile?.full_name as string) || t("invitations.unknown");
                 const inviteDate = invite.created_at
-                  ? new Date(
-                      invite.created_at as string
-                    ).toLocaleDateString(getDateLocale(locale))
+                  ? formatDateWithGroupFormat(invite.created_at as string, groupDateFormat, locale)
                   : "";
 
                 return (

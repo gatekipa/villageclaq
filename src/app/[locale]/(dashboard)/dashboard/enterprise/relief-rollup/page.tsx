@@ -23,7 +23,6 @@ import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { formatAmount } from "@/lib/currencies";
-import { getDateLocale } from "@/lib/date-utils";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 interface BranchSummaryRow {
@@ -45,7 +44,6 @@ export default function HqReliefRollupPage() {
   const t = useTranslations("relief");
   const tc = useTranslations("common");
   const locale = useLocale();
-  const dateLocale = getDateLocale(locale);
   const { currentGroup, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const [planFilter, setPlanFilter] = useState("all");

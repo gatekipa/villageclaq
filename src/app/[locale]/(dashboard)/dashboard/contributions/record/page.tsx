@@ -2,6 +2,7 @@
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import { formatDateWithGroupFormat } from "@/lib/format";
+import { notifyFromClient } from "@/lib/notify-client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 
 import { useState, useRef, useEffect } from "react";
@@ -469,6 +470,8 @@ export default function RecordPaymentPage() {
     setBulkSubmitting(true);
     let successCount = 0;
     let dupCount = 0;
+    // Track membership IDs of members whose payments actually succeeded
+    const paidMemberIds: string[] = [];
 
     try {
       const today = new Date().toISOString().slice(0, 10);
@@ -498,99 +501,74 @@ export default function RecordPaymentPage() {
             skipDuplicateCheck: true, // Already checked above
           });
           successCount++;
+          paidMemberIds.push(memberId);
         } catch {
           // Continue with remaining members even if one fails
         }
       }
 
-      // Send in-app notifications for successful bulk payments (best-effort)
-      if (successCount > 0) {
-        try {
-          const supabase = createClient();
-          const typeName = bulkType
-            ? (locale === "fr" && (bulkType as Record<string, unknown>).name_fr
-                ? (bulkType as Record<string, unknown>).name_fr as string
-                : (bulkType as Record<string, unknown>).name as string)
-            : "";
-          const formattedAmt = formatAmount(Number(bulkAmount), currency);
-          // Build notification rows for members with user_id
-          const memberIds = Array.from(bulkSelected);
-          const notifRows: Array<Record<string, unknown>> = [];
-          for (const mid of memberIds) {
-            const raw = (members || []).find((m: Record<string, unknown>) => m.id === mid) as Record<string, unknown> | undefined;
-            const userId = (raw?.user_id as string | null) || null;
-            if (!userId) continue; // skip proxy members for in-app
-            notifRows.push({
-              user_id: userId,
-              group_id: groupId,
-              type: "contribution_received",
-              title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
-              body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: bulkMethod, reference: bulkNotes || "N/A" }),
-              is_read: false,
-              data: { link: "/dashboard/my-payments" },
-            });
-          }
-          if (notifRows.length > 0) {
-            // Batch insert (max 50 at a time)
-            for (let i = 0; i < notifRows.length; i += 50) {
-              await supabase.from("notifications").insert(notifRows.slice(i, i + 50));
-            }
-          }
+      // ── Send payment-receipt notifications for every successfully paid member ──
+      // Uses the same notifyFromClient() function as the single-payment path.
+      // Promise.allSettled runs all recipients in parallel (fire-and-forget) so the
+      // UI is never blocked. Each call is fully independent — one failing never
+      // prevents another from firing. Proxy members (userId=null) get WhatsApp only.
+      if (paidMemberIds.length > 0 && groupId) {
+        const typeName = bulkType
+          ? (locale === "fr" && (bulkType as Record<string, unknown>).name_fr
+              ? (bulkType as Record<string, unknown>).name_fr as string
+              : (bulkType as Record<string, unknown>).name as string)
+          : "";
+        const formattedAmt = formatAmount(Number(bulkAmount), currency);
+        const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
+        const recordedBy = currentUser?.full_name || currentUser?.display_name || t("common.admin");
 
-          // Email + SMS + WhatsApp for each member (fire-and-forget, respecting preferences)
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
-            if (token) {
-              for (const mid of memberIds) {
-                const rawMember = (members || []).find((m: Record<string, unknown>) => m.id === mid) as Record<string, unknown> | undefined;
-                if (!rawMember) continue;
-                const uid = (rawMember.user_id as string | null) || null;
-                const prof = (Array.isArray(rawMember.profiles) ? (rawMember.profiles as unknown[])[0] : rawMember.profiles) as Record<string, unknown> | null;
-                const phone = (prof?.phone as string) || (rawMember.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
-                const to = phone || uid;
-                if (!to) continue;
+        const notifPromises = paidMemberIds.map(async (mid) => {
+          const rawMember = (members || []).find((m: Record<string, unknown>) => m.id === mid) as Record<string, unknown> | undefined;
+          if (!rawMember) return;
+          const userId = (rawMember.user_id as string | null) || null;
+          const prof = (Array.isArray(rawMember.profiles)
+            ? (rawMember.profiles as unknown[])[0]
+            : rawMember.profiles) as Record<string, unknown> | null;
+          const phone =
+            (prof?.phone as string | null) ||
+            ((rawMember.privacy_settings as Record<string, unknown>)?.proxy_phone as string | null) ||
+            null;
+          const memberName = getMemberName(rawMember);
 
-                let sendEmail = true, sendSms = true, sendWhatsapp = true;
-                try {
-                  const prefs = await getEnabledChannels(supabase, uid || (null as unknown as string), "payment_reminders", groupId || undefined);
-                  sendEmail = prefs.email;
-                  sendSms = prefs.sms;
-                  sendWhatsapp = prefs.whatsapp;
-                } catch { /* fail-open */ }
+          await notifyFromClient({
+            recipientUserId: userId,
+            recipientPhone: phone,
+            groupId,
+            inAppType: "contribution_received",
+            title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
+            body: t("contributions.paymentReceivedNotifBody", {
+              amount: formattedAmt,
+              type: typeName,
+              method: bulkMethod,
+              reference: bulkNotes || "N/A",
+            }),
+            emailTemplate: "payment-receipt",
+            data: {
+              memberName,
+              groupName: currentGroup?.name || "",
+              amount: formattedAmt,
+              contributionType: typeName,
+              paymentMethod: bulkMethod,
+              date: dateStr,
+              reference: bulkNotes || "",
+              recordedBy,
+              paymentsUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/${locale}/dashboard/my-payments`,
+            },
+            smsTemplate: "payment-receipt",
+            whatsappType: "payment_receipt",
+            locale,
+            channels: { inApp: true, email: true, sms: true, whatsapp: true },
+            prefType: "payment_reminders",
+          });
+        });
 
-                const memberName = getMemberName(rawMember);
-                const sendData = { memberName, amount: formattedAmt, contributionType: typeName, type: typeName, groupName: currentGroup?.name || "", date: new Date().toISOString().slice(0, 10) };
-                // Email
-                if (uid && sendEmail) {
-                  fetch("/api/email/send", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ to: uid, template: "payment-receipt", data: sendData, locale }),
-                  }).catch(() => {});
-                }
-                // SMS
-                if (sendSms) {
-                  fetch("/api/sms/send", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ to, template: "payment-receipt", data: sendData, locale }),
-                  }).catch(() => {});
-                }
-                // WhatsApp
-                if (sendWhatsapp) {
-                  fetch("/api/whatsapp/send", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ to, type: "payment_receipt", data: sendData, locale }),
-                  }).catch(() => {});
-                }
-              }
-            }
-          } catch { /* best-effort */ }
-        } catch {
-          // Non-critical — bulk notification failure must never block
-        }
+        // Fire all in parallel — never await, never block the UI
+        Promise.allSettled(notifPromises);
       }
 
       setBulkSuccess(successCount);

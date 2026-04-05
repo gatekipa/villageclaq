@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getDateLocale } from "@/lib/date-utils";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -145,17 +145,6 @@ function getInitials(name: string) {
     .slice(0, 2);
 }
 
-function formatDate(dateStr: string, locale: string = "en") {
-  try {
-    return new Date(dateStr).toLocaleDateString(getDateLocale(locale), {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
 
 function getCandidateName(candidate: Candidate): string {
   if (!candidate.membership) return "—";
@@ -173,7 +162,8 @@ export default function ElectionsPage() {
   const locale = useLocale();
   const t = useTranslations("elections");
   const tc = useTranslations("common");
-  const { groupId, user, currentMembership } = useGroup();
+  const { groupId, user, currentMembership, currentGroup } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const { canUseFeature } = useSubscription();
   const tt = useTranslations("tiers");
@@ -611,7 +601,7 @@ export default function ElectionsPage() {
                       </CardTitle>
                       <CardDescription className="flex items-center gap-2">
                         <Calendar className="size-3.5" />
-                        {t("votingPeriod")}: {formatDate(election.starts_at)} — {formatDate(election.ends_at)}
+                        {t("votingPeriod")}: {formatDateWithGroupFormat(election.starts_at, groupDateFormat, locale)} — {formatDateWithGroupFormat(election.ends_at, groupDateFormat, locale)}
                       </CardDescription>
                       {election.description && (
                         <p className="mt-1 text-sm text-muted-foreground">{election.description}</p>

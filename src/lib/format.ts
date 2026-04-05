@@ -45,6 +45,46 @@ export function formatDate(date: string | Date, locale = "en", style: "short" | 
   return d.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", options);
 }
 
+/**
+ * Format a date using the group's saved `date_format` preference
+ * (stored in groups.settings.date_format).
+ *
+ * Supported format strings (same values stored by the settings UI):
+ *   "DD/MM/YYYY"   → 15/03/2026  (default; common in Africa + Europe)
+ *   "MM/DD/YYYY"   → 03/15/2026  (US)
+ *   "YYYY-MM-DD"   → 2026-03-15  (ISO 8601)
+ *   "D MMMM YYYY"  → 15 March 2026 / 15 mars 2026
+ *   "MMMM D, YYYY" → March 15, 2026 / 15 mars 2026
+ *
+ * Falls back to "DD/MM/YYYY" for unknown format strings.
+ */
+export function formatDateWithGroupFormat(
+  date: string | Date,
+  groupDateFormat = "DD/MM/YYYY",
+  locale = "en",
+): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return String(date);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = String(d.getFullYear());
+  const intlLocale = locale === "fr" ? "fr-FR" : "en-US";
+  switch (groupDateFormat) {
+    case "DD/MM/YYYY":
+      return `${day}/${month}/${year}`;
+    case "MM/DD/YYYY":
+      return `${month}/${day}/${year}`;
+    case "YYYY-MM-DD":
+      return `${year}-${month}-${day}`;
+    case "D MMMM YYYY":
+      return d.toLocaleDateString(intlLocale, { day: "numeric", month: "long", year: "numeric" });
+    case "MMMM D, YYYY":
+      return d.toLocaleDateString(intlLocale, { month: "long", day: "numeric", year: "numeric" });
+    default:
+      return `${day}/${month}/${year}`;
+  }
+}
+
 export function formatTime(date: string | Date, locale = "en"): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" });

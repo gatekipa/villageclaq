@@ -49,11 +49,11 @@ export function usePermissions() {
   const membershipId = currentMembership?.id;
   const isOwner = currentMembership?.role === "owner";
 
-  const { data: positionPermissions = [], isLoading } = useQuery({
+  const { data: permissionsData = { permissions: [], hasAssignments: false }, isLoading } = useQuery({
     queryKey: ["user-permissions", groupId, membershipId],
     queryFn: async () => {
-      if (!groupId || !membershipId) return [];
-      if (isOwner) return []; // Owner bypasses everything — no need to fetch
+      if (!groupId || !membershipId) return { permissions: [], hasAssignments: false };
+      if (isOwner) return { permissions: [], hasAssignments: false }; // Owner bypasses everything — no need to fetch
 
       // Get all active position assignments for this member (admins included)
       const { data: assignments, error: aErr } = await supabase
@@ -62,8 +62,9 @@ export function usePermissions() {
         .eq("membership_id", membershipId)
         .is("ended_at", null);
 
-      if (aErr || !assignments || assignments.length === 0) return [];
+      if (aErr || !assignments || assignments.length === 0) return { permissions: [], hasAssignments: false };
 
+      // Assignments exist — user is position-scoped regardless of permission count
       const positionIds = assignments.map((a) => a.position_id);
 
       // Get all permissions for those positions
@@ -72,16 +73,22 @@ export function usePermissions() {
         .select("permission")
         .in("position_id", positionIds);
 
-      if (pErr || !permissions) return [];
+      if (pErr || !permissions) return { permissions: [], hasAssignments: true };
 
-      return [...new Set(permissions.map((p) => p.permission))];
+      return {
+        permissions: [...new Set(permissions.map((p) => p.permission))],
+        hasAssignments: true,
+      };
     },
     enabled: !!groupId && !!membershipId && !isOwner,
     staleTime: 5 * 60 * 1000,
   });
 
-  // If user has position assignments, they are "position-scoped" even if admin
-  const hasPositionAssignments = positionPermissions.length > 0;
+  const positionPermissions = permissionsData.permissions;
+  // hasPositionAssignments is true when the member holds any position assignment,
+  // regardless of whether that position has permissions configured — fixes Bug #411
+  // where a Treasurer with 0 permissions was incorrectly treated as a general admin.
+  const hasPositionAssignments = permissionsData.hasAssignments;
 
   // Effective permissions:
   // - Owner: full bypass

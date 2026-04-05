@@ -177,7 +177,7 @@
     "help": "Centre d'aide",
     "adminPanel": "Panneau admin",
     "invitations": "Invitations",
-    "myPayments": "Paiements & cotisations",
+    "myPayments": "Mes obligations",
     "myEvents": "Mes événements",
     "myInvitations": "Mes invitations",
     "myAttendance": "Ma présence",
@@ -4027,7 +4027,9 @@
     "deleteFailed": "Échec de la suppression de l'élection",
     "noPositionsHint": "Aucun poste n'a été configuré pour ce groupe. Des candidats peuvent tout de même être ajoutés sans poste.",
     "noPositionsLink": "Ajouter des postes dans les paramètres.",
-    "noCandidatesHint": "Aucun candidat pour l'instant. Cliquez sur « Ajouter un candidat » ci-dessus pour ajouter des candidats."
+    "noCandidatesHint": "Aucun candidat pour l'instant. Cliquez sur « Ajouter un candidat » ci-dessus pour ajouter des candidats.",
+    "noCandidatesVote": "Aucun candidat n'a encore été ajouté à cette élection. Revenez plus tard.",
+    "noOptionsVote": "Aucune option n'a encore été configurée pour ce vote. Revenez plus tard."
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

@@ -177,7 +177,7 @@
     "help": "Help Center",
     "adminPanel": "Admin Panel",
     "invitations": "Invitations",
-    "myPayments": "Payments & Dues",
+    "myPayments": "My Obligations",
     "myEvents": "My Events",
     "myInvitations": "My Invitations",
     "myAttendance": "My Attendance",
@@ -4027,7 +4027,9 @@
     "deleteFailed": "Failed to delete election",
     "noPositionsHint": "No positions have been set up for this group. Candidates can still be added without a position.",
     "noPositionsLink": "Add positions in Settings.",
-    "noCandidatesHint": "No candidates yet. Click \"Add Candidate\" above to add nominees for this election."
+    "noCandidatesHint": "No candidates yet. Click \"Add Candidate\" above to add nominees for this election.",
+    "noCandidatesVote": "No candidates have been added to this election yet. Check back later.",
+    "noOptionsVote": "No options have been configured for this vote yet. Check back later."
   },
   "documentVault": {
     "title": "Document Vault",

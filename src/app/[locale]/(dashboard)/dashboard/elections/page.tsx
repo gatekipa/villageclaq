@@ -884,6 +884,10 @@ export default function ElectionsPage() {
                                 })}
                               </RadioGroup>
                             )}
+                            {/* Officer election with no candidates — inform voter */}
+                            {election.election_type === "officer_election" && election.election_candidates.length === 0 && (
+                              <p className="text-sm text-muted-foreground italic">{t("noCandidatesVote")}</p>
+                            )}
 
                             {/* Poll: pick an option */}
                             {election.election_type === "poll" && election.election_options.length > 0 && (
@@ -900,6 +904,10 @@ export default function ElectionsPage() {
                                   ))}
                               </RadioGroup>
                             )}
+                            {/* Poll with no options — inform voter */}
+                            {election.election_type === "poll" && election.election_options.length === 0 && (
+                              <p className="text-sm text-muted-foreground italic">{t("noOptionsVote")}</p>
+                            )}
 
                             {/* Motion: Yes/No/Abstain from options */}
                             {election.election_type === "motion" && election.election_options.length > 0 && (
@@ -915,6 +923,10 @@ export default function ElectionsPage() {
                                     </div>
                                   ))}
                               </RadioGroup>
+                            )}
+                            {/* Motion with no options — inform voter */}
+                            {election.election_type === "motion" && election.election_options.length === 0 && (
+                              <p className="text-sm text-muted-foreground italic">{t("noOptionsVote")}</p>
                             )}
 
                             <Button

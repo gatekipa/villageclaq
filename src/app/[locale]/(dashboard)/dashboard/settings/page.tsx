@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,7 @@ export default function GroupSettingsPage() {
   const router = useRouter();
   const t = useTranslations("settings");
   const tCountries = useTranslations("countries");
+  const locale = useLocale();
   const { groupId, currentGroup, currentMembership, user } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
@@ -676,8 +677,8 @@ export default function GroupSettingsPage() {
                         <option value="DD/MM/YYYY">15/03/2026 (DD/MM/YYYY)</option>
                         <option value="MM/DD/YYYY">03/15/2026 (MM/DD/YYYY)</option>
                         <option value="YYYY-MM-DD">2026-03-15 (YYYY-MM-DD)</option>
-                        <option value="D MMMM YYYY">15 March 2026</option>
-                        <option value="MMMM D, YYYY">March 15, 2026</option>
+                        <option value="D MMMM YYYY">{new Date(2026, 2, 15).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { day: "numeric", month: "long", year: "numeric" })}</option>
+                        <option value="MMMM D, YYYY">{new Date(2026, 2, 15).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", day: "numeric", year: "numeric" })}</option>
                       </select>
                     ) : (
                       <p className="mt-1 text-sm font-medium">{editDateFormat || "DD/MM/YYYY"}</p>

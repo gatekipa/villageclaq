@@ -525,11 +525,13 @@ export default function MyProfilePage() {
                 setLeaveError(null);
                 try {
                   const supabase = createClient();
-                  const { error } = await supabase
+                  const { data: updated, error } = await supabase
                     .from("memberships")
-                    .delete()
-                    .eq("id", currentMembership!.id);
+                    .update({ membership_status: "exited" })
+                    .eq("id", currentMembership!.id)
+                    .select("id");
                   if (error) throw error;
+                  if (!updated || updated.length === 0) throw new Error("leave_failed");
                   setShowLeaveDialog(false);
                   router.push("/dashboard");
                   refresh();

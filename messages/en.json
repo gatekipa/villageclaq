@@ -551,7 +551,12 @@
     "milestonePaymentDesc": "{group} has recorded {count} payments — the community is thriving!",
     "milestoneShareWhatsApp": "Share on WhatsApp",
     "milestonePoweredBy": "Manage your community group at villageclaq.com",
-    "milestoneDismiss": "Nice!"
+    "milestoneDismiss": "Nice!",
+    "phoneBanner": {
+      "message": "Add your phone number to receive SMS and WhatsApp notifications",
+      "addPhone": "Add Phone",
+      "dismiss": "Dismiss"
+    }
   },
   "groups": {
     "switchGroup": "Switch Group",
@@ -855,7 +860,13 @@
     "approvedNotifBody": "You are now an active member of {groupName}.",
     "rejectedNotifTitle": "Join request declined",
     "rejectedNotifBody": "Your request to join {groupName} was not approved. Contact the group admin for more information.",
-    "ownerRoleProtected": "Owner role can only be changed via Transfer Ownership in Settings."
+    "ownerRoleProtected": "Owner role can only be changed via Transfer Ownership in Settings.",
+    "limitWarning": "{count} of {limit} member slots used",
+    "limitReached": {
+      "admin": "Member limit reached. Your plan allows {limit} members. Upgrade to add more.",
+      "member": "This group has reached its member limit. Contact the group admin.",
+      "upgrade": "Upgrade Plan"
+    }
   },
   "settings": {
     "title": "Group Settings",
@@ -4294,7 +4305,15 @@
     "joinCodeShare": "Share this code with members",
     "joinCodeCopied": "Code copied!",
     "notAuthenticated": "Not authenticated. Please log in again.",
-    "setupFailed": "Setup failed. Please try again."
+    "setupFailed": "Setup failed. Please try again.",
+    "addPhone": {
+      "title": "Add Your Phone Number",
+      "subtitle": "Your phone number is used for SMS and WhatsApp notifications from your group",
+      "continue": "Continue",
+      "skip": "Skip for now",
+      "invalid": "Please enter a valid phone number",
+      "saving": "Saving..."
+    }
   },
   "forgotPassword": {
     "title": "Forgot Password",

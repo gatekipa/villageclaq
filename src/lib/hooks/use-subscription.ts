@@ -61,7 +61,7 @@ export function useSubscription() {
       if (!groupId) return { members: 0, contributionTypes: 0, documents: 0, reliefPlans: 0, savingsCycles: 0 };
       const supabase = createClient();
       const [membersRes, ctRes, docsRes, reliefRes, savingsRes] = await Promise.all([
-        supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId),
+        supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId).in("membership_status", ["active", "pending_approval"]),
         supabase.from("contribution_types").select("id", { count: "exact", head: true }).eq("group_id", groupId).eq("is_active", true),
         supabase.from("documents").select("id", { count: "exact", head: true }).eq("group_id", groupId),
         supabase.from("relief_plans").select("id", { count: "exact", head: true }).eq("group_id", groupId),

@@ -211,7 +211,11 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
 
     if (joinErr) {
       setState("error");
-      setError(tCommon("error"));
+      if (joinErr.message?.includes("member_limit_reached")) {
+        setError(t("groupFull"));
+      } else {
+        setError(tCommon("error"));
+      }
       return;
     }
 

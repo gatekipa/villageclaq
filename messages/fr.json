@@ -551,7 +551,12 @@
     "milestonePaymentDesc": "{group} a enregistré {count} paiements — la communauté prospère !",
     "milestoneShareWhatsApp": "Partager sur WhatsApp",
     "milestonePoweredBy": "Gérez votre groupe communautaire sur villageclaq.com",
-    "milestoneDismiss": "Super !"
+    "milestoneDismiss": "Super !",
+    "phoneBanner": {
+      "message": "Ajoutez votre numéro de téléphone pour recevoir les notifications SMS et WhatsApp",
+      "addPhone": "Ajouter le téléphone",
+      "dismiss": "Ignorer"
+    }
   },
   "groups": {
     "switchGroup": "Changer de groupe",
@@ -855,7 +860,13 @@
     "approvedNotifBody": "Vous êtes maintenant un membre actif de {groupName}.",
     "rejectedNotifTitle": "Demande de rejoindre refusée",
     "rejectedNotifBody": "Votre demande pour rejoindre {groupName} n'a pas été approuvée. Contactez l'administrateur du groupe pour plus d'informations.",
-    "ownerRoleProtected": "Le rôle de propriétaire ne peut être modifié que via le transfert de propriété dans les Paramètres."
+    "ownerRoleProtected": "Le rôle de propriétaire ne peut être modifié que via le transfert de propriété dans les Paramètres.",
+    "limitWarning": "{count} sur {limit} places de membres utilisées",
+    "limitReached": {
+      "admin": "Limite de membres atteinte. Votre plan autorise {limit} membres. Passez à un plan supérieur pour en ajouter.",
+      "member": "Ce groupe a atteint sa limite de membres. Contactez l'administrateur du groupe.",
+      "upgrade": "Passer au plan supérieur"
+    }
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -4294,7 +4305,15 @@
     "joinCodeShare": "Partagez ce code avec les membres",
     "joinCodeCopied": "Code copié !",
     "notAuthenticated": "Non authentifié. Veuillez vous reconnecter.",
-    "setupFailed": "La configuration a échoué. Veuillez réessayer."
+    "setupFailed": "La configuration a échoué. Veuillez réessayer.",
+    "addPhone": {
+      "title": "Ajoutez votre numéro de téléphone",
+      "subtitle": "Votre numéro de téléphone est utilisé pour les notifications SMS et WhatsApp de votre groupe",
+      "continue": "Continuer",
+      "skip": "Passer pour le moment",
+      "invalid": "Veuillez entrer un numéro de téléphone valide",
+      "saving": "Enregistrement..."
+    }
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

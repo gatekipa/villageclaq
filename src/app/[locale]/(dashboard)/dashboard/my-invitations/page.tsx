@@ -39,6 +39,7 @@ const statusConfig: Record<InvitationStatus, { color: string; icon: typeof Check
 export default function MyInvitationsPage() {
   const t = useTranslations("myInvitations");
   const tc = useTranslations("common");
+  const tj = useTranslations("join");
   const locale = useLocale();
   const queryClient = useQueryClient();
   const { user, memberships, currentGroup } = useGroup();
@@ -166,7 +167,13 @@ export default function MyInvitationsPage() {
               is_proxy: false,
               display_name: displayName,
             });
-          if (membershipErr) throw membershipErr;
+          if (membershipErr) {
+            if (membershipErr.message?.includes("member_limit_reached")) {
+              setShowError(tj("groupFull"));
+              return;
+            }
+            throw membershipErr;
+          }
         }
       }
 

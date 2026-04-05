@@ -261,13 +261,18 @@ export default function TransfersPage() {
               .eq("id", sourceMembership.id);
 
             // Create new membership in destination group
-            await supabase.from("memberships").insert({
+            const { error: transferMemberErr } = await supabase.from("memberships").insert({
               user_id: member_id,
               group_id: dest_group_id,
               role: "member",
               standing: "good",
               joined_at: new Date().toISOString(),
             });
+            if (transferMemberErr) {
+              // Member limit reached in destination group — skip but don't crash
+              // The transfer request can be retried after the destination group upgrades
+              throw transferMemberErr;
+            }
           }
         }
       }

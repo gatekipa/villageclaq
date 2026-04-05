@@ -5,13 +5,14 @@ import { useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { GroupProvider, useGroup, type GroupMembership } from "@/lib/group-context";
-import { useRouter, usePathname } from "@/i18n/routing";
+import { useRouter, usePathname, Link } from "@/i18n/routing";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
 import { SupportWidget } from "@/components/ui/support-widget";
 import { createClient } from "@/lib/supabase/client";
-import { Clock, Archive } from "lucide-react";
+import { Clock, Archive, Phone, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 /**
  * Pages that invited users (with 0 memberships) should be able to access
@@ -147,13 +148,124 @@ function DeactivatedGroupScreen({
   );
 }
 
+function PhoneCollectionScreen({
+  onSaved,
+  onSkip,
+}: {
+  onSaved: () => void;
+  onSkip: () => void;
+}) {
+  const t = useTranslations("onboarding");
+  const [phone, setPhone] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSave() {
+    if (!phone.trim()) {
+      setSaveError(t("addPhone.invalid"));
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ phone: phone.trim() })
+        .eq("id", user.id);
+      if (error) {
+        setSaveError(error.message);
+      } else {
+        onSaved();
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 p-4">
+      <img src="/logo-mark.svg" alt="VillageClaq" className="mb-8 h-10 w-10" />
+      <div className="w-full max-w-sm rounded-2xl border bg-card p-8 shadow-sm space-y-5">
+        <div className="text-center space-y-3">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mx-auto">
+            <Phone className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h2 className="text-xl font-bold">{t("addPhone.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("addPhone.subtitle")}</p>
+        </div>
+        <PhoneInput value={phone} onChange={setPhone} defaultCountryCode="+237" />
+        {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+        <Button
+          className="w-full"
+          onClick={handleSave}
+          disabled={saving || !phone.trim()}
+        >
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {t("addPhone.continue")}
+        </Button>
+        <button
+          className="w-full text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          onClick={onSkip}
+          type="button"
+        >
+          {t("addPhone.skip")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PhoneBanner({ onDismiss }: { onDismiss: () => void }) {
+  const t = useTranslations();
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 mb-4 dark:border-amber-800/50 dark:bg-amber-950/20">
+      <Phone className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+      <p className="flex-1 text-sm text-amber-800 dark:text-amber-300">
+        {t("dashboard.phoneBanner.message")}
+      </p>
+      <Link href="/dashboard/my-profile">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+        >
+          {t("dashboard.phoneBanner.addPhone")}
+        </Button>
+      </Link>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400"
+        aria-label={t("dashboard.phoneBanner.dismiss")}
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 function DashboardGuard({ children }: { children: React.ReactNode }) {
-  const { loading, memberships, user, currentMembership } = useGroup();
+  const { loading, memberships, user, currentMembership, refresh } = useGroup();
   const router = useRouter();
   const pathname = usePathname();
   const tCommon = useTranslations("common");
   const [checkingInvitations, setCheckingInvitations] = useState(false);
   const [checkedInvitations, setCheckedInvitations] = useState(false);
+  // Phone collection interstitial state — null until sessionStorage is read
+  const [phoneSkipped, setPhoneSkipped] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setPhoneSkipped(
+      typeof window !== "undefined" &&
+        sessionStorage.getItem("vc_phone_skipped") === "1"
+    );
+  }, []);
 
   // Allow onboarding pages to render without a group
   const isOnboardingPage = pathname.startsWith("/dashboard/onboarding");
@@ -263,13 +375,61 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Phone collection interstitial — shown only after sessionStorage has been read
+  // (phoneSkipped !== null), user has at least one active group, and phone is missing.
+  // Skippable — clicking "Skip for now" dismisses the screen and shows a banner instead.
+  const hasPhone = !!(user?.phone);
+  if (
+    phoneSkipped === false &&
+    !loading &&
+    !hasPhone &&
+    !isOnboardingPage &&
+    !isInviteSafePage &&
+    memberships.length > 0
+  ) {
+    return (
+      <PhoneCollectionScreen
+        onSaved={async () => {
+          await refresh();
+        }}
+        onSkip={() => {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("vc_phone_skipped", "1");
+          }
+          setPhoneSkipped(true);
+        }}
+      />
+    );
+  }
+
   return <>{children}</>;
 }
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { memberships, loading } = useGroup();
+  const { memberships, loading, user } = useGroup();
   const pathname = usePathname();
+  // Phone banner state — shown after user skips the phone collection prompt
+  const [bannerDismissed, setBannerDismissed] = useState(true); // true = hidden until loaded
+  const [phoneSkippedForBanner, setPhoneSkippedForBanner] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPhoneSkippedForBanner(
+        sessionStorage.getItem("vc_phone_skipped") === "1"
+      );
+      setBannerDismissed(
+        sessionStorage.getItem("vc_phone_banner_dismissed") === "1"
+      );
+    }
+  }, []);
+
+  const showPhoneBanner =
+    !loading &&
+    !user?.phone &&
+    phoneSkippedForBanner &&
+    !bannerDismissed &&
+    memberships.length > 0;
 
   const isOnboardingPage = pathname.startsWith("/dashboard/onboarding");
   const isInviteSafePage = INVITE_SAFE_PATHS.some((p) => pathname.startsWith(p));
@@ -312,6 +472,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           <Header onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 overflow-y-auto p-4 lg:p-6">
             <ScrollToTopOnNav />
+            {showPhoneBanner && (
+              <PhoneBanner
+                onDismiss={() => {
+                  if (typeof window !== "undefined") {
+                    sessionStorage.setItem("vc_phone_banner_dismissed", "1");
+                  }
+                  setBannerDismissed(true);
+                }}
+              />
+            )}
             <Suspense fallback={<DashboardSkeleton />}>
               {children}
             </Suspense>

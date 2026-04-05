@@ -173,7 +173,7 @@ export default function MyProfilePage() {
     if (error) {
       setLoadError(error.message);
     } else {
-      // Sync display_name to all memberships for this user (Bug H fix)
+      // Sync display_name to all memberships for this user
       // This ensures the admin dashboard shows the updated name
       if (user?.id && fullName.trim()) {
         await supabase
@@ -181,6 +181,17 @@ export default function MyProfilePage() {
           .update({ display_name: fullName.trim() })
           .eq("user_id", user.id)
           .eq("is_proxy", false)
+          .then(() => {});
+      }
+      // Sync phone to all active memberships (DB trigger also does this,
+      // but client-side sync ensures immediate consistency for the current session)
+      if (user?.id) {
+        await supabase
+          .from("memberships")
+          .update({ phone: phone || null })
+          .eq("user_id", user.id)
+          .eq("is_proxy", false)
+          .neq("membership_status", "exited")
           .then(() => {});
       }
       setSaved(true);

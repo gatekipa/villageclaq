@@ -238,7 +238,11 @@ export default function JoinClient() {
     });
 
     if (joinErr) {
-      setError(t("error"));
+      if (joinErr.message?.includes("member_limit_reached")) {
+        setError(tj("groupFull"));
+      } else {
+        setError(t("error"));
+      }
       setStatus("error");
       return;
     }

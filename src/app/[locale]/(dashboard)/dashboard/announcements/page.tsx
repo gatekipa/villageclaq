@@ -390,8 +390,15 @@ export default function AnnouncementsPage() {
     try {
       const supabase = createClient();
       const now = new Date().toISOString();
-      const { error: err } = await supabase.from("announcements").update({ sent_at: now }).eq("id", annId);
+      const { data: updated, error: err } = await supabase
+        .from("announcements")
+        .update({ sent_at: now })
+        .eq("id", annId)
+        .select("id");
       if (err) throw err;
+      if (!updated || updated.length === 0) {
+        throw new Error(t("publishFailed"));
+      }
 
       // Send in-app notifications for the published announcement
       try {

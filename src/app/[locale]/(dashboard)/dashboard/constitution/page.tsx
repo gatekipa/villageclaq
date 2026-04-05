@@ -254,44 +254,54 @@ export default function ConstitutionPage() {
   const handleSave = async () => {
     if (!groupId || !currentMembership) return;
     setSaving(true);
+    setActionError(null);
     try {
       if (draft) {
-        const { error: upErr } = await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", draft.id);
+        // Update the existing draft record
+        const { error: upErr } = await supabase
+          .from("group_constitutions")
+          .update({ content: editorContent, title: editorTitle })
+          .eq("id", draft.id);
         if (upErr) throw upErr;
       } else {
-        // Upsert: atomically insert-or-update to avoid 409 race conditions
-        const { error: upsertErr } = await supabase.from("group_constitutions").upsert({
-          group_id: groupId,
-          document_type: activeTitle || "Constitution",
-          title: editorTitle,
-          content: editorContent,
-          version_number: currentVersion + 1,
-          status: "draft",
-        }, { onConflict: "group_id,document_type,status" }).select().single();
-        // If upsert fails (e.g. no unique constraint), fall back to check-then-insert
-        if (upsertErr) {
-          const { data: existingDraft } = await supabase.from("group_constitutions")
-            .select("id")
-            .eq("group_id", groupId)
-            .eq("document_type", activeTitle || "Constitution")
-            .eq("status", "draft")
-            .maybeSingle();
-          if (existingDraft) {
-            await supabase.from("group_constitutions").update({ content: editorContent, title: editorTitle }).eq("id", existingDraft.id);
-          } else {
-            const { error: insErr } = await supabase.from("group_constitutions").insert({
-              group_id: groupId, title: editorTitle, content: editorContent,
-              version_number: currentVersion + 1, status: "draft",
+        // Check-then-insert: avoids the 409 "no unique constraint" UPSERT error
+        const docType = activeTitle || "Constitution";
+        const { data: existingDraft } = await supabase
+          .from("group_constitutions")
+          .select("id")
+          .eq("group_id", groupId)
+          .eq("document_type", docType)
+          .eq("status", "draft")
+          .maybeSingle();
+        if (existingDraft) {
+          const { error: upErr } = await supabase
+            .from("group_constitutions")
+            .update({ content: editorContent, title: editorTitle })
+            .eq("id", existingDraft.id);
+          if (upErr) throw upErr;
+        } else {
+          const { error: insErr } = await supabase
+            .from("group_constitutions")
+            .insert({
+              group_id: groupId,
+              document_type: docType,
+              title: editorTitle,
+              content: editorContent,
+              version_number: currentVersion + 1,
+              status: "draft",
             });
-            if (insErr) throw insErr;
-          }
+          if (insErr) throw insErr;
         }
       }
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
       queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
       if (!selectedTitle) setSelectedTitle(editorTitle);
       setEditing(false);
-    } finally { setSaving(false); }
+    } catch (err) {
+      setActionError((err as Error).message || tc("error"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCreateNewDoc = () => {

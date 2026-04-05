@@ -3678,6 +3678,7 @@
     "editAnnouncement": "Modifier l'annonce",
     "updateAnnouncement": "Mettre à jour l'annonce",
     "publishAnnouncement": "Publier maintenant",
+    "publishFailed": "Échec de la publication. Vous n'avez peut-être pas la permission de publier.",
     "unpublishAnnouncement": "Dépublier",
     "deleteAnnouncement": "Supprimer l'annonce",
     "deleteAnnouncementConfirm": "Ceci supprimera définitivement cette annonce. Êtes-vous sûr ?",
@@ -4023,7 +4024,10 @@
     "addOptionFailed": "Échec de l'ajout de l'option",
     "removeFailed": "Échec de la suppression",
     "voteFailed": "Échec de l'envoi du vote. Veuillez réessayer.",
-    "deleteFailed": "Échec de la suppression de l'élection"
+    "deleteFailed": "Échec de la suppression de l'élection",
+    "noPositionsHint": "Aucun poste n'a été configuré pour ce groupe. Des candidats peuvent tout de même être ajoutés sans poste.",
+    "noPositionsLink": "Ajouter des postes dans les paramètres.",
+    "noCandidatesHint": "Aucun candidat pour l'instant. Cliquez sur « Ajouter un candidat » ci-dessus pour ajouter des candidats."
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

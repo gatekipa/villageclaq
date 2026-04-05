@@ -3678,6 +3678,7 @@
     "editAnnouncement": "Edit Announcement",
     "updateAnnouncement": "Update Announcement",
     "publishAnnouncement": "Publish Now",
+    "publishFailed": "Failed to publish announcement. You may not have permission to publish.",
     "unpublishAnnouncement": "Unpublish",
     "deleteAnnouncement": "Delete Announcement",
     "deleteAnnouncementConfirm": "This will permanently delete this announcement. Are you sure?",
@@ -4023,7 +4024,10 @@
     "addOptionFailed": "Failed to add option",
     "removeFailed": "Failed to remove item",
     "voteFailed": "Failed to submit vote. Please try again.",
-    "deleteFailed": "Failed to delete election"
+    "deleteFailed": "Failed to delete election",
+    "noPositionsHint": "No positions have been set up for this group. Candidates can still be added without a position.",
+    "noPositionsLink": "Add positions in Settings.",
+    "noCandidatesHint": "No candidates yet. Click \"Add Candidate\" above to add nominees for this election."
   },
   "documentVault": {
     "title": "Document Vault",

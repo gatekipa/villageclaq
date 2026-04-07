@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Search,
   Receipt,
+  FileImage,
   CalendarDays,
   Banknote,
   Smartphone,
@@ -428,6 +429,12 @@ export default function MyPaymentsPage() {
                           {methodLabel(method)}
                         </span>
                         {ref && <span className="font-mono">{ref}</span>}
+                        {(item.receipt_url as string) && (
+                          <a href={item.receipt_url as string} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                            <FileImage className="h-3 w-3" />
+                            {t("viewReceipt")}
+                          </a>
+                        )}
                         <Badge
                           variant={isPaid ? "default" : "secondary"}
                           className={
@@ -460,6 +467,12 @@ export default function MyPaymentsPage() {
                       </span>
                       <span className="col-span-2 text-xs text-muted-foreground font-mono">
                         {ref}
+                        {(item.receipt_url as string) && (
+                          <a href={item.receipt_url as string} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline mt-0.5">
+                            <FileImage className="h-3 w-3" />
+                            {t("viewReceipt")}
+                          </a>
+                        )}
                       </span>
                       <span className="col-span-1">
                         <Badge

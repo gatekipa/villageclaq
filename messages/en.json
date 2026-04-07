@@ -8,7 +8,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "create": "Create",
-    "search": "Search",
+    "search": "Search...",
     "filter": "Filter",
     "back": "Back",
     "backToHome": "Back to home",
@@ -25,7 +25,6 @@
     "noSearchResultsDesc": "Try a different search term or clear your filters",
     "clearSearch": "Clear search",
     "resetFilters": "Reset filters",
-    "search": "Search...",
     "error": "Something went wrong",
     "success": "Success",
     "required": "Required",
@@ -508,7 +507,6 @@
     "sendAnnouncement": "Send Announcement",
     "recentPayments": "Recent Payments",
     "noRecentPayments": "No recent payments",
-    "recentActivity": "Recent Activity",
     "noRecentActivity": "No recent activity",
     "justNow": "Just now",
     "system": "System",
@@ -571,7 +569,7 @@
     "leaveGroupConfirm": "Are you sure you want to leave {groupName}? Your contribution and attendance history will be preserved.",
     "joinGroup": "Join a Group",
     "joinGroupDesc": "Enter a code to join",
-    "leaveGroupOwnerHint":"Transfer ownership first"
+    "leaveGroupOwnerHint": "Transfer ownership first"
   },
   "header": {
     "notifications": "Notifications",
@@ -1210,7 +1208,9 @@
     "reopenPeriod": "Reopen Period",
     "periodClosed": "Closed",
     "closePeriodSuccess": "Period closed successfully.",
-    "reopenPeriodSuccess": "Period reopened successfully."
+    "reopenPeriodSuccess": "Period reopened successfully.",
+    "viewReceipt": "View Receipt",
+    "noReceipt": "No receipt attached"
   },
   "finances": {
     "title": "Financial Dashboard",
@@ -1305,7 +1305,8 @@
     "shareEmailSubject": "Join {group} on VillageClaq",
     "shareEmailBody": "You've been invited to join {group} on VillageClaq.\n\nClick this link to join: {link}\n\nOr use join code: {code}",
     "shareSmsText": "Join {group} on VillageClaq: {link}",
-    "printInvite": "Print Invite"
+    "printInvite": "Print Invite",
+    "emailSendFailed": "Invitation created but email could not be sent. The recipient can still accept via their dashboard."
   },
   "events": {
     "title": "Events",
@@ -1758,7 +1759,9 @@
     "docType_CodeofConduct": "Code of Conduct",
     "docType_FinancialPolicy": "Financial Policy",
     "docType_MeetingProcedures": "Meeting Procedures",
-    "docType_MembershipPolicy": "Membership Policy"
+    "docType_MembershipPolicy": "Membership Policy",
+    "dragDrop": "Drag files here or click to upload",
+    "uploadingProgress": "Uploading {current} of {total}..."
   },
   "minutes": {
     "title": "Meeting Minutes",
@@ -1950,7 +1953,7 @@
     "dashboard": "Relief Dashboard",
     "createPlan": "Create Plan",
     "editPlan": "Edit Plan",
-    "planName": "Plan Name (English)",
+    "planName": "Plan",
     "planNameFr": "Plan Name (French)",
     "planDescription": "Description",
     "qualifyingEvents": "Qualifying Events",
@@ -2194,8 +2197,7 @@
     "remittedDate": "Remitted Date",
     "confirmedBy": "Confirmed By",
     "confirmedDate": "Confirmed Date",
-    "branchName": "Branch",
-    "planName": "Plan"
+    "branchName": "Branch"
   },
   "myPayments": {
     "title": "My Payments",
@@ -2229,7 +2231,8 @@
     "cashapp": "CashApp",
     "zelle": "Zelle",
     "pendingConfirmation": "Pending",
-    "rejected": "Rejected"
+    "rejected": "Rejected",
+    "viewReceipt": "View Receipt"
   },
   "payNow": {
     "dialogTitle": "Pay Now",
@@ -2538,7 +2541,18 @@
     "fullNameRequired": "Full name is required",
     "completeProfile": "Please complete your profile",
     "completeProfileDesc": "Your name is not set yet. Please enter your full name below.",
-    "dangerZone": "Danger Zone"
+    "dangerZone": "Danger Zone",
+    "removePhoto": "Remove Photo",
+    "removePhotoConfirm": "Remove your profile photo?",
+    "photoRemoved": "Profile photo removed",
+    "changePassword": "Change Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordUpdated": "Password updated successfully",
+    "passwordError": "Failed to update password",
+    "googleAuth": "You signed in with Google. Password is managed by your Google account."
   },
   "notifications": {
     "title": "Notifications",
@@ -2931,7 +2945,7 @@
     "branchCreated": "Branch created successfully",
     "memberCount": "Members",
     "collectionRate": "Collection",
-    "attendanceRate": "Attendance",
+    "attendanceRate": "Attendance Rate",
     "eventsHeld": "Events",
     "noBranches": "No branches created yet",
     "noBranchesDesc": "Create your first branch to start managing multiple locations",
@@ -2975,7 +2989,6 @@
     "standingSnapshot": "Standing Snapshot",
     "yearsOfMembership": "Years of Membership",
     "totalContributions": "Total Contributions",
-    "attendanceRate": "Attendance Rate",
     "standingAtTransfer": "Standing at Transfer",
     "outstandingObligations": "Outstanding Obligations",
     "transferDate": "Transfer Date",
@@ -4124,7 +4137,7 @@
     "install": "Install",
     "notNow": "Not now",
     "dismiss": "Not now",
-    "iosHint": "Tap \u2b06 then 'Add to Home Screen' to install",
+    "iosHint": "Tap ⬆ then 'Add to Home Screen' to install",
     "installed": "VillageClaq has been installed!",
     "connectionOnline": "Synced",
     "connectionPending": "{count} Pending",
@@ -4792,13 +4805,10 @@
     "repaid": "Repaid",
     "exportCsv": "Export CSV",
     "repaymentAmount": "Repayment Amount",
-    "paymentMethod": "Payment Method",
     "paidDate": "Paid Date",
     "nextInstallmentDue": "Next Due Date",
     "installmentProgress": "Installments Paid",
     "installmentNumber": "Installment #",
-    "amountDue": "Amount Due",
-    "dueDate": "Due Date",
     "daysOverdueLabel": "Days Overdue",
     "daysOverdueValue": "{days}d overdue"
   },

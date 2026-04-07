@@ -223,12 +223,12 @@ export default function InvitationsPage() {
     setRegenerating(false);
   }
 
-  /** Send invitation email (and optionally WhatsApp) */
-  async function sendInvitationEmail(recipientEmail: string) {
+  /** Send invitation email (and optionally WhatsApp). Returns true if email sent OK. */
+  async function sendInvitationEmail(recipientEmail: string): Promise<boolean> {
     try {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
+      if (!session?.access_token) return false;
 
       const inviterName = user?.full_name || user?.display_name || t("invitations.unknown");
       const groupName = currentGroup?.name || "";
@@ -243,6 +243,7 @@ export default function InvitationsPage() {
         sendWhatsapp = prefs.whatsapp;
       } catch { /* fail-open */ }
 
+      let emailOk = true;
       if (sendEmail) {
         const res = await fetch("/api/email/send", {
           method: "POST",
@@ -259,6 +260,7 @@ export default function InvitationsPage() {
         });
         if (!res.ok) {
           console.warn("[Invitations] Email API returned", res.status, "for", recipientEmail);
+          emailOk = false;
         }
       }
       // WhatsApp invitation — only attempt if recipient looks like a phone or UUID
@@ -280,8 +282,10 @@ export default function InvitationsPage() {
           }),
         }).catch(() => {});
       }
+      return emailOk;
     } catch {
       // Notification failure is non-fatal — invitation row already exists
+      return false;
     }
   }
 
@@ -341,11 +345,14 @@ export default function InvitationsPage() {
 
       if (!error) {
         // Send the invitation email — await so we can surface failures
+        let emailSent = false;
         try {
-          await sendInvitationEmail(trimmedEmail);
+          emailSent = await sendInvitationEmail(trimmedEmail);
         } catch {
-          // Invitation is created but email delivery uncertain
-          console.warn("[Invitations] Email send may have failed for", trimmedEmail);
+          emailSent = false;
+        }
+        if (!emailSent) {
+          setSendError(t("invitations.emailSendFailed"));
         }
         // Audit log
         try {

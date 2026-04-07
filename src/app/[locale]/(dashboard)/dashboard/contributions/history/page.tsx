@@ -28,6 +28,8 @@ import {
   Trash2,
   MoreVertical,
   Loader2,
+  Eye,
+  FileImage,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
@@ -658,6 +660,17 @@ export default function PaymentHistoryPage() {
                             {payment.referenceNumber}
                           </p>
                         )}
+                        {payment.receiptUrl && (
+                          <a
+                            href={payment.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
+                          >
+                            <FileImage className="h-3 w-3" />
+                            {t("contributions.viewReceipt")}
+                          </a>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
                         {payment.status === "pending_confirmation" ? (
@@ -701,6 +714,12 @@ export default function PaymentHistoryPage() {
                               <MoreVertical className="h-4 w-4" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {payment.receiptUrl && (
+                                <DropdownMenuItem onClick={() => window.open(payment.receiptUrl, "_blank")}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  {t("contributions.viewReceipt")}
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => openEditDialog(payment)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 {t("contributions.editPayment")}

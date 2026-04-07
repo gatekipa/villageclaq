@@ -53,7 +53,10 @@ export function useMembers() {
         .select("id, user_id, role, standing, display_name, joined_at, is_proxy, proxy_manager_id, privacy_settings, membership_status, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
-      if (error) throw error;
+      if (error) {
+        console.warn("[Members] Query failed:", error.message);
+        return [];
+      }
       return (data || []).map((m: Record<string, unknown>) => ({
         ...m,
         profile: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
@@ -969,7 +972,10 @@ export function useNotifications(limit = 20) {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(limit);
-      if (error) throw error;
+      if (error) {
+        console.warn("[Notifications] Query failed:", error.message);
+        return [];
+      }
       return data || [];
     },
     enabled: !!user,
@@ -987,7 +993,10 @@ export function useUnreadNotificationCount() {
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("is_read", false);
-      if (error) throw error;
+      if (error) {
+        console.warn("[UnreadNotifications] Query failed:", error.message);
+        return 0;
+      }
       return count || 0;
     },
     enabled: !!user,
@@ -1067,7 +1076,10 @@ export function useActivityFeed(limit = 30) {
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(limit);
-      if (error) throw error;
+      if (error) {
+        console.warn("[ActivityFeed] Query failed:", error.message);
+        return [];
+      }
       return data || [];
     },
     enabled: !!groupId,

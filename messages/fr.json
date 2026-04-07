@@ -8,7 +8,7 @@
     "delete": "Supprimer",
     "edit": "Modifier",
     "create": "Créer",
-    "search": "Rechercher",
+    "search": "Rechercher...",
     "filter": "Filtrer",
     "back": "Retour",
     "backToHome": "Retour à l'accueil",
@@ -25,7 +25,6 @@
     "noSearchResultsDesc": "Essayez un autre terme de recherche ou effacez vos filtres",
     "clearSearch": "Effacer la recherche",
     "resetFilters": "Réinitialiser les filtres",
-    "search": "Rechercher...",
     "error": "Une erreur est survenue",
     "success": "Succès",
     "required": "Obligatoire",
@@ -508,7 +507,6 @@
     "sendAnnouncement": "Envoyer une annonce",
     "recentPayments": "Paiements récents",
     "noRecentPayments": "Aucun paiement récent",
-    "recentActivity": "Activité récente",
     "noRecentActivity": "Aucune activité récente",
     "justNow": "À l'instant",
     "system": "Système",
@@ -1210,7 +1208,9 @@
     "reopenPeriod": "Rouvrir la période",
     "periodClosed": "Clôturé",
     "closePeriodSuccess": "Période clôturée avec succès.",
-    "reopenPeriodSuccess": "Période rouverte avec succès."
+    "reopenPeriodSuccess": "Période rouverte avec succès.",
+    "viewReceipt": "Voir le reçu",
+    "noReceipt": "Aucun reçu joint"
   },
   "finances": {
     "title": "Tableau de bord financier",
@@ -1305,7 +1305,8 @@
     "shareEmailSubject": "Rejoignez {group} sur VillageClaq",
     "shareEmailBody": "Vous êtes invité(e) à rejoindre {group} sur VillageClaq.\n\nCliquez sur ce lien pour rejoindre : {link}\n\nOu utilisez le code : {code}",
     "shareSmsText": "Rejoignez {group} sur VillageClaq : {link}",
-    "printInvite": "Imprimer l'invitation"
+    "printInvite": "Imprimer l'invitation",
+    "emailSendFailed": "Invitation créée mais l'email n'a pas pu être envoyé. Le destinataire peut toujours accepter via son tableau de bord."
   },
   "events": {
     "title": "Événements",
@@ -1758,7 +1759,9 @@
     "docType_CodeofConduct": "Code de conduite",
     "docType_FinancialPolicy": "Politique financière",
     "docType_MeetingProcedures": "Procédures de réunion",
-    "docType_MembershipPolicy": "Politique d'adhésion"
+    "docType_MembershipPolicy": "Politique d'adhésion",
+    "dragDrop": "Glissez les fichiers ici ou cliquez pour télécharger",
+    "uploadingProgress": "Téléchargement {current} sur {total}..."
   },
   "minutes": {
     "title": "Procès-verbaux",
@@ -1950,7 +1953,7 @@
     "dashboard": "Tableau de bord entraide",
     "createPlan": "Créer un plan",
     "editPlan": "Modifier le plan",
-    "planName": "Nom du plan (anglais)",
+    "planName": "Plan",
     "planNameFr": "Nom du plan (français)",
     "planDescription": "Description",
     "qualifyingEvents": "Événements éligibles",
@@ -2194,8 +2197,7 @@
     "remittedDate": "Date de remise",
     "confirmedBy": "Confirmé par",
     "confirmedDate": "Date de confirmation",
-    "branchName": "Branche",
-    "planName": "Plan"
+    "branchName": "Branche"
   },
   "myDashboard": {
     "title": "Bienvenue, {name}",
@@ -2270,7 +2272,8 @@
     "cashapp": "CashApp",
     "zelle": "Zelle",
     "pendingConfirmation": "En attente",
-    "rejected": "Rejeté"
+    "rejected": "Rejeté",
+    "viewReceipt": "Voir le reçu"
   },
   "payNow": {
     "dialogTitle": "Payer maintenant",
@@ -2579,7 +2582,18 @@
     "fullNameRequired": "Le nom complet est obligatoire",
     "completeProfile": "Veuillez compléter votre profil",
     "completeProfileDesc": "Votre nom n'est pas encore défini. Veuillez entrer votre nom complet ci-dessous.",
-    "dangerZone": "Zone de danger"
+    "dangerZone": "Zone de danger",
+    "removePhoto": "Supprimer la photo",
+    "removePhotoConfirm": "Supprimer votre photo de profil ?",
+    "photoRemoved": "Photo de profil supprimée",
+    "changePassword": "Changer le mot de passe",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordUpdated": "Mot de passe mis à jour avec succès",
+    "passwordError": "Échec de la mise à jour du mot de passe",
+    "googleAuth": "Vous vous êtes connecté avec Google. Le mot de passe est géré par votre compte Google."
   },
   "notifications": {
     "title": "Notifications",
@@ -2931,7 +2945,7 @@
     "branchCreated": "Branche créée avec succès",
     "memberCount": "Membres",
     "collectionRate": "Collecte",
-    "attendanceRate": "Présence",
+    "attendanceRate": "Taux de présence",
     "eventsHeld": "Événements",
     "noBranches": "Aucune branche créée",
     "noBranchesDesc": "Créez votre première branche pour gérer plusieurs sites",
@@ -2975,7 +2989,6 @@
     "standingSnapshot": "Aperçu du statut",
     "yearsOfMembership": "Années d'adhésion",
     "totalContributions": "Cotisations totales",
-    "attendanceRate": "Taux de présence",
     "standingAtTransfer": "Statut au transfert",
     "outstandingObligations": "Obligations en cours",
     "transferDate": "Date de transfert",
@@ -4124,7 +4137,7 @@
     "install": "Installer",
     "notNow": "Pas maintenant",
     "dismiss": "Pas maintenant",
-    "iosHint": "Appuyez sur \u2b06 puis 'Ajouter à l'écran d'accueil'",
+    "iosHint": "Appuyez sur ⬆ puis 'Ajouter à l'écran d'accueil'",
     "installed": "VillageClaq a été installé !",
     "connectionOnline": "Synchronisé",
     "connectionPending": "{count} en attente",
@@ -4792,13 +4805,10 @@
     "repaid": "Remboursé",
     "exportCsv": "Exporter CSV",
     "repaymentAmount": "Montant du remboursement",
-    "paymentMethod": "Mode de paiement",
     "paidDate": "Date de paiement",
     "nextInstallmentDue": "Prochaine échéance",
     "installmentProgress": "Échéances payées",
     "installmentNumber": "Échéance #",
-    "amountDue": "Montant dû",
-    "dueDate": "Date d'échéance",
     "daysOverdueLabel": "Jours de retard",
     "daysOverdueValue": "{days}j de retard"
   },

@@ -232,6 +232,8 @@ export default function ConstitutionPage() {
   const [sendingReminder, setSendingReminder] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [fileUploading, setFileUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
   const [applyingAmendment, setApplyingAmendment] = useState(false);
   const [amendmentActionId, setAmendmentActionId] = useState<string | null>(null);
 
@@ -556,7 +558,38 @@ export default function ConstitutionPage() {
       setActionError(tc("error"));
     } finally {
       setFileUploading(false);
+      setUploadProgress("");
     }
+  };
+
+  const handleMultipleFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter((f) =>
+      /\.(pdf|docx?|txt|png|jpg|jpeg|webp)$/i.test(f.name)
+    );
+    if (fileArray.length === 0) return;
+    for (let i = 0; i < fileArray.length; i++) {
+      setUploadProgress(t("uploadingProgress", { current: i + 1, total: fileArray.length }));
+      await handleFileUpload(fileArray[i]);
+    }
+    setUploadProgress("");
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleMultipleFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   if (constError) {
@@ -638,14 +671,26 @@ export default function ConstitutionPage() {
         <TabsContent value="document" className="mt-4 space-y-4">
           {!hasContent && !editing ? (
             <EmptyState icon={ScrollText} title={t("noConstitution")} description={t("noConstitutionDesc")} action={isAdmin ? (
-              <div className="flex gap-2">
-                <Button onClick={handleStartEdit}><Pencil className="mr-2 h-4 w-4" />{t("writeConstitution")}</Button>
-                <div>
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" id="const-upload" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} />
-                  <Button variant="outline" disabled={fileUploading} onClick={() => document.getElementById("const-upload")?.click()}>
-                    {fileUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    {fileUploading ? tc("loading") : t("uploadDocument")}
-                  </Button>
+              <div className="space-y-4">
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={handleStartEdit}><Pencil className="mr-2 h-4 w-4" />{t("writeConstitution")}</Button>
+                  <div>
+                    <input type="file" accept=".pdf,.doc,.docx,.txt,image/*" multiple className="hidden" id="const-upload" onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleMultipleFiles(e.target.files); }} />
+                    <Button variant="outline" disabled={fileUploading} onClick={() => document.getElementById("const-upload")?.click()}>
+                      {fileUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                      {uploadProgress || (fileUploading ? tc("loading") : t("uploadDocument"))}
+                    </Button>
+                  </div>
+                </div>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors ${isDragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25"}`}
+                >
+                  <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">{t("dragDrop")}</p>
+                  <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, DOC, TXT, Images</p>
                 </div>
               </div>
             ) : undefined} />

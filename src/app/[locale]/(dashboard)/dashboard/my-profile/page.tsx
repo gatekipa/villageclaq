@@ -37,6 +37,10 @@ import {
   LogOut,
   Loader2,
   AlertTriangle,
+  Trash2,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useRouter } from "@/i18n/routing";
 
@@ -79,6 +83,18 @@ export default function MyProfilePage() {
   const [privacySaved, setPrivacySaved] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showRemovePhotoDialog, setShowRemovePhotoDialog] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+
+  // Change password state
+  const [authProvider, setAuthProvider] = useState<string>("email");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // BUG 2 FIX: Populate form from real data, with auth metadata fallback
   useEffect(() => {
@@ -116,7 +132,7 @@ export default function MyProfilePage() {
     populateForm();
   }, [user]);
 
-  // Load email from auth
+  // Load email + auth provider from auth
   useEffect(() => {
     async function loadEmail() {
       const supabase = createClient();
@@ -125,6 +141,9 @@ export default function MyProfilePage() {
       } = await supabase.auth.getUser();
       if (authUser?.email) {
         setEmail(authUser.email);
+      }
+      if (authUser?.app_metadata?.provider) {
+        setAuthProvider(authUser.app_metadata.provider);
       }
     }
     loadEmail();
@@ -225,6 +244,62 @@ export default function MyProfilePage() {
 
   const togglePrivacy = (key: keyof typeof privacy) => {
     setPrivacy((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!user) return;
+    setRemovingPhoto(true);
+    try {
+      const supabase = createClient();
+      // Delete from storage
+      const oldUrl = user.avatar_url as string | null;
+      if (oldUrl) {
+        const marker = "/avatars/";
+        const idx = oldUrl.indexOf(marker);
+        if (idx !== -1) {
+          const oldPath = oldUrl.substring(idx + marker.length);
+          await supabase.storage.from("avatars").remove([oldPath]).catch(() => {});
+        }
+      }
+      // Set avatar_url to null in profiles
+      await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
+      setShowRemovePhotoDialog(false);
+      refresh();
+    } catch (err) {
+      setLoadError((err as Error).message);
+    } finally {
+      setRemovingPhoto(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordError(null);
+    if (newPassword.length < 8) {
+      setPasswordError(t("passwordTooShort"));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(t("passwordMismatch"));
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordSaved(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setPasswordError(error.message);
+      } else {
+        setPasswordSaved(true);
+        setNewPassword("");
+        setConfirmPassword("");
+        setTimeout(() => setPasswordSaved(false), 3000);
+      }
+    } catch (err) {
+      setPasswordError((err as Error).message);
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   // BUG 2 FIX: Avatar initials — handle empty/null full_name gracefully
@@ -368,6 +443,15 @@ export default function MyProfilePage() {
               <p className="text-xs text-muted-foreground">
                 {t("uploadPhoto")}
               </p>
+              {user?.avatar_url && (
+                <button
+                  className="mt-1 text-xs text-destructive hover:underline inline-flex items-center gap-1"
+                  onClick={() => setShowRemovePhotoDialog(true)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  {t("removePhoto")}
+                </button>
+              )}
             </div>
           </div>
 
@@ -485,7 +569,83 @@ export default function MyProfilePage() {
         </CardContent>
       </Card>
 
-      {/* 3. Danger Zone — Leave Group */}
+      {/* 3. Change Password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Lock className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            {t("changePassword")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {authProvider !== "email" ? (
+            <p className="text-sm text-muted-foreground">{t("googleAuth")}</p>
+          ) : (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("newPassword")}</Label>
+                  <div className="relative">
+                    <Input
+                      type={showNewPassword ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => { setNewPassword(e.target.value); setPasswordError(null); }}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("confirmPassword")}</Label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(null); }}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              {passwordError && (
+                <p className="text-sm text-destructive">{passwordError}</p>
+              )}
+              <div className="flex items-center justify-end gap-2">
+                {passwordSaved && (
+                  <span className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                    {t("passwordUpdated")}
+                  </span>
+                )}
+                <Button
+                  className="gap-2"
+                  onClick={handleChangePassword}
+                  disabled={passwordSaving || !newPassword}
+                >
+                  {passwordSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Lock className="h-4 w-4" />
+                  {t("changePassword")}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 4. Danger Zone — Leave Group */}
       {currentMembership && (
         <Card className="border-destructive/50">
           <CardHeader>
@@ -555,6 +715,21 @@ export default function MyProfilePage() {
             >
               {leaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {tMembers("leaveGroupButton")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Photo Dialog */}
+      <Dialog open={showRemovePhotoDialog} onOpenChange={setShowRemovePhotoDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("removePhoto")}</DialogTitle>
+          <DialogDescription>{t("removePhotoConfirm")}</DialogDescription>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>{tCommon("cancel")}</DialogClose>
+            <Button variant="destructive" disabled={removingPhoto} onClick={handleRemovePhoto}>
+              {removingPhoto && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("removePhoto")}
             </Button>
           </DialogFooter>
         </DialogContent>

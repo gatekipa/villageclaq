@@ -156,7 +156,10 @@ function useAuditLogs(category: string, searchQuery: string, dateFrom: string, d
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.warn("[ActivityLog] Query failed:", error.message);
+        return [];
+      }
       return (data || []) as AuditEntry[];
     },
     enabled: !!groupId,

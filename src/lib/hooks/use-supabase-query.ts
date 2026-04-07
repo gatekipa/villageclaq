@@ -76,7 +76,7 @@ export function useMember(membershipId: string | null) {
         .select("*, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone, preferred_locale)")
         .eq("id", membershipId)
         .single();
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return null; }
       return { ...data, profile: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles };
     },
     enabled: !!membershipId,
@@ -97,7 +97,7 @@ export function useContributionTypes() {
         .eq("group_id", groupId)
         .eq("is_active", true)
         .order("created_at", { ascending: true });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -116,7 +116,7 @@ export function useAllContributionTypes() {
         .eq("group_id", groupId)
         .order("is_active", { ascending: false })
         .order("created_at", { ascending: true });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -173,7 +173,7 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
       if (filters?.status) q = q.eq("status", filters.status);
       if (filters?.membershipId) q = q.eq("membership_id", filters.membershipId);
       const { data, error } = await q;
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -195,7 +195,7 @@ export function usePayments(limit = 50) {
         .is("relief_plan_id", null) // Exclude relief payments from dues views
         .order("recorded_at", { ascending: false })
         .limit(limit);
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -527,7 +527,7 @@ export function useEvents() {
         .select("*")
         .eq("group_id", groupId)
         .order("starts_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -576,7 +576,7 @@ export function useEventRsvps(eventId: string | null) {
         .from("event_rsvps")
         .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event_id", eventId);
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!eventId,
@@ -594,7 +594,7 @@ export function useEventAttendance(eventId: string | null) {
         .from("event_attendances")
         .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event_id", eventId);
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!eventId,
@@ -647,7 +647,7 @@ export function useAllEventAttendances() {
         .from("event_attendances")
         .select("*, event:events!inner(id, title, title_fr, starts_at, group_id), membership:memberships!inner(id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event.group_id", groupId);
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -666,7 +666,7 @@ export function useHostingRosters() {
         .from("hosting_rosters")
         .select("*, hosting_assignments(*, membership:memberships!inner(id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)))")
         .eq("group_id", groupId);
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -730,7 +730,7 @@ export function useMeetingMinutes() {
         .select("*, event:events(id, title, title_fr, starts_at)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -749,7 +749,7 @@ export function useReliefPlans() {
         .from("relief_plans")
         .select("*")
         .eq("group_id", groupId);
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -767,7 +767,7 @@ export function useReliefClaims() {
         .select("*, relief_plan:relief_plans!inner(id, name, name_fr, group_id), membership:memberships!inner(id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone))")
         .eq("relief_plan.group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -832,7 +832,7 @@ export function useSavingsCycles() {
         .select("*, savings_participants(*, membership:memberships!inner(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), savings_contributions(id, membership_id, round_number, amount, status)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -873,7 +873,7 @@ export function useElections() {
         .select("*, election_candidates(*, membership:memberships!inner(id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), election_options(*)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -893,7 +893,7 @@ export function useDocuments() {
         .select("*, uploader:profiles!documents_uploaded_by_fkey(id, full_name, avatar_url)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -913,7 +913,7 @@ export function useAnnouncements() {
         .select("*")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -933,7 +933,7 @@ export function useInvitations() {
         .select("*, profile:profiles!invitations_invited_by_fkey(id, full_name)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -951,7 +951,7 @@ export function useJoinCodes() {
         .select("*")
         .eq("group_id", groupId)
         .eq("is_active", true);
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -1016,7 +1016,7 @@ export function useFamilyMembers() {
         .select("*")
         .eq("membership_id", currentMembership.id)
         .order("created_at", { ascending: true });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!currentMembership,
@@ -1036,7 +1036,7 @@ export function useGroupSettings() {
         .select("*")
         .eq("id", groupId)
         .single();
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return null; }
       return data;
     },
     enabled: !!groupId,
@@ -1054,7 +1054,7 @@ export function useGroupPositions() {
         .select("*, position_assignments(*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))), position_permissions(*)")
         .eq("group_id", groupId)
         .order("sort_order", { ascending: true });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -1118,7 +1118,7 @@ export function useLoans() {
         .select("*, membership:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), repayments:loan_repayments(*)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -1138,7 +1138,7 @@ export function useProjects() {
         .select("*, contributions:project_contributions(id, membership_id, amount, payment_method, reference, paid_at), expenses:project_expenses(id, description, amount, receipt_url, approved_by, spent_at), milestones:project_milestones(*)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,
@@ -1152,7 +1152,7 @@ export function useBadges() {
     queryKey: ["badges"],
     queryFn: async () => {
       const { data, error } = await supabase.from("badges").select("*").order("name");
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
   });
@@ -1168,7 +1168,7 @@ export function useMemberBadges(membershipId?: string | null) {
         .select("*, badge:badges(*)")
         .eq("membership_id", membershipId)
         .order("earned_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!membershipId,
@@ -1187,7 +1187,7 @@ export function useEventPhotos(eventId?: string | null) {
         .select("*, uploader:memberships!inner(id, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("event_id", eventId)
         .order("created_at", { ascending: false });
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!eventId,
@@ -1203,7 +1203,7 @@ export function usePaymentReminderRules() {
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase.from("payment_reminder_rules").select("*").eq("group_id", groupId).order("days_after_due");
-      if (error) throw error;
+      if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
     },
     enabled: !!groupId,

@@ -308,6 +308,11 @@ export default function EventsPage() {
 
   const handleCreateEvent = async () => {
     if (!formTitle || !formStartsAt || creating) return;
+    // Block past dates
+    if (new Date(formStartsAt) < new Date()) {
+      showError(t("pastDateError"));
+      return;
+    }
     setCreating(true);
     try {
       await createEvent.mutateAsync({
@@ -354,6 +359,11 @@ export default function EventsPage() {
 
   async function handleEditEvent() {
     if (!editEventId || !formTitle || !formStartsAt) return;
+    // Block past dates for new events (allow editing past events for corrections)
+    if (new Date(formStartsAt) < new Date()) {
+      showError(t("pastDateError"));
+      return;
+    }
     setEditSaving(true);
     try {
       const supabase = createClient();
@@ -646,7 +656,9 @@ export default function EventsPage() {
               const startsAt = new Date(event.starts_at as string);
               const endsAt = event.ends_at ? new Date(event.ends_at as string) : null;
               const eventType = (event.event_type as string) || "other";
-              const isPast = startsAt < new Date();
+              // Use ends_at to determine completion (not just starts_at)
+              const eventEnd = endsAt || startsAt;
+              const isPast = eventEnd < new Date();
 
               return (
                 <Card key={event.id as string} className="transition-shadow hover:shadow-md">

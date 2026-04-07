@@ -267,17 +267,20 @@ export default function ConstitutionPage() {
       } else {
         // Check-then-insert: avoids the 409 "no unique constraint" UPSERT error
         const docType = activeTitle || "Constitution";
-        const { data: existingDraft } = await supabase
+        // Broader check: find ANY draft for this group+docType (including old rows with NULL document_type)
+        const { data: existingDrafts } = await supabase
           .from("group_constitutions")
-          .select("id")
+          .select("id, document_type")
           .eq("group_id", groupId)
-          .eq("document_type", docType)
           .eq("status", "draft")
-          .maybeSingle();
+          .limit(10);
+        const existingDraft = (existingDrafts || []).find(
+          (d: Record<string, unknown>) => d.document_type === docType || d.document_type === null
+        );
         if (existingDraft) {
           const { error: upErr } = await supabase
             .from("group_constitutions")
-            .update({ content: editorContent, title: editorTitle })
+            .update({ content: editorContent, title: editorTitle, document_type: docType })
             .eq("id", existingDraft.id);
           if (upErr) throw upErr;
         } else {
@@ -291,7 +294,27 @@ export default function ConstitutionPage() {
               version_number: currentVersion + 1,
               status: "draft",
             });
-          if (insErr) throw insErr;
+          // If conflict (concurrent insert), fall back to update
+          if (insErr && insErr.code === "23505") {
+            const { data: conflictRow } = await supabase
+              .from("group_constitutions")
+              .select("id")
+              .eq("group_id", groupId)
+              .eq("status", "draft")
+              .limit(1)
+              .maybeSingle();
+            if (conflictRow) {
+              const { error: upErr } = await supabase
+                .from("group_constitutions")
+                .update({ content: editorContent, title: editorTitle, document_type: docType })
+                .eq("id", conflictRow.id);
+              if (upErr) throw upErr;
+            } else {
+              throw insErr;
+            }
+          } else if (insErr) {
+            throw insErr;
+          }
         }
       }
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
@@ -315,6 +338,17 @@ export default function ConstitutionPage() {
     setNewDocType("");
     setNewDocCustomTitle("");
     setEditing(true);
+  };
+
+  const handleNewDocUpload = () => {
+    const title = newDocType === "Other" ? newDocCustomTitle.trim() : newDocType;
+    if (!title) return;
+    setSelectedTitle(title);
+    setShowNewDocDialog(false);
+    setNewDocType("");
+    setNewDocCustomTitle("");
+    // Trigger file picker after closing dialog
+    setTimeout(() => document.getElementById("const-upload")?.click(), 100);
   };
 
   const handlePublish = async () => {
@@ -467,19 +501,21 @@ export default function ConstitutionPage() {
       }
       const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
       const fileTitle = file.name.replace(/\.[^.]+$/, "");
-      // Check-then-insert: avoids the 409 "no unique constraint" UPSERT error
+      // Broader check: find ANY draft for this group+docType (including old rows with NULL document_type)
       const docType = activeTitle || "Constitution";
-      const { data: existingFileDraft } = await supabase
+      const { data: existingFileDrafts } = await supabase
         .from("group_constitutions")
-        .select("id")
+        .select("id, document_type")
         .eq("group_id", groupId)
-        .eq("document_type", docType)
         .eq("status", "draft")
-        .maybeSingle();
+        .limit(10);
+      const existingFileDraft = (existingFileDrafts || []).find(
+        (d: Record<string, unknown>) => d.document_type === docType || d.document_type === null
+      );
       if (existingFileDraft) {
         const { error: upErr } = await supabase
           .from("group_constitutions")
-          .update({ title: fileTitle, file_url: urlData.publicUrl })
+          .update({ title: fileTitle, file_url: urlData.publicUrl, document_type: docType })
           .eq("id", existingFileDraft.id);
         if (upErr) throw upErr;
       } else {
@@ -493,7 +529,26 @@ export default function ConstitutionPage() {
             version_number: currentVersion + 1,
             status: "draft",
           });
-        if (insErr) throw insErr;
+        if (insErr && insErr.code === "23505") {
+          const { data: conflictRow } = await supabase
+            .from("group_constitutions")
+            .select("id")
+            .eq("group_id", groupId)
+            .eq("status", "draft")
+            .limit(1)
+            .maybeSingle();
+          if (conflictRow) {
+            const { error: upErr } = await supabase
+              .from("group_constitutions")
+              .update({ title: fileTitle, file_url: urlData.publicUrl, document_type: docType })
+              .eq("id", conflictRow.id);
+            if (upErr) throw upErr;
+          } else {
+            throw insErr;
+          }
+        } else if (insErr) {
+          throw insErr;
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["constitution-draft"] });
       queryClient.invalidateQueries({ queryKey: ["all-constitutions", groupId] });
@@ -790,8 +845,12 @@ export default function ConstitutionPage() {
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setShowNewDocDialog(false)}>{tc("cancel")}</Button>
+            <Button variant="outline" onClick={handleNewDocUpload} disabled={!newDocType || (newDocType === "Other" && !newDocCustomTitle.trim())}>
+              <Upload className="mr-2 h-4 w-4" />
+              {t("uploadDocument")}
+            </Button>
             <Button onClick={handleCreateNewDoc} disabled={!newDocType || (newDocType === "Other" && !newDocCustomTitle.trim())}>
               <Pencil className="mr-2 h-4 w-4" />
               {t("writeConstitution")}

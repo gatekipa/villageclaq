@@ -7,8 +7,8 @@ import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, AlertTriangle, XCircle, Shield, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { getMemberName } from "@/lib/get-member-name";
+
+
 
 interface VerificationData {
   memberName: string;
@@ -38,30 +38,21 @@ export default function VerificationPage() {
       }
 
       try {
-        const supabase = createClient();
-
-        const { data: membership, error: err } = await supabase
-          .from("memberships")
-          .select("display_name, standing, role, joined_at, profiles!memberships_user_id_fkey(full_name, display_name, avatar_url), groups!memberships_group_id_fkey(name)")
-          .eq("id", membershipId)
-          .single();
-
-        if (err || !membership) {
+        // Use API route that bypasses RLS — verification is public
+        const res = await fetch(`/api/verify?id=${encodeURIComponent(membershipId)}`);
+        if (!res.ok) {
           setError(true);
           setLoading(false);
           return;
         }
-
-        const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
-        const group = Array.isArray(membership.groups) ? membership.groups[0] : membership.groups;
-
+        const result = await res.json();
         setData({
-          memberName: getMemberName(membership as Record<string, unknown>),
-          groupName: (group as Record<string, unknown>)?.name as string || "Group",
-          standing: (membership.standing as string) || "good",
-          joinedAt: membership.joined_at as string,
-          role: (membership.role as string) || "member",
-          avatarUrl: (profile as Record<string, unknown>)?.avatar_url as string | null,
+          memberName: result.memberName || "Member",
+          groupName: result.groupName || "Group",
+          standing: result.standing || "good",
+          joinedAt: result.joinedAt,
+          role: result.role || "member",
+          avatarUrl: result.avatarUrl || null,
         });
       } catch {
         setError(true);

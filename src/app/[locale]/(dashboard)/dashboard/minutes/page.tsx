@@ -386,6 +386,8 @@ export default function MinutesPage() {
     if (!groupId || !user) return;
     if (!standaloneMode && !selectedEvent) return;
     if (standaloneMode && !standaloneTitle.trim() && !selectedStandaloneId) return;
+    // Mutual exclusion: prevent both "Save Draft" and "Publish" from firing simultaneously
+    if (saving) return;
     setSaving(true);
 
     const textContent =

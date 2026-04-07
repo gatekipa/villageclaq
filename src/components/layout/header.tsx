@@ -13,6 +13,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 import { WhatsNew } from "./whats-new";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications, useUnreadNotificationCount } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -46,8 +47,9 @@ function timeAgo(dateStr: string): string {
 export function Header({ onMenuClick }: HeaderProps) {
   const t = useTranslations("header");
   const [isOpen, setIsOpen] = useState(false);
-  const { groupId } = useGroup();
+  const { groupId, user } = useGroup();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: notifications = [] } = useNotifications(5);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
 
@@ -61,6 +63,9 @@ export function Header({ onMenuClick }: HeaderProps) {
     let query = supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
     if (groupId) query = query.eq("group_id", groupId);
     await query;
+    // Invalidate both notification queries so badge and list update
+    queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["unread-notifications", user?.id] });
   }
 
   return (

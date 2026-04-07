@@ -125,16 +125,30 @@ function DeactivatedGroupScreen({
             {t("deactivateGroupScreen.reactivate")}
           </Button>
         )}
-        {otherActiveMemberships.length > 0 && (
+        {otherActiveMemberships.length > 0 ? (
           <Button
             variant="outline"
             className="w-full"
             onClick={() => {
+              // Switch localStorage to the first active group so the context
+              // picks it up on reload instead of re-selecting the deactivated one.
+              const nextGroup = otherActiveMemberships[0];
+              if (nextGroup && typeof window !== "undefined") {
+                localStorage.setItem("villageclaq_current_group", nextGroup.group_id);
+              }
               router.push("/dashboard");
               setTimeout(() => window.location.reload(), 100);
             }}
           >
             {t("deactivateGroupScreen.switch")}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleSignOut}
+          >
+            {tCommon("signOut")}
           </Button>
         )}
         <button
@@ -257,14 +271,22 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   const tCommon = useTranslations("common");
   const [checkingInvitations, setCheckingInvitations] = useState(false);
   const [checkedInvitations, setCheckedInvitations] = useState(false);
-  // Phone collection interstitial state — null until sessionStorage is read
-  const [phoneSkipped, setPhoneSkipped] = useState<boolean | null>(null);
+  // Phone collection interstitial state
+  // Defaults to true (suppressed) to prevent flash of interstitial during SSR/hydration.
+  // The useEffect below reads sessionStorage and sets the real value.
+  const [phoneSkipped, setPhoneSkipped] = useState(true);
+  const [phoneStateLoaded, setPhoneStateLoaded] = useState(false);
+  // Tracks whether phone was just saved (dismiss interstitial without refresh)
+  const [phoneSavedLocal, setPhoneSavedLocal] = useState(false);
 
   useEffect(() => {
-    setPhoneSkipped(
-      typeof window !== "undefined" &&
-        sessionStorage.getItem("vc_phone_skipped") === "1"
-    );
+    if (typeof window !== "undefined") {
+      const skipped = sessionStorage.getItem("vc_phone_skipped") === "1";
+      setPhoneSkipped(skipped);
+    } else {
+      setPhoneSkipped(false);
+    }
+    setPhoneStateLoaded(true);
   }, []);
 
   // Allow onboarding pages to render without a group
@@ -376,11 +398,12 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Phone collection interstitial — shown only after sessionStorage has been read
-  // (phoneSkipped !== null), user has at least one active group, and phone is missing.
+  // (phoneStateLoaded), user has at least one active group, and phone is missing.
   // Skippable — clicking "Skip for now" dismisses the screen and shows a banner instead.
-  const hasPhone = !!(user?.phone);
+  const hasPhone = !!(user?.phone) || phoneSavedLocal;
   if (
-    phoneSkipped === false &&
+    phoneStateLoaded &&
+    !phoneSkipped &&
     !loading &&
     !hasPhone &&
     !isOnboardingPage &&
@@ -389,8 +412,10 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   ) {
     return (
       <PhoneCollectionScreen
-        onSaved={async () => {
-          await refresh();
+        onSaved={() => {
+          // Dismiss immediately — phone is already saved to DB.
+          // No refresh() call to avoid loading=true flash.
+          setPhoneSavedLocal(true);
         }}
         onSkip={() => {
           if (typeof window !== "undefined") {

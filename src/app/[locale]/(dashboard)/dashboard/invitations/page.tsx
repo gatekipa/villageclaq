@@ -223,7 +223,7 @@ export default function InvitationsPage() {
     setRegenerating(false);
   }
 
-  /** Fire-and-forget invitation email via the /api/email/send route */
+  /** Send invitation email (and optionally WhatsApp) */
   async function sendInvitationEmail(recipientEmail: string) {
     try {
       const supabase = createClient();
@@ -244,7 +244,7 @@ export default function InvitationsPage() {
       } catch { /* fail-open */ }
 
       if (sendEmail) {
-        await fetch("/api/email/send", {
+        const res = await fetch("/api/email/send", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -257,10 +257,15 @@ export default function InvitationsPage() {
             locale,
           }),
         });
+        if (!res.ok) {
+          console.warn("[Invitations] Email API returned", res.status, "for", recipientEmail);
+        }
       }
-      // WhatsApp invitation (fire-and-forget) — only if we have the recipient's phone
-      // We don't always have the phone for email invitations, so this is best-effort
-      if (sendWhatsapp) {
+      // WhatsApp invitation — only attempt if recipient looks like a phone or UUID
+      // (emails are not resolvable to phone numbers by the WhatsApp route)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(recipientEmail);
+      const isPhone = /^\+?\d{7,}/.test(recipientEmail);
+      if (sendWhatsapp && (isUUID || isPhone)) {
         fetch("/api/whatsapp/send", {
           method: "POST",
           headers: {
@@ -268,7 +273,7 @@ export default function InvitationsPage() {
             Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            to: recipientEmail, // Will be resolved if it's a UUID; skipped otherwise
+            to: recipientEmail,
             type: "invitation",
             data: { inviterName, groupName, acceptUrl },
             locale,
@@ -335,8 +340,13 @@ export default function InvitationsPage() {
       });
 
       if (!error) {
-        // Send the invitation email (fire-and-forget)
-        sendInvitationEmail(trimmedEmail);
+        // Send the invitation email — await so we can surface failures
+        try {
+          await sendInvitationEmail(trimmedEmail);
+        } catch {
+          // Invitation is created but email delivery uncertain
+          console.warn("[Invitations] Email send may have failed for", trimmedEmail);
+        }
         // Audit log
         try {
           const { logActivity } = await import("@/lib/audit-log");

@@ -1342,6 +1342,7 @@
     "custom": "Personnalisé",
     "customDays": "Répéter tous les (jours)",
     "saveEvent": "Enregistrer l'événement",
+    "pastDateError": "La date de l'événement ne peut pas être dans le passé",
     "titlePlaceholderEn": "ex: Assemblée générale mensuelle",
     "titlePlaceholderFr": "ex: Assemblée générale mensuelle",
     "descriptionPlaceholder": "Décrivez l'objectif et l'ordre du jour...",

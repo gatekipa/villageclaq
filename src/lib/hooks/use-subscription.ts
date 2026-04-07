@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -30,7 +30,6 @@ export interface LimitCheck {
 export function useSubscription() {
   const { groupId, currentGroup, user } = useGroup();
   const t = useTranslations("tiers");
-  const locale = useLocale();
 
   // ── Read tier from group_subscriptions (best-effort) ────────────────
   const { data: tierData } = useQuery({
@@ -139,7 +138,8 @@ export function useSubscription() {
   const isStarterTier = tier === "starter";
   const isProTier = tier === "pro";
   const isEnterprise = tier === "enterprise";
-  const pricingUrl = `/${locale}/pricing`;
+  // Don't include locale prefix — next-intl Link adds it automatically
+  const pricingUrl = "/pricing";
 
   // Currency for pricing display — XAF/XOF-based groups see FCFA prices
   const currency = currentGroup?.currency || "USD";

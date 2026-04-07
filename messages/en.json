@@ -1342,6 +1342,7 @@
     "custom": "Custom",
     "customDays": "Repeat every (days)",
     "saveEvent": "Save Event",
+    "pastDateError": "Event date cannot be in the past",
     "titlePlaceholderEn": "e.g., Monthly General Assembly",
     "titlePlaceholderFr": "e.g., Assemblée générale mensuelle",
     "descriptionPlaceholder": "Describe the event purpose and agenda...",

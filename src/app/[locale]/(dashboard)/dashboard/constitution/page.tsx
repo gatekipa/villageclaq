@@ -503,8 +503,8 @@ export default function ConstitutionPage() {
       }
       const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
       const fileTitle = file.name.replace(/\.[^.]+$/, "");
-      // Broader check: find ANY draft for this group+docType (including old rows with NULL document_type)
       const docType = activeTitle || "Constitution";
+      // Check for existing draft for this group+docType (including old rows with NULL document_type)
       const { data: existingFileDrafts } = await supabase
         .from("group_constitutions")
         .select("id, document_type")
@@ -521,6 +521,17 @@ export default function ConstitutionPage() {
           .eq("id", existingFileDraft.id);
         if (upErr) throw upErr;
       } else {
+        // Query the actual MAX version_number from DB (not stale React state)
+        // to avoid duplicate key violations when uploading multiple files
+        const { data: maxRow } = await supabase
+          .from("group_constitutions")
+          .select("version_number")
+          .eq("group_id", groupId)
+          .order("version_number", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const nextVersion = ((maxRow?.version_number as number) || 0) + 1;
+
         const { error: insErr } = await supabase
           .from("group_constitutions")
           .insert({
@@ -528,10 +539,11 @@ export default function ConstitutionPage() {
             document_type: docType,
             title: fileTitle,
             file_url: urlData.publicUrl,
-            version_number: currentVersion + 1,
+            version_number: nextVersion,
             status: "draft",
           });
         if (insErr && insErr.code === "23505") {
+          // Concurrent insert — fall back to update the existing row
           const { data: conflictRow } = await supabase
             .from("group_constitutions")
             .select("id")

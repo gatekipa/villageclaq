@@ -12,12 +12,10 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 /**
  * GET /api/cron/event-reminders
  * Vercel Cron — runs daily at 08:00 UTC.
- * Sends reminder emails for events starting within the next 24–48 hours.
+ * Sends reminder emails for events starting within the next 48 hours.
  *
- * Duplicate prevention: The time-window approach (24–48h) ensures each event
- * is only caught once by the daily cron. At 08:00 UTC today, we capture events
- * starting between 08:00 tomorrow and 08:00 the day after. Tomorrow's cron run
- * at 08:00 will look at a different 24h window.
+ * Uses a `reminder_sent_at` timestamp on the event row to prevent duplicates.
+ * Only events where `reminder_sent_at IS NULL` are processed.
  */
 export async function GET(request: Request) {
   // ── Auth: verify CRON_SECRET ──
@@ -29,7 +27,6 @@ export async function GET(request: Request) {
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const now = new Date();
-  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
   let eventsProcessed = 0;
   let emailsSent = 0;
@@ -39,7 +36,7 @@ export async function GET(request: Request) {
   const errors: string[] = [];
 
   try {
-    // ── Query events starting in 24–48 hours ──
+    // ── Query events starting in the next 48 hours that haven't been reminded yet ──
     const { data: events, error: queryErr } = await supabase
       .from("events")
       .select(`
@@ -52,9 +49,10 @@ export async function GET(request: Request) {
         group_id,
         group:groups!inner(name)
       `)
-      .gte("starts_at", in24h.toISOString())
+      .gte("starts_at", now.toISOString())
       .lt("starts_at", in48h.toISOString())
-      .eq("status", "upcoming");
+      .eq("status", "upcoming")
+      .is("reminder_sent_at", null);
 
     if (queryErr) {
       return NextResponse.json(
@@ -250,6 +248,12 @@ export async function GET(request: Request) {
         if (r.status === "fulfilled" && r.value.sent) smsSent++;
         else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
       }
+
+      // Mark event as reminded to prevent duplicate sends on next cron run
+      await supabase
+        .from("events")
+        .update({ reminder_sent_at: now.toISOString() })
+        .eq("id", event.id as string);
 
       eventsProcessed++;
     }

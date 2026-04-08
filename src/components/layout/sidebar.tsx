@@ -215,15 +215,62 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     staleTime: 5 * 60 * 1000, // cache 5 min
   });
 
-  // Show admin nav if user is admin/owner OR has any position-based permissions
-  const showAdminNav = hasPermission("settings.manage") || userPermissions.length > 0;
-  const sections = showAdminNav ? adminNavSections() : memberSections;
+  // Show full admin nav only for actual admins/owners.
+  // Position-scoped non-admins (e.g. Treasurer with role=member) see member nav
+  // with their permitted admin items injected — NOT the full admin sidebar.
+  const showAdminNav = isAdmin;
+  const sections = showAdminNav ? adminNavSections() : buildMemberSections();
   const bottomItems = showAdminNav ? adminBottomItems : memberBottomItems;
 
   function adminNavSections(): NavSection[] {
     const base = [...adminSections];
     // Enterprise section only visible when current group is HQ level and user is admin/owner
     if (isAdmin && currentGroup?.group_level === "hq") base.push(adminEnterprise);
+    return base;
+  }
+
+  /** For non-admin users with position permissions, inject their permitted
+   *  admin-level pages into the member sidebar. This ensures a Treasurer
+   *  sees Contributions/Finances but NOT Members/Roles/Settings. */
+  function buildMemberSections(): NavSection[] {
+    if (userPermissions.length === 0) return memberSections;
+    const positionItems: NavItem[] = [];
+    if (hasAnyPermission("contributions.manage", "finances.view", "finances.manage", "finances.record")) {
+      positionItems.push({ key: "contributions", href: "/dashboard/contributions", icon: HandCoins });
+      positionItems.push({ key: "finances", href: "/dashboard/finances", icon: CreditCard });
+    }
+    if (hasAnyPermission("members.manage", "members.invite")) {
+      positionItems.push({ key: "members", href: "/dashboard/members", icon: Users });
+      positionItems.push({ key: "invitations", href: "/dashboard/invitations", icon: UserPlus });
+    }
+    if (hasPermission("events.manage")) {
+      positionItems.push({ key: "events", href: "/dashboard/events", icon: Calendar });
+    }
+    if (hasPermission("attendance.manage")) {
+      positionItems.push({ key: "attendance", href: "/dashboard/attendance", icon: ClipboardCheck });
+    }
+    if (hasPermission("roles.manage")) {
+      positionItems.push({ key: "roles", href: "/dashboard/roles", icon: ShieldCheck });
+    }
+    if (hasPermission("reports.view") || hasPermission("reports.export")) {
+      positionItems.push({ key: "reports", href: "/dashboard/reports", icon: PieChart });
+    }
+    if (hasPermission("relief.manage")) {
+      positionItems.push({ key: "relief", href: "/dashboard/relief", icon: Heart });
+    }
+    if (hasPermission("announcements.manage")) {
+      positionItems.push({ key: "announcements", href: "/dashboard/announcements", icon: Megaphone });
+    }
+    if (hasPermission("documents.manage")) {
+      positionItems.push({ key: "documents", href: "/dashboard/documents", icon: FolderLock });
+    }
+    if (hasPermission("settings.manage")) {
+      positionItems.push({ key: "settings", href: "/dashboard/settings", icon: Settings });
+    }
+    if (positionItems.length === 0) return memberSections;
+    const base = memberSections.map(s => ({ ...s, items: [...s.items] }));
+    // Insert position duties section after the first section (Overview)
+    base.splice(1, 0, { labelKey: "sectionPositionDuties", items: positionItems });
     return base;
   }
 

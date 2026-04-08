@@ -22,11 +22,25 @@ export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: b
   try {
     const AfricasTalking = (await import("africastalking")).default;
     const at = AfricasTalking({ apiKey, username });
-    await at.SMS.send({ to: [to], message, from: "VillageClaq" });
+    // Only set custom sender ID if registered via AFRICASTALKING_SENDER_ID.
+    // Unregistered alphanumeric sender IDs are rejected by carriers.
+    // When omitted, Africa's Talking uses a default shared shortcode.
+    const senderId = process.env.AFRICASTALKING_SENDER_ID;
+    const smsPayload: { to: string[]; message: string; from?: string } = { to: [to], message };
+    if (senderId) smsPayload.from = senderId;
+    const response = await at.SMS.send(smsPayload);
+    // Log the AT response for debugging delivery issues
+    const msgData = (response as Record<string, unknown>)?.SMSMessageData as Record<string, unknown> | undefined;
+    const recipients = (msgData?.Recipients as Array<Record<string, unknown>>) || [];
+    const firstStatus = recipients[0]?.statusCode as number | undefined;
+    if (firstStatus && firstStatus !== 101) {
+      const statusMsg = (recipients[0]?.status as string) || "Unknown status";
+      console.warn(`[SMS] AT returned status ${firstStatus} for ${to}: ${statusMsg}`);
+    }
     return { sent: true, queued: false };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown SMS error";
-    console.warn(`[SMS] Failed to send to ${to}:`, msg);
+    console.error(`[SMS] Failed to send to ${to}:`, msg);
     await queueNotification("sms", to, { message });
     return { sent: false, queued: true, error: msg };
   }

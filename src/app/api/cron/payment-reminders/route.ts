@@ -196,7 +196,7 @@ export async function GET(request: Request) {
         prefsMap.set(userId, channels);
       } catch {
         // Fail-open: if preference check errors, allow all defaults
-        prefsMap.set(userId, { in_app: true, email: true, sms: false, whatsapp: false, push: false });
+        prefsMap.set(userId, { in_app: true, email: true, sms: true, whatsapp: true, push: false });
       }
     }
 
@@ -207,7 +207,7 @@ export async function GET(request: Request) {
     for (const [userId, memberData] of byUser) {
       const email = emailMap.get(userId);
       const phoneInfo = phoneMap.get(userId);
-      const channels = prefsMap.get(userId) || { in_app: true, email: true, sms: false, whatsapp: false, push: false };
+      const channels = prefsMap.get(userId) || { in_app: true, email: true, sms: true, whatsapp: true, push: false };
 
       if (!email && !phoneInfo) {
         errors.push(`No email or phone found for user ${userId}`);

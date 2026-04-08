@@ -328,13 +328,14 @@ export default function RecordPaymentPage() {
             }).catch(() => {});
           }
 
-          // SMS: require user_id (real members only) + member has SMS enabled
-          if (recipientUserId && channels.sms) {
+          // SMS: send to phone directly (or UUID as fallback for phone lookup)
+          const smsRecipient = recipientPhone || recipientUserId;
+          if (smsRecipient && channels.sms) {
             fetch("/api/sms/send", {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify({
-                to: recipientUserId,
+                to: smsRecipient,
                 template: "payment-receipt",
                 data: { groupName: currentGroup?.name || "", amount: formattedAmt, contributionType: typeName },
                 locale,

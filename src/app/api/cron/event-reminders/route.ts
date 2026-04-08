@@ -122,7 +122,7 @@ export async function GET(request: Request) {
           prefsMap.set(m.user_id, channels);
         } catch {
           // Fail-open: allow defaults
-          prefsMap.set(m.user_id, { in_app: true, email: true, sms: false, whatsapp: false, push: false });
+          prefsMap.set(m.user_id, { in_app: true, email: true, sms: true, whatsapp: true, push: false });
         }
       }
 
@@ -134,7 +134,7 @@ export async function GET(request: Request) {
         const email = m.email;
         const memberName = m.display_name || "Member";
         const preferredLocale = (m.preferred_locale || "en") as "en" | "fr";
-        const channels = prefsMap.get(m.user_id) || { in_app: true, email: true, sms: false, whatsapp: false, push: false };
+        const channels = prefsMap.get(m.user_id) || { in_app: true, email: true, sms: true, whatsapp: true, push: false };
 
         const eventName = preferredLocale === "fr"
           ? ((event.title_fr as string) || (event.title as string))

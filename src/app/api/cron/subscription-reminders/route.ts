@@ -95,7 +95,7 @@ export async function GET(request: Request) {
           const fullName = (profile?.full_name as string) || "";
 
           // Fetch notification preferences (fail-open)
-          let channels = { in_app: true, email: true, sms: false, whatsapp: false, push: false };
+          let channels = { in_app: true, email: true, sms: true, whatsapp: true, push: false };
           try {
             channels = await getEnabledChannels(supabase, userId, "subscription_updates", groupId);
           } catch { /* fail-open: use defaults */ }

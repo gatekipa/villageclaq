@@ -137,7 +137,10 @@ async function processSms(recipient: string, data: Record<string, unknown>): Pro
 
   const AfricasTalking = (await import("africastalking")).default;
   const at = AfricasTalking({ apiKey, username });
-  await at.SMS.send({ to: [recipient], message, from: "VillageClaq" });
+  const senderId = process.env.AFRICASTALKING_SENDER_ID;
+  const smsPayload: { to: string[]; message: string; from?: string } = { to: [recipient], message };
+  if (senderId) smsPayload.from = senderId;
+  await at.SMS.send(smsPayload);
   return true;
 }
 

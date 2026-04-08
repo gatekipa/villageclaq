@@ -191,8 +191,8 @@ export async function GET(request: Request) {
         let channels: EnabledChannels = {
           in_app: true,
           email: true,
-          sms: false,
-          whatsapp: false,
+          sms: true,
+          whatsapp: true,
           push: false,
         };
         if (userId) {

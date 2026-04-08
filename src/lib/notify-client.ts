@@ -111,13 +111,25 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
   let enabledSms = !!channels.sms;
   let enabledWhatsapp = !!channels.whatsapp;
 
+  console.log("[SMS DIAG] notifyFromClient start", {
+    recipientUserId,
+    recipientPhone,
+    callerChannels: channels,
+    smsTemplate,
+    prefType,
+  });
+
   if (prefType) {
     try {
       const prefs = await getEnabledChannels(supabase, recipientUserId || null, prefType, groupId);
+      console.log("[SMS DIAG] getEnabledChannels result", { prefType, prefs });
       enabledEmail = enabledEmail && prefs.email;
       enabledSms = enabledSms && prefs.sms;
       enabledWhatsapp = enabledWhatsapp && prefs.whatsapp;
-    } catch { /* on error, send anyway (fail-open) */ }
+    } catch (err) {
+      console.warn("[SMS DIAG] getEnabledChannels threw — fail-open", err);
+      /* on error, send anyway (fail-open) */
+    }
   }
 
   // ─── Resolve deep link ────────────────────────────────────────────────────

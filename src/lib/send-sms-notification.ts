@@ -60,22 +60,30 @@ export async function sendSmsNotification({
   data,
   locale = "en",
 }: SendSmsNotificationParams): Promise<{ sent: boolean; skipped: boolean; error?: string }> {
+  console.log("[SMS DIAG] sendSmsNotification called", { to, template, locale });
+
   // Only send to African numbers
-  if (!isAfricanPhoneNumber(to)) {
+  const isAfrican = isAfricanPhoneNumber(to);
+  console.log("[SMS DIAG] isAfricanPhoneNumber check", { phone: to, result: isAfrican });
+  if (!isAfrican) {
+    console.log("[SMS DIAG] SKIPPING — non-African phone number");
     return { sent: false, skipped: true, error: "Non-African phone number" };
   }
 
   try {
     const message = buildMessage(template, data, locale);
     if (!message) {
+      console.log("[SMS DIAG] SKIPPING — unknown template", { template });
       return { sent: false, skipped: true, error: `Unknown template: ${template}` };
     }
 
+    console.log("[SMS DIAG] Built message, calling sendSMS", { to, messagePreview: message.substring(0, 80) });
     const result = await sendSMS({ to, message });
+    console.log("[SMS DIAG] sendSMS result", { sent: result.sent, queued: result.queued, error: result.error });
     return { sent: result.sent, skipped: false, error: result.error };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    console.warn(`[SMS:Notification] Failed ${template} to ${to}:`, msg);
+    console.error(`[SMS DIAG] sendSmsNotification EXCEPTION for ${template} to ${to}:`, msg);
     return { sent: false, skipped: false, error: msg };
   }
 }

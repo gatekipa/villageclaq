@@ -347,21 +347,28 @@ export default function RolesPage() {
     });
   }
 
+  const [unassignError, setUnassignError] = useState<string | null>(null);
+
   async function handleUnassignConfirmed() {
     if (!unassignTarget) return;
     setUnassigning(true);
+    setUnassignError(null);
     try {
       const supabase = createClient();
-      await supabase
+      const { error } = await supabase
         .from("position_assignments")
         .update({ ended_at: new Date().toISOString() })
         .eq("position_id", unassignTarget.positionId)
         .eq("membership_id", unassignTarget.membershipId)
         .is("ended_at", null);
+      if (error) {
+        setUnassignError(error.message);
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
       setUnassignTarget(null);
-    } catch {
-      // Error handled silently — query invalidation will show stale state
+    } catch (err) {
+      setUnassignError((err as Error).message || t("unassignError"));
     } finally {
       setUnassigning(false);
     }
@@ -370,7 +377,8 @@ export default function RolesPage() {
   // Assign members helpers
   const assignedMemberIds = useMemo(() => {
     if (!assignPosition) return new Set<string>();
-    const assignments = (assignPosition.position_assignments as Array<{ membership: { id: string } }>) || [];
+    const assignments = ((assignPosition.position_assignments as Array<{ ended_at?: string | null; membership: { id: string } }>) || [])
+      .filter((a) => !a.ended_at);
     return new Set(assignments.map((a) => a.membership?.id).filter(Boolean));
   }, [assignPosition]);
 
@@ -466,7 +474,9 @@ export default function RolesPage() {
                   const id = pos.id as string;
                   const title = (pos.title as string) || "";
                   const description = (pos.description as string) || "";
-                  const assignments = (pos.position_assignments as unknown[]) || [];
+                  const assignments = ((pos.position_assignments as Array<Record<string, unknown>>) || []).filter(
+                    (a) => !a.ended_at
+                  );
                   const perms = (pos.position_permissions as unknown[]) || [];
                   const isExec = pos.is_executive as boolean;
                   const createdAt = pos.created_at as string;
@@ -766,7 +776,7 @@ export default function RolesPage() {
         </Dialog>
 
         {/* Unassign Confirmation Dialog */}
-        <Dialog open={!!unassignTarget} onOpenChange={(open) => { if (!open) setUnassignTarget(null); }}>
+        <Dialog open={!!unassignTarget} onOpenChange={(open) => { if (!open) { setUnassignTarget(null); setUnassignError(null); } }}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{t("unassign")}</DialogTitle>
@@ -774,8 +784,9 @@ export default function RolesPage() {
             <p className="text-sm text-muted-foreground">
               {t("unassignConfirm", { name: unassignTarget?.memberName || "", position: unassignTarget?.positionTitle || "" })}
             </p>
+            {unassignError && <p className="text-sm text-destructive">{unassignError}</p>}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setUnassignTarget(null)}>
+              <Button variant="outline" onClick={() => { setUnassignTarget(null); setUnassignError(null); }}>
                 {tc("cancel")}
               </Button>
               <Button variant="destructive" onClick={handleUnassignConfirmed} disabled={unassigning}>

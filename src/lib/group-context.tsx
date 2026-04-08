@@ -244,7 +244,11 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    // Do NOT set loading=true here — that causes DashboardGuard to unmount the
+    // entire layout (Sidebar + Header + children) and replace it with a full-screen
+    // spinner, then remount everything when loading=false. This is the primary
+    // cause of the "flickering" bug. Refetches happen silently; only the initial
+    // load (loading default = true) shows the spinner.
     await fetchData();
   }, [fetchData]);
 

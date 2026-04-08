@@ -1447,7 +1447,7 @@ export default function MembersPage() {
           </div>
           <LimitPrompt resource="members" variant="inline" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* View toggle */}
           <div className="flex items-center rounded-md border">
             <Button
@@ -1472,30 +1472,30 @@ export default function MembersPage() {
           {/* Export — available to all members */}
           <Button variant="outline" size="sm" onClick={handleExportMembers} disabled={exporting || !members?.length}>
             {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-            {t("exportMembers")}
+            <span className="hidden sm:inline">{t("exportMembers")}</span>
           </Button>
           {canManageMembers && (
             <>
               <Button variant="outline" size="sm" onClick={handleRecalculateAll} disabled={recalcAllLoading}>
                 {recalcAllLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                {ts("recalculateAll")}
+                <span className="hidden sm:inline">{ts("recalculateAll")}</span>
               </Button>
-              <Button variant="outline" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }} disabled={memberLimit.atLimit}>
+              <Button variant="outline" size="sm" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }} disabled={memberLimit.atLimit}>
                 <FileUp className="mr-2 h-4 w-4" />
-                {t("bulkImport")}
+                <span className="hidden sm:inline">{t("bulkImport")}</span>
               </Button>
-              <Button variant="outline" onClick={() => { setBulkInviteEmails(""); setBulkInviteError(null); setBulkInviteResult(null); setBulkInviteOpen(true); }} disabled={memberLimit.atLimit}>
+              <Button variant="outline" size="sm" onClick={() => { setBulkInviteEmails(""); setBulkInviteError(null); setBulkInviteResult(null); setBulkInviteOpen(true); }} disabled={memberLimit.atLimit}>
                 <Send className="mr-2 h-4 w-4" />
-                {t("bulkInvite")}
+                <span className="hidden sm:inline">{t("bulkInvite")}</span>
               </Button>
-              <Button variant="outline" onClick={() => setAddDialogOpen(true)} disabled={memberLimit.atLimit}>
+              <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)} disabled={memberLimit.atLimit}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                {t("addProxyMember")}
+                <span className="hidden sm:inline">{t("addProxyMember")}</span>
               </Button>
               <Link href="/dashboard/invitations">
-                <Button>
+                <Button size="sm">
                   <UserPlus className="mr-2 h-4 w-4" />
-                  {t("inviteMember")}
+                  <span className="hidden sm:inline">{t("inviteMember")}</span>
                 </Button>
               </Link>
             </>

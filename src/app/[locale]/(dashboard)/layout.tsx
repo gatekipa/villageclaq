@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -13,6 +13,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Clock, Archive, Phone, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * Pages that invited users (with 0 memberships) should be able to access
@@ -162,10 +168,18 @@ function DeactivatedGroupScreen({
   );
 }
 
-function PhoneCollectionScreen({
+/**
+ * Phone collection rendered as a Dialog overlay — NOT a full-screen replacement.
+ * This is critical to prevent flickering: the underlying layout (Sidebar, Header,
+ * page content) stays mounted while the dialog is open. Previously this was a
+ * full-page interstitial that unmounted the entire layout tree.
+ */
+function PhoneCollectionDialog({
+  open,
   onSaved,
   onSkip,
 }: {
+  open: boolean;
   onSaved: () => void;
   onSkip: () => void;
 }) {
@@ -202,35 +216,39 @@ function PhoneCollectionScreen({
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 p-4">
-      <img src="/logo-mark.svg" alt="VillageClaq" className="mb-8 h-10 w-10" />
-      <div className="w-full max-w-sm rounded-2xl border bg-card p-8 shadow-sm space-y-5">
-        <div className="text-center space-y-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mx-auto">
-            <Phone className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onSkip(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="sr-only">{t("addPhone.title")}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-5">
+          <div className="text-center space-y-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 mx-auto">
+              <Phone className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <h2 className="text-xl font-bold">{t("addPhone.title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("addPhone.subtitle")}</p>
           </div>
-          <h2 className="text-xl font-bold">{t("addPhone.title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("addPhone.subtitle")}</p>
+          <PhoneInput value={phone} onChange={setPhone} defaultCountryCode="+237" />
+          {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+          <Button
+            className="w-full"
+            onClick={handleSave}
+            disabled={saving || !phone.trim()}
+          >
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("addPhone.continue")}
+          </Button>
+          <button
+            className="w-full text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            onClick={onSkip}
+            type="button"
+          >
+            {t("addPhone.skip")}
+          </button>
         </div>
-        <PhoneInput value={phone} onChange={setPhone} defaultCountryCode="+237" />
-        {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-        <Button
-          className="w-full"
-          onClick={handleSave}
-          disabled={saving || !phone.trim()}
-        >
-          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {t("addPhone.continue")}
-        </Button>
-        <button
-          className="w-full text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          onClick={onSkip}
-          type="button"
-        >
-          {t("addPhone.skip")}
-        </button>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -265,19 +283,22 @@ function PhoneBanner({ onDismiss }: { onDismiss: () => void }) {
 }
 
 function DashboardGuard({ children }: { children: React.ReactNode }) {
-  const { loading, memberships, user, currentMembership, refresh } = useGroup();
+  const { loading, memberships, user, currentMembership } = useGroup();
   const router = useRouter();
   const pathname = usePathname();
   const tCommon = useTranslations("common");
   const [checkingInvitations, setCheckingInvitations] = useState(false);
   const [checkedInvitations, setCheckedInvitations] = useState(false);
-  // Phone collection interstitial state
-  // Defaults to true (suppressed) to prevent flash of interstitial during SSR/hydration.
-  // The useEffect below reads sessionStorage and sets the real value.
+
+  // Phone collection dialog state (rendered as Dialog overlay — never unmounts layout)
   const [phoneSkipped, setPhoneSkipped] = useState(true);
   const [phoneStateLoaded, setPhoneStateLoaded] = useState(false);
-  // Tracks whether phone was just saved (dismiss interstitial without refresh)
   const [phoneSavedLocal, setPhoneSavedLocal] = useState(false);
+
+  // CRITICAL: Once we've rendered the real layout at least once, NEVER go back to
+  // the full-screen loading spinner. This prevents flicker on refetches (refresh(),
+  // token refresh, navigation, etc.). Only the very first load shows the spinner.
+  const hasRenderedContent = useRef(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -289,15 +310,10 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     setPhoneStateLoaded(true);
   }, []);
 
-  // Allow onboarding pages to render without a group
   const isOnboardingPage = pathname.startsWith("/dashboard/onboarding");
-
-  // Allow invite-safe pages to render without a group (so invited users
-  // can accept invitations without being trapped in group-creation)
   const isInviteSafePage = INVITE_SAFE_PATHS.some((p) => pathname.startsWith(p));
 
   // When user has 0 memberships and is NOT on a safe page, check for pending invitations
-  // before deciding whether to redirect to onboarding or my-invitations
   useEffect(() => {
     if (loading || memberships.length > 0 || isOnboardingPage || isInviteSafePage || checkingInvitations || checkedInvitations) return;
     if (!user) return;
@@ -311,11 +327,8 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser || cancelled) { setCheckingInvitations(false); return; }
 
-        // Check for pending invitations by email OR by claim (user_id match not applicable
-        // since new users won't have claim invitations). Check by email.
         const email = authUser.email;
         if (!email) {
-          // No email — cannot have email-based invitations, go to onboarding
           if (!cancelled) {
             setCheckedInvitations(true);
             setCheckingInvitations(false);
@@ -333,14 +346,11 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
 
         if (!error && count && count > 0) {
-          // User has pending invitations — send them to my-invitations
           router.replace("/dashboard/my-invitations");
         } else {
-          // No pending invitations — normal onboarding flow
           router.replace("/dashboard/onboarding/group");
         }
       } catch {
-        // On error, fall back to onboarding
         if (!cancelled) router.replace("/dashboard/onboarding/group");
       } finally {
         if (!cancelled) {
@@ -353,8 +363,13 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, checkingInvitations, checkedInvitations, user, router]);
 
-  // Still loading — show skeleton (but not on onboarding/invite-safe pages)
-  if (loading && !isOnboardingPage && !isInviteSafePage) {
+  // Determine if we should show the initial loading spinner.
+  // Once content has rendered, NEVER show the spinner again — this is the
+  // anti-flicker guard. Only the very first load sees a full-screen spinner.
+  const showInitialLoading = loading && !isOnboardingPage && !isInviteSafePage && !hasRenderedContent.current;
+  const showInviteChecking = checkingInvitations && !hasRenderedContent.current;
+
+  if (showInitialLoading || showInviteChecking) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -365,19 +380,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Checking for pending invitations — show loading
-  if (checkingInvitations) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <img src="/logo-mark.svg" alt="VillageClaq" className="h-12 w-12 animate-pulse" />
-          <p className="text-sm text-muted-foreground animate-pulse">{tCommon("loading")}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Pending approval interstitial — user joined but hasn't been approved yet
+  // Pending approval interstitial — legitimate blocker (user can't use the app)
   if (!loading && currentMembership?.membership_status === "pending_approval") {
     return (
       <PendingApprovalScreen
@@ -387,7 +390,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Deactivated group interstitial — group is archived, show reactivate/switch options
+  // Deactivated group interstitial — legitimate blocker
   if (!loading && currentMembership && currentMembership.group?.is_active === false && !isOnboardingPage && !isInviteSafePage) {
     return (
       <DeactivatedGroupScreen
@@ -397,24 +400,28 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Phone collection interstitial — shown only after sessionStorage has been read
-  // (phoneStateLoaded), user has at least one active group, and phone is missing.
-  // Skippable — clicking "Skip for now" dismisses the screen and shows a banner instead.
+  // Mark that we've rendered real content — from this point, the loading
+  // spinner will never show again (prevents flicker on refetches).
+  hasRenderedContent.current = true;
+
+  // Phone collection dialog — shown as an OVERLAY, not a page replacement.
+  // The layout (Sidebar, Header, children) stays mounted underneath.
   const hasPhone = !!(user?.phone) || phoneSavedLocal;
-  if (
+  const showPhoneDialog =
     phoneStateLoaded &&
     !phoneSkipped &&
     !loading &&
     !hasPhone &&
     !isOnboardingPage &&
     !isInviteSafePage &&
-    memberships.length > 0
-  ) {
-    return (
-      <PhoneCollectionScreen
+    memberships.length > 0;
+
+  return (
+    <>
+      {children}
+      <PhoneCollectionDialog
+        open={showPhoneDialog}
         onSaved={() => {
-          // Dismiss immediately — phone is already saved to DB.
-          // No refresh() call to avoid loading=true flash.
           setPhoneSavedLocal(true);
         }}
         onSkip={() => {
@@ -424,10 +431,8 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
           setPhoneSkipped(true);
         }}
       />
-    );
-  }
-
-  return <>{children}</>;
+    </>
+  );
 }
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {

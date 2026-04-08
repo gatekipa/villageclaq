@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
@@ -93,8 +93,14 @@ export function GroupProvider({ children }: { children: ReactNode }) {
 
   // Track whether initial load is complete to prevent double-fetch on auth state change
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  // Guard against concurrent fetches that cause flickering during auth transitions
+  const fetchInProgress = useRef(false);
 
   const fetchData = useCallback(async () => {
+    // Prevent overlapping fetches (e.g., TOKEN_REFRESHED firing while initial load runs)
+    if (fetchInProgress.current) return;
+    fetchInProgress.current = true;
+
     try {
       const supabase = createClient();
 
@@ -102,6 +108,8 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
         setLoading(false);
+        // DON'T set initialLoadDone — a real SIGNED_IN event may arrive shortly
+        // (e.g., email confirmation callback still processing the auth code)
         return;
       }
 
@@ -115,6 +123,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       if (profileError) {
         // Profile query failed — still set loading false so UI can show
         setLoading(false);
+        setInitialLoadDone(true);
         return;
       }
 
@@ -170,9 +179,11 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         const valid = normalized.find((m) => m.group_id === targetGroupId);
         setCurrentGroupId(valid ? targetGroupId : normalized[0]?.group_id || null);
       }
+
+      setInitialLoadDone(true);
     } finally {
       setLoading(false);
-      setInitialLoadDone(true);
+      fetchInProgress.current = false;
     }
   }, [searchParams]);
 
@@ -181,9 +192,11 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   }, [fetchData]);
 
   // Listen for auth state changes (logout, token refresh, session expiry)
-  // Skip SIGNED_IN if initial load already completed — Supabase fires SIGNED_IN
-  // on page load when it detects the session cookie, causing a redundant double-fetch
-  // that triggers re-renders and the visible "flicker" on every dashboard page.
+  // Skip SIGNED_IN if initial load already completed AND we have a user —
+  // Supabase fires SIGNED_IN on page load when it detects the session cookie,
+  // causing a redundant double-fetch that triggers re-renders and visible "flicker".
+  // BUT: if initial load found no user (e.g., email confirmation redirect still
+  // processing), we MUST process the SIGNED_IN event to pick up the new session.
   useEffect(() => {
     const supabase = createClient();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -193,13 +206,20 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         setCurrentGroupId(null);
         setIsPlatformStaff(false);
         setPlatformRole(null);
+        setInitialLoadDone(false);
       } else if (event === "TOKEN_REFRESHED") {
-        // Token refresh always needs a re-fetch to get fresh data
-        fetchData();
-      } else if (event === "SIGNED_IN" && !initialLoadDone) {
-        // Only fetch on SIGNED_IN if initial load hasn't completed yet
-        // (handles real sign-in events, not the spurious one on page load)
-        fetchData();
+        // Only refetch on token refresh if we already have a user.
+        // Prevents redundant fetches during auth state settling.
+        if (initialLoadDone) {
+          fetchData();
+        }
+      } else if (event === "SIGNED_IN") {
+        // Fetch if: (a) initial load hasn't completed, or (b) we don't have a user
+        // yet (email confirmation redirect: initial fetch found no user because the
+        // auth code hadn't been exchanged yet, now SIGNED_IN fires with a valid session)
+        if (!initialLoadDone) {
+          fetchData();
+        }
       }
     });
     return () => subscription.unsubscribe();

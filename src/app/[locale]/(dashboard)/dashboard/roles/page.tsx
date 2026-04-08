@@ -201,6 +201,10 @@ export default function RolesPage() {
   // Delete state
   const [deleting, setDeleting] = useState(false);
 
+  // Unassign confirmation state
+  const [unassignTarget, setUnassignTarget] = useState<{ positionId: string; positionTitle: string; membershipId: string; memberName: string } | null>(null);
+  const [unassigning, setUnassigning] = useState(false);
+
   function resetForm() {
     setFormTitle("");
     setFormTitleFr("");
@@ -343,6 +347,26 @@ export default function RolesPage() {
     });
   }
 
+  async function handleUnassignConfirmed() {
+    if (!unassignTarget) return;
+    setUnassigning(true);
+    try {
+      const supabase = createClient();
+      await supabase
+        .from("position_assignments")
+        .update({ ended_at: new Date().toISOString() })
+        .eq("position_id", unassignTarget.positionId)
+        .eq("membership_id", unassignTarget.membershipId)
+        .is("ended_at", null);
+      await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
+      setUnassignTarget(null);
+    } catch {
+      // Error handled silently — query invalidation will show stale state
+    } finally {
+      setUnassigning(false);
+    }
+  }
+
   // Assign members helpers
   const assignedMemberIds = useMemo(() => {
     if (!assignPosition) return new Set<string>();
@@ -463,9 +487,32 @@ export default function RolesPage() {
                         <span className="text-sm text-muted-foreground truncate block">{description || "—"}</span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-xs">
-                          {assignments.length}
-                        </Badge>
+                        {assignments.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {(assignments as Array<{ membership: { id: string; profiles?: { full_name?: string; avatar_url?: string } | Array<{ full_name?: string; avatar_url?: string }> } }>).map((a) => {
+                              const prof = Array.isArray(a.membership?.profiles) ? a.membership.profiles[0] : a.membership?.profiles;
+                              const name = prof?.full_name || "?";
+                              return (
+                                <Badge key={a.membership?.id} variant="secondary" className="text-xs flex items-center gap-1 pr-1">
+                                  <span className="max-w-[100px] truncate">{name}</span>
+                                  <button
+                                    type="button"
+                                    className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setUnassignTarget({ positionId: id, positionTitle: title, membershipId: a.membership?.id, memberName: name });
+                                    }}
+                                    aria-label={t("unassign")}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
@@ -715,6 +762,27 @@ export default function RolesPage() {
                 );
               })}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Unassign Confirmation Dialog */}
+        <Dialog open={!!unassignTarget} onOpenChange={(open) => { if (!open) setUnassignTarget(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t("unassign")}</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              {t("unassignConfirm", { name: unassignTarget?.memberName || "", position: unassignTarget?.positionTitle || "" })}
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setUnassignTarget(null)}>
+                {tc("cancel")}
+              </Button>
+              <Button variant="destructive" onClick={handleUnassignConfirmed} disabled={unassigning}>
+                {unassigning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("unassign")}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

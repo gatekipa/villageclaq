@@ -67,6 +67,7 @@ import {
   HelpCircle,
   Contact,
   Trash2,
+  X,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -282,6 +283,8 @@ export default function MemberDetailPage() {
   const [overrideReason, setOverrideReason] = useState("");
   const [selectedPositionId, setSelectedPositionId] = useState("");
   const [actionSaving, setActionSaving] = useState(false);
+  const [unassignTarget, setUnassignTarget] = useState<{ assignmentId: string; positionTitle: string } | null>(null);
+  const [unassigningSaving, setUnassigningSaving] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
 
   // Family dialog state
@@ -392,6 +395,26 @@ export default function MemberDetailPage() {
       await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
     } finally {
       setRecalculating(false);
+    }
+  }
+
+  async function handleUnassignPosition() {
+    if (!unassignTarget) return;
+    setUnassigningSaving(true);
+    try {
+      const { error } = await supabase
+        .from("position_assignments")
+        .update({ ended_at: new Date().toISOString() })
+        .eq("id", unassignTarget.assignmentId)
+        .is("ended_at", null);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["member-positions", membershipId] });
+      await queryClient.invalidateQueries({ queryKey: ["group-positions", groupId] });
+      setUnassignTarget(null);
+    } catch (err) {
+      showError((err as Error).message || t("common.error"));
+    } finally {
+      setUnassigningSaving(false);
     }
   }
 
@@ -631,9 +654,20 @@ export default function MemberDetailPage() {
                 <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5 sm:justify-start">
                   {activePositions.map((p: Record<string, unknown>) => {
                     const pos = p.position as Record<string, unknown>;
+                    const posTitle = (pos?.title as string) || "";
                     return (
-                      <Badge key={p.id as string} variant="default" className="text-xs">
-                        {pos?.title as string}
+                      <Badge key={p.id as string} variant="default" className="text-xs flex items-center gap-1 pr-1">
+                        {posTitle}
+                        {hasPermission("roles.manage") && (
+                          <button
+                            type="button"
+                            className="ml-0.5 rounded-full p-0.5 hover:bg-background/20 transition-colors"
+                            onClick={() => setUnassignTarget({ assignmentId: p.id as string, positionTitle: posTitle })}
+                            aria-label={t("roles.unassign")}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
                       </Badge>
                     );
                   })}
@@ -1279,6 +1313,27 @@ export default function MemberDetailPage() {
             >
               {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unassign Position Confirmation Dialog */}
+      <Dialog open={!!unassignTarget} onOpenChange={(open) => { if (!open) setUnassignTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("roles.unassign")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("roles.unassignConfirm", { name: memberName, position: unassignTarget?.positionTitle || "" })}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnassignTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleUnassignPosition} disabled={unassigningSaving}>
+              {unassigningSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("roles.unassign")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -38,8 +38,8 @@ export function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="focus:outline-none">
-        <Avatar className="h-8 w-8">
+      <DropdownMenuTrigger className="shrink-0 focus:outline-none">
+        <Avatar className="h-8 w-8 shrink-0">
           <AvatarImage src={user?.avatar_url || undefined} alt={displayName} />
           <AvatarFallback className="bg-primary text-primary-foreground text-xs">
             {initials}

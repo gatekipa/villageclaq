@@ -1584,9 +1584,9 @@ export default function MembersPage() {
               className="pl-9"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v ?? "all")}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[120px] sm:w-[140px]">
                 <SelectValue placeholder={t("role")} />
               </SelectTrigger>
               <SelectContent>
@@ -1598,7 +1598,7 @@ export default function MembersPage() {
               </SelectContent>
             </Select>
             <Select value={standingFilter} onValueChange={(v) => setStandingFilter(v ?? "all")}>
-              <SelectTrigger className="w-[170px]">
+              <SelectTrigger className="w-[130px] sm:w-[170px]">
                 <SelectValue placeholder={t("standing")} />
               </SelectTrigger>
               <SelectContent>
@@ -1610,7 +1610,7 @@ export default function MembersPage() {
               </SelectContent>
             </Select>
             <Select value={positionFilter} onValueChange={(v) => setPositionFilter(v ?? "all")}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[120px] sm:w-[160px]">
                 <SelectValue placeholder={tr("position")} />
               </SelectTrigger>
               <SelectContent>
@@ -1664,7 +1664,7 @@ export default function MembersPage() {
                     {sortField === "name" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
                   </button>
                 </TableHead>
-                <TableHead>
+                <TableHead className="hidden sm:table-cell">
                   <button
                     onClick={() => handleSort("role")}
                     className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
@@ -1673,7 +1673,7 @@ export default function MembersPage() {
                     {sortField === "role" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
                   </button>
                 </TableHead>
-                <TableHead>
+                <TableHead className="hidden sm:table-cell">
                   <button
                     onClick={() => handleSort("standing")}
                     className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
@@ -1723,29 +1723,29 @@ export default function MembersPage() {
                     onClick={() => router.push(`/dashboard/members/${id}`)}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="h-8 w-8 shrink-0">
                           <AvatarImage src={profile?.avatar_url || undefined} />
                           <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                             {getInitials(name)}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium">{name}</span>
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span className="font-medium truncate">{name}</span>
                           {isProxy && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground shrink-0">
                               {t("proxyMember")}
                             </Badge>
                           )}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline" className={`text-xs capitalize ${roleStyle.color}`}>
                         {role}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${standingStyle.color}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${standingStyle.dotColor}`} />
                         {t(

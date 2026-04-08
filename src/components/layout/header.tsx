@@ -77,10 +77,10 @@ export function Header({ onMenuClick }: HeaderProps) {
       <GroupSwitcher />
       <div className="flex-1" />
 
-      <div className="flex items-center gap-1">
-        <LanguageToggle />
-        <ThemeToggle />
-        <WhatsNew />
+      <div className="flex items-center gap-1 shrink-0">
+        <div className="hidden sm:block"><LanguageToggle /></div>
+        <div className="hidden sm:block"><ThemeToggle /></div>
+        <div className="hidden md:block"><WhatsNew /></div>
 
         {/* Notification bell */}
         <div className="relative">

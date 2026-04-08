@@ -1327,8 +1327,9 @@ export default function MembersPage() {
     if (positionFilter !== "all" && positions) {
       const pos = positions.find((p: Record<string, unknown>) => p.id === positionFilter);
       if (pos) {
-        const assignments = (pos.position_assignments as Array<{ membership: { id: string } }>) || [];
-        const assignedIds = new Set(assignments.map((a) => a.membership?.id).filter(Boolean));
+        const assignments = ((pos.position_assignments as Array<Record<string, unknown>>) || [])
+          .filter((a) => !a.ended_at);
+        const assignedIds = new Set(assignments.map((a) => (a.membership as Record<string, unknown>)?.id as string).filter(Boolean));
         result = result.filter((m: Record<string, unknown>) => assignedIds.has(m.id as string));
       }
     }
@@ -1372,12 +1373,15 @@ export default function MembersPage() {
     if (!positions) return map;
     for (const pos of positions as Array<Record<string, unknown>>) {
       const title = pos.title as string;
-      const assignments = (pos.position_assignments as Array<{ membership: { id: string } }>) || [];
-      for (const a of assignments) {
-        if (!a.membership?.id) continue;
-        const existing = map.get(a.membership.id) || [];
+      const allAssignments = (pos.position_assignments as Array<Record<string, unknown>>) || [];
+      // Only include active assignments (ended_at IS NULL)
+      const activeAssignments = allAssignments.filter((a) => !a.ended_at);
+      for (const a of activeAssignments) {
+        const membershipId = (a.membership as Record<string, unknown>)?.id as string;
+        if (!membershipId) continue;
+        const existing = map.get(membershipId) || [];
         existing.push(title);
-        map.set(a.membership.id, existing);
+        map.set(membershipId, existing);
       }
     }
     return map;

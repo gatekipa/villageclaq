@@ -179,7 +179,9 @@ export default function ElectionsPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [elTitle, setElTitle] = useState("");
+  const [elTitleFr, setElTitleFr] = useState("");
   const [elDescription, setElDescription] = useState("");
+  const [elDescriptionFr, setElDescriptionFr] = useState("");
   const [elType, setElType] = useState<string>("poll");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
@@ -297,6 +299,8 @@ export default function ElectionsPage() {
   const resetCreateForm = () => {
     setElTitle("");
     setElDescription("");
+    setElTitleFr("");
+    setElDescriptionFr("");
     setElType("poll");
     setStartsAt("");
     setEndsAt("");
@@ -316,7 +320,9 @@ export default function ElectionsPage() {
       try {
         const { error } = await supabase.from('elections').update({
           title: elTitle.trim(),
+          title_fr: elTitleFr.trim() || null,
           description: elDescription.trim() || null,
+          description_fr: elDescriptionFr.trim() || null,
           election_type: elType,
           starts_at: new Date(startsAt).toISOString(),
           ends_at: new Date(endsAt).toISOString(),
@@ -337,7 +343,9 @@ export default function ElectionsPage() {
     try {
       await createElection.mutateAsync({
         title: elTitle.trim(),
+        title_fr: elTitleFr.trim() || undefined,
         description: elDescription.trim() || undefined,
+        description_fr: elDescriptionFr.trim() || undefined,
         election_type: elType,
         starts_at: new Date(startsAt).toISOString(),
         ends_at: new Date(endsAt).toISOString(),
@@ -582,7 +590,7 @@ export default function ElectionsPage() {
           {electionsList.map((election) => {
             const isSelected = selectedElectionId === election.id;
             const withinPeriod = isWithinVotingPeriod(election);
-            const canVote = election.status === "open" && withinPeriod && !existingVote && currentMembership;
+            const canVote = election.status === "open" && !existingVote && currentMembership;
             const hasVoted = isSelected && !!existingVote;
 
             return (
@@ -597,14 +605,14 @@ export default function ElectionsPage() {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-col gap-1">
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        {election.title}
+                        {(locale === "fr" && election.title_fr) ? election.title_fr : election.title}
                       </CardTitle>
                       <CardDescription className="flex items-center gap-2">
                         <Calendar className="size-3.5" />
                         {t("votingPeriod")}: {formatDateWithGroupFormat(election.starts_at, groupDateFormat, locale)} — {formatDateWithGroupFormat(election.ends_at, groupDateFormat, locale)}
                       </CardDescription>
-                      {election.description && (
-                        <p className="mt-1 text-sm text-muted-foreground">{election.description}</p>
+                      {(election.description || election.description_fr) && (
+                        <p className="mt-1 text-sm text-muted-foreground">{(locale === "fr" && election.description_fr) ? election.description_fr : election.description}</p>
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -628,7 +636,9 @@ export default function ElectionsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => {
                               setElTitle(election.title || "");
+                              setElTitleFr(election.title_fr || "");
                               setElDescription(election.description || "");
+                              setElDescriptionFr(election.description_fr || "");
                               setElType(election.election_type);
                               setStartsAt(election.starts_at ? new Date(election.starts_at).toISOString().slice(0,16) : "");
                               setEndsAt(election.ends_at ? new Date(election.ends_at).toISOString().slice(0,16) : "");
@@ -651,7 +661,7 @@ export default function ElectionsPage() {
 
                 <CardFooter className="flex flex-wrap gap-2">
                   {/* Vote Now button for members when election is open */}
-                  {election.status === "open" && withinPeriod && !isSelected && (
+                  {election.status === "open" && !isSelected && (
                     <Button
                       size="sm"
                       onClick={() => { setSelectedElectionId(election.id); setSelectedVote(""); setVoteSuccess(null); }}
@@ -842,7 +852,7 @@ export default function ElectionsPage() {
                     )}
 
                     {/* ─── Voting Interface (open elections) ──────────────── */}
-                    {election.status === "open" && withinPeriod && currentMembership && (
+                    {election.status === "open" && currentMembership && (
                       <div className="mb-4 rounded-lg border bg-muted/30 p-4">
                         {hasVoted || voteSuccess === election.id ? (
                           <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
@@ -1033,7 +1043,7 @@ export default function ElectionsPage() {
       )}
 
       {/* ─── Create Election Dialog ──────────────────────────────────────────── */}
-      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setElTitle(""); setElDescription(""); setStartsAt(""); setEndsAt(""); setElType("poll"); setCreateError(""); } }}>
+      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setElTitle(""); setElTitleFr(""); setElDescription(""); setElDescriptionFr(""); setStartsAt(""); setEndsAt(""); setElType("poll"); setCreateError(""); setEditElectionId(null); } }}>
         <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editElectionId ? t("editElection") : t("createElection")}</DialogTitle>
@@ -1044,8 +1054,16 @@ export default function ElectionsPage() {
               <Input value={elTitle} onChange={(e) => setElTitle(e.target.value)} placeholder={t("electionTitle")} />
             </div>
             <div className="space-y-2">
+              <Label>{t("electionTitleFr")}</Label>
+              <Input value={elTitleFr} onChange={(e) => setElTitleFr(e.target.value)} placeholder={t("electionTitleFr")} />
+            </div>
+            <div className="space-y-2">
               <Label>{t("description")}</Label>
               <Textarea value={elDescription} onChange={(e) => setElDescription(e.target.value)} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("descriptionFr")}</Label>
+              <Textarea value={elDescriptionFr} onChange={(e) => setElDescriptionFr(e.target.value)} rows={2} />
             </div>
             <div className="space-y-2">
               <Label>{t("electionType")}</Label>
@@ -1058,6 +1076,22 @@ export default function ElectionsPage() {
                 </SelectContent>
               </Select>
             </div>
+            {/* Guidance for officer elections: positions are selected when adding candidates */}
+            {elType === "officer_election" && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-800 dark:bg-blue-900/20">
+                <p className="text-xs text-blue-800 dark:text-blue-300">
+                  {t("officerElectionHint")}
+                  {positions && positions.length === 0 && (
+                    <span className="block mt-1 text-amber-700 dark:text-amber-400">
+                      {t("noPositionsHint")}{" "}
+                      {hasPermission("settings.manage") && (
+                        <a href="/dashboard/settings" className="underline underline-offset-2">{t("noPositionsLink")}</a>
+                      )}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("startsAt")}</Label>

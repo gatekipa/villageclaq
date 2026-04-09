@@ -1038,7 +1038,7 @@ export default function MinutesPage() {
                         </h3>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          <span>{formatDate(event.starts_at)}</span>
+                          <span>{formatDateTime(event.starts_at, locale)}</span>
                         </div>
                         {event.event_type && (
                           <Badge

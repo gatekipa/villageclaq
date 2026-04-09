@@ -31,5 +31,8 @@ export async function GET(request: Request) {
   }
 
   // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/en/login?error=auth`);
+  // Extract locale from the request URL path (e.g. /fr/callback → fr)
+  const pathLocale = new URL(request.url).pathname.split("/")[1];
+  const locale = pathLocale === "fr" ? "fr" : "en";
+  return NextResponse.redirect(`${origin}/${locale}/login?error=auth`);
 }

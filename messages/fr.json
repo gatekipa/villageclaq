@@ -1081,7 +1081,7 @@
     "searchMember": "Rechercher un membre par nom...",
     "contributionType": "Type de cotisation",
     "selectType": "Sélectionner le type de cotisation",
-    "noTypesAvailable": "Aucun type de cotisation configuré. Demandez à un administrateur de créer des types dans les Paramètres.",
+    "noTypesAvailable": "Aucun type de cotisation configuré. Allez sur la page Cotisations et utilisez l'onglet Types pour créer des types de cotisation.",
     "paymentMethod": "Méthode de paiement",
     "cash": "Espèces",
     "mobileMoney": "Mobile Money",
@@ -4109,7 +4109,8 @@
     "noPositionsLink": "Ajouter des postes dans les paramètres.",
     "noCandidatesHint": "Aucun candidat pour l'instant. Cliquez sur « Ajouter un candidat » ci-dessus pour ajouter des candidats.",
     "noCandidatesVote": "Aucun candidat n'a encore été ajouté à cette élection. Revenez plus tard.",
-    "noOptionsVote": "Aucune option n'a encore été configurée pour ce vote. Revenez plus tard."
+    "noOptionsVote": "Aucune option n'a encore été configurée pour ce vote. Revenez plus tard.",
+    "officerElectionHint": "Les postes sont attribués lors de l'ajout des candidats. Créez d'abord l'élection, puis ajoutez des candidats et assignez chacun à un poste."
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

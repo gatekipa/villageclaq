@@ -1081,7 +1081,7 @@
     "searchMember": "Search member by name...",
     "contributionType": "Contribution Type",
     "selectType": "Select contribution type",
-    "noTypesAvailable": "No contribution types configured. Ask an admin to create contribution types in Settings.",
+    "noTypesAvailable": "No contribution types configured. Go to the Contributions page and use the Types tab to create contribution types.",
     "paymentMethod": "Payment Method",
     "cash": "Cash",
     "mobileMoney": "Mobile Money",
@@ -4109,7 +4109,8 @@
     "noPositionsLink": "Add positions in Settings.",
     "noCandidatesHint": "No candidates yet. Click \"Add Candidate\" above to add nominees for this election.",
     "noCandidatesVote": "No candidates have been added to this election yet. Check back later.",
-    "noOptionsVote": "No options have been configured for this vote yet. Check back later."
+    "noOptionsVote": "No options have been configured for this vote yet. Check back later.",
+    "officerElectionHint": "Positions are assigned when adding candidates. Create the election first, then add candidates and assign each one to a position."
   },
   "documentVault": {
     "title": "Document Vault",

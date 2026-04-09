@@ -380,6 +380,22 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // ── CRITICAL: 0-membership guard ──────────────────────────────────────────
+  // If user is authenticated with 0 memberships and is NOT on a safe page,
+  // show loading while the redirect effect (above) fires. This MUST come
+  // before hasRenderedContent is set, otherwise the empty dashboard flashes.
+  // The redirect effect handles routing to onboarding/group or my-invitations.
+  if (!loading && user && memberships.length === 0 && !isOnboardingPage && !isInviteSafePage) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <img src="/logo-mark.svg" alt="VillageClaq" className="h-12 w-12 animate-pulse" />
+          <p className="text-sm text-muted-foreground animate-pulse">{tCommon("loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
   // Pending approval interstitial — legitimate blocker (user can't use the app)
   if (!loading && currentMembership?.membership_status === "pending_approval") {
     return (

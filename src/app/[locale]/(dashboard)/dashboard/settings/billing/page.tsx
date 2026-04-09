@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import {
   CreditCard,
@@ -17,13 +19,31 @@ import {
   Zap,
   ArrowRight,
   Star,
+  Ticket,
+  Loader2,
 } from "lucide-react";
 import { useSubscription } from "@/lib/hooks/use-subscription";
+import { useGroup } from "@/lib/group-context";
+import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { TIERS, type TierName } from "@/lib/subscription-tiers";
 
 export default function BillingPage() {
   const t = useTranslations("tiers");
   const locale = useLocale();
+  const { groupId } = useGroup();
+  const queryClient = useQueryClient();
+
+  // Voucher redemption state
+  const [voucherCode, setVoucherCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemResult, setRedeemResult] = useState<{
+    success: boolean;
+    message: string;
+    tier?: string;
+    periodEnd?: string;
+  } | null>(null);
+
   const {
     tier,
     limits,
@@ -80,6 +100,53 @@ export default function BillingPage() {
       : `$${upgradeConfig.price.usd.yearly}/${t("year")}`
     : "";
 
+  const handleRedeemVoucher = async () => {
+    if (!voucherCode.trim() || !groupId) return;
+    setRedeeming(true);
+    setRedeemResult(null);
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("redeem_voucher", {
+        p_code: voucherCode.trim().toUpperCase(),
+        p_group_id: groupId,
+      });
+
+      if (error) {
+        setRedeemResult({ success: false, message: t("voucherRedeemError") });
+      } else if (data?.success) {
+        setRedeemResult({
+          success: true,
+          message: t("voucherRedeemSuccess", { tier: data.tier }),
+          tier: data.tier,
+          periodEnd: data.period_end,
+        });
+        setVoucherCode("");
+        // Invalidate subscription cache so the page reflects new tier
+        queryClient.invalidateQueries({ queryKey: ["group-subscription", groupId] });
+      } else {
+        // Map error codes to i18n messages
+        const errorMap: Record<string, string> = {
+          VOUCHER_NOT_FOUND: t("voucherNotFound"),
+          VOUCHER_NOT_ACTIVE: t("voucherNotActive"),
+          VOUCHER_EXPIRED: t("voucherExpired"),
+          VOUCHER_USED_UP: t("voucherUsedUp"),
+          ALREADY_REDEEMED_BY_GROUP: t("voucherAlreadyRedeemed"),
+          NOT_AUTHORIZED: t("voucherNotAuthorized"),
+          NOT_AUTHENTICATED: t("voucherNotAuthenticated"),
+        };
+        setRedeemResult({
+          success: false,
+          message: errorMap[data?.error] || t("voucherRedeemError"),
+        });
+      }
+    } catch {
+      setRedeemResult({ success: false, message: t("voucherRedeemError") });
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -133,6 +200,67 @@ export default function BillingPage() {
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+
+      {/* Redeem Voucher */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Ticket className="h-4 w-4" />
+            {t("redeemVoucherTitle")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            {t("redeemVoucherDesc")}
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder={t("redeemVoucherPlaceholder")}
+              value={voucherCode}
+              onChange={(e) => {
+                setVoucherCode(e.target.value.toUpperCase());
+                setRedeemResult(null);
+              }}
+              maxLength={8}
+              className="font-mono tracking-widest uppercase"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRedeemVoucher();
+              }}
+            />
+            <Button
+              onClick={handleRedeemVoucher}
+              disabled={redeeming || voucherCode.trim().length < 8}
+              className="gap-2 shrink-0"
+            >
+              {redeeming ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Ticket className="h-4 w-4" />
+              )}
+              {t("redeemVoucherBtn")}
+            </Button>
+          </div>
+          {redeemResult && (
+            <div
+              className={`rounded-lg px-4 py-3 text-sm ${
+                redeemResult.success
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+                  : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+              }`}
+            >
+              {redeemResult.success && <Check className="inline h-4 w-4 mr-1" />}
+              {redeemResult.message}
+              {redeemResult.periodEnd && (
+                <span className="block mt-1 text-xs opacity-80">
+                  {t("voucherValidUntil", {
+                    date: new Date(redeemResult.periodEnd).toLocaleDateString(),
+                  })}
+                </span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

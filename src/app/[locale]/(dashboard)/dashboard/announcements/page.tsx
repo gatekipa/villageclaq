@@ -73,11 +73,10 @@ interface ChannelSelection {
 }
 
 const AVAILABLE_ROLES = [
-  "President",
-  "Secretary",
-  "Treasurer",
-  "Member",
-  "Elder",
+  { value: "owner", labelKey: "roleOwner" },
+  { value: "admin", labelKey: "roleAdmin" },
+  { value: "moderator", labelKey: "roleModerator" },
+  { value: "member", labelKey: "roleMember" },
 ];
 
 const CHANNEL_CONFIG: {
@@ -637,16 +636,16 @@ export default function AnnouncementsPage() {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {AVAILABLE_ROLES.map((role) => (
                       <button
-                        key={role}
+                        key={role.value}
                         type="button"
-                        onClick={() => toggleRole(role)}
+                        onClick={() => toggleRole(role.value)}
                         className={`rounded-md border px-2.5 py-1.5 text-xs transition-colors ${
-                          selectedRoles.includes(role)
+                          selectedRoles.includes(role.value)
                             ? "border-primary bg-primary/10 text-primary dark:bg-primary/20"
                             : "border-border bg-background text-muted-foreground hover:bg-muted dark:bg-input/30"
                         }`}
                       >
-                        {t(`roles.${role.toLowerCase()}`)}
+                        {t(role.labelKey)}
                       </button>
                     ))}
                   </div>

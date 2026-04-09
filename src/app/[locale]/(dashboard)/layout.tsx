@@ -310,8 +310,10 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     setPhoneStateLoaded(true);
   }, []);
 
-  const isOnboardingPage = pathname.startsWith("/dashboard/onboarding");
-  const isInviteSafePage = INVITE_SAFE_PATHS.some((p) => pathname.startsWith(p));
+  // Use .includes() for robustness — handles edge cases where usePathname()
+  // might return unexpected prefixes during navigation transitions.
+  const isOnboardingPage = pathname.includes("/onboarding");
+  const isInviteSafePage = INVITE_SAFE_PATHS.some((p) => pathname.includes(p));
 
   // When user has 0 memberships and is NOT on a safe page, check for pending invitations
   useEffect(() => {
@@ -363,10 +365,19 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, checkingInvitations, checkedInvitations, user, router]);
 
+  // ── Onboarding / invite-safe pages: ALWAYS render children ────────────────
+  // This must come FIRST — if the pathname includes /onboarding, never show
+  // a spinner or block. The guard, invitation check, and 0-membership logic
+  // do not apply to these pages.
+  if (isOnboardingPage || isInviteSafePage) {
+    hasRenderedContent.current = true;
+    return <>{children}</>;
+  }
+
   // Determine if we should show the initial loading spinner.
   // Once content has rendered, NEVER show the spinner again — this is the
   // anti-flicker guard. Only the very first load sees a full-screen spinner.
-  const showInitialLoading = loading && !isOnboardingPage && !isInviteSafePage && !hasRenderedContent.current;
+  const showInitialLoading = loading && !hasRenderedContent.current;
   const showInviteChecking = checkingInvitations && !hasRenderedContent.current;
 
   if (showInitialLoading || showInviteChecking) {
@@ -380,12 +391,11 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // ── CRITICAL: 0-membership guard ──────────────────────────────────────────
-  // If user is authenticated with 0 memberships and is NOT on a safe page,
-  // show loading while the redirect effect (above) fires. This MUST come
-  // before hasRenderedContent is set, otherwise the empty dashboard flashes.
-  // The redirect effect handles routing to onboarding/group or my-invitations.
-  if (!loading && user && memberships.length === 0 && !isOnboardingPage && !isInviteSafePage) {
+  // ── 0-membership guard ────────────────────────────────────────────────────
+  // Show spinner while the redirect effect (above) fires. Once the redirect
+  // has been dispatched (checkedInvitations = true), stop blocking — the
+  // navigation is in progress and the spinner would just loop.
+  if (!loading && user && memberships.length === 0 && !checkedInvitations) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -477,8 +487,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     !bannerDismissed &&
     memberships.length > 0;
 
-  const isOnboardingPage = pathname.startsWith("/dashboard/onboarding");
-  const isInviteSafePage = INVITE_SAFE_PATHS.some((p) => pathname.startsWith(p));
+  const isOnboardingPage = pathname.includes("/onboarding");
+  const isInviteSafePage = INVITE_SAFE_PATHS.some((p) => pathname.includes(p));
 
   // Onboarding pages + users with no groups render WITHOUT sidebar/header
   // Also: invite-safe pages for users with 0 memberships render without sidebar

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import {
   Search,
   Users,
@@ -24,7 +24,6 @@ type GroupStatus = "active" | "suspended" | "archived";
 interface AdminGroup {
   id: string;
   name: string;
-  organization: string;
   group_type: string | null;
   currency: string | null;
   is_active: boolean;
@@ -43,69 +42,59 @@ export default function AdminGroupsPage() {
   const locale = useLocale();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<GroupStatus | "all">("all");
-  const [groups, setGroups] = useState<AdminGroup[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchGroups() {
-      const supabase = createClient();
+  const { results, loading } = useAdminQuery([
+    {
+      key: "groups",
+      table: "groups",
+      select: "id, name, group_type, currency, is_active, created_at",
+      order: { column: "created_at", ascending: false },
+    },
+    {
+      key: "memberships",
+      table: "memberships",
+      select: "group_id",
+    },
+  ]);
 
-      const { data: groupsData } = await supabase
-        .from("groups")
-        .select("id, name, group_type, currency, is_active, created_at, organization_id, organizations(name)")
-        .order("created_at", { ascending: false });
+  const groups = useMemo<AdminGroup[]>(() => {
+    const groupsData = (results.groups?.data ?? []) as Array<{
+      id: string;
+      name: string;
+      group_type: string | null;
+      currency: string | null;
+      is_active: boolean;
+      created_at: string;
+    }>;
+    const membershipsData = (results.memberships?.data ?? []) as Array<{
+      group_id: string;
+    }>;
 
-      if (!groupsData) {
-        setLoading(false);
-        return;
-      }
-
-      // Fetch member counts per group
-      const groupIds = groupsData.map((g) => g.id);
-      const { data: memberCounts } = await supabase
-        .from("memberships")
-        .select("group_id")
-        .in("group_id", groupIds);
-
-      const countMap: Record<string, number> = {};
-      if (memberCounts) {
-        for (const m of memberCounts) {
-          countMap[m.group_id] = (countMap[m.group_id] || 0) + 1;
-        }
-      }
-
-      const mapped: AdminGroup[] = groupsData.map((g) => {
-        const orgs = g.organizations as unknown as { name: string }[] | { name: string } | null;
-        const orgName = Array.isArray(orgs) ? orgs[0]?.name : orgs?.name;
-        return {
-          id: g.id,
-          name: g.name,
-          organization: orgName ?? g.group_type ?? "--",
-          group_type: g.group_type,
-          currency: g.currency,
-          is_active: g.is_active,
-          created_at: g.created_at,
-          memberCount: countMap[g.id] ?? 0,
-        };
-      });
-
-      setGroups(mapped);
-      setLoading(false);
+    // Count members per group
+    const countMap: Record<string, number> = {};
+    for (const m of membershipsData) {
+      countMap[m.group_id] = (countMap[m.group_id] || 0) + 1;
     }
 
-    fetchGroups();
-  }, []);
+    return groupsData.map((g) => ({
+      id: g.id,
+      name: g.name,
+      group_type: g.group_type,
+      currency: g.currency,
+      is_active: g.is_active,
+      created_at: g.created_at,
+      memberCount: countMap[g.id] ?? 0,
+    }));
+  }, [results]);
 
   function getGroupStatus(group: AdminGroup): GroupStatus {
-    // Derive status from is_active field
     if (!group.is_active) return "suspended";
     return "active";
   }
 
   const filtered = groups.filter((g) => {
     const matchesSearch =
-      g.name.toLowerCase().includes(search.toLowerCase()) ||
-      g.organization.toLowerCase().includes(search.toLowerCase());
+      g.name.toLowerCase().includes(search.toLowerCase());
     const derivedStatus = getGroupStatus(g);
     const matchesStatus = statusFilter === "all" || derivedStatus === statusFilter;
     return matchesSearch && matchesStatus;
@@ -192,7 +181,7 @@ export default function AdminGroupsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{group.name}</p>
-                      <p className="text-xs text-muted-foreground">{group.organization}</p>
+                      <p className="text-xs text-muted-foreground">{group.group_type ?? "--"}</p>
                     </div>
                     <Badge variant={status.variant} className="shrink-0">
                       {t(status.label)}

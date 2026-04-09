@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
 import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -105,65 +106,67 @@ export default function AdminDashboardPage() {
   const [recentPayments, setRecentPayments] = useState<RecentPaymentRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
 
+  const d30 = useMemo(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), []);
+  const d6mo = useMemo(() => new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), []);
+
+  // Fetch table data via admin API (service role, bypasses RLS)
+  const { results: adminResults, loading: adminLoading } = useAdminQuery([
+    {
+      key: "payments30d",
+      table: "payments",
+      select: "id, amount, recorded_at, payment_method, currency",
+      filters: [{ column: "recorded_at", op: "gte", value: d30 }],
+    },
+    {
+      key: "payments6mo",
+      table: "payments",
+      select: "amount, recorded_at",
+      filters: [{ column: "recorded_at", op: "gte", value: d6mo }],
+    },
+    {
+      key: "recentGroups",
+      table: "groups",
+      select: "id, name, created_at, is_active",
+      order: { column: "created_at", ascending: false },
+      limit: 5,
+    },
+    {
+      key: "recentPayments",
+      table: "payments",
+      select: "id, amount, currency, recorded_at, group_id, memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name))",
+      order: { column: "recorded_at", ascending: false },
+      limit: 10,
+    },
+    {
+      key: "allGroups",
+      table: "groups",
+      select: "id, name, created_at, is_active",
+    },
+  ]);
+
+  // Fetch platform stats via SECURITY DEFINER RPC (summary cards)
   useEffect(() => {
-    async function fetchData() {
+    async function fetchStats() {
       const supabase = createClient();
-      const now = new Date();
-      const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const d6mo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
-
-      // Fetch platform stats via SECURITY DEFINER RPC (bypasses RLS)
-      // AND fetch chart/list data via direct queries (works with new RLS policies)
-      const [
-        statsRes,
-        payments30dRes,
-        payments6moRes,
-        recentGroupsRes,
-        recentPaymentsRes,
-        groupsRes,
-      ] = await Promise.all([
-        supabase.rpc("get_platform_stats"),
-        supabase
-          .from("payments")
-          .select("id, amount, recorded_at, payment_method, currency")
-          .gte("recorded_at", d30.toISOString()),
-        supabase
-          .from("payments")
-          .select("amount, recorded_at")
-          .gte("recorded_at", d6mo.toISOString()),
-        supabase
-          .from("groups")
-          .select("id, name, created_at, is_active")
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("payments")
-          .select(
-            "id, amount, currency, recorded_at, group_id, memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name))"
-          )
-          .order("recorded_at", { ascending: false })
-          .limit(10),
-        supabase.from("groups").select("id, name, created_at, is_active"),
-      ]);
-
-      // Use RPC stats for summary cards (guaranteed platform-wide)
+      const statsRes = await supabase.rpc("get_platform_stats");
       if (statsRes.data && !statsRes.data.error) {
         setStats(statsRes.data as unknown as PlatformStats);
       }
-
-      // Chart/list data — will be platform-wide thanks to new RLS policies
-      setPayments30d((payments30dRes.data as PaymentRow[]) ?? []);
-      setPayments6mo(payments6moRes.data ?? []);
-      setRecentGroups((recentGroupsRes.data as GroupRow[]) ?? []);
-      setRecentPayments(
-        (recentPaymentsRes.data as unknown as RecentPaymentRow[]) ?? []
-      );
-      setGroups((groupsRes.data as GroupRow[]) ?? []);
       setLoading(false);
     }
-
-    fetchData();
+    fetchStats();
   }, []);
+
+  // Derive table data from admin query results
+  useEffect(() => {
+    if (!adminLoading) {
+      setPayments30d((adminResults.payments30d?.data as PaymentRow[]) ?? []);
+      setPayments6mo(adminResults.payments6mo?.data as { amount: number; recorded_at: string }[] ?? []);
+      setRecentGroups((adminResults.recentGroups?.data as GroupRow[]) ?? []);
+      setRecentPayments((adminResults.recentPayments?.data as unknown as RecentPaymentRow[]) ?? []);
+      setGroups((adminResults.allGroups?.data as GroupRow[]) ?? []);
+    }
+  }, [adminResults, adminLoading]);
 
   // Use RPC stats for summary values (accurate platform-wide counts)
   const activeGroupCount = stats?.active_groups ?? 0;

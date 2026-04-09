@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,75 +81,57 @@ export default function AdminUsersPage() {
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
   const [search, setSearch] = useState("");
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "noGroups">("all");
   const [sortField, setSortField] = useState<"name" | "groups" | "lastActive" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  useEffect(() => {
-    async function fetchUsers() {
-      try {
-        const supabase = createClient();
+  const { results, loading, error: queryError } = useAdminQuery([
+    {
+      key: "profiles",
+      table: "profiles",
+      select: "id, full_name, avatar_url, phone, created_at, updated_at",
+      order: { column: "created_at", ascending: false },
+    },
+    {
+      key: "memberships",
+      table: "memberships",
+      select: "user_id, role, group_id",
+      filters: [{ column: "user_id", op: "not.is", value: null }],
+    },
+  ]);
 
-        const [profilesRes, membershipsRes] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url, phone, created_at, updated_at")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("memberships")
-            .select("user_id, role, group_id")
-            .not("user_id", "is", null),
-        ]);
+  const users = useMemo<AdminUser[]>(() => {
+    const profiles = (results.profiles?.data ?? []) as ProfileRow[];
+    const memberships = (results.memberships?.data ?? []) as MembershipCountRow[];
 
-        if (profilesRes.error || membershipsRes.error) {
-          setError(true);
-          setLoading(false);
-          return;
-        }
+    const groupCountMap: Record<string, Set<string>> = {};
+    const adminCountMap: Record<string, number> = {};
 
-        const profiles = profilesRes.data as ProfileRow[];
-        const memberships = membershipsRes.data as MembershipCountRow[];
+    for (const m of memberships) {
+      if (!groupCountMap[m.user_id]) {
+        groupCountMap[m.user_id] = new Set();
+      }
+      groupCountMap[m.user_id].add(m.group_id);
 
-        // Build count maps
-        const groupCountMap: Record<string, Set<string>> = {};
-        const adminCountMap: Record<string, number> = {};
-
-        for (const m of memberships) {
-          if (!groupCountMap[m.user_id]) {
-            groupCountMap[m.user_id] = new Set();
-          }
-          groupCountMap[m.user_id].add(m.group_id);
-
-          if (m.role === "admin" || m.role === "owner") {
-            adminCountMap[m.user_id] = (adminCountMap[m.user_id] || 0) + 1;
-          }
-        }
-
-        const mapped: AdminUser[] = profiles.map((p) => ({
-          id: p.id,
-          full_name: p.full_name ?? "",
-          phone: p.phone ?? null,
-          avatar_url: p.avatar_url ?? null,
-          created_at: p.created_at,
-          updated_at: p.updated_at,
-          groupCount: groupCountMap[p.id]?.size ?? 0,
-          adminGroupCount: adminCountMap[p.id] ?? 0,
-        }));
-
-        setUsers(mapped);
-        setLoading(false);
-      } catch {
-        setError(true);
-        setLoading(false);
+      if (m.role === "admin" || m.role === "owner") {
+        adminCountMap[m.user_id] = (adminCountMap[m.user_id] || 0) + 1;
       }
     }
 
-    fetchUsers();
-  }, []);
+    return profiles.map((p) => ({
+      id: p.id,
+      full_name: p.full_name ?? "",
+      phone: p.phone ?? null,
+      avatar_url: p.avatar_url ?? null,
+      created_at: p.created_at,
+      updated_at: p.updated_at,
+      groupCount: groupCountMap[p.id]?.size ?? 0,
+      adminGroupCount: adminCountMap[p.id] ?? 0,
+    }));
+  }, [results]);
+
+  const error = !!queryError;
 
   const filtered = useMemo(() => {
     let result = users;

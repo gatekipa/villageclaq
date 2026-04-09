@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Bell, Search, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -26,41 +26,28 @@ export default function AdminNotificationsPage() {
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
 
-  const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
-  const [totalSent, setTotalSent] = useState(0);
-  const [deliveredCount, setDeliveredCount] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    async function fetchNotifications() {
-      const supabase = createClient();
+  const { results, loading } = useAdminQuery([
+    {
+      key: "notifications",
+      table: "notifications",
+      select: "id, user_id, type, title, is_read, created_at, profiles:user_id(full_name)",
+      order: { column: "created_at", ascending: false },
+      limit: 100,
+    },
+  ]);
 
-      // Fetch notifications with profile join
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("id, user_id, type, title, is_read, created_at, profiles:user_id(full_name)")
-        .order("created_at", { ascending: false })
-        .limit(100);
+  const notifications = (results.notifications?.data ?? []) as unknown as NotificationRow[];
 
-      if (!error && data) {
-        setNotifications(data as unknown as NotificationRow[]);
-        setTotalSent(data.length);
-        setDeliveredCount(data.filter((n) => n.is_read).length);
-
-        // Pending = unread and created within last 24h
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        setPendingCount(
-          data.filter((n) => !n.is_read && n.created_at > oneDayAgo).length
-        );
-      }
-
-      setLoading(false);
-    }
-
-    fetchNotifications();
-  }, []);
+  const { totalSent, deliveredCount, pendingCount } = useMemo(() => {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    return {
+      totalSent: notifications.length,
+      deliveredCount: notifications.filter((n) => n.is_read).length,
+      pendingCount: notifications.filter((n) => !n.is_read && n.created_at > oneDayAgo).length,
+    };
+  }, [notifications]);
 
   const filteredNotifications = notifications.filter((n) => {
     if (!searchQuery) return true;
@@ -203,7 +190,7 @@ export default function AdminNotificationsPage() {
                       {filteredNotifications.map((n) => (
                         <tr key={n.id} className="border-b last:border-0 hover:bg-muted/30">
                           <td className="px-4 py-3">
-                            {n.profiles?.full_name ?? "—"}
+                            {n.profiles?.full_name ?? "\u2014"}
                           </td>
                           <td className="px-4 py-3">
                             <Badge variant="outline" className={getTypeBadgeColor(n.type)}>

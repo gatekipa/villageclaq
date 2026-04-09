@@ -1,54 +1,59 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Layers, Users, Calendar, TrendingUp, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function PlatformOverviewPage() {
   const locale = useLocale();
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [groups, setGroups] = useState<Array<{ created_at: string }>>([]);
-  const [profiles, setProfiles] = useState<Array<{ created_at: string }>>([]);
-  const [eventsThisMonth, setEventsThisMonth] = useState(0);
-  const [monthlyEvents, setMonthlyEvents] = useState<Array<{ created_at: string }>>([]);
-  const [monthlyPayments, setMonthlyPayments] = useState<Array<{ created_at: string }>>([]);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-
-        const [groupsRes, profilesRes, eventsMonthRes, eventsAllRes, paymentsRes] = await Promise.all([
-          supabase.from("groups").select("created_at"),
-          supabase.from("profiles").select("created_at"),
-          supabase.from("events").select("id", { count: "exact", head: true }).gte("created_at", thisMonthStart),
-          supabase.from("events").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
-          supabase.from("payments").select("created_at").gte("created_at", sixMonthsAgo.toISOString()),
-        ]);
-
-        setGroups(groupsRes.data || []);
-        setProfiles(profilesRes.data || []);
-        setEventsThisMonth(eventsMonthRes.count || 0);
-        setMonthlyEvents(eventsAllRes.data || []);
-        setMonthlyPayments(paymentsRes.data || []);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
+  const sixMonthsAgo = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return d.toISOString();
   }, []);
+
+  const thisMonthStart = useMemo(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+    []
+  );
+
+  const { results, loading, error } = useAdminQuery([
+    { key: "groups", table: "groups", select: "created_at" },
+    { key: "profiles", table: "profiles", select: "created_at" },
+    {
+      key: "eventsThisMonth",
+      table: "events",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "created_at", op: "gte", value: thisMonthStart }],
+    },
+    {
+      key: "monthlyEvents",
+      table: "events",
+      select: "created_at",
+      filters: [{ column: "created_at", op: "gte", value: sixMonthsAgo }],
+    },
+    {
+      key: "monthlyPayments",
+      table: "payments",
+      select: "created_at",
+      filters: [{ column: "created_at", op: "gte", value: sixMonthsAgo }],
+    },
+  ]);
+
+  const groups = (results.groups?.data ?? []) as Array<{ created_at: string }>;
+  const profiles = (results.profiles?.data ?? []) as Array<{ created_at: string }>;
+  const eventsThisMonth = results.eventsThisMonth?.count ?? 0;
+  const monthlyEvents = (results.monthlyEvents?.data ?? []) as Array<{ created_at: string }>;
+  const monthlyPayments = (results.monthlyPayments?.data ?? []) as Array<{ created_at: string }>;
 
   const growthData = useMemo(() => {
     const now = new Date();

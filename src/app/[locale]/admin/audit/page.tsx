@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import {
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 
 type AuditAction =
   | "created_group"
@@ -91,38 +91,34 @@ const actionKeys: Record<string, string> = {
 export default function AuditPage() {
   const t = useTranslations("admin");
   const locale = useLocale();
-  const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [staffFilter, setStaffFilter] = useState<string>("all");
   const [actionFilter, setActionFilter] = useState<string>("all");
 
-  useEffect(() => {
-    async function fetchLogs() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("platform_audit_logs")
-        .select("id, action, target_type, target_id, details, created_at, staff_id, platform_staff(user_id, profiles(full_name))")
-        .order("created_at", { ascending: false })
-        .limit(100);
+  const { results, loading } = useAdminQuery([
+    {
+      key: "logs",
+      table: "platform_audit_logs",
+      select: "id, action, target_type, target_id, details, created_at, staff_id, platform_staff(user_id, profiles(full_name))",
+      order: { column: "created_at", ascending: false },
+      limit: 100,
+    },
+  ]);
 
-      if (data) {
-        setEntries(data.map((row: Record<string, unknown>) => {
-          const staff = row.platform_staff as Record<string, unknown> | null;
-          const profiles = staff?.profiles as Record<string, unknown> | null;
-          const details = row.details as Record<string, unknown> | null;
-          return {
-            id: row.id as string,
-            staffName: (profiles?.full_name as string) || "Staff",
-            action: row.action as string,
-            target: (details?.target_description as string) || `${row.target_type || ""} ${row.target_id || ""}`.trim(),
-            timestamp: new Date(row.created_at as string).toLocaleString(getDateLocale(locale)),
-          };
-        }));
-      }
-      setLoading(false);
-    }
-    fetchLogs();
-  }, []);
+  const entries: AuditEntry[] = useMemo(() => {
+    const data = results.logs?.data ?? [];
+    return (data as Array<Record<string, unknown>>).map((row) => {
+      const staff = row.platform_staff as Record<string, unknown> | null;
+      const profiles = staff?.profiles as Record<string, unknown> | null;
+      const details = row.details as Record<string, unknown> | null;
+      return {
+        id: row.id as string,
+        staffName: (profiles?.full_name as string) || "Staff",
+        action: row.action as string,
+        target: (details?.target_description as string) || `${row.target_type || ""} ${row.target_id || ""}`.trim(),
+        timestamp: new Date(row.created_at as string).toLocaleString(getDateLocale(locale)),
+      };
+    });
+  }, [results, locale]);
 
   const staffNames = useMemo(() => [...new Set(entries.map((e) => e.staffName))], [entries]);
   const actionTypes = useMemo(() => [...new Set(entries.map((e) => e.action))], [entries]);

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { formatAmount } from "@/lib/currencies";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { ShieldAlert, CheckCircle2, AlertTriangle, DollarSign, Users, CreditCard, Scale } from "lucide-react";
 
 interface Anomaly {
@@ -20,76 +20,72 @@ interface Anomaly {
 
 export default function AnomalyMonitoringPage() {
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
 
-  useEffect(() => {
-    async function detectAnomalies() {
-      try {
-        const supabase = createClient();
-        const detected: Anomaly[] = [];
+  const recentDate = useMemo(() => new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), []);
 
-        // Detection 1: Large payments (> 5x group average)
-        const { data: payments } = await supabase
-          .from("payments")
-          .select("amount, currency, groups!inner(name)")
-          .order("amount", { ascending: false })
-          .limit(100);
+  const { results, loading } = useAdminQuery([
+    {
+      key: "payments",
+      table: "payments",
+      select: "amount, currency, groups!inner(name)",
+      order: { column: "amount", ascending: false },
+      limit: 100,
+    },
+    {
+      key: "recentMembers",
+      table: "memberships",
+      select: "group_id, groups!inner(name)",
+      filters: [{ column: "created_at", op: "gte", value: recentDate }],
+    },
+  ]);
 
-        if (payments && payments.length > 5) {
-          const avgAmount = payments.reduce((s, p) => s + Number(p.amount), 0) / payments.length;
-          const threshold = avgAmount * 5;
-          for (const p of payments) {
-            if (Number(p.amount) > threshold) {
-              detected.push({
-                type: "large_payment",
-                severity: Number(p.amount) > threshold * 2 ? "high" : "medium",
-                description: `Payment of ${formatAmount(Number(p.amount), (p.currency as string) || "XAF")} exceeds 5x platform average`,
-                group: ((Array.isArray(p.groups) ? (p.groups as Array<Record<string, unknown>>)[0]?.name : (p.groups as Record<string, unknown>)?.name) as string) || "—",
-                amount: Number(p.amount),
-                currency: (p.currency as string) || "XAF",
-              });
-            }
-          }
+  const anomalies: Anomaly[] = useMemo(() => {
+    const detected: Anomaly[] = [];
+
+    // Detection 1: Large payments (> 5x group average)
+    const payments = (results.payments?.data ?? []) as Array<Record<string, unknown>>;
+    if (payments.length > 5) {
+      const avgAmount = payments.reduce((s, p) => s + Number(p.amount), 0) / payments.length;
+      const threshold = avgAmount * 5;
+      for (const p of payments) {
+        if (Number(p.amount) > threshold) {
+          detected.push({
+            type: "large_payment",
+            severity: Number(p.amount) > threshold * 2 ? "high" : "medium",
+            description: `Payment of ${formatAmount(Number(p.amount), (p.currency as string) || "XAF")} exceeds 5x platform average`,
+            group: ((Array.isArray(p.groups) ? (p.groups as Array<Record<string, unknown>>)[0]?.name : (p.groups as Record<string, unknown>)?.name) as string) || "\u2014",
+            amount: Number(p.amount),
+            currency: (p.currency as string) || "XAF",
+          });
         }
-
-        // Detection 2: Groups with unusually high member counts added recently
-        const recentDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // Last 24h
-        const { data: recentMembers } = await supabase
-          .from("memberships")
-          .select("group_id, groups!inner(name)")
-          .gte("created_at", recentDate);
-
-        if (recentMembers) {
-          const groupCounts = new Map<string, { count: number; name: string }>();
-          for (const m of recentMembers as Array<Record<string, unknown>>) {
-            const gid = m.group_id as string;
-            const gname = ((m.groups as Record<string, unknown>)?.name as string) || "—";
-            const existing = groupCounts.get(gid) || { count: 0, name: gname };
-            existing.count++;
-            groupCounts.set(gid, existing);
-          }
-          for (const [, data] of groupCounts) {
-            if (data.count > 10) {
-              detected.push({
-                type: "member_spike",
-                severity: data.count > 50 ? "high" : "medium",
-                description: `${data.count} members added in last 24 hours`,
-                group: data.name,
-              });
-            }
-          }
-        }
-
-        setAnomalies(detected);
-      } catch {
-        // Non-blocking — anomaly detection is best-effort
-      } finally {
-        setLoading(false);
       }
     }
-    detectAnomalies();
-  }, []);
+
+    // Detection 2: Groups with unusually high member counts added recently
+    const recentMembers = (results.recentMembers?.data ?? []) as Array<Record<string, unknown>>;
+    if (recentMembers.length > 0) {
+      const groupCounts = new Map<string, { count: number; name: string }>();
+      for (const m of recentMembers) {
+        const gid = m.group_id as string;
+        const gname = ((m.groups as Record<string, unknown>)?.name as string) || "\u2014";
+        const existing = groupCounts.get(gid) || { count: 0, name: gname };
+        existing.count++;
+        groupCounts.set(gid, existing);
+      }
+      for (const [, data] of groupCounts) {
+        if (data.count > 10) {
+          detected.push({
+            type: "member_spike",
+            severity: data.count > 50 ? "high" : "medium",
+            description: `${data.count} members added in last 24 hours`,
+            group: data.name,
+          });
+        }
+      }
+    }
+
+    return detected;
+  }, [results]);
 
   const severityColors: Record<string, string> = {
     low: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",

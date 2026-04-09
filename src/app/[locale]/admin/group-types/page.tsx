@@ -1,39 +1,29 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Layers, Search, AlertCircle } from "lucide-react";
 
 const typeEmojis: Record<string, string> = {
-  village_association: "🏘️", alumni_union: "🎓", njangi: "💰", church_group: "⛪",
-  family_meeting: "👨‍👩‍👧‍👦", professional_network: "💼", social_club: "🎉", other: "📋",
-  savings_circle: "💰", general: "📋", diaspora: "🌍", cooperative: "🤝",
+  village_association: "\u{1F3D8}\uFE0F", alumni_union: "\u{1F393}", njangi: "\u{1F4B0}", church_group: "\u26EA",
+  family_meeting: "\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}", professional_network: "\u{1F4BC}", social_club: "\u{1F389}", other: "\u{1F4CB}",
+  savings_circle: "\u{1F4B0}", general: "\u{1F4CB}", diaspora: "\u{1F30D}", cooperative: "\u{1F91D}",
 };
 
 export default function GroupTypesPage() {
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [groups, setGroups] = useState<Array<{ group_type: string; is_active: boolean }>>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
-        const { data, error: err } = await supabase.from("groups").select("group_type, is_active");
-        if (err) throw err;
-        setGroups(data || []);
-      } catch (err) { setError((err as Error).message); }
-      finally { setLoading(false); }
-    }
-    fetchData();
-  }, []);
+  const { results, loading, error } = useAdminQuery([
+    { key: "groups", table: "groups", select: "group_type, is_active" },
+  ]);
+
+  const groups = (results.groups?.data ?? []) as Array<{ group_type: string; is_active: boolean }>;
 
   const typeStats = useMemo(() => {
     const map = new Map<string, { total: number; active: number }>();
@@ -87,7 +77,7 @@ export default function GroupTypesPage() {
             <tbody>
               {typeStats.map((ts) => (
                 <tr key={ts.type} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-medium"><span className="mr-2">{typeEmojis[ts.type] || "📋"}</span>{ts.type.replace(/_/g, " ")}</td>
+                  <td className="px-4 py-3 font-medium"><span className="mr-2">{typeEmojis[ts.type] || "\u{1F4CB}"}</span>{ts.type.replace(/_/g, " ")}</td>
                   <td className="px-4 py-3 text-center">{ts.total}</td>
                   <td className="px-4 py-3 text-center">{ts.active}</td>
                   <td className="px-4 py-3 text-center"><Badge variant={ts.active > 0 ? "default" : "secondary"}>{ts.active > 0 ? t("statusActive") : t("statusArchived")}</Badge></td>

@@ -1,46 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Activity, Users, Info, Calendar, CreditCard, Heart, ClipboardList } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer } from "recharts";
 
 export default function UsageAnalyticsPage() {
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [featureData, setFeatureData] = useState<Array<{ name: string; count: number }>>([]);
+  const thirtyDaysAgo = useMemo(() => new Date(Date.now() - 30 * 86400000).toISOString(), []);
 
-  useEffect(() => {
-    async function fetchData() {
-      const supabase = createClient();
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+  const { results, loading } = useAdminQuery([
+    { key: "users", table: "profiles", select: "id", count: "exact", limit: 1 },
+    { key: "attendance", table: "event_attendances", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
+    { key: "payments", table: "payments", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
+    { key: "events", table: "events", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
+    { key: "members", table: "memberships", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
+    { key: "relief", table: "relief_claims", select: "id", count: "exact", limit: 1, filters: [{ column: "created_at", op: "gte", value: thirtyDaysAgo }] },
+  ]);
 
-      const [usersRes, attendanceRes, paymentsRes, eventsRes, membersRes, reliefRes] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("event_attendances").select("id", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
-        supabase.from("payments").select("id", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
-        supabase.from("events").select("id", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
-        supabase.from("memberships").select("id", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
-        supabase.from("relief_claims").select("id", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
-      ]);
-
-      setTotalUsers(usersRes.count || 0);
-      setFeatureData([
-        { name: "Attendance", count: attendanceRes.count || 0 },
-        { name: "Payments", count: paymentsRes.count || 0 },
-        { name: "Events", count: eventsRes.count || 0 },
-        { name: "Members Added", count: membersRes.count || 0 },
-        { name: "Relief Claims", count: reliefRes.count || 0 },
-      ]);
-      setLoading(false);
-    }
-    fetchData();
-  }, []);
+  const totalUsers = results.users?.count ?? 0;
+  const featureData = useMemo(() => [
+    { name: "Attendance", count: results.attendance?.count ?? 0 },
+    { name: "Payments", count: results.payments?.count ?? 0 },
+    { name: "Events", count: results.events?.count ?? 0 },
+    { name: "Members Added", count: results.members?.count ?? 0 },
+    { name: "Relief Claims", count: results.relief?.count ?? 0 },
+  ], [results]);
 
   const unavailableMetrics = [
     "Avg Session Duration",

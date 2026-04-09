@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -54,104 +54,117 @@ export default function MembershipReportsPage() {
   const dateLocale = getDateLocale(locale);
 
   const [timeRange, setTimeRange] = useState<TimeRange>("6m");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [newThisMonth, setNewThisMonth] = useState(0);
-  const [netGrowth, setNetGrowth] = useState(0);
-  const [userChart, setUserChart] = useState<MonthPoint[]>([]);
-  const [groupChart, setGroupChart] = useState<MonthPoint[]>([]);
-  const [typeChart, setTypeChart] = useState<TypeSlice[]>([]);
+  const cutoff = useMemo(() => getCutoffDate(timeRange).toISOString(), [timeRange]);
+  const thisMonthStart = useMemo(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+    []
+  );
+  const prevMonthStart = useMemo(
+    () => new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString(),
+    []
+  );
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const supabase = createClient();
-      const cutoff = getCutoffDate(timeRange).toISOString();
-      const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      const prevMonthStart = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toISOString();
+  const { results, loading, error } = useAdminQuery([
+    { key: "allProfiles", table: "profiles", select: "id", count: "exact", limit: 1 },
+    {
+      key: "monthProfiles",
+      table: "profiles",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "created_at", op: "gte", value: thisMonthStart }],
+    },
+    {
+      key: "prevMonthProfiles",
+      table: "profiles",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [
+        { column: "created_at", op: "gte", value: prevMonthStart },
+        { column: "created_at", op: "lt", value: thisMonthStart },
+      ],
+    },
+    {
+      key: "rangeProfiles",
+      table: "profiles",
+      select: "created_at",
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+    },
+    {
+      key: "rangeGroups",
+      table: "groups",
+      select: "created_at",
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+    },
+    { key: "allGroups", table: "groups", select: "group_type" },
+  ]);
 
-      const [allProfiles, monthProfiles, prevMonthProfiles, rangeProfiles, rangeGroups, allGroups] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", thisMonthStart),
-        supabase.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", prevMonthStart).lt("created_at", thisMonthStart),
-        supabase.from("profiles").select("created_at").gte("created_at", cutoff),
-        supabase.from("groups").select("created_at").gte("created_at", cutoff),
-        supabase.from("groups").select("group_type"),
-      ]);
+  const totalUsers = results.allProfiles?.count ?? 0;
+  const newThisMonth = results.monthProfiles?.count ?? 0;
+  const prevMonthCount = results.prevMonthProfiles?.count ?? 0;
+  const netGrowth = newThisMonth - prevMonthCount;
 
-      const total = allProfiles.count || 0;
-      const newMonth = monthProfiles.count || 0;
-      const prevMonth = prevMonthProfiles.count || 0;
+  const { userChart, groupChart, typeChart } = useMemo(() => {
+    const rangeProfiles = (results.rangeProfiles?.data ?? []) as Array<Record<string, unknown>>;
+    const rangeGroups = (results.rangeGroups?.data ?? []) as Array<Record<string, unknown>>;
+    const allGroups = (results.allGroups?.data ?? []) as Array<Record<string, unknown>>;
 
-      setTotalUsers(total);
-      setNewThisMonth(newMonth);
-      setNetGrowth(newMonth - prevMonth);
+    // User signups by month
+    const cutoffDate = getCutoffDate(timeRange);
+    const now = new Date();
+    const userMonthMap = new Map<string, number>();
+    const groupMonthMap = new Map<string, number>();
 
-      // User signups by month
-      const cutoffDate = getCutoffDate(timeRange);
-      const now = new Date();
-      const userMonthMap = new Map<string, number>();
-      const groupMonthMap = new Map<string, number>();
-
-      const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
-      while (d <= now) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        userMonthMap.set(key, 0);
-        groupMonthMap.set(key, 0);
-        d.setMonth(d.getMonth() + 1);
-      }
-
-      for (const p of rangeProfiles.data || []) {
-        const dt = new Date(p.created_at);
-        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-        if (userMonthMap.has(key)) userMonthMap.set(key, (userMonthMap.get(key) || 0) + 1);
-      }
-
-      for (const g of rangeGroups.data || []) {
-        const dt = new Date(g.created_at);
-        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-        if (groupMonthMap.has(key)) groupMonthMap.set(key, (groupMonthMap.get(key) || 0) + 1);
-      }
-
-      const userC: MonthPoint[] = [];
-      const groupC: MonthPoint[] = [];
-      for (const [key] of userMonthMap) {
-        const [y, m] = key.split("-");
-        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
-        userC.push({ month: label, count: userMonthMap.get(key) || 0 });
-        groupC.push({ month: label, count: groupMonthMap.get(key) || 0 });
-      }
-      setUserChart(userC);
-      setGroupChart(groupC);
-
-      // Groups by type
-      const typeMap = new Map<string, number>();
-      for (const g of allGroups.data || []) {
-        const gt = (g.group_type as string) || "general";
-        typeMap.set(gt, (typeMap.get(gt) || 0) + 1);
-      }
-      const types: TypeSlice[] = [];
-      for (const [name, value] of typeMap) {
-        types.push({ name, value });
-      }
-      setTypeChart(types);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
+    const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
+    while (d <= now) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      userMonthMap.set(key, 0);
+      groupMonthMap.set(key, 0);
+      d.setMonth(d.getMonth() + 1);
     }
-  }, [timeRange, dateLocale]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+    for (const p of rangeProfiles) {
+      const dt = new Date(p.created_at as string);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (userMonthMap.has(key)) userMonthMap.set(key, (userMonthMap.get(key) || 0) + 1);
+    }
+
+    for (const g of rangeGroups) {
+      const dt = new Date(g.created_at as string);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (groupMonthMap.has(key)) groupMonthMap.set(key, (groupMonthMap.get(key) || 0) + 1);
+    }
+
+    const userC: MonthPoint[] = [];
+    const groupC: MonthPoint[] = [];
+    for (const [key] of userMonthMap) {
+      const [y, m] = key.split("-");
+      const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
+      userC.push({ month: label, count: userMonthMap.get(key) || 0 });
+      groupC.push({ month: label, count: groupMonthMap.get(key) || 0 });
+    }
+
+    // Groups by type
+    const typeMap = new Map<string, number>();
+    for (const g of allGroups) {
+      const gt = (g.group_type as string) || "general";
+      typeMap.set(gt, (typeMap.get(gt) || 0) + 1);
+    }
+    const types: TypeSlice[] = [];
+    for (const [name, value] of typeMap) {
+      types.push({ name, value });
+    }
+
+    return { userChart: userC, groupChart: groupC, typeChart: types };
+  }, [results, timeRange, dateLocale]);
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <AlertCircle className="h-16 w-16 mb-4 text-red-500" />
-        <p>{t("noDataYet")}</p>
+        <p>{error}</p>
       </div>
     );
   }

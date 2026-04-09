@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CreditCard,
@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 
 interface SubscriptionPlan {
   id: string;
@@ -78,8 +79,6 @@ const planAccents: Record<string, string> = {
 export default function SubscriptionsPage() {
   const t = useTranslations("admin");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Create plan form state
@@ -90,31 +89,21 @@ export default function SubscriptionsPage() {
   const [newMemberLimit, setNewMemberLimit] = useState("");
   const [newGroupLimit, setNewGroupLimit] = useState("");
 
-  const supabase = createClient();
+  const { results, loading, refetch } = useAdminQuery([
+    {
+      key: "plans",
+      table: "subscription_plans",
+      select: "*",
+      order: { column: "sort_order" },
+    },
+  ]);
 
-  const fetchPlans = useCallback(async () => {
-    setLoading(true);
-
-    const { data } = await supabase
-      .from("subscription_plans")
-      .select("*")
-      .order("sort_order");
-
-    if (data) {
-      setPlans(data as SubscriptionPlan[]);
-    }
-
-    setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+  const plans = (results.plans?.data ?? []) as SubscriptionPlan[];
 
   const handleCreatePlan = async () => {
     if (!newName) return;
     setSubmitting(true);
+    const supabase = createClient();
 
     const slug = newName.toLowerCase().replace(/\s+/g, "_");
     const featuresArray = newFeatures
@@ -142,7 +131,7 @@ export default function SubscriptionsPage() {
       setNewFeatures("");
       setNewMemberLimit("");
       setNewGroupLimit("");
-      fetchPlans();
+      refetch();
     }
 
     setSubmitting(false);

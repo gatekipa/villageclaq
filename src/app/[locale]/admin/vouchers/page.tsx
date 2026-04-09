@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Ticket,
@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 
 type VoucherTier = "starter" | "pro" | "enterprise";
 type VoucherStatus = "active" | "used" | "expired" | "revoked";
@@ -105,8 +106,6 @@ export default function VouchersPage() {
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [usageDialogOpen, setUsageDialogOpen] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<SubscriptionVoucher | null>(null);
-  const [vouchers, setVouchers] = useState<SubscriptionVoucher[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -128,28 +127,20 @@ export default function VouchersPage() {
   const [bulkExpiresAt, setBulkExpiresAt] = useState("");
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
-  const supabase = createClient();
+  const { results, loading, refetch } = useAdminQuery([
+    {
+      key: "vouchers",
+      table: "subscription_vouchers",
+      select: "*",
+      order: { column: "created_at", ascending: false },
+    },
+  ]);
 
-  const fetchVouchers = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("subscription_vouchers")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      setVouchers(data as unknown as SubscriptionVoucher[]);
-    }
-    setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    fetchVouchers();
-  }, [fetchVouchers]);
+  const vouchers = (results.vouchers?.data ?? []) as unknown as SubscriptionVoucher[];
 
   const handleCreateVoucher = async () => {
     setSubmitting(true);
+    const supabase = createClient();
     const code = generateCode();
 
     const { data: userData } = await supabase.auth.getUser();
@@ -172,13 +163,14 @@ export default function VouchersPage() {
     if (!error) {
       setCreateDialogOpen(false);
       resetCreateForm();
-      fetchVouchers();
+      refetch();
     }
     setSubmitting(false);
   };
 
   const handleBulkGenerate = async () => {
     setBulkSubmitting(true);
+    const supabase = createClient();
     const count = parseInt(bulkCount);
     const { data: userData } = await supabase.auth.getUser();
 
@@ -219,19 +211,20 @@ export default function VouchersPage() {
 
       setBulkDialogOpen(false);
       resetBulkForm();
-      fetchVouchers();
+      refetch();
     }
     setBulkSubmitting(false);
   };
 
   const handleRevoke = async (voucher: SubscriptionVoucher) => {
+    const supabase = createClient();
     const { error } = await supabase
       .from("subscription_vouchers")
       .update({ status: "revoked" })
       .eq("id", voucher.id);
 
     if (!error) {
-      fetchVouchers();
+      refetch();
     }
   };
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { formatAmount } from "@/lib/currencies";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Link } from "@/i18n/routing";
 import {
   DollarSign, Activity, Users, Calendar, Heart, ArrowRight,
@@ -24,50 +24,74 @@ interface ReportCard {
 
 export default function ReportsHubPage() {
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState({
-    totalRevenue: 0, revenueThisMonth: 0, totalUsers: 0, newUsersMonth: 0,
-    totalEvents: 0, avgAttendance: "—" as string | number,
-    activePlans: 0, totalDisbursed: 0, activeGroups: 0,
-  });
 
-  useEffect(() => {
-    async function fetchMetrics() {
-      try {
-        const supabase = createClient();
-        const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const thisMonthStart = useMemo(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+    []
+  );
 
-        const [paymentsAll, paymentsMonth, profiles, profilesMonth, events, attendances, relief, payouts, groups] = await Promise.all([
-          supabase.from("payments").select("amount").then((r) => r.data || []),
-          supabase.from("payments").select("amount").gte("recorded_at", thisMonthStart).then((r) => r.data || []),
-          supabase.from("profiles").select("id", { count: "exact", head: true }),
-          supabase.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", thisMonthStart),
-          supabase.from("events").select("id", { count: "exact", head: true }),
-          supabase.from("event_attendances").select("status"),
-          supabase.from("relief_plans").select("id", { count: "exact", head: true }).eq("is_active", true),
-          supabase.from("relief_payouts").select("amount").then((r) => r.data || []),
-          supabase.from("groups").select("id", { count: "exact", head: true }).eq("is_active", true),
-        ]);
+  const { results, loading } = useAdminQuery([
+    { key: "paymentsAll", table: "payments", select: "amount" },
+    {
+      key: "paymentsMonth",
+      table: "payments",
+      select: "amount",
+      filters: [{ column: "recorded_at", op: "gte", value: thisMonthStart }],
+    },
+    { key: "profiles", table: "profiles", select: "id", count: "exact", limit: 1 },
+    {
+      key: "profilesMonth",
+      table: "profiles",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "created_at", op: "gte", value: thisMonthStart }],
+    },
+    { key: "events", table: "events", select: "id", count: "exact", limit: 1 },
+    { key: "attendances", table: "event_attendances", select: "status" },
+    {
+      key: "relief",
+      table: "relief_plans",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "is_active", op: "eq", value: true }],
+    },
+    { key: "payouts", table: "relief_payouts", select: "amount" },
+    {
+      key: "groups",
+      table: "groups",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "is_active", op: "eq", value: true }],
+    },
+  ]);
 
-        const totalRev = paymentsAll.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount), 0);
-        const monthRev = paymentsMonth.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount), 0);
-        const attData = attendances.data || [];
-        const presentCount = attData.filter((a: Record<string, unknown>) => a.status === "present" || a.status === "late").length;
-        const avgAtt = attData.length > 0 ? Math.round((presentCount / attData.length) * 100) : "—";
-        const disbursed = payouts.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount), 0);
+  const metrics = useMemo(() => {
+    const paymentsAll = (results.paymentsAll?.data ?? []) as Array<Record<string, unknown>>;
+    const paymentsMonth = (results.paymentsMonth?.data ?? []) as Array<Record<string, unknown>>;
+    const attData = (results.attendances?.data ?? []) as Array<Record<string, unknown>>;
+    const payoutsData = (results.payouts?.data ?? []) as Array<Record<string, unknown>>;
 
-        setMetrics({
-          totalRevenue: totalRev, revenueThisMonth: monthRev,
-          totalUsers: profiles.count || 0, newUsersMonth: profilesMonth.count || 0,
-          totalEvents: events.count || 0, avgAttendance: avgAtt,
-          activePlans: relief.count || 0, totalDisbursed: disbursed,
-          activeGroups: groups.count || 0,
-        });
-      } catch { /* best effort */ }
-      finally { setLoading(false); }
-    }
-    fetchMetrics();
-  }, []);
+    const totalRev = paymentsAll.reduce((s, p) => s + Number(p.amount), 0);
+    const monthRev = paymentsMonth.reduce((s, p) => s + Number(p.amount), 0);
+    const presentCount = attData.filter((a) => a.status === "present" || a.status === "late").length;
+    const avgAtt = attData.length > 0 ? Math.round((presentCount / attData.length) * 100) : ("—" as string | number);
+    const disbursed = payoutsData.reduce((s, p) => s + Number(p.amount), 0);
+
+    return {
+      totalRevenue: totalRev,
+      revenueThisMonth: monthRev,
+      totalUsers: results.profiles?.count ?? 0,
+      newUsersMonth: results.profilesMonth?.count ?? 0,
+      totalEvents: results.events?.count ?? 0,
+      avgAttendance: avgAtt,
+      activePlans: results.relief?.count ?? 0,
+      totalDisbursed: disbursed,
+      activeGroups: results.groups?.count ?? 0,
+    };
+  }, [results]);
 
   const cards: ReportCard[] = [
     {

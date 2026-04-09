@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Shield, Users, Search, AlertCircle } from "lucide-react";
 
 interface AdminRecord {
@@ -24,40 +24,37 @@ interface AdminRecord {
 export default function GroupAdminsPage() {
   const locale = useLocale();
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [admins, setAdmins] = useState<AdminRecord[]>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
-        const { data, error: err } = await supabase
-          .from("memberships")
-          .select("id, user_id, role, display_name, groups!inner(name, is_active), profiles!memberships_user_id_fkey(full_name, updated_at)")
-          .in("role", ["admin", "owner"])
-          .not("user_id", "is", null);
-        if (err) throw err;
-        setAdmins((data || []).map((m: Record<string, unknown>) => {
-          const group = m.groups as Record<string, unknown>;
-          const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
-          return {
-            membershipId: m.id as string,
-            userId: m.user_id as string,
-            displayName: (m.display_name as string) || "",
-            fullName: (profile?.full_name as string) || "",
-            role: m.role as string,
-            groupName: (group?.name as string) || "—",
-            groupIsActive: (group?.is_active as boolean) ?? true,
-            updatedAt: (profile?.updated_at as string) || null,
-          };
-        }));
-      } catch (err) { setError((err as Error).message); }
-      finally { setLoading(false); }
-    }
-    fetchData();
-  }, []);
+  const { results, loading, error } = useAdminQuery([
+    {
+      key: "admins",
+      table: "memberships",
+      select: "id, user_id, role, display_name, groups!inner(name, is_active), profiles!memberships_user_id_fkey(full_name, updated_at)",
+      filters: [
+        { column: "role", op: "in", value: ["admin", "owner"] },
+        { column: "user_id", op: "not.is", value: null },
+      ],
+    },
+  ]);
+
+  const admins: AdminRecord[] = useMemo(() => {
+    const data = results.admins?.data ?? [];
+    return (data as Array<Record<string, unknown>>).map((m) => {
+      const group = m.groups as Record<string, unknown>;
+      const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
+      return {
+        membershipId: m.id as string,
+        userId: m.user_id as string,
+        displayName: (m.display_name as string) || "",
+        fullName: (profile?.full_name as string) || "",
+        role: m.role as string,
+        groupName: (group?.name as string) || "\u2014",
+        groupIsActive: (group?.is_active as boolean) ?? true,
+        updatedAt: (profile?.updated_at as string) || null,
+      };
+    });
+  }, [results]);
 
   const filtered = useMemo(() => {
     if (!search) return admins;
@@ -89,7 +86,7 @@ export default function GroupAdminsPage() {
           { label: t("totalAdmins"), value: totalAdmins, icon: Shield },
           { label: t("activeAdmins"), value: activeAdmins, icon: Users },
           { label: t("suspended"), value: suspendedAdmins, icon: AlertCircle },
-          { label: t("totalActions"), value: "—", icon: Shield },
+          { label: t("totalActions"), value: "\u2014", icon: Shield },
         ].map((c, i) => (
           <Card key={i}><CardContent className="p-4 flex items-center gap-3"><c.icon className="h-5 w-5 text-muted-foreground shrink-0" /><div><p className="text-xs text-muted-foreground">{c.label}</p>{loading ? <Skeleton className="h-6 w-12" /> : <p className="text-xl font-bold">{c.value}</p>}</div></CardContent></Card>
         ))}
@@ -112,10 +109,10 @@ export default function GroupAdminsPage() {
             <tbody>
               {filtered.map((admin) => (
                 <tr key={admin.membershipId} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-medium">{admin.fullName || admin.displayName || "—"}</td>
+                  <td className="px-4 py-3 font-medium">{admin.fullName || admin.displayName || "\u2014"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{admin.groupName}</td>
                   <td className="px-4 py-3 text-center"><Badge className={`text-xs ${roleColors[admin.role] || ""}`}>{admin.role === "owner" ? "Group Owner" : "Administrator"}</Badge></td>
-                  <td className="px-4 py-3 text-center text-xs text-muted-foreground">{admin.updatedAt ? new Date(admin.updatedAt).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric" }) : "—"}</td>
+                  <td className="px-4 py-3 text-center text-xs text-muted-foreground">{admin.updatedAt ? new Date(admin.updatedAt).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric" }) : "\u2014"}</td>
                   <td className="px-4 py-3 text-center"><Badge variant={admin.groupIsActive ? "default" : "destructive"}>{admin.groupIsActive ? t("statusActive") : t("statusSuspended")}</Badge></td>
                 </tr>
               ))}

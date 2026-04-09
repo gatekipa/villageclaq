@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { formatAmount } from "@/lib/currencies";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreditCard, Info, ExternalLink, AlertCircle, Ticket, FileText } from "lucide-react";
 import { Link } from "@/i18n/routing";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 
 interface Plan {
   id: string;
@@ -27,28 +27,19 @@ interface Plan {
 
 export default function SubscriptionPlansPage() {
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const { results, loading, error } = useAdminQuery([
+    {
+      key: "plans",
+      table: "subscription_plans",
+      select: "*",
+      order: { column: "sort_order", ascending: true },
+    },
+  ]);
 
-  useEffect(() => {
-    async function fetchPlans() {
-      try {
-        const supabase = createClient();
-        const { data, error: err } = await supabase
-          .from("subscription_plans")
-          .select("*")
-          .order("sort_order", { ascending: true });
-        if (err) throw err;
-        setPlans((data || []) as Plan[]);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchPlans();
-  }, []);
+  const plans = useMemo<Plan[]>(
+    () => (results.plans?.data ?? []) as Plan[],
+    [results]
+  );
 
   const totalPlans = plans.length;
   const activePlans = plans.filter((p) => p.is_active).length;

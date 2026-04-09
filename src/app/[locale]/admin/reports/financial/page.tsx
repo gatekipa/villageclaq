@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -54,94 +54,81 @@ export default function FinancialReportsPage() {
   const dateLocale = getDateLocale(locale);
 
   const [timeRange, setTimeRange] = useState<TimeRange>("6m");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [revenueThisMonth, setRevenueThisMonth] = useState(0);
-  const [avgTransaction, setAvgTransaction] = useState(0);
-  const [chartData, setChartData] = useState<ChartPoint[]>([]);
-  const [tableData, setTableData] = useState<MonthlyRow[]>([]);
+  const cutoff = useMemo(() => getCutoffDate(timeRange).toISOString(), [timeRange]);
+  const thisMonthStart = useMemo(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+    []
+  );
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const supabase = createClient();
-      const cutoff = getCutoffDate(timeRange).toISOString();
-      const thisMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const { results, loading, error } = useAdminQuery([
+    {
+      key: "allPayments",
+      table: "payments",
+      select: "amount, currency, recorded_at, payment_method",
+      filters: [{ column: "recorded_at", op: "gte", value: cutoff }],
+    },
+    {
+      key: "monthPayments",
+      table: "payments",
+      select: "amount",
+      filters: [{ column: "recorded_at", op: "gte", value: thisMonthStart }],
+    },
+  ]);
 
-      const [allPayments, monthPayments] = await Promise.all([
-        supabase.from("payments").select("amount, currency, recorded_at, payment_method").gte("recorded_at", cutoff),
-        supabase.from("payments").select("amount").gte("recorded_at", thisMonthStart),
-      ]);
+  const { totalRevenue, revenueThisMonth, avgTransaction, chartData, tableData } = useMemo(() => {
+    const payments = (results.allPayments?.data ?? []) as Array<Record<string, unknown>>;
+    const monthPays = (results.monthPayments?.data ?? []) as Array<Record<string, unknown>>;
 
-      const payments = allPayments.data || [];
-      const monthPays = monthPayments.data || [];
+    const total = payments.reduce((s, p) => s + Number(p.amount), 0);
+    const monthTotal = monthPays.reduce((s, p) => s + Number(p.amount), 0);
+    const avg = payments.length > 0 ? total / payments.length : 0;
 
-      const total = payments.reduce((s, p) => s + Number(p.amount), 0);
-      const monthTotal = monthPays.reduce((s, p) => s + Number(p.amount), 0);
-      const avg = payments.length > 0 ? total / payments.length : 0;
-
-      setTotalRevenue(total);
-      setRevenueThisMonth(monthTotal);
-      setAvgTransaction(avg);
-
-      // Group by month for chart and table
-      const monthMap = new Map<string, { count: number; total: number }>();
-
-      // Initialize all months in range
-      const cutoffDate = getCutoffDate(timeRange);
-      const now = new Date();
-      const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
-      while (d <= now) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        monthMap.set(key, { count: 0, total: 0 });
-        d.setMonth(d.getMonth() + 1);
-      }
-
-      for (const p of payments) {
-        const dt = new Date(p.recorded_at);
-        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-        const bucket = monthMap.get(key);
-        if (bucket) {
-          bucket.count += 1;
-          bucket.total += Number(p.amount);
-        }
-      }
-
-      const chart: ChartPoint[] = [];
-      const table: MonthlyRow[] = [];
-
-      for (const [key, val] of monthMap.entries()) {
-        const [y, m] = key.split("-");
-        const dt = new Date(Number(y), Number(m) - 1, 1);
-        const label = dt.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
-        chart.push({ month: label, revenue: val.total });
-        table.push({
-          period: label,
-          count: val.count,
-          total: val.total,
-          avg: val.count > 0 ? val.total / val.count : 0,
-        });
-      }
-
-      setChartData(chart);
-      setTableData(table);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
+    // Group by month for chart and table
+    const monthMap = new Map<string, { count: number; total: number }>();
+    const cutoffDate = getCutoffDate(timeRange);
+    const now = new Date();
+    const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
+    while (d <= now) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthMap.set(key, { count: 0, total: 0 });
+      d.setMonth(d.getMonth() + 1);
     }
-  }, [timeRange, dateLocale]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+    for (const p of payments) {
+      const dt = new Date(p.recorded_at as string);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      const bucket = monthMap.get(key);
+      if (bucket) {
+        bucket.count += 1;
+        bucket.total += Number(p.amount);
+      }
+    }
+
+    const chart: ChartPoint[] = [];
+    const table: MonthlyRow[] = [];
+
+    for (const [key, val] of monthMap.entries()) {
+      const [y, m] = key.split("-");
+      const dt = new Date(Number(y), Number(m) - 1, 1);
+      const label = dt.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
+      chart.push({ month: label, revenue: val.total });
+      table.push({
+        period: label,
+        count: val.count,
+        total: val.total,
+        avg: val.count > 0 ? val.total / val.count : 0,
+      });
+    }
+
+    return { totalRevenue: total, revenueThisMonth: monthTotal, avgTransaction: avg, chartData: chart, tableData: table };
+  }, [results, timeRange, dateLocale]);
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <AlertCircle className="h-16 w-16 mb-4 text-red-500" />
-        <p>{t("noDataYet")}</p>
+        <p>{error}</p>
       </div>
     );
   }

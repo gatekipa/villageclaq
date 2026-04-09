@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -43,52 +43,68 @@ export default function EngagementReportsPage() {
   const t = useTranslations("admin");
 
   const [timeRange, setTimeRange] = useState<TimeRange>("6m");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [featureData, setFeatureData] = useState<FeatureRow[]>([]);
+  const cutoff = useMemo(() => getCutoffDate(timeRange).toISOString(), [timeRange]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const supabase = createClient();
-      const cutoff = getCutoffDate(timeRange).toISOString();
+  const { results, loading, error } = useAdminQuery([
+    { key: "profiles", table: "profiles", select: "id", count: "exact", limit: 1 },
+    {
+      key: "attendances",
+      table: "event_attendances",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+    },
+    {
+      key: "payments",
+      table: "payments",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "recorded_at", op: "gte", value: cutoff }],
+    },
+    {
+      key: "events",
+      table: "events",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+    },
+    {
+      key: "memberships",
+      table: "memberships",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+    },
+    {
+      key: "reliefClaims",
+      table: "relief_claims",
+      select: "id",
+      count: "exact",
+      limit: 1,
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+    },
+  ]);
 
-      const [profiles, attendances, payments, events, memberships, reliefClaims] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("event_attendances").select("id", { count: "exact", head: true }).gte("created_at", cutoff),
-        supabase.from("payments").select("id", { count: "exact", head: true }).gte("recorded_at", cutoff),
-        supabase.from("events").select("id", { count: "exact", head: true }).gte("created_at", cutoff),
-        supabase.from("memberships").select("id", { count: "exact", head: true }).gte("created_at", cutoff),
-        supabase.from("relief_claims").select("id", { count: "exact", head: true }).gte("created_at", cutoff),
-      ]);
+  const totalUsers = results.profiles?.count ?? 0;
 
-      setTotalUsers(profiles.count || 0);
-
-      const features: FeatureRow[] = [
-        { feature: t("attendanceReports"), count: attendances.count || 0 },
-        { feature: t("totalPayments"), count: payments.count || 0 },
-        { feature: t("totalEventsR"), count: events.count || 0 },
-        { feature: t("membershipReports"), count: memberships.count || 0 },
-        { feature: t("reliefPlanReports"), count: reliefClaims.count || 0 },
-      ];
-      setFeatureData(features);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [timeRange, t]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const featureData: FeatureRow[] = useMemo(() => [
+    { feature: t("attendanceReports"), count: results.attendances?.count ?? 0 },
+    { feature: t("totalPayments"), count: results.payments?.count ?? 0 },
+    { feature: t("totalEventsR"), count: results.events?.count ?? 0 },
+    { feature: t("membershipReports"), count: results.memberships?.count ?? 0 },
+    { feature: t("reliefPlanReports"), count: results.reliefClaims?.count ?? 0 },
+  ], [results, t]);
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <AlertCircle className="h-16 w-16 mb-4 text-red-500" />
-        <p>{t("noDataYet")}</p>
+        <p>{error}</p>
       </div>
     );
   }

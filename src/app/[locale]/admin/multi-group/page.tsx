@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { formatAmount } from "@/lib/currencies";
 import { Globe, Users, Shield, Search, AlertCircle } from "lucide-react";
 
@@ -21,60 +21,53 @@ interface MultiGroupUser {
 
 export default function MultiGroupPage() {
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [users, setUsers] = useState<MultiGroupUser[]>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
+  const { results, loading, error } = useAdminQuery([
+    {
+      key: "memberships",
+      table: "memberships",
+      select: "user_id, role, groups!inner(name), profiles!memberships_user_id_fkey(full_name, created_at)",
+      filters: [{ column: "user_id", op: "not.is", value: null }],
+    },
+  ]);
 
-        // Get all memberships with group info
-        const { data: memberships, error: mErr } = await supabase
-          .from("memberships")
-          .select("user_id, role, groups!inner(name), profiles!memberships_user_id_fkey(full_name, created_at)")
-          .not("user_id", "is", null);
-        if (mErr) throw mErr;
+  const users: MultiGroupUser[] = useMemo(() => {
+    const memberships = (results.memberships?.data ?? []) as Array<Record<string, unknown>>;
 
-        // Group by user_id
-        const userMap = new Map<string, { name: string; groups: Array<{ name: string; role: string }>; isNew: boolean }>();
-        for (const m of (memberships || []) as Array<Record<string, unknown>>) {
-          const uid = m.user_id as string;
-          const group = m.groups as Record<string, unknown>;
-          const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
-          if (!userMap.has(uid)) {
-            const createdAt = profile?.created_at as string;
-            userMap.set(uid, {
-              name: (profile?.full_name as string) || "—",
-              groups: [],
-              isNew: createdAt ? (Date.now() - new Date(createdAt).getTime()) < 30 * 86400000 : false,
-            });
-          }
-          userMap.get(uid)!.groups.push({ name: (group?.name as string) || "—", role: (m.role as string) || "member" });
-        }
-
-        // Filter to multi-group users only
-        const multiGroupUsers: MultiGroupUser[] = [];
-        for (const [userId, data] of userMap.entries()) {
-          if (data.groups.length < 2) continue;
-          multiGroupUsers.push({
-            userId,
-            name: data.name,
-            groups: data.groups,
-            adminCount: data.groups.filter((g) => g.role === "admin" || g.role === "owner").length,
-            totalPaid: 0, // Would need payments query per user — show 0 honestly
-            isNew: data.isNew,
-          });
-        }
-
-        setUsers(multiGroupUsers.sort((a, b) => b.groups.length - a.groups.length));
-      } catch (err) { setError((err as Error).message); }
-      finally { setLoading(false); }
+    // Group by user_id
+    const userMap = new Map<string, { name: string; groups: Array<{ name: string; role: string }>; isNew: boolean }>();
+    for (const m of memberships) {
+      const uid = m.user_id as string;
+      const group = m.groups as Record<string, unknown>;
+      const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
+      if (!userMap.has(uid)) {
+        const createdAt = profile?.created_at as string;
+        userMap.set(uid, {
+          name: (profile?.full_name as string) || "\u2014",
+          groups: [],
+          isNew: createdAt ? (Date.now() - new Date(createdAt).getTime()) < 30 * 86400000 : false,
+        });
+      }
+      userMap.get(uid)!.groups.push({ name: (group?.name as string) || "\u2014", role: (m.role as string) || "member" });
     }
-    fetchData();
-  }, []);
+
+    // Filter to multi-group users only
+    const multiGroupUsers: MultiGroupUser[] = [];
+    for (const [userId, data] of userMap.entries()) {
+      if (data.groups.length < 2) continue;
+      multiGroupUsers.push({
+        userId,
+        name: data.name,
+        groups: data.groups,
+        adminCount: data.groups.filter((g) => g.role === "admin" || g.role === "owner").length,
+        totalPaid: 0,
+        isNew: data.isNew,
+      });
+    }
+
+    return multiGroupUsers.sort((a, b) => b.groups.length - a.groups.length);
+  }, [results]);
 
   const filtered = useMemo(() => {
     if (!search) return users;
@@ -132,7 +125,7 @@ export default function MultiGroupPage() {
                   <td className="px-4 py-3 text-center">
                     {user.isNew && <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">{t("newUser")}</Badge>}
                     {user.groups.length >= 4 && <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] ml-1">{t("highActivity")}</Badge>}
-                    {!user.isNew && user.groups.length < 4 && <span className="text-muted-foreground text-xs">—</span>}
+                    {!user.isNew && user.groups.length < 4 && <span className="text-muted-foreground text-xs">\u2014</span>}
                   </td>
                 </tr>
               ))}

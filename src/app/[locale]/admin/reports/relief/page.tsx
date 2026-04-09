@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -69,117 +69,112 @@ export default function ReliefReportsPage() {
   const dateLocale = getDateLocale(locale);
 
   const [timeRange, setTimeRange] = useState<TimeRange>("6m");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [isEmpty, setIsEmpty] = useState(false);
 
-  const [activePlans, setActivePlans] = useState(0);
-  const [totalDisbursed, setTotalDisbursed] = useState(0);
-  const [beneficiaries, setBeneficiaries] = useState(0);
-  const [avgClaim, setAvgClaim] = useState(0);
-  const [disbursementChart, setDisbursementChart] = useState<MonthPoint[]>([]);
-  const [planChart, setPlanChart] = useState<PlanSlice[]>([]);
-  const [recentClaims, setRecentClaims] = useState<ClaimRow[]>([]);
+  const cutoff = useMemo(() => getCutoffDate(timeRange).toISOString(), [timeRange]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    setIsEmpty(false);
-    try {
-      const supabase = createClient();
-      const cutoff = getCutoffDate(timeRange).toISOString();
+  const { results, loading, error } = useAdminQuery([
+    { key: "plans", table: "relief_plans", select: "id, name, is_active" },
+    {
+      key: "claims",
+      table: "relief_claims",
+      select: "id, plan_id, membership_id, status, amount, created_at",
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+      order: { column: "created_at", ascending: false },
+    },
+    {
+      key: "payouts",
+      table: "relief_payouts",
+      select: "amount, created_at, claim_id",
+      filters: [{ column: "created_at", op: "gte", value: cutoff }],
+    },
+    {
+      key: "enrollments",
+      table: "relief_enrollments",
+      select: "id",
+      count: "exact",
+      limit: 1,
+    },
+  ]);
 
-      const [plansRes, claimsRes, payoutsRes, enrollmentsRes] = await Promise.all([
-        supabase.from("relief_plans").select("id, name, is_active"),
-        supabase.from("relief_claims").select("id, plan_id, membership_id, status, amount, created_at").gte("created_at", cutoff).order("created_at", { ascending: false }),
-        supabase.from("relief_payouts").select("amount, created_at, claim_id").gte("created_at", cutoff),
-        supabase.from("relief_enrollments").select("id", { count: "exact", head: true }),
-      ]);
+  const {
+    isEmpty, activePlans, totalDisbursed, beneficiaries, avgClaim,
+    disbursementChart, planChart, recentClaims,
+  } = useMemo(() => {
+    const plans = (results.plans?.data ?? []) as Array<Record<string, unknown>>;
+    const claims = (results.claims?.data ?? []) as Array<Record<string, unknown>>;
+    const payouts = (results.payouts?.data ?? []) as Array<Record<string, unknown>>;
 
-      const plans = plansRes.data || [];
-      const claims = claimsRes.data || [];
-      const payouts = payoutsRes.data || [];
-
-      // Check empty state
-      if (plans.length === 0 && claims.length === 0 && payouts.length === 0) {
-        setIsEmpty(true);
-        setLoading(false);
-        return;
-      }
-
-      const activeCount = plans.filter((p) => p.is_active).length;
-      setActivePlans(activeCount);
-
-      const disbursed = payouts.reduce((s, p) => s + Number(p.amount), 0);
-      setTotalDisbursed(disbursed);
-
-      const uniqueBeneficiaries = new Set(claims.map((c) => c.membership_id));
-      setBeneficiaries(uniqueBeneficiaries.size);
-
-      setAvgClaim(claims.length > 0 ? claims.reduce((s, c) => s + Number(c.amount), 0) / claims.length : 0);
-
-      // Monthly disbursement chart
-      const cutoffDate = getCutoffDate(timeRange);
-      const now = new Date();
-      const monthMap = new Map<string, number>();
-      const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
-      while (d <= now) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        monthMap.set(key, 0);
-        d.setMonth(d.getMonth() + 1);
-      }
-
-      for (const p of payouts) {
-        const dt = new Date(p.created_at);
-        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-        if (monthMap.has(key)) monthMap.set(key, (monthMap.get(key) || 0) + Number(p.amount));
-      }
-
-      const dChart: MonthPoint[] = [];
-      for (const [key, val] of monthMap) {
-        const [y, m] = key.split("-");
-        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
-        dChart.push({ month: label, amount: val });
-      }
-      setDisbursementChart(dChart);
-
-      // Relief by plan name (PieChart)
-      const planNameMap = new Map<string, string>();
-      for (const p of plans) planNameMap.set(p.id, p.name);
-
-      const planAmountMap = new Map<string, number>();
-      for (const c of claims) {
-        const pName = planNameMap.get(c.plan_id) || "Unknown";
-        planAmountMap.set(pName, (planAmountMap.get(pName) || 0) + Number(c.amount));
-      }
-      const pChart: PlanSlice[] = [];
-      for (const [name, value] of planAmountMap) {
-        pChart.push({ name, value });
-      }
-      setPlanChart(pChart);
-
-      // Recent 5 claims
-      const recent: ClaimRow[] = claims.slice(0, 5).map((c) => ({
-        planName: planNameMap.get(c.plan_id) || "—",
-        amount: formatAmount(c.amount, "XAF"),
-        status: c.status,
-        date: new Date(c.created_at).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" }),
-      }));
-      setRecentClaims(recent);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
+    if (plans.length === 0 && claims.length === 0 && payouts.length === 0) {
+      return {
+        isEmpty: true, activePlans: 0, totalDisbursed: 0, beneficiaries: 0,
+        avgClaim: 0, disbursementChart: [] as MonthPoint[], planChart: [] as PlanSlice[],
+        recentClaims: [] as ClaimRow[],
+      };
     }
-  }, [timeRange, dateLocale]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+    const activeCount = plans.filter((p) => p.is_active).length;
+    const disbursed = payouts.reduce((s, p) => s + Number(p.amount), 0);
+    const uniqueBeneficiaries = new Set(claims.map((c) => c.membership_id as string));
+    const avg = claims.length > 0 ? claims.reduce((s, c) => s + Number(c.amount), 0) / claims.length : 0;
+
+    // Monthly disbursement chart
+    const cutoffDate = getCutoffDate(timeRange);
+    const now = new Date();
+    const monthMap = new Map<string, number>();
+    const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
+    while (d <= now) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthMap.set(key, 0);
+      d.setMonth(d.getMonth() + 1);
+    }
+
+    for (const p of payouts) {
+      const dt = new Date(p.created_at as string);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (monthMap.has(key)) monthMap.set(key, (monthMap.get(key) || 0) + Number(p.amount));
+    }
+
+    const dChart: MonthPoint[] = [];
+    for (const [key, val] of monthMap) {
+      const [y, m] = key.split("-");
+      const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
+      dChart.push({ month: label, amount: val });
+    }
+
+    // Relief by plan name
+    const planNameMap = new Map<string, string>();
+    for (const p of plans) planNameMap.set(p.id as string, p.name as string);
+
+    const planAmountMap = new Map<string, number>();
+    for (const c of claims) {
+      const pName = planNameMap.get(c.plan_id as string) || "Unknown";
+      planAmountMap.set(pName, (planAmountMap.get(pName) || 0) + Number(c.amount));
+    }
+    const pChart: PlanSlice[] = [];
+    for (const [name, value] of planAmountMap) {
+      pChart.push({ name, value });
+    }
+
+    // Recent 5 claims
+    const recent: ClaimRow[] = claims.slice(0, 5).map((c) => ({
+      planName: planNameMap.get(c.plan_id as string) || "\u2014",
+      amount: formatAmount(Number(c.amount), "XAF"),
+      status: c.status as string,
+      date: new Date(c.created_at as string).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" }),
+    }));
+
+    return {
+      isEmpty: false, activePlans: activeCount, totalDisbursed: disbursed,
+      beneficiaries: uniqueBeneficiaries.size, avgClaim: avg,
+      disbursementChart: dChart, planChart: pChart, recentClaims: recent,
+    };
+  }, [results, timeRange, dateLocale]);
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <AlertCircle className="h-16 w-16 mb-4 text-red-500" />
-        <p>{t("noDataYet")}</p>
+        <p>{error}</p>
       </div>
     );
   }

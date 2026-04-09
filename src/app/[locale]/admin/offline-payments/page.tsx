@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
@@ -9,35 +9,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { WifiOff, Search, Info, AlertCircle, Banknote, Smartphone } from "lucide-react";
 
 export default function OfflinePaymentsPage() {
   const locale = useLocale();
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [payments, setPayments] = useState<Array<Record<string, unknown>>>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
-        // Filter for offline methods: cash, mobile_money, bank_transfer (NOT online)
-        const { data, error: err } = await supabase
-          .from("payments")
-          .select("id, amount, currency, payment_method, reference_number, recorded_at, notes, groups!inner(name), memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name)), contribution_types(name), recorder:profiles!payments_recorded_by_fkey(full_name)")
-          .in("payment_method", ["cash", "mobile_money", "bank_transfer"])
-          .order("recorded_at", { ascending: false })
-          .limit(200);
-        if (err) throw err;
-        setPayments(data || []);
-      } catch (err) { setError((err as Error).message); }
-      finally { setLoading(false); }
-    }
-    fetchData();
-  }, []);
+  const { results, loading, error } = useAdminQuery([
+    {
+      key: "payments",
+      table: "payments",
+      select: "id, amount, currency, payment_method, reference_number, recorded_at, notes, groups!inner(name), memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name)), contribution_types(name), recorder:profiles!payments_recorded_by_fkey(full_name)",
+      filters: [{ column: "payment_method", op: "in", value: ["cash", "mobile_money", "bank_transfer"] }],
+      order: { column: "recorded_at", ascending: false },
+      limit: 200,
+    },
+  ]);
+
+  const payments = (results.payments?.data ?? []) as Array<Record<string, unknown>>;
 
   const filtered = useMemo(() => {
     if (!search) return payments;
@@ -103,11 +94,11 @@ export default function OfflinePaymentsPage() {
                 return (
                   <tr key={p.id as string} className="border-b last:border-0">
                     <td className="px-3 py-2 font-mono text-xs">{(p.id as string).slice(0, 8)}...</td>
-                    <td className="px-3 py-2">{m ? getMemberName(m as Record<string, unknown>) : "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{(g?.name as string) || "—"}</td>
+                    <td className="px-3 py-2">{m ? getMemberName(m as Record<string, unknown>) : "\u2014"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{(g?.name as string) || "\u2014"}</td>
                     <td className="px-3 py-2 text-right font-medium">{formatAmount(Number(p.amount), (p.currency as string) || "XAF")}</td>
                     <td className="px-3 py-2 text-center"><Badge className={`text-[10px] ${methodBadge[(p.payment_method as string)] || ""}`}>{(p.payment_method as string).replace("_", " ")}</Badge></td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">{(recorder?.full_name as string) || "—"}</td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{(recorder?.full_name as string) || "\u2014"}</td>
                     <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(p.recorded_at as string).toLocaleDateString(getDateLocale(locale), { month: "short", day: "numeric" })}</td>
                   </tr>
                 );

@@ -49,6 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 
 type StaffRole = "super_admin" | "admin" | "support" | "sales" | "finance";
 
@@ -114,9 +115,6 @@ export default function StaffPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<string>("");
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Feedback state
@@ -147,53 +145,45 @@ export default function StaffPage() {
   // Current user ID for self-action prevention
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   const showSuccessBanner = useCallback((msg: string) => {
     setShowSuccess(true);
     setSuccessMessage(msg);
     setTimeout(() => setShowSuccess(false), 3000);
   }, []);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const { results, loading, refetch } = useAdminQuery([
+    {
+      key: "staff",
+      table: "platform_staff",
+      select: "id, user_id, role, is_active, created_at, profiles(id, full_name, avatar_url)",
+      filters: [{ column: "is_active", op: "eq", value: true }],
+    },
+    {
+      key: "logs",
+      table: "platform_audit_logs",
+      select: "id, action, target_type, target_id, details, created_at, platform_staff(profiles(full_name))",
+      order: { column: "created_at", ascending: false },
+      limit: 20,
+    },
+  ]);
 
-    const [staffResult, logsResult, userResult] = await Promise.all([
-      supabase
-        .from("platform_staff")
-        .select("id, user_id, role, is_active, created_at, profiles(id, full_name, avatar_url)")
-        .eq("is_active", true),
-      supabase
-        .from("platform_audit_logs")
-        .select("id, action, target_type, target_id, details, created_at, platform_staff(profiles(full_name))")
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase.auth.getUser(),
-    ]);
+  const staff = (results.staff?.data ?? []) as unknown as StaffMember[];
+  const activityLogs = (results.logs?.data ?? []) as unknown as ActivityLog[];
 
-    if (staffResult.data) {
-      setStaff(staffResult.data as unknown as StaffMember[]);
-    }
-    if (logsResult.data) {
-      setActivityLogs(logsResult.data as unknown as ActivityLog[]);
-    }
-    if (userResult.data?.user) {
-      setCurrentUserId(userResult.data.user.id);
-    }
-
-    setLoading(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Fetch current user ID once
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const supabase = createClient();
+    supabase.auth.getUser().then((res) => {
+      if (res.data?.user) setCurrentUserId(res.data.user.id);
+    });
+  }, []);
 
   // --- Add Staff Handler ---
   const handleAddStaff = async () => {
     if (!newEmail || !newRole) return;
     setSubmitting(true);
     setShowError(null);
+    const supabase = createClient();
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -221,7 +211,7 @@ export default function StaffPage() {
       setNewEmail("");
       setNewRole("");
       showSuccessBanner(t("addStaff"));
-      fetchData();
+      refetch();
     }
 
     setSubmitting(false);
@@ -232,6 +222,7 @@ export default function StaffPage() {
     if (!roleStaffId || !changeRoleValue) return;
     setRoleSubmitting(true);
     setShowError(null);
+    const supabase = createClient();
 
     const { error } = await supabase
       .from("platform_staff")
@@ -245,7 +236,7 @@ export default function StaffPage() {
       setRoleStaffId(null);
       setChangeRoleValue("");
       showSuccessBanner(t("roleChanged"));
-      fetchData();
+      refetch();
     }
 
     setRoleSubmitting(false);
@@ -256,6 +247,7 @@ export default function StaffPage() {
     if (!suspendStaffId) return;
     setSuspendSubmitting(true);
     setShowError(null);
+    const supabase = createClient();
 
     const newActive = suspendAction === "activate";
 
@@ -270,7 +262,7 @@ export default function StaffPage() {
       setShowSuspendDialog(false);
       setSuspendStaffId(null);
       showSuccessBanner(suspendAction === "suspend" ? t("staffSuspended") : t("staffActivated"));
-      fetchData();
+      refetch();
     }
 
     setSuspendSubmitting(false);
@@ -281,6 +273,7 @@ export default function StaffPage() {
     if (!removeStaffId) return;
     setRemoveSubmitting(true);
     setShowError(null);
+    const supabase = createClient();
 
     const { error } = await supabase
       .from("platform_staff")
@@ -293,7 +286,7 @@ export default function StaffPage() {
       setShowRemoveDialog(false);
       setRemoveStaffId(null);
       showSuccessBanner(t("staffRemoved"));
-      fetchData();
+      refetch();
     }
 
     setRemoveSubmitting(false);

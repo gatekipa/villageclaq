@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import {
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { formatAmount } from "@/lib/currencies";
 
 interface MrrTrendItem {
@@ -46,197 +46,160 @@ export default function RevenuePage() {
   const t = useTranslations("admin");
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
-  const [loading, setLoading] = useState(true);
-  const [mrr, setMrr] = useState(0);
-  const [churnRate, setChurnRate] = useState(0);
-  const [ltv, setLtv] = useState(0);
-  const [failureRate, setFailureRate] = useState(0);
-  const [mrrTrendData, setMrrTrendData] = useState<MrrTrendItem[]>([]);
-  const [revenueByPlan, setRevenueByPlan] = useState<
-    { plan: string; amount: number; percent: number }[]
-  >([]);
-  const [topGroups, setTopGroups] = useState<TopGroup[]>([]);
-  const [upcomingRenewals, setUpcomingRenewals] = useState<UpcomingRenewal[]>([]);
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchRevenueData = useCallback(async () => {
-    const supabase = createClient();
-    setLoading(true);
+  const nowIso = useMemo(() => new Date().toISOString(), []);
 
-    try {
-      // Fetch all payments (payments table has no status column — all recorded payments are valid)
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("amount, created_at, group_id");
+  const { results, loading, error: fetchError } = useAdminQuery([
+    { key: "payments", table: "payments", select: "amount, created_at, group_id" },
+    { key: "groups", table: "groups", select: "id, name, subscription_plan" },
+    {
+      key: "renewalGroups",
+      table: "groups",
+      select: "name, subscription_plan, subscription_renewal_date",
+      filters: [{ column: "subscription_renewal_date", op: "gt", value: nowIso }],
+      order: { column: "subscription_renewal_date", ascending: true },
+      limit: 5,
+    },
+  ]);
 
-      const allPayments = payments || [];
-      const successfulPayments = allPayments; // All recorded payments are valid
-      const failedPayments: typeof allPayments = []; // No failed-payment tracking yet
+  const {
+    mrr, churnRate, ltv, failureRate, mrrTrendData, revenueByPlan, topGroups, upcomingRenewals,
+  } = useMemo(() => {
+    const allPayments = (results.payments?.data ?? []) as Array<Record<string, unknown>>;
+    const groups = (results.groups?.data ?? []) as Array<Record<string, unknown>>;
+    const renewalGroupsData = (results.renewalGroups?.data ?? []) as Array<Record<string, unknown>>;
 
-      // Total revenue
-      const totalRevenue = successfulPayments.reduce(
-        (sum, p) => sum + (Number(p.amount) || 0),
-        0
-      );
+    const successfulPayments = allPayments;
 
-      // MRR: sum of payments in the current month
-      const now = new Date();
-      const currentMonthPayments = successfulPayments.filter((p) => {
-        const d = new Date(p.created_at);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      });
-      const currentMrr = currentMonthPayments.reduce(
-        (sum, p) => sum + (Number(p.amount) || 0),
-        0
-      );
-      setMrr(currentMrr);
+    // Total revenue
+    const totalRevenue = successfulPayments.reduce(
+      (sum, p) => sum + (Number(p.amount) || 0),
+      0
+    );
 
-      // Payment failure rate
-      const totalCount = allPayments.length;
-      const failedCount = failedPayments.length;
-      setFailureRate(totalCount > 0 ? Math.round((failedCount / totalCount) * 1000) / 10 : 0);
+    // MRR: sum of payments in the current month
+    const now = new Date();
+    const currentMonthPayments = successfulPayments.filter((p) => {
+      const d = new Date(p.created_at as string);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const currentMrr = currentMonthPayments.reduce(
+      (sum, p) => sum + (Number(p.amount) || 0),
+      0
+    );
 
-      // MRR Trend: group successful payments by month (last 6 months)
-      const monthMap = new Map<string, number>();
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        const label = d.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
-        monthMap.set(key, 0);
-        // store label mapping
-        monthMap.set(`label_${key}`, 0);
+    // Payment failure rate (no failed-payment tracking yet)
+    const currentFailureRate = 0;
+
+    // MRR Trend: group successful payments by month (last 6 months)
+    const monthMap = new Map<string, number>();
+    const monthLabels = new Map<string, string>();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
+      monthMap.set(key, 0);
+      monthLabels.set(key, label);
+    }
+
+    successfulPayments.forEach((p) => {
+      const d = new Date(p.created_at as string);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (monthMap.has(key)) {
+        monthMap.set(key, (monthMap.get(key) || 0) + (Number(p.amount) || 0));
       }
+    });
 
-      const monthLabels = new Map<string, string>();
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        const label = d.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
-        monthMap.set(key, 0);
-        monthLabels.set(key, label);
+    const trendData: MrrTrendItem[] = [];
+    monthLabels.forEach((label, key) => {
+      trendData.push({ month: label, value: monthMap.get(key) || 0 });
+    });
+
+    // Churn rate
+    const groupsLastMonth = new Set<string>();
+    const groupsThisMonth = new Set<string>();
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    successfulPayments.forEach((p) => {
+      const d = new Date(p.created_at as string);
+      if (d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear()) {
+        groupsLastMonth.add(p.group_id as string);
       }
+      if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+        groupsThisMonth.add(p.group_id as string);
+      }
+    });
+    let churned = 0;
+    groupsLastMonth.forEach((gid) => {
+      if (!groupsThisMonth.has(gid)) churned++;
+    });
+    const churn = groupsLastMonth.size > 0
+      ? Math.round((churned / groupsLastMonth.size) * 1000) / 10
+      : 0;
 
-      successfulPayments.forEach((p) => {
-        const d = new Date(p.created_at);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        if (monthMap.has(key)) {
-          monthMap.set(key, (monthMap.get(key) || 0) + (Number(p.amount) || 0));
-        }
+    // LTV
+    const uniqueGroups = new Set(successfulPayments.map((p) => p.group_id as string));
+    const currentLtv = uniqueGroups.size > 0 ? Math.round(totalRevenue / uniqueGroups.size) : 0;
+
+    // Build group map
+    const groupMap = new Map<string, { name: string; plan: string }>();
+    groups.forEach((g) => {
+      groupMap.set(g.id as string, {
+        name: (g.name as string) || "Unknown",
+        plan: (g.subscription_plan as string) || "Free",
       });
+    });
 
-      const trendData: MrrTrendItem[] = [];
-      monthLabels.forEach((label, key) => {
-        trendData.push({ month: label, value: monthMap.get(key) || 0 });
-      });
-      setMrrTrendData(trendData);
+    // Revenue by plan
+    const planTotals = new Map<string, number>();
+    successfulPayments.forEach((p) => {
+      const info = groupMap.get(p.group_id as string);
+      const plan = info?.plan || "Free";
+      planTotals.set(plan, (planTotals.get(plan) || 0) + (Number(p.amount) || 0));
+    });
+    const planTotal = Array.from(planTotals.values()).reduce((sum, amt) => sum + amt, 0);
+    const planData = ["Free", "Starter", "Pro", "Enterprise"].map((plan) => {
+      const amount = planTotals.get(plan) || 0;
+      return {
+        plan: `plan${plan}`,
+        amount,
+        percent: planTotal > 0 ? Math.round((amount / planTotal) * 100) : 0,
+      };
+    });
 
-      // Churn rate: simple estimate — groups that paid 2+ months ago but not this month
-      const groupsLastMonth = new Set<string>();
-      const groupsThisMonth = new Set<string>();
-      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      successfulPayments.forEach((p) => {
-        const d = new Date(p.created_at);
-        if (d.getMonth() === lastMonthDate.getMonth() && d.getFullYear() === lastMonthDate.getFullYear()) {
-          groupsLastMonth.add(p.group_id);
-        }
-        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
-          groupsThisMonth.add(p.group_id);
-        }
-      });
-      let churned = 0;
-      groupsLastMonth.forEach((gid) => {
-        if (!groupsThisMonth.has(gid)) churned++;
-      });
-      const churn = groupsLastMonth.size > 0
-        ? Math.round((churned / groupsLastMonth.size) * 1000) / 10
-        : 0;
-      setChurnRate(churn);
-
-      // LTV: totalRevenue / unique groups that ever paid
-      const uniqueGroups = new Set(successfulPayments.map((p) => p.group_id));
-      setLtv(uniqueGroups.size > 0 ? Math.round(totalRevenue / uniqueGroups.size) : 0);
-
-      // Fetch groups for top-paying and plan info
-      const { data: groups } = await supabase
-        .from("groups")
-        .select("id, name, subscription_plan");
-
-      const groupMap = new Map<string, { name: string; plan: string }>();
-      (groups || []).forEach((g) => {
-        groupMap.set(g.id, {
-          name: g.name || "Unknown",
-          plan: g.subscription_plan || "Free",
-        });
-      });
-
-      // Revenue by plan
-      const planTotals = new Map<string, number>();
-      successfulPayments.forEach((p) => {
-        const info = groupMap.get(p.group_id);
-        const plan = info?.plan || "Free";
-        planTotals.set(plan, (planTotals.get(plan) || 0) + (Number(p.amount) || 0));
-      });
-      const planEntries = Array.from(planTotals.entries()).sort((a, b) => b[1] - a[1]);
-      const planTotal = planEntries.reduce((sum, [, amt]) => sum + amt, 0);
-      const planData = ["Free", "Starter", "Pro", "Enterprise"].map((plan) => {
-        const amount = planTotals.get(plan) || 0;
+    // Top 10 groups
+    const groupTotals = new Map<string, number>();
+    successfulPayments.forEach((p) => {
+      const gid = p.group_id as string;
+      groupTotals.set(gid, (groupTotals.get(gid) || 0) + (Number(p.amount) || 0));
+    });
+    const topGroupsList = Array.from(groupTotals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([gid, amount]) => {
+        const info = groupMap.get(gid);
         return {
-          plan: `plan${plan}`,
-          amount,
-          percent: planTotal > 0 ? Math.round((amount / planTotal) * 100) : 0,
+          name: info?.name || "Unknown Group",
+          plan: info?.plan || "Free",
+          amount: Math.round(amount),
         };
       });
-      setRevenueByPlan(planData);
 
-      // Top 10 groups by total payment
-      const groupTotals = new Map<string, number>();
-      successfulPayments.forEach((p) => {
-        groupTotals.set(
-          p.group_id,
-          (groupTotals.get(p.group_id) || 0) + (Number(p.amount) || 0)
-        );
-      });
-      const topGroupsList = Array.from(groupTotals.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([gid, amount]) => {
-          const info = groupMap.get(gid);
-          return {
-            name: info?.name || "Unknown Group",
-            plan: info?.plan || "Free",
-            amount: Math.round(amount),
-          };
-        });
-      setTopGroups(topGroupsList);
+    // Upcoming renewals
+    const renewals: UpcomingRenewal[] = renewalGroupsData.map((g) => ({
+      group: (g.name as string) || "Unknown",
+      plan: (g.subscription_plan as string) || "Free",
+      date: g.subscription_renewal_date
+        ? new Date(g.subscription_renewal_date as string).toISOString().split("T")[0]
+        : "",
+      amount: 0,
+    }));
 
-      // Upcoming renewals: groups with subscription_renewal_date in the future
-      const { data: renewalGroups } = await supabase
-        .from("groups")
-        .select("name, subscription_plan, subscription_renewal_date")
-        .gt("subscription_renewal_date", now.toISOString())
-        .order("subscription_renewal_date", { ascending: true })
-        .limit(5);
-
-      const renewals: UpcomingRenewal[] = (renewalGroups || []).map((g) => ({
-        group: g.name || "Unknown",
-        plan: g.subscription_plan || "Free",
-        date: g.subscription_renewal_date
-          ? new Date(g.subscription_renewal_date).toISOString().split("T")[0]
-          : "",
-        amount: 0,
-      }));
-      setUpcomingRenewals(renewals);
-    } catch (err) {
-      console.error("Error fetching revenue data:", err);
-      setFetchError(t("fetchError"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRevenueData();
-  }, [fetchRevenueData]);
+    return {
+      mrr: currentMrr, churnRate: churn, ltv: currentLtv, failureRate: currentFailureRate,
+      mrrTrendData: trendData, revenueByPlan: planData, topGroups: topGroupsList,
+      upcomingRenewals: renewals,
+    };
+  }, [results, dateLocale]);
 
   const maxMrr = Math.max(...mrrTrendData.map((d) => d.value), 1);
 

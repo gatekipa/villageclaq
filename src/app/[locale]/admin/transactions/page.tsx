@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { DollarSign, CreditCard, Search, AlertCircle } from "lucide-react";
 
 interface PaymentRecord {
@@ -28,46 +28,39 @@ interface PaymentRecord {
 export default function TransactionsMonitorPage() {
   const locale = useLocale();
   const t = useTranslations("admin");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const supabase = createClient();
-        const { data, error: err } = await supabase
-          .from("payments")
-          .select("id, amount, currency, payment_method, reference_number, recorded_at, groups!inner(name), memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name)), contribution_types(name), recorder:profiles!payments_recorded_by_fkey(full_name)")
-          .order("recorded_at", { ascending: false })
-          .limit(200);
-        if (err) throw err;
+  const { results, loading, error } = useAdminQuery([
+    {
+      key: "payments",
+      table: "payments",
+      select: "id, amount, currency, payment_method, reference_number, recorded_at, groups!inner(name), memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name)), contribution_types(name), recorder:profiles!payments_recorded_by_fkey(full_name)",
+      order: { column: "recorded_at", ascending: false },
+      limit: 200,
+    },
+  ]);
 
-        setPayments((data || []).map((p: Record<string, unknown>) => {
-          const group = p.groups as Record<string, unknown>;
-          const membership = p.memberships as Record<string, unknown>;
-          const mProfile = (Array.isArray(membership?.profiles) ? membership.profiles[0] : membership?.profiles) as Record<string, unknown> | null;
-          const ct = p.contribution_types as Record<string, unknown> | null;
-          const recorder = (Array.isArray(p.recorder) ? p.recorder[0] : p.recorder) as Record<string, unknown> | null;
-          return {
-            id: p.id as string,
-            amount: Number(p.amount),
-            currency: (p.currency as string) || "XAF",
-            payment_method: (p.payment_method as string) || "cash",
-            reference_number: p.reference_number as string | null,
-            recorded_at: p.recorded_at as string,
-            group_name: (group?.name as string) || "—",
-            member_name: membership ? getMemberName(membership as Record<string, unknown>) : "—",
-            type_name: (ct?.name as string) || "—",
-            recorder_name: (recorder?.full_name as string) || "—",
-          };
-        }));
-      } catch (err) { setError((err as Error).message); }
-      finally { setLoading(false); }
-    }
-    fetchData();
-  }, []);
+  const payments = useMemo<PaymentRecord[]>(() => {
+    const data = (results.payments?.data ?? []) as Record<string, unknown>[];
+    return data.map((p) => {
+      const group = p.groups as Record<string, unknown>;
+      const membership = p.memberships as Record<string, unknown>;
+      const ct = p.contribution_types as Record<string, unknown> | null;
+      const recorder = (Array.isArray(p.recorder) ? p.recorder[0] : p.recorder) as Record<string, unknown> | null;
+      return {
+        id: p.id as string,
+        amount: Number(p.amount),
+        currency: (p.currency as string) || "XAF",
+        payment_method: (p.payment_method as string) || "cash",
+        reference_number: p.reference_number as string | null,
+        recorded_at: p.recorded_at as string,
+        group_name: (group?.name as string) || "—",
+        member_name: membership ? getMemberName(membership as Record<string, unknown>) : "—",
+        type_name: (ct?.name as string) || "—",
+        recorder_name: (recorder?.full_name as string) || "—",
+      };
+    });
+  }, [results]);
 
   const filtered = useMemo(() => {
     if (!search) return payments;

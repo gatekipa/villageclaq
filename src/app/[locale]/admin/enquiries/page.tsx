@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   Mail,
@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { createClient } from "@/lib/supabase/client";
 
 type EnquiryStatus = "new" | "in_progress" | "resolved";
@@ -53,34 +54,21 @@ export default function EnquiriesPage() {
   const t = useTranslations("admin");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [replyTexts, setReplyTexts] = useState<Record<string, string>>({});
   const [statusChanges, setStatusChanges] = useState<Record<string, EnquiryStatus>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const fetchEnquiries = useCallback(async () => {
-    const supabase = createClient();
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("contact_enquiries")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setEnquiries(data || []);
-    } catch (err) {
-      console.error("Error fetching enquiries:", err);
-      setActionError(t("fetchError"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { results, loading, refetch } = useAdminQuery([
+    {
+      key: "enquiries",
+      table: "contact_enquiries",
+      select: "*",
+      order: { column: "created_at", ascending: false },
+    },
+  ]);
 
-  useEffect(() => {
-    fetchEnquiries();
-  }, [fetchEnquiries]);
+  const enquiries = (results.enquiries?.data ?? []) as Enquiry[];
 
   const handleUpdateEnquiry = async (id: string) => {
     const supabase = createClient();
@@ -101,18 +89,6 @@ export default function EnquiriesPage() {
         .eq("id", id);
       if (error) throw error;
 
-      // Update local state
-      setEnquiries((prev) =>
-        prev.map((e) =>
-          e.id === id
-            ? {
-                ...e,
-                ...(updates.reply ? { reply: updates.reply as string } : {}),
-                ...(updates.status ? { status: updates.status as EnquiryStatus } : {}),
-              }
-            : e
-        )
-      );
       setReplyTexts((prev) => {
         const next = { ...prev };
         delete next[id];
@@ -123,6 +99,7 @@ export default function EnquiriesPage() {
         delete next[id];
         return next;
       });
+      refetch();
     } catch (err) {
       console.error("Error updating enquiry:", err);
       setActionError(t("saveError"));

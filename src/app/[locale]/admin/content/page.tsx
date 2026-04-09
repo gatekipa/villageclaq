@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import {
   MessageSquareQuote,
@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { createClient } from "@/lib/supabase/client";
 
 interface Testimonial {
@@ -68,9 +69,6 @@ export default function ContentPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [testimonialDialogOpen, setTestimonialDialogOpen] = useState(false);
   const [faqDialogOpen, setFaqDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [faqs, setFaqs] = useState<Faq[]>([]);
   const [saving, setSaving] = useState(false);
 
   // Testimonial form state
@@ -88,27 +86,13 @@ export default function ContentPage() {
   const [fCategory, setFCategory] = useState("General");
   const [fSortOrder, setFSortOrder] = useState(1);
 
-  const fetchData = useCallback(async () => {
-    const supabase = createClient();
-    setLoading(true);
-    try {
-      const [testimonialsRes, faqsRes] = await Promise.all([
-        supabase.from("testimonials").select("*").order("sort_order"),
-        supabase.from("faqs").select("*").order("sort_order"),
-      ]);
-      setTestimonials(testimonialsRes.data || []);
-      setFaqs(faqsRes.data || []);
-    } catch (err) {
-      console.error("Error fetching content:", err);
-      setActionError(t("fetchError"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { results, loading, refetch } = useAdminQuery([
+    { key: "testimonials", table: "testimonials", select: "*", order: { column: "sort_order" } },
+    { key: "faqs", table: "faqs", select: "*", order: { column: "sort_order" } },
+  ]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const testimonials = (results.testimonials?.data ?? []) as Testimonial[];
+  const faqs = (results.faqs?.data ?? []) as Faq[];
 
   const handleAddTestimonial = async () => {
     if (!tName.trim() || !tQuote.trim()) return;
@@ -133,7 +117,7 @@ export default function ContentPage() {
       setTGroup("");
       setTQuote("");
       setTFeatured(false);
-      await fetchData();
+      refetch();
     } catch (err) {
       console.error("Error adding testimonial:", err);
       setActionError(t("saveError"));
@@ -150,9 +134,7 @@ export default function ContentPage() {
         .update({ featured: !current })
         .eq("id", id);
       if (error) throw error;
-      setTestimonials((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, featured: !current } : t))
-      );
+      refetch();
     } catch (err) {
       console.error("Error toggling featured:", err);
       setActionError(t("saveError"));
@@ -180,7 +162,7 @@ export default function ContentPage() {
       setFAnswerFr("");
       setFCategory("General");
       setFSortOrder(1);
-      await fetchData();
+      refetch();
     } catch (err) {
       console.error("Error adding FAQ:", err);
       setActionError(t("saveError"));

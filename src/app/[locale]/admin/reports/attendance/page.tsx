@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -62,129 +62,122 @@ export default function AttendanceReportsPage() {
   const dateLocale = getDateLocale(locale);
 
   const [timeRange, setTimeRange] = useState<TimeRange>("6m");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  const [totalEvents, setTotalEvents] = useState(0);
-  const [totalAttendees, setTotalAttendees] = useState(0);
-  const [avgRate, setAvgRate] = useState(0);
-  const [monthlyChart, setMonthlyChart] = useState<MonthPoint[]>([]);
-  const [dayChart, setDayChart] = useState<DayPoint[]>([]);
-  const [recentEvents, setRecentEvents] = useState<EventRow[]>([]);
+  const cutoff = useMemo(() => getCutoffDate(timeRange).toISOString(), [timeRange]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const supabase = createClient();
-      const cutoff = getCutoffDate(timeRange).toISOString();
+  const { results, loading, error } = useAdminQuery([
+    {
+      key: "events",
+      table: "events",
+      select: "id, title, starts_at",
+      filters: [{ column: "starts_at", op: "gte", value: cutoff }],
+      order: { column: "starts_at", ascending: false },
+    },
+    {
+      key: "attendances",
+      table: "event_attendances",
+      select: "event_id, status, created_at",
+    },
+  ]);
 
-      const [eventsRes, attendancesRes] = await Promise.all([
-        supabase.from("events").select("id, title, starts_at").gte("starts_at", cutoff).order("starts_at", { ascending: false }),
-        supabase.from("event_attendances").select("event_id, status, created_at"),
-      ]);
+  const { totalEvents, totalAttendees, avgRate, monthlyChart, dayChart, recentEvents } = useMemo(() => {
+    const events = (results.events?.data ?? []) as Array<Record<string, unknown>>;
+    const attendances = (results.attendances?.data ?? []) as Array<Record<string, unknown>>;
 
-      const events = eventsRes.data || [];
-      const attendances = attendancesRes.data || [];
-
-      // Build attendance map by event_id
-      const attByEvent = new Map<string, { present: number; total: number }>();
-      for (const a of attendances) {
-        if (!attByEvent.has(a.event_id)) attByEvent.set(a.event_id, { present: 0, total: 0 });
-        const bucket = attByEvent.get(a.event_id)!;
-        bucket.total += 1;
-        if (a.status === "present" || a.status === "late") bucket.present += 1;
-      }
-
-      // Filter to events in range
-      const cutoffDate = getCutoffDate(timeRange);
-      const eventsInRange = events.filter((e) => new Date(e.starts_at) >= cutoffDate);
-
-      setTotalEvents(eventsInRange.length);
-
-      let totalPresent = 0;
-      let totalAll = 0;
-      for (const e of eventsInRange) {
-        const data = attByEvent.get(e.id);
-        if (data) {
-          totalPresent += data.present;
-          totalAll += data.total;
-        }
-      }
-      setTotalAttendees(totalPresent);
-      setAvgRate(totalAll > 0 ? Math.round((totalPresent / totalAll) * 100) : 0);
-
-      // Monthly attendance rate
-      const now = new Date();
-      const monthMap = new Map<string, { present: number; total: number }>();
-      const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
-      while (d <= now) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        monthMap.set(key, { present: 0, total: 0 });
-        d.setMonth(d.getMonth() + 1);
-      }
-
-      for (const e of eventsInRange) {
-        const dt = new Date(e.starts_at);
-        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-        const bucket = monthMap.get(key);
-        const att = attByEvent.get(e.id);
-        if (bucket && att) {
-          bucket.present += att.present;
-          bucket.total += att.total;
-        }
-      }
-
-      const mChart: MonthPoint[] = [];
-      for (const [key, val] of monthMap) {
-        const [y, m] = key.split("-");
-        const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
-        mChart.push({ month: label, rate: val.total > 0 ? Math.round((val.present / val.total) * 100) : 0 });
-      }
-      setMonthlyChart(mChart);
-
-      // Attendance by day of week (0=Sun, 1=Mon, ..., 6=Sat)
-      const dayBuckets = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
-      for (const e of eventsInRange) {
-        const dt = new Date(e.starts_at);
-        const jsDay = dt.getDay(); // 0=Sun
-        const idx = jsDay === 0 ? 6 : jsDay - 1; // convert to Mon=0, Sun=6
-        const att = attByEvent.get(e.id);
-        if (att) dayBuckets[idx] += att.present;
-      }
-
-      const dChart: DayPoint[] = DAY_NAMES.map((key, i) => ({
-        day: t(key),
-        count: dayBuckets[i],
-      }));
-      setDayChart(dChart);
-
-      // Recent 5 events
-      const recent: EventRow[] = eventsInRange.slice(0, 5).map((e) => {
-        const att = attByEvent.get(e.id) || { present: 0, total: 0 };
-        return {
-          title: e.title,
-          date: new Date(e.starts_at).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" }),
-          attended: att.present,
-          total: att.total,
-          rate: att.total > 0 ? `${Math.round((att.present / att.total) * 100)}%` : "0%",
-        };
-      });
-      setRecentEvents(recent);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
+    // Build attendance map by event_id
+    const attByEvent = new Map<string, { present: number; total: number }>();
+    for (const a of attendances) {
+      const eid = a.event_id as string;
+      if (!attByEvent.has(eid)) attByEvent.set(eid, { present: 0, total: 0 });
+      const bucket = attByEvent.get(eid)!;
+      bucket.total += 1;
+      if (a.status === "present" || a.status === "late") bucket.present += 1;
     }
-  }, [timeRange, dateLocale, t]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+    // Filter to events in range
+    const cutoffDate = getCutoffDate(timeRange);
+    const eventsInRange = events.filter((e) => new Date(e.starts_at as string) >= cutoffDate);
+
+    let totalPresent = 0;
+    let totalAll = 0;
+    for (const e of eventsInRange) {
+      const data = attByEvent.get(e.id as string);
+      if (data) {
+        totalPresent += data.present;
+        totalAll += data.total;
+      }
+    }
+
+    // Monthly attendance rate
+    const now = new Date();
+    const monthMap = new Map<string, { present: number; total: number }>();
+    const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
+    while (d <= now) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthMap.set(key, { present: 0, total: 0 });
+      d.setMonth(d.getMonth() + 1);
+    }
+
+    for (const e of eventsInRange) {
+      const dt = new Date(e.starts_at as string);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      const bucket = monthMap.get(key);
+      const att = attByEvent.get(e.id as string);
+      if (bucket && att) {
+        bucket.present += att.present;
+        bucket.total += att.total;
+      }
+    }
+
+    const mChart: MonthPoint[] = [];
+    for (const [key, val] of monthMap) {
+      const [y, m] = key.split("-");
+      const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
+      mChart.push({ month: label, rate: val.total > 0 ? Math.round((val.present / val.total) * 100) : 0 });
+    }
+
+    // Attendance by day of week
+    const dayBuckets = [0, 0, 0, 0, 0, 0, 0];
+    for (const e of eventsInRange) {
+      const dt = new Date(e.starts_at as string);
+      const jsDay = dt.getDay();
+      const idx = jsDay === 0 ? 6 : jsDay - 1;
+      const att = attByEvent.get(e.id as string);
+      if (att) dayBuckets[idx] += att.present;
+    }
+
+    const dChart: DayPoint[] = DAY_NAMES.map((key, i) => ({
+      day: t(key),
+      count: dayBuckets[i],
+    }));
+
+    // Recent 5 events
+    const recent: EventRow[] = eventsInRange.slice(0, 5).map((e) => {
+      const att = attByEvent.get(e.id as string) || { present: 0, total: 0 };
+      return {
+        title: e.title as string,
+        date: new Date(e.starts_at as string).toLocaleDateString(dateLocale, { day: "numeric", month: "short", year: "numeric" }),
+        attended: att.present,
+        total: att.total,
+        rate: att.total > 0 ? `${Math.round((att.present / att.total) * 100)}%` : "0%",
+      };
+    });
+
+    return {
+      totalEvents: eventsInRange.length,
+      totalAttendees: totalPresent,
+      avgRate: totalAll > 0 ? Math.round((totalPresent / totalAll) * 100) : 0,
+      monthlyChart: mChart,
+      dayChart: dChart,
+      recentEvents: recent,
+    };
+  }, [results, timeRange, dateLocale, t]);
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <AlertCircle className="h-16 w-16 mb-4 text-red-500" />
-        <p>{t("noDataYet")}</p>
+        <p>{error}</p>
       </div>
     );
   }

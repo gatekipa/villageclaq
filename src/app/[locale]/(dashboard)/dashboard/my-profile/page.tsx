@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -41,6 +42,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  CalendarDays,
 } from "lucide-react";
 import { useRouter } from "@/i18n/routing";
 
@@ -48,6 +50,7 @@ export default function MyProfilePage() {
   const t = useTranslations("myProfile");
   const tCommon = useTranslations("common");
   const tMembers = useTranslations("members");
+  const locale = useLocale();
   const router = useRouter();
   const {
     user,
@@ -56,6 +59,7 @@ export default function MyProfilePage() {
     loading: groupLoading,
     refresh,
   } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   // Leave Group state
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -132,7 +136,10 @@ export default function MyProfilePage() {
     populateForm();
   }, [user]);
 
-  // Load email + auth provider from auth
+  // Account creation date
+  const [accountCreatedAt, setAccountCreatedAt] = useState<string | null>(null);
+
+  // Load email + auth provider + created_at from auth
   useEffect(() => {
     async function loadEmail() {
       const supabase = createClient();
@@ -144,6 +151,9 @@ export default function MyProfilePage() {
       }
       if (authUser?.app_metadata?.provider) {
         setAuthProvider(authUser.app_metadata.provider);
+      }
+      if (authUser?.created_at) {
+        setAccountCreatedAt(authUser.created_at);
       }
     }
     loadEmail();
@@ -500,6 +510,16 @@ export default function MyProfilePage() {
               />
             </div>
           </div>
+
+          {/* Account creation date */}
+          {accountCreatedAt && (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-3">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {t("accountCreated", { date: formatDateWithGroupFormat(accountCreatedAt, groupDateFormat, locale) })}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-2">
             {saved && (

@@ -95,6 +95,9 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   // Guard against concurrent fetches that cause flickering during auth transitions
   const fetchInProgress = useRef(false);
+  // Keep a ref to the current user so the auth listener can check it without stale closures
+  const userRef = useRef<UserProfile | null>(null);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const fetchData = useCallback(async () => {
     // Prevent overlapping fetches (e.g., TOKEN_REFRESHED firing while initial load runs)
@@ -216,8 +219,10 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       } else if (event === "SIGNED_IN") {
         // Fetch if: (a) initial load hasn't completed, or (b) we don't have a user
         // yet (email confirmation redirect: initial fetch found no user because the
-        // auth code hadn't been exchanged yet, now SIGNED_IN fires with a valid session)
-        if (!initialLoadDone) {
+        // auth code hadn't been exchanged yet, now SIGNED_IN fires with a valid session).
+        // Also refetch if initial load completed but found no user — this happens when
+        // the email confirmation callback redirects before the session cookie propagates.
+        if (!initialLoadDone || !userRef.current) {
           fetchData();
         }
       }

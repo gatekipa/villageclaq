@@ -876,7 +876,7 @@ export default function RecordPaymentPage() {
               <select
                 value={selectedTypeId}
                 onChange={(e) => setSelectedTypeId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">{t("contributions.selectType")}</option>
                 {types.map((type: Record<string, unknown>) => (
@@ -885,6 +885,11 @@ export default function RecordPaymentPage() {
                   </option>
                 ))}
               </select>
+              {!typesLoading && types.length === 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {t("contributions.noTypesAvailable")}
+                </p>
+              )}
             </div>
 
             {/* Relief Plan (optional — links payment to a relief fund) */}
@@ -894,7 +899,7 @@ export default function RecordPaymentPage() {
                 <select
                   value={selectedReliefPlanId}
                   onChange={(e) => setSelectedReliefPlanId(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">{t("common.none")}</option>
                   {reliefPlansForPayment.map((plan: Record<string, unknown>) => (
@@ -931,7 +936,7 @@ export default function RecordPaymentPage() {
                 <select
                   value={method}
                   onChange={(e) => setMethod(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {enabledMethods.map((m) => (
                     <option key={m.value} value={m.value}>
@@ -1109,7 +1114,7 @@ export default function RecordPaymentPage() {
                 <select
                   value={bulkTypeId}
                   onChange={(e) => setBulkTypeId(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:bg-input/30"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <option value="">{t("contributions.selectType")}</option>
                   {types.map((type: Record<string, unknown>) => (
@@ -1145,7 +1150,7 @@ export default function RecordPaymentPage() {
                   <select
                     value={bulkMethod}
                     onChange={(e) => setBulkMethod(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:bg-input/30"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
                     {enabledMethods.map((m) => (
                       <option key={m.value} value={m.value}>

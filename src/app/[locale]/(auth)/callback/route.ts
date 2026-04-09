@@ -21,6 +21,11 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Verify session is established before redirecting — prevents empty dashboard
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

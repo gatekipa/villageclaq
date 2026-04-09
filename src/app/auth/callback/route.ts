@@ -27,6 +27,14 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Verify the session is actually established before redirecting.
+      // Without this, the redirect may land on the dashboard before the
+      // session cookie propagates, causing an empty/zero-data dashboard.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // Session not ready — brief wait for cookie propagation
+        await new Promise((r) => setTimeout(r, 500));
+      }
       // After successful auth, check if user has pending invitations.
       // This handles the case where ?redirectTo was lost during email
       // confirmation flow — we detect invitations server-side and redirect

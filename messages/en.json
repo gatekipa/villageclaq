@@ -1081,6 +1081,7 @@
     "searchMember": "Search member by name...",
     "contributionType": "Contribution Type",
     "selectType": "Select contribution type",
+    "noTypesAvailable": "No contribution types configured. Ask an admin to create contribution types in Settings.",
     "paymentMethod": "Payment Method",
     "cash": "Cash",
     "mobileMoney": "Mobile Money",
@@ -2557,7 +2558,8 @@
     "passwordTooShort": "Password must be at least 8 characters",
     "passwordUpdated": "Password updated successfully",
     "passwordError": "Failed to update password",
-    "googleAuth": "You signed in with Google. Password is managed by your Google account."
+    "googleAuth": "You signed in with Google. Password is managed by your Google account.",
+    "accountCreated": "Account created on {date}"
   },
   "notifications": {
     "title": "Notifications",

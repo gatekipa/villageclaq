@@ -498,9 +498,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     <DashboardGuard>
       <div className="flex h-screen overflow-hidden">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
             <ScrollToTopOnNav />
             {showPhoneBanner && (
               <PhoneBanner

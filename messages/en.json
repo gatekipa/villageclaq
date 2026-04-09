@@ -3659,6 +3659,8 @@
     "noGroupName": "Unnamed Group",
     "loginTrackingNote": "Login tracking requires audit log configuration",
     "highValuePayments": "{count} payments exceed 5x the average amount",
+    "pendingPaymentsLabel": "pending payments",
+    "activeVouchersLabel": "{count} active vouchers",
     "previous": "Previous",
     "next": "Next",
     "actions": "Actions",

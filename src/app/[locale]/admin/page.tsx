@@ -26,6 +26,7 @@ import {
   Plug,
   AlertTriangle,
   BarChart3,
+  Ticket,
 } from "lucide-react";
 import {
   AreaChart,
@@ -70,6 +71,23 @@ interface RecentPaymentRow {
   } | null;
 }
 
+interface PlatformStats {
+  active_groups: number;
+  total_groups: number;
+  total_users: number;
+  payments_30d: number;
+  revenue_30d: number;
+  payments_prev_30d: number;
+  revenue_prev_30d: number;
+  active_subscriptions: number;
+  pending_payments: number;
+  events_30d: number;
+  prev_users: number;
+  prev_groups: number;
+  vouchers_active: number;
+  vouchers_redeemed: number;
+}
+
 const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6"];
 
 export default function AdminDashboardPage() {
@@ -78,54 +96,37 @@ export default function AdminDashboardPage() {
   const dateLocale = getDateLocale(locale);
 
   const [loading, setLoading] = useState(true);
-  const [groups, setGroups] = useState<GroupRow[]>([]);
-  const [profileCount, setProfileCount] = useState(0);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
   const [payments30d, setPayments30d] = useState<PaymentRow[]>([]);
-  const [paymentsPrev30d, setPaymentsPrev30d] = useState<{ amount: number }[]>(
-    []
-  );
   const [payments6mo, setPayments6mo] = useState<
     { amount: number; recorded_at: string }[]
   >([]);
   const [recentGroups, setRecentGroups] = useState<GroupRow[]>([]);
   const [recentPayments, setRecentPayments] = useState<RecentPaymentRow[]>([]);
-  const [eventCount30d, setEventCount30d] = useState(0);
-  const [prevProfileCount, setPrevProfileCount] = useState(0);
-  const [prevGroupCount, setPrevGroupCount] = useState(0);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
 
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient();
       const now = new Date();
       const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const d60 = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
       const d6mo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
+      // Fetch platform stats via SECURITY DEFINER RPC (bypasses RLS)
+      // AND fetch chart/list data via direct queries (works with new RLS policies)
       const [
-        groupsRes,
-        profilesRes,
+        statsRes,
         payments30dRes,
-        paymentsPrev30dRes,
         payments6moRes,
         recentGroupsRes,
         recentPaymentsRes,
-        eventsRes,
-        prevProfilesRes,
-        prevGroupsRes,
+        groupsRes,
       ] = await Promise.all([
-        supabase.from("groups").select("id, name, created_at, is_active"),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true }),
+        supabase.rpc("get_platform_stats"),
         supabase
           .from("payments")
           .select("id, amount, recorded_at, payment_method, currency")
           .gte("recorded_at", d30.toISOString()),
-        supabase
-          .from("payments")
-          .select("amount")
-          .gte("recorded_at", d60.toISOString())
-          .lt("recorded_at", d30.toISOString()),
         supabase
           .from("payments")
           .select("amount, recorded_at")
@@ -134,62 +135,43 @@ export default function AdminDashboardPage() {
           .from("groups")
           .select("id, name, created_at, is_active")
           .order("created_at", { ascending: false })
-          .limit(3),
+          .limit(5),
         supabase
           .from("payments")
           .select(
             "id, amount, currency, recorded_at, group_id, memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name))"
           )
           .order("recorded_at", { ascending: false })
-          .limit(4),
-        supabase
-          .from("events")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", d30.toISOString()),
-        supabase
-          .from("profiles")
-          .select("id", { count: "exact", head: true })
-          .lt("created_at", d30.toISOString()),
-        supabase
-          .from("groups")
-          .select("id", { count: "exact", head: true })
-          .lt("created_at", d30.toISOString()),
+          .limit(10),
+        supabase.from("groups").select("id, name, created_at, is_active"),
       ]);
 
-      setGroups((groupsRes.data as GroupRow[]) ?? []);
-      setProfileCount(profilesRes.count ?? 0);
+      // Use RPC stats for summary cards (guaranteed platform-wide)
+      if (statsRes.data && !statsRes.data.error) {
+        setStats(statsRes.data as unknown as PlatformStats);
+      }
+
+      // Chart/list data — will be platform-wide thanks to new RLS policies
       setPayments30d((payments30dRes.data as PaymentRow[]) ?? []);
-      setPaymentsPrev30d(paymentsPrev30dRes.data ?? []);
       setPayments6mo(payments6moRes.data ?? []);
       setRecentGroups((recentGroupsRes.data as GroupRow[]) ?? []);
       setRecentPayments(
         (recentPaymentsRes.data as unknown as RecentPaymentRow[]) ?? []
       );
-      setEventCount30d(eventsRes.count ?? 0);
-      setPrevProfileCount(prevProfilesRes.count ?? 0);
-      setPrevGroupCount(prevGroupsRes.count ?? 0);
+      setGroups((groupsRes.data as GroupRow[]) ?? []);
       setLoading(false);
     }
 
     fetchData();
   }, []);
 
-  // Derived stats
-  const activeGroupCount = useMemo(
-    () => groups.filter((g) => g.is_active).length,
-    [groups]
-  );
-
-  const revenue30d = useMemo(
-    () => payments30d.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
-    [payments30d]
-  );
-
-  const revenuePrev30d = useMemo(
-    () =>
-      paymentsPrev30d.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
-    [paymentsPrev30d]
-  );
+  // Use RPC stats for summary values (accurate platform-wide counts)
+  const activeGroupCount = stats?.active_groups ?? 0;
+  const profileCount = stats?.total_users ?? 0;
+  const payments30dCount = stats?.payments_30d ?? 0;
+  const revenue30d = stats?.revenue_30d ?? 0;
+  const pendingCount = stats?.pending_payments ?? 0;
+  const activeSubscriptions = stats?.active_subscriptions ?? 0;
 
   const primaryCurrency = useMemo(() => {
     if (payments30d.length === 0) return "USD";
@@ -207,14 +189,14 @@ export default function AdminDashboardPage() {
 
   const groupTrend = computeTrend(
     activeGroupCount,
-    prevGroupCount
+    stats?.prev_groups ?? 0
   );
-  const userTrend = computeTrend(profileCount, prevProfileCount);
+  const userTrend = computeTrend(profileCount, stats?.prev_users ?? 0);
   const paymentCountTrend = computeTrend(
-    payments30d.length,
-    paymentsPrev30d.length
+    payments30dCount,
+    stats?.payments_prev_30d ?? 0
   );
-  const revenueTrend = computeTrend(revenue30d, revenuePrev30d);
+  const revenueTrend = computeTrend(revenue30d, stats?.revenue_prev_30d ?? 0);
 
   // Chart data: Revenue trend (6 months)
   const revenueChartData = useMemo(() => {
@@ -273,13 +255,10 @@ export default function AdminDashboardPage() {
   // Top groups by payment
   const topGroupsData = useMemo(() => {
     const groupTotals: Record<string, { name: string; total: number }> = {};
-    // Build group name lookup
     const groupNames: Record<string, string> = {};
     for (const g of groups) {
       groupNames[g.id] = g.name;
     }
-    // Sum payments by group from recent payments (we use 6mo data for broader picture)
-    // Actually we need group_id on payments — recentPayments has group_id
     for (const p of recentPayments) {
       const gid = p.group_id;
       if (!groupTotals[gid]) {
@@ -292,7 +271,7 @@ export default function AdminDashboardPage() {
     }
     return Object.values(groupTotals)
       .sort((a, b) => b.total - a.total)
-      .slice(0, 3);
+      .slice(0, 5);
   }, [recentPayments, groups, t]);
 
   // Relative time
@@ -452,7 +431,7 @@ export default function AdminDashboardPage() {
               ) : (
                 <>
                   <p className="mt-1 text-2xl font-bold">
-                    {payments30d.length}
+                    {payments30dCount}
                   </p>
                   <TrendBadge value={paymentCountTrend} />
                 </>
@@ -487,21 +466,31 @@ export default function AdminDashboardPage() {
           </Card>
         </Link>
 
-        {/* Pending Txns */}
-        <Card className="h-full">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                {t("pendingTxns")}
-              </p>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                <Clock className="h-4 w-4 text-slate-500" />
+        {/* Pending Payments */}
+        <Link href="/admin/transactions" className="block">
+          <Card className="cursor-pointer transition-all hover:shadow-md h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {t("pendingTxns")}
+                </p>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                  <Clock className="h-4 w-4 text-slate-500" />
+                </div>
               </div>
-            </div>
-            <p className="mt-1 text-2xl font-bold">{"\u2014"}</p>
-            <span className="text-xs text-muted-foreground">{"\u2014"}</span>
-          </CardContent>
-        </Card>
+              {loading ? (
+                <Skeleton className="mt-2 h-8 w-16" />
+              ) : (
+                <>
+                  <p className="mt-1 text-2xl font-bold">{pendingCount}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {t("pendingPaymentsLabel")}
+                  </span>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* Active Subscriptions */}
         <Link href="/admin/plans" className="block">
@@ -511,12 +500,20 @@ export default function AdminDashboardPage() {
                 <p className="text-xs text-muted-foreground">
                   {t("activeSubscriptions")}
                 </p>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                  <Shield className="h-4 w-4 text-slate-500" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+                  <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
-              <p className="mt-1 text-2xl font-bold">{"\u2014"}</p>
-              <span className="text-xs text-muted-foreground">{"\u2014"}</span>
+              {loading ? (
+                <Skeleton className="mt-2 h-8 w-16" />
+              ) : (
+                <>
+                  <p className="mt-1 text-2xl font-bold">{activeSubscriptions}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {t("activeVouchersLabel", { count: stats?.vouchers_active ?? 0 })}
+                  </span>
+                </>
+              )}
             </CardContent>
           </Card>
         </Link>
@@ -654,7 +651,7 @@ export default function AdminDashboardPage() {
           <CardContent>
             {loading ? (
               <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
+                {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <Skeleton className="h-9 w-9 rounded-lg" />
                     <div className="flex-1 space-y-1">

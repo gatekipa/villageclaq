@@ -3659,6 +3659,8 @@
     "noGroupName": "Groupe sans nom",
     "loginTrackingNote": "Le suivi des connexions nécessite la configuration du journal d'audit",
     "highValuePayments": "{count} paiements dépassent 5x le montant moyen",
+    "pendingPaymentsLabel": "paiements en attente",
+    "activeVouchersLabel": "{count} bons actifs",
     "previous": "Précédent",
     "next": "Suivant",
     "actions": "Actions",

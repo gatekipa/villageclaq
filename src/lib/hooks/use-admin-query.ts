@@ -60,7 +60,7 @@ export function useAdminQuery(queries: QuerySpec[]): UseAdminQueryReturn {
         const res = await fetch("/api/admin/query", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: queriesKey,
+          body: JSON.stringify({ queries: JSON.parse(queriesKey) }),
         });
 
         if (!res.ok) {

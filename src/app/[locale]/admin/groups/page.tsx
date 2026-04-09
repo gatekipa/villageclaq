@@ -43,7 +43,7 @@ export default function AdminGroupsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<GroupStatus | "all">("all");
 
-  const { results, loading } = useAdminQuery([
+  const { results, loading, error: queryError } = useAdminQuery([
     {
       key: "groups",
       table: "groups",
@@ -140,6 +140,13 @@ export default function AdminGroupsPage() {
           ))}
         </div>
       </div>
+
+      {/* Error state */}
+      {queryError && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <p className="text-sm font-medium text-destructive">{queryError}</p>
+        </div>
+      )}
 
       {/* Group Cards */}
       {loading ? (

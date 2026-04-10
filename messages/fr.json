@@ -3671,7 +3671,13 @@
     "loadingSettings": "Chargement des paramètres...",
     "free": "Gratuit",
     "integrationsSaved": "Paramètres d'intégration de paiement enregistrés avec succès.",
-    "maskedPreview": "Enregistré comme"
+    "maskedPreview": "Enregistré comme",
+    "uniqueGroups": "Groupes uniques",
+    "actionTypes": "Types d'action",
+    "allGroups": "Tous les groupes",
+    "groupLabel": "Groupe",
+    "noGroupActions": "Aucune action de groupe trouvée",
+    "noGroupActionsDesc": "Aucune activité d'administrateur de groupe ne correspond à vos filtres actuels."
   },
   "communications": {
     "notifications": "Notifications",

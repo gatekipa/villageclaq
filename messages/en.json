@@ -3671,7 +3671,13 @@
     "loadingSettings": "Loading settings...",
     "free": "Free",
     "integrationsSaved": "Payment integration settings saved successfully.",
-    "maskedPreview": "Stored as"
+    "maskedPreview": "Stored as",
+    "uniqueGroups": "Unique Groups",
+    "actionTypes": "Action Types",
+    "allGroups": "All Groups",
+    "groupLabel": "Group",
+    "noGroupActions": "No Group Actions Found",
+    "noGroupActionsDesc": "No group admin activities match your current filters."
   },
   "communications": {
     "notifications": "Notifications",

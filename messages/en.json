@@ -3669,7 +3669,9 @@
     "svDurationCustom": "Custom",
     "svCustomDaysPlaceholder": "Number of days (1-3650)",
     "loadingSettings": "Loading settings...",
-    "free": "Free"
+    "free": "Free",
+    "integrationsSaved": "Payment integration settings saved successfully.",
+    "maskedPreview": "Stored as"
   },
   "communications": {
     "notifications": "Notifications",

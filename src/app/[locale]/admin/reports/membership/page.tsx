@@ -99,11 +99,30 @@ export default function MembershipReportsPage() {
       filters: [{ column: "created_at", op: "gte", value: cutoff }],
     },
     { key: "allGroups", table: "groups", select: "group_type" },
+    {
+      key: "churnedMembers",
+      table: "memberships",
+      select: "id, standing, updated_at",
+      filters: [
+        { column: "standing", op: "in", value: ["suspended", "banned"] },
+      ],
+    },
   ]);
 
   const totalUsers = results.allProfiles?.count ?? 0;
   const newThisMonth = results.monthProfiles?.count ?? 0;
   const prevMonthCount = results.prevMonthProfiles?.count ?? 0;
+
+  const churnedCount = useMemo(() => {
+    const churnedRows = (results.churnedMembers?.data ?? []) as Array<{
+      id: string;
+      standing: string;
+      updated_at: string;
+    }>;
+    const cutoffDate = getCutoffDate(timeRange);
+    return churnedRows.filter((m) => new Date(m.updated_at) >= cutoffDate).length;
+  }, [results, timeRange]);
+
   const netGrowth = newThisMonth - prevMonthCount;
 
   const { userChart, groupChart, typeChart } = useMemo(() => {
@@ -235,7 +254,7 @@ export default function MembershipReportsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t("churned")}</p>
-                    <p className="text-2xl font-bold">&mdash;</p>
+                    <p className="text-2xl font-bold">{churnedCount}</p>
                   </div>
                 </div>
               </CardContent>

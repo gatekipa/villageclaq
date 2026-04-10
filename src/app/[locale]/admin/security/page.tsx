@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { createClient } from "@/lib/supabase/client";
 import { Database, Download, Info, Loader2, Check, Shield, HardDrive, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -19,8 +18,7 @@ import {
 
 type ExportType = "members" | "attendance" | "contributions" | "relief";
 
-function downloadCsv(filename: string, csvContent: string) {
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -36,6 +34,7 @@ export default function AdminSecurityPage() {
 
   const [exportingType, setExportingType] = useState<ExportType | null>(null);
   const [exportedType, setExportedType] = useState<ExportType | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Backup settings (UI only)
   const [autoBackup, setAutoBackup] = useState(true);
@@ -45,85 +44,39 @@ export default function AdminSecurityPage() {
   const handleExport = async (type: ExportType) => {
     setExportingType(type);
     setExportedType(null);
-
-    const supabase = createClient();
-    let csvContent = "";
+    setExportError(null);
 
     try {
-      if (type === "members") {
-        const { data } = await supabase
-          .from("profiles")
-          .select("full_name, phone")
-          .order("full_name");
+      const res = await fetch("/api/admin/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
 
-        if (data && data.length > 0) {
-          csvContent = "Full Name,Phone\n";
-          csvContent += data
-            .map((row) => `"${row.full_name ?? ""}","${row.phone ?? ""}"`)
-            .join("\n");
-        }
-      } else if (type === "attendance") {
-        const { data } = await supabase
-          .from("event_attendances")
-          .select("status, events(title)")
-          .order("created_at", { ascending: false })
-          .limit(5000);
-
-        if (data && data.length > 0) {
-          csvContent = "Event Title,Status\n";
-          csvContent += data
-            .map((row) => {
-              const eventTitle = (row.events as unknown as { title: string })?.title ?? "";
-              return `"${eventTitle}","${row.status ?? ""}"`;
-            })
-            .join("\n");
-        }
-      } else if (type === "contributions") {
-        const { data } = await supabase
-          .from("payments")
-          .select("amount, payment_method, recorded_at")
-          .order("recorded_at", { ascending: false })
-          .limit(5000);
-
-        if (data && data.length > 0) {
-          csvContent = "Amount,Payment Method,Recorded At\n";
-          csvContent += data
-            .map(
-              (row) =>
-                `"${row.amount ?? ""}","${row.payment_method ?? ""}","${row.recorded_at ?? ""}"`
-            )
-            .join("\n");
-        }
-      } else if (type === "relief") {
-        const { data } = await supabase
-          .from("relief_claims")
-          .select("amount, status")
-          .order("created_at", { ascending: false })
-          .limit(5000);
-
-        if (data && data.length > 0) {
-          csvContent = "Amount,Status\n";
-          csvContent += data
-            .map((row) => `"${row.amount ?? ""}","${row.status ?? ""}"`)
-            .join("\n");
-        }
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || errBody.message || `HTTP ${res.status}`);
       }
 
-      if (csvContent) {
-        downloadCsv(`${type}_export_${new Date().toISOString().split("T")[0]}.csv`, csvContent);
-        setExportedType(type);
-        setTimeout(() => setExportedType(null), 3000);
-      }
+      const blob = await res.blob();
+      const filename = `${type}_export_${new Date().toISOString().split("T")[0]}.csv`;
+      downloadBlob(filename, blob);
+
+      setExportedType(type);
+      setTimeout(() => setExportedType(null), 3000);
+    } catch (err) {
+      setExportError((err as Error).message);
+      setTimeout(() => setExportError(null), 5000);
     } finally {
       setExportingType(null);
     }
   };
 
-  const exportCards: { type: ExportType; titleKey: string; icon: string }[] = [
-    { type: "members", titleKey: "membersData", icon: "members" },
-    { type: "attendance", titleKey: "attendanceData", icon: "attendance" },
-    { type: "contributions", titleKey: "contributionsData", icon: "contributions" },
-    { type: "relief", titleKey: "reliefData", icon: "relief" },
+  const exportCards: { type: ExportType; titleKey: string }[] = [
+    { type: "members", titleKey: "membersData" },
+    { type: "attendance", titleKey: "attendanceData" },
+    { type: "contributions", titleKey: "contributionsData" },
+    { type: "relief", titleKey: "reliefData" },
   ];
 
   return (
@@ -136,6 +89,13 @@ export default function AdminSecurityPage() {
         </h1>
         <p className="text-muted-foreground mt-1">{t("securityDesc")}</p>
       </div>
+
+      {/* Export Error */}
+      {exportError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          {exportError}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-3">

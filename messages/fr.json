@@ -3669,7 +3669,9 @@
     "svDurationCustom": "Personnalisé",
     "svCustomDaysPlaceholder": "Nombre de jours (1-3650)",
     "loadingSettings": "Chargement des paramètres...",
-    "free": "Gratuit"
+    "free": "Gratuit",
+    "integrationsSaved": "Paramètres d'intégration de paiement enregistrés avec succès.",
+    "maskedPreview": "Enregistré comme"
   },
   "communications": {
     "notifications": "Notifications",

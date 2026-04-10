@@ -80,7 +80,7 @@ export default function AttendanceReportsPage() {
     },
   ]);
 
-  const { totalEvents, totalAttendees, avgRate, monthlyChart, dayChart, recentEvents } = useMemo(() => {
+  const { totalEvents, totalAttendees, avgRate, participationGrowth, monthlyChart, dayChart, recentEvents } = useMemo(() => {
     const events = (results.events?.data ?? []) as Array<Record<string, unknown>>;
     const attendances = (results.attendances?.data ?? []) as Array<Record<string, unknown>>;
 
@@ -163,10 +163,26 @@ export default function AttendanceReportsPage() {
       };
     });
 
+    // Calculate participation growth: compare first half vs second half of range
+    let pGrowth: number | null = null;
+    if (mChart.length >= 2) {
+      const midIdx = Math.floor(mChart.length / 2);
+      const firstHalf = mChart.slice(0, midIdx);
+      const secondHalf = mChart.slice(midIdx);
+      const firstAvg = firstHalf.reduce((s, p) => s + p.rate, 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((s, p) => s + p.rate, 0) / secondHalf.length;
+      if (firstAvg > 0) {
+        pGrowth = Math.round(((secondAvg - firstAvg) / firstAvg) * 100);
+      } else if (secondAvg > 0) {
+        pGrowth = 100;
+      }
+    }
+
     return {
       totalEvents: eventsInRange.length,
       totalAttendees: totalPresent,
       avgRate: totalAll > 0 ? Math.round((totalPresent / totalAll) * 100) : 0,
+      participationGrowth: pGrowth,
       monthlyChart: mChart,
       dayChart: dChart,
       recentEvents: recent,
@@ -261,7 +277,15 @@ export default function AttendanceReportsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t("participationGrowth")}</p>
-                    <p className="text-2xl font-bold">&mdash;</p>
+                    <p className="text-2xl font-bold">
+                      {participationGrowth !== null ? (
+                        <span className={participationGrowth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                          {participationGrowth > 0 ? "+" : ""}{participationGrowth}%
+                        </span>
+                      ) : (
+                        "\u2014"
+                      )}
+                    </p>
                   </div>
                 </div>
               </CardContent>

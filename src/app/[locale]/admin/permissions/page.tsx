@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
+import { useAdminMutate } from "@/lib/hooks/use-admin-mutate";
 import {
   Shield,
   ShieldCheck,
@@ -14,10 +16,11 @@ import {
   RotateCcw,
   Loader2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type StaffRole = "super_admin" | "admin" | "support" | "sales" | "finance";
 
@@ -32,6 +35,7 @@ interface PermissionSection {
 }
 
 const ROLES: StaffRole[] = ["super_admin", "admin", "support", "sales", "finance"];
+const EDITABLE_ROLES: StaffRole[] = ["admin", "support", "sales", "finance"];
 
 const roleColors: Record<StaffRole, string> = {
   super_admin: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -111,136 +115,130 @@ const SECTIONS: PermissionSection[] = [
   },
 ];
 
-const DEFAULT_PERMISSIONS: Record<string, boolean> = {
-  // Admin — most ON except edit_permissions and manage_staff
-  admin_view_dashboard: true,
-  admin_view_analytics: true,
-  admin_view_usage_stats: true,
-  admin_view_groups: true,
-  admin_manage_groups: true,
-  admin_view_users: true,
-  admin_manage_users: true,
-  admin_export_data: true,
-  admin_view_transactions: true,
-  admin_export_transactions: true,
-  admin_manage_subscriptions: true,
-  admin_manage_vouchers: true,
-  admin_flag_anomalies: true,
-  admin_view_reports: true,
-  admin_export_reports: true,
-  admin_edit_settings: true,
-  admin_manage_notifications: true,
-  admin_view_security: true,
-  admin_manage_testimonials: true,
-  admin_manage_faqs: true,
-  admin_manage_enquiries: true,
-  admin_manage_staff: false,
-  admin_edit_permissions: false,
-  admin_view_audit_log: true,
+// All permission keys from sections
+const ALL_PERM_KEYS = SECTIONS.flatMap((s) => s.permissions.map((p) => p.key));
 
-  // Support — View-only + Manage Enquiries
-  support_view_dashboard: true,
-  support_view_analytics: true,
-  support_view_usage_stats: true,
-  support_view_groups: true,
-  support_manage_groups: false,
-  support_view_users: true,
-  support_manage_users: false,
-  support_export_data: false,
-  support_view_transactions: true,
-  support_export_transactions: false,
-  support_manage_subscriptions: false,
-  support_manage_vouchers: false,
-  support_flag_anomalies: false,
-  support_view_reports: true,
-  support_export_reports: false,
-  support_edit_settings: false,
-  support_manage_notifications: false,
-  support_view_security: false,
-  support_manage_testimonials: false,
-  support_manage_faqs: false,
-  support_manage_enquiries: true,
-  support_manage_staff: false,
-  support_edit_permissions: false,
-  support_view_audit_log: false,
+/** Convert DB rows (permission_key → roles_allowed[]) into flat boolean map */
+function dbToFlatMap(
+  rows: Array<{ permission_key: string; roles_allowed: string[] }>
+): Record<string, boolean> {
+  const map: Record<string, boolean> = {};
+  for (const role of EDITABLE_ROLES) {
+    for (const pk of ALL_PERM_KEYS) {
+      map[`${role}_${pk}`] = false;
+    }
+  }
+  for (const row of rows) {
+    for (const role of EDITABLE_ROLES) {
+      map[`${role}_${row.permission_key}`] = row.roles_allowed.includes(role);
+    }
+  }
+  return map;
+}
 
-  // Sales — View + Manage Subscriptions + Manage Vouchers
-  sales_view_dashboard: true,
-  sales_view_analytics: true,
-  sales_view_usage_stats: true,
-  sales_view_groups: true,
-  sales_manage_groups: false,
-  sales_view_users: true,
-  sales_manage_users: false,
-  sales_export_data: false,
-  sales_view_transactions: true,
-  sales_export_transactions: false,
-  sales_manage_subscriptions: true,
-  sales_manage_vouchers: true,
-  sales_flag_anomalies: false,
-  sales_view_reports: true,
-  sales_export_reports: false,
-  sales_edit_settings: false,
-  sales_manage_notifications: false,
-  sales_view_security: false,
-  sales_manage_testimonials: false,
-  sales_manage_faqs: false,
-  sales_manage_enquiries: false,
-  sales_manage_staff: false,
-  sales_edit_permissions: false,
-  sales_view_audit_log: false,
-
-  // Finance — Financial Controls + View/Export Reports
-  finance_view_dashboard: true,
-  finance_view_analytics: true,
-  finance_view_usage_stats: true,
-  finance_view_groups: true,
-  finance_manage_groups: false,
-  finance_view_users: true,
-  finance_manage_users: false,
-  finance_export_data: true,
-  finance_view_transactions: true,
-  finance_export_transactions: true,
-  finance_manage_subscriptions: false,
-  finance_manage_vouchers: false,
-  finance_flag_anomalies: true,
-  finance_view_reports: true,
-  finance_export_reports: true,
-  finance_edit_settings: false,
-  finance_manage_notifications: false,
-  finance_view_security: false,
-  finance_manage_testimonials: false,
-  finance_manage_faqs: false,
-  finance_manage_enquiries: false,
-  finance_manage_staff: false,
-  finance_edit_permissions: false,
-  finance_view_audit_log: true,
-};
+/** Convert flat boolean map back to DB rows */
+function flatMapToDbRows(
+  map: Record<string, boolean>
+): Array<{ permission_key: string; roles_allowed: string[] }> {
+  const rows: Array<{ permission_key: string; roles_allowed: string[] }> = [];
+  for (const pk of ALL_PERM_KEYS) {
+    const allowed: string[] = [];
+    for (const role of EDITABLE_ROLES) {
+      if (map[`${role}_${pk}`]) allowed.push(role);
+    }
+    rows.push({ permission_key: pk, roles_allowed: allowed });
+  }
+  return rows;
+}
 
 export default function PermissionsPage() {
   const t = useTranslations("admin");
-  const [permissions, setPermissions] = useState<Record<string, boolean>>({ ...DEFAULT_PERMISSIONS });
+  const { mutate, loading: mutateLoading } = useAdminMutate();
+
+  const { results, loading: queryLoading, refetch } = useAdminQuery([
+    {
+      key: "permissions",
+      table: "platform_permissions",
+      select: "permission_key, roles_allowed, description",
+    },
+  ]);
+
+  const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState<string | null>(null);
+
+  // Load DB permissions into local state once
+  useEffect(() => {
+    if (!queryLoading && !initialized) {
+      const rows = (results.permissions?.data ?? []) as Array<{
+        permission_key: string;
+        roles_allowed: string[];
+      }>;
+      if (rows.length > 0) {
+        setPermissions(dbToFlatMap(rows));
+      }
+      setInitialized(true);
+    }
+  }, [queryLoading, results, initialized]);
 
   const togglePermission = useCallback((role: StaffRole, permKey: string) => {
     const key = `${role}_${permKey}`;
     setPermissions((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     setSaving(true);
-    // Simulate save — no DB table exists
-    setTimeout(() => {
+    setShowError(null);
+
+    try {
+      const dbRows = flatMapToDbRows(permissions);
+
+      // Upsert all permission rows atomically
+      const { error } = await mutate({
+        action: "update_permissions_matrix",
+        table: "platform_permissions",
+        type: "upsert",
+        data: dbRows as unknown as Record<string, unknown>,
+      });
+
+      if (error) {
+        setShowError(error);
+      } else {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+        refetch();
+      }
+    } finally {
       setSaving(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    }, 500);
-  }, []);
+    }
+  }, [permissions, mutate, refetch]);
 
   const handleReset = useCallback(() => {
-    setPermissions({ ...DEFAULT_PERMISSIONS });
-  }, []);
+    const rows = (results.permissions?.data ?? []) as Array<{
+      permission_key: string;
+      roles_allowed: string[];
+    }>;
+    if (rows.length > 0) {
+      setPermissions(dbToFlatMap(rows));
+    }
+  }, [results]);
+
+  const loading = queryLoading || !initialized;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -255,7 +253,7 @@ export default function PermissionsPage() {
             <RotateCcw className="h-4 w-4" />
             {t("resetToDefault")}
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
+          <Button onClick={handleSave} disabled={saving || mutateLoading} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {t("saveChanges")}
           </Button>
@@ -266,6 +264,13 @@ export default function PermissionsPage() {
       {showSuccess && (
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
           {t("permissionsSaved")}
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {showError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          {showError}
         </div>
       )}
 

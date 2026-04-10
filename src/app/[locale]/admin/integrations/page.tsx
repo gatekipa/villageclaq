@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { CreditCard, Info, Loader2 } from "lucide-react";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
+import { useAdminMutate } from "@/lib/hooks/use-admin-mutate";
+import { CreditCard, Info, Loader2, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProviderState {
   enabled: boolean;
@@ -17,6 +20,8 @@ interface ProviderState {
   testing: boolean;
 }
 
+type ProvidersMap = Record<string, ProviderState>;
+
 const PROVIDERS = [
   { key: "stripe", border: "border-l-purple-500", iconBg: "bg-purple-100 dark:bg-purple-900/30", iconText: "text-purple-700 dark:text-purple-300" },
   { key: "paypal", border: "border-l-blue-500", iconBg: "bg-blue-100 dark:bg-blue-900/30", iconText: "text-blue-700 dark:text-blue-300" },
@@ -24,15 +29,58 @@ const PROVIDERS = [
   { key: "paystack", border: "border-l-teal-500", iconBg: "bg-teal-100 dark:bg-teal-900/30", iconText: "text-teal-700 dark:text-teal-300" },
 ] as const;
 
+const DEFAULT_PROVIDERS: ProvidersMap = {
+  stripe: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
+  paypal: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
+  flutterwave: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
+  paystack: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
+};
+
+/** Mask an API key, showing only last 4 characters */
+function maskKey(key: string): string {
+  if (!key || key.length <= 4) return key;
+  return "••••••••" + key.slice(-4);
+}
+
 export default function AdminIntegrationsPage() {
   const t = useTranslations("admin");
+  const { mutate } = useAdminMutate();
 
-  const [providers, setProviders] = useState<Record<string, ProviderState>>({
-    stripe: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
-    paypal: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
-    flutterwave: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
-    paystack: { enabled: false, apiKey: "", webhookUrl: "", testing: false },
-  });
+  const { results, loading: queryLoading } = useAdminQuery([
+    {
+      key: "config",
+      table: "platform_config",
+      select: "key, value",
+      filters: [{ column: "key", op: "eq", value: "payment_integrations" }],
+    },
+  ]);
+
+  const [providers, setProviders] = useState<ProvidersMap>({ ...DEFAULT_PROVIDERS });
+  const [initialized, setInitialized] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Load from DB
+  useEffect(() => {
+    if (!queryLoading && !initialized) {
+      const configRows = (results.config?.data ?? []) as Array<{
+        key: string;
+        value: unknown;
+      }>;
+      const row = configRows.find((r) => r.key === "payment_integrations");
+      if (row && row.value && typeof row.value === "object") {
+        const dbProviders = row.value as ProvidersMap;
+        const merged = { ...DEFAULT_PROVIDERS };
+        for (const pk of Object.keys(merged)) {
+          if (dbProviders[pk]) {
+            merged[pk] = { ...merged[pk], ...dbProviders[pk], testing: false };
+          }
+        }
+        setProviders(merged);
+      }
+      setInitialized(true);
+    }
+  }, [queryLoading, results, initialized]);
 
   const updateProvider = (key: string, updates: Partial<ProviderState>) => {
     setProviders((prev) => ({
@@ -41,6 +89,30 @@ export default function AdminIntegrationsPage() {
     }));
   };
 
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      // Strip testing flag before saving
+      const toSave: Record<string, Omit<ProviderState, "testing">> = {};
+      for (const [k, v] of Object.entries(providers)) {
+        const { testing, ...rest } = v;
+        toSave[k] = rest;
+      }
+
+      await mutate({
+        action: "update_payment_integrations",
+        table: "platform_config",
+        type: "upsert",
+        data: { key: "payment_integrations", value: toSave } as unknown as Record<string, unknown>,
+      });
+
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } finally {
+      setSaving(false);
+    }
+  }, [providers, mutate]);
+
   const handleTest = async (key: string) => {
     updateProvider(key, { testing: true });
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -48,16 +120,45 @@ export default function AdminIntegrationsPage() {
     alert(t("connectionTest"));
   };
 
+  if (queryLoading || !initialized) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-64" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <CreditCard className="h-6 w-6" />
-          {t("integrationsTitle")}
-        </h1>
-        <p className="text-muted-foreground mt-1">{t("integrationsDesc")}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <CreditCard className="h-6 w-6" />
+            {t("integrationsTitle")}
+          </h1>
+          <p className="text-muted-foreground mt-1">{t("integrationsDesc")}</p>
+        </div>
+        <Button onClick={handleSave} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {t("saveChanges")}
+        </Button>
       </div>
+
+      {/* Success Banner */}
+      {showSuccess && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
+          {t("integrationsSaved")}
+        </div>
+      )}
 
       {/* Info Banner */}
       <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
@@ -111,6 +212,9 @@ export default function AdminIntegrationsPage() {
                     onChange={(e) => updateProvider(key, { apiKey: e.target.value })}
                     disabled={!provider.enabled}
                   />
+                  {provider.apiKey && (
+                    <p className="text-xs text-muted-foreground">{t("maskedPreview")}: {maskKey(provider.apiKey)}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>{t("webhookUrl")}</Label>
@@ -122,14 +226,6 @@ export default function AdminIntegrationsPage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!provider.enabled}
-                    onClick={() => alert(t("integrationPending"))}
-                  >
-                    {t("configureBtn")}
-                  </Button>
                   <Button
                     variant="outline"
                     size="sm"

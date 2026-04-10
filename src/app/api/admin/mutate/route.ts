@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       "platform_staff",
       "platform_audit_logs",
       "platform_config",
+      "platform_permissions",
       "subscription_plans",
       "subscription_vouchers",
       "contact_enquiries",

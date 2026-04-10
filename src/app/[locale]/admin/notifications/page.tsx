@@ -36,18 +36,38 @@ export default function AdminNotificationsPage() {
       order: { column: "created_at", ascending: false },
       limit: 100,
     },
+    {
+      key: "queue",
+      table: "notifications_queue",
+      select: "id, status, created_at",
+    },
   ]);
 
   const notifications = (results.notifications?.data ?? []) as unknown as NotificationRow[];
+  const queueRows = (results.queue?.data ?? []) as unknown as Array<{ id: string; status: string; created_at: string }>;
 
-  const { totalSent, deliveredCount, pendingCount } = useMemo(() => {
+  const { totalSent, deliveredCount, pendingCount, failedCount } = useMemo(() => {
+    // Use queue data if available for proper status breakdown
+    if (queueRows.length > 0) {
+      const sent = queueRows.filter((q) => q.status === "sent").length;
+      const failed = queueRows.filter((q) => q.status === "failed").length;
+      const queued = queueRows.filter((q) => q.status === "queued").length;
+      return {
+        totalSent: queueRows.length,
+        deliveredCount: sent,
+        pendingCount: queued,
+        failedCount: failed,
+      };
+    }
+    // Fallback to notifications table
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     return {
       totalSent: notifications.length,
       deliveredCount: notifications.filter((n) => n.is_read).length,
       pendingCount: notifications.filter((n) => !n.is_read && n.created_at > oneDayAgo).length,
+      failedCount: 0,
     };
-  }, [notifications]);
+  }, [notifications, queueRows]);
 
   const filteredNotifications = notifications.filter((n) => {
     if (!searchQuery) return true;
@@ -128,7 +148,7 @@ export default function AdminNotificationsPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">{t("failedDeliveries")}</p>
-            <p className="text-2xl font-bold mt-1 text-red-600 dark:text-red-400">0</p>
+            <p className="text-2xl font-bold mt-1 text-red-600 dark:text-red-400">{failedCount}</p>
           </CardContent>
         </Card>
         <Card>

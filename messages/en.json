@@ -3677,7 +3677,16 @@
     "allGroups": "All Groups",
     "groupLabel": "Group",
     "noGroupActions": "No Group Actions Found",
-    "noGroupActionsDesc": "No group admin activities match your current filters."
+    "noGroupActionsDesc": "No group admin activities match your current filters.",
+    "enrolledBeneficiaries": "Enrolled Beneficiaries",
+    "fundsByGroup": "Relief Funds by Group",
+    "contribution": "Contribution",
+    "enrolledLabel": "Enrolled",
+    "claimsLabel": "Claims",
+    "eventTypeLabel": "Event Type",
+    "noClaimsInRange": "No claims submitted in the selected time range.",
+    "noReliefDataDesc": "No relief plans have been created by any group yet.",
+    "queryErrors": "Some queries returned errors"
   },
   "communications": {
     "notifications": "Notifications",

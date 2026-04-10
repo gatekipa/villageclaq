@@ -3677,7 +3677,16 @@
     "allGroups": "Tous les groupes",
     "groupLabel": "Groupe",
     "noGroupActions": "Aucune action de groupe trouvée",
-    "noGroupActionsDesc": "Aucune activité d'administrateur de groupe ne correspond à vos filtres actuels."
+    "noGroupActionsDesc": "Aucune activité d'administrateur de groupe ne correspond à vos filtres actuels.",
+    "enrolledBeneficiaries": "Bénéficiaires inscrits",
+    "fundsByGroup": "Fonds de secours par groupe",
+    "contribution": "Cotisation",
+    "enrolledLabel": "Inscrits",
+    "claimsLabel": "Demandes",
+    "eventTypeLabel": "Type d'événement",
+    "noClaimsInRange": "Aucune demande soumise dans la période sélectionnée.",
+    "noReliefDataDesc": "Aucun plan de secours n'a encore été créé par un groupe.",
+    "queryErrors": "Certaines requêtes ont renvoyé des erreurs"
   },
   "communications": {
     "notifications": "Notifications",

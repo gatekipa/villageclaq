@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { Settings, Info, Save, Check } from "lucide-react";
+import { Settings, Info, Save, Check, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAdminQuery } from "@/lib/hooks/use-admin-query";
+import { useAdminMutate } from "@/lib/hooks/use-admin-mutate";
+
 export default function AdminSettingsPage() {
   const t = useTranslations("admin");
 
@@ -53,11 +56,86 @@ export default function AdminSettingsPage() {
 
   // Save feedback
   const [savedTab, setSavedTab] = useState<string | null>(null);
+  const [savingTab, setSavingTab] = useState<string | null>(null);
 
-  const handleSave = (tab: string) => {
+  // Load settings from platform_config
+  const { results, loading: configLoading } = useAdminQuery([
+    {
+      key: "config",
+      table: "platform_config",
+      select: "key, value",
+    },
+  ]);
+
+  const { mutate } = useAdminMutate();
+
+  // Hydrate state from DB on load
+  useEffect(() => {
+    const configs = (results.config?.data ?? []) as Array<{ key: string; value: Record<string, unknown> }>;
+    for (const cfg of configs) {
+      const v = cfg.value;
+      if (cfg.key === "general") {
+        if (v.platformName) setPlatformName(v.platformName as string);
+        if (v.supportEmail) setSupportEmail(v.supportEmail as string);
+        if (v.description !== undefined) setDescription(v.description as string);
+        if (v.defaultLanguage) setDefaultLanguage(v.defaultLanguage as string);
+        if (v.defaultTimezone) setDefaultTimezone(v.defaultTimezone as string);
+        if (v.defaultCurrency) setDefaultCurrency(v.defaultCurrency as string);
+        if (v.dateFormat) setDateFormat(v.dateFormat as string);
+        if (v.userRegistration !== undefined) setUserRegistration(v.userRegistration as boolean);
+        if (v.groupCreation !== undefined) setGroupCreation(v.groupCreation as boolean);
+        if (v.maintenanceMode !== undefined) setMaintenanceMode(v.maintenanceMode as boolean);
+      } else if (cfg.key === "branding") {
+        if (v.primaryColor) setPrimaryColor(v.primaryColor as string);
+        if (v.secondaryColor) setSecondaryColor(v.secondaryColor as string);
+        if (v.accentColor) setAccentColor(v.accentColor as string);
+      } else if (cfg.key === "notifications") {
+        if (v.emailNotifs !== undefined) setEmailNotifs(v.emailNotifs as boolean);
+        if (v.smsNotifs !== undefined) setSmsNotifs(v.smsNotifs as boolean);
+        if (v.whatsappNotifs !== undefined) setWhatsappNotifs(v.whatsappNotifs as boolean);
+        if (v.inAppNotifs !== undefined) setInAppNotifs(v.inAppNotifs as boolean);
+        if (v.adminAlerts !== undefined) setAdminAlerts(v.adminAlerts as boolean);
+      } else if (cfg.key === "security") {
+        if (v.sessionTimeout !== undefined) setSessionTimeout(v.sessionTimeout as number);
+        if (v.maxLoginAttempts !== undefined) setMaxLoginAttempts(v.maxLoginAttempts as number);
+        if (v.twoFactor !== undefined) setTwoFactor(v.twoFactor as boolean);
+        if (v.passwordComplexity !== undefined) setPasswordComplexity(v.passwordComplexity as boolean);
+        if (v.passwordExpiry !== undefined) setPasswordExpiry(v.passwordExpiry as number);
+      }
+    }
+  }, [results]);
+
+  const handleSave = useCallback(async (tab: string) => {
+    setSavingTab(tab);
+
+    let value: Record<string, unknown> = {};
+    if (tab === "general") {
+      value = { platformName, supportEmail, description, defaultLanguage, defaultTimezone, defaultCurrency, dateFormat, userRegistration, groupCreation, maintenanceMode };
+    } else if (tab === "branding") {
+      value = { primaryColor, secondaryColor, accentColor };
+    } else if (tab === "notifications") {
+      value = { emailNotifs, smsNotifs, whatsappNotifs, inAppNotifs, adminAlerts };
+    } else if (tab === "security") {
+      value = { sessionTimeout, maxLoginAttempts, twoFactor, passwordComplexity, passwordExpiry };
+    }
+
+    await mutate({
+      action: "updated_settings",
+      table: "platform_config",
+      type: "upsert",
+      data: { key: tab, value },
+    });
+
+    setSavingTab(null);
     setSavedTab(tab);
     setTimeout(() => setSavedTab(null), 3000);
-  };
+  }, [
+    mutate, platformName, supportEmail, description, defaultLanguage, defaultTimezone,
+    defaultCurrency, dateFormat, userRegistration, groupCreation, maintenanceMode,
+    primaryColor, secondaryColor, accentColor,
+    emailNotifs, smsNotifs, whatsappNotifs, inAppNotifs, adminAlerts,
+    sessionTimeout, maxLoginAttempts, twoFactor, passwordComplexity, passwordExpiry,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -70,11 +148,12 @@ export default function AdminSettingsPage() {
         <p className="text-muted-foreground mt-1">{t("globalSettingsDesc")}</p>
       </div>
 
-      {/* Info note */}
-      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
-        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-        <p className="text-sm text-blue-700 dark:text-blue-300">{t("settingsNote")}</p>
-      </div>
+      {configLoading && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {t("loadingSettings")}
+        </div>
+      )}
 
       <Tabs defaultValue="general">
         <TabsList className="w-full sm:w-auto">
@@ -223,8 +302,8 @@ export default function AdminSettingsPage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button onClick={() => handleSave("general")} className="gap-2">
-              <Save className="h-4 w-4" />
+            <Button onClick={() => handleSave("general")} disabled={savingTab === "general"} className="gap-2">
+              {savingTab === "general" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {t("saveChanges")}
             </Button>
           </div>
@@ -308,8 +387,8 @@ export default function AdminSettingsPage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button onClick={() => handleSave("branding")} className="gap-2">
-              <Save className="h-4 w-4" />
+            <Button onClick={() => handleSave("branding")} disabled={savingTab === "branding"} className="gap-2">
+              {savingTab === "branding" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {t("saveChanges")}
             </Button>
           </div>
@@ -365,8 +444,8 @@ export default function AdminSettingsPage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button onClick={() => handleSave("notifications")} className="gap-2">
-              <Save className="h-4 w-4" />
+            <Button onClick={() => handleSave("notifications")} disabled={savingTab === "notifications"} className="gap-2">
+              {savingTab === "notifications" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {t("saveChanges")}
             </Button>
           </div>
@@ -436,8 +515,8 @@ export default function AdminSettingsPage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button onClick={() => handleSave("security")} className="gap-2">
-              <Save className="h-4 w-4" />
+            <Button onClick={() => handleSave("security")} disabled={savingTab === "security"} className="gap-2">
+              {savingTab === "security" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {t("saveChanges")}
             </Button>
           </div>

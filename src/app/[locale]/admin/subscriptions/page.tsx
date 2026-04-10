@@ -50,9 +50,8 @@ import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 interface SubscriptionPlan {
   id: string;
   name: string;
-  slug: string;
-  price_monthly: number | null;
-  price_yearly: number | null;
+  slug: string | null;
+  price: number;
   billing_period: string;
   features: string[];
   member_limit: number | null;
@@ -96,9 +95,23 @@ export default function SubscriptionsPage() {
       select: "*",
       order: { column: "sort_order" },
     },
+    {
+      key: "subscriptions",
+      table: "group_subscriptions",
+      select: "tier, status",
+      filters: [{ column: "status", op: "eq", value: "active" }],
+    },
   ]);
 
   const plans = (results.plans?.data ?? []) as SubscriptionPlan[];
+
+  // Count active subscribers per tier
+  const subscriberCounts = (() => {
+    const subs = (results.subscriptions?.data ?? []) as Array<{ tier: string }>;
+    const counts: Record<string, number> = {};
+    for (const s of subs) counts[s.tier] = (counts[s.tier] || 0) + 1;
+    return counts;
+  })();
 
   const handleCreatePlan = async () => {
     if (!newName) return;
@@ -275,16 +288,16 @@ export default function SubscriptionsPage() {
                   </Button>
                 </div>
                 <CardDescription>
-                  {plan.price_monthly !== null ? (
-                    <span className="text-2xl font-bold text-foreground">
-                      ${plan.price_monthly}{" "}
-                      <span className="text-sm font-normal text-muted-foreground">
-                        / {t("perMonth")}
-                      </span>
+                  {plan.price === 0 ? (
+                    <span className="text-2xl font-bold text-emerald-600">
+                      {t("free") || "Free"}
                     </span>
                   ) : (
                     <span className="text-2xl font-bold text-foreground">
-                      {t("custom")}
+                      ${plan.price}{" "}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        / {t("perMonth")}
+                      </span>
                     </span>
                   )}
                 </CardDescription>
@@ -336,7 +349,7 @@ export default function SubscriptionsPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CreditCard className="h-4 w-4" />
                     <span className="font-semibold text-foreground">
-                      0
+                      {subscriberCounts[slug] ?? 0}
                     </span>{" "}
                     {t("activeSubscribers")}
                   </div>

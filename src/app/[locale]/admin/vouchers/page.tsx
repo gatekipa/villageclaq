@@ -114,6 +114,7 @@ export default function VouchersPage() {
   // Create voucher form state
   const [newTier, setNewTier] = useState<VoucherTier>("starter");
   const [newDuration, setNewDuration] = useState("30");
+  const [newCustomDuration, setNewCustomDuration] = useState("");
   const [newMaxUses, setNewMaxUses] = useState("1");
   const [newNotes, setNewNotes] = useState("");
   const [newExpiresAt, setNewExpiresAt] = useState("");
@@ -122,6 +123,7 @@ export default function VouchersPage() {
   const [bulkCount, setBulkCount] = useState("10");
   const [bulkTier, setBulkTier] = useState<VoucherTier>("starter");
   const [bulkDuration, setBulkDuration] = useState("30");
+  const [bulkCustomDuration, setBulkCustomDuration] = useState("");
   const [bulkMaxUses, setBulkMaxUses] = useState("1");
   const [bulkNotes, setBulkNotes] = useState("");
   const [bulkExpiresAt, setBulkExpiresAt] = useState("");
@@ -138,6 +140,11 @@ export default function VouchersPage() {
 
   const vouchers = (results.vouchers?.data ?? []) as unknown as SubscriptionVoucher[];
 
+  const getEffectiveDuration = (duration: string, custom: string) => {
+    if (duration === "custom") return parseInt(custom) || 30;
+    return parseInt(duration);
+  };
+
   const handleCreateVoucher = async () => {
     setSubmitting(true);
     const supabase = createClient();
@@ -148,7 +155,7 @@ export default function VouchersPage() {
     const payload: Record<string, unknown> = {
       code,
       tier: newTier,
-      duration_days: parseInt(newDuration),
+      duration_days: getEffectiveDuration(newDuration, newCustomDuration),
       max_uses: parseInt(newMaxUses),
       current_uses: 0,
       status: "active",
@@ -176,13 +183,14 @@ export default function VouchersPage() {
 
     const codes: string[] = [];
     const payloads = [];
+    const effectiveBulkDuration = getEffectiveDuration(bulkDuration, bulkCustomDuration);
     for (let i = 0; i < count; i++) {
       const code = generateCode();
       codes.push(code);
       payloads.push({
         code,
         tier: bulkTier,
-        duration_days: parseInt(bulkDuration),
+        duration_days: effectiveBulkDuration,
         max_uses: parseInt(bulkMaxUses),
         current_uses: 0,
         status: "active" as const,
@@ -257,6 +265,7 @@ export default function VouchersPage() {
   const resetCreateForm = () => {
     setNewTier("starter");
     setNewDuration("30");
+    setNewCustomDuration("");
     setNewMaxUses("1");
     setNewNotes("");
     setNewExpiresAt("");
@@ -266,6 +275,7 @@ export default function VouchersPage() {
     setBulkCount("10");
     setBulkTier("starter");
     setBulkDuration("30");
+    setBulkCustomDuration("");
     setBulkMaxUses("1");
     setBulkNotes("");
     setBulkExpiresAt("");
@@ -376,8 +386,19 @@ export default function VouchersPage() {
                         <SelectItem value="30">{t("svDuration30")}</SelectItem>
                         <SelectItem value="90">{t("svDuration90")}</SelectItem>
                         <SelectItem value="365">{t("svDuration365")}</SelectItem>
+                        <SelectItem value="custom">{t("svDurationCustom")}</SelectItem>
                       </SelectContent>
                     </Select>
+                    {bulkDuration === "custom" && (
+                      <Input
+                        type="number"
+                        min="1"
+                        max="3650"
+                        placeholder={t("svCustomDaysPlaceholder")}
+                        value={bulkCustomDuration}
+                        onChange={(e) => setBulkCustomDuration(e.target.value)}
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>{t("svMaxUsesLabel")}</Label>
@@ -460,8 +481,19 @@ export default function VouchersPage() {
                         <SelectItem value="30">{t("svDuration30")}</SelectItem>
                         <SelectItem value="90">{t("svDuration90")}</SelectItem>
                         <SelectItem value="365">{t("svDuration365")}</SelectItem>
+                        <SelectItem value="custom">{t("svDurationCustom")}</SelectItem>
                       </SelectContent>
                     </Select>
+                    {newDuration === "custom" && (
+                      <Input
+                        type="number"
+                        min="1"
+                        max="3650"
+                        placeholder={t("svCustomDaysPlaceholder")}
+                        value={newCustomDuration}
+                        onChange={(e) => setNewCustomDuration(e.target.value)}
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>{t("svMaxUsesLabel")}</Label>

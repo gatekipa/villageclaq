@@ -3664,7 +3664,12 @@
     "previous": "Previous",
     "next": "Next",
     "actions": "Actions",
-    "retry": "Retry"
+    "retry": "Retry",
+    "proxyMembers": "Proxy Members",
+    "svDurationCustom": "Custom",
+    "svCustomDaysPlaceholder": "Number of days (1-3650)",
+    "loadingSettings": "Loading settings...",
+    "free": "Free"
   },
   "communications": {
     "notifications": "Notifications",

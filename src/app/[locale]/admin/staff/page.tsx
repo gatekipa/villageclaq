@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
+import { useAdminMutate } from "@/lib/hooks/use-admin-mutate";
 
 type StaffRole = "super_admin" | "admin" | "support" | "sales" | "finance";
 
@@ -151,6 +152,8 @@ export default function StaffPage() {
     setTimeout(() => setShowSuccess(false), 3000);
   }, []);
 
+  const { mutate } = useAdminMutate();
+
   const { results, loading, refetch } = useAdminQuery([
     {
       key: "staff",
@@ -183,14 +186,23 @@ export default function StaffPage() {
     if (!newEmail || !newRole) return;
     setSubmitting(true);
     setShowError(null);
-    const supabase = createClient();
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .or(`full_name.ilike.%${newEmail}%,id.eq.${newEmail}`)
-      .limit(1)
-      .maybeSingle();
+    // First look up the user profile via the admin query API
+    const lookupRes = await fetch("/api/admin/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        queries: [{
+          key: "profile",
+          table: "profiles",
+          select: "id",
+          filters: [{ column: "full_name", op: "ilike", value: `%${newEmail}%` }],
+          limit: 1,
+        }],
+      }),
+    });
+    const lookupBody = await lookupRes.json();
+    const profile = (lookupBody.results?.profile?.data ?? [])[0] as { id: string } | undefined;
 
     if (!profile) {
       setShowError(t("noUsers"));
@@ -198,14 +210,15 @@ export default function StaffPage() {
       return;
     }
 
-    const { error } = await supabase.from("platform_staff").insert({
-      user_id: profile.id,
-      role: newRole,
-      is_active: true,
+    const { error } = await mutate({
+      action: "added_staff",
+      table: "platform_staff",
+      type: "insert",
+      data: { user_id: profile.id, role: newRole, is_active: true },
     });
 
     if (error) {
-      setShowError(error.message);
+      setShowError(error);
     } else {
       setAddDialogOpen(false);
       setNewEmail("");
@@ -222,15 +235,17 @@ export default function StaffPage() {
     if (!roleStaffId || !changeRoleValue) return;
     setRoleSubmitting(true);
     setShowError(null);
-    const supabase = createClient();
 
-    const { error } = await supabase
-      .from("platform_staff")
-      .update({ role: changeRoleValue })
-      .eq("id", roleStaffId);
+    const { error } = await mutate({
+      action: "changed_role",
+      table: "platform_staff",
+      type: "update",
+      data: { role: changeRoleValue },
+      match: { id: roleStaffId },
+    });
 
     if (error) {
-      setShowError(error.message);
+      setShowError(error);
     } else {
       setShowRoleDialog(false);
       setRoleStaffId(null);
@@ -247,17 +262,19 @@ export default function StaffPage() {
     if (!suspendStaffId) return;
     setSuspendSubmitting(true);
     setShowError(null);
-    const supabase = createClient();
 
     const newActive = suspendAction === "activate";
 
-    const { error } = await supabase
-      .from("platform_staff")
-      .update({ is_active: newActive })
-      .eq("id", suspendStaffId);
+    const { error } = await mutate({
+      action: suspendAction === "suspend" ? "suspended_staff" : "activated_staff",
+      table: "platform_staff",
+      type: "update",
+      data: { is_active: newActive },
+      match: { id: suspendStaffId },
+    });
 
     if (error) {
-      setShowError(error.message);
+      setShowError(error);
     } else {
       setShowSuspendDialog(false);
       setSuspendStaffId(null);
@@ -273,15 +290,16 @@ export default function StaffPage() {
     if (!removeStaffId) return;
     setRemoveSubmitting(true);
     setShowError(null);
-    const supabase = createClient();
 
-    const { error } = await supabase
-      .from("platform_staff")
-      .delete()
-      .eq("id", removeStaffId);
+    const { error } = await mutate({
+      action: "removed_staff",
+      table: "platform_staff",
+      type: "delete",
+      match: { id: removeStaffId },
+    });
 
     if (error) {
-      setShowError(error.message);
+      setShowError(error);
     } else {
       setShowRemoveDialog(false);
       setRemoveStaffId(null);

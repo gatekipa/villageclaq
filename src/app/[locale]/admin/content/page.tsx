@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   MessageSquareQuote,
   HelpCircle,
@@ -66,6 +66,7 @@ const categoryColors: Record<string, string> = {
 
 export default function ContentPage() {
   const t = useTranslations("admin");
+  const locale = useLocale();
   const [actionError, setActionError] = useState<string | null>(null);
   const [testimonialDialogOpen, setTestimonialDialogOpen] = useState(false);
   const [faqDialogOpen, setFaqDialogOpen] = useState(false);
@@ -415,29 +416,45 @@ export default function ContentPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {faqs.map((faq) => (
-                <Card key={faq.id}>
-                  <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{faq.question_en}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {faq.answer_en}
-                        </p>
+              {faqs.map((faq) => {
+                const question = locale === "fr" && faq.question_fr ? faq.question_fr : faq.question_en;
+                const answer = locale === "fr" && faq.answer_fr ? faq.answer_fr : faq.answer_en;
+                return (
+                  <Card key={faq.id}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">{question}</p>
+                            <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                              {answer}
+                            </p>
+                            {locale === "fr" && faq.question_en && (
+                              <p className="text-xs text-muted-foreground/60 mt-2 italic">
+                                EN: {faq.question_en}
+                              </p>
+                            )}
+                            {locale !== "fr" && faq.question_fr && (
+                              <p className="text-xs text-muted-foreground/60 mt-2 italic">
+                                FR: {faq.question_fr}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge className={categoryColors[faq.category] || categoryColors.General}>
+                            {t(`faq${faq.category}`)}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            #{faq.sort_order}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3 pl-7 sm:pl-0">
-                      <Badge className={categoryColors[faq.category] || categoryColors.General}>
-                        {t(`faq${faq.category}`)}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        #{faq.sort_order}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>

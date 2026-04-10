@@ -39,6 +39,7 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  Ghost,
 } from "lucide-react";
 import {
   Select,
@@ -65,6 +66,14 @@ interface MembershipCountRow {
   group_id: string;
 }
 
+interface ProxyMembershipRow {
+  id: string;
+  display_name: string | null;
+  group_id: string;
+  created_at: string;
+  privacy_settings: { proxy_phone?: string } | null;
+}
+
 interface AdminUser {
   id: string;
   full_name: string;
@@ -74,6 +83,7 @@ interface AdminUser {
   updated_at: string;
   groupCount: number;
   adminGroupCount: number;
+  isProxy?: boolean;
 }
 
 export default function AdminUsersPage() {
@@ -82,7 +92,7 @@ export default function AdminUsersPage() {
   const dateLocale = getDateLocale(locale);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "noGroups">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "noGroups" | "proxy">("all");
   const [sortField, setSortField] = useState<"name" | "groups" | "lastActive" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -99,11 +109,19 @@ export default function AdminUsersPage() {
       select: "user_id, role, group_id",
       filters: [{ column: "user_id", op: "not.is", value: null }],
     },
+    {
+      key: "proxyMembers",
+      table: "memberships",
+      select: "id, display_name, group_id, created_at, privacy_settings",
+      filters: [{ column: "is_proxy", op: "eq", value: true }],
+      order: { column: "created_at", ascending: false },
+    },
   ]);
 
   const users = useMemo<AdminUser[]>(() => {
     const profiles = (results.profiles?.data ?? []) as ProfileRow[];
     const memberships = (results.memberships?.data ?? []) as MembershipCountRow[];
+    const proxyMembers = (results.proxyMembers?.data ?? []) as ProxyMembershipRow[];
 
     const groupCountMap: Record<string, Set<string>> = {};
     const adminCountMap: Record<string, number> = {};
@@ -119,7 +137,7 @@ export default function AdminUsersPage() {
       }
     }
 
-    return profiles.map((p) => ({
+    const userList: AdminUser[] = profiles.map((p) => ({
       id: p.id,
       full_name: p.full_name ?? "",
       phone: p.phone ?? null,
@@ -129,7 +147,25 @@ export default function AdminUsersPage() {
       groupCount: groupCountMap[p.id]?.size ?? 0,
       adminGroupCount: adminCountMap[p.id] ?? 0,
     }));
-  }, [results]);
+
+    // Add proxy members (user_id IS NULL, name stored in memberships.display_name)
+    for (const pm of proxyMembers) {
+      const proxyPhone = pm.privacy_settings?.proxy_phone ?? null;
+      userList.push({
+        id: `proxy-${pm.id}`,
+        full_name: pm.display_name ?? t("proxyMember"),
+        phone: proxyPhone,
+        avatar_url: null,
+        created_at: pm.created_at,
+        updated_at: pm.created_at,
+        groupCount: 1,
+        adminGroupCount: 0,
+        isProxy: true,
+      });
+    }
+
+    return userList;
+  }, [results, t]);
 
   const error = !!queryError;
 
@@ -137,8 +173,9 @@ export default function AdminUsersPage() {
     let result = users;
 
     // Status filter
-    if (statusFilter === "active") result = result.filter((u) => u.groupCount > 0);
-    else if (statusFilter === "noGroups") result = result.filter((u) => u.groupCount === 0);
+    if (statusFilter === "active") result = result.filter((u) => u.groupCount > 0 && !u.isProxy);
+    else if (statusFilter === "noGroups") result = result.filter((u) => u.groupCount === 0 && !u.isProxy);
+    else if (statusFilter === "proxy") result = result.filter((u) => u.isProxy);
 
     // Search filter
     if (search.trim()) {
@@ -177,12 +214,13 @@ export default function AdminUsersPage() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const total = users.length;
-    const active = users.filter((u) => u.groupCount > 0).length;
-    const noGroups = users.filter((u) => u.groupCount === 0).length;
+    const active = users.filter((u) => u.groupCount > 0 && !u.isProxy).length;
+    const proxyCount = users.filter((u) => u.isProxy).length;
+    const noGroups = users.filter((u) => u.groupCount === 0 && !u.isProxy).length;
     const newThisMonth = users.filter(
       (u) => new Date(u.created_at) >= monthStart
     ).length;
-    return { total, active, noGroups, newThisMonth };
+    return { total, active, noGroups, newThisMonth, proxyCount };
   }, [users]);
 
   function toggleSort(field: "name" | "groups" | "lastActive") {
@@ -276,12 +314,13 @@ export default function AdminUsersPage() {
             className="pl-9"
         />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter((v as "all" | "active" | "noGroups") ?? "all")}>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter((v as "all" | "active" | "noGroups" | "proxy") ?? "all")}>
           <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t("allStatuses")}</SelectItem>
             <SelectItem value="active">{t("activeUsers")}</SelectItem>
             <SelectItem value="noGroups">{t("noGroupsUsers")}</SelectItem>
+            <SelectItem value="proxy">{t("proxyMembers")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -452,7 +491,12 @@ export default function AdminUsersPage() {
 
                         {/* Status */}
                         <TableCell>
-                          {isActive ? (
+                          {user.isProxy ? (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <Ghost className="h-3 w-3" />
+                              {t("proxyMember")}
+                            </Badge>
+                          ) : isActive ? (
                             <Badge variant="default" className="text-xs">
                               {t("statusActive")}
                             </Badge>

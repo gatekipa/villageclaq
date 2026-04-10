@@ -16,6 +16,7 @@ interface Plan {
   id: string;
   name: string;
   name_fr: string | null;
+  slug: string | null;
   price: number;
   billing_period: "monthly" | "annual";
   features: string[];
@@ -34,12 +35,28 @@ export default function SubscriptionPlansPage() {
       select: "*",
       order: { column: "sort_order", ascending: true },
     },
+    {
+      key: "subscriptions",
+      table: "group_subscriptions",
+      select: "tier, status",
+      filters: [{ column: "status", op: "eq", value: "active" }],
+    },
   ]);
 
   const plans = useMemo<Plan[]>(
     () => (results.plans?.data ?? []) as Plan[],
     [results]
   );
+
+  // Count subscribers per tier (plan slug / name match)
+  const subscriberCounts = useMemo(() => {
+    const subs = (results.subscriptions?.data ?? []) as Array<{ tier: string; status: string }>;
+    const counts: Record<string, number> = {};
+    for (const s of subs) {
+      counts[s.tier] = (counts[s.tier] || 0) + 1;
+    }
+    return counts;
+  }, [results]);
 
   const totalPlans = plans.length;
   const activePlans = plans.filter((p) => p.is_active).length;
@@ -148,7 +165,9 @@ export default function SubscriptionPlansPage() {
                       <td className="px-4 py-3 text-center">
                         {plan.member_limit ? plan.member_limit : "∞"}
                       </td>
-                      <td className="px-4 py-3 text-center text-muted-foreground">—</td>
+                      <td className="px-4 py-3 text-center font-medium">
+                        {subscriberCounts[plan.slug ?? plan.name.toLowerCase()] ?? 0}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant={plan.is_active ? "default" : "secondary"}>
                           {plan.is_active ? t("statusActive") : t("statusArchived")}

@@ -313,3 +313,20 @@ export function fineIssuedSms(params: FineIssuedSmsParams): string {
     `[VillageClaq] ${groupName}: Une amende de ${amount} a ete emise. Raison: ${reason}`
   ).slice(0, 160);
 }
+
+// ─── Proxy Claim Invitation ────────────────────────────────────────────────
+
+interface ProxyClaimSmsParams {
+  groupName: string;
+  claimUrl: string;
+  locale: Locale;
+}
+
+export function proxyClaimSms(params: ProxyClaimSmsParams): string {
+  const { groupName, claimUrl, locale } = params;
+  return t(
+    locale,
+    `[VillageClaq] Claim your membership in ${groupName}. Create your account: ${claimUrl}`,
+    `[VillageClaq] Reclamez votre adhesion a ${groupName}. Creez votre compte: ${claimUrl}`
+  ).slice(0, 160);
+}

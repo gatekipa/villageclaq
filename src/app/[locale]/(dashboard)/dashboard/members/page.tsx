@@ -300,6 +300,8 @@ export default function MembersPage() {
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
   const [claimMember, setClaimMember] = useState<Record<string, unknown> | null>(null);
   const [claimEmail, setClaimEmail] = useState("");
+  const [claimPhone, setClaimPhone] = useState("");
+  const [claimChannels, setClaimChannels] = useState<string[]>(["email"]);
   const [claimSaving, setClaimSaving] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
@@ -364,73 +366,56 @@ export default function MembersPage() {
 
   function openClaimInvite(member: Record<string, unknown>) {
     setClaimMember(member);
+    const ps = member.privacy_settings as Record<string, unknown> | null;
+    const proxyPhone = (ps?.proxy_phone as string) || "";
     setClaimEmail("");
+    setClaimPhone(proxyPhone);
+    // Default channels based on available contact info
+    const defaultChannels: string[] = [];
+    if (!proxyPhone) defaultChannels.push("email");
+    else defaultChannels.push("email", "sms", "whatsapp");
+    setClaimChannels(defaultChannels.length > 0 ? defaultChannels : ["email"]);
     setClaimError(null);
     setClaimSuccess(null);
     setClaimDialogOpen(true);
   }
 
   async function handleSendClaimInvite() {
-    if (!claimEmail.trim() || !claimMember || !groupId || !user) return;
+    if (!claimMember || !groupId || !user) return;
+    if (!claimEmail.trim() && !claimPhone.trim()) return;
+    if (claimChannels.length === 0) return;
+
     setClaimSaving(true);
     setClaimError(null);
     setClaimSuccess(null);
     try {
       const supabase = createClient();
-      const membershipId = claimMember.id as string;
-      const memberName = getMemberName(claimMember);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
 
-      // Create a claim invitation linked to the proxy membership
-      const { error: invErr } = await supabase.from("invitations").insert({
-        group_id: groupId,
-        email: claimEmail.trim(),
-        role: (claimMember.role as string) || "member",
-        status: "pending",
-        invited_by: user.id,
-        claim_membership_id: membershipId,
+      const res = await fetch("/api/proxy-claim/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          membershipId: claimMember.id as string,
+          email: claimEmail.trim() || undefined,
+          phone: claimPhone.trim() || undefined,
+          channels: claimChannels,
+          locale,
+        }),
       });
-      if (invErr) throw invErr;
 
-      // Send claim invitation email (fire-and-forget)
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          let sendEmail = true;
-          try {
-            const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", groupId!);
-            sendEmail = prefs.email;
-          } catch { /* fail-open */ }
-
-          if (sendEmail) {
-            fetch("/api/email/send", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                to: claimEmail.trim(),
-                template: "welcome",
-                data: {
-                  memberName,
-                  groupName: currentGroup?.name || "",
-                  dashboardUrl: `${window.location.origin}/dashboard/my-invitations`,
-                },
-                locale,
-              }),
-            }).catch(() => {}); // Fire and forget
-          }
-        }
-      } catch {
-        // Email is non-critical
-      }
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Failed to send invitation");
 
       setClaimSuccess(t("claimInviteSent"));
-      await queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
       setTimeout(() => {
         setClaimDialogOpen(false);
         setClaimSuccess(null);
-      }, 2000);
+      }, 2500);
     } catch (err) {
       setClaimError((err as Error).message || t("claimInviteError"));
     } finally {
@@ -2443,17 +2428,48 @@ export default function MembersPage() {
               </div>
             )}
             <p className="text-sm text-muted-foreground">
-              {t("claimInviteEmail")}
+              {t("claimInviteDesc")}
             </p>
             <div className="space-y-2">
-              <Label>{t("emailAddress")} <span className="text-red-500">*</span></Label>
+              <Label>{t("emailAddress")}</Label>
               <Input
                 type="email"
                 value={claimEmail}
                 onChange={(e) => setClaimEmail(e.target.value)}
                 placeholder="name@example.com"
-                autoFocus
               />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("phoneNumber")}</Label>
+              <Input
+                type="tel"
+                value={claimPhone}
+                onChange={(e) => setClaimPhone(e.target.value)}
+                placeholder="+237..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("sendVia")}</Label>
+              <div className="flex flex-wrap gap-3">
+                {["email", "sms", "whatsapp"].map((ch) => (
+                  <label key={ch} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={claimChannels.includes(ch)}
+                      onChange={(e) => {
+                        setClaimChannels((prev) =>
+                          e.target.checked
+                            ? [...prev, ch]
+                            : prev.filter((c) => c !== ch)
+                        );
+                      }}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    {ch === "email" ? t("channelEmail") : ch === "sms" ? t("channelSms") : t("channelWhatsapp")}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">{t("channelHint")}</p>
             </div>
             {claimError && <p className="text-sm text-destructive">{claimError}</p>}
             {claimSuccess && (
@@ -2466,7 +2482,10 @@ export default function MembersPage() {
             <Button variant="outline" onClick={() => setClaimDialogOpen(false)}>
               {tCommon("cancel")}
             </Button>
-            <Button onClick={handleSendClaimInvite} disabled={claimSaving || !claimEmail.trim()}>
+            <Button
+              onClick={handleSendClaimInvite}
+              disabled={claimSaving || (!claimEmail.trim() && !claimPhone.trim()) || claimChannels.length === 0}
+            >
               {claimSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("sendInvite")}
             </Button>

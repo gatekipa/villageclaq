@@ -6,6 +6,7 @@ import { eventReminderEmail, eventReminderSubject } from "./email-templates/even
 import { minutesPublishedEmail, minutesPublishedSubject } from "./email-templates/minutes-published";
 import { invitationEmail, invitationSubject } from "./email-templates/invitation";
 import { notificationEmail, notificationSubject } from "./email-templates/notification";
+import { proxyClaimEmail, proxyClaimSubject } from "./email-templates/proxy-claim";
 
 export type EmailTemplate =
   | "welcome"
@@ -14,7 +15,8 @@ export type EmailTemplate =
   | "event-reminder"
   | "minutes-published"
   | "invitation"
-  | "notification";
+  | "notification"
+  | "proxy-claim";
 
 interface SendEmailParams {
   to: string;
@@ -75,6 +77,11 @@ export async function sendEmail({
       case "notification":
         html = notificationEmail(data as unknown as Parameters<typeof notificationEmail>[0], locale);
         subject = notificationSubject((data.title as string) || "");
+        break;
+
+      case "proxy-claim":
+        html = proxyClaimEmail(data as unknown as Parameters<typeof proxyClaimEmail>[0], locale);
+        subject = proxyClaimSubject((data.groupName as string) || "", locale);
         break;
 
       default:

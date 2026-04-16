@@ -27,6 +27,7 @@ import {
   buildRemittanceConfirmedParams,
   buildRemittanceDisputedParams,
   buildSubscriptionExpiringParams,
+  buildProxyClaimParams,
 } from "@/lib/whatsapp-templates";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
 
@@ -52,7 +53,8 @@ export type WhatsAppNotificationType =
   | "relief_enrollment"
   | "remittance_confirmed"
   | "remittance_disputed"
-  | "subscription_expiring";
+  | "subscription_expiring"
+  | "proxy_claim";
 
 const TYPE_TO_TEMPLATE: Record<WhatsAppNotificationType, string> = {
   payment_receipt: WA_TEMPLATES.PAYMENT_RECEIPT,
@@ -75,6 +77,7 @@ const TYPE_TO_TEMPLATE: Record<WhatsAppNotificationType, string> = {
   remittance_confirmed: WA_TEMPLATES.REMITTANCE_CONFIRMED,
   remittance_disputed: WA_TEMPLATES.REMITTANCE_DISPUTED,
   subscription_expiring: WA_TEMPLATES.SUBSCRIPTION_EXPIRING,
+  proxy_claim: WA_TEMPLATES.PROXY_CLAIM,
 };
 
 // ─── Component Builder ──────────────────────────────────────────────────────
@@ -211,6 +214,12 @@ function buildComponents(
       return buildSubscriptionExpiringParams({
         planName: d.planName || "",
         days: d.days || "",
+      });
+    case "proxy_claim":
+      return buildProxyClaimParams({
+        memberName: d.memberName || "",
+        groupName: d.groupName || "",
+        claimUrl: d.claimUrl || "",
       });
     default:
       return [];

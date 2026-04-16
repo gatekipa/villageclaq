@@ -34,6 +34,7 @@ export const WA_TEMPLATES = {
   REMITTANCE_CONFIRMED: "villageclaq_remittance_confirmed",
   REMITTANCE_DISPUTED: "villageclaq_remittance_disputed",
   SUBSCRIPTION_EXPIRING: "villageclaq_subscription_expiring",
+  PROXY_CLAIM: "villageclaq_proxy_claim",
 } as const;
 
 // ─── Helpers: build body-only components ────────────────────────────────────
@@ -215,4 +216,12 @@ export function buildSubscriptionExpiringParams(data: {
   days: string;
 }): WhatsAppTemplateComponent[] {
   return bodyParams(data.planName, data.days);
+}
+
+export function buildProxyClaimParams(data: {
+  memberName: string;
+  groupName: string;
+  claimUrl: string;
+}): WhatsAppTemplateComponent[] {
+  return bodyParams(data.memberName, data.groupName, data.claimUrl);
 }

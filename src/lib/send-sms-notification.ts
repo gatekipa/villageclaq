@@ -18,6 +18,7 @@ import {
   announcementSms,
   loanApprovedSms,
   fineIssuedSms,
+  proxyClaimSms,
 } from "@/lib/notifications/sms-templates";
 
 // ─── Template Types ─────────────────────────────────────────────────────────
@@ -39,7 +40,8 @@ export type SmsTemplate =
   | "relief-claim-denied"
   | "announcement"
   | "loan-approved"
-  | "fine-issued";
+  | "fine-issued"
+  | "proxy-claim";
 
 interface SendSmsNotificationParams {
   to: string; // E.164 phone number
@@ -252,6 +254,13 @@ function buildMessage(
         groupName: (data.groupName as string) || "",
         amount: (data.amount as string) || "",
         reason: (data.reason as string) || "",
+        locale,
+      });
+
+    case "proxy-claim":
+      return proxyClaimSms({
+        groupName: (data.groupName as string) || "",
+        claimUrl: (data.claimUrl as string) || "",
         locale,
       });
 

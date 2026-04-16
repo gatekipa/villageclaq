@@ -10,6 +10,8 @@ import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
 import { SupportWidget } from "@/components/ui/support-widget";
 import { createClient } from "@/lib/supabase/client";
+import { isZeroMembershipAllowedPath, logRedirectDecision } from "@/lib/auth-redirect";
+import { acquireRedirectLock, resetRedirectLock } from "@/lib/redirect-lock";
 import { Clock, Archive, Phone, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -23,6 +25,8 @@ import {
 /**
  * Pages that invited users (with 0 memberships) should be able to access
  * WITHOUT being forced into group-creation onboarding.
+ * Canonical list is in src/lib/auth-redirect.ts — this mirrors it for
+ * fast path checks without an import cycle.
  */
 const INVITE_SAFE_PATHS = [
   "/dashboard/my-invitations",
@@ -320,7 +324,14 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   const isOnboardingPage = pathname.includes("/onboarding");
   const isInviteSafePage = INVITE_SAFE_PATHS.some((p) => pathname.includes(p));
 
-  // When user has 0 memberships and is NOT on a safe page, check for pending invitations
+  // ── BLOCKING ENFORCEMENT: 0-membership redirect ────────────────────────
+  // This is the second enforcement layer (auth callback is the first).
+  // If a 0-membership user somehow reaches the dashboard (callback failed,
+  // direct navigation, stale session), this effect catches them and redirects
+  // to onboarding or invitations.
+  //
+  // Uses shared utilities: acquireRedirectLock() prevents duplicate redirects,
+  // logRedirectDecision() provides dev-time visibility.
   useEffect(() => {
     if (loading || memberships.length > 0 || isOnboardingPage || isInviteSafePage || checkingInvitations || checkedInvitations) return;
     if (!user) return;
@@ -335,30 +346,47 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
         if (!authUser || cancelled) { setCheckingInvitations(false); return; }
 
         const email = authUser.email;
-        if (!email) {
-          if (!cancelled) {
-            setCheckedInvitations(true);
-            setCheckingInvitations(false);
-            routerRef.current.replace("/dashboard/onboarding/group");
-          }
-          return;
-        }
+        let destination = "/dashboard/onboarding/group";
 
-        const { count, error } = await supabase
-          .from("invitations")
-          .select("id", { count: "exact", head: true })
-          .eq("email", email)
-          .eq("status", "pending");
+        if (email) {
+          const { count, error } = await supabase
+            .from("invitations")
+            .select("id", { count: "exact", head: true })
+            .eq("email", email)
+            .eq("status", "pending");
+
+          if (!error && count && count > 0) {
+            destination = "/dashboard/my-invitations";
+          }
+        }
 
         if (cancelled) return;
 
-        if (!error && count && count > 0) {
-          routerRef.current.replace("/dashboard/my-invitations");
-        } else {
-          routerRef.current.replace("/dashboard/onboarding/group");
+        // Use redirect lock to prevent duplicate redirects from racing
+        if (acquireRedirectLock(destination)) {
+          logRedirectDecision({
+            from: pathname,
+            to: destination,
+            reason: `0 memberships, layout guard enforcement`,
+            membershipsCount: 0,
+            layer: "layout-guard",
+          });
+          routerRef.current.replace(destination);
         }
       } catch {
-        if (!cancelled) routerRef.current.replace("/dashboard/onboarding/group");
+        if (!cancelled) {
+          const fallback = "/dashboard/onboarding/group";
+          if (acquireRedirectLock(fallback)) {
+            logRedirectDecision({
+              from: pathname,
+              to: fallback,
+              reason: "0 memberships, invitation check failed, fallback to onboarding",
+              membershipsCount: 0,
+              layer: "layout-guard",
+            });
+            routerRef.current.replace(fallback);
+          }
+        }
       } finally {
         if (!cancelled) {
           setCheckingInvitations(false);
@@ -367,10 +395,14 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      resetRedirectLock();
+    };
   // CRITICAL: router removed from deps — useRouter() returns a new object on
   // every render, which would re-trigger this effect. Using routerRef instead.
-  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, checkingInvitations, checkedInvitations, user]);
+  // pathname is included so the guard re-evaluates if user navigates while at 0 memberships.
+  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, checkingInvitations, checkedInvitations, user, pathname]);
 
   // ── Onboarding / invite-safe pages: ALWAYS render children ────────────────
   // This must come FIRST — if the pathname includes /onboarding, never show
@@ -398,11 +430,17 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // ── 0-membership guard ────────────────────────────────────────────────────
-  // Show spinner while the redirect effect (above) fires. Once the redirect
-  // has been dispatched (checkedInvitations = true), stop blocking — the
-  // navigation is in progress and the spinner would just loop.
-  if (!loading && user && memberships.length === 0 && !checkedInvitations) {
+  // ── 0-membership BLOCKING guard ─────────────────────────────────────────
+  // Show spinner while:
+  //   (a) the redirect effect (above) is running (!checkedInvitations), OR
+  //   (b) the redirect has been dispatched but navigation hasn't completed yet
+  //       (checkedInvitations=true but memberships still 0 and not on safe page)
+  //
+  // This prevents ANY dashboard content from rendering for 0-membership users.
+  // The guard stays up until either:
+  //   - navigation to onboarding/invitations completes (component unmounts), or
+  //   - memberships become > 0 (user accepted an invite inline)
+  if (!loading && user && memberships.length === 0) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">

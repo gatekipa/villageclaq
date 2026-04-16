@@ -64,6 +64,19 @@ An infinite loop bug (331 requests/min) was caused by putting `useSearchParams()
 
 See `src/UNSTABLE_DEPS_AUDIT.md` for the full audit.
 
+### 10. Onboarding Redirect Enforcement (CRITICAL — Production Incident)
+A recurring bug caused 0-membership users to land on a stateless dashboard instead of onboarding. These rules prevent recurrence:
+
+- **ALL** membership-based post-auth redirects MUST use `getPostAuthRedirect()` from `src/lib/auth-redirect.ts`. No inline `if (memberships.length === 0) redirect(...)` logic.
+- **Auth callback** (`src/app/auth/callback/route.ts` and `src/app/[locale]/(auth)/callback/route.ts`) performs the EARLIEST redirect decision server-side. Both callbacks must stay in sync.
+- **Dashboard layout** (`src/app/[locale]/(dashboard)/layout.tsx`) is the BLOCKING enforcement layer. No dashboard UI renders before membership status is resolved.
+- **0-membership users** must NEVER see any dashboard content. The guard shows a full-page spinner until redirect completes.
+- **Onboarding route** (`/dashboard/onboarding/*`) is exempt from 0-membership redirect-away logic via `isZeroMembershipAllowedPath()`.
+- **Redirect lock** (`src/lib/redirect-lock.ts`) prevents duplicate redirects from racing.
+- **NEVER** add redirect logic in individual dashboard pages. All redirect decisions flow through layout guard or auth callback.
+
+See `src/ONBOARDING_REDIRECT_AUDIT.md` for the full audit.
+
 ## Directory Structure
 ```
 src/

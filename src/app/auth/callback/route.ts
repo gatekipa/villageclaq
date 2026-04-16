@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getPostAuthRedirect, logRedirectDecision } from "@/lib/auth-redirect";
 
 /**
  * Validate that a redirect path is safe (relative, no protocol, no double-slash).
@@ -35,37 +36,59 @@ export async function GET(request: Request) {
         // Session not ready — brief wait for cookie propagation
         await new Promise((r) => setTimeout(r, 500));
       }
-      // After successful auth, check if user has pending invitations.
-      // This handles the case where ?redirectTo was lost during email
-      // confirmation flow — we detect invitations server-side and redirect
-      // to my-invitations instead of letting the DashboardGuard send them
-      // to group onboarding.
+
+      // ── MEMBERSHIP-BASED REDIRECT (single source of truth) ────────────
+      // For default /dashboard redirects, determine the correct destination
+      // based on membership status. This is the EARLIEST routing decision
+      // point and prevents 0-membership users from ever reaching the
+      // dashboard shell.
+      //
+      // If `next` is NOT /dashboard (e.g., user had a specific ?redirectTo),
+      // honor that redirect — it may be an invitation accept flow, join code,
+      // or other intentional deep link.
       if (next === "/dashboard") {
         try {
           const { data: { user } } = await supabase.auth.getUser();
-          if (user?.email) {
-            // Check if user has any memberships first
+          if (user) {
+            // Count active memberships
             const { count: membershipCount } = await supabase
               .from("memberships")
               .select("id", { count: "exact", head: true })
-              .eq("user_id", user.id);
+              .eq("user_id", user.id)
+              .neq("membership_status", "exited");
 
-            // Only check invitations if user has no memberships
-            // (existing members should go to their dashboard)
+            // Count pending invitations (only if 0 memberships — optimization)
+            let inviteCount = 0;
             if (!membershipCount || membershipCount === 0) {
-              const { count: inviteCount } = await supabase
-                .from("invitations")
-                .select("id", { count: "exact", head: true })
-                .eq("email", user.email)
-                .eq("status", "pending");
-
-              if (inviteCount && inviteCount > 0) {
-                return NextResponse.redirect(`${origin}/dashboard/my-invitations`);
+              if (user.email) {
+                const { count } = await supabase
+                  .from("invitations")
+                  .select("id", { count: "exact", head: true })
+                  .eq("email", user.email)
+                  .eq("status", "pending");
+                inviteCount = count ?? 0;
               }
             }
+
+            const destination = getPostAuthRedirect(
+              membershipCount ?? 0,
+              inviteCount
+            );
+
+            logRedirectDecision({
+              from: "/auth/callback",
+              to: destination,
+              reason: `membershipCount=${membershipCount ?? 0}, inviteCount=${inviteCount}`,
+              membershipsCount: membershipCount ?? 0,
+              layer: "callback",
+            });
+
+            return NextResponse.redirect(`${origin}${destination}`);
           }
         } catch {
-          // Non-critical — fall through to default redirect
+          // Non-critical — fall through to default /dashboard redirect.
+          // The dashboard layout guard will catch 0-membership users as a
+          // second enforcement layer.
         }
       }
 

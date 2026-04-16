@@ -91,10 +91,21 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const [platformRole, setPlatformRole] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
+  // ── STABLE search param extraction ───────────────────────────────────────
+  // useSearchParams() returns a NEW URLSearchParams object on every render.
+  // Using it directly as a useCallback dependency caused fetchData to be
+  // recreated on every render → useEffect re-fires → infinite fetch loop
+  // (331+ requests/min). Extract the one value we need as a stable string.
+  const urlGroupId = searchParams.get("group") ?? "";
+  const urlGroupIdRef = useRef(urlGroupId);
+  urlGroupIdRef.current = urlGroupId;
+
   // Track whether initial load is complete to prevent double-fetch on auth state change
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   // Guard against concurrent fetches that cause flickering during auth transitions
   const fetchInProgress = useRef(false);
+  // Cooldown: minimum 5 seconds between fetches to prevent rapid re-fetch loops
+  const lastFetchTime = useRef(0);
   // Keep a ref to the current user so the auth listener can check it without stale closures
   const userRef = useRef<UserProfile | null>(null);
   useEffect(() => { userRef.current = user; }, [user]);
@@ -102,7 +113,19 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const fetchData = useCallback(async () => {
     // Prevent overlapping fetches (e.g., TOKEN_REFRESHED firing while initial load runs)
     if (fetchInProgress.current) return;
+
+    // Cooldown guard: prevent rapid sequential fetches (the root cause of the
+    // 331-request/min loop). The first fetch is always allowed (lastFetchTime = 0).
+    const now = Date.now();
+    if (lastFetchTime.current > 0 && now - lastFetchTime.current < 5000) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[GroupProvider] fetchData throttled — last fetch was", now - lastFetchTime.current, "ms ago");
+      }
+      return;
+    }
+
     fetchInProgress.current = true;
+    lastFetchTime.current = now;
 
     try {
       const supabase = createClient();
@@ -175,9 +198,10 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         })) as GroupMembership[];
         setMemberships(normalized);
 
-        const urlGroupId = searchParams.get("group");
+        // Read from ref (always current) instead of stale closure over searchParams
+        const groupFromUrl = urlGroupIdRef.current;
         const storedGroupId = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-        const targetGroupId = urlGroupId || storedGroupId || normalized[0]?.group_id || null;
+        const targetGroupId = groupFromUrl || storedGroupId || normalized[0]?.group_id || null;
 
         const valid = normalized.find((m) => m.group_id === targetGroupId);
         setCurrentGroupId(valid ? targetGroupId : normalized[0]?.group_id || null);
@@ -188,8 +212,14 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       fetchInProgress.current = false;
     }
-  }, [searchParams]);
+  // ── CRITICAL: NO unstable dependencies ──────────────────────────────────
+  // Previously [searchParams] was here, but useSearchParams() returns a new
+  // object on every render, causing fetchData to be recreated on every render,
+  // which triggered both useEffect hooks every render → infinite loop.
+  // fetchData is now stable (created once). URL group param is read via ref.
+  }, []);
 
+  // Initial data fetch — runs exactly once
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -210,6 +240,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         setIsPlatformStaff(false);
         setPlatformRole(null);
         setInitialLoadDone(false);
+        lastFetchTime.current = 0; // Reset cooldown so next sign-in can fetch immediately
       } else if (event === "TOKEN_REFRESHED") {
         // Only refetch on token refresh if we already have a user.
         // Prevents redundant fetches during auth state settling.
@@ -220,14 +251,14 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         // Fetch if: (a) initial load hasn't completed, or (b) we don't have a user
         // yet (email confirmation redirect: initial fetch found no user because the
         // auth code hadn't been exchanged yet, now SIGNED_IN fires with a valid session).
-        // Also refetch if initial load completed but found no user — this happens when
-        // the email confirmation callback redirects before the session cookie propagates.
         if (!initialLoadDone || !userRef.current) {
           fetchData();
         }
       }
     });
     return () => subscription.unsubscribe();
+  // fetchData is now stable (empty deps), so this effect only re-subscribes
+  // when initialLoadDone changes (SIGNED_OUT → false → re-subscribe).
   }, [fetchData, initialLoadDone]);
 
   // Persist current group selection

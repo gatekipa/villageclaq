@@ -290,6 +290,11 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
   const [checkingInvitations, setCheckingInvitations] = useState(false);
   const [checkedInvitations, setCheckedInvitations] = useState(false);
 
+  // Stable ref for router to avoid re-triggering useEffect on every render
+  // (next-intl's useRouter() may return a new object reference each render)
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
   // Phone collection dialog state (rendered as Dialog overlay — never unmounts layout)
   const [phoneSkipped, setPhoneSkipped] = useState(true);
   const [phoneStateLoaded, setPhoneStateLoaded] = useState(false);
@@ -334,7 +339,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
           if (!cancelled) {
             setCheckedInvitations(true);
             setCheckingInvitations(false);
-            router.replace("/dashboard/onboarding/group");
+            routerRef.current.replace("/dashboard/onboarding/group");
           }
           return;
         }
@@ -348,12 +353,12 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
 
         if (!error && count && count > 0) {
-          router.replace("/dashboard/my-invitations");
+          routerRef.current.replace("/dashboard/my-invitations");
         } else {
-          router.replace("/dashboard/onboarding/group");
+          routerRef.current.replace("/dashboard/onboarding/group");
         }
       } catch {
-        if (!cancelled) router.replace("/dashboard/onboarding/group");
+        if (!cancelled) routerRef.current.replace("/dashboard/onboarding/group");
       } finally {
         if (!cancelled) {
           setCheckingInvitations(false);
@@ -363,7 +368,9 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     })();
 
     return () => { cancelled = true; };
-  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, checkingInvitations, checkedInvitations, user, router]);
+  // CRITICAL: router removed from deps — useRouter() returns a new object on
+  // every render, which would re-trigger this effect. Using routerRef instead.
+  }, [loading, memberships.length, isOnboardingPage, isInviteSafePage, checkingInvitations, checkedInvitations, user]);
 
   // ── Onboarding / invite-safe pages: ALWAYS render children ────────────────
   // This must come FIRST — if the pathname includes /onboarding, never show

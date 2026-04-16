@@ -91,6 +91,18 @@ Africa's Talking charges for SMS attempts even when they fail. SMS to US/UK/EU n
 
 See `src/NOTIFICATION_CHANNEL_AUDIT.md` for the full audit.
 
+### 12. Invitation redirectTo Chain (CRITICAL — User Acquisition)
+New users invited by admins must be able to create an account and land on `/dashboard/my-invitations`. The `redirectTo` parameter must survive the entire chain: email link → login → signup → email confirm → auth callback → final redirect.
+
+- **Invitation email URL** must use `?redirectTo=/dashboard/my-invitations` (NOT `?next=`). The login page reads `redirectTo`.
+- **Login page** reads `redirectTo` from URL, preserves it in the "Sign up" link.
+- **Signup page** reads `redirectTo` from URL, embeds it as `?next=` in `emailRedirectTo` for the Supabase confirmation email.
+- **Auth callback** reads `next` from URL. If `next !== "/dashboard"`, honors it directly (skips `getPostAuthRedirect()`).
+- **NEVER** use `?next=` in invitation email URLs — login/signup pages read `?redirectTo=`. The `?next=` param is only for the auth callback.
+- **Both login and signup** pages accept `next` as a fallback for `redirectTo` (defense in depth).
+
+See `src/INVITATION_REDIRECT_AUDIT.md` for the full audit.
+
 ## Directory Structure
 ```
 src/

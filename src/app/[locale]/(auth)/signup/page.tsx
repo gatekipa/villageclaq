@@ -40,7 +40,7 @@ export default function SignupPage() {
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = safeRedirect(searchParams.get("redirectTo"));
+  const redirectTo = safeRedirect(searchParams.get("redirectTo") || searchParams.get("next"));
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -45,7 +45,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const redirectTo = safeRedirect(searchParams.get("redirectTo"));
+  const redirectTo = safeRedirect(searchParams.get("redirectTo") || searchParams.get("next"));
 
   // Reset OAuth loading state when page becomes visible (user navigated back)
   useEffect(() => {

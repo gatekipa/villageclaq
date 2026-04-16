@@ -595,7 +595,7 @@ export default function GroupOnboardingPage() {
 
           if (sendEmail) {
             const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
-            const acceptUrl = `https://villageclaq.com/${locale}/login?next=/dashboard/my-invitations`;
+            const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
             for (const inv of emailInvites) {
               fetch("/api/email/send", {
                 method: "POST",

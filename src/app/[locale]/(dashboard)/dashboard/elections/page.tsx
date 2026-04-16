@@ -68,6 +68,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn, normalizeSearch } from "@/lib/utils";
+import { Link } from "@/i18n/routing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -341,7 +342,7 @@ export default function ElectionsPage() {
     }
 
     try {
-      await createElection.mutateAsync({
+      const result = await createElection.mutateAsync({
         title: elTitle.trim(),
         title_fr: elTitleFr.trim() || undefined,
         description: elDescription.trim() || undefined,
@@ -352,6 +353,10 @@ export default function ElectionsPage() {
       });
       setShowCreate(false);
       resetCreateForm();
+      // Auto-expand the newly created election so admin can immediately add candidates/positions
+      if (result?.id) {
+        setSelectedElectionId(result.id);
+      }
     } catch (err) {
       setCreateError((err as Error).message || tc("error"));
     }
@@ -366,6 +371,33 @@ export default function ElectionsPage() {
         .eq("id", electionId);
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
+
+      // Send notification to all members when election opens for voting
+      if (newStatus === "open") {
+        try {
+          const { notifyBulkFromClient } = await import("@/lib/notify-client");
+          const activeMembers = (members || [])
+            .filter((m: Record<string, unknown>) => m.user_id && m.membership_status !== "exited")
+            .map((m: Record<string, unknown>) => ({
+              userId: m.user_id as string,
+            }));
+          if (activeMembers.length > 0) {
+            const election = (elections || []).find((e: Election) => e.id === electionId);
+            const electionTitle = election ? ((locale === "fr" && election.title_fr) ? election.title_fr : election.title) : "";
+            notifyBulkFromClient(activeMembers, {
+              groupId: groupId!,
+              inAppType: "election",
+              title: locale === "fr" ? "\u00c9lection ouverte" : "Election Open",
+              body: locale === "fr"
+                ? `L'\u00e9lection "${electionTitle}" est maintenant ouverte au vote.`
+                : `The election "${electionTitle}" is now open for voting.`,
+              data: { electionTitle: electionTitle || "" },
+              channels: { inApp: true, email: true },
+              prefType: "announcements",
+            });
+          }
+        } catch { /* non-critical */ }
+      }
     } catch (err) {
       showError(t("statusChangeFailed"));
     } finally {
@@ -628,7 +660,7 @@ export default function ElectionsPage() {
                         )}
                         {t(`status${election.status.charAt(0).toUpperCase() + election.status.slice(1)}` as Parameters<typeof t>[0])}
                       </Badge>
-                      {hasPermission("elections.manage") && election.status === "draft" && (
+                      {hasPermission("elections.manage") && (election.status === "draft" || election.status === "cancelled") && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground focus:outline-none">
                             <MoreVertical className="h-4 w-4" />
@@ -709,15 +741,26 @@ export default function ElectionsPage() {
                             </Button>
                           )}
                           {election.status === "open" && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleStatusChange(election.id, "closed")}
-                              disabled={statusLoading}
-                            >
-                              {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Square className="mr-2 h-4 w-4" />}
-                              {t("closeElection")}
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleStatusChange(election.id, "closed")}
+                                disabled={statusLoading}
+                              >
+                                {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Square className="mr-2 h-4 w-4" />}
+                                {t("closeElection")}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleStatusChange(election.id, "cancelled")}
+                                disabled={statusLoading}
+                              >
+                                {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                {t("cancelElection")}
+                              </Button>
+                            </>
                           )}
 
                           {/* Add Candidate (officer_election only) */}
@@ -763,8 +806,8 @@ export default function ElectionsPage() {
                                 </div>
                                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                                   <span className="font-medium leading-tight text-sm">{name}</span>
-                                  {candidate.statement && (
-                                    <p className="line-clamp-2 text-xs text-muted-foreground">{candidate.statement}</p>
+                                  {(candidate.statement || candidate.statement_fr) && (
+                                    <p className="line-clamp-2 text-xs text-muted-foreground">{(locale === "fr" && candidate.statement_fr) ? candidate.statement_fr : candidate.statement}</p>
                                   )}
                                 </div>
                                 {hasPermission("elections.manage") && (election.status === "draft" || election.status === "open") && (
@@ -794,7 +837,7 @@ export default function ElectionsPage() {
                             .sort((a, b) => a.sort_order - b.sort_order)
                             .map((option) => (
                               <div key={option.id} className="flex items-center gap-1">
-                                <Badge variant="outline">{option.label}</Badge>
+                                <Badge variant="outline">{(locale === "fr" && option.label_fr) ? option.label_fr : option.label}</Badge>
                                 {hasPermission("elections.manage") && (election.status === "draft" || election.status === "open") && (
                                   <Button
                                     size="icon"
@@ -875,8 +918,8 @@ export default function ElectionsPage() {
                                       <RadioGroupItem value={candidate.id} id={`vote-${candidate.id}`} />
                                       <Label htmlFor={`vote-${candidate.id}`} className="flex-1 cursor-pointer">
                                         <span className="font-medium">{name}</span>
-                                        {candidate.statement && (
-                                          <p className="text-xs text-muted-foreground">{candidate.statement}</p>
+                                        {(candidate.statement || candidate.statement_fr) && (
+                                          <p className="text-xs text-muted-foreground">{(locale === "fr" && candidate.statement_fr) ? candidate.statement_fr : candidate.statement}</p>
                                         )}
                                       </Label>
                                     </div>
@@ -898,7 +941,7 @@ export default function ElectionsPage() {
                                     <div key={option.id} className="flex items-center gap-3 rounded-md border p-3">
                                       <RadioGroupItem value={option.id} id={`vote-${option.id}`} />
                                       <Label htmlFor={`vote-${option.id}`} className="flex-1 cursor-pointer font-medium">
-                                        {option.label}
+                                        {(locale === "fr" && option.label_fr) ? option.label_fr : option.label}
                                       </Label>
                                     </div>
                                   ))}
@@ -918,7 +961,7 @@ export default function ElectionsPage() {
                                     <div key={option.id} className="flex items-center gap-3 rounded-md border p-3">
                                       <RadioGroupItem value={option.id} id={`vote-${option.id}`} />
                                       <Label htmlFor={`vote-${option.id}`} className="flex-1 cursor-pointer font-medium">
-                                        {option.label}
+                                        {(locale === "fr" && option.label_fr) ? option.label_fr : option.label}
                                       </Label>
                                     </div>
                                   ))}
@@ -985,7 +1028,7 @@ export default function ElectionsPage() {
                                         name = candidate ? getCandidateName(candidate) : "—";
                                       } else if (result.option_id) {
                                         const option = election.election_options.find((o) => o.id === result.option_id);
-                                        name = option?.label || t("common.unknown");
+                                        name = (locale === "fr" && option?.label_fr) ? option.label_fr : (option?.label || tc("unknown"));
                                       }
 
                                       return (
@@ -1085,7 +1128,7 @@ export default function ElectionsPage() {
                     <span className="block mt-1 text-amber-700 dark:text-amber-400">
                       {t("noPositionsHint")}{" "}
                       {hasPermission("settings.manage") && (
-                        <a href="/dashboard/settings" className="underline underline-offset-2">{t("noPositionsLink")}</a>
+                        <Link href="/dashboard/settings" className="underline underline-offset-2">{t("noPositionsLink")}</Link>
                       )}
                     </span>
                   )}
@@ -1153,13 +1196,13 @@ export default function ElectionsPage() {
                 <p className="text-xs text-amber-800 dark:text-amber-300">
                   {t("noPositionsHint")}{" "}
                   {hasPermission("settings.manage") && (
-                    <a
+                    <Link
                       href="/dashboard/settings"
                       className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200"
                       onClick={() => setShowAddCandidate(false)}
                     >
                       {t("noPositionsLink")}
-                    </a>
+                    </Link>
                   )}
                 </p>
               </div>

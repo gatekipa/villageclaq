@@ -59,8 +59,11 @@ export function Header({ onMenuClick }: HeaderProps) {
   }
 
   async function markAllAsRead() {
+    if (!user) return;
     const supabase = createClient();
-    await supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
+    let query = supabase.from("notifications").update({ is_read: true }).eq("user_id", user.id).eq("is_read", false);
+    if (groupId) query = query.eq("group_id", groupId);
+    await query;
     // Invalidate both notification queries so badge and list update
     queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] });
     queryClient.invalidateQueries({ queryKey: ["unread-notifications", user?.id] });

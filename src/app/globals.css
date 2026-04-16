@@ -133,10 +133,15 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent horizontal overflow at any zoom level (75%-150%) */
+    overflow-x: hidden;
+    min-width: 0;
   }
   html {
     @apply font-sans;
     font-size: 17px; /* Up from 16px default — scales all rem-based values ~6% */
+    /* Ensure layout stability across zoom levels */
+    overflow-x: hidden;
   }
   /* Fix native <select>/<option> dark mode visibility — browsers don't inherit CSS variables.
      Note: --background / --foreground are already full oklch() values, NOT H S L numbers,

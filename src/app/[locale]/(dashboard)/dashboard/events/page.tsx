@@ -606,16 +606,21 @@ export default function EventsPage() {
                       {day}
                     </span>
                     <div className="mt-1 space-y-0.5">
-                      {dayEvents.map((event: Record<string, unknown>) => (
+                      {dayEvents.map((event: Record<string, unknown>) => {
+                        const evtStart = new Date(event.starts_at as string);
+                        const timeStr = evtStart.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" });
+                        return (
                         <div
                           key={event.id as string}
                           className={`w-full truncate rounded px-1 py-0.5 text-[10px] font-medium ${
                             eventTypeColors[(event.event_type as string) || "other"]
                           }`}
+                          title={`${event.title as string} — ${timeStr}`}
                         >
-                          {event.title as string}
+                          <span className="opacity-70">{timeStr}</span>{" "}{event.title as string}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );

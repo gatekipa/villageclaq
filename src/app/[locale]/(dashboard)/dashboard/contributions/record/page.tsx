@@ -881,7 +881,7 @@ export default function RecordPaymentPage() {
                 <option value="">{t("contributions.selectType")}</option>
                 {types.map((type: Record<string, unknown>) => (
                   <option key={type.id as string} value={type.id as string}>
-                    {type.name as string} — {formatAmount(Number(type.amount), (type.currency as string) || currency)}
+                    {(locale === "fr" && type.name_fr) ? (type.name_fr as string) : (type.name as string)} — {formatAmount(Number(type.amount), (type.currency as string) || currency)}
                   </option>
                 ))}
               </select>
@@ -1119,7 +1119,7 @@ export default function RecordPaymentPage() {
                   <option value="">{t("contributions.selectType")}</option>
                   {types.map((type: Record<string, unknown>) => (
                     <option key={type.id as string} value={type.id as string}>
-                      {type.name as string} — {formatAmount(Number(type.amount), (type.currency as string) || currency)}
+                      {(locale === "fr" && type.name_fr) ? (type.name_fr as string) : (type.name as string)} — {formatAmount(Number(type.amount), (type.currency as string) || currency)}
                     </option>
                   ))}
                 </select>

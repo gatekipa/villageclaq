@@ -2238,7 +2238,8 @@
     "zelle": "Zelle",
     "pendingConfirmation": "Pending",
     "rejected": "Rejected",
-    "viewReceipt": "View Receipt"
+    "viewReceipt": "View Receipt",
+    "noSelfServiceHint": "Online payment is not yet set up for this group. Please contact your treasurer to make a payment or ask them to enable self-service payment methods."
   },
   "payNow": {
     "dialogTitle": "Pay Now",
@@ -4132,7 +4133,9 @@
     "noCandidatesHint": "No candidates yet. Click \"Add Candidate\" above to add nominees for this election.",
     "noCandidatesVote": "No candidates have been added to this election yet. Check back later.",
     "noOptionsVote": "No options have been configured for this vote yet. Check back later.",
-    "officerElectionHint": "Positions are assigned when adding candidates. Create the election first, then add candidates and assign each one to a position."
+    "officerElectionHint": "Positions are assigned when adding candidates. Create the election first, then add candidates and assign each one to a position.",
+    "notifyElectionOpenTitle": "Election Open",
+    "notifyElectionOpenBody": "The election \"{title}\" is now open for voting."
   },
   "documentVault": {
     "title": "Document Vault",

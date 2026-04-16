@@ -387,10 +387,8 @@ export default function ElectionsPage() {
             notifyBulkFromClient(activeMembers, {
               groupId: groupId!,
               inAppType: "election",
-              title: locale === "fr" ? "\u00c9lection ouverte" : "Election Open",
-              body: locale === "fr"
-                ? `L'\u00e9lection "${electionTitle}" est maintenant ouverte au vote.`
-                : `The election "${electionTitle}" is now open for voting.`,
+              title: t("notifyElectionOpenTitle"),
+              body: t("notifyElectionOpenBody", { title: electionTitle }),
               data: { electionTitle: electionTitle || "" },
               channels: { inApp: true, email: true },
               prefType: "announcements",

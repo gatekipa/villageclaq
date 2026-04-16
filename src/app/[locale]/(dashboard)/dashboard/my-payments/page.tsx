@@ -37,6 +37,7 @@ import {
   Building2,
   DollarSign,
   CreditCard,
+  Info,
 } from "lucide-react";
 
 
@@ -290,6 +291,16 @@ export default function MyPaymentsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Hint when no self-service methods configured */}
+      {!hasSelfServiceMethods && totalOutstanding > 0 && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            <Info className="mr-1.5 inline-block h-4 w-4 -mt-0.5" />
+            {t("noSelfServiceHint")}
+          </p>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2">

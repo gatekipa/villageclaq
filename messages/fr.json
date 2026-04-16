@@ -2279,7 +2279,8 @@
     "zelle": "Zelle",
     "pendingConfirmation": "En attente",
     "rejected": "Rejeté",
-    "viewReceipt": "Voir le reçu"
+    "viewReceipt": "Voir le reçu",
+    "noSelfServiceHint": "Le paiement en ligne n'est pas encore configuré pour ce groupe. Veuillez contacter votre trésorier pour effectuer un paiement ou demandez-lui d'activer les méthodes de paiement en libre-service."
   },
   "payNow": {
     "dialogTitle": "Payer maintenant",
@@ -4132,7 +4133,9 @@
     "noCandidatesHint": "Aucun candidat pour l'instant. Cliquez sur « Ajouter un candidat » ci-dessus pour ajouter des candidats.",
     "noCandidatesVote": "Aucun candidat n'a encore été ajouté à cette élection. Revenez plus tard.",
     "noOptionsVote": "Aucune option n'a encore été configurée pour ce vote. Revenez plus tard.",
-    "officerElectionHint": "Les postes sont attribués lors de l'ajout des candidats. Créez d'abord l'élection, puis ajoutez des candidats et assignez chacun à un poste."
+    "officerElectionHint": "Les postes sont attribués lors de l'ajout des candidats. Créez d'abord l'élection, puis ajoutez des candidats et assignez chacun à un poste.",
+    "notifyElectionOpenTitle": "Élection ouverte",
+    "notifyElectionOpenBody": "L'élection \"{title}\" est maintenant ouverte au vote."
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

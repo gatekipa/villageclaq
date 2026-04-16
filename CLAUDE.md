@@ -77,6 +77,20 @@ A recurring bug caused 0-membership users to land on a stateless dashboard inste
 
 See `src/ONBOARDING_REDIRECT_AUDIT.md` for the full audit.
 
+### 11. Notification Channel Routing (CRITICAL — Compliance/Cost)
+Africa's Talking charges for SMS attempts even when they fail. SMS to US/UK/EU numbers fails 100% of the time. These rules prevent wasted spend:
+
+- **SMS (Africa's Talking)**: ONLY sent to African phone numbers. Use `isAfricanPhoneNumber()` from `src/lib/is-african-phone.ts`. If country detection fails, SMS is SKIPPED (fail-safe).
+- **WhatsApp (Meta Cloud API)**: Sent to ALL valid phone numbers globally (African + diaspora). Use `isWhatsAppEligible()` / `formatPhoneForWhatsApp()` from `src/lib/format-phone-whatsapp.ts`.
+- **Email (Resend)**: Sent to all users with email addresses. No country restrictions.
+- **In-App**: Sent to all users. Cannot be opted out.
+- **Channel selection**: Always happens BEFORE any API call via `getEnabledChannels()` from `src/lib/notification-prefs.ts`. Caller's `channels` param is an upper bound; member preferences further restrict.
+- **NEVER** send SMS without checking `isAfricanPhoneNumber()` first — including in queue drain workers.
+- **NEVER** add empty `catch {}` blocks in notification code. Always log the error with `console.warn("[Channel] context:", err)`.
+- **Queue drain** (`src/app/api/cron/drain-notification-queue/route.ts`) must re-validate `isAfricanPhoneNumber()` before retrying queued SMS.
+
+See `src/NOTIFICATION_CHANNEL_AUDIT.md` for the full audit.
+
 ## Directory Structure
 ```
 src/

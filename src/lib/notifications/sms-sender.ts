@@ -70,7 +70,7 @@ async function queueNotification(channel: string, recipient: string, data: Recor
       data: { recipient, ...data },
       status: "queued",
     });
-  } catch {
-    // Queue failure is non-fatal
+  } catch (err) {
+    console.warn("[SMS:Queue] Failed to queue notification:", err instanceof Error ? err.message : err);
   }
 }

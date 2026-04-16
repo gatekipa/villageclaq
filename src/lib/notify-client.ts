@@ -140,7 +140,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
   try {
     const { data: { session } } = await supabase.auth.getSession();
     accessToken = session?.access_token || null;
-  } catch { /* best-effort */ }
+  } catch (err) { console.warn("[Notify] Failed to get session:", err instanceof Error ? err.message : err); }
 
   // ─── In-App Notification (always sent — cannot opt out) ───────────────────
   if (channels.inApp && recipientUserId) {
@@ -154,7 +154,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
         data: { link: deepLink },
         is_read: false,
       });
-    } catch { /* best-effort */ }
+    } catch (err) { console.warn("[Notify:InApp] Insert failed:", err instanceof Error ? err.message : err); }
   }
 
   if (!accessToken) return; // Can't call API routes without auth
@@ -171,8 +171,8 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
           data: { title, body, groupName: data.groupName || "", ...data },
           locale,
         }),
-      }).catch(() => {});
-    } catch { /* best-effort */ }
+      }).catch((err) => { console.warn("[Notify:Email] Fetch failed:", err instanceof Error ? err.message : err); });
+    } catch (err) { console.warn("[Notify:Email] Send failed:", err instanceof Error ? err.message : err); }
   }
 
   // ─── SMS ──────────────────────────────────────────────────────────────────
@@ -187,8 +187,8 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
           data,
           locale,
         }),
-      }).catch(() => {});
-    } catch { /* best-effort */ }
+      }).catch((err) => { console.warn("[Notify:SMS] Fetch failed:", err instanceof Error ? err.message : err); });
+    } catch (err) { console.warn("[Notify:SMS] Send failed:", err instanceof Error ? err.message : err); }
   }
 
   // ─── WhatsApp ─────────────────────────────────────────────────────────────
@@ -203,8 +203,8 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
           data,
           locale,
         }),
-      }).catch(() => {});
-    } catch { /* best-effort */ }
+      }).catch((err) => { console.warn("[Notify:WhatsApp] Fetch failed:", err instanceof Error ? err.message : err); });
+    } catch (err) { console.warn("[Notify:WhatsApp] Send failed:", err instanceof Error ? err.message : err); }
   }
 }
 
@@ -228,7 +228,7 @@ export async function notifyBulkFromClient(
   try {
     const { data: { session } } = await supabase.auth.getSession();
     accessToken = session?.access_token || null;
-  } catch { /* best-effort */ }
+  } catch (err) { console.warn("[NotifyBulk] Failed to get session:", err instanceof Error ? err.message : err); }
 
   // ─── Resolve deep link ────────────────────────────────────────────────────
   const deepLink = params.link || getNotificationLink(params.inAppType || "system");
@@ -250,7 +250,7 @@ export async function notifyBulkFromClient(
       for (let i = 0; i < rows.length; i += 50) {
         await supabase.from("notifications").insert(rows.slice(i, i + 50));
       }
-    } catch { /* best-effort */ }
+    } catch (err) { console.warn("[NotifyBulk:InApp] Batch insert failed:", err instanceof Error ? err.message : err); }
   }
 
   if (!accessToken) return;
@@ -271,7 +271,7 @@ export async function notifyBulkFromClient(
         enabledEmail = enabledEmail && prefs.email;
         enabledSms = enabledSms && prefs.sms;
         enabledWhatsapp = enabledWhatsapp && prefs.whatsapp;
-      } catch { /* fail-open */ }
+      } catch (err) { console.warn("[NotifyBulk] Pref check failed, fail-open:", err instanceof Error ? err.message : err); }
     }
 
     if (enabledEmail && r.userId) {
@@ -285,8 +285,8 @@ export async function notifyBulkFromClient(
             data: { title: params.title, body: params.body, groupName: params.data.groupName || "", ...params.data },
             locale: params.locale || "en",
           }),
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => { console.warn("[NotifyBulk:Email] Fetch failed:", err instanceof Error ? err.message : err); });
+      } catch (err) { console.warn("[NotifyBulk:Email] Send failed:", err instanceof Error ? err.message : err); }
     }
 
     if (enabledSms && params.smsTemplate) {
@@ -300,8 +300,8 @@ export async function notifyBulkFromClient(
             data: params.data,
             locale: params.locale || "en",
           }),
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => { console.warn("[NotifyBulk:SMS] Fetch failed:", err instanceof Error ? err.message : err); });
+      } catch (err) { console.warn("[NotifyBulk:SMS] Send failed:", err instanceof Error ? err.message : err); }
     }
 
     if (enabledWhatsapp && params.whatsappType && (r.phone || r.userId)) {
@@ -315,8 +315,8 @@ export async function notifyBulkFromClient(
             data: params.data,
             locale: params.locale || "en",
           }),
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => { console.warn("[NotifyBulk:WhatsApp] Fetch failed:", err instanceof Error ? err.message : err); });
+      } catch (err) { console.warn("[NotifyBulk:WhatsApp] Send failed:", err instanceof Error ? err.message : err); }
     }
   }
 }

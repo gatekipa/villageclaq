@@ -128,6 +128,14 @@ export async function GET(request: Request) {
 async function processSms(recipient: string, data: Record<string, unknown>): Promise<boolean> {
   if (!recipient) return false;
 
+  // CRITICAL: Enforce African-only SMS — queued items must still pass the country check.
+  // Without this, non-African numbers queued on SDK failure would burn AT API credits.
+  const { isAfricanPhoneNumber } = await import("@/lib/is-african-phone");
+  if (!isAfricanPhoneNumber(recipient)) {
+    console.log(`[DrainQueue:SMS] Skipping non-African number: ${recipient.slice(0, 6)}***`);
+    return true; // Return true to mark as "sent" so it doesn't retry forever
+  }
+
   const apiKey = process.env.AFRICASTALKING_API_KEY;
   if (!apiKey) return false; // AT still not configured — leave for next run
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useGroup } from "@/lib/group-context";
 import { useRouter } from "@/i18n/routing";
 
@@ -13,11 +13,16 @@ export function useRequireAdmin() {
   const { isAdmin, loading, currentMembership } = useGroup();
   const router = useRouter();
 
+  // Stable ref for router — useRouter() may return a new object on every render.
+  // Including router directly in useEffect deps would re-trigger the effect.
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
   useEffect(() => {
     if (!loading && currentMembership && !isAdmin) {
-      router.replace("/dashboard");
+      routerRef.current.replace("/dashboard");
     }
-  }, [loading, currentMembership, isAdmin, router]);
+  }, [loading, currentMembership, isAdmin]);
 
   return { isAdmin, loading, blocked: !loading && !!currentMembership && !isAdmin };
 }

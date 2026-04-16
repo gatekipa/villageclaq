@@ -161,8 +161,14 @@ export function useCreateContributionType() {
 
 export function useObligations(filters?: { status?: string; membershipId?: string }) {
   const { groupId } = useGroup();
+  // IMPORTANT: Serialize filter values as primitives in queryKey.
+  // Passing the raw `filters` object creates a new reference on every render
+  // when callers pass inline objects like { membershipId: x }, causing
+  // TanStack Query to treat it as a new cache key → unnecessary refetches.
+  const filterStatus = filters?.status ?? "";
+  const filterMembershipId = filters?.membershipId ?? "";
   return useQuery({
-    queryKey: ["obligations", groupId, filters],
+    queryKey: ["obligations", groupId, filterStatus, filterMembershipId],
     queryFn: async () => {
       if (!groupId) return [];
       let q = supabase

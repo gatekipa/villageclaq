@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname, Link, useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
@@ -98,11 +98,15 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const t = useTranslations("admin");
 
+  // Stable ref — useRouter() may return a new object on every render.
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
   useEffect(() => {
     async function checkAccess() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.replace("/login"); return; }
+      if (!user) { routerRef.current.replace("/login"); return; }
       const { data: staff } = await supabase
         .from("platform_staff")
         .select("id, role, is_active")
@@ -112,7 +116,8 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
       setStatus(staff ? "authorized" : "denied");
     }
     checkAccess();
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- router accessed via stable ref
+  }, []);
 
   if (status === "loading") {
     return (

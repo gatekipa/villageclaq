@@ -898,12 +898,16 @@ export default function MembersPage() {
   }
 
   // Auto-open proxy member dialog when navigated with ?addProxy=true
+  // NOTE: searchParams is NOT in deps — useSearchParams() returns a new object
+  // every render, which would cause this effect to re-run infinitely.
+  // We read it once on mount + when canManageMembers changes.
+  const addProxyParam = searchParams.get("addProxy");
   useEffect(() => {
-    if (searchParams.get("addProxy") === "true" && canManageMembers) {
+    if (addProxyParam === "true" && canManageMembers) {
       setAddDialogOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [searchParams, canManageMembers]);
+  }, [addProxyParam, canManageMembers]);
 
   function handleSort(field: "name" | "role" | "standing" | "joined") {
     if (sortField === field) {

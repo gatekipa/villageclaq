@@ -53,6 +53,17 @@ Standing is auto-calculated via `calculateStanding()` from `@/lib/calculate-stan
 Scoring: all pass → `good`, 1 non-dues fail → `warning`, dues fail or 2+ fails → `suspended`.
 Use `useMemberStanding()` hook from `@/lib/hooks/use-member-standing.ts` (caches 5 minutes).
 
+### 9. Dependency Array Safety (CRITICAL — Production Incident)
+An infinite loop bug (331 requests/min) was caused by putting `useSearchParams()` in a `useCallback` dependency array. These rules prevent recurrence:
+
+- **NEVER** put `useSearchParams()` result in deps — it returns a new object every render. Extract the specific param as a string: `const val = searchParams.get("key")` and use `val` in deps. Or use `useStableSearchParams()` / `useSearchParam(name)` from `@/lib/hooks/use-stable-search-params.ts`.
+- **NEVER** put `router` from `useRouter()` in deps — it may return a new object every render. Use the `routerRef` pattern: `const routerRef = useRef(router); routerRef.current = router;` then call `routerRef.current.push(...)` inside effects. Or use `useStableRouter()` from `@/lib/hooks/use-stable-router.ts`.
+- **NEVER** put raw objects/arrays in deps — extract primitives or wrap in `useMemo`.
+- **ALWAYS** wrap fetch functions in `useCallback` with `[]` (empty) deps when they read dynamic values through refs.
+- **ALWAYS** add cooldown guards to user/auth fetch functions (see `lastFetchTime` ref pattern in `group-context.tsx`).
+
+See `src/UNSTABLE_DEPS_AUDIT.md` for the full audit.
+
 ## Directory Structure
 ```
 src/

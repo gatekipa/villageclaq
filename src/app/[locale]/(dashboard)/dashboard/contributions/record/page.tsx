@@ -87,18 +87,17 @@ export default function RecordPaymentPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Legacy defaults — used when no config exists or query still loading
-  const LEGACY_METHODS = [
+  // Defaults when no config row exists — matches DB column defaults
+  // (cash_enabled=true, all others false)
+  const DEFAULT_METHODS = [
     { value: "cash", labelKey: "contributions.cash" },
-    { value: "mobile_money", labelKey: "contributions.mobileMoney" },
-    { value: "bank_transfer", labelKey: "contributions.bankTransfer" },
-    { value: "online", labelKey: "contributions.online" },
+    { value: "other", labelKey: "contributions.other" },
   ];
 
   // Build enabled payment methods from config
   const enabledMethods = (() => {
-    // Still loading or no config row → show legacy defaults
-    if (configLoading || !paymentConfig) return LEGACY_METHODS;
+    // Still loading or no config row → show defaults (cash + other)
+    if (configLoading || !paymentConfig) return DEFAULT_METHODS;
 
     const cfg = paymentConfig as Record<string, unknown>;
     const methods: { value: string; labelKey: string }[] = [];

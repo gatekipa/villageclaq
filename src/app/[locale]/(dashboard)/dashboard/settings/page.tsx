@@ -64,6 +64,52 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+/* Country → currency auto-detection map */
+const COUNTRY_CURRENCY_MAP: Record<string, string> = {
+  "Cameroon": "XAF",
+  "Nigeria": "NGN",
+  "Ghana": "GHS",
+  "Kenya": "KES",
+  "South Africa": "ZAR",
+  "Senegal": "XOF",
+  "Côte d'Ivoire": "XOF",
+  "Togo": "XOF",
+  "Benin": "XOF",
+  "Burkina Faso": "XOF",
+  "Mali": "XOF",
+  "Guinea": "GNF",
+  "Sierra Leone": "SLE",
+  "Liberia": "LRD",
+  "Niger": "XOF",
+  "Gambia": "GMD",
+  "Tanzania": "TZS",
+  "Uganda": "UGX",
+  "Rwanda": "RWF",
+  "Ethiopia": "ETB",
+  "Somalia": "SOS",
+  "DR Congo": "CDF",
+  "Congo": "XAF",
+  "Gabon": "XAF",
+  "Chad": "XAF",
+  "Central African Republic": "XAF",
+  "Equatorial Guinea": "XAF",
+  "Zimbabwe": "ZWL",
+  "Zambia": "ZMW",
+  "Mozambique": "MZN",
+  "Botswana": "BWP",
+  "Namibia": "NAD",
+  "Malawi": "MWK",
+  "United States": "USD",
+  "United Kingdom": "GBP",
+  "Canada": "CAD",
+  "France": "EUR",
+  "Germany": "EUR",
+  "Belgium": "EUR",
+  "Netherlands": "EUR",
+  "Italy": "EUR",
+  "Australia": "AUD",
+};
+
 export default function GroupSettingsPage() {
   const router = useRouter();
   const t = useTranslations("settings");
@@ -156,6 +202,16 @@ export default function GroupSettingsPage() {
       setRequireJoinApproval(!!((settings as Record<string, unknown>).require_join_approval));
     }
   }, [group]);
+
+  // Auto-detect currency when country changes (only if user actively changes it)
+  const [countryUserChanged, setCountryUserChanged] = useState(false);
+  useEffect(() => {
+    if (!countryUserChanged || !editCountry) return;
+    const matched = COUNTRY_CURRENCY_MAP[editCountry];
+    if (matched) {
+      setEditCurrency(matched);
+    }
+  }, [editCountry, countryUserChanged]);
 
   async function handleSaveSettings() {
     if (!groupId) return;
@@ -635,7 +691,7 @@ export default function GroupSettingsPage() {
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">{t("country")}</Label>
                       {canManageSettings ? (
-                        <select className="mt-1 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm" value={editCountry} onChange={(e) => setEditCountry(e.target.value)}>
+                        <select className="mt-1 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm" value={editCountry} onChange={(e) => { setEditCountry(e.target.value); setCountryUserChanged(true); }}>
                           <option value="">—</option>
                           <optgroup label={tCountries("westAfrica")}>
                             {["Cameroon","Nigeria","Ghana","Senegal","Côte d'Ivoire","Togo","Benin","Burkina Faso","Mali","Guinea","Sierra Leone","Liberia","Niger","Gambia"].map(c => <option key={c} value={c}>{c}</option>)}

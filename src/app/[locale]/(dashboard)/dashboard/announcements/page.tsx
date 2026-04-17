@@ -140,7 +140,7 @@ export default function AnnouncementsPage() {
   const locale = useLocale();
   const t = useTranslations("communications");
   const tc = useTranslations("common");
-  const { groupId, user, currentGroup } = useGroup();
+  const { groupId, user, currentGroup, currentMembership } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
   const canManageAnnouncements = hasPermission("announcements.manage");
@@ -170,9 +170,13 @@ export default function AnnouncementsPage() {
   const [audience, setAudience] = useState<AudienceType>("all");
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
+  // Holds MEMBERSHIP IDs (not names) so RLS and notification targeting
+  // can match rows correctly.
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [schedule, setSchedule] = useState<ScheduleType>("now");
   const [scheduledDate, setScheduledDate] = useState("");
+  // Confirmation dialog before the notification blast
+  const [sendConfirmOpen, setSendConfirmOpen] = useState(false);
 
   function toggleChannel(key: keyof ChannelSelection) {
     if (key === "in_app") return;
@@ -207,8 +211,9 @@ export default function AnnouncementsPage() {
     setScheduledDate("");
   }
 
-  async function handleSend(asDraft = false) {
-    if (!titleEn.trim() || !groupId || !user) return;
+  async function handleSend(asDraft = false): Promise<boolean> {
+    if (!titleEn.trim() || !groupId || !user) return false;
+    if (saving) return false;
     setSaving(true);
     setMutationError(null);
     try {
@@ -236,82 +241,21 @@ export default function AnnouncementsPage() {
       });
       if (insertError) throw insertError;
 
-      // Send in-app notifications if not a draft and In-App channel is selected
-      if (!asDraft && schedule === "now" && activeChannels.includes("in_app")) {
-        try {
-          // Get target members based on audience
-          let targetMemberIds: string[] = [];
-          if (audience === "all") {
-            const { data: allMembers } = await supabase
-              .from("memberships")
-              .select("user_id")
-              .eq("group_id", groupId)
-              .not("user_id", "is", null);
-            targetMemberIds = (allMembers || []).map((m) => m.user_id).filter(Boolean);
-          } else if (audience === "roles" && selectedRoles.length > 0) {
-            const { data: roleMembers } = await supabase
-              .from("memberships")
-              .select("user_id, role")
-              .eq("group_id", groupId)
-              .in("role", selectedRoles)
-              .not("user_id", "is", null);
-            targetMemberIds = (roleMembers || []).map((m) => m.user_id).filter(Boolean);
-          }
-          // For "specific members", selectedMembers contains names not IDs — skip notifications for now
-          // (would need member ID mapping for proper targeting)
-
-          if (targetMemberIds.length > 0) {
-            // Remove current user from notifications (they sent it, they know)
-            const recipientIds = targetMemberIds.filter((id) => id !== user.id);
-            // Batch insert notifications (max 50 at a time to avoid timeout)
-            for (let i = 0; i < recipientIds.length; i += 50) {
-              const batch = recipientIds.slice(i, i + 50).map((userId) => ({
-                user_id: userId,
-                group_id: groupId,
-                type: "announcement",
-                title: titleEn,
-                body: (contentEn || "").slice(0, 200),
-                is_read: false,
-                data: { link: "/dashboard/announcements" },
-              }));
-              await supabase.from("notifications").insert(batch);
-            }
-          }
-        } catch {
-          // Non-critical — don't fail the announcement if notifications fail
-        }
-
-        // WhatsApp + Email + SMS for announcement (fire-and-forget)
-        try {
-          const { notifyBulkFromClient } = await import("@/lib/notify-client");
-          const { data: phoneMembersData } = await supabase
-            .from("memberships")
-            .select("user_id, display_name, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
-            .eq("group_id", groupId);
-
-          const phoneMembers = (phoneMembersData || []).filter((m) => m.user_id !== user.id);
-          const recipients = phoneMembers.map((m) => {
-            const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
-            const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-            const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
-            return { userId: m.user_id as string | null, phone };
-          });
-          const annTitle = (locale === "fr" && titleFr) ? titleFr : titleEn;
-          const annBody = (locale === "fr" && contentFr) ? contentFr : contentEn;
-          notifyBulkFromClient(recipients, {
-            groupId: groupId!,
-            title: annTitle,
-            body: (annBody || "").slice(0, 200),
-            data: { groupName: currentGroup?.name || "", title: annTitle, body: (annBody || "").slice(0, 100) },
-            emailTemplate: "notification",
-            smsTemplate: "announcement",
-            whatsappType: "announcement",
-            inAppType: "announcement",
-            locale,
-            channels: { inApp: true, email: true, sms: true, whatsapp: true },
-            prefType: "announcements",
-          }).catch(() => {});
-        } catch { /* notification failure is non-critical */ }
+      // Dispatch notifications only when actually sending now — not for
+      // drafts or future-scheduled rows. The cron drain will handle the
+      // latter when scheduled_at is reached.
+      if (!asDraft && schedule === "now") {
+        await dispatchAnnouncementNotifications({
+          supabase,
+          audience,
+          selectedRoles,
+          selectedMembers,
+          activeChannels,
+          titleEn,
+          titleFr,
+          contentEn,
+          contentFr,
+        });
       }
 
       // Audit log
@@ -324,16 +268,100 @@ export default function AnnouncementsPage() {
           description: `Announcement "${titleEn}" ${asDraft ? "saved as draft" : "sent"}`,
           metadata: { title: titleEn, isDraft: asDraft },
         });
-      } catch { /* best-effort */ }
+      } catch (err) {
+        console.warn("[Announcements:Audit] activity log failed:", err instanceof Error ? err.message : err);
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["aggregated-feed", groupId] });
       setDialogOpen(false);
       resetForm();
+      return true;
     } catch (err) {
       setMutationError((err as Error).message);
+      return false;
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Dispatches the announcement blast. Recipients are computed from the
+  // audience field; external channels are restricted to the admin's
+  // selection (previously they were force-enabled regardless of the
+  // toggles in the form).
+  async function dispatchAnnouncementNotifications(args: {
+    supabase: ReturnType<typeof createClient>;
+    audience: AudienceType;
+    selectedRoles: string[];
+    selectedMembers: string[];
+    activeChannels: string[];
+    titleEn: string;
+    titleFr: string;
+    contentEn: string;
+    contentFr: string;
+  }): Promise<void> {
+    const { supabase, audience, selectedRoles, selectedMembers, activeChannels, titleEn, titleFr, contentEn, contentFr } = args;
+    if (!groupId || !user) return;
+
+    let query = supabase
+      .from("memberships")
+      .select("id, user_id, role, display_name, is_proxy, standing, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
+      .eq("group_id", groupId);
+
+    if (audience === "roles") {
+      if (selectedRoles.length === 0) return;
+      query = query.in("role", selectedRoles);
+    } else if (audience === "members") {
+      if (selectedMembers.length === 0) return;
+      query = query.in("id", selectedMembers);
+    }
+
+    const { data: rows, error } = await query;
+    if (error) {
+      console.warn("[Announcements:Notify] membership lookup failed:", error.message);
+      return;
+    }
+
+    const recipients = (rows || [])
+      .filter((m) => m.user_id && m.user_id !== user.id && m.standing !== "banned")
+      .map((m) => {
+        const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
+        const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
+        const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
+        return { userId: m.user_id as string | null, phone };
+      });
+
+    if (recipients.length === 0) return;
+
+    const annTitle = (locale === "fr" && titleFr) ? titleFr : titleEn;
+    const annBody = (locale === "fr" && contentFr) ? contentFr : contentEn;
+    const groupName = currentGroup?.name || "";
+    try {
+      const { notifyBulkFromClient } = await import("@/lib/notify-client");
+      notifyBulkFromClient(recipients, {
+        groupId: groupId!,
+        title: annTitle,
+        body: (annBody || "").slice(0, 200),
+        data: { groupName, title: annTitle, body: (annBody || "").slice(0, 100) },
+        emailTemplate: "notification",
+        smsTemplate: "announcement",
+        whatsappType: "announcement",
+        inAppType: "announcement",
+        locale,
+        // Respect the admin's channel toggles. In-app is always on per
+        // the same-row disable in the UI.
+        channels: {
+          inApp: activeChannels.includes("in_app"),
+          email: activeChannels.includes("email"),
+          sms: activeChannels.includes("sms"),
+          whatsapp: activeChannels.includes("whatsapp"),
+        },
+        prefType: "announcements",
+      }).catch((err) => {
+        console.warn("[Announcements:Notify] bulk dispatch failed:", err instanceof Error ? err.message : err);
+      });
+    } catch (err) {
+      console.warn("[Announcements:Notify] setup failed:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -391,32 +419,32 @@ export default function AnnouncementsPage() {
         throw new Error(t("publishFailed"));
       }
 
-      // Send in-app notifications for the published announcement
+      // Dispatch the blast for the published draft using the row's
+      // persisted audience + channel selection (same logic as fresh
+      // send). Previously this path force-inserted in-app notifications
+      // to every group member and ignored audience + external channels.
       try {
         const ann = allAnnouncements.find((a: Record<string, unknown>) => (a.id as string) === annId) as Record<string, unknown> | undefined;
-        const annChannels = (ann?.channels as string[]) || [];
-        if (annChannels.includes("in_app") || annChannels.length === 0) {
-          const { data: allMembers } = await supabase
-            .from("memberships")
-            .select("user_id")
-            .eq("group_id", groupId!)
-            .not("user_id", "is", null);
-          const recipientIds = (allMembers || []).map((m) => m.user_id).filter((id) => id && id !== user?.id);
-          for (let i = 0; i < recipientIds.length; i += 50) {
-            const batch = recipientIds.slice(i, i + 50).map((userId) => ({
-              user_id: userId,
-              group_id: groupId,
-              type: "announcement",
-              title: (ann?.title as string) || "",
-              body: ((ann?.content as string) || "").slice(0, 200),
-              is_read: false,
-              data: { link: "/dashboard/announcements" },
-            }));
-            await supabase.from("notifications").insert(batch);
-          }
+        if (ann) {
+          const audienceJson = (ann.audience as Record<string, unknown>) || { type: "all" };
+          const atype = ((audienceJson.type as string) || "all") as AudienceType;
+          const aroles = Array.isArray(audienceJson.roles) ? (audienceJson.roles as string[]) : [];
+          const amembers = Array.isArray(audienceJson.members) ? (audienceJson.members as string[]) : [];
+          const achannels = Array.isArray(ann.channels) ? (ann.channels as string[]) : ["in_app"];
+          await dispatchAnnouncementNotifications({
+            supabase,
+            audience: atype,
+            selectedRoles: aroles,
+            selectedMembers: amembers,
+            activeChannels: achannels,
+            titleEn: (ann.title as string) || "",
+            titleFr: (ann.title_fr as string) || "",
+            contentEn: (ann.content as string) || "",
+            contentFr: (ann.content_fr as string) || "",
+          });
         }
-      } catch {
-        // Non-critical — don't fail the publish if notifications fail
+      } catch (nerr) {
+        console.warn("[Announcements:Publish] dispatch failed:", nerr instanceof Error ? nerr.message : nerr);
       }
 
       await queryClient.invalidateQueries({ queryKey: ["announcements", groupId] });
@@ -457,10 +485,48 @@ export default function AnnouncementsPage() {
     }
   }
 
-  const memberNames = (membersList || []).map((m: Record<string, unknown>) => getMemberName(m));
-  const filteredMembers = memberNames.filter((m: string) =>
-    m.toLowerCase().includes(memberSearch.toLowerCase())
+  // Candidate list for the member-picker. We store membership IDs (not
+  // names) in selectedMembers so RLS + recipient filtering match rows.
+  const memberPickerOptions = useMemo(
+    () =>
+      (membersList || []).map((m: Record<string, unknown>) => ({
+        id: m.id as string,
+        name: getMemberName(m),
+      })),
+    [membersList]
   );
+  const filteredMemberOptions = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase();
+    if (!q) return memberPickerOptions;
+    return memberPickerOptions.filter((m) => m.name.toLowerCase().includes(q));
+  }, [memberPickerOptions, memberSearch]);
+
+  // Preview recipient count shown on the confirmation dialog. Excludes
+  // proxies (no user_id) and banned members — same filter used by the
+  // dispatcher.
+  const estimatedRecipientCount = useMemo(() => {
+    const list = (membersList || []) as Array<Record<string, unknown>>;
+    const candidates = list.filter(
+      (m) => m.user_id && m.user_id !== user?.id && m.standing !== "banned"
+    );
+    if (audience === "all") return candidates.length;
+    if (audience === "roles") {
+      if (selectedRoles.length === 0) return 0;
+      return candidates.filter((m) => selectedRoles.includes(m.role as string)).length;
+    }
+    // members
+    if (selectedMembers.length === 0) return 0;
+    return candidates.filter((m) => selectedMembers.includes(m.id as string)).length;
+  }, [membersList, audience, selectedRoles, selectedMembers, user?.id]);
+
+  const activeChannelLabels = useMemo(() => {
+    const parts: string[] = [];
+    if (channels.in_app) parts.push(t("channelInApp"));
+    if (channels.email) parts.push(t("channelEmail"));
+    if (channels.sms) parts.push(t("channelSms"));
+    if (channels.whatsapp) parts.push(t("channelWhatsapp"));
+    return parts.join(", ");
+  }, [channels, t]);
 
   const allAnnouncements = announcements || [];
 
@@ -471,6 +537,33 @@ export default function AnnouncementsPage() {
 
   const announcementList = useMemo(() => {
     let result = allAnnouncements as Array<Record<string, unknown>>;
+
+    // Defence-in-depth: even if RLS leaks by mistake, never show a
+    // non-manager an announcement whose audience excludes them. Drafts
+    // are also hidden from members — managers see everything for the
+    // management UI.
+    if (!canManageAnnouncements) {
+      const myRole = currentMembership?.role as string | undefined;
+      const myMembershipId = currentMembership?.id as string | undefined;
+      result = result.filter((a) => {
+        const sentAt = a.sent_at as string | null;
+        const scheduledAt = a.scheduled_at as string | null;
+        if (!sentAt && !scheduledAt) return false; // drafts
+        const aud = (a.audience as Record<string, unknown> | null) || { type: "all" };
+        const atype = (aud?.type as string) || "all";
+        if (atype === "all") return true;
+        if (atype === "roles") {
+          const roles = Array.isArray(aud.roles) ? (aud.roles as string[]) : [];
+          return !!myRole && roles.includes(myRole);
+        }
+        if (atype === "members") {
+          const members = Array.isArray(aud.members) ? (aud.members as string[]) : [];
+          return !!myMembershipId && members.includes(myMembershipId);
+        }
+        return false;
+      });
+    }
+
     if (annStatusFilter !== "all") {
       result = result.filter((a) => {
         const sentAt = a.sent_at as string | null;
@@ -500,7 +593,7 @@ export default function AnnouncementsPage() {
       return sortDir === "asc" ? titleA.localeCompare(titleB) : titleB.localeCompare(titleA);
     });
     return result;
-  }, [allAnnouncements, annStatusFilter, annSearch, sortField, sortDir]);
+  }, [allAnnouncements, annStatusFilter, annSearch, sortField, sortDir, canManageAnnouncements, currentMembership?.role, currentMembership?.id]);
 
   if (isLoading) return <ListSkeleton rows={5} />;
   if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
@@ -663,18 +756,18 @@ export default function AnnouncementsPage() {
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {filteredMembers.map((member: string) => (
+                      {filteredMemberOptions.map((opt: { id: string; name: string }) => (
                         <button
-                          key={member}
+                          key={opt.id}
                           type="button"
-                          onClick={() => toggleMember(member)}
+                          onClick={() => toggleMember(opt.id)}
                           className={`rounded-md border px-2.5 py-1.5 text-xs transition-colors ${
-                            selectedMembers.includes(member)
+                            selectedMembers.includes(opt.id)
                               ? "border-primary bg-primary/10 text-primary dark:bg-primary/20"
                               : "border-border bg-background text-muted-foreground hover:bg-muted dark:bg-input/30"
                           }`}
                         >
-                          {member}
+                          {opt.name}
                         </button>
                       ))}
                     </div>
@@ -738,7 +831,16 @@ export default function AnnouncementsPage() {
                     {saving ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
                     <span className="ml-1">{t("saveDraft")}</span>
                   </Button>
-                  <Button onClick={() => handleSend(false)} disabled={saving || !titleEn.trim()}>
+                  <Button
+                    onClick={() => setSendConfirmOpen(true)}
+                    disabled={
+                      saving
+                      || !titleEn.trim()
+                      || (audience === "roles" && selectedRoles.length === 0)
+                      || (audience === "members" && selectedMembers.length === 0)
+                      || (schedule === "later" && !scheduledDate)
+                    }
+                  >
                     {saving ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                     <span className="ml-1">{t("sendAnnouncement")}</span>
                   </Button>
@@ -886,6 +988,65 @@ export default function AnnouncementsPage() {
           })}
         </div>
       )}
+
+      {/* Send Confirmation Dialog — gates the notification blast */}
+      <Dialog
+        open={sendConfirmOpen}
+        onOpenChange={(open) => { if (!saving) setSendConfirmOpen(open); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("sendConfirmTitle")}</DialogTitle>
+            <DialogDescription>{t("sendConfirmDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-muted-foreground">{t("sendConfirmRecipients")}</span>
+              <span className="font-medium">
+                {t("sendConfirmRecipientCount", { count: estimatedRecipientCount })}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-muted-foreground">{t("sendConfirmAudience")}</span>
+              <span className="font-medium text-right">
+                {audience === "all"
+                  ? t("audienceAll")
+                  : audience === "roles"
+                    ? t("audienceRoles")
+                    : t("audienceMembers")}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-muted-foreground">{t("sendConfirmChannels")}</span>
+              <span className="font-medium text-right">{activeChannelLabels || t("channelInApp")}</span>
+            </div>
+            {estimatedRecipientCount === 0 && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                {t("sendConfirmNoRecipients")}
+              </p>
+            )}
+          </div>
+          {mutationError && (
+            <p className="text-sm text-destructive">{mutationError}</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendConfirmOpen(false)} disabled={saving}>
+              {tc("cancel")}
+            </Button>
+            <Button
+              onClick={async () => {
+                if (saving) return;
+                const ok = await handleSend(false);
+                if (ok) setSendConfirmOpen(false);
+              }}
+              disabled={saving || !titleEn.trim() || estimatedRecipientCount === 0}
+            >
+              {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Send className="mr-2 size-4" />}
+              {t("sendConfirmAction")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) setShowDeleteConfirm(null); }}>

@@ -212,6 +212,8 @@ export default function MinutesPage() {
   // Delete state
   const [deleteMinutesId, setDeleteMinutesId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Publish confirmation dialog — blocks accidental blast notifications
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const [richTextInitContent, setRichTextInitContent] = useState("");
   const contentEditableRef = useRef<HTMLDivElement>(null);
 
@@ -230,6 +232,30 @@ export default function MinutesPage() {
   // Filter events for the left panel
   const filteredEvents = useMemo(() => {
     let list = events;
+
+    // Meetings must have happened (or be happening) before they can be minuted.
+    // Rules:
+    //   - Events with linked minutes (any status) are ALWAYS visible so
+    //     secretaries can view / edit the attached record.
+    //   - Explicit status 'completed' or 'in_progress' → include.
+    //   - Explicit status 'cancelled' with no minutes → exclude (meeting didn't
+    //     happen).
+    //   - Otherwise fall back to calendar-day comparison: events starting
+    //     today or earlier are included; events starting tomorrow or later
+    //     are excluded. "Today" is compared at day granularity so a meeting
+    //     scheduled for later today (the secretary may be taking notes live)
+    //     is still listed.
+    const now = new Date();
+    const todayDayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    list = list.filter((e) => {
+      if (minutesByEventId[e.id]) return true;
+      if (e.status === "completed" || e.status === "in_progress") return true;
+      if (e.status === "cancelled") return false;
+      const start = new Date(e.starts_at);
+      if (isNaN(start.getTime())) return false;
+      const eventDayStart = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+      return eventDayStart <= todayDayStart;
+    });
 
     // Non-admins only see events with published minutes
     if (!canManageMinutes) {
@@ -408,12 +434,12 @@ export default function MinutesPage() {
 
   // ─── Save / Publish ─────────────────────────────────────────────────────
 
-  const handleSave = async (status: "draft" | "published") => {
-    if (!groupId || !user) return;
-    if (!standaloneMode && !selectedEvent) return;
-    if (standaloneMode && !standaloneTitle.trim() && !selectedStandaloneId) return;
+  const handleSave = async (status: "draft" | "published"): Promise<boolean> => {
+    if (!groupId || !user) return false;
+    if (!standaloneMode && !selectedEvent) return false;
+    if (standaloneMode && !standaloneTitle.trim() && !selectedStandaloneId) return false;
     // Mutual exclusion: prevent both "Save Draft" and "Publish" from firing simultaneously
-    if (saving) return;
+    if (saving) return false;
     setSaving(true);
 
     const textContent =
@@ -437,7 +463,7 @@ export default function MinutesPage() {
       } catch (err) {
         showError((err as Error).message || tc("error"));
         setSaving(false);
-        return;
+        return false;
       }
     }
 
@@ -583,8 +609,10 @@ export default function MinutesPage() {
       setEditMode(false);
       setStandaloneMode(false);
       showSuccess(status === "published" ? t("minutesPublished") : t("minutesSaved"));
+      return true;
     } catch (err) {
       showError((err as Error).message || tc("error"));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -927,23 +955,28 @@ export default function MinutesPage() {
             </Button>
           </div>
 
-          {/* New Standalone Minutes button */}
+          {/* New Standalone Minutes button — for notes not tied to a scheduled event */}
           {canManageMinutes && (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                setSelectedEventId(null);
-                setStandaloneMode(true);
-                setSelectedStandaloneId(null);
-                setStandaloneTitle("");
-                initEditor(null, null);
-                setEditMode(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {t("newStandalone")}
-            </Button>
+            <div className="space-y-1">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setSelectedEventId(null);
+                  setStandaloneMode(true);
+                  setSelectedStandaloneId(null);
+                  setStandaloneTitle("");
+                  initEditor(null, null);
+                  setEditMode(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {t("newStandalone")}
+              </Button>
+              <p className="px-1 text-[11px] text-muted-foreground">
+                {t("newStandaloneHint")}
+              </p>
+            </div>
           )}
 
           {/* Standalone minutes in list */}
@@ -989,7 +1022,11 @@ export default function MinutesPage() {
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
             {filteredEvents.length === 0 && standaloneMinutes.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                {tc("noResults")}
+                {searchQuery.trim()
+                  ? tc("noResults")
+                  : events.length === 0
+                    ? tc("noResults")
+                    : t("noCompletedEvents")}
               </p>
             ) : (
               filteredEvents.map((event) => (
@@ -1500,7 +1537,7 @@ export default function MinutesPage() {
                     {t("saveDraft")}
                   </Button>
                   <Button
-                    onClick={() => handleSave("published")}
+                    onClick={() => setPublishConfirmOpen(true)}
                     disabled={saving}
                   >
                     {saving && (
@@ -1970,6 +2007,41 @@ export default function MinutesPage() {
             <Button variant="destructive" onClick={handleDeleteMinutes} disabled={deleting}>
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {tc("delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Publish Minutes Confirmation Dialog — gates the notification blast */}
+      <Dialog
+        open={publishConfirmOpen}
+        onOpenChange={(open) => { if (!saving) setPublishConfirmOpen(open); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("publishConfirmTitle")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("publishConfirmDescription")}
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPublishConfirmOpen(false)}
+              disabled={saving}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              onClick={async () => {
+                if (saving) return;
+                const ok = await handleSave("published");
+                if (ok) setPublishConfirmOpen(false);
+              }}
+              disabled={saving}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("publishConfirmAction")}
             </Button>
           </DialogFooter>
         </DialogContent>

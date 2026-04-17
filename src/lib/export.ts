@@ -6,11 +6,20 @@
 interface CSVExportOptions {
   /** Optional metadata header rows (group name, report title, date, AI insights) */
   headerRows?: string[];
+  /**
+   * Optional map from the English data-object key (e.g. "Amount") to a
+   * locale-specific column label ("Montant"). When provided, the CSV
+   * header row uses the translated label while the data rows still
+   * reference keys by their original English name. Unknown keys fall
+   * back to the raw key.
+   */
+  headerLabels?: Record<string, string>;
 }
 
 export function exportCSV(data: Record<string, unknown>[], filename: string, options?: CSVExportOptions) {
   if (!data.length) return;
   const headers = Object.keys(data[0]);
+  const displayHeaders = headers.map((h) => options?.headerLabels?.[h] ?? h);
 
   function escapeCSV(val: unknown): string {
     const str = val === null || val === undefined ? "" : String(val);
@@ -31,8 +40,10 @@ export function exportCSV(data: Record<string, unknown>[], filename: string, opt
     lines.push(""); // blank separator line
   }
 
-  // Data table
-  lines.push(headers.map(escapeCSV).join(","));
+  // Data table — header row uses displayHeaders (localized), data rows
+  // read from the original English keys so callers don't need to know
+  // about translation.
+  lines.push(displayHeaders.map(escapeCSV).join(","));
   for (const row of data) {
     lines.push(headers.map((h) => escapeCSV(row[h])).join(","));
   }

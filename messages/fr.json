@@ -90,7 +90,16 @@
     "select": "Sélectionner...",
     "member": "Membre",
     "uploaded": "Téléchargé",
-    "exported": "Exporté"
+    "exported": "Exporté",
+    "paid": "Payé",
+    "partial": "Partiel",
+    "overdue": "En retard",
+    "group": "Groupe",
+    "amount": "Montant",
+    "standing": "Statut",
+    "role": "Rôle",
+    "notes": "Notes",
+    "never": "Jamais"
   },
   "join": {
     "enterCode": "Entrer le code d'adhésion",
@@ -876,7 +885,8 @@
       "admin": "Limite de membres atteinte. Votre plan autorise {limit} membres. Passez à un plan supérieur pour en ajouter.",
       "member": "Ce groupe a atteint sa limite de membres. Contactez l'administrateur du groupe.",
       "upgrade": "Passer au plan supérieur"
-    }
+    },
+    "joined": "Inscrit"
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -1407,7 +1417,8 @@
     "sortByName": "Nom",
     "searchEventsPlaceholder": "Rechercher des événements...",
     "eventCancelledNotifTitle": "Événement annulé",
-    "eventCancelledNotifBody": "L'événement « {title} » a été annulé"
+    "eventCancelledNotifBody": "L'événement « {title} » a été annulé",
+    "attendance": "Présence"
   },
   "attendance": {
     "title": "Présence",
@@ -2894,7 +2905,7 @@
     "member": "Membre",
     "plan": "Plan",
     "contribution": "Cotisation",
-    "ytdPayouts": "Versements cumul annuel",
+    "ytdPayouts": "Paiements YTD",
     "pending": "En attente",
     "cycleName": "Nom du cycle",
     "status": "Statut",
@@ -2915,7 +2926,30 @@
     "disputeTitle": "Titre",
     "category": "Catégorie",
     "priority": "Priorité",
-    "filed": "Déposé"
+    "filed": "Déposé",
+    "lastHosted": "Dernier accueil",
+    "fairness": "Équité",
+    "daysOverdueShort": "Jours de retard",
+    "daysSinceJoin": "Jours depuis l'adhésion",
+    "engagementLevel": "Niveau",
+    "percentage": "Pourcentage",
+    "totalVoters": "Votants totaux",
+    "bucket": "Tranche",
+    "metric": "Mesure",
+    "value": "Valeur",
+    "activeMembersLabel": "Membres actifs",
+    "avgAttendance": "Présence moyenne",
+    "eventsHeldLabel": "Événements tenus",
+    "reliefPlansLabel": "Plans de secours",
+    "approved": "Approuvé",
+    "days": "Jours",
+    "attendanceRate": "Taux de présence",
+    "activeMembersShort": "Actifs",
+    "goodStandingPct": "% Bonne standing",
+    "savingsCirclesLabel": "Cercles d'épargne",
+    "openDisputes": "Différends ouverts",
+    "pendingClaims": "Réclamations en attente",
+    "pct": "Pct"
   },
   "enterprise": {
     "title": "Tableau de bord entreprise",
@@ -4922,7 +4956,8 @@
     "installmentProgress": "Échéances payées",
     "installmentNumber": "Échéance #",
     "daysOverdueLabel": "Jours de retard",
-    "daysOverdueValue": "{days}j de retard"
+    "daysOverdueValue": "{days}j de retard",
+    "writtenOff": "Amorti"
   },
   "projects": {
     "title": "Suivi des Projets",
@@ -5523,7 +5558,11 @@
     "attachDocumentOptional": "Joindre une photo ou un document pour appuyer votre contestation (facultatif)",
     "supportingDocuments": "Documents justificatifs",
     "viewDocument": "Voir le document",
-    "uploadFailed": "L'envoi du fichier a échoué, mais vous pouvez toujours soumettre votre contestation"
+    "uploadFailed": "L'envoi du fichier a échoué, mais vous pouvez toujours soumettre votre contestation",
+    "priorityUrgent": "Urgent",
+    "priorityHigh": "Élevée",
+    "priorityMedium": "Moyenne",
+    "priorityLow": "Faible"
   },
   "countries": {
     "CM": "Cameroun",

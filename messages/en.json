@@ -90,7 +90,16 @@
     "select": "Select...",
     "member": "Member",
     "uploaded": "Uploaded",
-    "exported": "Exported"
+    "exported": "Exported",
+    "paid": "Paid",
+    "partial": "Partial",
+    "overdue": "Overdue",
+    "group": "Group",
+    "amount": "Amount",
+    "standing": "Standing",
+    "role": "Role",
+    "notes": "Notes",
+    "never": "Never"
   },
   "join": {
     "enterCode": "Enter join code",
@@ -876,7 +885,8 @@
       "admin": "Member limit reached. Your plan allows {limit} members. Upgrade to add more.",
       "member": "This group has reached its member limit. Contact the group admin.",
       "upgrade": "Upgrade Plan"
-    }
+    },
+    "joined": "Joined"
   },
   "settings": {
     "title": "Group Settings",
@@ -1407,7 +1417,8 @@
     "sortByName": "Name",
     "searchEventsPlaceholder": "Search events...",
     "eventCancelledNotifTitle": "Event Cancelled",
-    "eventCancelledNotifBody": "The event \"{title}\" has been cancelled"
+    "eventCancelledNotifBody": "The event \"{title}\" has been cancelled",
+    "attendance": "Attendance"
   },
   "attendance": {
     "title": "Attendance",
@@ -2915,7 +2926,30 @@
     "disputeTitle": "Title",
     "category": "Category",
     "priority": "Priority",
-    "filed": "Filed"
+    "filed": "Filed",
+    "lastHosted": "Last Hosted",
+    "fairness": "Fairness",
+    "daysOverdueShort": "Days Overdue",
+    "daysSinceJoin": "Days Since Join",
+    "engagementLevel": "Level",
+    "percentage": "Percentage",
+    "totalVoters": "Total Voters",
+    "bucket": "Bucket",
+    "metric": "Metric",
+    "value": "Value",
+    "activeMembersLabel": "Active Members",
+    "avgAttendance": "Avg Attendance",
+    "eventsHeldLabel": "Events Held",
+    "reliefPlansLabel": "Relief Plans",
+    "approved": "Approved",
+    "days": "Days",
+    "attendanceRate": "Attendance Rate",
+    "activeMembersShort": "Active",
+    "goodStandingPct": "Good Standing %",
+    "savingsCirclesLabel": "Savings Circles",
+    "openDisputes": "Open Disputes",
+    "pendingClaims": "Pending Claims",
+    "pct": "Pct"
   },
   "enterprise": {
     "title": "Enterprise Dashboard",
@@ -4922,7 +4956,8 @@
     "installmentProgress": "Installments Paid",
     "installmentNumber": "Installment #",
     "daysOverdueLabel": "Days Overdue",
-    "daysOverdueValue": "{days}d overdue"
+    "daysOverdueValue": "{days}d overdue",
+    "writtenOff": "Written Off"
   },
   "projects": {
     "title": "Project Fund Tracker",
@@ -5523,7 +5558,11 @@
     "attachDocumentOptional": "Attach a photo or document to support your dispute (optional)",
     "supportingDocuments": "Supporting documents",
     "viewDocument": "View document",
-    "uploadFailed": "File upload failed, but you can still submit your dispute"
+    "uploadFailed": "File upload failed, but you can still submit your dispute",
+    "priorityUrgent": "Urgent",
+    "priorityHigh": "High",
+    "priorityMedium": "Medium",
+    "priorityLow": "Low"
   },
   "countries": {
     "CM": "Cameroon",

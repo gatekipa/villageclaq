@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { exportCSV } from "@/lib/export";
 import { exportPDF } from "@/lib/export-pdf";
+import { buildCsvHeaders } from "@/lib/report-csv-headers";
 
 import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
@@ -103,6 +104,53 @@ function translateFrequency(f: string, t: (k: string) => string): string {
     default:          return f;
   }
 }
+function translateAttendance(s: string, t: (k: string) => string): string {
+  switch (s) {
+    case "present": return t("common.present");
+    case "absent":  return t("common.absent");
+    case "excused": return t("common.excused");
+    case "late":    return t("common.late");
+    default:        return s;
+  }
+}
+function translatePriority(p: string, t: (k: string) => string): string {
+  switch (p) {
+    case "urgent": return t("disputes.priorityUrgent");
+    case "high":   return t("disputes.priorityHigh");
+    case "medium": return t("disputes.priorityMedium");
+    case "low":    return t("disputes.priorityLow");
+    default:       return p;
+  }
+}
+function translateDisputeStatus(s: string, t: (k: string) => string): string {
+  switch (s) {
+    case "open":       return t("reports.open");
+    case "resolved":   return t("reports.resolved");
+    case "closed":     return t("common.completed");
+    case "in_review":  return t("reports.pending");
+    default:           return s;
+  }
+}
+function translateLoanStatus(s: string, t: (k: string) => string): string {
+  switch (s) {
+    case "pending":    return t("reports.pending");
+    case "approved":   return t("common.completed");
+    case "active":     return t("common.active");
+    case "completed":  return t("common.completed");
+    case "defaulted":  return t("reports.defaultRate");
+    case "written_off":return t("loans.writtenOff");
+    default:           return s;
+  }
+}
+function translateInstallmentStatus(s: string, t: (k: string) => string): string {
+  switch (s) {
+    case "paid":      return t("common.paid");
+    case "pending":   return t("reports.pending");
+    case "partial":   return t("common.partial");
+    case "overdue":   return t("common.overdue");
+    default:          return s;
+  }
+}
 
 // Translate a raw membership_standing enum to the user's locale. Used by
 // the Member Standing Report + Roster so badges don't render raw enum
@@ -114,6 +162,16 @@ function standingLabel(s: string, t: (k: string) => string): string {
     case "suspended":  return t("members.standingSuspended");
     case "banned":     return t("members.standingBanned");
     default:           return s;
+  }
+}
+
+function roleLabel(r: string, t: (k: string) => string): string {
+  switch (r) {
+    case "owner":     return t("roles.owner");
+    case "admin":     return t("roles.admin");
+    case "moderator": return t("roles.moderator");
+    case "member":    return t("roles.member");
+    default:          return r;
   }
 }
 
@@ -310,12 +368,25 @@ export default function ReportDetailPage() {
   // Report 3: Contribution Ledger - all payments (no limit for exports, show 50 on screen)
   const ledgerPayments = paymentList;
 
-  // Report 4: AR Aging
-  const arBuckets: Record<string, { count: number; amount: number }> = { "0-30": { count: 0, amount: 0 }, "31-60": { count: 0, amount: 0 }, "61-90": { count: 0, amount: 0 }, "120+": { count: 0, amount: 0 } };
+  // Report 4: AR Aging — PRD spec buckets 30/60/90/120+.
+  // Pre-due balances (due_date in the future) are NOT aged receivables,
+  // so we skip them. The previous implementation used Math.max(0, …) and
+  // lumped everything not-yet-due into "0-30", inflating the first
+  // bucket. A 91-120 bucket was also missing — older-than-90 balances
+  // were all dumped into "120+".
+  const arBuckets: Record<string, { count: number; amount: number }> = {
+    "1-30": { count: 0, amount: 0 },
+    "31-60": { count: 0, amount: 0 },
+    "61-90": { count: 0, amount: 0 },
+    "91-120": { count: 0, amount: 0 },
+    "120+": { count: 0, amount: 0 },
+  };
   obligationList.filter((o: Record<string, unknown>) => (o.status as string) !== "paid").forEach((o: Record<string, unknown>) => {
-    const days = Math.max(0, Math.floor((Date.now() - new Date(o.due_date as string).getTime()) / 86400000));
+    const days = Math.floor((Date.now() - new Date(o.due_date as string).getTime()) / 86400000);
+    if (days < 1) return; // not yet overdue
     const amount = Number(o.amount || 0) - Number(o.amount_paid || 0);
-    const bucket = days <= 30 ? "0-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "120+";
+    if (amount <= 0) return;
+    const bucket = days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : days <= 120 ? "91-120" : "120+";
     arBuckets[bucket].count += 1;
     arBuckets[bucket].amount += amount;
   });
@@ -595,7 +666,7 @@ export default function ReportDetailPage() {
       data = eventAttendanceLog.flatMap(e => e.attendees.map(a => ({ Event: e.title, Date: e.date, Member: a.name, Status: a.status })));
       filename = "event_attendance_log";
     } else if (reportId === "13") {
-      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || "Never", "Rate %": r.rate, "Fairness %": r.fairnessScore }));
+      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || t("common.never"), "Rate %": r.rate, "Fairness %": r.fairnessScore }));
       filename = "hosting_compliance";
     } else if (reportId === "14") {
       data = filteredMinutes.map((m: Record<string, unknown>) => {
@@ -683,7 +754,7 @@ export default function ReportDetailPage() {
         headerRows.push(stripMarkdown(aiInsights));
         headerRows.push("");
       }
-      exportCSV(data, filename, { headerRows });
+      exportCSV(data, filename, { headerRows, headerLabels: buildCsvHeaders(t) });
     }
   }
 
@@ -740,7 +811,7 @@ export default function ReportDetailPage() {
       data = eventAttendanceLog.flatMap(e => e.attendees.map(a => ({ Event: e.title, Date: e.date, Member: a.name, Status: a.status })));
       filename = "event_attendance_log";
     } else if (reportId === "13") {
-      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || "Never", "Rate %": r.rate, "Fairness %": r.fairnessScore }));
+      data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || t("common.never"), "Rate %": r.rate, "Fairness %": r.fairnessScore }));
       filename = "hosting_compliance";
     } else if (reportId === "14") {
       data = filteredMinutes.map((m: Record<string, unknown>) => {
@@ -770,19 +841,19 @@ export default function ReportDetailPage() {
       data = [{ Members: boardStats.totalMembers, Collected: formatAmount(boardStats.totalCollected, currency), Expected: formatAmount(boardStats.totalExpected, currency), Rate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents }];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
     } else if (reportId === "17") {
-      data = [{
-        Metric: "Total Members", Value: groupMetrics.totalMembers },
-        { Metric: "Active Members", Value: groupMetrics.activeMembers },
-        { Metric: "Good Standing", Value: `${groupMetrics.goodStandingPct}%` },
-        { Metric: "Total Collected", Value: formatAmount(groupMetrics.totalCollected, currency) },
-        { Metric: "Total Outstanding", Value: formatAmount(groupMetrics.totalOutstanding, currency) },
-        { Metric: "Collection Rate", Value: `${groupMetrics.collectionRate}%` },
-        { Metric: "Avg Attendance", Value: `${groupMetrics.avgAttendanceRate}%` },
-        { Metric: "Events Held", Value: groupMetrics.totalEvents },
-        { Metric: "Hosting Compliance", Value: `${groupMetrics.hostingCompletionRate}%` },
-        { Metric: "Relief Plans", Value: groupMetrics.reliefPlansActive },
-        { Metric: "Savings Circles", Value: groupMetrics.savingsCyclesActive },
-        { Metric: "Health Score", Value: `${healthScore}% (${healthLabel})` },
+      data = [
+        { Metric: t("reports.totalMembers"), Value: groupMetrics.totalMembers },
+        { Metric: t("reports.activeMembersLabel"), Value: groupMetrics.activeMembers },
+        { Metric: t("reports.goodStanding"), Value: `${groupMetrics.goodStandingPct}%` },
+        { Metric: t("reports.totalCollected"), Value: formatAmount(groupMetrics.totalCollected, currency) },
+        { Metric: t("reports.totalOutstanding"), Value: formatAmount(groupMetrics.totalOutstanding, currency) },
+        { Metric: t("reports.collectionRate"), Value: `${groupMetrics.collectionRate}%` },
+        { Metric: t("reports.avgAttendance"), Value: `${groupMetrics.avgAttendanceRate}%` },
+        { Metric: t("reports.eventsHeldLabel"), Value: groupMetrics.totalEvents },
+        { Metric: t("reports.hostingCompliance"), Value: `${groupMetrics.hostingCompletionRate}%` },
+        { Metric: t("reports.reliefPlansLabel"), Value: groupMetrics.reliefPlansActive },
+        { Metric: t("reports.savingsCirclesLabel"), Value: groupMetrics.savingsCyclesActive },
+        { Metric: t("reports.healthScore"), Value: `${healthScore}% (${healthLabel})` },
       ];
       filename = "group_performance";
     } else if (reportId === "21") {
@@ -804,8 +875,10 @@ export default function ReportDetailPage() {
 
     if (data.length === 0) return;
 
-    const columns = Object.keys(data[0]);
-    const rows = data.map(row => columns.map(col => {
+    const columnKeys = Object.keys(data[0]);
+    const pdfHeaderLabels = buildCsvHeaders(t);
+    const columns = columnKeys.map(k => pdfHeaderLabels[k] ?? k);
+    const rows = data.map(row => columnKeys.map(col => {
       const val = row[col];
       if (val === null || val === undefined) return "-";
       return String(val);
@@ -1381,10 +1454,10 @@ export default function ReportDetailPage() {
                 <div key={i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-medium text-sm">{row.name}</p>
-                    <p className="text-xs text-muted-foreground">{row.phone} · Joined {row.joined}</p>
+                    <p className="text-xs text-muted-foreground">{row.phone} · {t("members.joined")} {row.joined}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline">{row.role}</Badge>
+                    <Badge variant="outline">{roleLabel(row.role, t)}</Badge>
                     <Badge className={standingColor(row.standing)}>{standingLabel(row.standing, t)}</Badge>
                   </div>
                 </div>
@@ -1519,7 +1592,7 @@ export default function ReportDetailPage() {
                     <div key={j} className="flex items-center justify-between rounded border px-3 py-1.5">
                       <span className="text-sm">{a.name}</span>
                       <Badge variant={a.status === "present" ? "default" : a.status === "excused" ? "secondary" : "outline"} className="text-xs">
-                        {a.status}
+                        {translateAttendance(a.status, t)}
                       </Badge>
                     </div>
                   ))}
@@ -1899,8 +1972,8 @@ export default function ReportDetailPage() {
                       <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="py-2 px-3 font-medium">{d.title}</td>
                         <td className="py-2 px-3"><Badge variant="outline">{d.category}</Badge></td>
-                        <td className="py-2 px-3"><Badge variant={d.priority === "urgent" ? "destructive" : "secondary"}>{d.priority}</Badge></td>
-                        <td className="py-2 px-3"><Badge variant={d.status === "resolved" ? "default" : "outline"}>{d.status}</Badge></td>
+                        <td className="py-2 px-3"><Badge variant={d.priority === "urgent" ? "destructive" : "secondary"}>{translatePriority(d.priority, t)}</Badge></td>
+                        <td className="py-2 px-3"><Badge variant={d.status === "resolved" ? "default" : "outline"}>{translateDisputeStatus(d.status, t)}</Badge></td>
                         <td className="py-2 px-3">{d.filedDate ? fd(d.filedDate) : "—"}</td>
                         <td className="py-2 px-3">{d.resolvedDate ? fd(d.resolvedDate) : "—"}</td>
                       </tr>
@@ -1959,7 +2032,7 @@ export default function ReportDetailPage() {
                         <td className="text-right py-2 px-3">{formatAmount(row.amount, currency)}</td>
                         <td className="py-2 px-3">
                           <Badge variant={row.status === "completed" ? "default" : row.status === "defaulted" || row.status === "written_off" ? "destructive" : "secondary"}>
-                            {row.status}
+                            {translateLoanStatus(row.status, t)}
                           </Badge>
                         </td>
                         <td className="py-2 px-3">{row.disbursedDate ? fd(row.disbursedDate) : "—"}</td>
@@ -2009,7 +2082,7 @@ export default function ReportDetailPage() {
                         <td className="text-right py-2 px-3">{formatAmount(Number(s.amount_paid || 0), currency)}</td>
                         <td className="py-2 px-3">
                           <Badge variant={status === "paid" ? "default" : isOverdue ? "destructive" : "secondary"}>
-                            {status}
+                            {translateInstallmentStatus(status, t)}
                           </Badge>
                         </td>
                       </tr>

@@ -510,8 +510,10 @@ export default function HostingPage() {
             const m = members.find((mem) => mem.id === a.membership_id);
             const raw = m as unknown as Record<string, unknown>;
             const uid = (raw?.user_id as string) || ((raw?.profiles as Record<string, unknown>)?.id as string) || null;
-            const profile = (Array.isArray(raw?.profiles) ? (raw?.profiles as unknown[])[0] : raw?.profiles) as Record<string, unknown> | null;
-            const phone = (profile?.phone as string) || (raw?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            // profile.phone no longer in useMembers cache. /api/sms/send
+            // and /api/whatsapp/send resolve real-member phone from uid
+            // server-side. Only proxy phones flow client-side.
+            const phone = (raw?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
             return { userId: uid, phone };
           });
           notifyBulkFromClient(recipients, {
@@ -1550,8 +1552,10 @@ function AssignHostsDialog({
             const m = activeMembers.find((mem) => mem.id === mid);
             const raw = m as unknown as Record<string, unknown>;
             const uid = (raw?.user_id as string) || ((raw?.profiles as Record<string, unknown>)?.id as string) || null;
-            const profile = (Array.isArray(raw?.profiles) ? (raw?.profiles as unknown[])[0] : raw?.profiles) as Record<string, unknown> | null;
-            const phone = (profile?.phone as string) || (raw?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+            // profile.phone no longer in useMembers cache. /api/sms/send
+            // and /api/whatsapp/send resolve real-member phone from uid
+            // server-side. Only proxy phones flow client-side.
+            const phone = (raw?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
             return { userId: uid, phone };
           });
           const groupName = (await supabase.from("groups").select("name").eq("id", groupId).single()).data?.name || "";
@@ -2969,9 +2973,12 @@ function RequestSwapDialog({
       const requesterName = getMemberName(
         activeMembers.find((m) => m.id === currentMembershipId) as unknown as Record<string, unknown>
       );
+      // profiles.phone intentionally NOT selected. For real members the
+      // dispatch APIs resolve phone from user_id server-side; proxy
+      // phones live in privacy_settings and remain available here.
       const { data: adminMembers } = await supabase
         .from("memberships")
-        .select("user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
+        .select("user_id, privacy_settings")
         .eq("group_id", groupId)
         .in("role", ["admin", "owner"])
         .not("user_id", "is", null);
@@ -3013,9 +3020,12 @@ function RequestSwapDialog({
         const { notifyFromClient } = await import("@/lib/notify-client");
         if (adminMembers) {
           for (const admin of adminMembers.filter((m) => m.user_id !== userId)) {
-            const adminProf = (Array.isArray(admin.profiles) ? admin.profiles[0] : admin.profiles) as Record<string, unknown> | null;
             const adminPriv = (admin.privacy_settings as Record<string, unknown>) || null;
-            const adminPhone = (adminProf?.phone as string) || (adminPriv?.proxy_phone as string) || null;
+            // Admins are always real members (user_id NOT NULL filter); the
+            // dispatch API resolves phone from user_id. Kept the proxy_phone
+            // fallback defensively in case an admin somehow has a proxy
+            // membership.
+            const adminPhone = (adminPriv?.proxy_phone as string) || null;
             notifyFromClient({
               recipientUserId: admin.user_id,
               recipientPhone: adminPhone,
@@ -3236,9 +3246,10 @@ function SwapRequestsAdminTab({
         if (requesterUserId) {
           const requesterMember = activeMembers.find((m) => (m as unknown as Record<string, unknown>).user_id === requesterUserId);
           const reqRaw = requesterMember as unknown as Record<string, unknown> | undefined;
-          const reqProf = (Array.isArray(reqRaw?.profiles) ? (reqRaw?.profiles as unknown[])[0] : reqRaw?.profiles ?? reqRaw?.profile) as Record<string, unknown> | null;
           const reqPriv = (reqRaw?.privacy_settings as Record<string, unknown>) || null;
-          const reqPhone = (reqProf?.phone as string) || (reqPriv?.proxy_phone as string) || null;
+          // profile.phone no longer in cache; /api/sms/send + /api/whatsapp/send
+          // resolve from user_id. Only proxy phones client-side.
+          const reqPhone = (reqPriv?.proxy_phone as string) || null;
           notifyFromClient({
             recipientUserId: requesterUserId,
             recipientPhone: reqPhone,
@@ -3305,9 +3316,10 @@ function SwapRequestsAdminTab({
         if (requesterUserId) {
           const reqMember = activeMembers.find((m) => (m as unknown as Record<string, unknown>).user_id === requesterUserId);
           const reqRaw = reqMember as unknown as Record<string, unknown> | undefined;
-          const reqProf = (Array.isArray(reqRaw?.profiles) ? (reqRaw?.profiles as unknown[])[0] : reqRaw?.profiles ?? reqRaw?.profile) as Record<string, unknown> | null;
           const reqPriv = (reqRaw?.privacy_settings as Record<string, unknown>) || null;
-          const reqPhone = (reqProf?.phone as string) || (reqPriv?.proxy_phone as string) || null;
+          // profile.phone no longer in cache; /api/sms/send + /api/whatsapp/send
+          // resolve from user_id. Only proxy phones client-side.
+          const reqPhone = (reqPriv?.proxy_phone as string) || null;
           notifyFromClient({
             recipientUserId: requesterUserId,
             recipientPhone: reqPhone,

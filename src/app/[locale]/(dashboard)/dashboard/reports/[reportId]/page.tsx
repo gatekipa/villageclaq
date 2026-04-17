@@ -202,7 +202,7 @@ export default function ReportDetailPage() {
   const params = useParams();
   const reportId = params.reportId as string;
   const reportKey = `report${reportId}`;
-  const { currentGroup, groupId } = useGroup();
+  const { currentGroup, groupId, isAdmin } = useGroup();
   const currency = currentGroup?.currency || "XAF";
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const fd = (d: string | Date | undefined | null) => d ? formatDateWithGroupFormat(d instanceof Date ? d.toISOString() : d, groupDateFormat, locale) : "—";
@@ -229,6 +229,28 @@ export default function ReportDetailPage() {
   const { data: meetingMinutes, isLoading: minutesLoading } = useMeetingMinutes();
   const { data: savingsCycles } = useSavingsCycles();
   const { data: elections } = useElections();
+
+  // Membership Roster report (id "8") — fetch phones via the admin-
+  // authorised RPC. The RPC is gated by is_group_admin() server-side;
+  // non-admins get a 42501 error that we swallow and render the roster
+  // without phones. This replaces the old useMembers-cache phone leak.
+  const { data: rosterContacts } = useQuery({
+    queryKey: ["roster-contacts", groupId],
+    queryFn: async () => {
+      if (!groupId) return [] as Array<{ membership_id: string; phone: string | null }>;
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("get_roster_with_contacts", { p_group_id: groupId });
+      if (error) {
+        // 42501 = permission denied (caller isn't a group admin); degrade gracefully.
+        if (error.code !== "42501") {
+          console.warn("[Reports:Roster] get_roster_with_contacts failed:", error.message);
+        }
+        return [] as Array<{ membership_id: string; phone: string | null }>;
+      }
+      return (data || []) as Array<{ membership_id: string; phone: string | null }>;
+    },
+    enabled: !!groupId && isAdmin && reportId === "8",
+  });
 
   const { data: disputes } = useQuery({
     queryKey: ["disputes-report", groupId],
@@ -397,12 +419,16 @@ export default function ReportDetailPage() {
     standing: (m.standing as string) || "good",
   }));
 
-  // Report 8: Membership Roster
+  // Report 8: Membership Roster. phone is merged from get_roster_with_contacts
+  // (admin-authorised RPC). Non-admins see empty phone cells.
+  const rosterPhoneByMembership = new Map<string, string>();
+  for (const r of (rosterContacts as Array<{ membership_id: string; phone: string | null }> | undefined) || []) {
+    if (r.membership_id && r.phone) rosterPhoneByMembership.set(r.membership_id, r.phone);
+  }
   const rosterData = memberList.map((m: Record<string, unknown>) => {
-    const profile = (m.profile || m.profiles) as Record<string, unknown>;
     return {
       name: getMemberName(m),
-      phone: (profile?.phone as string) || "",
+      phone: rosterPhoneByMembership.get(m.id as string) || "",
       joined: (m.joined_at as string) ? fd(m.joined_at as string) : "",
       role: (m.role as string) || "member",
       standing: (m.standing as string) || "good",

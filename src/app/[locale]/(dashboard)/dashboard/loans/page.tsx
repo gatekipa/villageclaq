@@ -97,7 +97,11 @@ function useLoansData() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("loans")
-        .select("*, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, standing, joined_at, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone)), guarantor:memberships!loans_guarantor_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        // profiles.phone intentionally NOT selected on membership — it's
+        // no longer in any client cache. /api/sms/send + /api/whatsapp/send
+        // resolve phones server-side from user_id. Proxy phones stay in
+        // privacy_settings.proxy_phone.
+        .select("*, membership:memberships!loans_membership_id_fkey(id, user_id, display_name, standing, joined_at, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url)), guarantor:memberships!loans_guarantor_membership_id_fkey(id, user_id, display_name, is_proxy, profiles:profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -498,9 +502,11 @@ export default function LoansAdminPage() {
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const borrowerName = membership ? getMemberName(membership as Record<string, unknown>) : "";
-        const profile = (Array.isArray(membership?.profiles) ? (membership?.profiles as unknown[])[0] : membership?.profiles) as Record<string, unknown> | null;
         const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
-        const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
+        // profile.phone no longer in useMembers cache. /api/sms/send
+        // and /api/whatsapp/send resolve real-member phone from user_id
+        // server-side. Only proxy phones flow client-side.
+        const phone = (privSettings?.proxy_phone as string) || null;
         notifyFromClient({
           recipientUserId: borrowerUserId,
           recipientPhone: phone,

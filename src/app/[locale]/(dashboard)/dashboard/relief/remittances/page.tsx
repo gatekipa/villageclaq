@@ -177,18 +177,19 @@ export default function ReliefRemittancesPage() {
         const amt = formatAmount(Number(remittance?.amount || 0), currency);
         const branchName = ((remittance?.branch_group as Record<string, unknown>)?.name as string) || "";
         if (branchGroupId) {
+          // profiles.phone intentionally NOT selected. Dispatch APIs
+          // resolve real-member phone from user_id server-side.
           const { data: branchAdmins } = await supabase
             .from("memberships")
-            .select("user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
+            .select("user_id, privacy_settings")
             .eq("group_id", branchGroupId)
             .in("role", ["owner", "admin"])
             .not("user_id", "is", null);
           if (branchAdmins && branchAdmins.length > 0) {
             const { notifyBulkFromClient } = await import("@/lib/notify-client");
             const recipients = branchAdmins.map((a) => {
-              const prof = (Array.isArray(a.profiles) ? a.profiles[0] : a.profiles) as Record<string, unknown> | null;
               const privSettings = (a.privacy_settings as Record<string, unknown>) || null;
-              return { userId: a.user_id as string, phone: (prof?.phone as string) || (privSettings?.proxy_phone as string) || null };
+              return { userId: a.user_id as string, phone: (privSettings?.proxy_phone as string) || null };
             });
             const waType = newStatus === "confirmed" ? "remittance_confirmed" : "remittance_disputed";
             notifyBulkFromClient(recipients, {

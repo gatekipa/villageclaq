@@ -305,7 +305,10 @@ export default function AnnouncementsPage() {
 
     let query = supabase
       .from("memberships")
-      .select("id, user_id, role, display_name, is_proxy, standing, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name, phone)")
+      // profiles.phone intentionally NOT selected. /api/sms/send and
+      // /api/whatsapp/send resolve real-member phone from user_id; proxies
+      // read privacy_settings.proxy_phone below.
+      .select("id, user_id, role, display_name, is_proxy, standing, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name)")
       .eq("group_id", groupId);
 
     if (audience === "roles") {
@@ -325,9 +328,12 @@ export default function AnnouncementsPage() {
     const recipients = (rows || [])
       .filter((m) => m.user_id && m.user_id !== user.id && m.standing !== "banned")
       .map((m) => {
-        const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
         const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-        const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
+        // Real-member phones are no longer in the client cache (see
+        // useMembers select). Pass `phone` only for proxies; /api/sms/send
+        // and /api/whatsapp/send resolve real-member phones from user_id
+        // server-side with a recipient-authorisation check.
+        const phone = (privSettings?.proxy_phone as string) || null;
         return { userId: m.user_id as string | null, phone };
       });
 

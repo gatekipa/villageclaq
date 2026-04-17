@@ -124,8 +124,10 @@ export default function ReliefEnrollmentPage() {
         const recipients = selectedMemberIds.map((mid) => {
           const m = (membersList || []).find((mem: Record<string, unknown>) => (mem.id as string) === mid) as Record<string, unknown> | undefined;
           const uid = (m?.user_id as string) || null;
-          const prof = (Array.isArray(m?.profiles) ? (m?.profiles as unknown[])[0] : m?.profiles) as Record<string, unknown> | null;
-          const phone = (prof?.phone as string) || (m?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+          // profile.phone no longer in useMembers cache. /api/sms/send
+          // and /api/whatsapp/send resolve real-member phone from uid
+          // server-side. Only proxy phones flow client-side.
+          const phone = (m?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
           return { userId: uid, phone };
         });
         notifyBulkFromClient(recipients, {

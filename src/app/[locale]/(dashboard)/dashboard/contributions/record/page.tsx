@@ -268,12 +268,13 @@ export default function RecordPaymentPage() {
         const supabase = createClient();
         const { data: membership } = await supabase
           .from("memberships")
-          .select("user_id, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
+          // profiles.phone intentionally NOT selected — /api/sms/send and
+          // /api/whatsapp/send resolve real-member phone from user_id.
+          .select("user_id, privacy_settings")
           .eq("id", membershipId)
           .single();
         recipientUserId = membership?.user_id || null;
-        const profile = (Array.isArray(membership?.profiles) ? membership?.profiles[0] : membership?.profiles) as Record<string, unknown> | null;
-        recipientPhone = (profile?.phone as string) || (membership?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
+        recipientPhone = (membership?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
 
         // In-app notification (best-effort, never blocks external sends)
         if (recipientUserId) {
@@ -527,11 +528,10 @@ export default function RecordPaymentPage() {
           const rawMember = (members || []).find((m: Record<string, unknown>) => m.id === mid) as Record<string, unknown> | undefined;
           if (!rawMember) return;
           const userId = (rawMember.user_id as string | null) || null;
-          const prof = (Array.isArray(rawMember.profiles)
-            ? (rawMember.profiles as unknown[])[0]
-            : rawMember.profiles) as Record<string, unknown> | null;
+          // profile.phone no longer in useMembers cache. /api/sms/send
+          // and /api/whatsapp/send resolve real-member phone from userId
+          // server-side. Only proxy phones flow client-side.
           const phone =
-            (prof?.phone as string | null) ||
             ((rawMember.privacy_settings as Record<string, unknown>)?.proxy_phone as string | null) ||
             null;
           const memberName = getMemberName(rawMember);

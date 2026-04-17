@@ -417,10 +417,11 @@ export default function ElectionsPage() {
           const recipients = (members || [])
             .filter((m: Record<string, unknown>) => m.user_id && m.user_id !== user?.id && m.membership_status !== "exited" && m.standing !== "banned")
             .map((m: Record<string, unknown>) => {
-              const profile = (m.profiles as Record<string, unknown> | null);
-              const p = Array.isArray(profile) ? profile[0] : profile;
               const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-              const phone = ((p as Record<string, unknown>)?.phone as string) || (privSettings?.proxy_phone as string) || null;
+              // profile.phone no longer in useMembers cache. /api/sms/send
+              // and /api/whatsapp/send resolve real-member phone from
+              // user_id server-side. Only proxy phones flow client-side.
+              const phone = (privSettings?.proxy_phone as string) || null;
               return { userId: m.user_id as string, phone };
             });
           if (recipients.length > 0) {

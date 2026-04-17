@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { normalizeSearch } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
@@ -227,11 +227,35 @@ export default function MembersPage() {
   const tr = useTranslations("roles");
   const tt = useTranslations("transfers");
   const router = useRouter();
-  const { groupId, user, currentGroup, currentMembership } = useGroup();
+  const { groupId, user, currentGroup, currentMembership, isAdmin } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { data: members, isLoading, isError, error, refetch } = useMembers();
+  // Admin-authorised phone lookup. phone is no longer in the useMembers
+  // cache (privacy). The RPC is gated by is_group_admin() server-side;
+  // non-admins get a 42501 we swallow — the UI then shows no phones for
+  // real members, which is the desired behaviour.
+  const { data: adminRosterPhones } = useQuery({
+    queryKey: ["admin-roster-phones", groupId],
+    queryFn: async () => {
+      if (!groupId) return [] as Array<{ membership_id: string; phone: string | null }>;
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc("get_roster_with_contacts", { p_group_id: groupId });
+      if (error) {
+        if (error.code !== "42501") {
+          console.warn("[Members] get_roster_with_contacts failed:", error.message);
+        }
+        return [] as Array<{ membership_id: string; phone: string | null }>;
+      }
+      return (data || []) as Array<{ membership_id: string; phone: string | null }>;
+    },
+    enabled: !!groupId && isAdmin,
+  });
+  const adminPhoneByMembership = new Map<string, string>();
+  for (const r of adminRosterPhones || []) {
+    if (r.membership_id && r.phone) adminPhoneByMembership.set(r.membership_id, r.phone);
+  }
   const { data: positions } = useGroupPositions();
   const { hasPermission, isOwner } = usePermissions();
   const canManageMembers = hasPermission("members.manage");
@@ -430,10 +454,11 @@ export default function MembersPage() {
     try {
       const rows = members.map((m: Record<string, unknown>) => {
         const name = getMemberName(m);
-        const profile = m.profile as { full_name?: string; phone?: string } | undefined;
+        // Phone sourced from the admin-authorised roster RPC for real members;
+        // proxies read privacy_settings.proxy_phone which remains client-side.
         const phone = m.is_proxy
           ? ((m.privacy_settings as Record<string, string>)?.proxy_phone || "")
-          : (profile?.phone || "");
+          : (adminPhoneByMembership.get(m.id as string) || "");
         const role = (m.role as string) || "member";
         const standing = (m.standing as string) || "good";
         const joinedAt = m.joined_at ? formatDateWithGroupFormat(m.joined_at as string, groupDateFormat, locale) : "";
@@ -969,7 +994,13 @@ export default function MembersPage() {
     setEditDisplayName(name);
     setEditTitle("");
     setEditEmail("");
-    setEditPhone(isProxy ? ((privacySettings?.proxy_phone as string) || "") : (profile?.phone || ""));
+    // Real-member phone for the edit form comes from the admin roster
+    // RPC, not the useMembers cache (which no longer carries phone).
+    setEditPhone(
+      isProxy
+        ? ((privacySettings?.proxy_phone as string) || "")
+        : (adminPhoneByMembership.get(member.id as string) || ""),
+    );
     setEditRole((member.role as string) || "member");
     setEditOriginalRole((member.role as string) || "member");
     setEditStanding((member.standing as string) || "good");
@@ -1287,10 +1318,12 @@ export default function MembersPage() {
     if (search.trim()) {
       const q = normalizeSearch(search);
       result = result.filter((m: Record<string, unknown>) => {
-        const profile = m.profile as { full_name?: string; phone?: string } | undefined;
+        const profile = m.profile as { full_name?: string } | undefined;
         const displayName = (m.display_name as string) || "";
         const fullName = profile?.full_name || "";
-        const phone = profile?.phone || "";
+        // Phone search: consult the admin roster map (empty for non-admins),
+        // plus proxy_phone for proxy rows.
+        const phone = adminPhoneByMembership.get(m.id as string) || "";
         const privacySettings = m.privacy_settings as Record<string, unknown> | null;
         const proxyPhone = (privacySettings?.proxy_phone as string) || "";
         return (
@@ -1402,12 +1435,13 @@ export default function MembersPage() {
   const getName = (member: Record<string, unknown>) => getMemberName(member);
 
   const getPhone = (member: Record<string, unknown>) => {
-    const profile = member.profile as { phone?: string } | undefined;
     const privacySettings = member.privacy_settings as Record<string, unknown> | null;
     if (member.is_proxy && privacySettings?.proxy_phone) {
       return privacySettings.proxy_phone as string;
     }
-    return profile?.phone || null;
+    // Real-member phone is sourced from the admin-authorised roster RPC
+    // (populated above). Non-admin callers see the map empty and get null.
+    return adminPhoneByMembership.get(member.id as string) || null;
   };
 
   const getInitials = (name: string) =>

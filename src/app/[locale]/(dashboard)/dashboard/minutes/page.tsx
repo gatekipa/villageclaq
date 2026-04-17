@@ -543,18 +543,22 @@ export default function MinutesPage() {
           : "/dashboard/minutes";
 
         try {
+          // profiles.phone intentionally NOT selected. Real-member phone
+          // is resolved server-side by the dispatch APIs from user_id.
           const { data: recipientRows } = await supabase
             .from("memberships")
-            .select("user_id, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
+            .select("user_id, is_proxy, privacy_settings")
             .eq("group_id", groupId)
             .neq("standing", "banned");
 
           const recipients = (recipientRows || [])
             .filter((m) => m.user_id && m.user_id !== user.id)
             .map((m) => {
-              const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
               const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-              const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
+              // profile.phone no longer in client cache; /api/sms/send and
+              // /api/whatsapp/send resolve real-member phone from user_id
+              // server-side. Only proxy phones stay client-side.
+              const phone = (privSettings?.proxy_phone as string) || null;
               return { userId: m.user_id as string, phone };
             });
 

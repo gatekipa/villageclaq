@@ -50,7 +50,16 @@ export function useMembers() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("memberships")
-        .select("id, user_id, role, standing, display_name, joined_at, is_proxy, proxy_manager_id, privacy_settings, membership_status, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone)")
+        // NOTE: `phone` intentionally omitted. The React Query cache is
+        // visible to any client-side extension (React Query DevTools,
+        // browser memory inspection). Phones are privacy-sensitive and
+        // are now resolved server-side at dispatch time — /api/sms/send
+        // and /api/whatsapp/send accept a user UUID and look up the
+        // phone from profiles with a recipient-authorisation check.
+        // Proxy phones live in memberships.privacy_settings.proxy_phone
+        // (admin-typed, visible to group admins) and remain available
+        // here for proxy dispatch.
+        .select("id, user_id, role, standing, display_name, joined_at, is_proxy, proxy_manager_id, privacy_settings, membership_status, profiles!memberships_user_id_fkey(id, full_name, avatar_url)")
         .eq("group_id", groupId)
         .order("joined_at", { ascending: true });
       if (error) {
@@ -73,7 +82,10 @@ export function useMember(membershipId: string | null) {
       if (!membershipId) return null;
       const { data, error } = await supabase
         .from("memberships")
-        .select("*, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone, preferred_locale)")
+        // `phone` stripped (same reasoning as useMembers). preferred_locale
+        // is retained — it's not privacy-sensitive and is used to pick the
+        // member's notification language.
+        .select("*, profiles!memberships_user_id_fkey(id, full_name, avatar_url, preferred_locale)")
         .eq("id", membershipId)
         .single();
       if (error) { console.warn("[Query] failed:", error.message); return null; }
@@ -770,7 +782,10 @@ export function useReliefClaims() {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("relief_claims")
-        .select("*, relief_plan:relief_plans!inner(id, name, name_fr, group_id), membership:memberships!inner(id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone))")
+        // profiles.phone intentionally NOT embedded. Dispatch APIs resolve
+        // real-member phone from user_id server-side. Proxy phones are
+        // still reachable via membership.privacy_settings.proxy_phone.
+        .select("*, relief_plan:relief_plans!inner(id, name, name_fr, group_id), membership:memberships!inner(id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("relief_plan.group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) { console.warn("[Query] failed:", error.message); return []; }

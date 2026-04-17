@@ -53,6 +53,7 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { PaymentsTab } from "@/components/settings/payments-tab";
+import { StandingRulesTab } from "@/components/settings/standing-rules-tab";
 import { getMemberName } from "@/lib/get-member-name";
 
 function getInitials(name: string) {
@@ -479,6 +480,7 @@ export default function GroupSettingsPage() {
           <TabsTrigger value="info" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("profileTab")}</TabsTrigger>
           <TabsTrigger value="localization" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("localizationTab")}</TabsTrigger>
           <TabsTrigger value="payments" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("paymentsTab")}</TabsTrigger>
+          <TabsTrigger value="standing" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("standingTab")}</TabsTrigger>
           <TabsTrigger value="positions" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("positionsTab")}</TabsTrigger>
           <TabsTrigger value="notifications" className="px-3 py-1.5 text-sm font-medium text-foreground/70 data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm dark:text-foreground/60 dark:data-[active]:bg-background dark:data-[active]:text-foreground">{t("notificationsTab")}</TabsTrigger>
           {isBranch && (
@@ -790,6 +792,11 @@ export default function GroupSettingsPage() {
         {/* Payments Tab */}
         <TabsContent value="payments" className="mt-6">
           <PaymentsTab />
+        </TabsContent>
+
+        {/* Standing Rules Tab */}
+        <TabsContent value="standing" className="mt-6">
+          <StandingRulesTab />
         </TabsContent>
 
         {/* Positions Tab */}

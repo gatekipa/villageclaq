@@ -29,6 +29,7 @@ const NOTIFICATION_ICONS: Record<string, typeof Bell> = {
   meeting_scheduled: Calendar,
   event_reminder: Calendar,
   minutes_published: FileText,
+  meeting_minutes: FileText,
   relief_claim: Heart,
   member_joined: Users,
   announcement: Megaphone,

@@ -25,6 +25,7 @@ const NOTIFICATION_DEEP_LINKS: Record<string, string> = {
   hosting_reminder: "/dashboard/my-hosting",
   hosting_assignment: "/dashboard/my-hosting",
   minutes_published: "/dashboard/minutes",
+  meeting_minutes: "/dashboard/minutes",
   relief: "/dashboard/relief/my",
   relief_claim: "/dashboard/relief/my",
   standing: "/dashboard/my-dashboard",

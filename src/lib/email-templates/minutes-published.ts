@@ -12,14 +12,17 @@ interface MinutesPublishedData {
 export function minutesPublishedEmail(data: MinutesPublishedData, locale: "en" | "fr" = "en"): string {
   const isEn = locale === "en";
 
+  const greetingName = (data.memberName || "").trim();
+  const enGreeting = greetingName ? `Hi ${greetingName}, ` : "Hi, ";
+  const frGreeting = greetingName ? `Bonjour ${greetingName}, ` : "Bonjour, ";
   const body = `
     <h1 style="margin:0 0 8px; font-size:24px; font-weight:700; color:#0f172a;">
       ${isEn ? "Meeting Minutes Published" : "Procès-verbal publié"}
     </h1>
     <p style="margin:0 0 20px; font-size:15px; color:#475569; line-height:1.6;">
       ${isEn
-        ? `Hi ${data.memberName}, meeting minutes for <strong>${data.groupName}</strong> have been published.`
-        : `Bonjour ${data.memberName}, le procès-verbal de <strong>${data.groupName}</strong> a été publié.`}
+        ? `${enGreeting}meeting minutes for <strong>${data.groupName}</strong> have been published.`
+        : `${frGreeting}le procès-verbal de <strong>${data.groupName}</strong> a été publié.`}
     </p>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border-radius:8px; padding:16px; margin:0 0 20px;">

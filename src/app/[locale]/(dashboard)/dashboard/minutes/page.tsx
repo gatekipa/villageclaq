@@ -50,7 +50,9 @@ import { getMemberName } from "@/lib/get-member-name";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
-import { getEnabledChannels } from "@/lib/notification-prefs";
+import { formatDateTime as formatDateTimeLocaleAware } from "@/lib/format";
+import { notifyBulkFromClient } from "@/lib/notify-client";
+import { useSearchParam } from "@/lib/hooks/use-stable-search-params";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ListSkeleton,
@@ -117,15 +119,9 @@ interface MinutesRecord {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function formatDateTime(dateStr: string, locale: string = "en") {
+function formatDateTime(dateStr: string, locale: string) {
   try {
-    return new Date(dateStr).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatDateTimeLocaleAware(dateStr, locale);
   } catch {
     return dateStr;
   }
@@ -190,6 +186,10 @@ export default function MinutesPage() {
   const [standaloneMode, setStandaloneMode] = useState(false);
   const [standaloneTitle, setStandaloneTitle] = useState("");
   const [selectedStandaloneId, setSelectedStandaloneId] = useState<string | null>(null);
+  // Deep-link target from notifications (/dashboard/minutes?id=<minutes-uuid>).
+  // Primitive string — safe in deps per rule #9.
+  const minutesIdFromUrl = useSearchParam("id");
+  const appliedDeepLinkRef = useRef<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionTrackerFilter, setActionTrackerFilter] = useState<
@@ -309,6 +309,31 @@ export default function MinutesPage() {
     }
   }, [editMode, richTextInitContent]);
 
+  // Deep-link: when navigated from a notification with ?id=<minutes-uuid>,
+  // open that record. Apply once per id (guarded by ref) so user selections
+  // later don't get overwritten. Depends on `minutesRaw` (query cache identity)
+  // rather than the derived `minutes` array to keep deps stable.
+  useEffect(() => {
+    if (!minutesIdFromUrl) return;
+    if (appliedDeepLinkRef.current === minutesIdFromUrl) return;
+    const list = (minutesRaw || []) as MinutesRecord[];
+    if (list.length === 0) return;
+    const target = list.find((m) => m.id === minutesIdFromUrl);
+    if (!target) return;
+    appliedDeepLinkRef.current = minutesIdFromUrl;
+    if (target.event_id) {
+      setSelectedEventId(target.event_id);
+      setStandaloneMode(false);
+      setSelectedStandaloneId(null);
+    } else {
+      setSelectedEventId(null);
+      setStandaloneMode(true);
+      setSelectedStandaloneId(target.id);
+      setStandaloneTitle(target.title || "");
+    }
+    setEditMode(false);
+  }, [minutesIdFromUrl, minutesRaw]);
+
   // ─── Editor initialization ──────────────────────────────────────────────
 
   const initEditor = useCallback(
@@ -344,7 +369,8 @@ export default function MinutesPage() {
             } else {
               setEditorAttendees([]);
             }
-          } catch {
+          } catch (err) {
+            console.warn("[Minutes:InitEditor] attendance fetch failed:", err instanceof Error ? err.message : err);
             setEditorAttendees([]);
           }
         } else {
@@ -445,6 +471,7 @@ export default function MinutesPage() {
     }
 
     try {
+      let savedMinutesId: string | null = null;
       if (selectedMinutes?.id && (standaloneMode || selectedMinutes.event_id === selectedEvent?.id)) {
         // Update existing
         const { error } = await supabase
@@ -452,146 +479,86 @@ export default function MinutesPage() {
           .update(payload)
           .eq("id", selectedMinutes.id);
         if (error) throw error;
+        savedMinutesId = selectedMinutes.id;
       } else if (!standaloneMode) {
-        // Upsert by event_id
-        const { error } = await supabase
+        // Upsert by event_id — return the row so we can deep-link
+        const { data: upserted, error } = await supabase
           .from("meeting_minutes")
-          .upsert(payload, { onConflict: "event_id" });
+          .upsert(payload, { onConflict: "event_id" })
+          .select("id")
+          .single();
         if (error) throw error;
+        savedMinutesId = (upserted?.id as string) || null;
       } else {
-        // Insert standalone
-        const { error } = await supabase
+        // Insert standalone — return the row so we can deep-link
+        const { data: inserted, error } = await supabase
           .from("meeting_minutes")
-          .insert(payload);
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
+        savedMinutesId = (inserted?.id as string) || null;
       }
 
-      // Notify members on publish
+      // Notify members on publish — delegate to notifyBulkFromClient which
+      // enforces per-member channel preferences and respects rule #11
+      // (SMS only for African numbers, WhatsApp global, email always).
       if (status === "published") {
         const minutesTitle = payload.title as string;
+        const meetingDate = selectedEvent?.starts_at
+          ? formatDateWithGroupFormat(selectedEvent.starts_at, groupDateFormat, locale)
+          : formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
+        const publisherName = user?.full_name || user?.display_name || tc("admin");
+        const groupName = currentGroup?.name || "";
+        const deepLink = savedMinutesId
+          ? `/dashboard/minutes?id=${savedMinutesId}`
+          : "/dashboard/minutes";
 
-        // In-app notifications
-        // notifications table requires: user_id (not membership_id), body (not message),
-        // and a valid notification_type enum value (use "system")
         try {
-          const { data: allMembers } = await supabase
+          const { data: recipientRows } = await supabase
             .from("memberships")
-            .select("id, user_id")
+            .select("user_id, is_proxy, privacy_settings, profiles:profiles!memberships_user_id_fkey(phone)")
             .eq("group_id", groupId)
-            .not("user_id", "is", null);
-          if (allMembers && allMembers.length > 0) {
-            const notifications = allMembers.map((m) => ({
-              group_id: groupId,
-              user_id: m.user_id,
-              type: "system" as const,
+            .neq("standing", "banned");
+
+          const recipients = (recipientRows || [])
+            .filter((m) => m.user_id && m.user_id !== user.id)
+            .map((m) => {
+              const profile = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as Record<string, unknown> | null;
+              const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
+              const phone = (profile?.phone as string) || (privSettings?.proxy_phone as string) || null;
+              return { userId: m.user_id as string, phone };
+            });
+
+          if (recipients.length > 0) {
+            notifyBulkFromClient(recipients, {
+              groupId: groupId!,
               title: t("minutesPublished"),
-              body: t("minutesPublishedMsg", { title: minutesTitle }),
-              is_read: false,
-              data: { link: "/dashboard/minutes" },
-            }));
-            await supabase.from("notifications").insert(notifications);
+              body: groupName
+                ? `${groupName} — ${t("minutesPublishedMsg", { title: minutesTitle })}`
+                : t("minutesPublishedMsg", { title: minutesTitle }),
+              inAppType: "meeting_minutes",
+              emailTemplate: "minutes-published",
+              smsTemplate: "minutes-published",
+              whatsappType: "minutes_published",
+              link: deepLink,
+              data: {
+                memberName: "",
+                groupName,
+                meetingTitle: minutesTitle,
+                meetingDate,
+                publishedBy: publisherName,
+                minutesUrl: `${window.location.origin}/${locale}${deepLink}`,
+              },
+              locale,
+              channels: { inApp: true, email: true, sms: true, whatsapp: true },
+              prefType: "minutes_published",
+            }).catch((err) => {
+              console.warn("[Minutes:Notify] bulk dispatch failed:", err instanceof Error ? err.message : err);
+            });
           }
-        } catch { /* notification failure shouldn't block save */ }
-
-        // Email notifications (fire-and-forget)
-        // Guard: only send to members with user_id (skip proxy members)
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.access_token && members) {
-            const realMembers = (members as Array<Record<string, unknown>>).filter(
-              (m) => m.user_id && !m.is_proxy
-            );
-            if (realMembers.length > 0) {
-              const meetingDate = selectedEvent?.starts_at
-                ? formatDateWithGroupFormat(selectedEvent.starts_at, groupDateFormat, locale)
-                : formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
-              const publisherName = user?.full_name || user?.display_name || tc("admin");
-
-              // Notify each member via their preferred channels
-              const prefSupabase = createClient();
-              Promise.allSettled(
-                realMembers.map(async (m) => {
-                  const uid = m.user_id as string;
-                  let sendEmail = true, sendSms = true, sendWhatsapp = true;
-                  try {
-                    const prefs = await getEnabledChannels(prefSupabase, uid, "minutes_published", groupId!);
-                    sendEmail = prefs.email;
-                    sendSms = prefs.sms;
-                    sendWhatsapp = prefs.whatsapp;
-                  } catch { /* fail-open */ }
-
-                  const emailData = {
-                    memberName: getMemberName(m) || tc("member"),
-                    groupName: currentGroup?.name || "",
-                    meetingTitle: minutesTitle || (selectedEvent ? (locale === "fr" && selectedEvent.title_fr ? selectedEvent.title_fr : selectedEvent.title) : ""),
-                    meetingDate,
-                    publishedBy: publisherName,
-                    minutesUrl: `${window.location.origin}/${locale}/dashboard/minutes`,
-                  };
-
-                  // Email (fire-and-forget)
-                  if (sendEmail) {
-                    fetch("/api/email/send", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${session.access_token}`,
-                      },
-                      body: JSON.stringify({
-                        to: uid,
-                        template: "minutes-published",
-                        data: emailData,
-                        locale,
-                      }),
-                    }).catch(() => {});
-                  }
-
-                  // SMS (fire-and-forget)
-                  if (sendSms) {
-                    fetch("/api/sms/send", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${session.access_token}`,
-                      },
-                      body: JSON.stringify({
-                        to: uid,
-                        template: "minutes-published",
-                        data: {
-                          groupName: currentGroup?.name || "",
-                          meetingTitle: minutesTitle,
-                        },
-                        locale,
-                      }),
-                    }).catch(() => {});
-                  }
-
-                  // WhatsApp (fire-and-forget)
-                  if (sendWhatsapp) {
-                    fetch("/api/whatsapp/send", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${session.access_token}`,
-                      },
-                      body: JSON.stringify({
-                        to: uid,
-                        type: "minutes_published",
-                        data: {
-                          groupName: currentGroup?.name || "",
-                          meetingTitle: minutesTitle,
-                          meetingDate,
-                        },
-                        locale,
-                      }),
-                    }).catch(() => {});
-                  }
-                })
-              ).catch(() => {}); // Fire and forget
-            }
-          }
-        } catch {
-          // Notifications are non-critical — never block minutes publish
+        } catch (err) {
+          console.warn("[Minutes:Notify] recipient lookup failed:", err instanceof Error ? err.message : err);
         }
       }
 
@@ -602,11 +569,14 @@ export default function MinutesPage() {
           await logActivity(supabase, {
             groupId: groupId!,
             action: "minutes.published",
-            entityType: "event",
+            entityType: "meeting_minutes",
+            entityId: savedMinutesId || undefined,
             description: `Meeting minutes published: ${payload.title}`,
-            metadata: { title: payload.title },
+            metadata: { title: payload.title, minutesId: savedMinutesId },
           });
-        } catch { /* best-effort */ }
+        } catch (err) {
+          console.warn("[Minutes:Audit] activity log failed:", err instanceof Error ? err.message : err);
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
@@ -701,9 +671,9 @@ export default function MinutesPage() {
         .update({ status: "cancelled" })
         .eq("id", selectedEvent.id);
       if (err) throw err;
-      // Notify ALL group members (not just RSVPd — most members never RSVP)
-      // notifications table requires: user_id (not membership_id), body (not message),
-      // and a valid notification_type enum value (use "system")
+      // Notify ALL group members (not just RSVPd — most members never RSVP).
+      // In-app only here; external channels for cancellation are handled by the
+      // events feature. "system" is used because no dedicated enum value exists.
       try {
         const { data: allMembers } = await supabase
           .from("memberships")
@@ -723,7 +693,9 @@ export default function MinutesPage() {
             }))
           );
         }
-      } catch { /* best-effort notification */ }
+      } catch (err) {
+        console.warn("[Minutes:CancelMeeting] notification insert failed:", err instanceof Error ? err.message : err);
+      }
       await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
       setSelectedEventId(null);
       setEditMode(false);
@@ -1104,7 +1076,7 @@ export default function MinutesPage() {
                         {tc("date")}
                       </Label>
                       <p className="rounded-md border bg-muted/50 px-3 py-2 text-sm">
-                        {selectedEvent ? formatDateTime(selectedEvent.starts_at) : formatDate(new Date().toISOString())}
+                        {selectedEvent ? formatDateTime(selectedEvent.starts_at, locale) : formatDate(new Date().toISOString())}
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -1605,7 +1577,7 @@ export default function MinutesPage() {
                 <div className="grid gap-4 rounded-lg border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedEvent ? formatDateTime(selectedEvent.starts_at) : formatDate(selectedMinutes.created_at)}</span>
+                    <span>{selectedEvent ? formatDateTime(selectedEvent.starts_at, locale) : formatDate(selectedMinutes.created_at)}</span>
                   </div>
                   {(() => {
                     const loc = selectedMinutes.content_json?.location || selectedEvent?.location;

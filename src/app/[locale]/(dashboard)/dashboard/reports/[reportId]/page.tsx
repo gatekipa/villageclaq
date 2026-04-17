@@ -391,10 +391,21 @@ export default function ReportDetailPage() {
   const minutesList = (meetingMinutes || []).filter((m: Record<string, unknown>) => (m.status as string) === "published");
   const filteredMinutes = minutesSearch
     ? minutesList.filter((m: Record<string, unknown>) => {
-        const title = ((m.event as Record<string, unknown>)?.title as string) || "";
-        const content = (m.content as string) || "";
+        const ev = (m.event as Record<string, unknown>) || null;
+        const eventTitle = (ev?.title as string) || "";
+        const eventTitleFr = (ev?.title_fr as string) || "";
+        const standaloneTitle = (m.title as string) || "";
+        const contentJson = (m.content_json as Record<string, unknown>) || {};
+        const contentText = (contentJson.text as string) || "";
+        const chairedBy = (contentJson.chaired_by as string) || "";
         const searchLower = minutesSearch.toLowerCase();
-        return title.toLowerCase().includes(searchLower) || content.toLowerCase().includes(searchLower);
+        return (
+          eventTitle.toLowerCase().includes(searchLower) ||
+          eventTitleFr.toLowerCase().includes(searchLower) ||
+          standaloneTitle.toLowerCase().includes(searchLower) ||
+          contentText.toLowerCase().includes(searchLower) ||
+          chairedBy.toLowerCase().includes(searchLower)
+        );
       })
     : minutesList;
 
@@ -523,7 +534,13 @@ export default function ReportDetailPage() {
       data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || "Never", "Rate %": r.rate, "Fairness %": r.fairnessScore }));
       filename = "hosting_compliance";
     } else if (reportId === "14") {
-      data = filteredMinutes.map((m: Record<string, unknown>) => ({ Event: ((m.event as Record<string, unknown>)?.title as string) || "", Date: m.created_at, Status: m.status }));
+      data = filteredMinutes.map((m: Record<string, unknown>) => {
+        const ev = (m.event as Record<string, unknown>) || null;
+        const eventTitle = (locale === "fr" ? (ev?.title_fr as string) : "") || (ev?.title as string) || (m.title as string) || "";
+        const dec = Array.isArray(m.decisions_json) ? (m.decisions_json as unknown[]).length : 0;
+        const act = Array.isArray(m.action_items_json) ? (m.action_items_json as unknown[]).length : 0;
+        return { Event: eventTitle, Date: m.created_at, Status: m.status, Decisions: dec, "Action Items": act };
+      });
       filename = "minutes_archive";
     } else if (reportId === "5") {
       data = savingsCycleData.map(r => ({ Name: r.name, Status: r.status, Participants: r.participants, CurrentRound: r.currentRound, TotalRounds: r.totalRounds, Amount: r.amount, Frequency: r.frequency, StartDate: r.startDate }));
@@ -658,7 +675,13 @@ export default function ReportDetailPage() {
       data = hostingComplianceData.map(r => ({ Name: r.name, Completed: r.completed, Missed: r.missed, Total: r.total, "Last Hosted": r.lastHosted || "Never", "Rate %": r.rate, "Fairness %": r.fairnessScore }));
       filename = "hosting_compliance";
     } else if (reportId === "14") {
-      data = filteredMinutes.map((m: Record<string, unknown>) => ({ Event: ((m.event as Record<string, unknown>)?.title as string) || "", Date: m.created_at, Status: m.status }));
+      data = filteredMinutes.map((m: Record<string, unknown>) => {
+        const ev = (m.event as Record<string, unknown>) || null;
+        const eventTitle = (locale === "fr" ? (ev?.title_fr as string) : "") || (ev?.title as string) || (m.title as string) || "";
+        const dec = Array.isArray(m.decisions_json) ? (m.decisions_json as unknown[]).length : 0;
+        const act = Array.isArray(m.action_items_json) ? (m.action_items_json as unknown[]).length : 0;
+        return { Event: eventTitle, Date: m.created_at, Status: m.status, Decisions: dec, "Action Items": act };
+      });
       filename = "minutes_archive";
     } else if (reportId === "15") {
       data = reliefPlanList.map((plan: Record<string, unknown>) => {
@@ -1496,17 +1519,40 @@ export default function ReportDetailPage() {
           ) : (
             <div className="space-y-2">
               {filteredMinutes.map((m: Record<string, unknown>, i: number) => {
-                const event = m.event as Record<string, unknown>;
-                const title = (event?.title as string) || "Meeting";
+                const event = m.event as Record<string, unknown> | null;
+                const eventTitleEn = (event?.title as string) || "";
+                const eventTitleFr = (event?.title_fr as string) || "";
+                const fallbackTitle = (m.title as string) || "";
+                const title = locale === "fr"
+                  ? (eventTitleFr || eventTitleEn || fallbackTitle || t("minutes.title"))
+                  : (eventTitleEn || fallbackTitle || t("minutes.title"));
                 const date = m.created_at ? fd(m.created_at as string) : "";
+                const decisions = Array.isArray(m.decisions_json) ? (m.decisions_json as unknown[]) : [];
+                const actions = Array.isArray(m.action_items_json) ? (m.action_items_json as unknown[]) : [];
                 return (
-                  <div key={m.id as string || i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-medium text-sm">{title}</p>
-                      <p className="text-xs text-muted-foreground">{date}</p>
+                  <Link
+                    key={m.id as string || i}
+                    href={`/dashboard/minutes?id=${m.id as string}`}
+                    className="block"
+                  >
+                    <div className="flex flex-col gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{title}</p>
+                        <p className="text-xs text-muted-foreground">{date}</p>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          <Badge variant="secondary" className="text-xs">
+                            {t("minutes.decisions")}: {decisions.length}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {t("minutes.actionItems")}: {actions.length}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Badge variant="default" className="bg-emerald-600 text-white hover:bg-emerald-700 shrink-0">
+                        {t("minutes.published")}
+                      </Badge>
                     </div>
-                    <Badge variant="default">{t("reports.placeholder") === "Coming soon" ? "Published" : "Publié"}</Badge>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

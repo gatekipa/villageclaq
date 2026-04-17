@@ -209,6 +209,10 @@ export default function ElectionsPage() {
   const [selectedVote, setSelectedVote] = useState<string>("");
   const [voteLoading, setVoteLoading] = useState(false);
   const [voteSuccess, setVoteSuccess] = useState<string | null>(null);
+  const [showVoteConfirm, setShowVoteConfirm] = useState(false);
+
+  // Status transition confirmation dialog
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ electionId: string; newStatus: ElectionStatus } | null>(null);
 
   // Status change loading
   const [statusLoading, setStatusLoading] = useState(false);
@@ -249,13 +253,15 @@ export default function ElectionsPage() {
   }, [allElections]);
 
   // ─── Vote check query ────────────────────────────────────────────────────
+  // Reads from election_vote_receipts (identity, no choice). RLS restricts to
+  // the voter's own rows — no other member, admin, or manager sees this.
 
   const { data: existingVote } = useQuery({
-    queryKey: ["election-vote-check", selectedElectionId, currentMembership?.id],
+    queryKey: ["election-vote-receipt", selectedElectionId, currentMembership?.id],
     queryFn: async () => {
       if (!selectedElectionId || !currentMembership?.id) return null;
       const { data } = await supabase
-        .from("election_votes")
+        .from("election_vote_receipts")
         .select("id")
         .eq("election_id", selectedElectionId)
         .eq("voter_membership_id", currentMembership.id)
@@ -266,32 +272,38 @@ export default function ElectionsPage() {
   });
 
   // ─── Results query ───────────────────────────────────────────────────────
+  // Reads from election_ballots, which has NO voter reference. RLS only
+  // exposes ballots once the election is closed/cancelled, so results are
+  // hidden during the voting period regardless of the client-side guard.
 
   const { data: voteResults } = useQuery({
     queryKey: ["election-results", selectedElectionId],
     queryFn: async () => {
       if (!selectedElectionId) return null;
       const { data } = await supabase
-        .from("election_votes")
+        .from("election_ballots")
         .select("candidate_id, option_id")
         .eq("election_id", selectedElectionId);
       if (!data) return { results: [] as VoteResult[], totalVotes: 0 };
 
-      const counts: Record<string, number> = {};
+      const counts: Record<string, { candidate_id: string | null; option_id: string | null; count: number }> = {};
       for (const vote of data) {
-        const key = vote.candidate_id || vote.option_id || "unknown";
-        counts[key] = (counts[key] || 0) + 1;
+        const key = (vote.candidate_id as string | null) || (vote.option_id as string | null) || "unknown";
+        if (!counts[key]) {
+          counts[key] = {
+            candidate_id: (vote.candidate_id as string | null) || null,
+            option_id: (vote.option_id as string | null) || null,
+            count: 0,
+          };
+        }
+        counts[key].count += 1;
       }
 
-      const results: VoteResult[] = Object.entries(counts).map(([key, count]) => ({
-        candidate_id: data.find((v) => v.candidate_id === key) ? key : null,
-        option_id: data.find((v) => v.option_id === key) ? key : null,
-        count,
-      }));
+      const results: VoteResult[] = Object.values(counts);
 
       return { results, totalVotes: data.length };
     },
-    // FIX 4: Only fetch results when election is CLOSED — no live tallies during voting
+    // Only fetch results when election is CLOSED — no live tallies during voting
     enabled: !!selectedElectionId && selectedElection?.status === "closed",
   });
 
@@ -363,6 +375,7 @@ export default function ElectionsPage() {
   };
 
   const handleStatusChange = async (electionId: string, newStatus: ElectionStatus) => {
+    if (statusLoading) return;
     setStatusLoading(true);
     try {
       const { error: err } = await supabase
@@ -371,32 +384,51 @@ export default function ElectionsPage() {
         .eq("id", electionId);
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["elections", groupId] });
+      // After close transition, results become visible — invalidate the cache
+      if (newStatus === "closed" || newStatus === "cancelled") {
+        queryClient.invalidateQueries({ queryKey: ["election-results", electionId] });
+      }
 
-      // Send notification to all members when election opens for voting
-      if (newStatus === "open") {
+      const election = (elections || []).find((e: Election) => e.id === electionId) as Election | undefined;
+      const electionTitle = election ? ((locale === "fr" && election.title_fr) ? election.title_fr : election.title) : "";
+
+      // Notify on open (voting starts) and on closed (results announced).
+      if (newStatus === "open" || newStatus === "closed") {
         try {
           const { notifyBulkFromClient } = await import("@/lib/notify-client");
-          const activeMembers = (members || [])
-            .filter((m: Record<string, unknown>) => m.user_id && m.membership_status !== "exited")
-            .map((m: Record<string, unknown>) => ({
-              userId: m.user_id as string,
-            }));
-          if (activeMembers.length > 0) {
-            const election = (elections || []).find((e: Election) => e.id === electionId);
-            const electionTitle = election ? ((locale === "fr" && election.title_fr) ? election.title_fr : election.title) : "";
-            notifyBulkFromClient(activeMembers, {
+          const recipients = (members || [])
+            .filter((m: Record<string, unknown>) => m.user_id && m.user_id !== user?.id && m.membership_status !== "exited" && m.standing !== "banned")
+            .map((m: Record<string, unknown>) => {
+              const profile = (m.profiles as Record<string, unknown> | null);
+              const p = Array.isArray(profile) ? profile[0] : profile;
+              const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
+              const phone = ((p as Record<string, unknown>)?.phone as string) || (privSettings?.proxy_phone as string) || null;
+              return { userId: m.user_id as string, phone };
+            });
+          if (recipients.length > 0) {
+            const isOpen = newStatus === "open";
+            notifyBulkFromClient(recipients, {
               groupId: groupId!,
               inAppType: "election",
-              title: t("notifyElectionOpenTitle"),
-              body: t("notifyElectionOpenBody", { title: electionTitle }),
-              data: { electionTitle: electionTitle || "" },
-              channels: { inApp: true, email: true },
+              title: isOpen ? t("notifyElectionOpenTitle") : t("notifyResultsAnnouncedTitle"),
+              body: isOpen
+                ? t("notifyElectionOpenBody", { title: electionTitle })
+                : t("notifyResultsAnnouncedBody", { title: electionTitle }),
+              link: `/dashboard/elections`,
+              data: { electionTitle: electionTitle || "", groupName: currentGroup?.name || "" },
+              channels: { inApp: true, email: true, sms: false, whatsapp: isOpen },
+              whatsappType: isOpen ? "election_opened" : undefined,
               prefType: "announcements",
+            }).catch((err) => {
+              console.warn("[Elections:Notify] bulk dispatch failed:", err instanceof Error ? err.message : err);
             });
           }
-        } catch { /* non-critical */ }
+        } catch (err) {
+          console.warn("[Elections:Notify] setup failed:", err instanceof Error ? err.message : err);
+        }
       }
     } catch (err) {
+      console.warn("[Elections:Status] update failed:", err instanceof Error ? err.message : err);
       showError(t("statusChangeFailed"));
     } finally {
       setStatusLoading(false);
@@ -476,31 +508,56 @@ export default function ElectionsPage() {
 
   const handleSubmitVote = async () => {
     if (!selectedElectionId || !currentMembership?.id || !selectedVote) return;
+    if (voteLoading) return;
+    // UI-level standing gate (defence in depth; the RPC is authoritative)
+    if (currentMembership.standing !== "good") {
+      showError(t("notEligible"));
+      return;
+    }
     setVoteLoading(true);
     try {
       const election = selectedElection;
       if (!election) return;
 
-      const insertData: Record<string, unknown> = {
-        election_id: selectedElectionId,
-        voter_membership_id: currentMembership.id,
-        voted_at: new Date().toISOString(),
+      // cast_ballot() RPC writes both the anonymous ballot and the voter
+      // receipt atomically inside the DB; we never insert into either
+      // election_ballots or election_vote_receipts from the client.
+      const rpcArgs: Record<string, string | null> = {
+        p_election_id: selectedElectionId,
+        p_candidate_id: null,
+        p_option_id: null,
       };
-
       if (election.election_type === "officer_election") {
-        insertData.candidate_id = selectedVote;
+        rpcArgs.p_candidate_id = selectedVote;
       } else {
-        insertData.option_id = selectedVote;
+        rpcArgs.p_option_id = selectedVote;
       }
 
-      const { error: err } = await supabase.from("election_votes").insert(insertData);
+      const { data, error: err } = await supabase.rpc("cast_ballot", rpcArgs);
       if (err) throw err;
+      const result = (data || {}) as { ok?: boolean; error?: string };
+      if (!result.ok) {
+        const code = result.error || "voteFailed";
+        const errMap: Record<string, string> = {
+          already_voted: "alreadyVoted",
+          not_in_good_standing: "notEligible",
+          election_not_open: "electionNotOpen",
+          not_within_voting_period: "electionNotOpen",
+          not_a_member: "voteFailed",
+          invalid_candidate: "voteFailed",
+          invalid_option: "voteFailed",
+        };
+        showError(t(errMap[code] ?? "voteFailed"));
+        return;
+      }
 
       setVoteSuccess(selectedElectionId);
       setSelectedVote("");
-      queryClient.invalidateQueries({ queryKey: ["election-vote-check", selectedElectionId, currentMembership.id] });
+      setShowVoteConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["election-vote-receipt", selectedElectionId, currentMembership.id] });
       queryClient.invalidateQueries({ queryKey: ["election-results", selectedElectionId] });
     } catch (err) {
+      console.warn("[Elections:Vote] RPC failed:", err instanceof Error ? err.message : err);
       showError(t("voteFailed"));
     } finally {
       setVoteLoading(false);
@@ -620,7 +677,8 @@ export default function ElectionsPage() {
           {electionsList.map((election) => {
             const isSelected = selectedElectionId === election.id;
             const withinPeriod = isWithinVotingPeriod(election);
-            const canVote = election.status === "open" && !existingVote && currentMembership;
+            const isGoodStanding = currentMembership?.standing === "good";
+            const canVote = election.status === "open" && !existingVote && !!currentMembership && isGoodStanding;
             const hasVoted = isSelected && !!existingVote;
 
             return (
@@ -691,7 +749,7 @@ export default function ElectionsPage() {
 
                 <CardFooter className="flex flex-wrap gap-2">
                   {/* Vote Now button for members when election is open */}
-                  {election.status === "open" && !isSelected && (
+                  {election.status === "open" && !isSelected && canVote && (
                     <Button
                       size="sm"
                       onClick={() => { setSelectedElectionId(election.id); setSelectedVote(""); setVoteSuccess(null); }}
@@ -699,6 +757,11 @@ export default function ElectionsPage() {
                       <Vote className="mr-2 h-4 w-4" />
                       {t("voteNow")}
                     </Button>
+                  )}
+                  {election.status === "open" && !isSelected && currentMembership && !isGoodStanding && (
+                    <span className="text-xs text-muted-foreground italic">
+                      {t("notEligible")}
+                    </span>
                   )}
 
                   {/* Manage / view results */}
@@ -731,7 +794,7 @@ export default function ElectionsPage() {
                             <Button
                               size="sm"
                               variant="default"
-                              onClick={() => handleStatusChange(election.id, "open")}
+                              onClick={() => setPendingStatusChange({ electionId: election.id, newStatus: "open" })}
                               disabled={statusLoading}
                             >
                               {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
@@ -743,7 +806,7 @@ export default function ElectionsPage() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => handleStatusChange(election.id, "closed")}
+                                onClick={() => setPendingStatusChange({ electionId: election.id, newStatus: "closed" })}
                                 disabled={statusLoading}
                               >
                                 {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Square className="mr-2 h-4 w-4" />}
@@ -752,7 +815,7 @@ export default function ElectionsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleStatusChange(election.id, "cancelled")}
+                                onClick={() => setPendingStatusChange({ electionId: election.id, newStatus: "cancelled" })}
                                 disabled={statusLoading}
                               >
                                 {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
@@ -902,6 +965,11 @@ export default function ElectionsPage() {
                               {voteSuccess === election.id ? t("voteRecorded") : t("alreadyVoted")}
                             </span>
                           </div>
+                        ) : !isGoodStanding ? (
+                          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                            <AlertCircle className="h-5 w-5" />
+                            <span className="font-medium">{t("notEligible")}</span>
+                          </div>
                         ) : (
                           <div className="space-y-4">
                             <h4 className="text-sm font-semibold">{t("castVote")}</h4>
@@ -971,7 +1039,7 @@ export default function ElectionsPage() {
                             )}
 
                             <Button
-                              onClick={handleSubmitVote}
+                              onClick={() => setShowVoteConfirm(true)}
                               disabled={!selectedVote || voteLoading}
                             >
                               {voteLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1246,6 +1314,79 @@ export default function ElectionsPage() {
             <Button onClick={handleAddOption} disabled={optionLoading || !optionLabel.trim()}>
               {optionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("addOption")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Vote Confirmation Dialog ─────────────────────────────────────────── */}
+      <Dialog
+        open={showVoteConfirm}
+        onOpenChange={(open) => { if (!voteLoading) setShowVoteConfirm(open); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("confirmVote")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("voteConfirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowVoteConfirm(false)} disabled={voteLoading}>
+              {tc("cancel")}
+            </Button>
+            <Button onClick={handleSubmitVote} disabled={voteLoading || !selectedVote}>
+              {voteLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("submitVote")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Status Change Confirmation Dialog (open / close / cancel) ────────── */}
+      <Dialog
+        open={!!pendingStatusChange}
+        onOpenChange={(open) => { if (!open && !statusLoading) setPendingStatusChange(null); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingStatusChange?.newStatus === "open"
+                ? t("openElectionConfirmTitle")
+                : pendingStatusChange?.newStatus === "closed"
+                  ? t("closeElectionConfirmTitle")
+                  : t("cancelElectionConfirmTitle")}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {pendingStatusChange?.newStatus === "open"
+              ? t("openElectionConfirmBody")
+              : pendingStatusChange?.newStatus === "closed"
+                ? t("closeElectionConfirmBody")
+                : t("cancelElectionConfirmBody")}
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPendingStatusChange(null)}
+              disabled={statusLoading}
+            >
+              {tc("cancel")}
+            </Button>
+            <Button
+              variant={pendingStatusChange?.newStatus === "open" ? "default" : "destructive"}
+              onClick={async () => {
+                if (!pendingStatusChange || statusLoading) return;
+                const { electionId, newStatus } = pendingStatusChange;
+                await handleStatusChange(electionId, newStatus);
+                setPendingStatusChange(null);
+              }}
+              disabled={statusLoading}
+            >
+              {statusLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {pendingStatusChange?.newStatus === "open"
+                ? t("openElection")
+                : pendingStatusChange?.newStatus === "closed"
+                  ? t("closeElection")
+                  : t("cancelElection")}
             </Button>
           </DialogFooter>
         </DialogContent>

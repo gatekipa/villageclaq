@@ -97,7 +97,7 @@ export const TIERS: Record<TierName, TierLimits> = {
       prioritySupport: false,
       reliefPlans: true,
       savingsCircle: true,
-      elections: true,
+      elections: false,
       fines: true,
     },
   },

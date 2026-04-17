@@ -149,6 +149,31 @@ export default function ReportDetailPage() {
     enabled: !!groupId,
   });
 
+  // Report 18: ballots for closed elections. RLS only exposes rows
+  // once an election is closed/cancelled, so this query is empty for
+  // still-open elections — correct behaviour (no live tallies).
+  const { data: electionBallots } = useQuery({
+    queryKey: ["election-ballots-report", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const supabase = createClient();
+      const closedIds = (elections || [])
+        .filter((e: Record<string, unknown>) => {
+          const s = e.status as string;
+          return s === "closed" || s === "cancelled";
+        })
+        .map((e: Record<string, unknown>) => e.id as string);
+      if (closedIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("election_ballots")
+        .select("election_id, candidate_id, option_id")
+        .in("election_id", closedIds);
+      if (error) { console.warn("[Report 18] ballot fetch failed:", error.message); return []; }
+      return data || [];
+    },
+    enabled: !!groupId && reportId === "18" && Array.isArray(elections),
+  });
+
   // Report 24: Federated Relief Enrollment (HQ only)
   const isFederatedReliefReport = reportId === "24";
   const isHq = currentGroup?.group_level === "hq";
@@ -771,30 +796,65 @@ export default function ReportDetailPage() {
     startDate: (c.start_date as string) || "",
   }));
 
-  // Report 18: Election Results
-  const closedElections = (elections || []).filter((e: Record<string, unknown>) => (e.status as string) === "closed");
-  const electionResultsData = closedElections.map((e: Record<string, unknown>) => {
-    const candidates = (e.election_candidates as Record<string, unknown>[]) || [];
-    const votes = (e.election_votes as Record<string, unknown>[]) || [];
-    const totalVotes = votes.length;
-    const voteCounts: Record<string, number> = {};
-    votes.forEach((v: Record<string, unknown>) => {
-      const cid = (v.candidate_id || v.option_id) as string;
-      if (cid) voteCounts[cid] = (voteCounts[cid] || 0) + 1;
+  // Report 18: Election Results — reads from anonymous election_ballots
+  // (no voter identity). Candidate names come from election_candidates;
+  // option labels from election_options. For officer_election we tally
+  // candidate_id; for poll/motion we tally option_id.
+  const closedElections = (elections || []).filter((e: Record<string, unknown>) => {
+    const s = e.status as string;
+    return s === "closed" || s === "cancelled";
+  });
+  const ballotsByElection: Record<string, Array<{ candidate_id: string | null; option_id: string | null }>> = {};
+  (electionBallots || []).forEach((b: Record<string, unknown>) => {
+    const eid = b.election_id as string;
+    if (!ballotsByElection[eid]) ballotsByElection[eid] = [];
+    ballotsByElection[eid].push({
+      candidate_id: (b.candidate_id as string) || null,
+      option_id: (b.option_id as string) || null,
     });
-    const candidateResults = candidates.map((c: Record<string, unknown>) => ({
-      name: getMemberName(c),
-      votes: voteCounts[c.id as string] || 0,
-      pct: totalVotes > 0 ? Math.round(((voteCounts[c.id as string] || 0) / totalVotes) * 100) : 0,
-    })).sort((a, b) => b.votes - a.votes);
+  });
+  const electionResultsData = closedElections.map((e: Record<string, unknown>) => {
+    const eid = e.id as string;
+    const etype = (e.election_type as string) || "poll";
+    const ballots = ballotsByElection[eid] || [];
+    const totalVotes = ballots.length;
+
+    const counts: Record<string, number> = {};
+    ballots.forEach((b) => {
+      const key = etype === "officer_election" ? b.candidate_id : b.option_id;
+      if (key) counts[key] = (counts[key] || 0) + 1;
+    });
+
+    // Resolve names/labels
+    const candidates = (e.election_candidates as Record<string, unknown>[]) || [];
+    const options = (e.election_options as Record<string, unknown>[]) || [];
+    const entries = etype === "officer_election"
+      ? candidates.map((c) => ({ id: c.id as string, name: getMemberName(c) }))
+      : options.map((o) => ({
+          id: o.id as string,
+          name: (locale === "fr" && o.label_fr) ? (o.label_fr as string) : (o.label as string),
+        }));
+
+    const sorted = entries
+      .map((entry) => ({
+        name: entry.name,
+        votes: counts[entry.id] || 0,
+        pct: totalVotes > 0 ? Math.round(((counts[entry.id] || 0) / totalVotes) * 100) : 0,
+      }))
+      .sort((a, b) => b.votes - a.votes);
+
+    const titleEn = (e.title as string) || "";
+    const titleFr = (e.title_fr as string) || "";
+    const title = (locale === "fr" && titleFr) ? titleFr : (titleEn || t("minutes.title"));
+
     return {
-      title: (e.title as string) || "Untitled",
-      type: (e.election_type as string) || "poll",
+      title,
+      type: etype,
       date: (e.ends_at as string) || "",
       totalVotes,
-      winner: candidateResults[0]?.name || "N/A",
-      winnerVotes: candidateResults[0]?.votes || 0,
-      winnerPct: candidateResults[0]?.pct || 0,
+      winner: sorted[0]?.name || "—",
+      winnerVotes: sorted[0]?.votes || 0,
+      winnerPct: sorted[0]?.pct || 0,
     };
   });
 

@@ -5680,5 +5680,14 @@
     "claimFailedDescription": "Something went wrong while claiming your membership. Please try again or contact your group administrator.",
     "alreadyMember": "You already have an active membership in this group.",
     "alreadyClaimed": "This membership has already been claimed by another user."
+  },
+  "cron": {
+    "hostingReminderTitle": "Hosting Reminder",
+    "hostingReminderBody": "Reminder: You are scheduled to host on {date}",
+    "subscriptionExpiringEmailTitle": "Subscription expiring in {days} days",
+    "subscriptionExpiringEmailBody": "Your {tier} plan for {groupName} expires on {date}. Renew to keep all your features.",
+    "subscriptionExpiringInAppTitle": "Your {tier} subscription expires in {days} days",
+    "subscriptionExpiringInAppBody": "{groupName}: Renew to keep your features.",
+    "renewNow": "Renew Now"
   }
 }

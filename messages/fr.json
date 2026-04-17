@@ -5680,5 +5680,14 @@
     "claimFailedDescription": "Une erreur s'est produite lors de la réclamation de votre adhésion. Veuillez réessayer ou contacter l'administrateur de votre groupe.",
     "alreadyMember": "Vous avez déjà une adhésion active dans ce groupe.",
     "alreadyClaimed": "Cette adhésion a déjà été réclamée par un autre utilisateur."
+  },
+  "cron": {
+    "hostingReminderTitle": "Rappel d'hébergement",
+    "hostingReminderBody": "Rappel : Vous êtes prévu(e) pour héberger le {date}",
+    "subscriptionExpiringEmailTitle": "Abonnement expirant dans {days} jours",
+    "subscriptionExpiringEmailBody": "Votre forfait {tier} pour {groupName} expire le {date}. Renouvelez pour conserver toutes vos fonctionnalités.",
+    "subscriptionExpiringInAppTitle": "Votre abonnement {tier} expire dans {days} jours",
+    "subscriptionExpiringInAppBody": "{groupName} : Renouvelez pour conserver vos fonctionnalités.",
+    "renewNow": "Renouveler maintenant"
   }
 }

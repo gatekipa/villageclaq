@@ -1,8 +1,34 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { lookupMemberLocale, type Locale } from "@/lib/cron-notify-helper";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+/**
+ * Resolve the locale for a queued payload.
+ *
+ * Precedence:
+ *   1. Explicit `data.locale` — the enqueuer already made a decision.
+ *   2. `member_locale(data.user_id)` — only when locale is absent.
+ *   3. "en" fallback — keeps the channel working when neither exists.
+ *
+ * SMS payloads rendered at enqueue time (`data.message`) cannot be
+ * re-localized — drain cannot know the original template or values.
+ * This helper is for channels that still accept a locale parameter.
+ */
+async function resolveLocale(
+  supabase: SupabaseClient,
+  data: Record<string, unknown>,
+): Promise<Locale> {
+  const explicit = data.locale;
+  if (explicit === "en" || explicit === "fr") return explicit;
+  const userId = typeof data.user_id === "string" ? data.user_id : null;
+  if (userId) {
+    return await lookupMemberLocale(supabase, userId);
+  }
+  return "en";
+}
 
 const MAX_RETRIES = 3;
 const BATCH_SIZE = 50;
@@ -56,15 +82,19 @@ export async function GET(request: Request) {
     try {
       switch (channel) {
         case "sms": {
+          // SMS payload is pre-rendered at enqueue time (see
+          // notifications/sms-sender.ts) — no locale re-resolution.
           success = await processSms(recipient, data);
           break;
         }
         case "email": {
-          success = await processEmail(recipient, data);
+          const locale = await resolveLocale(supabase, data);
+          success = await processEmail(recipient, data, locale);
           break;
         }
         case "whatsapp": {
-          success = await processWhatsApp(recipient, data);
+          const locale = await resolveLocale(supabase, data);
+          success = await processWhatsApp(recipient, data, locale);
           break;
         }
         default: {
@@ -152,12 +182,15 @@ async function processSms(recipient: string, data: Record<string, unknown>): Pro
   return true;
 }
 
-async function processEmail(recipient: string, data: Record<string, unknown>): Promise<boolean> {
+async function processEmail(
+  recipient: string,
+  data: Record<string, unknown>,
+  locale: Locale,
+): Promise<boolean> {
   if (!recipient) return false;
 
   const { sendEmail } = await import("@/lib/send-email");
   const template = (data.template as string) || "notification";
-  const locale = (data.locale as "en" | "fr") || "en";
 
   const result = await sendEmail({
     to: recipient,
@@ -168,11 +201,14 @@ async function processEmail(recipient: string, data: Record<string, unknown>): P
   return result.success;
 }
 
-async function processWhatsApp(recipient: string, data: Record<string, unknown>): Promise<boolean> {
+async function processWhatsApp(
+  recipient: string,
+  data: Record<string, unknown>,
+  locale: Locale,
+): Promise<boolean> {
   if (!recipient) return false;
 
   const waType = data.whatsappType as string | undefined;
-  const locale = (data.locale as string) || "en";
   const waData = (data.whatsappData as Record<string, string>) || {};
 
   if (waType) {

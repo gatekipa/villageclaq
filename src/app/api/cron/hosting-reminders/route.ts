@@ -5,6 +5,7 @@ import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
+import { buildTranslator } from "@/lib/cron-notify-helper";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -39,6 +40,10 @@ export async function GET(request: Request) {
   let alreadyNotified = 0;
   let smsSent = 0;
   const errors: string[] = [];
+
+  // Bilingual translator scoped to the cron notifications namespace.
+  // Loaded once for the whole cron run.
+  const bt = await buildTranslator("cron");
 
   try {
     // ── 1. Query ALL active groups ──
@@ -217,12 +222,12 @@ export async function GET(request: Request) {
           phone = (privacySettings?.proxy_phone as string) || null;
         }
 
-        const titleEn = "Hosting Reminder";
-        const titleFr = "Rappel d'hébergement";
-        const bodyEn = `Reminder: You are scheduled to host on ${formattedDate}`;
-        const bodyFr = `Rappel : Vous êtes prévu(e) pour héberger le ${formattedDate}`;
-        const title = preferredLocale === "fr" ? titleFr : titleEn;
-        const body = preferredLocale === "fr" ? bodyFr : bodyEn;
+        // Title + body rendered in the recipient's preferred locale via
+        // the bilingual translator. Previously hardcoded EN/FR literals
+        // in the cron route — now sourced from messages/{en,fr}.json so
+        // translations live in one place.
+        const title = bt(preferredLocale, "hostingReminderTitle");
+        const body = bt(preferredLocale, "hostingReminderBody", { date: formattedDate });
 
         // ── 3c. In-App notification (always, only for real users) ──
         if (userId) {

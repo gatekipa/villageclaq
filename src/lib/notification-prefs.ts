@@ -24,7 +24,8 @@ export type NotificationTypeKey =
   | "new_member"
   | "loan_updates"
   | "fine_updates"
-  | "subscription_updates";
+  | "subscription_updates"
+  | "transfer_updates";
 
 /** Default channel states when user has no saved preferences.
  *  SMS and WhatsApp default to ON (opt-OUT model) — this is a group
@@ -52,6 +53,7 @@ const DEFAULT_TYPE_PREFS: Record<NotificationTypeKey, Record<NotificationChannel
   loan_updates: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
   fine_updates: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
   subscription_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
+  transfer_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
 };
 
 export interface EnabledChannels {

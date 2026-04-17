@@ -2394,7 +2394,9 @@
     "claimProfile": "Claim Profile",
     "profileClaimed": "Profile claimed successfully! Your history has been preserved.",
     "alreadyClaimed": "This profile has already been claimed.",
-    "alreadyMember": "You already have a membership in this group."
+    "alreadyMember": "You already have a membership in this group.",
+    "emailMismatch": "This invitation was sent to a different email address. Please log in with the email the invitation was sent to.",
+    "invitationExpired": "This invitation has expired. Ask the group admin to send a new one."
   },
   "myHosting": {
     "title": "My Hosting",

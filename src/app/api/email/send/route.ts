@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail, type EmailTemplate } from "@/lib/send-email";
+import { emailRateLimit } from "@/lib/api-rate-limit";
+import { callerCanMessageTarget, isPlatformStaff } from "@/lib/api-recipient-guard";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,6 +29,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    // Per-user rate limit: 50 emails/hour
+    const rl = emailRateLimit(user.id);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", retryAfterMs: rl.retryAfterMs },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const { to, template, data, locale } = body;
 
@@ -35,6 +46,26 @@ export async function POST(request: Request) {
         { error: "Missing required fields: to, template" },
         { status: 400 }
       );
+    }
+
+    // Recipient authorisation: caller must share a group with the target
+    // unless they are platform staff. Skip the check when "to" is a
+    // literal email not tied to a known user (e.g. invitation emails to
+    // non-members) — those are handled below after the auth.users
+    // lookup. Platform staff bypass for broadcast / system notifications.
+    let callerIsStaff = false;
+    if (supabaseServiceKey) {
+      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+      callerIsStaff = await isPlatformStaff(adminClient, user.id);
+      if (!callerIsStaff && UUID_REGEX.test(to)) {
+        const allowed = await callerCanMessageTarget(adminClient, user.id, { userId: to });
+        if (!allowed.allowed) {
+          return NextResponse.json(
+            { error: "forbidden_recipient", reason: allowed.reason },
+            { status: 403 },
+          );
+        }
+      }
     }
 
     // Resolve recipient: if "to" is a UUID, look up the email via RPC

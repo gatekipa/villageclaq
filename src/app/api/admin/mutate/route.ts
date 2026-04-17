@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     const { data: staffRow } = await authClient
       .from("platform_staff")
-      .select("id, role")
+      .select("id, role, is_super_admin")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .maybeSingle();
@@ -68,6 +68,19 @@ export async function POST(req: NextRequest) {
     if (!allowedTables.includes(table)) {
       return NextResponse.json(
         { error: "FORBIDDEN", message: `Table ${table} is not allowed` },
+        { status: 403 }
+      );
+    }
+
+    // V10: mutating the platform_staff roster (granting / revoking staff
+    // access, escalating someone to super_admin) is gated at super_admin
+    // only. The DB policy "Super admin can manage staff" enforces the
+    // same rule but wouldn't apply here because this route uses the
+    // service-role client, which bypasses RLS.
+    const isSuperAdmin = (staffRow as Record<string, unknown> | null)?.is_super_admin === true;
+    if (table === "platform_staff" && !isSuperAdmin) {
+      return NextResponse.json(
+        { error: "FORBIDDEN", message: "Only super admins can modify platform_staff" },
         { status: 403 }
       );
     }
@@ -125,18 +138,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (result.error) {
-      return NextResponse.json(
-        { error: result.error.message },
-        { status: 400 }
-      );
+      console.warn("[ADMIN MUTATE] DB error:", result.error.message);
+      return NextResponse.json({ error: "MUTATION_FAILED" }, { status: 400 });
     }
 
     return NextResponse.json({ data: result.data });
   } catch (err) {
     console.error("[ADMIN MUTATE]", err);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: (err as Error).message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

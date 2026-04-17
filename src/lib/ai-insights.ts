@@ -4,6 +4,10 @@
  * Caches results for 24 hours per report to minimize API costs.
  */
 
+// Server-only marker: importing from a client component throws at build
+// time. Prevents ANTHROPIC_API_KEY from accidentally ending up in the
+// browser bundle.
+import "server-only";
 import Anthropic from '@anthropic-ai/sdk';
 
 interface InsightRequest {

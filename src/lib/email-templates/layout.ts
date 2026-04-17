@@ -6,6 +6,23 @@
 const BRAND_GREEN = "#1db981";
 const BRAND_DARK = "#0f172a";
 
+/**
+ * Escape the five HTML-significant characters so user-authored content
+ * (announcement title, member display name, group name, etc.) cannot
+ * inject tags / attributes / event handlers into the rendered email.
+ * Pass every user-controlled string through this before concatenating
+ * it into a template literal.
+ */
+export function escapeHtml(value: string | null | undefined): string {
+  if (value == null) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function emailLayout(body: string, locale: "en" | "fr" = "en"): string {
   const footer =
     locale === "fr"

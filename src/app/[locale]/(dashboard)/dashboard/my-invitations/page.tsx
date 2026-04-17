@@ -138,55 +138,41 @@ export default function MyInvitationsPage() {
           return;
         }
       } else {
-        // ── NORMAL FLOW: create new membership ──
-        // Check if already a member of this group (prevent duplicate memberships)
-        const { data: existing } = await supabase
-          .from("memberships")
-          .select("id")
-          .eq("user_id", authUser.id)
-          .eq("group_id", groupId)
-          .maybeSingle();
-
-        // Create membership if not already a member
-        if (!existing) {
-          // Fetch profile name to set display_name on the membership (Bug H fix)
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", authUser.id)
-            .single();
-          const displayName = profile?.full_name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || null;
-
-          const { error: membershipErr } = await supabase
-            .from("memberships")
-            .insert({
-              user_id: authUser.id,
-              group_id: groupId,
-              role,
-              standing: "good",
-              is_proxy: false,
-              display_name: displayName,
-            });
-          if (membershipErr) {
-            if (membershipErr.message?.includes("member_limit_reached")) {
-              setShowError(tj("groupFull"));
-              return;
-            }
-            throw membershipErr;
+        // ── NORMAL FLOW: accept via SECURITY DEFINER RPC ──
+        // Direct client inserts into memberships can no longer create
+        // 'active' rows with arbitrary roles (migration 00076 locks that
+        // down). accept_invitation() verifies that the invitation's email
+        // matches auth.jwt() -> 'email' (Supabase only populates the
+        // email claim after verification), tier-limit checks, and marks
+        // the invitation accepted in the same transaction. The role is
+        // read from the invitation row (written by the inviting admin),
+        // never from client input.
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("accept_invitation", {
+          p_invitation_id: invitationId,
+        });
+        const rpc = (rpcData || {}) as { ok?: boolean; error?: string };
+        if (rpcErr) {
+          setShowError(rpcErr.message || t("actionFailed"));
+          return;
+        }
+        if (!rpc.ok) {
+          const code = rpc.error || "actionFailed";
+          if (code === "group_full") {
+            setShowError(tj("groupFull"));
+            return;
           }
+          if (code === "email_mismatch") {
+            setShowError(t("emailMismatch"));
+            return;
+          }
+          if (code === "invitation_expired") {
+            setShowError(t("invitationExpired"));
+            return;
+          }
+          setShowError(t("actionFailed"));
+          return;
         }
       }
-
-      // Mark invitation as accepted and stamp user_id for future lookups
-      const { error } = await supabase
-        .from("invitations")
-        .update({
-          status: "accepted",
-          accepted_at: new Date().toISOString(),
-          user_id: authUser.id,
-        })
-        .eq("id", invitationId);
-      if (error) throw error;
 
       // Send welcome notifications (fire-and-forget)
       // Guard: only send if user has an id (they always do since they're logged in)

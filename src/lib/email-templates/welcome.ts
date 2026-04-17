@@ -1,4 +1,4 @@
-import { emailLayout, button } from "./layout";
+import { emailLayout, button, escapeHtml as h } from "./layout";
 
 interface WelcomeData {
   memberName: string;
@@ -9,15 +9,17 @@ interface WelcomeData {
 
 export function welcomeEmail(data: WelcomeData, locale: "en" | "fr" = "en"): string {
   const isEn = locale === "en";
+  const name = h(data.memberName);
+  const group = h(data.groupName);
 
   const body = `
     <h1 style="margin:0 0 8px; font-size:24px; font-weight:700; color:#0f172a;">
-      ${isEn ? `Welcome to ${data.groupName}!` : `Bienvenue dans ${data.groupName} !`}
+      ${isEn ? `Welcome to ${group}!` : `Bienvenue dans ${group} !`}
     </h1>
     <p style="margin:0 0 20px; font-size:15px; color:#475569; line-height:1.6;">
       ${isEn
-        ? `Hi ${data.memberName}, you are now a member of <strong>${data.groupName}</strong>. Your community is organized and ready for you.`
-        : `Bonjour ${data.memberName}, vous êtes maintenant membre de <strong>${data.groupName}</strong>. Votre communauté est organisée et prête pour vous.`}
+        ? `Hi ${name}, you are now a member of <strong>${group}</strong>. Your community is organized and ready for you.`
+        : `Bonjour ${name}, vous êtes maintenant membre de <strong>${group}</strong>. Votre communauté est organisée et prête pour vous.`}
     </p>
     <p style="margin:0 0 8px; font-size:14px; color:#64748b;">
       ${isEn ? "What you can do:" : "Ce que vous pouvez faire :"}

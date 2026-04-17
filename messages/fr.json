@@ -2435,7 +2435,9 @@
     "claimProfile": "Réclamer le profil",
     "profileClaimed": "Profil réclamé avec succès ! Votre historique a été préservé.",
     "alreadyClaimed": "Ce profil a déjà été réclamé.",
-    "alreadyMember": "Vous avez déjà une adhésion dans ce groupe."
+    "alreadyMember": "Vous avez déjà une adhésion dans ce groupe.",
+    "emailMismatch": "Cette invitation a été envoyée à une autre adresse e-mail. Connectez-vous avec l'adresse à laquelle l'invitation a été envoyée.",
+    "invitationExpired": "Cette invitation a expiré. Demandez à l'administrateur du groupe d'en envoyer une nouvelle."
   },
   "myHosting": {
     "title": "Mon Accueil",

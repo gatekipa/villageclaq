@@ -186,98 +186,15 @@ export default function JoinClient() {
       }
     }
 
-    // Fallback: direct queries if RPC isn't deployed yet
-    // Check if already a member (including banned)
-    const { data: existing } = await supabase
-      .from("memberships")
-      .select("id, standing")
-      .eq("user_id", user.id)
-      .eq("group_id", group.id)
-      .maybeSingle();
-
-    if (existing) {
-      if (existing.standing === "banned") {
-        setStatus("banned");
-      } else {
-        setStatus("already_member");
-      }
-      return;
-    }
-
-    // Check member limit before joining
-    try {
-      const { TIERS } = await import("@/lib/subscription-tiers");
-      // SECURITY DEFINER RPC bypasses RLS — non-members cannot read group_subscriptions directly
-      const { data: tierData } = await supabase
-        .rpc("get_group_subscription_tier", { p_group_id: group.id });
-      const tier = ((tierData as string | null) || "free") as keyof typeof TIERS;
-      const maxMembers = TIERS[tier]?.maxMembers ?? 15;
-      if (maxMembers !== -1) {
-        const { count } = await supabase
-          .from("memberships")
-          .select("id", { count: "exact", head: true })
-          .eq("group_id", group.id);
-        if ((count || 0) >= maxMembers) {
-          setError(tj("groupFull"));
-          setStatus("error");
-          return;
-        }
-      }
-    } catch {
-      // Best-effort — if subscription check fails, allow join
-    }
-
-    // Create membership
-    const { error: joinErr } = await supabase.from("memberships").insert({
-      user_id: user.id,
-      group_id: group.id,
-      role: "member",
-      standing: "good",
-      is_proxy: false,
-      display_name: displayName,
-    });
-
-    if (joinErr) {
-      if (joinErr.message?.includes("member_limit_reached")) {
-        setError(tj("groupFull"));
-      } else {
-        setError(t("error"));
-      }
-      setStatus("error");
-      return;
-    }
-
-    // Atomically increment use count via RPC (non-critical)
-    try {
-      await supabase.rpc("use_join_code", { p_code: code });
-    } catch {
-      try {
-        await supabase.rpc("increment_join_code_use_count", { p_code: code });
-      } catch {
-        // Non-critical — code usage tracking is best-effort
-      }
-    }
-
-    // Notify group admins (fire-and-forget)
-    notifyAdmins(supabase, group, displayName, user.email);
-    // Audit log (fire-and-forget)
-    logJoinActivity(supabase, group.id);
-
-    // Check if user already has a phone number
-    try {
-      const supabase2 = createClient();
-      const { data: { user: currentUser } } = await supabase2.auth.getUser();
-      if (currentUser) {
-        const { data: prof } = await supabase2.from("profiles").select("phone").eq("id", currentUser.id).single();
-        if (prof?.phone) {
-          setExistingPhone(prof.phone);
-        }
-      }
-    } catch {
-      // Non-critical
-    }
-
-    setStatus("joined");
+    // Legacy direct-insert fallback retired. The join_group_via_code
+    // SECURITY DEFINER RPC above is the only path that can create an
+    // active membership — migration 00076 restricts client-side inserts
+    // to pending_approval members. If the RPC returned nothing, surface
+    // the error; the dead fallback path that previously followed (member
+    // lookup, tier count check, post-insert phone prompt) was
+    // unreachable after the RPC handled every success + error code.
+    setError(t("error"));
+    setStatus("error");
   }
 
   async function handleSavePhone() {

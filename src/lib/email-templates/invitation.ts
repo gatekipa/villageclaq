@@ -1,4 +1,4 @@
-import { emailLayout, button } from "./layout";
+import { emailLayout, button, escapeHtml as h } from "./layout";
 
 interface InvitationData {
   groupName: string;
@@ -9,23 +9,21 @@ interface InvitationData {
 
 export function invitationEmail(data: InvitationData, locale: "en" | "fr" = "en"): string {
   const isEn = locale === "en";
+  const safeGroup = h(data.groupName);
+  const safeInviter = h(data.inviterName);
 
-  const groupTypeLabel = data.groupType
-    ? isEn
-      ? ` (${data.groupType})`
-      : ` (${data.groupType})`
-    : "";
+  const groupTypeLabel = data.groupType ? ` (${h(data.groupType)})` : "";
 
   const body = `
     <h1 style="margin:0 0 8px; font-size:24px; font-weight:700; color:#0f172a;">
       ${isEn
-        ? `You've been invited to join ${data.groupName}${groupTypeLabel}`
-        : `Vous êtes invité(e) à rejoindre ${data.groupName}${groupTypeLabel}`}
+        ? `You've been invited to join ${safeGroup}${groupTypeLabel}`
+        : `Vous êtes invité(e) à rejoindre ${safeGroup}${groupTypeLabel}`}
     </h1>
     <p style="margin:0 0 20px; font-size:15px; color:#475569; line-height:1.6;">
       ${isEn
-        ? `<strong>${data.inviterName}</strong> has invited you to join <strong>${data.groupName}</strong> on VillageClaq.`
-        : `<strong>${data.inviterName}</strong> vous a invité(e) à rejoindre <strong>${data.groupName}</strong> sur VillageClaq.`}
+        ? `<strong>${safeInviter}</strong> has invited you to join <strong>${safeGroup}</strong> on VillageClaq.`
+        : `<strong>${safeInviter}</strong> vous a invité(e) à rejoindre <strong>${safeGroup}</strong> sur VillageClaq.`}
     </p>
     <p style="margin:0 0 8px; font-size:14px; color:#64748b;">
       ${isEn

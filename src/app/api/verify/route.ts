@@ -50,17 +50,29 @@ export async function GET(request: Request) {
   const profile = (Array.isArray(profileRaw) ? profileRaw[0] : profileRaw) as Record<string, unknown> | null;
   const group = (Array.isArray(groupRaw) ? groupRaw[0] : groupRaw) as Record<string, unknown> | null;
 
-  // Return only limited public data
+  // Public QR verifier response. We deliberately expose only the
+  // minimum a door-scanner needs: whether this card represents a real
+  // member and whether they are currently in good standing. Role is
+  // omitted — it leaks group governance information to anyone who
+  // scans a card without adding anything a door-scanner actually
+  // needs. Standing is normalised to good/at_risk/suspended so the
+  // scanner UI can colour-code without seeing internal enum values.
+  const rawStanding = (m.standing as string | null) || "good";
+  const standing =
+    rawStanding === "good" || rawStanding === "warning" || rawStanding === "suspended" || rawStanding === "banned"
+      ? rawStanding
+      : "good";
+  const verified = standing === "good";
   return NextResponse.json({
+    verified,
     memberName:
       m.display_name ||
       profile?.full_name ||
       profile?.display_name ||
       "Member",
     groupName: group?.name || "Group",
-    standing: m.standing || "good",
+    standing,
     joinedAt: m.joined_at,
-    role: m.role || "member",
     avatarUrl: profile?.avatar_url || null,
   });
 }

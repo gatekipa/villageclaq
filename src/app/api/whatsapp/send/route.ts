@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendWhatsAppMessage, sendWhatsAppText } from "@/lib/send-whatsapp";
 import { dispatchWhatsApp, type WhatsAppNotificationType } from "@/lib/whatsapp-dispatcher";
+import { whatsappRateLimit } from "@/lib/api-rate-limit";
+import { callerCanMessageTarget, isPlatformStaff } from "@/lib/api-recipient-guard";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -99,8 +101,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    // Per-user rate limit: 50 WhatsApp messages/hour
+    const rl = whatsappRateLimit(user.id);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", retryAfterMs: rl.retryAfterMs },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const { to, type, template, language, components, text, data, locale } = body;
+
+    // Recipient authorisation: must share a group with target (or be staff).
+    if (supabaseServiceKey && to) {
+      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+      const callerIsStaff = await isPlatformStaff(adminClient, user.id);
+      if (!callerIsStaff) {
+        const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const target = UUID.test(to) ? { userId: to as string } : { phone: to as string };
+        const allowed = await callerCanMessageTarget(adminClient, user.id, target);
+        if (!allowed.allowed) {
+          return NextResponse.json(
+            { error: "forbidden_recipient", reason: allowed.reason },
+            { status: 403 },
+          );
+        }
+      }
+    }
 
     console.log("[WA-ROUTE] to:", to, "type:", type || template || "(text)", "isUUID:", /^[0-9a-f]{8}-/i.test(to || ""));
 

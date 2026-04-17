@@ -1,4 +1,4 @@
-import { emailLayout, button } from "./layout";
+import { emailLayout, button, escapeHtml as h } from "./layout";
 
 interface ProxyClaimData {
   memberName: string;
@@ -27,13 +27,13 @@ export function proxyClaimEmail(
     </h1>
     <p style="margin:0 0 20px; font-size:15px; color:#475569; line-height:1.6;">
       ${isEn
-        ? `Hello <strong>${data.memberName}</strong>,`
-        : `Bonjour <strong>${data.memberName}</strong>,`}
+        ? `Hello <strong>${h(data.memberName)}</strong>,`
+        : `Bonjour <strong>${h(data.memberName)}</strong>,`}
     </p>
     <p style="margin:0 0 20px; font-size:15px; color:#475569; line-height:1.6;">
       ${isEn
-        ? `You have been added as a member of <strong>${data.groupName}</strong> on VillageClaq. Click the button below to create your account and access your membership, payment history, and group activities.`
-        : `Vous avez été ajouté(e) comme membre de <strong>${data.groupName}</strong> sur VillageClaq. Cliquez sur le bouton ci-dessous pour créer votre compte et accéder à votre adhésion, votre historique de paiements et les activités du groupe.`}
+        ? `You have been added as a member of <strong>${h(data.groupName)}</strong> on VillageClaq. Click the button below to create your account and access your membership, payment history, and group activities.`
+        : `Vous avez été ajouté(e) comme membre de <strong>${h(data.groupName)}</strong> sur VillageClaq. Cliquez sur le bouton ci-dessous pour créer votre compte et accéder à votre adhésion, votre historique de paiements et les activités du groupe.`}
     </p>
     ${button(isEn ? "Claim My Membership" : "Réclamer mon adhésion", data.claimUrl)}
     <p style="margin:20px 0 0; font-size:13px; color:#64748b; line-height:1.5;">

@@ -141,9 +141,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ results });
   } catch (err) {
     console.error("[ADMIN QUERY]", err);
-    return NextResponse.json(
-      { error: "INTERNAL_ERROR", message: (err as Error).message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }
 }

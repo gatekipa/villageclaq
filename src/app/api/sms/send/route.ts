@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendSmsNotification, type SmsTemplate } from "@/lib/send-sms-notification";
+import { smsRateLimit } from "@/lib/api-rate-limit";
+import { callerCanMessageTarget, isPlatformStaff } from "@/lib/api-recipient-guard";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -35,8 +37,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    // Per-user rate limit: 30 SMS/hour
+    const rl = smsRateLimit(user.id);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "rate_limited", retryAfterMs: rl.retryAfterMs },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const { to, template, data, locale } = body;
+
+    // Recipient authorisation: must share a group with the target or
+    // be platform staff. Skipped for cron/service-role (no JWT).
+    if (supabaseServiceKey && to) {
+      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+      const callerIsStaff = await isPlatformStaff(adminClient, user.id);
+      if (!callerIsStaff) {
+        const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const target = UUID.test(to) ? { userId: to as string } : { phone: to as string };
+        const allowed = await callerCanMessageTarget(adminClient, user.id, target);
+        if (!allowed.allowed) {
+          return NextResponse.json(
+            { error: "forbidden_recipient", reason: allowed.reason },
+            { status: 403 },
+          );
+        }
+      }
+    }
     console.log("[SMS DIAG] /api/sms/send — received request", { to, template, locale, dataKeys: Object.keys(data || {}) });
 
     if (!to || !template) {

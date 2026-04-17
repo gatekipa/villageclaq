@@ -176,59 +176,14 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
       return;
     }
 
-    // Check subscription member limit (best-effort)
-    try {
-      const { TIERS } = await import("@/lib/subscription-tiers");
-      // SECURITY DEFINER RPC bypasses RLS — non-members cannot read group_subscriptions directly
-      const { data: tierData } = await supabase
-        .rpc("get_group_subscription_tier", { p_group_id: group.group_id });
-      const tier = ((tierData as string | null) || "free") as keyof typeof TIERS;
-      const maxMembers = TIERS[tier]?.maxMembers ?? 15;
-      if (maxMembers !== -1) {
-        const { count } = await supabase
-          .from("memberships")
-          .select("id", { count: "exact", head: true })
-          .eq("group_id", group.group_id);
-        if ((count || 0) >= maxMembers) {
-          setState("error");
-          setError(t("groupFull"));
-          return;
-        }
-      }
-    } catch {
-      // Non-critical — if subscription check fails, allow join
-    }
-
-    // Create membership
-    const { error: joinErr } = await supabase.from("memberships").insert({
-      user_id: user.id,
-      group_id: group.group_id,
-      role: "member",
-      standing: "good",
-      is_proxy: false,
-      display_name: displayName,
-    });
-
-    if (joinErr) {
-      setState("error");
-      if (joinErr.message?.includes("member_limit_reached")) {
-        setError(t("groupFull"));
-      } else {
-        setError(tCommon("error"));
-      }
-      return;
-    }
-
-    // Increment use count (non-critical)
-    try {
-      await supabase.rpc("use_join_code", { p_code: cleaned });
-    } catch {
-      // Non-critical
-    }
-
-    notifyAdmins(supabase, group, displayName, user.email);
-    logJoinActivity(supabase, group.group_id);
-    onSuccess();
+    // Legacy direct-insert fallback retired. Migration 00076 restricts
+    // client-side memberships inserts to pending_approval rows, so the
+    // old path (member lookup + tier count + INSERT) cannot create an
+    // active membership. The canonical path is the join_group_via_code
+    // SECURITY DEFINER RPC called above; if the RPC returned nothing
+    // there is no safe fallback — surface the error.
+    setState("error");
+    setError(tCommon("error"));
   }
 
   function onSuccess() {

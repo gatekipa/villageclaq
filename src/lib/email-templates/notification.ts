@@ -4,7 +4,7 @@
  * Title + body + optional CTA button, all wrapped in the standard layout.
  */
 
-import { emailLayout, button } from "./layout";
+import { emailLayout, button, escapeHtml } from "./layout";
 
 interface NotificationEmailData {
   title: string;
@@ -15,15 +15,17 @@ interface NotificationEmailData {
 }
 
 export function notificationEmail(data: NotificationEmailData, locale: "en" | "fr" = "en"): string {
+  // All of title / body / groupName / ctaText are user-authored (admin
+  // composes the announcement). ctaUrl is trusted (server-constructed).
   const html = `
     <h1 style="margin:0 0 8px; font-size:22px; font-weight:700; color:#0f172a;">
-      ${data.title}
+      ${escapeHtml(data.title)}
     </h1>
-    ${data.groupName ? `<p style="margin:0 0 16px; font-size:13px; color:#64748b;">${data.groupName}</p>` : ""}
+    ${data.groupName ? `<p style="margin:0 0 16px; font-size:13px; color:#64748b;">${escapeHtml(data.groupName)}</p>` : ""}
     <p style="margin:0 0 20px; font-size:15px; color:#475569; line-height:1.6;">
-      ${data.body}
+      ${escapeHtml(data.body)}
     </p>
-    ${data.ctaText && data.ctaUrl ? button(data.ctaText, data.ctaUrl) : ""}
+    ${data.ctaText && data.ctaUrl ? button(escapeHtml(data.ctaText), data.ctaUrl) : ""}
   `;
   return emailLayout(html, locale);
 }

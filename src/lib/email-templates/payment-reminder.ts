@@ -1,4 +1,4 @@
-import { emailLayout, button } from "./layout";
+import { emailLayout, button, escapeHtml as h } from "./layout";
 
 interface PaymentReminderData {
   memberName: string;
@@ -26,22 +26,22 @@ export function paymentReminderEmail(data: PaymentReminderData, locale: "en" | "
     </div>
     <p style="margin:0 0 20px; font-size:15px; color:#475569; line-height:1.6;">
       ${isEn
-        ? `Hi ${data.memberName}, ${isOverdue ? `your payment for <strong>${data.contributionType}</strong> is overdue by ${data.daysOverdue} days.` : `a payment for <strong>${data.contributionType}</strong> is due on ${data.dueDate}.`}`
-        : `Bonjour ${data.memberName}, ${isOverdue ? `votre paiement pour <strong>${data.contributionType}</strong> est en retard de ${data.daysOverdue} jours.` : `un paiement pour <strong>${data.contributionType}</strong> est dû le ${data.dueDate}.`}`}
+        ? `Hi ${h(data.memberName)}, ${isOverdue ? `your payment for <strong>${h(data.contributionType)}</strong> is overdue by ${data.daysOverdue} days.` : `a payment for <strong>${h(data.contributionType)}</strong> is due on ${h(data.dueDate)}.`}`
+        : `Bonjour ${h(data.memberName)}, ${isOverdue ? `votre paiement pour <strong>${h(data.contributionType)}</strong> est en retard de ${data.daysOverdue} jours.` : `un paiement pour <strong>${h(data.contributionType)}</strong> est dû le ${h(data.dueDate)}.`}`}
     </p>
 
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border-radius:8px; padding:16px; margin:0 0 20px;">
       <tr>
         <td style="padding:8px 16px; font-size:13px; color:#64748b;">${isEn ? "Amount Due" : "Montant dû"}</td>
-        <td style="padding:8px 16px; font-size:16px; font-weight:700; color:${urgencyColor}; text-align:right;">${data.amount}</td>
+        <td style="padding:8px 16px; font-size:16px; font-weight:700; color:${urgencyColor}; text-align:right;">${h(data.amount)}</td>
       </tr>
       <tr>
         <td style="padding:8px 16px; font-size:13px; color:#64748b;">${isEn ? "Due Date" : "Date d'échéance"}</td>
-        <td style="padding:8px 16px; font-size:13px; text-align:right;">${data.dueDate}</td>
+        <td style="padding:8px 16px; font-size:13px; text-align:right;">${h(data.dueDate)}</td>
       </tr>
       <tr>
         <td style="padding:8px 16px; font-size:13px; color:#64748b;">${isEn ? "Group" : "Groupe"}</td>
-        <td style="padding:8px 16px; font-size:13px; text-align:right;">${data.groupName}</td>
+        <td style="padding:8px 16px; font-size:13px; text-align:right;">${h(data.groupName)}</td>
       </tr>
     </table>
 

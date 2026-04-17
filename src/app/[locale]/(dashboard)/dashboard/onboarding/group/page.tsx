@@ -467,14 +467,15 @@ export default function GroupOnboardingPage() {
       return;
     }
 
-    // Step 3: Create owner membership
+    // Step 3: Create owner membership via SECURITY DEFINER RPC. Direct
+    // client inserts into memberships can no longer create owner rows
+    // (migration 00076 locks that down to pending_approval members). The
+    // RPC enforces that only the group's created_by user can seed the
+    // owner, and only when the group has zero existing memberships.
     setSetupProgress(t("progressMembership"));
-    const { error: memErr } = await supabase.from("memberships").insert({
-      user_id: user.id,
-      group_id: group.id,
-      role: "owner",
-      standing: "good",
-      display_name: fullName.trim() || user.email?.split("@")[0] || "Owner",
+    const { error: memErr } = await supabase.rpc("create_owner_membership", {
+      p_group_id: group.id,
+      p_display_name: fullName.trim() || user.email?.split("@")[0] || "Owner",
     });
     if (memErr) {
       setError(t("setupFailed"));

@@ -152,6 +152,7 @@ export default function RecordPaymentPage() {
   const [paymentDateError, setPaymentDateError] = useState<string | null>(null);
   const [showMemberList, setShowMemberList] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
   const [lastSavedName, setLastSavedName] = useState("");
   const [lastSavedDetails, setLastSavedDetails] = useState<{ name: string; amount: string; type: string; date: string } | null>(null);
   const [savingMode, setSavingMode] = useState<"save" | "next" | null>(null);
@@ -958,6 +959,9 @@ export default function RecordPaymentPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("contributions.receiptPhoto")}</Label>
+                {receiptError && (
+                  <p className="text-xs text-destructive">{receiptError}</p>
+                )}
                 <div className="flex items-center gap-2">
                   <input
                     type="file"
@@ -968,9 +972,11 @@ export default function RecordPaymentPage() {
                       const file = e.target.files?.[0];
                       if (!file || !groupId) return;
                       if (file.size > 5 * 1024 * 1024) {
-                        alert(t("contributions.fileTooLargeReceipt"));
+                        setReceiptError(t("contributions.fileTooLargeReceipt"));
+                        setTimeout(() => setReceiptError(null), 5000);
                         return;
                       }
+                      setReceiptError(null);
                       try {
                         const supabase = createClient();
                         const path = `${groupId}/${Date.now()}-${file.name}`;

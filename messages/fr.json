@@ -4165,7 +4165,8 @@
     "closeElectionConfirmTitle": "Clore le vote et annoncer les résultats ?",
     "closeElectionConfirmBody": "Le vote se terminera immédiatement, les résultats seront visibles par tous les membres et chaque membre recevra une notification. Cette action est irréversible.",
     "cancelElectionConfirmTitle": "Annuler cette élection ?",
-    "cancelElectionConfirmBody": "Le vote s'arrêtera et l'élection sera marquée comme annulée. Les bulletins déjà exprimés restent consignés pour audit mais aucun gagnant ne sera déclaré."
+    "cancelElectionConfirmBody": "Le vote s'arrêtera et l'élection sera marquée comme annulée. Les bulletins déjà exprimés restent consignés pour audit mais aucun gagnant ne sera déclaré.",
+    "overlappingElectionForPosition": "Une autre élection active existe déjà pour ce poste. Fermez-la ou annulez-la avant d'en ouvrir une nouvelle."
   },
   "documentVault": {
     "title": "Coffre-fort documentaire",

@@ -4165,7 +4165,8 @@
     "closeElectionConfirmTitle": "Close voting and announce results?",
     "closeElectionConfirmBody": "Voting will end immediately, results will become visible to all members, and every member will receive a notification. This cannot be undone.",
     "cancelElectionConfirmTitle": "Cancel this election?",
-    "cancelElectionConfirmBody": "Voting will stop and the election will be marked cancelled. Already-cast ballots stay recorded for audit but no winner will be declared."
+    "cancelElectionConfirmBody": "Voting will stop and the election will be marked cancelled. Already-cast ballots stay recorded for audit but no winner will be declared.",
+    "overlappingElectionForPosition": "Another active election for this position already exists. Close or cancel it before starting a new one."
   },
   "documentVault": {
     "title": "Document Vault",

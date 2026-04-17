@@ -5,6 +5,7 @@ import { exportCSV } from "@/lib/export";
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1157,6 +1158,7 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
   const t = useTranslations("projects");
   const tc = useTranslations("common");
   const locale = useLocale();
+  const confirmDialog = useConfirmDialog();
   const { currentGroup } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [uploading, setUploading] = useState(false);
@@ -1194,7 +1196,14 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
 
   async function handleDelete(attachId: string) {
     if (deletingId) return;
-    if (!confirm(tc("confirm") + "?")) return;
+    const ok = await confirmDialog({
+      title: tc("confirmDeleteTitle"),
+      description: tc("confirmDeleteDesc"),
+      confirmLabel: tc("delete"),
+      cancelLabel: tc("cancel"),
+      destructive: true,
+    });
+    if (!ok) return;
     setDeletingId(attachId);
     try {
       const supabase = createClient();

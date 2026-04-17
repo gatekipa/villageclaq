@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { cn, normalizeSearch } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,6 +84,7 @@ export default function EventsPage() {
   const locale = useLocale();
   const t = useTranslations("events");
   const tc = useTranslations("common");
+  const confirmDialog = useConfirmDialog();
   const { groupId, currentMembership, user, currentGroup } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
@@ -396,7 +398,14 @@ export default function EventsPage() {
 
   async function handleCancelEvent(eventId: string) {
     if (cancellingId) return;
-    if (!confirm(t("cancelEventConfirm"))) return;
+    const ok = await confirmDialog({
+      title: t("cancelEvent"),
+      description: t("cancelEventConfirm"),
+      confirmLabel: t("cancelEvent"),
+      cancelLabel: tc("cancel"),
+      destructive: true,
+    });
+    if (!ok) return;
     setCancellingId(eventId);
     try {
       const supabase = createClient();

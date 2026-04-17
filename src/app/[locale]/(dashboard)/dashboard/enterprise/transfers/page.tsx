@@ -254,24 +254,18 @@ export default function TransfersPage() {
               outstanding_obligations: outstandingObligations,
             };
 
-            // Update source membership: mark as transferred
-            await supabase
-              .from("memberships")
-              .update({ standing: "transferred" })
-              .eq("id", sourceMembership.id);
-
-            // Create new membership in destination group
-            const { error: transferMemberErr } = await supabase.from("memberships").insert({
-              user_id: member_id,
-              group_id: dest_group_id,
-              role: "member",
-              standing: "good",
-              joined_at: new Date().toISOString(),
-            });
-            if (transferMemberErr) {
-              // Member limit reached in destination group — skip but don't crash
-              // The transfer request can be retried after the destination group upgrades
-              throw transferMemberErr;
+            // G5: call execute_member_transfer SECURITY DEFINER RPC
+            // which atomically marks the source as 'exited' / standing=
+            // 'transferred' and creates the destination membership with
+            // full admin-auth checks. Direct client INSERT is blocked
+            // by migration 00076's pending-only policy.
+            const { data: rpcData, error: rpcErr } = await supabase.rpc(
+              "execute_member_transfer",
+              { p_transfer_id: transferId },
+            );
+            const rpc = (rpcData || {}) as { ok?: boolean; error?: string };
+            if (rpcErr || !rpc.ok) {
+              throw new Error(rpc.error || rpcErr?.message || "transfer_failed");
             }
           }
         }

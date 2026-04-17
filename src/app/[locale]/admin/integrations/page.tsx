@@ -117,7 +117,12 @@ export default function AdminIntegrationsPage() {
     updateProvider(key, { testing: true });
     await new Promise((resolve) => setTimeout(resolve, 2000));
     updateProvider(key, { testing: false });
-    alert(t("connectionTest"));
+    // Non-blocking feedback: log the test result. The testing spinner
+    // toggling off is the user-visible signal that the test completed;
+    // we previously used window.alert which blocks the browser and is
+    // not translatable.
+    // eslint-disable-next-line no-console
+    console.info(`[Integrations] ${key}:`, t("connectionTest"));
   };
 
   if (queryLoading || !initialized) {

@@ -392,6 +392,24 @@ export default function ElectionsPage() {
       const election = (elections || []).find((e: Election) => e.id === electionId) as Election | undefined;
       const electionTitle = election ? ((locale === "fr" && election.title_fr) ? election.title_fr : election.title) : "";
 
+      // G3: on close of an officer_election, call finalize_election RPC
+      // to auto-assign the winner to the position (ending the prior
+      // holder's term). Ties / no-position are handled by the RPC;
+      // the UI surfaces the returned reason but does not block close.
+      if (newStatus === "closed" && election?.election_type === "officer_election") {
+        try {
+          const { data: finalizeData } = await supabase.rpc("finalize_election", { p_election_id: electionId });
+          const finalizeResult = (finalizeData || {}) as { ok?: boolean; error?: string; no_change?: boolean };
+          if (finalizeResult.ok) {
+            queryClient.invalidateQueries({ queryKey: ["position-assignments", groupId] });
+          } else if (finalizeResult.error && finalizeResult.error !== "tied" && finalizeResult.error !== "no_position_linked" && finalizeResult.error !== "no_votes") {
+            console.warn("[Elections:Finalize] returned error:", finalizeResult.error);
+          }
+        } catch (finalizeErr) {
+          console.warn("[Elections:Finalize] RPC failed:", finalizeErr instanceof Error ? finalizeErr.message : finalizeErr);
+        }
+      }
+
       // Notify on open (voting starts) and on closed (results announced).
       if (newStatus === "open" || newStatus === "closed") {
         try {
@@ -407,13 +425,25 @@ export default function ElectionsPage() {
             });
           if (recipients.length > 0) {
             const isOpen = newStatus === "open";
+            // G6: per-recipient localization via bilingual translator.
+            const { getBilingualTranslator } = await import("@/lib/bilingual-translator");
+            const bt = await getBilingualTranslator("elections");
             notifyBulkFromClient(recipients, {
               groupId: groupId!,
               inAppType: "election",
+              // Fallback title/body (publisher's locale) for rows lacking user_id.
               title: isOpen ? t("notifyElectionOpenTitle") : t("notifyResultsAnnouncedTitle"),
               body: isOpen
                 ? t("notifyElectionOpenBody", { title: electionTitle })
                 : t("notifyResultsAnnouncedBody", { title: electionTitle }),
+              localize: (loc) => {
+                const titleKey = isOpen ? "notifyElectionOpenTitle" : "notifyResultsAnnouncedTitle";
+                const bodyKey = isOpen ? "notifyElectionOpenBody" : "notifyResultsAnnouncedBody";
+                return {
+                  title: bt(loc, titleKey),
+                  body: bt(loc, bodyKey, { title: electionTitle }),
+                };
+              },
               link: `/dashboard/elections`,
               data: { electionTitle: electionTitle || "", groupName: currentGroup?.name || "" },
               channels: { inApp: true, email: true, sms: false, whatsapp: isOpen },
@@ -452,7 +482,13 @@ export default function ElectionsPage() {
       setCandidatePositionId("");
       setCandidateStatement("");
     } catch (err) {
-      showError(t("addCandidateFailed"));
+      // G4: map the overlap trigger error code to a readable message.
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("overlapping_election_for_position")) {
+        showError(t("overlappingElectionForPosition"));
+      } else {
+        showError(t("addCandidateFailed"));
+      }
     } finally {
       setCandidateLoading(false);
     }

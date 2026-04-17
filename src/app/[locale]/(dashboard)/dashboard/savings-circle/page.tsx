@@ -4,6 +4,7 @@ import { formatDateWithGroupFormat } from "@/lib/format";
 
 import { useState, useEffect, Fragment } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -645,6 +646,7 @@ export default function SavingsCirclePage() {
   const t = useTranslations("savingsCircle");
   const tc = useTranslations("common");
   const locale = useLocale();
+  const confirmDialog = useConfirmDialog();
   const { currentGroup, groupId, user } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const { hasPermission } = usePermissions();
@@ -1464,7 +1466,13 @@ export default function SavingsCirclePage() {
                       <Button
                         className="w-full"
                         onClick={async () => {
-                          if (!confirm(t("completeConfirm"))) return;
+                          const ok = await confirmDialog({
+                            title: t("completeCycle"),
+                            description: t("completeConfirm"),
+                            confirmLabel: t("completeCycle"),
+                            cancelLabel: tc("cancel"),
+                          });
+                          if (!ok) return;
                           const supabase = createClient();
                           await supabase.from("savings_cycles").update({ status: "completed" }).eq("id", id);
                           queryClient.invalidateQueries({ queryKey: ["savings-cycles", groupId] });

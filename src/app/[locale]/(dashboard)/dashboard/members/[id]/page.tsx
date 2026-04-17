@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { useParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
@@ -118,15 +119,37 @@ function useMemberDetail(membershipId: string | null) {
     queryKey: ["member-detail", membershipId],
     queryFn: async () => {
       if (!membershipId) return null;
+      // Pull membership + minimal profile (name + avatar) with the
+      // embedded join — name/avatar are always visible to co-members.
+      // Sensitive fields (phone, email, DOB) are fetched through the
+      // privacy-aware get_visible_profile RPC which returns NULL for
+      // any field the target has hidden in their privacy_settings.
       const { data, error } = await supabase
         .from("memberships")
-        .select("*, profiles!memberships_user_id_fkey(id, full_name, avatar_url, phone, preferred_locale)")
+        .select("*, profiles!memberships_user_id_fkey(id, full_name, avatar_url, preferred_locale)")
         .eq("id", membershipId)
         .single();
       if (error) throw error;
+      const baseProfile = (Array.isArray(data.profiles) ? data.profiles[0] : data.profiles) as Record<string, unknown> | null;
+
+      let privacyFilteredProfile: Record<string, unknown> | null = baseProfile;
+      const userId = (data.user_id as string | null) || null;
+      if (userId) {
+        const { data: vpData } = await supabase.rpc("get_visible_profile", { p_user_id: userId });
+        const vp = (vpData as Record<string, unknown> | null) || null;
+        if (vp) {
+          privacyFilteredProfile = {
+            ...(baseProfile || {}),
+            phone: vp.phone ?? null,
+            email: vp.email ?? null,
+            date_of_birth: vp.date_of_birth ?? null,
+          };
+        }
+      }
+
       return {
         ...data,
-        profile: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles,
+        profile: privacyFilteredProfile,
       };
     },
     enabled: !!membershipId,
@@ -257,6 +280,7 @@ function useMemberFamily(membershipId: string | null) {
 
 export default function MemberDetailPage() {
   const t = useTranslations();
+  const confirmDialog = useConfirmDialog();
   const ts = useTranslations("standing");
   const th = useTranslations("helpTips");
   const locale = useLocale();
@@ -481,7 +505,14 @@ export default function MemberDetailPage() {
   }
 
   async function handleDeleteFamily(fm: { id: string; name: string }) {
-    if (!confirm(t("members.deleteFamilyMemberConfirm", { name: fm.name }))) return;
+    const ok = await confirmDialog({
+      title: t("members.deleteFamilyMember"),
+      description: t("members.deleteFamilyMemberConfirm", { name: fm.name }),
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+      destructive: true,
+    });
+    if (!ok) return;
     setDeletingFamilyId(fm.id);
     try {
       const { error } = await supabase.from("family_members").delete().eq("id", fm.id);

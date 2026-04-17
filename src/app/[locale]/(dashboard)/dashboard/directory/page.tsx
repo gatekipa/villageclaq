@@ -13,6 +13,10 @@ import { ErrorState } from "@/components/ui/page-skeleton";
 import { useMembers } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
+import { useQuery } from "@tanstack/react-query";
+import { createClient } from "@/lib/supabase/client";
+
+const supabase = createClient();
 import {
   Table,
   TableBody,
@@ -84,7 +88,48 @@ export default function DirectoryPage() {
   const t = useTranslations();
   const { groupId, currentGroup } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
-  const { data: members = [], isLoading, error, refetch } = useMembers();
+  const { data: rawMembers = [], isLoading, error, refetch } = useMembers();
+
+  // Fetch privacy-filtered profiles via the DB-level helper. The RPC
+  // returns NULL for phone/email/DOB when the target has hidden them in
+  // their privacy_settings — this enforces privacy at the DB layer so
+  // the browser console cannot read fields that the UI hides.
+  const { data: visibleProfiles = [] } = useQuery({
+    queryKey: ["visible-profiles", groupId],
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data } = await supabase.rpc("get_visible_profiles_for_group", { p_group_id: groupId });
+      return (data as Array<Record<string, unknown>>) || [];
+    },
+    enabled: !!groupId,
+  });
+
+  // Merge: replace each membership's embedded profile sensitive fields
+  // with the RPC's filtered values keyed by user_id. Name + avatar come
+  // from the original embed (never hidden).
+  const members = useMemo(() => {
+    const visibleByUser = new Map<string, Record<string, unknown>>();
+    for (const v of visibleProfiles) {
+      const uid = v.user_id as string | undefined;
+      if (uid) visibleByUser.set(uid, v);
+    }
+    return rawMembers.map((m: Record<string, unknown>) => {
+      const uid = m.user_id as string | null;
+      const embedded = m.profile as Record<string, unknown> | null;
+      if (!uid) return m;
+      const vp = visibleByUser.get(uid);
+      if (!vp) return { ...m, profile: { ...(embedded || {}), phone: null, email: null, date_of_birth: null } };
+      return {
+        ...m,
+        profile: {
+          ...(embedded || {}),
+          phone: vp.phone ?? null,
+          email: vp.email ?? null,
+          date_of_birth: vp.date_of_birth ?? null,
+        },
+      };
+    });
+  }, [rawMembers, visibleProfiles]);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);

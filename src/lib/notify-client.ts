@@ -67,8 +67,24 @@ export interface ClientNotifyParams {
   smsTemplate?: string;
   /** WhatsApp notification type (e.g., "fine_issued") */
   whatsappType?: string;
-  /** Locale for bilingual sends */
+  /** Locale for bilingual sends (fallback — per-recipient locale wins if localize() is provided) */
   locale?: string;
+  /**
+   * Optional per-recipient localization callback. When provided, every
+   * recipient's notification title/body/data/locale is computed from
+   * their own preferred_locale (via member_locale RPC) rather than
+   * using the publisher's locale for everyone. Crons use this too.
+   *
+   *   localize: (locale) => ({
+   *     title: locale === "fr" ? "Annonce" : "Announcement",
+   *     body:  locale === "fr" ? "…" : "…",
+   *     data:  { title, body },  // optional — merged over base data
+   *   })
+   *
+   * If omitted, the static title/body/data/locale are used for all
+   * recipients (pre-refactor behaviour).
+   */
+  localize?: (locale: "en" | "fr") => { title: string; body: string; data?: Record<string, string> };
   /** Which channels the CALLER wants to send on (upper bound — prefs further restrict) */
   channels: {
     inApp?: boolean;
@@ -234,20 +250,58 @@ export async function notifyBulkFromClient(
   // ─── Resolve deep link ────────────────────────────────────────────────────
   const deepLink = params.link || getNotificationLink(params.inAppType || "system");
 
+  // ─── Resolve per-recipient locale (G6) ───────────────────────────────────
+  // When params.localize is provided, look up each recipient's
+  // preferred_locale via the member_locale SECURITY DEFINER RPC and use
+  // it to render that recipient's title/body/data. Falls back to
+  // params.locale (publisher's locale) for rows with no user_id.
+  const recipientLocales = new Map<string, "en" | "fr">();
+  if (params.localize) {
+    const uids = Array.from(new Set(recipients.map((r) => r.userId).filter(Boolean) as string[]));
+    await Promise.all(
+      uids.map(async (uid) => {
+        try {
+          const { data } = await supabase.rpc("member_locale", { p_user_id: uid });
+          const loc = (typeof data === "string" ? data : "en") as string;
+          recipientLocales.set(uid, loc === "fr" ? "fr" : "en");
+        } catch {
+          recipientLocales.set(uid, "en");
+        }
+      }),
+    );
+  }
+  const fallbackLocale: "en" | "fr" = (params.locale === "fr" ? "fr" : "en");
+  const renderFor = (userId: string | null | undefined) => {
+    const loc: "en" | "fr" = userId ? (recipientLocales.get(userId) || fallbackLocale) : fallbackLocale;
+    if (params.localize) {
+      const out = params.localize(loc);
+      return {
+        locale: loc,
+        title: out.title,
+        body: out.body,
+        data: { ...params.data, ...(out.data || {}) },
+      };
+    }
+    return { locale: loc, title: params.title, body: params.body, data: params.data };
+  };
+
   // ─── Batch In-App (always sent) ──────────────────────────────────────────
   if (params.channels.inApp) {
     try {
       const rows = recipients
         .filter((r) => r.userId)
-        .map((r) => ({
-          user_id: r.userId!,
-          group_id: params.groupId,
-          type: params.inAppType || "system",
-          title: params.title,
-          body: params.body,
-          data: { link: deepLink },
-          is_read: false,
-        }));
+        .map((r) => {
+          const rendered = renderFor(r.userId);
+          return {
+            user_id: r.userId!,
+            group_id: params.groupId,
+            type: params.inAppType || "system",
+            title: rendered.title,
+            body: rendered.body,
+            data: { link: deepLink },
+            is_read: false,
+          };
+        });
       for (let i = 0; i < rows.length; i += 50) {
         await supabase.from("notifications").insert(rows.slice(i, i + 50));
       }
@@ -260,6 +314,8 @@ export async function notifyBulkFromClient(
   for (const r of recipients) {
     const to = r.phone || r.userId;
     if (!to) continue;
+
+    const rendered = renderFor(r.userId);
 
     // Check this member's preferences
     let enabledEmail = !!params.channels.email;
@@ -283,8 +339,8 @@ export async function notifyBulkFromClient(
           body: JSON.stringify({
             to: r.userId,
             template: params.emailTemplate || "notification",
-            data: { title: params.title, body: params.body, groupName: params.data.groupName || "", ...params.data },
-            locale: params.locale || "en",
+            data: { title: rendered.title, body: rendered.body, groupName: rendered.data.groupName || "", ...rendered.data },
+            locale: rendered.locale,
           }),
         }).catch((err) => { console.warn("[NotifyBulk:Email] Fetch failed:", err instanceof Error ? err.message : err); });
       } catch (err) { console.warn("[NotifyBulk:Email] Send failed:", err instanceof Error ? err.message : err); }
@@ -298,8 +354,8 @@ export async function notifyBulkFromClient(
           body: JSON.stringify({
             to,
             template: params.smsTemplate,
-            data: params.data,
-            locale: params.locale || "en",
+            data: rendered.data,
+            locale: rendered.locale,
           }),
         }).catch((err) => { console.warn("[NotifyBulk:SMS] Fetch failed:", err instanceof Error ? err.message : err); });
       } catch (err) { console.warn("[NotifyBulk:SMS] Send failed:", err instanceof Error ? err.message : err); }
@@ -313,8 +369,8 @@ export async function notifyBulkFromClient(
           body: JSON.stringify({
             to: r.phone || r.userId,
             type: params.whatsappType,
-            data: params.data,
-            locale: params.locale || "en",
+            data: rendered.data,
+            locale: rendered.locale,
           }),
         }).catch((err) => { console.warn("[NotifyBulk:WhatsApp] Fetch failed:", err instanceof Error ? err.message : err); });
       } catch (err) { console.warn("[NotifyBulk:WhatsApp] Send failed:", err instanceof Error ? err.message : err); }

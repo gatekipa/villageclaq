@@ -53,6 +53,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatDateTime as formatDateTimeLocaleAware } from "@/lib/format";
 import { notifyBulkFromClient } from "@/lib/notify-client";
 import { useSearchParam } from "@/lib/hooks/use-stable-search-params";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ListSkeleton,
@@ -146,6 +147,7 @@ export default function MinutesPage() {
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const formatDate = (dateStr: string) => formatDateWithGroupFormat(dateStr, groupDateFormat, locale);
   const { hasPermission } = usePermissions();
+  const confirmDialog = useConfirmDialog();
   const canManageMinutes = hasPermission("minutes.manage");
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -557,12 +559,25 @@ export default function MinutesPage() {
             });
 
           if (recipients.length > 0) {
+            // G6: per-recipient localization via bilingual translator.
+            // Each recipient sees the minutes-published copy in their
+            // own preferred_locale (from profiles).
+            const { getBilingualTranslator } = await import("@/lib/bilingual-translator");
+            const bt = await getBilingualTranslator("minutes");
             notifyBulkFromClient(recipients, {
               groupId: groupId!,
+              // Fallback static title/body (used only if a recipient has
+              // no user_id, which shouldn't happen for minutes).
               title: t("minutesPublished"),
               body: groupName
                 ? `${groupName} — ${t("minutesPublishedMsg", { title: minutesTitle })}`
                 : t("minutesPublishedMsg", { title: minutesTitle }),
+              localize: (loc) => {
+                const title = bt(loc, "minutesPublished");
+                const msg = bt(loc, "minutesPublishedMsg", { title: minutesTitle });
+                const body = groupName ? `${groupName} — ${msg}` : msg;
+                return { title, body };
+              },
               inAppType: "meeting_minutes",
               emailTemplate: "minutes-published",
               smsTemplate: "minutes-published",
@@ -691,7 +706,14 @@ export default function MinutesPage() {
 
   const handleCancelMeeting = async () => {
     if (!selectedEvent || !groupId || cancellingMeeting) return;
-    if (!confirm(t("cancelMeetingConfirm"))) return;
+    const ok = await confirmDialog({
+      title: t("cancelMeeting"),
+      description: t("cancelMeetingConfirm"),
+      confirmLabel: t("cancelMeeting"),
+      cancelLabel: tc("cancel"),
+      destructive: true,
+    });
+    if (!ok) return;
     setCancellingMeeting(true);
     try {
       const { error: err } = await supabase

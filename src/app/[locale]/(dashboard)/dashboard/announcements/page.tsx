@@ -333,23 +333,36 @@ export default function AnnouncementsPage() {
 
     if (recipients.length === 0) return;
 
-    const annTitle = (locale === "fr" && titleFr) ? titleFr : titleEn;
-    const annBody = (locale === "fr" && contentFr) ? contentFr : contentEn;
     const groupName = currentGroup?.name || "";
     try {
       const { notifyBulkFromClient } = await import("@/lib/notify-client");
+      // G6: per-recipient localization. The announcement title/body
+      // are user-authored (the admin writes both EN and FR). Each
+      // recipient sees the copy that matches their preferred_locale
+      // stored on profiles — no more "French secretary blasts English
+      // members with French copy".
       notifyBulkFromClient(recipients, {
         groupId: groupId!,
-        title: annTitle,
-        body: (annBody || "").slice(0, 200),
-        data: { groupName, title: annTitle, body: (annBody || "").slice(0, 100) },
+        // Fallback static values — used only for rows with no user_id
+        // (won't happen for announcements; recipients are filtered to
+        // real users upstream).
+        title: titleEn,
+        body: (contentEn || "").slice(0, 200),
+        data: { groupName, title: titleEn, body: (contentEn || "").slice(0, 100) },
+        localize: (loc) => {
+          const title = (loc === "fr" && titleFr) ? titleFr : titleEn;
+          const body = (loc === "fr" && contentFr) ? contentFr : contentEn;
+          return {
+            title,
+            body: (body || "").slice(0, 200),
+            data: { title, body: (body || "").slice(0, 100) },
+          };
+        },
         emailTemplate: "notification",
         smsTemplate: "announcement",
         whatsappType: "announcement",
         inAppType: "announcement",
         locale,
-        // Respect the admin's channel toggles. In-app is always on per
-        // the same-row disable in the UI.
         channels: {
           inApp: activeChannels.includes("in_app"),
           email: activeChannels.includes("email"),

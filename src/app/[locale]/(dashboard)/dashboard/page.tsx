@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { formatAmount } from "@/lib/currencies";
 import { useTranslations, useLocale } from "next-intl";
-import { formatDateWithGroupFormat } from "@/lib/format";
+import { formatDateWithGroupFormat, formatEventDateTime, formatTime } from "@/lib/format";
 import { Link, useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -456,11 +456,10 @@ export default function DashboardPage() {
                   <p className="truncate font-medium text-base">
                     {(nextEvent.title as string) || (nextEvent.title_fr as string)}
                   </p>
+                  {/* QA #682: show full date+time so the upcoming-event
+                      widget never hides when the meeting is. */}
                   <p className="text-sm text-muted-foreground">
-                    {new Date(nextEvent.starts_at as string).toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
+                    {formatEventDateTime(nextEvent.starts_at as string, locale)}
                   </p>
                 </div>
               </div>

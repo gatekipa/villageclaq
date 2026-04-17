@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
-import { formatDateWithGroupFormat } from "@/lib/format";
+import { formatDateWithGroupFormat, formatTime, formatEventDateTime } from "@/lib/format";
 import { cn, normalizeSearch } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -617,7 +617,7 @@ export default function EventsPage() {
                     <div className="mt-1 space-y-0.5">
                       {dayEvents.map((event: Record<string, unknown>) => {
                         const evtStart = new Date(event.starts_at as string);
-                        const timeStr = evtStart.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" });
+                        const timeStr = formatTime(evtStart, locale);
                         return (
                         <div
                           key={event.id as string}
@@ -705,6 +705,16 @@ export default function EventsPage() {
                               </Badge>
                             )}
                           </div>
+                          {/*
+                            QA #682 fix: show full date+time prominently under
+                            the title so members no longer miss the meeting
+                            time. EN → "Apr 17, 2026 at 3:00 PM";
+                            FR → "17 avr. 2026 à 15:00".
+                          */}
+                          <p className="mt-1 text-sm font-medium text-foreground">
+                            {formatEventDateTime(startsAt, locale)}
+                            {endsAt && ` – ${formatTime(endsAt, locale)}`}
+                          </p>
                           {event.description ? (
                             <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
                               {String(event.description)}
@@ -713,8 +723,8 @@ export default function EventsPage() {
                           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3.5 w-3.5" />
-                              {startsAt.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}
-                              {endsAt && ` - ${endsAt.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}`}
+                              {formatTime(startsAt, locale)}
+                              {endsAt && ` - ${formatTime(endsAt, locale)}`}
                             </span>
                             {event.location ? (
                               <span className="flex items-center gap-1">

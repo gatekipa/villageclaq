@@ -87,11 +87,38 @@ export function formatDateWithGroupFormat(
 
 export function formatTime(date: string | Date, locale = "en"): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" });
+  // EN → "3:00 PM" (hour: "numeric", 12-hour).
+  // FR → "15:00" (hour: "2-digit", 24-hour).
+  const options: Intl.DateTimeFormatOptions = locale === "fr"
+    ? { hour: "2-digit", minute: "2-digit", hour12: false }
+    : { hour: "numeric", minute: "2-digit", hour12: true };
+  return d.toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", options);
 }
 
 export function formatDateTime(date: string | Date, locale = "en"): string {
   return `${formatDate(date, locale)} ${formatTime(date, locale)}`;
+}
+
+/**
+ * Event-style date+time for list rows, cards, and notifications.
+ * EN: "Apr 17, 2026 at 3:00 PM"
+ * FR: "17 avr. 2026 à 15:00"
+ *
+ * Uses getDateLocale() indirectly via formatTime. If the date is
+ * invalid, returns the raw input string as a safe fallback.
+ */
+export function formatEventDateTime(date: string | Date, locale = "en"): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return typeof date === "string" ? date : "";
+  const intlLocale = locale === "fr" ? "fr-FR" : "en-US";
+  const dateStr = d.toLocaleDateString(intlLocale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = formatTime(d, locale);
+  const connector = locale === "fr" ? " à " : " at ";
+  return `${dateStr}${connector}${timeStr}`;
 }
 
 // ─── Relative Time ─────────────────────────────────────────────────────────

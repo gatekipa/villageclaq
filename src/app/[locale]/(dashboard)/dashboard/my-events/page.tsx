@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { formatDateWithGroupFormat } from "@/lib/format";
+import { formatDateWithGroupFormat, formatTime, formatEventDateTime } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
@@ -237,9 +237,8 @@ export default function MyEventsPage() {
     return eventsInMonth.filter((e: Record<string, unknown>) => new Date(e.starts_at as string).getDate() === day);
   };
 
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" });
-  };
+  // QA #682: use the shared formatTime (EN "3:00 PM", FR "15:00").
+  const formatEventTime = (dateStr: string) => formatTime(dateStr, locale);
 
   const formatMonth = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" });
@@ -458,10 +457,16 @@ export default function MyEventsPage() {
                           </Badge>
                         </div>
 
+                        {/* QA #682: combined date+time so members see when the meeting is */}
+                        <p className="mt-1 text-sm font-medium text-foreground">
+                          {formatEventDateTime(startsAt, locale)}
+                          {endsAt ? ` – ${formatEventTime(endsAt)}` : ""}
+                        </p>
+
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
-                            {formatTime(startsAt)}{endsAt ? ` - ${formatTime(endsAt)}` : ""}
+                            {formatEventTime(startsAt)}{endsAt ? ` - ${formatEventTime(endsAt)}` : ""}
                           </span>
                           {event.location ? (
                             event.location_map_url ? (

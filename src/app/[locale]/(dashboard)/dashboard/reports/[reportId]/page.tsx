@@ -82,6 +82,41 @@ function renderInlineBold(text: string): React.ReactNode {
 }
 
 
+// Small localized-enum helpers used by several report tables. They keep
+// raw DB enums out of user-visible badges while avoiding new i18n keys
+// where existing ones already cover the value.
+function translateStatus(s: string, t: (k: string) => string): string {
+  switch (s) {
+    case "active":    return t("common.active");
+    case "completed": return t("common.completed");
+    case "cancelled": return t("common.cancelled");
+    case "pending":   return t("common.pending");
+    default:          return s;
+  }
+}
+function translateFrequency(f: string, t: (k: string) => string): string {
+  switch (f) {
+    case "weekly":    return t("settings.weekly");
+    case "biweekly":  return t("settings.biweekly");
+    case "monthly":   return t("settings.monthly");
+    case "quarterly": return t("settings.quarterly");
+    default:          return f;
+  }
+}
+
+// Translate a raw membership_standing enum to the user's locale. Used by
+// the Member Standing Report + Roster so badges don't render raw enum
+// values ("good" / "warning" / "suspended" / "banned") in the UI.
+function standingLabel(s: string, t: (k: string) => string): string {
+  switch (s) {
+    case "good":       return t("members.standingGood");
+    case "warning":    return t("members.standingWarning");
+    case "suspended":  return t("members.standingSuspended");
+    case "banned":     return t("members.standingBanned");
+    default:           return s;
+  }
+}
+
 function standingColor(s: string) {
   if (s === "good" || s === "Good") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400";
   if (s === "warning" || s === "Warning") return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
@@ -538,7 +573,11 @@ export default function ReportDetailPage() {
       data = Object.entries(arBuckets).map(([bucket, d]) => ({ Bucket: bucket, Amount: d.amount, Count: d.count }));
       filename = "ar_aging";
     } else if (reportId === "6") {
-      data = standingData.map(r => ({ Name: r.name, Standing: r.standing, Dues: r.standing === "good" ? "Pass" : "—", Attendance: "—", Hosting: "—" }));
+      // Standing Report CSV — emit the actual enum value, not the
+      // "Pass"/"—" placeholders. The Dues/Attendance/Hosting breakdown
+      // columns were always "—" and are dropped until real per-member
+      // sub-scores are plumbed in.
+      data = standingData.map(r => ({ Name: r.name, Standing: r.standing }));
       filename = "member_standing";
     } else if (reportId === "8") {
       data = rosterData.map(r => ({ Name: r.name, Phone: r.phone, Joined: r.joined, Role: r.role, Standing: r.standing }));
@@ -672,7 +711,11 @@ export default function ReportDetailPage() {
       data = savingsCycleData.map(r => ({ Name: r.name, Status: r.status, Participants: r.participants, Round: `${r.currentRound}/${r.totalRounds}`, Amount: r.amount, Frequency: r.frequency }));
       filename = "savings_cycles";
     } else if (reportId === "6") {
-      data = standingData.map(r => ({ Name: r.name, Standing: r.standing, Dues: r.standing === "good" ? "Pass" : "—", Attendance: "—", Hosting: "—" }));
+      // Standing Report CSV — emit the actual enum value, not the
+      // "Pass"/"—" placeholders. The Dues/Attendance/Hosting breakdown
+      // columns were always "—" and are dropped until real per-member
+      // sub-scores are plumbed in.
+      data = standingData.map(r => ({ Name: r.name, Standing: r.standing }));
       filename = "member_standing";
     } else if (reportId === "7") {
       data = Object.entries(matrixByMember).map(([name, yearData]) => {
@@ -1281,7 +1324,7 @@ export default function ReportDetailPage() {
               {standingData.map((row: { name: string; standing: string }, i: number) => (
                 <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
                   <div className="flex-1"><p className="font-medium text-sm">{row.name}</p></div>
-                  <Badge className={standingColor(row.standing)}>{row.standing}</Badge>
+                  <Badge className={standingColor(row.standing)}>{standingLabel(row.standing, t)}</Badge>
                 </div>
               ))}
             </div>
@@ -1342,7 +1385,7 @@ export default function ReportDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{row.role}</Badge>
-                    <Badge className={standingColor(row.standing)}>{row.standing}</Badge>
+                    <Badge className={standingColor(row.standing)}>{standingLabel(row.standing, t)}</Badge>
                   </div>
                 </div>
               ))}
@@ -1377,7 +1420,7 @@ export default function ReportDetailPage() {
                     }>
                       {row.status === "lapsed_risk" ? t("reports.churnRisk") : row.status === "approaching_renewal" ? t("reports.trend") : t("reports.stable")}
                     </Badge>
-                    <Badge className={standingColor(row.standing)}>{row.standing}</Badge>
+                    <Badge className={standingColor(row.standing)}>{standingLabel(row.standing, t)}</Badge>
                   </div>
                 </div>
               ))}
@@ -1697,9 +1740,9 @@ export default function ReportDetailPage() {
               <h3 className="font-semibold mb-2">{t("members.title")}</h3>
               <p className="text-3xl font-bold">{boardStats.totalMembers}</p>
               <div className="mt-2 flex gap-2 text-xs">
-                <span className="text-emerald-600">{boardStats.goodStanding} good</span>
-                <span className="text-amber-600">{boardStats.warningStanding} warning</span>
-                <span className="text-red-600">{boardStats.badStanding} suspended</span>
+                <span className="text-emerald-600">{boardStats.goodStanding} {t("members.standingGood")}</span>
+                <span className="text-amber-600">{boardStats.warningStanding} {t("members.standingWarning")}</span>
+                <span className="text-red-600">{boardStats.badStanding} {t("members.standingSuspended")}</span>
               </div>
             </CardContent></Card>
             <Card><CardContent className="pt-6">
@@ -1726,8 +1769,11 @@ export default function ReportDetailPage() {
         </div>
       )}
 
-      {/* Fallback for unknown reports */}
-      {!["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"].includes(reportId) && (
+      {/* Fallback for unknown reports — must list every branch that
+          renders above; reports 21-24 were missing and rendered a
+          spurious "Coming soon" placeholder alongside their real
+          content. */}
+      {!["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24"].includes(reportId) && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
@@ -1760,11 +1806,11 @@ export default function ReportDetailPage() {
                   {savingsCycleData.map((row, i) => (
                     <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="py-2 px-3 font-medium">{row.name}</td>
-                      <td className="py-2 px-3"><Badge variant={row.status === "active" ? "default" : "secondary"}>{row.status}</Badge></td>
+                      <td className="py-2 px-3"><Badge variant={row.status === "active" ? "default" : "secondary"}>{translateStatus(row.status, t)}</Badge></td>
                       <td className="text-center py-2 px-3">{row.participants}</td>
                       <td className="text-center py-2 px-3">{row.currentRound} / {row.totalRounds}</td>
                       <td className="text-right py-2 px-3">{formatAmount(row.amount, currency)}</td>
-                      <td className="py-2 px-3">{row.frequency}</td>
+                      <td className="py-2 px-3">{translateFrequency(row.frequency, t)}</td>
                       <td className="py-2 px-3">{row.startDate ? fd(row.startDate) : "—"}</td>
                     </tr>
                   ))}

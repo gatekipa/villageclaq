@@ -17,83 +17,114 @@ import {
 
 // ─── Sidebar section definitions ──────────────────────────────────────────
 
-interface NavItem { key: string; href: string; icon: LucideIcon }
-interface NavSection { sectionKey: string; items: NavItem[]; defaultOpen?: boolean }
+type PlatformRole = "super_admin" | "admin" | "sales" | "support" | "finance";
+
+interface NavItem {
+  key: string;
+  href: string;
+  icon: LucideIcon;
+  /**
+   * Roles allowed to see this sidebar item. Omitting the field means
+   * all roles see it (rare — most items are role-scoped). The server
+   * still enforces its own RBAC on every query/mutate/export; this
+   * list is purely to hide links the caller can't successfully use.
+   */
+  roles?: PlatformRole[];
+}
+interface NavSection { sectionKey: string; items: NavItem[]; defaultOpen?: boolean; roles?: PlatformRole[] }
+
+const ALL: PlatformRole[] = ["super_admin", "admin", "sales", "support", "finance"];
 
 const navSections: NavSection[] = [
   {
     sectionKey: "sectionPlatformOverview",
     defaultOpen: true,
     items: [
-      { key: "dashboard", href: "/admin", icon: LayoutDashboard },
-      { key: "platformOverview", href: "/admin/overview", icon: BarChart3 },
-      { key: "usageAnalytics", href: "/admin/analytics", icon: Activity },
+      { key: "dashboard", href: "/admin", icon: LayoutDashboard, roles: ALL },
+      { key: "platformOverview", href: "/admin/overview", icon: BarChart3, roles: ["super_admin", "admin"] },
+      { key: "usageAnalytics", href: "/admin/analytics", icon: Activity, roles: ["super_admin", "admin"] },
     ],
   },
   {
     sectionKey: "sectionUsersAndGroups",
     items: [
-      { key: "groups", href: "/admin/groups", icon: Building2 },
-      { key: "groupTypes", href: "/admin/group-types", icon: Layers },
-      { key: "users", href: "/admin/users", icon: Users },
-      { key: "groupAdministrators", href: "/admin/group-admins", icon: Shield },
-      { key: "groupAdminActions", href: "/admin/group-actions", icon: ClipboardList },
-      { key: "multiGroupParticipation", href: "/admin/multi-group", icon: Globe },
+      { key: "groups", href: "/admin/groups", icon: Building2, roles: ["super_admin", "admin", "sales", "support"] },
+      { key: "groupTypes", href: "/admin/group-types", icon: Layers, roles: ["super_admin", "admin"] },
+      { key: "users", href: "/admin/users", icon: Users, roles: ["super_admin", "admin", "support"] },
+      { key: "groupAdministrators", href: "/admin/group-admins", icon: Shield, roles: ["super_admin", "admin"] },
+      { key: "groupAdminActions", href: "/admin/group-actions", icon: ClipboardList, roles: ["super_admin", "admin"] },
+      { key: "multiGroupParticipation", href: "/admin/multi-group", icon: Globe, roles: ["super_admin", "admin"] },
     ],
   },
   {
     sectionKey: "sectionFinancialControls",
     items: [
-      { key: "transactionsMonitor", href: "/admin/transactions", icon: DollarSign },
-      { key: "offlinePayments", href: "/admin/offline-payments", icon: WifiOff },
-      { key: "feeMonetization", href: "/admin/subscriptions", icon: CreditCard },
-      { key: "subscriptionPlans", href: "/admin/plans", icon: CreditCard },
-      { key: "anomalyMonitoring", href: "/admin/anomalies", icon: ShieldAlert },
-      { key: "vouchers", href: "/admin/vouchers", icon: Ticket },
+      { key: "transactionsMonitor", href: "/admin/transactions", icon: DollarSign, roles: ["super_admin", "finance"] },
+      { key: "offlinePayments", href: "/admin/offline-payments", icon: WifiOff, roles: ["super_admin", "finance"] },
+      { key: "feeMonetization", href: "/admin/subscriptions", icon: CreditCard, roles: ["super_admin", "finance"] },
+      { key: "subscriptionPlans", href: "/admin/plans", icon: CreditCard, roles: ["super_admin", "finance"] },
+      { key: "anomalyMonitoring", href: "/admin/anomalies", icon: ShieldAlert, roles: ["super_admin", "admin", "finance"] },
+      { key: "vouchers", href: "/admin/vouchers", icon: Ticket, roles: ["super_admin", "finance"] },
     ],
   },
   {
     sectionKey: "sectionReports",
     items: [
-      { key: "reportsHub", href: "/admin/reports", icon: BarChart3 },
-      { key: "financialReports", href: "/admin/reports/financial", icon: DollarSign },
-      { key: "engagementReports", href: "/admin/reports/engagement", icon: Activity },
-      { key: "membershipReports", href: "/admin/reports/membership", icon: Users },
-      { key: "attendanceReports", href: "/admin/reports/attendance", icon: ClipboardList },
-      { key: "reliefPlanReports", href: "/admin/reports/relief", icon: Shield },
+      { key: "reportsHub", href: "/admin/reports", icon: BarChart3, roles: ["super_admin", "admin"] },
+      { key: "financialReports", href: "/admin/reports/financial", icon: DollarSign, roles: ["super_admin", "finance"] },
+      { key: "engagementReports", href: "/admin/reports/engagement", icon: Activity, roles: ["super_admin", "admin"] },
+      { key: "membershipReports", href: "/admin/reports/membership", icon: Users, roles: ["super_admin", "admin"] },
+      { key: "attendanceReports", href: "/admin/reports/attendance", icon: ClipboardList, roles: ["super_admin", "admin"] },
+      { key: "reliefPlanReports", href: "/admin/reports/relief", icon: Shield, roles: ["super_admin", "admin"] },
     ],
   },
   {
     sectionKey: "sectionSystemConfiguration",
     items: [
-      { key: "globalSettings", href: "/admin/settings", icon: Settings },
-      { key: "notificationsManagement", href: "/admin/notifications", icon: Bell },
-      { key: "paymentIntegrations", href: "/admin/integrations", icon: CreditCard },
-      { key: "dataSecurity", href: "/admin/security", icon: Database },
-      { key: "offlineSupport", href: "/admin/offline-status", icon: Wifi },
+      { key: "globalSettings", href: "/admin/settings", icon: Settings, roles: ["super_admin", "admin"] },
+      { key: "notificationsManagement", href: "/admin/notifications", icon: Bell, roles: ["super_admin", "admin"] },
+      { key: "paymentIntegrations", href: "/admin/integrations", icon: CreditCard, roles: ["super_admin", "finance"] },
+      { key: "dataSecurity", href: "/admin/security", icon: Database, roles: ["super_admin", "admin"] },
+      { key: "offlineSupport", href: "/admin/offline-status", icon: Wifi, roles: ["super_admin", "admin", "support"] },
     ],
   },
   {
     sectionKey: "sectionAccessControl",
     items: [
-      { key: "staff", href: "/admin/staff", icon: Shield },
-      { key: "rolePermissions", href: "/admin/permissions", icon: Lock },
-      { key: "audit", href: "/admin/audit", icon: ClipboardList },
+      { key: "staff", href: "/admin/staff", icon: Shield, roles: ["super_admin"] },
+      { key: "rolePermissions", href: "/admin/permissions", icon: Lock, roles: ["super_admin", "admin"] },
+      { key: "audit", href: "/admin/audit", icon: ClipboardList, roles: ["super_admin", "admin"] },
     ],
   },
   {
     sectionKey: "sectionContentManagement",
     items: [
-      { key: "testimonials", href: "/admin/content", icon: FileText },
-      { key: "faqs", href: "/admin/content?tab=faqs", icon: HelpCircle },
-      { key: "enquiries", href: "/admin/enquiries", icon: MessageSquare },
+      { key: "testimonials", href: "/admin/content", icon: FileText, roles: ["super_admin", "admin", "sales"] },
+      { key: "faqs", href: "/admin/content?tab=faqs", icon: HelpCircle, roles: ["super_admin", "admin", "sales"] },
+      { key: "enquiries", href: "/admin/enquiries", icon: MessageSquare, roles: ["super_admin", "admin", "support"] },
     ],
   },
 ];
 
+function filterByRole(role: PlatformRole | null): NavSection[] {
+  if (!role) return [];
+  return navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.roles || item.roles.includes(role)),
+    }))
+    .filter((section) => section.items.length > 0);
+}
+
 // ─── Platform Admin Guard ─────────────────────────────────────────────────
 
-function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
+function PlatformAdminGuard({
+  children,
+  onRole,
+}: {
+  children: React.ReactNode;
+  onRole: (role: PlatformRole | null) => void;
+}) {
   const [status, setStatus] = useState<"loading" | "authorized" | "denied">("loading");
   const router = useRouter();
   const t = useTranslations("admin");
@@ -101,6 +132,8 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
   // Stable ref — useRouter() may return a new object on every render.
   const routerRef = useRef(router);
   routerRef.current = router;
+  const onRoleRef = useRef(onRole);
+  onRoleRef.current = onRole;
 
   useEffect(() => {
     async function checkAccess() {
@@ -113,10 +146,16 @@ function PlatformAdminGuard({ children }: { children: React.ReactNode }) {
         .eq("user_id", user.id)
         .eq("is_active", true)
         .maybeSingle();
-      setStatus(staff ? "authorized" : "denied");
+      if (staff) {
+        onRoleRef.current((staff as { role: PlatformRole }).role);
+        setStatus("authorized");
+      } else {
+        onRoleRef.current(null);
+        setStatus("denied");
+      }
     }
     checkAccess();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- router accessed via stable ref
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- router/onRole accessed via stable ref
   }, []);
 
   if (status === "loading") {
@@ -225,6 +264,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminName, setAdminName] = useState<string | null>(null);
+  const [platformRole, setPlatformRole] = useState<PlatformRole | null>(null);
+  const visibleSections = filterByRole(platformRole);
 
   useEffect(() => {
     async function fetchAdminName() {
@@ -242,7 +283,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   return (
-    <PlatformAdminGuard>
+    <PlatformAdminGuard onRole={setPlatformRole}>
       <div className="flex h-screen overflow-hidden">
         {/* Mobile overlay */}
         {sidebarOpen && (
@@ -268,9 +309,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Button>
           </div>
 
-          {/* Nav sections */}
+          {/* Nav sections — filtered to the caller's platform role. */}
           <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
-            {navSections.map((section) => (
+            {visibleSections.map((section) => (
               <SidebarSection
                 key={section.sectionKey}
                 section={section}

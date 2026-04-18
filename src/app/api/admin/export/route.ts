@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { canExport, type PlatformRole } from "@/lib/admin-rbac";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -45,6 +46,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "INVALID_REQUEST", message: "type must be one of: members, attendance, contributions, relief" },
         { status: 400 }
+      );
+    }
+
+    // Role-based export allowlist. platform_staff is_active alone is
+    // insufficient — Support must not export contributions, Sales must
+    // not export the member roster (PII), Finance only gets contributions.
+    const callerRole = (staffRow as { role: PlatformRole }).role;
+    if (!canExport(callerRole, type)) {
+      return NextResponse.json(
+        {
+          error: "FORBIDDEN",
+          message: `role ${callerRole} cannot export ${type}`,
+        },
+        { status: 403 }
       );
     }
 

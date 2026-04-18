@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest) {
   const isProtectedRoute =
     pathWithoutLocale.startsWith("/dashboard") ||
     pathWithoutLocale.startsWith("/admin");
+  const isAdminRoute = pathWithoutLocale.startsWith("/admin");
   // Auth routes: login, signup
   const isAuthRoute =
     pathWithoutLocale.startsWith("/login") ||
@@ -59,6 +60,26 @@ export async function updateSession(request: NextRequest) {
     url.pathname = `/${locale}/login`;
     url.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(url);
+  }
+
+  // Platform-admin gate: /admin/* requires an active platform_staff
+  // row. Previously enforced only by the client-side layout guard —
+  // the page HTML + Supabase data still flowed to the browser before
+  // the client-side redirect fired. Now we block at the edge.
+  if (isAdminRoute && user) {
+    const { data: staffRow } = await supabase
+      .from("platform_staff")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!staffRow) {
+      const locale = isLocalePrefix ? pathnameLocale : "en";
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}/dashboard`;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   if (isAuthRoute && user) {

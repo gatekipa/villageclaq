@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { canRead, type PlatformRole } from "@/lib/admin-rbac";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -23,10 +24,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "NOT_AUTHENTICATED" }, { status: 401 });
     }
 
-    // Check if user is platform staff
+    // Check if user is platform staff AND read the role — prior version
+    // only checked is_active, letting any staff read any table via the
+    // service-role client below (bypassing RLS).
     const { data: staffRow } = await authClient
       .from("platform_staff")
-      .select("id")
+      .select("id, role")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .maybeSingle();
@@ -34,6 +37,8 @@ export async function POST(req: NextRequest) {
     if (!staffRow) {
       return NextResponse.json({ error: "NOT_AUTHORIZED" }, { status: 403 });
     }
+
+    const callerRole = (staffRow as { role: PlatformRole }).role;
 
     // 2. Parse the request
     const body = await req.json();
@@ -53,6 +58,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "INVALID_REQUEST", message: "queries array required" },
         { status: 400 }
+      );
+    }
+
+    // Role-based table allowlist. Because this route runs under the
+    // service-role client (bypassing RLS), the allowlist is the only
+    // wall between a Sales staff member and the payments table.
+    const forbidden = queries.find((q) => !canRead(callerRole, q.table));
+    if (forbidden) {
+      return NextResponse.json(
+        {
+          error: "FORBIDDEN",
+          message: `role ${callerRole} cannot read ${forbidden.table}`,
+        },
+        { status: 403 }
       );
     }
 

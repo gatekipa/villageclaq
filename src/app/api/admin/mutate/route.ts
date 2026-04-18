@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { canMutate, canManageStaff, type PlatformRole } from "@/lib/admin-rbac";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const { data: staffRow } = await authClient
       .from("platform_staff")
-      .select("id, role, is_super_admin")
+      .select("id, role")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .maybeSingle();
@@ -33,6 +34,8 @@ export async function POST(req: NextRequest) {
     if (!staffRow) {
       return NextResponse.json({ error: "NOT_AUTHORIZED" }, { status: 403 });
     }
+
+    const callerRole = (staffRow as { role: PlatformRole }).role;
 
     // 2. Parse the request
     const body = await req.json();
@@ -77,10 +80,29 @@ export async function POST(req: NextRequest) {
     // only. The DB policy "Super admin can manage staff" enforces the
     // same rule but wouldn't apply here because this route uses the
     // service-role client, which bypasses RLS.
-    const isSuperAdmin = (staffRow as Record<string, unknown> | null)?.is_super_admin === true;
-    if (table === "platform_staff" && !isSuperAdmin) {
+    //
+    // BUGFIX: the prior implementation read `is_super_admin` off the
+    // staff row, but platform_staff has no such column — the actual
+    // role is the `role` enum. That comparison returned `undefined ===
+    // true` → false, denying every mutation of platform_staff regardless
+    // of caller, i.e. Staff Management was DOA. canManageStaff checks
+    // role === 'super_admin' correctly.
+    if (table === "platform_staff" && !canManageStaff(callerRole)) {
       return NextResponse.json(
         { error: "FORBIDDEN", message: "Only super admins can modify platform_staff" },
+        { status: 403 }
+      );
+    }
+
+    // Role-based table allowlist (separate from the table-name allowlist
+    // above — the earlier list gates "can this route touch this table at
+    // all"; this one gates "can THIS role touch it").
+    if (!canMutate(callerRole, table)) {
+      return NextResponse.json(
+        {
+          error: "FORBIDDEN",
+          message: `role ${callerRole} cannot mutate ${table}`,
+        },
         { status: 403 }
       );
     }

@@ -5753,5 +5753,26 @@
     "subscriptionExpiringInAppTitle": "Your {tier} subscription expires in {days} days",
     "subscriptionExpiringInAppBody": "{groupName}: Renew to keep your features.",
     "renewNow": "Renew Now"
+  },
+  "standingChange": {
+    "title": {
+      "goodToWarning": "Standing lowered to Warning",
+      "goodToSuspended": "Standing lowered to Suspended",
+      "warningToGood": "Standing restored to Good",
+      "warningToSuspended": "Standing lowered to Suspended",
+      "suspendedToGood": "Standing fully restored",
+      "suspendedToWarning": "Standing partially restored",
+      "generic": "Membership standing updated"
+    },
+    "body": {
+      "goodToWarning": "Your standing in {groupName} has moved from Good to Warning. Review your dashboard to resolve outstanding items before it drops further.",
+      "goodToSuspended": "Your standing in {groupName} has been suspended. See your dashboard for the unresolved items that triggered this change.",
+      "warningToGood": "Your standing in {groupName} has been restored to Good. Thank you for staying current on your contributions.",
+      "warningToSuspended": "Your standing in {groupName} has moved from Warning to Suspended. See your dashboard for the remaining items to resolve.",
+      "suspendedToGood": "Your standing in {groupName} has been fully restored to Good. Thank you for bringing your account current.",
+      "suspendedToWarning": "Your standing in {groupName} has been partially restored to Warning. Clear the remaining items to return to Good standing.",
+      "generic": "Your membership standing in {groupName} has been updated. Check your dashboard for details."
+    },
+    "smsLocaleHint": "Keep standing SMS copy short — templates live in sms-templates.ts."
   }
 }

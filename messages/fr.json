@@ -5753,5 +5753,26 @@
     "subscriptionExpiringInAppTitle": "Votre abonnement {tier} expire dans {days} jours",
     "subscriptionExpiringInAppBody": "{groupName} : Renouvelez pour conserver vos fonctionnalités.",
     "renewNow": "Renouveler maintenant"
+  },
+  "standingChange": {
+    "title": {
+      "goodToWarning": "Standing abaissé à Avertissement",
+      "goodToSuspended": "Standing abaissé à Suspendu",
+      "warningToGood": "Standing rétabli à Bon",
+      "warningToSuspended": "Standing abaissé à Suspendu",
+      "suspendedToGood": "Standing entièrement rétabli",
+      "suspendedToWarning": "Standing partiellement rétabli",
+      "generic": "Standing d'adhésion mis à jour"
+    },
+    "body": {
+      "goodToWarning": "Votre standing dans {groupName} est passé de Bon à Avertissement. Consultez votre tableau de bord pour régler les éléments en suspens avant qu'il ne baisse davantage.",
+      "goodToSuspended": "Votre standing dans {groupName} a été suspendu. Consultez votre tableau de bord pour voir les éléments non résolus qui ont déclenché ce changement.",
+      "warningToGood": "Votre standing dans {groupName} a été rétabli à Bon. Merci d'être resté à jour sur vos cotisations.",
+      "warningToSuspended": "Votre standing dans {groupName} est passé d'Avertissement à Suspendu. Consultez votre tableau de bord pour les éléments restants à résoudre.",
+      "suspendedToGood": "Votre standing dans {groupName} a été entièrement rétabli à Bon. Merci d'avoir régularisé votre compte.",
+      "suspendedToWarning": "Votre standing dans {groupName} a été partiellement rétabli à Avertissement. Réglez les éléments restants pour revenir au Bon standing.",
+      "generic": "Votre standing d'adhésion dans {groupName} a été mis à jour. Consultez votre tableau de bord pour plus de détails."
+    },
+    "smsLocaleHint": "Garder les SMS de standing courts — les modèles vivent dans sms-templates.ts."
   }
 }

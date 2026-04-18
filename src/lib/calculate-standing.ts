@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { formatAmount } from "@/lib/currencies";
 import { getEnabledChannels } from "@/lib/notification-prefs";
+import { getBilingualTranslator } from "@/lib/bilingual-translator";
 
 export interface StandingReason {
   category: string;
@@ -303,107 +304,157 @@ export async function calculateStanding(
         });
       } catch { /* best-effort */ }
 
-      // In-app notification to the member (best-effort)
+      // Per-recipient localized notification dispatch.
+      // ─ Locale: resolved via member_locale RPC (respects profiles.preferred_locale).
+      // ─ Copy:  rendered via getBilingualTranslator("standingChange") — title/body
+      //         keys indexed by `{oldStanding}To{newStanding}` (e.g. "goodToWarning").
+      //         Unknown transition pairs fall back to the generic key.
+      // ─ Auth:  every fetch carries `Authorization: Bearer {user JWT}`, required by
+      //         /api/email|sms|whatsapp/send. If the session can't be read (SSR /
+      //         service-role call path) we log + skip external channels — in-app
+      //         still goes through because the supabase client carries its own auth.
       try {
         const { data: membership } = await supabase
           .from("memberships")
           .select("user_id, display_name")
           .eq("id", membershipId)
           .single();
-        if (membership?.user_id) {
+
+        if (!membership?.user_id) {
+          return { standing, reasons, score };
+        }
+
+        const { data: group } = await supabase.from("groups").select("name").eq("id", groupId).single();
+        const memberName = (membership.display_name as string) || "";
+        const groupName = (group?.name as string) || "";
+
+        // Resolve recipient locale
+        let locale: "en" | "fr" = "en";
+        try {
+          const { data: localeData } = await supabase.rpc("member_locale", { p_user_id: membership.user_id });
+          if (localeData === "fr") locale = "fr";
+        } catch (err) {
+          console.warn("[calculate-standing] member_locale lookup failed:", err instanceof Error ? err.message : err);
+        }
+
+        // Bilingual translator for title/body. Scoped to the standingChange
+        // namespace; lazy-loads both en.json and fr.json on first call.
+        const bt = await getBilingualTranslator("standingChange");
+
+        const transitionKey = `${oldStanding}To${standing.charAt(0).toUpperCase()}${standing.slice(1)}`;
+        const VALID_KEYS = new Set([
+          "goodToWarning", "goodToSuspended",
+          "warningToGood", "warningToSuspended",
+          "suspendedToGood", "suspendedToWarning",
+        ]);
+        const titleKey = VALID_KEYS.has(transitionKey) ? `title.${transitionKey}` : "title.generic";
+        const bodyKey  = VALID_KEYS.has(transitionKey) ? `body.${transitionKey}`  : "body.generic";
+        const title = bt(locale, titleKey, { groupName, memberName });
+        const body  = bt(locale, bodyKey,  { groupName, memberName });
+
+        // In-app notification — localized copy, sent via the supabase client
+        // (already authenticated, no Authorization header needed).
+        try {
           await supabase.from("notifications").insert({
             user_id: membership.user_id,
             group_id: groupId,
             type: "system" as const,
-            title: standing === "good"
-              ? "Standing restored to Good"
-              : `Standing changed to ${standing}`,
-            body: standing === "good"
-              ? "Your membership standing has been restored. Thank you for your contributions."
-              : "Your membership standing has changed. Check your dashboard for details.",
+            title,
+            body,
             is_read: false,
             data: { link: "/dashboard/members" },
           });
+        } catch (err) {
+          console.warn("[calculate-standing] in-app notification insert failed:", err instanceof Error ? err.message : err);
         }
-        // Email + SMS + WhatsApp notifications (best-effort, fire-and-forget)
-        if (membership?.user_id) {
-          let sendEmail = true, sendSms = true, sendWhatsapp = true;
+
+        // External channels — check preferences + get session for Bearer auth.
+        let sendEmail = true, sendSms = true, sendWhatsapp = true;
+        try {
+          const prefs = await getEnabledChannels(supabase, membership.user_id, "standing_changes", groupId);
+          sendEmail = prefs.email;
+          sendSms = prefs.sms;
+          sendWhatsapp = prefs.whatsapp;
+        } catch (err) {
+          console.warn("[calculate-standing] getEnabledChannels failed, fail-open:", err instanceof Error ? err.message : err);
+        }
+
+        if (!sendEmail && !sendSms && !sendWhatsapp) {
+          return { standing, reasons, score };
+        }
+
+        // Session token for the /api/* routes. On the client this is present;
+        // on the server path (service-role caller) it's absent, and we skip
+        // external dispatches rather than hit 401.
+        let accessToken: string | null = null;
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          accessToken = session?.access_token || null;
+        } catch (err) {
+          console.warn("[calculate-standing] getSession failed:", err instanceof Error ? err.message : err);
+        }
+
+        if (!accessToken) {
+          console.warn("[calculate-standing] No session token, skipping external channel dispatch for membership", membershipId);
+          return { standing, reasons, score };
+        }
+
+        const origin = typeof window !== "undefined"
+          ? window.location.origin
+          : (process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com");
+
+        async function postJson(path: string, payload: Record<string, unknown>) {
           try {
-            const prefs = await getEnabledChannels(supabase, membership.user_id, "standing_changes", groupId);
-            sendEmail = prefs.email;
-            sendSms = prefs.sms;
-            sendWhatsapp = prefs.whatsapp;
-          } catch { /* fail-open */ }
-
-          // profiles.phone intentionally NOT fetched client-side — that
-          // would materialise the target's phone in browser memory and
-          // violate their privacy_settings.show_phone. The SMS + WhatsApp
-          // API routes accept a user UUID as `to` and resolve the phone
-          // server-side with a recipient-authorisation check.
-          const { data: group } = await supabase.from("groups").select("name").eq("id", groupId).single();
-          const memberName = (membership.display_name as string) || "";
-          const groupName = group?.name || "";
-
-          // Email via API route (fire-and-forget)
-          if (sendEmail) {
-            try {
-              const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
-              fetch(`${origin}/api/email/send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  to: membership.user_id,
-                  template: "notification",
-                  data: {
-                    title: standing === "good" ? "Standing Restored" : `Standing Changed to ${standing}`,
-                    body: standing === "good"
-                      ? "Your membership standing has been restored. Thank you for your contributions."
-                      : "Your membership standing has changed. Check your dashboard for details.",
-                    groupName,
-                    memberName,
-                  },
-                  locale: "en",
-                }),
-              }).catch(() => {});
-            } catch { /* best-effort */ }
-          }
-
-          // SMS (fire-and-forget) — server resolves phone from user_id.
-          if (sendSms) {
-            try {
-              const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
-              fetch(`${origin}/api/sms/send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  to: membership.user_id,
-                  template: "standing-changed",
-                  data: { groupName, newStatus: standing },
-                  locale: "en",
-                }),
-              }).catch(() => {});
-            } catch { /* best-effort */ }
-          }
-
-          // WhatsApp (fire-and-forget) — POST to /api/whatsapp/send so the
-          // API resolves phone server-side instead of the client pulling it.
-          if (sendWhatsapp) {
-            try {
-              const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
-              fetch(`${origin}/api/whatsapp/send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  to: membership.user_id,
-                  type: "standing_changed",
-                  data: { memberName, newStatus: standing, groupName },
-                  locale: "en",
-                }),
-              }).catch(() => {});
-            } catch { /* best-effort */ }
+            const res = await fetch(`${origin}${path}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const text = await res.text().catch(() => "");
+              console.error(`[calculate-standing] ${path} returned ${res.status}:`, text.slice(0, 200));
+            }
+          } catch (err) {
+            console.error(`[calculate-standing] ${path} fetch error:`, err instanceof Error ? err.message : err);
           }
         }
-      } catch { /* best-effort */ }
+
+        // Email — localized title/body rendered above; notification template
+        // picks locale internally via the `locale` param.
+        if (sendEmail) {
+          postJson("/api/email/send", {
+            to: membership.user_id,
+            template: "notification",
+            data: { title, body, groupName, memberName },
+            locale,
+          });
+        }
+
+        // SMS — sms-templates.ts handles EN/FR internally via `t(locale, en, fr)`.
+        if (sendSms) {
+          postJson("/api/sms/send", {
+            to: membership.user_id,
+            template: "standing-changed",
+            data: { groupName, newStatus: standing },
+            locale,
+          });
+        }
+
+        // WhatsApp — dispatcher picks the template variant per locale.
+        if (sendWhatsapp) {
+          postJson("/api/whatsapp/send", {
+            to: membership.user_id,
+            type: "standing_changed",
+            data: { memberName, newStatus: standing, groupName },
+            locale,
+          });
+        }
+      } catch (err) {
+        console.error("[calculate-standing] notification block failed:", err instanceof Error ? err.message : err);
+      }
     }
   }
 

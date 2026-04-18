@@ -585,6 +585,23 @@ export default function ReportDetailPage() {
     badStanding: memberList.filter((m: Record<string, unknown>) => (m.standing as string) !== "good" && (m.standing as string) !== "warning").length,
   };
 
+  // Reports 16 & 20 single source. csvOnly marks rows the PDF digest
+  // intentionally drops (PDF is the abbreviated audit snapshot; CSV
+  // is the full spreadsheet view).
+  const boardPacketMetrics: Array<{
+    csvKey: string;
+    csvValue: string | number;
+    pdfValue: string | number;
+    csvOnly?: boolean;
+  }> = [
+    { csvKey: "Members",        csvValue: boardStats.totalMembers,              pdfValue: boardStats.totalMembers },
+    { csvKey: "Collected",      csvValue: boardStats.totalCollected,            pdfValue: formatAmount(boardStats.totalCollected, currency) },
+    { csvKey: "Expected",       csvValue: boardStats.totalExpected,             pdfValue: formatAmount(boardStats.totalExpected, currency) },
+    { csvKey: "CollectionRate", csvValue: `${boardStats.collectionRate}%`,      pdfValue: `${boardStats.collectionRate}%` },
+    { csvKey: "Events",         csvValue: boardStats.totalEvents,               pdfValue: boardStats.totalEvents },
+    { csvKey: "AvgAttendance",  csvValue: `${boardStats.avgAttendanceRate}%`,   pdfValue: `${boardStats.avgAttendanceRate}%`, csvOnly: true },
+  ];
+
   // Report 19: Dispute Log
   const disputeData = (disputes || []).map((d: Record<string, unknown>) => ({
     title: (d.title as string) || "",
@@ -729,26 +746,20 @@ export default function ReportDetailPage() {
       data = disputeData.map(r => ({ Title: r.title, Category: r.category, Priority: r.priority, Status: r.status, Filed: r.filedDate, Resolved: r.resolvedDate }));
       filename = "dispute_log";
     } else if (reportId === "16" || reportId === "20") {
-      data = [{ Members: boardStats.totalMembers, Collected: boardStats.totalCollected, Expected: boardStats.totalExpected, CollectionRate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents, AvgAttendance: `${boardStats.avgAttendanceRate}%` }];
+      // Horizontal CSV row from the shared boardPacketMetrics list.
+      const row: Record<string, unknown> = {};
+      for (const m of boardPacketMetrics) row[m.csvKey] = m.csvValue;
+      data = [row];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
     } else if (reportId === "17") {
-      data = [{
-        Group: groupMetrics.groupName,
-        Members: groupMetrics.totalMembers,
-        ActiveMembers: groupMetrics.activeMembers,
-        GoodStandingPct: `${groupMetrics.goodStandingPct}%`,
-        Collected: groupMetrics.totalCollected,
-        Outstanding: groupMetrics.totalOutstanding,
-        CollectionRate: `${groupMetrics.collectionRate}%`,
-        AttendanceRate: `${groupMetrics.avgAttendanceRate}%`,
-        Events: groupMetrics.totalEvents,
-        HostingCompliance: `${groupMetrics.hostingCompletionRate}%`,
-        ReliefPlans: groupMetrics.reliefPlansActive,
-        PendingClaims: groupMetrics.reliefPendingClaims,
-        SavingsCycles: groupMetrics.savingsCyclesActive,
-        OpenDisputes: groupMetrics.disputesOpen,
-        HealthScore: `${healthScore}%`,
-      }];
+      // Build the single horizontal CSV row from the shared metric list.
+      // Group, PendingClaims, OpenDisputes are CSV-only columns (PDF keeps
+      // to the core 12-metric digest) and are added after the shared list.
+      const row: Record<string, unknown> = { Group: groupMetrics.groupName };
+      for (const m of groupPerformanceMetrics) row[m.csvKey] = m.csvValue;
+      row.PendingClaims = groupMetrics.reliefPendingClaims;
+      row.OpenDisputes = groupMetrics.disputesOpen;
+      data = [row];
       filename = "group_performance";
     } else if (reportId === "21") {
       data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: r.amount, Status: r.status, Disbursed: fd(r.disbursedDate), Completed: fd(r.completedDate), Outstanding: r.outstanding, Interest: `${r.interest}%`, Guarantor: r.guarantor }));
@@ -864,23 +875,15 @@ export default function ReportDetailPage() {
       data = disputeData.map(r => ({ Title: r.title, Category: r.category, Priority: r.priority, Status: r.status, Filed: r.filedDate }));
       filename = "dispute_log";
     } else if (reportId === "16" || reportId === "20") {
-      data = [{ Members: boardStats.totalMembers, Collected: formatAmount(boardStats.totalCollected, currency), Expected: formatAmount(boardStats.totalExpected, currency), Rate: `${boardStats.collectionRate}%`, Events: boardStats.totalEvents }];
+      // PDF = abbreviated digest; csvOnly entries (AvgAttendance) are skipped.
+      const row: Record<string, unknown> = {};
+      for (const m of boardPacketMetrics) if (!m.csvOnly) row[m.csvKey] = m.pdfValue;
+      data = [row];
       filename = reportId === "16" ? "board_packet" : "meeting_pack";
     } else if (reportId === "17") {
-      data = [
-        { Metric: t("reports.totalMembers"), Value: groupMetrics.totalMembers },
-        { Metric: t("reports.activeMembersLabel"), Value: groupMetrics.activeMembers },
-        { Metric: t("reports.goodStanding"), Value: `${groupMetrics.goodStandingPct}%` },
-        { Metric: t("reports.totalCollected"), Value: formatAmount(groupMetrics.totalCollected, currency) },
-        { Metric: t("reports.totalOutstanding"), Value: formatAmount(groupMetrics.totalOutstanding, currency) },
-        { Metric: t("reports.collectionRate"), Value: `${groupMetrics.collectionRate}%` },
-        { Metric: t("reports.avgAttendance"), Value: `${groupMetrics.avgAttendanceRate}%` },
-        { Metric: t("reports.eventsHeldLabel"), Value: groupMetrics.totalEvents },
-        { Metric: t("reports.hostingCompliance"), Value: `${groupMetrics.hostingCompletionRate}%` },
-        { Metric: t("reports.reliefPlansLabel"), Value: groupMetrics.reliefPlansActive },
-        { Metric: t("reports.savingsCirclesLabel"), Value: groupMetrics.savingsCyclesActive },
-        { Metric: t("reports.healthScore"), Value: `${healthScore}% (${healthLabel})` },
-      ];
+      // PDF = vertical Metric/Value table. Same source as the CSV row —
+      // any label / value change lands in groupPerformanceMetrics once.
+      data = groupPerformanceMetrics.map((m) => ({ Metric: m.label, Value: m.pdfValue }));
       filename = "group_performance";
     } else if (reportId === "21") {
       data = loanPortfolioRows.map(r => ({ Borrower: r.name, Amount: formatAmount(r.amount, currency), Status: r.status, Disbursed: fd(r.disbursedDate), Outstanding: formatAmount(r.outstanding, currency), Interest: `${r.interest}%` }));
@@ -1047,6 +1050,42 @@ export default function ReportDetailPage() {
   );
   const healthLabel = healthScore > 85 ? "Excellent" : healthScore > 70 ? "Good" : healthScore > 50 ? "Fair" : "Needs Attention";
   const healthColor = healthScore > 85 ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : healthScore > 70 ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400" : healthScore > 50 ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+
+  // ── Report 17 single source of truth ──────────────────────────────────────
+  // Both the CSV export (horizontal, one row of columns) and the PDF export
+  // (vertical Metric/Value table) iterate this list. Each entry carries:
+  //   csvKey  — stable English column key (localised at emit time by
+  //             buildCsvHeaders(t) into the user's language)
+  //   label   — PDF "Metric" cell; also used as the CSV header when
+  //             buildCsvHeaders doesn't map the csvKey
+  //   csvValue — raw value for spreadsheet import (numbers stay numeric)
+  //   pdfValue — formatted value for human reading (money via formatAmount,
+  //              percentages stringified)
+  // INTENTIONAL EXCEPTION: the on-screen Report 17 cards use a compound
+  // layout (6 cards with main value + detail sub-line) with its own terser
+  // label keys (reports.members, reports.outstanding, reports.attendance,
+  // etc.). That's a UI design choice, not drift — the compound strings
+  // cannot be 1:1 mapped to the 12 flat PDF metrics without collapsing the
+  // card layout. The keys for the cards live in the JSX below.
+  const groupPerformanceMetrics: Array<{
+    csvKey: string;
+    label: string;
+    csvValue: string | number;
+    pdfValue: string | number;
+  }> = [
+    { csvKey: "Members",           label: t("reports.totalMembers"),        csvValue: groupMetrics.totalMembers,                               pdfValue: groupMetrics.totalMembers },
+    { csvKey: "ActiveMembers",     label: t("reports.activeMembersLabel"),  csvValue: groupMetrics.activeMembers,                              pdfValue: groupMetrics.activeMembers },
+    { csvKey: "GoodStandingPct",   label: t("reports.goodStanding"),        csvValue: `${groupMetrics.goodStandingPct}%`,                      pdfValue: `${groupMetrics.goodStandingPct}%` },
+    { csvKey: "Collected",         label: t("reports.totalCollected"),      csvValue: groupMetrics.totalCollected,                             pdfValue: formatAmount(groupMetrics.totalCollected, currency) },
+    { csvKey: "Outstanding",       label: t("reports.totalOutstanding"),    csvValue: groupMetrics.totalOutstanding,                           pdfValue: formatAmount(groupMetrics.totalOutstanding, currency) },
+    { csvKey: "CollectionRate",    label: t("reports.collectionRate"),      csvValue: `${groupMetrics.collectionRate}%`,                       pdfValue: `${groupMetrics.collectionRate}%` },
+    { csvKey: "AttendanceRate",    label: t("reports.avgAttendance"),       csvValue: `${groupMetrics.avgAttendanceRate}%`,                    pdfValue: `${groupMetrics.avgAttendanceRate}%` },
+    { csvKey: "Events",            label: t("reports.eventsHeldLabel"),     csvValue: groupMetrics.totalEvents,                                pdfValue: groupMetrics.totalEvents },
+    { csvKey: "HostingCompliance", label: t("reports.hostingCompliance"),   csvValue: `${groupMetrics.hostingCompletionRate}%`,                pdfValue: `${groupMetrics.hostingCompletionRate}%` },
+    { csvKey: "ReliefPlans",       label: t("reports.reliefPlansLabel"),    csvValue: groupMetrics.reliefPlansActive,                          pdfValue: groupMetrics.reliefPlansActive },
+    { csvKey: "SavingsCycles",     label: t("reports.savingsCirclesLabel"), csvValue: groupMetrics.savingsCyclesActive,                        pdfValue: groupMetrics.savingsCyclesActive },
+    { csvKey: "HealthScore",       label: t("reports.healthScore"),         csvValue: `${healthScore}%`,                                       pdfValue: `${healthScore}% (${healthLabel})` },
+  ];
 
   // Report 24: Federated Relief Enrollment data
   type FedRow = { planName: string; branch: string; enrolled: number; fullMembers: number; reliefOnly: number; external: number; paidThisMonth: number; collected: number; };

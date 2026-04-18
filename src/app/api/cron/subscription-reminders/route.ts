@@ -90,15 +90,17 @@ export async function GET(request: Request) {
           .filter((id): id is string => !!id);
         const localeMap = await fetchLocaleMap(supabase, adminUserIds);
 
-        // Idempotency: skip if we already fired a subscription reminder
-        // for this group in the last 24h. Uses group_id + type="system"
-        // + title LIKE as the dedup key — independent of locale.
+        // Idempotency: skip if we already fired this reminder for this
+        // group + expiry window. `dedup_key` is a locale-agnostic string
+        // indexed via idx_notifications_dedup (migration 00083). Replaces
+        // the old `title LIKE '%subscription%expir%'` pattern which broke
+        // silently whenever a third locale was added.
+        const dedupKey = `subscription_expiring_${groupId}_${daysLeft}`;
         const { data: existing } = await supabase
           .from("notifications")
           .select("id")
           .eq("group_id", groupId)
-          .eq("type", "system")
-          .or("title.ilike.%subscription%expir%,title.ilike.%abonnement%expir%")
+          .eq("dedup_key", dedupKey)
           .gte("created_at", new Date(now.getTime() - 86400000).toISOString())
           .limit(1);
 
@@ -151,6 +153,7 @@ export async function GET(request: Request) {
                 body: inAppBody,
                 is_read: false,
                 data: { link: "/dashboard/settings" },
+                dedup_key: dedupKey,
               });
             } catch (err) {
               console.warn(

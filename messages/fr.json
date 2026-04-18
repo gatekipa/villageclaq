@@ -3145,7 +3145,10 @@
     "notifTransferExecutedAdminTitle": "Transfert terminé",
     "notifTransferExecutedAdminBody": "{member} a été transféré de {source} vers {dest}.",
     "notifTransferExecutedMemberTitle": "Vous avez été transféré",
-    "notifTransferExecutedMemberBody": "Votre adhésion a été déplacée vers {dest}. Les historiques restent dans {source} pour audit."
+    "notifTransferExecutedMemberBody": "Votre adhésion a été déplacée vers {dest}. Les historiques restent dans {source} pour audit.",
+    "transferTabOrgWide": "Organisation",
+    "transferTabOrgWideDesc": "Tous les transferts dans toutes les branches de cette organisation.",
+    "orgWideUnauthorized": "Vous devez être administrateur du siège pour voir la liste des transferts de l'organisation."
   },
   "admin": {
     "title": "Admin plateforme",
@@ -3969,7 +3972,9 @@
       "reliefStatusChange": "Mise à jour d'aide envoyée",
       "standingChanged": "Notification de statut envoyée",
       "newMemberJoined": "Notification de nouveau membre envoyée"
-    }
+    },
+    "typeTransferUpdates": "Mises à jour des transferts de membres",
+    "typeTransferUpdatesDesc": "Notifications concernant les demandes de transfert, approbations, refus et finalisations."
   },
   "savingsCircle": {
     "title": "Cercle d'épargne",

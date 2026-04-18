@@ -501,7 +501,15 @@ export default function ConstitutionPage() {
         setActionError(uploadErr.message);
         return;
       }
-      const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
+      // group-documents bucket is private — sign a short-lived URL. Display
+      // code regenerates from the stored path via normaliseObjectPath().
+      const { data: urlData, error: signErr } = await supabase.storage
+        .from("group-documents")
+        .createSignedUrl(path, 3600);
+      if (signErr || !urlData?.signedUrl) {
+        setActionError(signErr?.message || "Failed to sign document URL");
+        return;
+      }
       const fileTitle = file.name.replace(/\.[^.]+$/, "");
       const docType = activeTitle || "Constitution";
       // Check for existing draft for this group+docType (including old rows with NULL document_type)
@@ -517,7 +525,7 @@ export default function ConstitutionPage() {
       if (existingFileDraft) {
         const { error: upErr } = await supabase
           .from("group_constitutions")
-          .update({ title: fileTitle, file_url: urlData.publicUrl, document_type: docType })
+          .update({ title: fileTitle, file_url: urlData.signedUrl, document_type: docType })
           .eq("id", existingFileDraft.id);
         if (upErr) throw upErr;
       } else {
@@ -538,7 +546,7 @@ export default function ConstitutionPage() {
             group_id: groupId,
             document_type: docType,
             title: fileTitle,
-            file_url: urlData.publicUrl,
+            file_url: urlData.signedUrl,
             version_number: nextVersion,
             status: "draft",
           });
@@ -554,7 +562,7 @@ export default function ConstitutionPage() {
           if (conflictRow) {
             const { error: upErr } = await supabase
               .from("group_constitutions")
-              .update({ title: fileTitle, file_url: urlData.publicUrl, document_type: docType })
+              .update({ title: fileTitle, file_url: urlData.signedUrl, document_type: docType })
               .eq("id", conflictRow.id);
             if (upErr) throw upErr;
           } else {

@@ -266,8 +266,15 @@ export default function MyReliefPage() {
         setClaimError(uploadErr.message);
         return;
       }
-      const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
-      setClaimDocUrl(urlData.publicUrl);
+      // group-documents bucket is private — sign a short-lived URL.
+      const { data: urlData, error: signErr } = await supabase.storage
+        .from("group-documents")
+        .createSignedUrl(path, 3600);
+      if (signErr || !urlData?.signedUrl) {
+        setClaimError(signErr?.message || "Failed to sign claim document URL");
+        return;
+      }
+      setClaimDocUrl(urlData.signedUrl);
     } catch (err) {
       setClaimError((err as Error).message);
     }

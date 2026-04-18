@@ -43,7 +43,8 @@ type NotificationType =
   | "standing_changes"
   | "announcements"
   | "hosting_reminders"
-  | "new_member";
+  | "new_member"
+  | "transfer_updates";
 
 interface ChannelConfig {
   key: ChannelKey;
@@ -102,6 +103,7 @@ const NOTIFICATION_TYPES: TypeConfig[] = [
   { key: "announcements", nameKey: "typeAnnouncements", descKey: "typeAnnouncementsDesc" },
   { key: "hosting_reminders", nameKey: "typeHostingReminders", descKey: "typeHostingRemindersDesc" },
   { key: "new_member", nameKey: "typeNewMember", descKey: "typeNewMemberDesc" },
+  { key: "transfer_updates", nameKey: "typeTransferUpdates", descKey: "typeTransferUpdatesDesc" },
 ];
 
 const DEFAULT_CHANNELS: Record<ChannelKey, boolean> = {
@@ -121,6 +123,7 @@ const DEFAULT_TYPE_PREFS: Record<NotificationType, Record<ChannelKey, boolean>> 
   announcements: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
   hosting_reminders: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
   new_member: { in_app: true, email: false, sms: false, whatsapp: false, push: false },
+  transfer_updates: { in_app: true, email: true, sms: false, whatsapp: false, push: false },
 };
 
 export default function NotificationPreferencesPage() {

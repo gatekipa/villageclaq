@@ -529,10 +529,13 @@ export default function GroupSettingsPage() {
                               setSaveError(null);
                               try {
                                 const supabase = createClient();
-                                const path = `logos/${groupId}/${Date.now()}-${file.name}`;
-                                const { error: upErr } = await supabase.storage.from("group-documents").upload(path, file, { upsert: true });
+                                // Group logos are intentional public branding — stored in the
+                                // `avatars` bucket alongside member avatars. group-documents is
+                                // private post-00083; uploading logos there would 403 on display.
+                                const path = `group-logos/${groupId}/${Date.now()}-${file.name}`;
+                                const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
                                 if (upErr) throw upErr;
-                                const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
+                                const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
                                 const { data: logoUpdatedRows, error: updateErr } = await supabase.from("groups").update({ logo_url: urlData.publicUrl }).eq("id", groupId).select();
                                 if (updateErr) throw updateErr;
                                 if (!logoUpdatedRows || logoUpdatedRows.length === 0) throw new Error(t("errors.logoUpdateFailed"));

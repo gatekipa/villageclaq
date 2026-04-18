@@ -986,10 +986,15 @@ export default function RecordPaymentPage() {
                         if (uploadErr) {
                           setReceiptUrl(`pending:${file.name}`);
                         } else {
-                          const { data: urlData } = supabase.storage
+                          // receipts bucket is private — short-lived signed URL.
+                          const { data: urlData, error: signErr } = await supabase.storage
                             .from("receipts")
-                            .getPublicUrl(path);
-                          setReceiptUrl(urlData.publicUrl);
+                            .createSignedUrl(path, 3600);
+                          if (signErr || !urlData?.signedUrl) {
+                            setReceiptUrl(`pending:${file.name}`);
+                          } else {
+                            setReceiptUrl(urlData.signedUrl);
+                          }
                         }
                       } catch {
                         setReceiptUrl(`pending:${file.name}`);

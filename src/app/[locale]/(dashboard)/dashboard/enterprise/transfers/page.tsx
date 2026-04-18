@@ -91,6 +91,28 @@ function useTransfers(groupId: string | null) {
   });
 }
 
+function useOrgTransfers(organizationId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["member-transfers-org", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const supabase = createClient();
+      // Service RPC enforces HQ-admin gate (42501 for non-HQ admins). We
+      // swallow that specific error so the "Org-wide" tab degrades to
+      // empty for any admin who lands there without HQ privileges.
+      const { data, error } = await supabase.rpc("get_org_transfers", { p_organization_id: organizationId });
+      if (error) {
+        if (error.code !== "42501") {
+          console.warn("[transfers] get_org_transfers failed:", error.message);
+        }
+        return [];
+      }
+      return (data || []) as Record<string, unknown>[];
+    },
+    enabled: !!organizationId && enabled,
+  });
+}
+
 function useOrganizationBranches(organizationId: string | null) {
   return useQuery({
     queryKey: ["org-branches", organizationId],
@@ -125,6 +147,13 @@ export default function TransfersPage() {
   const { data: branches } = useOrganizationBranches(currentGroup?.organization_id || null);
 
   const canManage = hasPermission("members.manage");
+
+  // HQ-context detection: an HQ group has group_level='hq' and an
+  // organization_id. Only HQ admins see the Org-wide tab.
+  const isHq = (currentGroup as unknown as Record<string, unknown>)?.group_level === "hq";
+  const orgId = (currentGroup as unknown as Record<string, unknown>)?.organization_id as string | null | undefined;
+  const showOrgTab = !!(isHq && orgId && canManage);
+  const { data: orgTransfers } = useOrgTransfers(orgId || null, showOrgTab);
 
   // ── Request dialog ────────────────────────────────────────────────────────
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -757,6 +786,9 @@ export default function TransfersPage() {
           <TabsTrigger value="incoming">{t("transferTabIncoming")} ({incoming.length})</TabsTrigger>
           <TabsTrigger value="outgoing">{t("transferTabOutgoing")} ({outgoing.length})</TabsTrigger>
           <TabsTrigger value="history">{t("transferTabHistory")} ({history.length})</TabsTrigger>
+          {showOrgTab && (
+            <TabsTrigger value="org-wide">{t("transferTabOrgWide")} ({(orgTransfers || []).length})</TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="incoming" className="mt-4">
           {renderList(incoming, "noIncomingTransfers", "noIncomingTransfersDesc")}
@@ -767,6 +799,29 @@ export default function TransfersPage() {
         <TabsContent value="history" className="mt-4">
           {renderList(history, "noTransferHistory", "noTransferHistoryDesc")}
         </TabsContent>
+        {showOrgTab && (
+          <TabsContent value="org-wide" className="mt-4 space-y-3">
+            <p className="text-xs text-muted-foreground">{t("transferTabOrgWideDesc")}</p>
+            {(() => {
+              // get_org_transfers returns plain member_transfers rows (no joins).
+              // Enrich source/dest names from the branches list for display.
+              const branchMap = new Map<string, string>();
+              for (const b of (branches || []) as Record<string, unknown>[]) {
+                branchMap.set(b.id as string, (b.name as string) || "");
+              }
+              const rows = ((orgTransfers || []) as Record<string, unknown>[]).map((tr) => ({
+                ...tr,
+                source_group: tr.source_group ?? { name: branchMap.get(tr.source_group_id as string) || "-" },
+                dest_group:   tr.dest_group   ?? { name: branchMap.get(tr.dest_group_id as string)   || "-" },
+              }));
+              return rows.length === 0 ? (
+                <EmptyState icon={ArrowRightLeft} title={t("noTransferHistory")} description={t("transferTabOrgWideDesc")} />
+              ) : (
+                <div className="space-y-3">{rows.map(renderTransferRow)}</div>
+              );
+            })()}
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Detail Dialog */}

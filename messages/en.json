@@ -3145,7 +3145,10 @@
     "notifTransferExecutedAdminTitle": "Transfer completed",
     "notifTransferExecutedAdminBody": "{member} has been moved from {source} to {dest}.",
     "notifTransferExecutedMemberTitle": "You have been transferred",
-    "notifTransferExecutedMemberBody": "Your membership has moved to {dest}. Historical records stay in {source} for audit."
+    "notifTransferExecutedMemberBody": "Your membership has moved to {dest}. Historical records stay in {source} for audit.",
+    "transferTabOrgWide": "Org-wide",
+    "transferTabOrgWideDesc": "Every transfer across every branch in this organization.",
+    "orgWideUnauthorized": "You need HQ admin access to view the org-wide transfer list."
   },
   "admin": {
     "title": "Platform Admin",
@@ -3969,7 +3972,9 @@
       "reliefStatusChange": "Relief update sent",
       "standingChanged": "Standing notification sent",
       "newMemberJoined": "New member notification sent"
-    }
+    },
+    "typeTransferUpdates": "Member transfer updates",
+    "typeTransferUpdatesDesc": "Notifications about transfer requests, approvals, denials, and completions."
   },
   "savingsCircle": {
     "title": "Savings Circle",

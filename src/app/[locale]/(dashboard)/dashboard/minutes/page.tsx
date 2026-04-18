@@ -458,10 +458,14 @@ export default function MinutesPage() {
           .from("group-documents")
           .upload(path, uploadedFile);
         if (uploadErr) throw uploadErr;
-        const { data: urlData } = supabase.storage
+        // group-documents bucket is private — sign a short-lived URL.
+        const { data: urlData, error: signErr } = await supabase.storage
           .from("group-documents")
-          .getPublicUrl(path);
-        fileUrl = urlData.publicUrl;
+          .createSignedUrl(path, 3600);
+        if (signErr || !urlData?.signedUrl) {
+          throw new Error(signErr?.message || "Failed to sign minutes attachment URL");
+        }
+        fileUrl = urlData.signedUrl;
       } catch (err) {
         showError((err as Error).message || tc("error"));
         setSaving(false);

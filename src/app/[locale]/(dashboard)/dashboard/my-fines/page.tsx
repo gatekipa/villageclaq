@@ -182,8 +182,15 @@ export default function MyFinesPage() {
         showUploadError(td("uploadFailed"));
         return;
       }
-      const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
-      setUrl(urlData.publicUrl);
+      // receipts bucket is private — use a short-lived signed URL.
+      const { data: urlData, error: signErr } = await supabase.storage
+        .from("receipts")
+        .createSignedUrl(path, 3600);
+      if (signErr || !urlData?.signedUrl) {
+        showUploadError(td("uploadFailed"));
+        return;
+      }
+      setUrl(urlData.signedUrl);
     } catch {
       showUploadError(td("uploadFailed"));
     } finally {

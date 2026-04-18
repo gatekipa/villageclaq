@@ -163,10 +163,18 @@ export function PayNowDialog({
           setSubmitting(false);
           return;
         }
-        const { data: urlData } = supabase.storage
+        // receipts bucket is private. We sign a long-lived URL for
+        // immediate storage; display code regenerates from the path
+        // via normaliseObjectPath() when the URL has expired.
+        const { data: urlData, error: signErr } = await supabase.storage
           .from("receipts")
-          .getPublicUrl(path);
-        receiptUrl = urlData.publicUrl;
+          .createSignedUrl(path, 3600);
+        if (signErr || !urlData?.signedUrl) {
+          setSubmitError(signErr?.message || "Failed to finalize receipt upload");
+          setSubmitting(false);
+          return;
+        }
+        receiptUrl = urlData.signedUrl;
       }
 
       // Insert payment with pending_confirmation status

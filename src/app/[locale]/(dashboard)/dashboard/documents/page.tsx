@@ -144,10 +144,14 @@ export default function DocumentVaultPage() {
         .upload(filePath, selectedFile, { upsert: true });
       if (uploadError) throw new Error(uploadError.message);
 
-      const { data: urlData } = supabase.storage
+      // group-documents bucket is private — sign a short-lived URL.
+      const { data: urlData, error: signErr } = await supabase.storage
         .from("group-documents")
-        .getPublicUrl(filePath);
-      const fileUrl = urlData?.publicUrl || "";
+        .createSignedUrl(filePath, 3600);
+      if (signErr || !urlData?.signedUrl) {
+        throw new Error(signErr?.message || "Failed to sign document URL");
+      }
+      const fileUrl = urlData.signedUrl;
 
       const { error: insertError } = await supabase.from("documents").insert({
         group_id: groupId,
@@ -440,14 +444,19 @@ export default function DocumentVaultPage() {
                                 return;
                               }
                             }
-                            // Fallback: use getPublicUrl with download flag
+                            // Fallback: sign a short-lived URL (bucket is private).
                             const supabase2 = createClient();
-                            const pathMatch2 = fileUrl.split("/storage/v1/object/public/group-documents/")[1];
-                            if (pathMatch2) {
-                              const { data: urlData } = supabase2.storage
+                            const { normaliseObjectPath } = await import("@/lib/storage-urls");
+                            const objPath = normaliseObjectPath("group-documents", fileUrl);
+                            if (objPath) {
+                              const { data: urlData } = await supabase2.storage
                                 .from("group-documents")
-                                .getPublicUrl(decodeURIComponent(pathMatch2), { download: filename });
-                              window.open(urlData.publicUrl, "_blank");
+                                .createSignedUrl(decodeURIComponent(objPath), 3600, { download: filename });
+                              if (urlData?.signedUrl) {
+                                window.open(urlData.signedUrl, "_blank");
+                              } else {
+                                window.open(fileUrl, "_blank");
+                              }
                             } else {
                               window.open(fileUrl, "_blank");
                             }

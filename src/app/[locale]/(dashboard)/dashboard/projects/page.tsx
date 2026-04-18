@@ -1179,10 +1179,16 @@ function ProjectDocuments({ project, isAdmin, milestones, onDataChanged }: {
       const path = `projects/${project.id}/${Date.now()}-${file.name}`;
       const { error: uploadErr } = await supabase.storage.from("group-documents").upload(path, file);
       if (uploadErr) throw uploadErr;
-      const { data: urlData } = supabase.storage.from("group-documents").getPublicUrl(path);
+      // group-documents bucket is private — sign a short-lived URL.
+      const { data: urlData, error: signErr } = await supabase.storage
+        .from("group-documents")
+        .createSignedUrl(path, 3600);
+      if (signErr || !urlData?.signedUrl) {
+        throw new Error(signErr?.message || "Failed to sign project attachment URL");
+      }
       const updated = [...attachments, {
         id: crypto.randomUUID(),
-        file_url: urlData.publicUrl,
+        file_url: urlData.signedUrl,
         title: docTitle.trim(),
         type: docType,
         date: new Date().toISOString(),

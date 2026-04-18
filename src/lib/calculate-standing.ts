@@ -335,15 +335,14 @@ export async function calculateStanding(
             sendWhatsapp = prefs.whatsapp;
           } catch { /* fail-open */ }
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("phone")
-            .eq("id", membership.user_id)
-            .single();
+          // profiles.phone intentionally NOT fetched client-side — that
+          // would materialise the target's phone in browser memory and
+          // violate their privacy_settings.show_phone. The SMS + WhatsApp
+          // API routes accept a user UUID as `to` and resolve the phone
+          // server-side with a recipient-authorisation check.
           const { data: group } = await supabase.from("groups").select("name").eq("id", groupId).single();
           const memberName = (membership.display_name as string) || "";
           const groupName = group?.name || "";
-          const phone = profile?.phone as string | null;
 
           // Email via API route (fire-and-forget)
           if (sendEmail) {
@@ -369,15 +368,15 @@ export async function calculateStanding(
             } catch { /* best-effort */ }
           }
 
-          // SMS (fire-and-forget)
-          if (sendSms && phone) {
+          // SMS (fire-and-forget) — server resolves phone from user_id.
+          if (sendSms) {
             try {
               const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
               fetch(`${origin}/api/sms/send`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  to: phone,
+                  to: membership.user_id,
                   template: "standing-changed",
                   data: { groupName, newStatus: standing },
                   locale: "en",
@@ -386,14 +385,20 @@ export async function calculateStanding(
             } catch { /* best-effort */ }
           }
 
-          // WhatsApp (fire-and-forget)
-          if (sendWhatsapp && phone) {
+          // WhatsApp (fire-and-forget) — POST to /api/whatsapp/send so the
+          // API resolves phone server-side instead of the client pulling it.
+          if (sendWhatsapp) {
             try {
-              const { dispatchWhatsApp } = await import("@/lib/whatsapp-dispatcher");
-              await dispatchWhatsApp("standing_changed", phone, "en", {
-                memberName,
-                newStatus: standing,
-                groupName,
+              const origin = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
+              fetch(`${origin}/api/whatsapp/send`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  to: membership.user_id,
+                  type: "standing_changed",
+                  data: { memberName, newStatus: standing, groupName },
+                  locale: "en",
+                }),
               }).catch(() => {});
             } catch { /* best-effort */ }
           }

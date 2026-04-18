@@ -6,6 +6,7 @@ import { usePathname, Link, useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import {
   LayoutDashboard, Users, Building2, Shield, CreditCard,
   DollarSign, FileText, MessageSquare, ClipboardList,
@@ -338,6 +339,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
+          {/* Impersonation banner — visible on every admin page when
+              the current staff member has an active impersonation
+              session. Polls /api/admin/impersonate/active. */}
+          <ImpersonationBanner />
           <header className="flex h-14 items-center justify-between gap-4 border-b px-4 lg:px-6">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>

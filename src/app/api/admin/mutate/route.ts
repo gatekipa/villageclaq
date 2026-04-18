@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { canMutate, canManageStaff, type PlatformRole } from "@/lib/admin-rbac";
+import { terminateUserSessions } from "@/lib/admin-signout";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -142,6 +143,29 @@ export async function POST(req: NextRequest) {
         }
         result = await delQuery.select();
         break;
+      }
+    }
+
+    // Session termination hook — when a platform_staff row is suspended
+    // (is_active flipped false) or deleted, force-sign-out the target
+    // user. Without this, their JWT stays valid until it naturally
+    // refreshes (up to ~1h), giving them a window to continue calling
+    // /api/admin/* even though the middleware edge gate already blocks
+    // new page loads. terminateUserSessions is best-effort — DB is the
+    // source of truth, this is belt-and-braces.
+    if (
+      table === "platform_staff" &&
+      result.error === null &&
+      Array.isArray(result.data)
+    ) {
+      for (const row of result.data as Array<Record<string, unknown>>) {
+        const targetUserId = row.user_id as string | undefined;
+        const becameInactive =
+          type === "delete" ||
+          (type === "update" && data && data.is_active === false);
+        if (targetUserId && becameInactive) {
+          await terminateUserSessions(targetUserId);
+        }
       }
     }
 

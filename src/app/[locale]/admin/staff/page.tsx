@@ -173,6 +173,15 @@ export default function StaffPage() {
   const staff = (results.staff?.data ?? []) as unknown as StaffMember[];
   const activityLogs = (results.logs?.data ?? []) as unknown as ActivityLog[];
 
+  // Last-super-admin guard — mirror of the DB trigger from migration
+  // 00085. The trigger is the source of truth; this flag is UI feedback
+  // so admins don't submit destined-to-fail requests.
+  const activeSuperAdmins = staff.filter(
+    (s) => s.role === "super_admin" && s.is_active,
+  ).length;
+  const isLastSuperAdmin = (member: StaffMember) =>
+    member.role === "super_admin" && member.is_active && activeSuperAdmins <= 1;
+
   // Fetch current user ID once
   useEffect(() => {
     const supabase = createClient();
@@ -450,6 +459,10 @@ export default function StaffPage() {
                       <DropdownMenuItem
                         className="gap-2"
                         onClick={() => {
+                          if (isLastSuperAdmin(member)) {
+                            setShowError(t("cannotDemoteLastSuperAdmin"));
+                            return;
+                          }
                           setRoleStaffId(member.id);
                           setRoleStaffName(name);
                           setChangeRoleValue(member.role);
@@ -466,6 +479,10 @@ export default function StaffPage() {
                             setShowError(t("cannotSuspendSelf"));
                             return;
                           }
+                          if (member.is_active && isLastSuperAdmin(member)) {
+                            setShowError(t("cannotSuspendLastSuperAdmin"));
+                            return;
+                          }
                           setSuspendStaffId(member.id);
                           setSuspendStaffName(name);
                           setSuspendAction(member.is_active ? "suspend" : "activate");
@@ -480,6 +497,10 @@ export default function StaffPage() {
                         onClick={() => {
                           if (member.user_id === currentUserId) {
                             setShowError(t("cannotRemoveSelf"));
+                            return;
+                          }
+                          if (isLastSuperAdmin(member)) {
+                            setShowError(t("cannotRemoveLastSuperAdmin"));
                             return;
                           }
                           setRemoveStaffId(member.id);

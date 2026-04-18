@@ -32,7 +32,6 @@ import {
   UserPlus,
   Download,
   MoreHorizontal,
-  Eye,
   Ban,
   UserCog,
   ChevronLeft,
@@ -48,6 +47,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Trash2 } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -95,6 +105,109 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "noGroups" | "proxy">("all");
   const [sortField, setSortField] = useState<"name" | "groups" | "lastActive" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Dialog state for suspend / archive / impersonate.
+  const [suspendTarget, setSuspendTarget] = useState<AdminUser | null>(null);
+  const [suspendReason, setSuspendReason] = useState("");
+  const [archiveTarget, setArchiveTarget] = useState<AdminUser | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiveConfirmName, setArchiveConfirmName] = useState("");
+  const [impersonateTarget, setImpersonateTarget] = useState<AdminUser | null>(null);
+  const [impersonateReason, setImpersonateReason] = useState("");
+  const [impersonateTicketId, setImpersonateTicketId] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  async function handleSuspend() {
+    if (!suspendTarget || !suspendReason.trim() || actionLoading) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/admin/users/suspend", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: suspendTarget.id, reason: suspendReason.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body?.ok) {
+        setActionError(body?.error || t("suspendUserFailed"));
+        return;
+      }
+      setSuspendTarget(null);
+      setSuspendReason("");
+      setActionMessage(t("userSuspended"));
+      setTimeout(() => setActionMessage(null), 3000);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleArchive() {
+    if (!archiveTarget || !archiveReason.trim() || actionLoading) return;
+    if (archiveConfirmName.trim() !== (archiveTarget.full_name || "").trim()) {
+      setActionError(t("archiveNameMismatch"));
+      return;
+    }
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/admin/users/archive", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: archiveTarget.id, reason: archiveReason.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body?.ok) {
+        if (body?.error === "user_owns_groups") {
+          setActionError(t("archiveBlockedOwnsGroups", { n: body?.ownedGroups ?? 0 }));
+        } else {
+          setActionError(body?.error || t("archiveUserFailed"));
+        }
+        return;
+      }
+      setArchiveTarget(null);
+      setArchiveReason("");
+      setArchiveConfirmName("");
+      setActionMessage(t("userArchived"));
+      setTimeout(() => setActionMessage(null), 3000);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleImpersonate() {
+    if (!impersonateTarget || !impersonateReason.trim() || actionLoading) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      const res = await fetch("/api/admin/impersonate/start", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetUserId: impersonateTarget.id,
+          reason: impersonateReason.trim(),
+          ticketId: impersonateTicketId.trim() || null,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body?.sessionId) {
+        setActionError(body?.error || t("impersonateFailed"));
+        return;
+      }
+      setImpersonateTarget(null);
+      setImpersonateReason("");
+      setImpersonateTicketId("");
+      // Reload so the banner (polls every 30s) picks up the new session
+      // immediately; a hard reload also re-runs the admin layout guard.
+      window.location.reload();
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
   const { results, loading, error: queryError } = useAdminQuery([
     {
@@ -515,22 +628,36 @@ export default function AdminUsersPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => {}}
-                              >
-                                <Eye className="mr-2 h-4 w-4" />
-                                {t("viewDetails")}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => {}}
+                                onClick={() => {
+                                  setSuspendTarget(user);
+                                  setSuspendReason("");
+                                  setActionError(null);
+                                }}
                               >
                                 <Ban className="mr-2 h-4 w-4" />
                                 {t("suspendUser")}
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onClick={() => {}}
+                                onClick={() => {
+                                  setImpersonateTarget(user);
+                                  setImpersonateReason("");
+                                  setImpersonateTicketId("");
+                                  setActionError(null);
+                                }}
                               >
                                 <UserCog className="mr-2 h-4 w-4" />
                                 {t("impersonate")}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setArchiveTarget(user);
+                                  setArchiveReason("");
+                                  setArchiveConfirmName("");
+                                  setActionError(null);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                                <span className="text-destructive">{t("archiveUser")}</span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -579,6 +706,118 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
       )}
+
+      {actionMessage && (
+        <div className="fixed bottom-4 right-4 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-900 shadow-lg dark:border-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100">
+          {actionMessage}
+        </div>
+      )}
+
+      {/* Suspend dialog — required reason, super_admin / admin per RPC */}
+      <Dialog
+        open={!!suspendTarget}
+        onOpenChange={(o) => { if (!o && !actionLoading) { setSuspendTarget(null); setActionError(null); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("suspendUserTitle")}</DialogTitle>
+            <DialogDescription>
+              {suspendTarget && t("suspendUserDesc", { name: suspendTarget.full_name || t("unknownUser") })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>{t("reasonRequired")}</Label>
+            <Textarea rows={3} value={suspendReason} onChange={(e) => setSuspendReason(e.target.value)} />
+          </div>
+          {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSuspendTarget(null)} disabled={actionLoading}>
+              {t("cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleSuspend} disabled={actionLoading || !suspendReason.trim()}>
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("suspendUser")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive dialog — double confirmation (type the user's name) */}
+      <Dialog
+        open={!!archiveTarget}
+        onOpenChange={(o) => { if (!o && !actionLoading) { setArchiveTarget(null); setActionError(null); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("archiveUserTitle")}</DialogTitle>
+            <DialogDescription>
+              {archiveTarget && t("archiveUserDesc", { name: archiveTarget.full_name || t("unknownUser") })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>{t("reasonRequired")}</Label>
+            <Textarea rows={3} value={archiveReason} onChange={(e) => setArchiveReason(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>{t("archiveConfirmNameLabel", { name: archiveTarget?.full_name || "" })}</Label>
+            <Input value={archiveConfirmName} onChange={(e) => setArchiveConfirmName(e.target.value)} />
+          </div>
+          {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setArchiveTarget(null)} disabled={actionLoading}>
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleArchive}
+              disabled={actionLoading || !archiveReason.trim() || !archiveConfirmName.trim()}
+            >
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("archiveUser")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Impersonate dialog — required reason, optional ticket (required
+          for support role, but we let the RPC reject so we don't duplicate
+          role logic client-side) */}
+      <Dialog
+        open={!!impersonateTarget}
+        onOpenChange={(o) => { if (!o && !actionLoading) { setImpersonateTarget(null); setActionError(null); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("impersonateUserTitle")}</DialogTitle>
+            <DialogDescription>
+              {impersonateTarget && t("impersonateUserDesc", { name: impersonateTarget.full_name || t("unknownUser") })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>{t("reasonRequired")}</Label>
+            <Textarea rows={3} value={impersonateReason} onChange={(e) => setImpersonateReason(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>{t("impersonateTicketLabel")}</Label>
+            <Input
+              placeholder={t("impersonateTicketPlaceholder")}
+              value={impersonateTicketId}
+              onChange={(e) => setImpersonateTicketId(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t("impersonateTicketHint")}</p>
+          </div>
+          {actionError && <p className="text-sm text-destructive">{actionError}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImpersonateTarget(null)} disabled={actionLoading}>
+              {t("cancel")}
+            </Button>
+            <Button onClick={handleImpersonate} disabled={actionLoading || !impersonateReason.trim()}>
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("impersonate")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

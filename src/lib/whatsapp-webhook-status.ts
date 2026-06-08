@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type WhatsAppProviderStatus = "sent" | "delivered" | "read" | "failed" | string;
@@ -75,6 +77,26 @@ export function verifyWhatsAppWebhookChallenge(
   }
 
   return { ok: true, challenge, status: 200 };
+}
+
+export function verifyWhatsAppWebhookSignature(
+  rawBody: string,
+  signatureHeader: string | null | undefined,
+  appSecret: string | undefined,
+): boolean {
+  if (!appSecret || !signatureHeader) return false;
+
+  const [algorithm, signature] = signatureHeader.split("=", 2);
+  if (algorithm !== "sha256" || !signature) return false;
+
+  const expected = Buffer.from(
+    createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex"),
+    "hex",
+  );
+  const received = Buffer.from(signature, "hex");
+  if (received.length !== expected.length) return false;
+
+  return timingSafeEqual(received, expected);
 }
 
 export function extractWhatsAppStatusEvents(payload: unknown): WhatsAppStatusEvent[] {
@@ -249,5 +271,11 @@ function metaTimestampToIso(timestamp: unknown): string | undefined {
   if (typeof timestamp !== "string" || !timestamp) return undefined;
   const seconds = Number(timestamp);
   if (!Number.isFinite(seconds)) return undefined;
-  return new Date(seconds * 1000).toISOString();
+  const milliseconds = seconds * 1000;
+  if (!Number.isFinite(milliseconds) || Math.abs(milliseconds) > 8.64e15) {
+    return undefined;
+  }
+  const date = new Date(milliseconds);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
 }

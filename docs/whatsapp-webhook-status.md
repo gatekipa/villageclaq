@@ -10,11 +10,12 @@ VillageClaq stores Meta WhatsApp delivery-status callbacks so a Graph API send r
 
 The `GET` handler is for Meta verification. It returns `hub.challenge` only when `hub.mode=subscribe` and `hub.verify_token` matches `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
 
-The `POST` handler accepts WhatsApp `messages` webhook payloads and extracts status callbacks from `entry[].changes[].value.statuses[]`.
+The `POST` handler validates `X-Hub-Signature-256` with the Meta App Secret over the raw request body before parsing JSON or writing status rows. It accepts WhatsApp `messages` webhook payloads and extracts status callbacks from `entry[].changes[].value.statuses[]`.
 
 ## Required Env Vars
 
 - `WHATSAPP_WEBHOOK_VERIFY_TOKEN`: shared verify token entered in Meta webhook setup.
+- `WHATSAPP_APP_SECRET`: Meta App Secret used to verify `X-Hub-Signature-256` on POST callbacks.
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL.
 - `SUPABASE_SERVICE_ROLE_KEY`: server-only key used to insert status events and update matching queue rows.
 
@@ -49,7 +50,7 @@ The original `data.providerStatus` value is preserved, so the initial `accepted`
 ## Meta Setup
 
 1. Deploy the migration and app code.
-2. Set `WHATSAPP_WEBHOOK_VERIFY_TOKEN` in Vercel for the target environment.
+2. Set `WHATSAPP_WEBHOOK_VERIFY_TOKEN` and `WHATSAPP_APP_SECRET` in Vercel for the target environment.
 3. In Meta App Dashboard, configure the Webhooks product for the WhatsApp Business Account.
 4. Use callback URL `https://www.villageclaq.com/api/webhooks/whatsapp` and the same verify token.
 5. Subscribe the app/WABA to the `messages` webhook field so outbound status callbacks are delivered.
@@ -108,7 +109,7 @@ where data->>'providerMessageId' = '<wamid>';
 
 ## Safe Next One-Message Test
 
-Do this only after the endpoint is deployed, migration is applied, Vercel has `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, and Meta shows the WABA/app subscription as active.
+Do this only after the endpoint is deployed, migration is applied, Vercel has `WHATSAPP_WEBHOOK_VERIFY_TOKEN` and `WHATSAPP_APP_SECRET`, and Meta shows the WABA/app subscription as active.
 
 1. Keep custom-domain promotion on HOLD.
 2. Select exactly one queue row for exactly one opted-in WhatsApp-capable recipient.
@@ -120,4 +121,4 @@ Do this only after the endpoint is deployed, migration is applied, Vercel has `W
 
 ## Hardening Still Needed
 
-This repo did not have existing Meta webhook signature validation. The current foundation implements verify-token challenge handling, safe parsing, masked persistence, and no secret logging. Before broad launch, add `X-Hub-Signature-256` validation using the Meta App Secret over the raw POST body.
+Signature validation is implemented for POST callbacks. Before broad launch, finish the operational setup: set the Meta App Secret in the target environment, subscribe the WABA/app to `messages`, and run the one-message verification path above.

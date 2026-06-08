@@ -1,4 +1,4 @@
-import { resend, FROM_EMAIL } from "./resend";
+import { FROM_EMAIL, getResendClient } from "./resend";
 import { welcomeEmail, welcomeSubject } from "./email-templates/welcome";
 import { paymentReceiptEmail, paymentReceiptSubject } from "./email-templates/payment-receipt";
 import { paymentReminderEmail, paymentReminderSubject } from "./email-templates/payment-reminder";
@@ -36,7 +36,8 @@ export async function sendEmail({
   locale = "en",
 }: SendEmailParams): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!process.env.RESEND_API_KEY) {
+    const resend = getResendClient();
+    if (!resend) {
       return { success: false, error: "RESEND_API_KEY not configured" };
     }
 

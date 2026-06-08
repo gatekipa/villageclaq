@@ -4,7 +4,10 @@ import {
   extractWhatsAppStatusEvents,
   persistWhatsAppStatusEvent,
   verifyWhatsAppWebhookChallenge,
+  verifyWhatsAppWebhookSignature,
 } from "@/lib/whatsapp-webhook-status";
+
+export const runtime = "nodejs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -27,9 +30,23 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let rawBody: string;
+  try {
+    rawBody = await request.text();
+  } catch {
+    console.warn("[WhatsAppWebhook] Failed to read request body");
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const signatureHeader = request.headers.get("x-hub-signature-256");
+  if (!verifyWhatsAppWebhookSignature(rawBody, signatureHeader, process.env.WHATSAPP_APP_SECRET)) {
+    console.warn("[WhatsAppWebhook] Invalid Meta signature");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let payload: unknown;
   try {
-    payload = await request.json();
+    payload = JSON.parse(rawBody);
   } catch {
     console.warn("[WhatsAppWebhook] Invalid JSON payload");
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });

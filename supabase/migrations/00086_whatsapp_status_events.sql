@@ -30,11 +30,8 @@ ALTER TABLE public.whatsapp_message_status_events ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Platform staff can view WhatsApp status events"
   ON public.whatsapp_message_status_events;
-CREATE POLICY "Platform staff can view WhatsApp status events"
-  ON public.whatsapp_message_status_events
-  FOR SELECT
-  TO authenticated
-  USING (is_platform_staff());
 
-GRANT SELECT ON public.whatsapp_message_status_events TO authenticated;
+-- No authenticated row policy yet: these rows are not group-scoped, and the
+-- service-role webhook path is the only writer/reader needed for launch.
+GRANT ALL ON public.whatsapp_message_status_events TO authenticated;
 GRANT ALL ON public.whatsapp_message_status_events TO service_role;

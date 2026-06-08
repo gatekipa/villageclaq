@@ -22,7 +22,7 @@ Applied fix: cron routes now use a server-only contact resolver, payment/event c
 
 WhatsApp is a separate channel:
 
-```
+```text
 trigger
   -> getEnabledChannels()
   -> recipient email/phone lookup
@@ -64,7 +64,7 @@ SMS remains Africa-only through `isAfricanPhoneNumber()` and `sendSmsNotificatio
 | Provider response lost for typed dispatch | Dispatcher returned only boolean | `src/lib/whatsapp-dispatcher.ts`, queue drain | Meta message ID could not be surfaced or stored | Added `dispatchWhatsAppWithResult()` while preserving existing boolean API |
 | Queued WhatsApp success did not persist provider ID | Queue worker updated status only | `src/app/api/cron/drain-notification-queue/route.ts` | Retry success lacked provider message ID | Queue worker now writes `data.providerMessageId` and `data.providerStatus` |
 | Env example had stale/missing config names | `.env.local.example` used `AT_*`, omitted `CRON_SECRET` and `NEXT_PUBLIC_APP_URL` | `.env.local.example`, `src/lib/notifications/sms-sender.ts`, cron routes | Deployment setup could miss required runtime config | Updated `.env.local.example` to match code |
-| Meta delivered/read callbacks missing | No WhatsApp webhook/status callback route found | repo-wide search for webhook/status callback | User-visible delivered/read state cannot update from Meta | Recommended follow-up: add signed Meta webhook and delivery table/status updates |
+| Meta delivered/read callbacks missing at audit start | The original audit found no WhatsApp webhook/status callback route | repo-wide search for webhook/status callback | User-visible delivered/read state could not update from Meta | Added a signed Meta webhook route, sanitized status-event persistence, and queue status updates keyed by `wamid` |
 
 ## 4. Environment/Config Checklist
 
@@ -80,6 +80,7 @@ SMS remains Africa-only through `isAfricanPhoneNumber()` and `sendSmsNotificatio
 | `WHATSAPP_PHONE_ID` | fallback sender phone number alias | `src/lib/send-whatsapp.ts` | Not documented; use `WHATSAPP_PHONE_NUMBER_ID` |
 | `WHATSAPP_API_VERSION` | Meta Graph API version | `src/lib/send-whatsapp.ts` | Present; defaults to `v21.0` |
 | `WHATSAPP_BUSINESS_ACCOUNT_ID` | provider/admin reference | docs only | Present |
+| `WHATSAPP_APP_SECRET` | Meta webhook POST signature validation | `src/app/api/webhooks/whatsapp/route.ts` | Added |
 | `RESEND_API_KEY` | email channel | `src/lib/send-email.ts` | Present |
 | `AFRICASTALKING_API_KEY` | SMS channel | `src/lib/notifications/sms-sender.ts` | Added |
 | `AFRICASTALKING_USERNAME` | SMS channel | `src/lib/notifications/sms-sender.ts` | Added |
@@ -117,7 +118,7 @@ Local `.env.local` was inspected by key name only. It currently does not expose 
 
 ## 7. Manual Launch Verification Steps
 
-1. In Vercel staging/production, confirm these env vars are set: `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `WHATSAPP_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_API_VERSION`, and `NEXT_PUBLIC_APP_URL`.
+1. In Vercel staging/production, confirm these env vars are set: `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `WHATSAPP_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_API_VERSION`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, and `NEXT_PUBLIC_APP_URL`.
 2. In Meta WhatsApp Manager, confirm the relevant templates from `docs/WHATSAPP_TEMPLATES.md` are approved in both `en` and `fr`.
 3. Use only an allowlisted opted-in test recipient. Do not test against real members first.
 4. Run `npm run audit:whatsapp` locally or in CI. In an environment shell with secrets available, run `npm run audit:whatsapp -- --strict-env`.
@@ -132,7 +133,7 @@ Local `.env.local` was inspected by key name only. It currently does not expose 
 
 ## Remaining Risks
 
-- No Meta webhook/status callback route exists yet, so delivered/read receipt updates are not available.
+- Meta webhook/status callback code now exists and verifies `X-Hub-Signature-256`, but the Meta WABA subscription still must be configured before delivered/read receipts arrive.
 - Direct cron successes are logged/returned but do not create a dedicated delivery row; queued successes do store the provider message ID.
 - Local shell did not have WhatsApp provider credentials, so provider API validation remains a staging/production launch step.
 - Existing full-repo lint failures remain outside this patch and should be handled separately before making lint a release gate.

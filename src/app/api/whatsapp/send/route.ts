@@ -16,6 +16,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const RATE_LIMIT_MAX = 50;
 const RATE_LIMIT_WINDOW_MS = 1000;
 const sendTimestamps: number[] = [];
+const RETRYABLE_WHATSAPP_ERROR_CODES = new Set([4, 17, 130429, 131000, 131016, 131048, 131056, 131057]);
 
 function acquireRateSlot(): boolean {
   const now = Date.now();
@@ -28,6 +29,24 @@ function acquireRateSlot(): boolean {
   }
   sendTimestamps.push(now);
   return true;
+}
+
+function isRetryableWhatsAppFailure(result: { error?: string; errorCode?: number }): boolean {
+  if (result.errorCode && RETRYABLE_WHATSAPP_ERROR_CODES.has(result.errorCode)) {
+    return true;
+  }
+
+  const error = result.error?.toLowerCase() || "";
+  return (
+    error.includes("rate limit") ||
+    error.includes("too many") ||
+    error.includes("temporarily") ||
+    error.includes("timeout") ||
+    error.includes("timed out") ||
+    error.includes("fetch failed") ||
+    error.includes("network") ||
+    /\b429\b|\b5\d\d\b/.test(error)
+  );
 }
 
 /**
@@ -215,8 +234,8 @@ export async function POST(request: Request) {
         data || {},
       );
 
-      // If Meta returns rate limit error, queue for retry
-      if (!result.success) {
+      // Only retry transient provider failures. Invalid type/phone/template errors return immediately.
+      if (!result.success && isRetryableWhatsAppFailure(result)) {
         const queued = await queueWhatsAppMessage(recipientPhone, body);
         if (queued) {
           return NextResponse.json({ success: true, queued: true, sent: false, error: result.error });
@@ -235,8 +254,8 @@ export async function POST(request: Request) {
         components,
       });
 
-      // If failed, queue for retry
-      if (!result.success) {
+      // Only retry transient provider failures. Invalid template/phone errors return immediately.
+      if (!result.success && isRetryableWhatsAppFailure(result)) {
         const queued = await queueWhatsAppMessage(recipientPhone, body);
         if (queued) {
           return NextResponse.json({ success: true, queued: true, sent: false, error: result.error });

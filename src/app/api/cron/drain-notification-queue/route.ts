@@ -116,22 +116,53 @@ export async function GET(request: Request) {
     if (!errorMsg && result.error) errorMsg = result.error;
 
     if (result.success) {
-      // Mark as sent
-      await supabase
+      const sentPayload = {
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        error_message: null,
+        data: result.providerMessageId
+          ? {
+              ...data,
+              providerMessageId: result.providerMessageId,
+              providerStatus: result.providerStatus || "accepted",
+            }
+          : data,
+      };
+
+      const { data: sentRows, error: sentUpdateError } = await supabase
         .from("notifications_queue")
-        .update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
-          error_message: null,
-          data: result.providerMessageId
-            ? {
-                ...data,
-                providerMessageId: result.providerMessageId,
-                providerStatus: result.providerStatus || "accepted",
-              }
-            : data,
-        })
-        .eq("id", item.id);
+        .update(sentPayload)
+        .eq("id", item.id)
+        .select("id");
+
+      if (sentUpdateError || !sentRows || sentRows.length === 0) {
+        const persistenceError = sentUpdateError?.message || "No queue row was updated";
+        const failureMessage = `Provider accepted message but queue sent status was not persisted: ${persistenceError}`;
+        console.warn("[DrainQueue] Failed to persist sent queue item:", {
+          id: item.id,
+          error: persistenceError,
+        });
+
+        const { error: markFailedError } = await supabase
+          .from("notifications_queue")
+          .update({
+            status: "failed",
+            attempts: attempts + 1,
+            error_message: failureMessage,
+          })
+          .eq("id", item.id);
+
+        if (markFailedError) {
+          console.warn("[DrainQueue] Failed to mark queue item after sent persistence failure:", {
+            id: item.id,
+            error: markFailedError.message,
+          });
+        }
+
+        failed++;
+        continue;
+      }
+
       sent++;
     } else {
       const newAttempts = attempts + 1;

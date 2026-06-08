@@ -7,6 +7,12 @@ import process from "node:process";
 const root = process.cwd();
 const strictEnv = process.argv.includes("--strict-env");
 
+/*
+ * Static dry-run audit. The phone helpers below are reference-only samples so
+ * this script can run directly under Node without TypeScript path alias setup;
+ * production helpers remain in src/lib and are covered by targeted tests.
+ */
+
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
@@ -22,10 +28,14 @@ function maskPhoneNumber(phone) {
 
 function formatPhoneForWhatsApp(phone, countryCode = "237") {
   if (!phone) return null;
+  let normalizedCountryCode = String(countryCode || "237").trim();
+  if (normalizedCountryCode.startsWith("+")) normalizedCountryCode = normalizedCountryCode.slice(1);
+  if (normalizedCountryCode.startsWith("00")) normalizedCountryCode = normalizedCountryCode.slice(2);
+  if (!/^\d{1,3}$/.test(normalizedCountryCode)) normalizedCountryCode = "237";
   let cleaned = String(phone).replace(/[\s\-()]/g, "");
   if (cleaned.startsWith("+")) cleaned = cleaned.slice(1);
   if (cleaned.startsWith("00")) cleaned = cleaned.slice(2);
-  if (cleaned.startsWith("0")) cleaned = countryCode + cleaned.slice(1);
+  if (cleaned.startsWith("0")) cleaned = normalizedCountryCode + cleaned.slice(1);
   cleaned = cleaned.replace(/\D/g, "");
   if (cleaned.length < 7 || cleaned.length > 15) return null;
   return cleaned;
@@ -91,6 +101,7 @@ for (const requiredName of [
   "CRON_SECRET",
   "NEXT_PUBLIC_APP_URL",
   "WHATSAPP_WEBHOOK_VERIFY_TOKEN",
+  "WHATSAPP_APP_SECRET",
 ]) {
   check(
     `.env.local.example documents ${requiredName}`,
@@ -104,6 +115,15 @@ check(
   "WhatsApp webhook route validates Meta challenge token",
   webhookRoute.includes("WHATSAPP_WEBHOOK_VERIFY_TOKEN") && webhookRoute.includes("verifyWhatsAppWebhookChallenge"),
   "Meta GET verification must only return the challenge when the configured token matches.",
+);
+check(
+  "WhatsApp webhook POST validates Meta signature before persistence",
+  webhookRoute.includes("WHATSAPP_APP_SECRET") &&
+    webhookRoute.includes("verifyWhatsAppWebhookSignature") &&
+    webhookRoute.includes("request.text()") &&
+    webhookRoute.indexOf("verifyWhatsAppWebhookSignature(rawBody") <
+      webhookRoute.indexOf("const events = extractWhatsAppStatusEvents"),
+  "Meta POST callbacks must verify X-Hub-Signature-256 over the raw body before parsing or writing status rows.",
 );
 
 const webhookStatusHelper = read("src/lib/whatsapp-webhook-status.ts");
@@ -127,6 +147,34 @@ check(
     webhookMigration.includes("provider_message_id") &&
     webhookMigration.includes("raw_event"),
   "Status callbacks need a durable table keyed by Meta wamid/provider message ID.",
+);
+check(
+  "WhatsApp status event migration does not expose rows through staff-only helper policy",
+  !webhookMigration.includes("USING (is_platform_staff())"),
+  "This status table is not group-scoped; avoid authenticated broad reads until a group-owned access policy exists.",
+);
+check(
+  "WhatsApp status event migration grants authenticated baseline privileges",
+  webhookMigration.includes("GRANT ALL ON public.whatsapp_message_status_events TO authenticated;"),
+  "Repository migration baseline requires GRANT ALL on new tables for authenticated; RLS still controls row access.",
+);
+
+const drainQueueRoute = read("src/app/api/cron/drain-notification-queue/route.ts");
+check(
+  "Queue drain verifies sent-status persistence before counting sent",
+  drainQueueRoute.includes("Failed to persist sent queue item") &&
+    drainQueueRoute.includes(".select(\"id\")") &&
+    drainQueueRoute.indexOf(".select(\"id\")") < drainQueueRoute.indexOf("sent++"),
+  "A provider send is only final after the queue row is updated to sent; otherwise the row can be retried.",
+);
+
+const whatsappSendRoute = read("src/app/api/whatsapp/send/route.ts");
+check(
+  "WhatsApp send route queues only retryable provider failures",
+  whatsappSendRoute.includes("isRetryableWhatsAppFailure") &&
+    whatsappSendRoute.includes("Only retry transient provider failures") &&
+    whatsappSendRoute.includes("queueWhatsAppMessage(recipientPhone, body)"),
+  "Invalid phone/template/type failures should return immediately instead of creating poison retry rows.",
 );
 
 const webhookDoc = read("docs/whatsapp-webhook-status.md");
@@ -188,7 +236,7 @@ if (process.env.WHATSAPP_LIVE_TEST === "true") {
 }
 
 if (strictEnv) {
-  for (const envName of ["WHATSAPP_API_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET", "WHATSAPP_WEBHOOK_VERIFY_TOKEN"]) {
+  for (const envName of ["WHATSAPP_API_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "SUPABASE_SERVICE_ROLE_KEY", "CRON_SECRET", "WHATSAPP_WEBHOOK_VERIFY_TOKEN", "WHATSAPP_APP_SECRET"]) {
     check(`${envName} present in runtime environment`, !!process.env[envName], "Required for staging/production WhatsApp delivery.");
   }
 }

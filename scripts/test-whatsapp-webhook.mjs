@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
@@ -58,6 +59,12 @@ function makePayload(statuses) {
   };
 }
 
+function compareFilters(left, right) {
+  return `${left.type}:${left.column}:${JSON.stringify(left.value)}`.localeCompare(
+    `${right.type}:${right.column}:${JSON.stringify(right.value)}`,
+  );
+}
+
 function createMockSupabase(rows) {
   const calls = [];
 
@@ -81,11 +88,13 @@ function createMockSupabase(rows) {
 
     eq(column, value) {
       this.filters.push({ type: "eq", column, value });
+      this.filters.sort(compareFilters);
       return this;
     }
 
     contains(column, value) {
       this.filters.push({ type: "contains", column, value });
+      this.filters.sort(compareFilters);
       return this;
     }
 
@@ -134,6 +143,19 @@ test("verifies Meta GET challenge only when token matches", () => {
   });
 });
 
+test("verifies Meta POST signature against the raw request body", () => {
+  const { verifyWhatsAppWebhookSignature } = loadWebhookModule();
+  const rawBody = JSON.stringify(makePayload([]));
+  const signature = `sha256=${createHmac("sha256", "app-secret")
+    .update(rawBody, "utf8")
+    .digest("hex")}`;
+
+  assert.equal(verifyWhatsAppWebhookSignature(rawBody, signature, "app-secret"), true);
+  assert.equal(verifyWhatsAppWebhookSignature(rawBody, signature, "wrong-secret"), false);
+  assert.equal(verifyWhatsAppWebhookSignature(rawBody, null, "app-secret"), false);
+  assert.equal(verifyWhatsAppWebhookSignature(rawBody, signature, undefined), false);
+});
+
 test("extracts sent, delivered, read, and failed statuses with sanitized raw events", () => {
   const { extractWhatsAppStatusEvents } = loadWebhookModule();
   const payload = makePayload([
@@ -167,6 +189,18 @@ test("extracts sent, delivered, read, and failed statuses with sanitized raw eve
   assert.equal(events[3].errorMessage, "Recipient is not available.");
   assert.equal(events[0].rawEvent.recipient_id, "130******857");
   assert.equal(events[0].rawEvent.metadata.display_phone_number, "132******494");
+});
+
+test("ignores out-of-range Meta timestamps without throwing", () => {
+  const { extractWhatsAppStatusEvents } = loadWebhookModule();
+  const payload = makePayload([
+    { id: "wamid.too-large", status: "delivered", timestamp: "999999999999999999999", recipient_id: recipientDigits },
+  ]);
+
+  const [event] = extractWhatsAppStatusEvents(payload);
+
+  assert.equal(event.providerMessageId, "wamid.too-large");
+  assert.equal(event.metaTimestamp, undefined);
 });
 
 test("masks embedded phone substrings in failed status errors and queue updates", async () => {
@@ -252,8 +286,8 @@ test("persists status events and updates matching queue rows by provider message
 
   const queueSelect = supabase.calls.find((call) => call.op === "select" && call.table === "notifications_queue");
   assert.deepEqual(plain(queueSelect.filters), [
-    { type: "eq", column: "channel", value: "whatsapp" },
     { type: "contains", column: "data", value: { providerMessageId: "wamid.delivered" } },
+    { type: "eq", column: "channel", value: "whatsapp" },
   ]);
 
   const queueUpdate = supabase.calls.find((call) => call.op === "update" && call.table === "notifications_queue");

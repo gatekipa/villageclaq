@@ -4,7 +4,7 @@
  * NEVER throws — entire function is try/catch wrapped.
  */
 
-import { sendWhatsAppMessage } from "@/lib/send-whatsapp";
+import { sendWhatsAppMessage, type WhatsAppResult } from "@/lib/send-whatsapp";
 import {
   WA_TEMPLATES,
   buildPaymentReceiptParams,
@@ -30,6 +30,7 @@ import {
   buildProxyClaimParams,
 } from "@/lib/whatsapp-templates";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
+import { maskPhoneNumber } from "@/lib/mask-phone";
 
 // ─── Notification Type → Template Mapping ───────────────────────────────────
 
@@ -236,24 +237,31 @@ function buildComponents(
  * - Sends via Meta Cloud API
  * - NEVER throws
  */
-export async function dispatchWhatsApp(
+export interface WhatsAppDispatchResult extends WhatsAppResult {
+  type: WhatsAppNotificationType;
+  template?: string;
+  language: "en" | "fr";
+}
+
+export async function dispatchWhatsAppWithResult(
   type: WhatsAppNotificationType,
   recipientPhone: string,
   locale: string,
   data: Record<string, string>,
-): Promise<boolean> {
+): Promise<WhatsAppDispatchResult> {
+  const language = locale === "fr" ? "fr" : "en";
   try {
     // Validate phone
     const formatted = formatPhoneForWhatsApp(recipientPhone);
     if (!formatted) {
-      console.log(`[WhatsApp Dispatch] Invalid phone for ${type}: "${recipientPhone}"`);
-      return false;
+      console.log(`[WhatsApp Dispatch] Invalid phone for ${type}: ${maskPhoneNumber(recipientPhone)}`);
+      return { success: false, type, language, error: "Invalid phone number" };
     }
 
     const templateName = TYPE_TO_TEMPLATE[type];
     if (!templateName) {
       console.log(`[WhatsApp Dispatch] Unknown type: "${type}"`);
-      return false;
+      return { success: false, type, language, error: `Unknown WhatsApp type: ${type}` };
     }
 
     const components = buildComponents(type, data);
@@ -261,13 +269,23 @@ export async function dispatchWhatsApp(
     const result = await sendWhatsAppMessage({
       to: recipientPhone,
       template: templateName,
-      language: locale === "fr" ? "fr" : "en",
+      language,
       components,
     });
 
-    return result.success;
+    return { ...result, type, template: templateName, language };
   } catch (err) {
     console.error(`[WhatsApp Dispatch] Exception for ${type}:`, err instanceof Error ? err.message : err);
-    return false;
+    return { success: false, type, language, error: err instanceof Error ? err.message : "Unknown error" };
   }
+}
+
+export async function dispatchWhatsApp(
+  type: WhatsAppNotificationType,
+  recipientPhone: string,
+  locale: string,
+  data: Record<string, string>,
+): Promise<boolean> {
+  const result = await dispatchWhatsAppWithResult(type, recipientPhone, locale, data);
+  return result.success;
 }

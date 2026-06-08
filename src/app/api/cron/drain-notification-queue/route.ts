@@ -33,6 +33,13 @@ async function resolveLocale(
 const MAX_RETRIES = 3;
 const BATCH_SIZE = 50;
 
+interface ProcessResult {
+  success: boolean;
+  error?: string;
+  providerMessageId?: string;
+  providerStatus?: string;
+}
+
 /**
  * GET /api/cron/drain-notification-queue
  * Vercel Cron — runs every 15 minutes.
@@ -76,7 +83,7 @@ export async function GET(request: Request) {
     const recipient = (data.recipient as string) || "";
     const attempts = (item.attempts as number) || 0;
 
-    let success = false;
+    let result: ProcessResult = { success: false };
     let errorMsg = "";
 
     try {
@@ -84,17 +91,17 @@ export async function GET(request: Request) {
         case "sms": {
           // SMS payload is pre-rendered at enqueue time (see
           // notifications/sms-sender.ts) — no locale re-resolution.
-          success = await processSms(recipient, data);
+          result = { success: await processSms(recipient, data) };
           break;
         }
         case "email": {
           const locale = await resolveLocale(supabase, data);
-          success = await processEmail(recipient, data, locale);
+          result = { success: await processEmail(recipient, data, locale) };
           break;
         }
         case "whatsapp": {
           const locale = await resolveLocale(supabase, data);
-          success = await processWhatsApp(recipient, data, locale);
+          result = await processWhatsApp(recipient, data, locale);
           break;
         }
         default: {
@@ -106,11 +113,24 @@ export async function GET(request: Request) {
       errorMsg = err instanceof Error ? err.message : "Unknown error";
     }
 
-    if (success) {
+    if (!errorMsg && result.error) errorMsg = result.error;
+
+    if (result.success) {
       // Mark as sent
       await supabase
         .from("notifications_queue")
-        .update({ status: "sent", sent_at: new Date().toISOString(), error_message: null })
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          error_message: null,
+          data: result.providerMessageId
+            ? {
+                ...data,
+                providerMessageId: result.providerMessageId,
+                providerStatus: result.providerStatus || "accepted",
+              }
+            : data,
+        })
         .eq("id", item.id);
       sent++;
     } else {
@@ -205,21 +225,27 @@ async function processWhatsApp(
   recipient: string,
   data: Record<string, unknown>,
   locale: Locale,
-): Promise<boolean> {
-  if (!recipient) return false;
+): Promise<ProcessResult> {
+  if (!recipient) return { success: false, error: "Missing recipient" };
 
   const waType = data.whatsappType as string | undefined;
   const waData = (data.whatsappData as Record<string, string>) || {};
 
   if (waType) {
     // Typed dispatch
-    const { dispatchWhatsApp } = await import("@/lib/whatsapp-dispatcher");
-    return await dispatchWhatsApp(
-      waType as Parameters<typeof dispatchWhatsApp>[0],
+    const { dispatchWhatsAppWithResult } = await import("@/lib/whatsapp-dispatcher");
+    const result = await dispatchWhatsAppWithResult(
+      waType as Parameters<typeof dispatchWhatsAppWithResult>[0],
       recipient,
       locale,
       waData,
     );
+    return {
+      success: result.success,
+      error: result.error,
+      providerMessageId: result.messageId,
+      providerStatus: result.success ? "accepted" : undefined,
+    };
   }
 
   // Direct template
@@ -232,8 +258,13 @@ async function processWhatsApp(
       language: locale,
       components: (data.components as Parameters<typeof sendWhatsAppMessage>[0]["components"]) || undefined,
     });
-    return result.success;
+    return {
+      success: result.success,
+      error: result.error,
+      providerMessageId: result.messageId,
+      providerStatus: result.success ? "accepted" : undefined,
+    };
   }
 
-  return false;
+  return { success: false, error: "Missing WhatsApp type or template" };
 }

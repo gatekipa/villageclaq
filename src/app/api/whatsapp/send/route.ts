@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendWhatsAppMessage, sendWhatsAppText } from "@/lib/send-whatsapp";
-import { dispatchWhatsApp, type WhatsAppNotificationType } from "@/lib/whatsapp-dispatcher";
+import { dispatchWhatsAppWithResult, type WhatsAppNotificationType } from "@/lib/whatsapp-dispatcher";
 import { whatsappRateLimit } from "@/lib/api-rate-limit";
 import { callerCanMessageTarget, isPlatformStaff } from "@/lib/api-recipient-guard";
+import { maskPhoneNumber } from "@/lib/mask-phone";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -130,7 +131,8 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log("[WA-ROUTE] to:", to, "type:", type || template || "(text)", "isUUID:", /^[0-9a-f]{8}-/i.test(to || ""));
+    const isUuidRecipient = /^[0-9a-f]{8}-/i.test(to || "");
+    console.log("[WA-ROUTE] recipient:", isUuidRecipient ? String(to).slice(0, 8) : maskPhoneNumber(to), "type:", type || template || "(text)", "isUUID:", isUuidRecipient);
 
     if (!to) {
       console.log("[WA-ROUTE] 400 — missing 'to' field");
@@ -193,20 +195,20 @@ export async function POST(request: Request) {
         );
       }
       recipientPhone = resolvedPhone;
-      console.log("[WA-ROUTE] Resolved UUID to phone:", recipientPhone.slice(0, 6) + "***");
+      console.log("[WA-ROUTE] Resolved UUID to phone:", maskPhoneNumber(recipientPhone));
     }
 
     // ── Rate limit check ──
     if (!acquireRateSlot()) {
       // Over rate limit — queue for drain worker
-      console.warn(`[WhatsApp] Rate limited — queuing message to ${recipientPhone}`);
+      console.warn(`[WhatsApp] Rate limited — queuing message to ${maskPhoneNumber(recipientPhone)}`);
       const queued = await queueWhatsAppMessage(recipientPhone, body);
       return NextResponse.json({ success: true, queued: true, sent: false, rateLimited: true }, { status: queued ? 202 : 429 });
     }
 
     // Route 1: Typed dispatch (recommended)
     if (type) {
-      const success = await dispatchWhatsApp(
+      const result = await dispatchWhatsAppWithResult(
         type as WhatsAppNotificationType,
         recipientPhone,
         locale || language || "en",
@@ -214,14 +216,14 @@ export async function POST(request: Request) {
       );
 
       // If Meta returns rate limit error, queue for retry
-      if (!success) {
+      if (!result.success) {
         const queued = await queueWhatsAppMessage(recipientPhone, body);
         if (queued) {
-          return NextResponse.json({ success: true, queued: true, sent: false });
+          return NextResponse.json({ success: true, queued: true, sent: false, error: result.error });
         }
       }
 
-      return NextResponse.json({ success });
+      return NextResponse.json({ success: result.success, messageId: result.messageId, error: result.error });
     }
 
     // Route 2: Direct template
@@ -263,7 +265,8 @@ export async function POST(request: Request) {
       { error: "Must provide type, template, or text" },
       { status: 400 },
     );
-  } catch {
+  } catch (err) {
+    console.warn("[WA-ROUTE] Internal error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { getEnabledChannels } from "@/lib/notification-prefs";
+import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -181,15 +182,15 @@ async function dispatchScheduledAnnouncement(
     }
   }
 
-  const { data: phoneRows } = await supabase.rpc("get_member_phones", { p_group_id: groupId });
-  if (Array.isArray(phoneRows)) {
-    for (const r of phoneRows as Array<Record<string, unknown>>) {
-      const uid = r.user_id as string | null;
-      const phone = r.phone as string | null;
-      const loc = (r.preferred_locale as string) || "en";
-      const isProxy = r.is_proxy as boolean;
-      if (uid && phone && !isProxy) phoneMap.set(uid, { phone, locale: loc });
+  try {
+    const phoneRows = await fetchMemberDispatchContacts(supabase, groupId);
+    for (const r of phoneRows) {
+      if (r.userId && r.phone && !r.isProxy) {
+        phoneMap.set(r.userId, { phone: r.phone, locale: r.locale });
+      }
     }
+  } catch (err) {
+    console.warn(`[Cron:ScheduledAnnouncements] member phone lookup failed for group ${groupId}:`, err instanceof Error ? err.message : err);
   }
 
   // ── Per-recipient dispatch ──

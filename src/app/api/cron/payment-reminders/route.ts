@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
-import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
+import { dispatchWhatsAppWithResult } from "@/lib/whatsapp-dispatcher";
 import { formatAmount } from "@/lib/currencies";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
+import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -29,6 +30,8 @@ export async function GET(request: Request) {
   let failed = 0;
   let smsSent = 0;
   let smsSkipped = 0;
+  let whatsappSent = 0;
+  let whatsappFailed = 0;
   const errors: string[] = [];
 
   try {
@@ -164,18 +167,16 @@ export async function GET(request: Request) {
         }
       }
 
-      // Phones
-      const { data: phoneMembers, error: phoneErr } = await supabase
-        .rpc("get_member_phones", { p_group_id: gid });
-      if (phoneErr) {
-        console.warn(`[Cron:PaymentReminders] get_member_phones failed for group ${gid}:`, phoneErr.message);
-      } else if (phoneMembers && Array.isArray(phoneMembers)) {
-        for (const m of phoneMembers) {
-          const row = m as { user_id: string; phone: string; preferred_locale: string; is_proxy: boolean };
-          if (row.user_id && row.phone && !row.is_proxy) {
-            phoneMap.set(row.user_id, { phone: row.phone, locale: row.preferred_locale || "en" });
+      // Phones: cron runs under service role, so resolve contacts directly.
+      try {
+        const phoneMembers = await fetchMemberDispatchContacts(supabase, gid);
+        for (const row of phoneMembers) {
+          if (row.userId && row.phone && !row.isProxy) {
+            phoneMap.set(row.userId, { phone: row.phone, locale: row.locale });
           }
         }
+      } catch (err) {
+        console.warn(`[Cron:PaymentReminders] member phone lookup failed for group ${gid}:`, err instanceof Error ? err.message : err);
       }
     }
 
@@ -203,6 +204,7 @@ export async function GET(request: Request) {
     // ── Send emails + SMS per member per overdue obligation ──
     const emailPromises: Promise<{ userId: string; success: boolean; error?: string }>[] = [];
     const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
+    const whatsappPromises: Promise<{ userId: string; success: boolean; error?: string; messageId?: string }>[] = [];
 
     for (const [userId, memberData] of byUser) {
       const email = emailMap.get(userId);
@@ -257,18 +259,25 @@ export async function GET(request: Request) {
 
         // WhatsApp (only if channel enabled)
         if (phoneInfo && channels.whatsapp) {
-          dispatchWhatsApp(
-            "payment_reminder",
-            phoneInfo.phone,
-            phoneInfo.locale || memberData.locale || "en",
-            {
-              memberName: memberData.memberName,
-              amount: item.amount,
-              contributionType: item.contributionType,
-              dueDate: item.dueDate,
-              groupName: item.groupName,
-            },
-          ).catch(() => {}); // Best-effort — never block cron
+          whatsappPromises.push(
+            dispatchWhatsAppWithResult(
+              "payment_reminder",
+              phoneInfo.phone,
+              phoneInfo.locale || memberData.locale || "en",
+              {
+                memberName: memberData.memberName,
+                amount: item.amount,
+                contributionType: item.contributionType,
+                dueDate: item.dueDate,
+                groupName: item.groupName,
+              },
+            ).then((result) => ({
+              userId,
+              success: result.success,
+              error: result.error,
+              messageId: result.messageId,
+            })),
+          );
         }
       }
     }
@@ -294,8 +303,21 @@ export async function GET(request: Request) {
       else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
     }
 
+    const whatsappResults = await Promise.allSettled(whatsappPromises);
+    for (const r of whatsappResults) {
+      if (r.status === "fulfilled" && r.value.success) {
+        whatsappSent++;
+      } else {
+        whatsappFailed++;
+        const errMsg = r.status === "fulfilled"
+          ? r.value.error || "Unknown WhatsApp failure"
+          : (r.reason as Error)?.message || "Unknown WhatsApp failure";
+        errors.push(`WhatsApp: ${errMsg}`);
+      }
+    }
+
     if (errors.length > 0) {
-      console.warn(`[Cron:PaymentReminders] ${sent} emails sent, ${failed} failed, ${smsSent} SMS sent:`, errors.slice(0, 10));
+      console.warn(`[Cron:PaymentReminders] ${sent} emails sent, ${failed} failed, ${smsSent} SMS sent, ${whatsappSent} WhatsApp sent, ${whatsappFailed} WhatsApp failed:`, errors.slice(0, 10));
     }
 
     return NextResponse.json({
@@ -304,11 +326,13 @@ export async function GET(request: Request) {
       failed,
       smsSent,
       smsSkipped,
+      whatsappSent,
+      whatsappFailed,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:PaymentReminders] Fatal error:", msg);
-    return NextResponse.json({ success: false, error: msg, sent, failed, smsSent, smsSkipped }, { status: 500 });
+    return NextResponse.json({ success: false, error: msg, sent, failed, smsSent, smsSkipped, whatsappSent, whatsappFailed }, { status: 500 });
   }
 }

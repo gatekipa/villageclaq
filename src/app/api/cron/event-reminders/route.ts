@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
-import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
+import { dispatchWhatsAppWithResult } from "@/lib/whatsapp-dispatcher";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
+import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -33,6 +34,8 @@ export async function GET(request: Request) {
   let emailsFailed = 0;
   let smsSent = 0;
   let smsSkipped = 0;
+  let whatsappSent = 0;
+  let whatsappFailed = 0;
   const errors: string[] = [];
 
   try {
@@ -87,23 +90,17 @@ export async function GET(request: Request) {
         errors.push(`Group ${groupId} emails: ${rpcErr.message}`);
       }
 
-      // Get phone numbers for SMS
-      const { data: memberPhones, error: phoneErr } = await supabase
-        .rpc("get_member_phones", { p_group_id: groupId });
-
-      if (phoneErr) {
-        console.warn(`[Cron:EventReminders] get_member_phones failed for group ${groupId}:`, phoneErr.message);
-      }
-
       // Build phone lookup: user_id → phone
       const phoneMap = new Map<string, string>();
-      if (memberPhones && Array.isArray(memberPhones)) {
-        for (const mp of memberPhones) {
-          const row = mp as { user_id: string; phone: string; is_proxy: boolean };
-          if (row.user_id && row.phone && !row.is_proxy) {
-            phoneMap.set(row.user_id, row.phone);
+      try {
+        const memberPhones = await fetchMemberDispatchContacts(supabase, groupId);
+        for (const row of memberPhones) {
+          if (row.userId && row.phone && !row.isProxy) {
+            phoneMap.set(row.userId, row.phone);
           }
         }
+      } catch (err) {
+        console.warn(`[Cron:EventReminders] member phone lookup failed for group ${groupId}:`, err instanceof Error ? err.message : err);
       }
 
       const emailList = (memberEmails && Array.isArray(memberEmails))
@@ -129,6 +126,7 @@ export async function GET(request: Request) {
       // Build and send emails + SMS
       const emailPromises: Promise<{ success: boolean; error?: string }>[] = [];
       const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
+      const whatsappPromises: Promise<{ success: boolean; error?: string; messageId?: string }>[] = [];
 
       for (const m of emailList.filter((m) => m.user_id && m.email)) {
         const email = m.email;
@@ -189,18 +187,24 @@ export async function GET(request: Request) {
 
         // WhatsApp (if this member has a phone and channel enabled)
         if (phone && channels.whatsapp) {
-          dispatchWhatsApp(
-            "event_reminder",
-            phone,
-            preferredLocale,
-            {
-              memberName: templateData.memberName || "",
-              eventTitle: templateData.eventName || "",
-              eventDate: templateData.eventDate || "",
-              eventLocation: templateData.eventLocation || "",
-              groupName: templateData.groupName || "",
-            },
-          ).catch(() => {});
+          whatsappPromises.push(
+            dispatchWhatsAppWithResult(
+              "event_reminder",
+              phone,
+              preferredLocale,
+              {
+                memberName: templateData.memberName || "",
+                eventTitle: templateData.eventName || "",
+                eventDate: templateData.eventDate || "",
+                eventLocation: templateData.eventLocation || "",
+                groupName: templateData.groupName || "",
+              },
+            ).then((result) => ({
+              success: result.success,
+              error: result.error,
+              messageId: result.messageId,
+            })),
+          );
         }
 
         // Remove from phoneMap so we don't double-send for proxy members below
@@ -249,6 +253,19 @@ export async function GET(request: Request) {
         else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
       }
 
+      const whatsappResults = await Promise.allSettled(whatsappPromises);
+      for (const r of whatsappResults) {
+        if (r.status === "fulfilled" && r.value.success) {
+          whatsappSent++;
+        } else {
+          whatsappFailed++;
+          const errMsg = r.status === "fulfilled"
+            ? r.value.error || "Unknown WhatsApp failure"
+            : (r.reason as Error)?.message || "Unknown WhatsApp failure";
+          errors.push(`WhatsApp: ${errMsg}`);
+        }
+      }
+
       // Mark event as reminded to prevent duplicate sends on next cron run
       await supabase
         .from("events")
@@ -269,13 +286,15 @@ export async function GET(request: Request) {
       emailsFailed,
       smsSent,
       smsSkipped,
+      whatsappSent,
+      whatsappFailed,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:EventReminders] Fatal error:", msg);
     return NextResponse.json(
-      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed, smsSent, smsSkipped },
+      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed, smsSent, smsSkipped, whatsappSent, whatsappFailed },
       { status: 500 }
     );
   }

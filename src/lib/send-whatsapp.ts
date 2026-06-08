@@ -5,6 +5,7 @@
  */
 
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
+import { maskPhoneNumber } from "@/lib/mask-phone";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -28,10 +29,11 @@ export interface WhatsAppMessageParams {
   components?: WhatsAppTemplateComponent[];
 }
 
-interface WhatsAppResult {
+export interface WhatsAppResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  errorCode?: number;
 }
 
 // ─── Config ─────────────────────────────────────────────────────────────────
@@ -68,12 +70,13 @@ export async function sendWhatsAppMessage(
     const { token, phoneNumberId, apiVersion } = getConfig();
 
     const formattedPhone = formatPhoneForWhatsApp(params.to);
+    const maskedPhone = maskPhoneNumber(params.to);
     if (!formattedPhone) {
-      console.log(`[WhatsApp] Invalid phone number: "${params.to}"`);
-      return { success: false, error: `Invalid phone number: ${params.to}` };
+      console.log(`[WhatsApp] Invalid phone number: ${maskedPhone}`);
+      return { success: false, error: `Invalid phone number: ${maskedPhone}` };
     }
 
-    console.log(`[WhatsApp] Sending template "${params.template}" (${params.language}) to ${formattedPhone}`);
+    console.log(`[WhatsApp] Sending template "${params.template}" (${params.language}) to ${maskPhoneNumber(formattedPhone)}`);
 
     const body: Record<string, unknown> = {
       messaging_product: "whatsapp",
@@ -110,22 +113,22 @@ export async function sendWhatsAppMessage(
       // Detect Meta rate limiting: HTTP 429 or error code 131056 (rate limit hit)
       const isRateLimited = response.status === 429 || errCode === 131056;
       if (isRateLimited) {
-        console.warn(`[WhatsApp] RATE LIMITED — template="${params.template}" to=${formattedPhone} code=${errCode}`);
+        console.warn(`[WhatsApp] RATE LIMITED — template="${params.template}" to=${maskPhoneNumber(formattedPhone)} code=${errCode}`);
       } else {
-        console.error(`[WhatsApp] FAILED — template="${params.template}" to=${formattedPhone} status=${response.status} code=${errCode} error="${errMsg}"`);
+        console.error(`[WhatsApp] FAILED — template="${params.template}" to=${maskPhoneNumber(formattedPhone)} status=${response.status} code=${errCode} error="${errMsg}"`);
       }
-      return { success: false, error: errMsg };
+      return { success: false, error: errMsg, errorCode: errCode };
     }
 
     const data = (await response.json()) as Record<string, unknown>;
     const messages = data.messages as Array<Record<string, string>> | undefined;
     const messageId = messages?.[0]?.id;
 
-    console.log(`[WhatsApp] SUCCESS — template="${params.template}" to=${formattedPhone} messageId=${messageId}`);
+    console.log(`[WhatsApp] SUCCESS — template="${params.template}" to=${maskPhoneNumber(formattedPhone)} messageId=${messageId}`);
     return { success: true, messageId };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[WhatsApp] EXCEPTION — template="${params.template}" to="${params.to}" error="${msg}"`);
+    console.error(`[WhatsApp] EXCEPTION — template="${params.template}" to=${maskPhoneNumber(params.to)} error="${msg}"`);
     return { success: false, error: msg };
   }
 }
@@ -149,7 +152,7 @@ export async function sendWhatsAppText(
 
     const formattedPhone = formatPhoneForWhatsApp(to);
     if (!formattedPhone) {
-      return { success: false, error: `Invalid phone number: ${to}` };
+      return { success: false, error: `Invalid phone number: ${maskPhoneNumber(to)}` };
     }
 
     const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
@@ -182,7 +185,7 @@ export async function sendWhatsAppText(
     return { success: true, messageId: messages?.[0]?.id };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    console.warn(`[WhatsApp] Exception sending text to ${to}:`, msg);
+    console.warn(`[WhatsApp] Exception sending text to ${maskPhoneNumber(to)}:`, msg);
     return { success: false, error: msg };
   }
 }

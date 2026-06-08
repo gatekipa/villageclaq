@@ -6,6 +6,7 @@ import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
 import { buildTranslator } from "@/lib/cron-notify-helper";
+import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -118,17 +119,18 @@ export async function GET(request: Request) {
 
       if (!assignments || assignments.length === 0) continue;
 
-      // Get phone map for proxy members
-      const { data: phoneMembers } = await supabase
-        .rpc("get_member_phones", { p_group_id: groupId });
+      // Get phone map for real members. Proxy phones are read from the
+      // assignment membership row below.
       const phoneMap = new Map<string, string>();
-      if (phoneMembers && Array.isArray(phoneMembers)) {
-        for (const mp of phoneMembers) {
-          const row = mp as { user_id: string; phone: string; is_proxy: boolean };
-          if (row.user_id && row.phone) {
-            phoneMap.set(row.user_id, row.phone);
+      try {
+        const phoneMembers = await fetchMemberDispatchContacts(supabase, groupId);
+        for (const row of phoneMembers) {
+          if (row.userId && row.phone && !row.isProxy) {
+            phoneMap.set(row.userId, row.phone);
           }
         }
+      } catch (err) {
+        console.warn(`[Cron:HostingReminders] member phone lookup failed for group ${groupId}:`, err instanceof Error ? err.message : err);
       }
 
       // Get email map

@@ -55,6 +55,8 @@ interface MetaWebhookPayload {
 }
 
 const PHONE_KEY_PATTERN = /(^recipient_id$|phone|wa_id|^from$|^to$)/i;
+const EMBEDDED_PHONE_EXEMPT_KEY_PATTERN = /(^id$|message_id|provider_message_id|^status$|^timestamp$|template|language|locale|^code$|^type$)/i;
+const PHONE_LIKE_SUBSTRING_PATTERN = /(?<![A-Za-z0-9])\+?(?:\d[\s().-]?){6,14}\d(?![A-Za-z0-9])/g;
 
 export function verifyWhatsAppWebhookChallenge(
   params: URLSearchParams,
@@ -106,8 +108,8 @@ export function extractWhatsAppStatusEvents(payload: unknown): WhatsAppStatusEve
             metadata: change.value?.metadata || {},
           }),
           errorCode: firstError?.code === undefined ? undefined : String(firstError.code),
-          errorTitle: firstError?.title,
-          errorMessage: firstError?.error_data?.details || firstError?.message || firstError?.title,
+          errorTitle: sanitizeWebhookText(firstError?.title),
+          errorMessage: sanitizeWebhookText(firstError?.error_data?.details || firstError?.message || firstError?.title),
         });
       }
     }
@@ -127,10 +129,10 @@ export async function persistWhatsAppStatusEvent(
       status: event.status,
       recipient_phone_mask: event.recipientPhoneMask || null,
       meta_timestamp: event.metaTimestamp || null,
-      raw_event: event.rawEvent,
+      raw_event: sanitizeWebhookEvent(event.rawEvent),
       error_code: event.errorCode || null,
-      error_title: event.errorTitle || null,
-      error_message: event.errorMessage || null,
+      error_title: sanitizeWebhookText(event.errorTitle) || null,
+      error_message: sanitizeWebhookText(event.errorMessage) || null,
     });
 
   if (insertError) {
@@ -175,7 +177,7 @@ export function buildQueueDataPatch(
   };
 
   if (event.errorCode) nextData.providerErrorCode = event.errorCode;
-  if (event.errorMessage) nextData.providerErrorMessage = event.errorMessage;
+  if (event.errorMessage) nextData.providerErrorMessage = sanitizeWebhookText(event.errorMessage);
 
   return nextData;
 }
@@ -201,17 +203,34 @@ function sanitizeValue(value: unknown, key: string): unknown {
     if (PHONE_KEY_PATTERN.test(key)) {
       return maskPhoneValue(value) || value;
     }
-    return maskPhoneLikeString(value);
+    if (EMBEDDED_PHONE_EXEMPT_KEY_PATTERN.test(key)) {
+      return value;
+    }
+    return maskPhoneLikeSubstrings(value);
   }
 
   return value;
 }
 
-function maskPhoneLikeString(value: string): string {
+function sanitizeWebhookText(value: string | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return maskPhoneLikeSubstrings(value);
+}
+
+function maskPhoneLikeSubstrings(value: string): string {
+  return value.replace(PHONE_LIKE_SUBSTRING_PATTERN, (candidate) => maskPhoneCandidate(candidate));
+}
+
+function maskPhoneCandidate(value: string): string {
   const digits = value.replace(/\D/g, "");
   if (digits.length < 7 || digits.length > 15) return value;
-  if (!/^[+\d\s().-]+$/.test(value)) return value;
-  return maskDigits(digits);
+  if (looksLikeDate(value)) return value;
+  const prefix = value.trimStart().startsWith("+") ? "+" : "";
+  return `${prefix}${maskDigits(digits)}`;
+}
+
+function looksLikeDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
 }
 
 function maskPhoneValue(value: unknown): string | undefined {

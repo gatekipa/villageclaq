@@ -169,6 +169,62 @@ test("extracts sent, delivered, read, and failed statuses with sanitized raw eve
   assert.equal(events[0].rawEvent.metadata.display_phone_number, "132******494");
 });
 
+test("masks embedded phone substrings in failed status errors and queue updates", async () => {
+  const { extractWhatsAppStatusEvents, persistWhatsAppStatusEvent } = loadWebhookModule();
+  const providerMessageId = "wamid.HBgM1234567890ABC";
+  const payload = makePayload([
+    {
+      id: providerMessageId,
+      status: "failed",
+      timestamp: "1780920003",
+      recipient_id: recipientDigits,
+      errors: [
+        {
+          code: 131026,
+          title: `Message undeliverable for ${recipientDigits}`,
+          message: `Could not deliver to +${recipientDigits}.`,
+          error_data: {
+            details: `Recipient ${recipientDigits} is not reachable; keep reason text.`,
+          },
+        },
+      ],
+    },
+  ]);
+
+  const [event] = extractWhatsAppStatusEvents(payload);
+  assert.equal(event.providerMessageId, providerMessageId);
+  assert.equal(event.rawEvent.id, providerMessageId);
+  assert.equal(event.recipientPhoneMask, "130******857");
+  assert.equal(event.errorTitle, "Message undeliverable for 130******857");
+  assert.equal(event.errorMessage, "Recipient 130******857 is not reachable; keep reason text.");
+  assert.equal(event.rawEvent.errors[0].title, "Message undeliverable for 130******857");
+  assert.equal(event.rawEvent.errors[0].message, "Could not deliver to +130******857.");
+  assert.equal(event.rawEvent.errors[0].error_data.details, "Recipient 130******857 is not reachable; keep reason text.");
+
+  const supabase = createMockSupabase([
+    {
+      id: "queue-1",
+      data: {
+        providerMessageId,
+        providerStatus: "accepted",
+      },
+    },
+  ]);
+
+  await persistWhatsAppStatusEvent(supabase, event);
+
+  const eventInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "whatsapp_message_status_events");
+  assert.equal(eventInsert.payload.provider_message_id, providerMessageId);
+  assert.equal(eventInsert.payload.error_title, "Message undeliverable for 130******857");
+  assert.equal(eventInsert.payload.error_message, "Recipient 130******857 is not reachable; keep reason text.");
+  assert.equal(eventInsert.payload.raw_event.errors[0].message, "Could not deliver to +130******857.");
+
+  const queueUpdate = supabase.calls.find((call) => call.op === "update" && call.table === "notifications_queue");
+  assert.equal(queueUpdate.payload.data.providerStatus, "accepted");
+  assert.equal(queueUpdate.payload.data.latestProviderStatus, "failed");
+  assert.equal(queueUpdate.payload.data.providerErrorMessage, "Recipient 130******857 is not reachable; keep reason text.");
+});
+
 test("persists status events and updates matching queue rows by provider message ID", async () => {
   const { persistWhatsAppStatusEvent } = loadWebhookModule();
   const supabase = createMockSupabase([

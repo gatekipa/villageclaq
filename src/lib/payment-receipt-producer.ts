@@ -303,6 +303,9 @@ export async function producePaymentReceiptNotifications(
     .limit(1)
     .maybeSingle();
 
+  // Payment receipts are strict exactly-once: any existing queue row blocks
+  // automatic re-enqueue, including failed rows. A controlled manual/admin
+  // retry flow can be added later without risking duplicate receipt messages.
   if (existingQueue) {
     return {
       status: "skipped",

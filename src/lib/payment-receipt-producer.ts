@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAmount } from "@/lib/currencies";
+import { getMemberName } from "@/lib/get-member-name";
 import { maskPhoneNumber } from "@/lib/mask-phone";
 import { getEnabledChannels, type EnabledChannels } from "@/lib/notification-prefs";
 import { WA_TEMPLATES } from "@/lib/whatsapp-templates";
@@ -126,7 +127,10 @@ async function resolveRecipientPhone(
 }
 
 function memberName(membership: MembershipRow, profile: ProfileRow | null): string {
-  return membership.display_name || profile?.full_name || "Member";
+  return getMemberName({
+    ...membership,
+    profile,
+  });
 }
 
 async function maybeSingle<T>(

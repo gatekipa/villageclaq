@@ -30,9 +30,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const paymentId = typeof body.paymentId === "string" ? body.paymentId : "";
-    const locale = typeof body.locale === "string" ? body.locale : undefined;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+    }
+
+    const bodyRecord = body && typeof body === "object" ? body as Record<string, unknown> : {};
+    const paymentId = typeof bodyRecord.paymentId === "string" ? bodyRecord.paymentId : "";
+    const locale = typeof bodyRecord.locale === "string" ? bodyRecord.locale : undefined;
 
     if (!paymentId) {
       return NextResponse.json({ error: "Missing required field: paymentId" }, { status: 400 });

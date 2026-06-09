@@ -7,6 +7,7 @@ import ts from "typescript";
 
 const sourcePath = new URL("../src/lib/payment-receipt-producer.ts", import.meta.url);
 const recordPagePath = new URL("../src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx", import.meta.url);
+const receiptRoutePath = new URL("../src/app/api/payments/receipt-notifications/route.ts", import.meta.url);
 const require = createRequire(import.meta.url);
 
 const ids = {
@@ -44,6 +45,17 @@ function loadProducer() {
         maskPhoneNumber(phone) {
           const digits = String(phone || "").replace(/\D/g, "");
           return `${String(phone || "").startsWith("+") ? "+" : ""}${digits.slice(0, 3)}******${digits.slice(-3)}`;
+        },
+      };
+    }
+    if (id === "@/lib/get-member-name") {
+      return {
+        getMemberName(record) {
+          if (!record) return "Member";
+          if (record.display_name) return record.display_name;
+          if (record.profile?.full_name) return record.profile.full_name;
+          if (record.privacy_settings?.proxy_name) return record.privacy_settings.proxy_name;
+          return "Member";
         },
       };
     }
@@ -296,6 +308,29 @@ test("real-member receipts fall back to auth phone when profile phone is missing
   assert.equal(queueInsert.payload.data.recipient, fullPhone);
 });
 
+test("WhatsApp receipt data uses shared member-name fallback for proxy members", async () => {
+  const { producePaymentReceiptNotifications } = loadProducer();
+  const supabase = createMockSupabase({
+    membership: {
+      id: ids.membership,
+      group_id: ids.group,
+      user_id: null,
+      display_name: null,
+      is_proxy: true,
+      phone: null,
+      privacy_settings: { proxy_name: "Proxy Member", proxy_phone: fullPhone },
+      membership_status: "active",
+    },
+    profile: null,
+  });
+
+  const result = await producePaymentReceiptNotifications(supabase, ids.payment);
+
+  assert.equal(result.status, "queued");
+  const queueInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "notifications_queue");
+  assert.equal(queueInsert.payload.data.whatsappData.memberName, "Proxy Member");
+});
+
 test("existing queue event prevents duplicate receipt production for same payment", async () => {
   const { producePaymentReceiptNotifications } = loadProducer();
   const supabase = createMockSupabase({
@@ -329,4 +364,12 @@ test("record payment page no longer calls the WhatsApp send route directly", () 
 
   assert.match(source, /\/api\/payments\/receipt-notifications/);
   assert.doesNotMatch(source, /\/api\/whatsapp\/send/);
+});
+
+test("receipt notification route returns 400 for malformed JSON", () => {
+  const source = fs.readFileSync(receiptRoutePath, "utf8");
+
+  assert.match(source, /Malformed JSON/);
+  assert.match(source, /status:\s*400/);
+  assert.match(source, /await request\.json\(\)/);
 });

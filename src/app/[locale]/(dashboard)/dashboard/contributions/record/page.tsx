@@ -163,7 +163,7 @@ export default function RecordPaymentPage() {
   const [dupDialogOpen, setDupDialogOpen] = useState(false);
   const [dupKeepType, setDupKeepType] = useState(false);
   const [dupIsBulk, setDupIsBulk] = useState(false);
-  const [dupBulkMemberId, setDupBulkMemberId] = useState<string | null>(null);
+  const [dupBulkMemberId] = useState<string | null>(null);
 
   // ─── Cascade Toast State ─────────────────────────────────────────────
   const [cascadeInfo, setCascadeInfo] = useState<PaymentCascadeResult | null>(null);
@@ -211,6 +211,29 @@ export default function RecordPaymentPage() {
     setShowMemberList(false);
   }
 
+  async function produceServerSideReceiptNotifications(paymentId: unknown) {
+    if (typeof paymentId !== "string" || !paymentId) return;
+
+    try {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+
+      const response = await fetch("/api/payments/receipt-notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ paymentId, locale }),
+      });
+
+      if (!response.ok) {
+        console.warn("[PaymentReceipt] server producer returned", response.status);
+      }
+    } catch (err) {
+      console.warn("[PaymentReceipt] server producer failed", err instanceof Error ? err.message : err);
+    }
+  }
+
   /** Core save logic, called after duplicate check passes or is bypassed */
   async function doSave(keepTypeAndMethod: boolean, skipDuplicateCheck: boolean) {
     if (!selectedMembership || !selectedTypeId || !amount || Number(amount) <= 0) return;
@@ -230,8 +253,6 @@ export default function RecordPaymentPage() {
     const payAmount = Number(amount);
     const payMethod = method;
     const payRef = reference;
-    const payNotes = notes;
-    const payReceipt = receiptUrl;
     const payDate = paymentDate;
 
     try {
@@ -255,43 +276,28 @@ export default function RecordPaymentPage() {
         setTimeout(() => setCascadeInfo(null), 8000); // longer display for cascade
       }
 
-      // ─── Send payment receipt notifications ─────────────────────────────
-      // Each channel is independent — one failing must NEVER block another.
+      // ─── Produce payment receipt notifications ──────────────────────────
+      await produceServerSideReceiptNotifications(result.payment?.id);
+
+      // Email/SMS remain independent; in-app + WhatsApp are produced server-side.
       const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
       const formattedAmt = formatAmount(payAmount, currency);
       const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
 
-      // Resolve the member's user_id + phone (needed for notifications)
+      // Resolve the member's user_id + phone for email/SMS.
       let recipientUserId: string | null = null;
       let recipientPhone: string | null = null;
       try {
         const supabase = createClient();
         const { data: membership } = await supabase
           .from("memberships")
-          // profiles.phone intentionally NOT selected — /api/sms/send and
-          // /api/whatsapp/send resolve real-member phone from user_id.
+          // profiles.phone intentionally NOT selected — /api/sms/send
+          // resolves real-member phone from user_id.
           .select("user_id, privacy_settings")
           .eq("id", membershipId)
           .single();
         recipientUserId = membership?.user_id || null;
         recipientPhone = (membership?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
-
-        // In-app notification (best-effort, never blocks external sends)
-        if (recipientUserId) {
-          try {
-            await supabase.from("notifications").insert({
-              user_id: recipientUserId,
-              group_id: groupId,
-              type: "contribution_received",
-              title: t("contributions.paymentReceivedNotifTitle", { amount: formattedAmt }),
-              body: t("contributions.paymentReceivedNotifBody", { amount: formattedAmt, type: typeName, method: payMethod, reference: payRef || "N/A" }),
-              is_read: false,
-              data: { link: "/dashboard/my-payments", amount: payAmount, currency, contribution_type: typeName, method: payMethod, reference: payRef || null },
-            });
-          } catch {
-            // Non-critical
-          }
-        }
       } catch {
         // Non-critical — continue without external notifications
       }
@@ -339,22 +345,6 @@ export default function RecordPaymentPage() {
                 to: smsRecipient,
                 template: "payment-receipt",
                 data: { groupName: currentGroup?.name || "", amount: formattedAmt, contributionType: typeName },
-                locale,
-              }),
-            }).catch(() => {});
-          }
-
-          // WhatsApp: send to ANY member with a phone (including proxy members)
-          // For proxy members (no userId), channels.whatsapp defaults to true
-          const waRecipient = recipientUserId || recipientPhone;
-          if (waRecipient && channels.whatsapp) {
-            fetch("/api/whatsapp/send", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({
-                to: waRecipient,
-                type: "payment_receipt",
-                data: { memberName, amount: formattedAmt, contributionType: typeName, groupName: currentGroup?.name || "", date: dateStr },
                 locale,
               }),
             }).catch(() => {});
@@ -472,8 +462,8 @@ export default function RecordPaymentPage() {
     setBulkSubmitting(true);
     let successCount = 0;
     let dupCount = 0;
-    // Track membership IDs of members whose payments actually succeeded
-    const paidMemberIds: string[] = [];
+    // Track successful payments for server-side receipt production.
+    const paidPayments: Array<{ memberId: string; paymentId: string }> = [];
 
     try {
       const today = new Date().toISOString().slice(0, 10);
@@ -493,7 +483,7 @@ export default function RecordPaymentPage() {
             continue; // Skip duplicates silently in bulk mode
           }
 
-          await recordPayment.mutateAsync({
+          const result = await recordPayment.mutateAsync({
             membership_id: memberId,
             contribution_type_id: bulkTypeId,
             amount: Number(bulkAmount),
@@ -503,18 +493,21 @@ export default function RecordPaymentPage() {
             skipDuplicateCheck: true, // Already checked above
           });
           successCount++;
-          paidMemberIds.push(memberId);
+          const paymentId = result.payment?.id;
+          if (typeof paymentId === "string") {
+            paidPayments.push({ memberId, paymentId });
+          }
         } catch {
           // Continue with remaining members even if one fails
         }
       }
 
-      // ── Send payment-receipt notifications for every successfully paid member ──
-      // Uses the same notifyFromClient() function as the single-payment path.
-      // Promise.allSettled runs all recipients in parallel (fire-and-forget) so the
-      // UI is never blocked. Each call is fully independent — one failing never
-      // prevents another from firing. Proxy members (userId=null) get WhatsApp only.
-      if (paidMemberIds.length > 0 && groupId) {
+      // ── Produce payment-receipt notifications for every successful payment ──
+      if (paidPayments.length > 0 && groupId) {
+        await Promise.allSettled(
+          paidPayments.map(({ paymentId }) => produceServerSideReceiptNotifications(paymentId)),
+        );
+
         const typeName = bulkType
           ? (locale === "fr" && (bulkType as Record<string, unknown>).name_fr
               ? (bulkType as Record<string, unknown>).name_fr as string
@@ -524,13 +517,13 @@ export default function RecordPaymentPage() {
         const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
         const recordedBy = currentUser?.full_name || currentUser?.display_name || t("common.admin");
 
-        const notifPromises = paidMemberIds.map(async (mid) => {
+        const notifPromises = paidPayments.map(async ({ memberId: mid }) => {
           const rawMember = (members || []).find((m: Record<string, unknown>) => m.id === mid) as Record<string, unknown> | undefined;
           if (!rawMember) return;
           const userId = (rawMember.user_id as string | null) || null;
           // profile.phone no longer in useMembers cache. /api/sms/send
-          // and /api/whatsapp/send resolve real-member phone from userId
-          // server-side. Only proxy phones flow client-side.
+          // resolves real-member phone from userId server-side. Only proxy
+          // phones flow client-side for SMS.
           const phone =
             ((rawMember.privacy_settings as Record<string, unknown>)?.proxy_phone as string | null) ||
             null;
@@ -561,15 +554,13 @@ export default function RecordPaymentPage() {
               paymentsUrl: `${typeof window !== "undefined" ? window.location.origin : ""}/${locale}/dashboard/my-payments`,
             },
             smsTemplate: "payment-receipt",
-            whatsappType: "payment_receipt",
             locale,
-            channels: { inApp: true, email: true, sms: true, whatsapp: true },
+            channels: { inApp: false, email: true, sms: true, whatsapp: false },
             prefType: "payment_reminders",
           });
         });
 
-        // Fire all in parallel — never await, never block the UI
-        Promise.allSettled(notifPromises);
+        await Promise.allSettled(notifPromises);
       }
 
       setBulkSuccess(successCount);

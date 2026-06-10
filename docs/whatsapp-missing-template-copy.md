@@ -1,48 +1,45 @@
-# WhatsApp Missing Template Copy Guide
+# WhatsApp Template Approval Follow-up Guide
 
 Date: 2026-06-10
 
-Scope: copy-preparation guide for VillageClaq WhatsApp templates that were missing or incomplete after the full template coverage audit. This guide is for Meta submission only. It does not change app code, template mappings, notification routing, Meta settings, credentials, deployments, or production data.
+Scope: post-approval follow-up for VillageClaq WhatsApp templates that were missing or incomplete after the full template coverage audit. This guide records the approved copy and the remaining app-side readiness holds. It does not change app code, template mappings, notification routing, Meta settings, credentials, deployments, or production data.
 
 ## Executive Summary
 
-Manual Meta creation is needed only for the true gaps below before resuming full WhatsApp manual QA. `hosting_assignment` is excluded from the create-now list after re-audit because Meta already has the similar approved `villageclaq_hosting_reminder` template in EN/FR, and the app uses both `hosting_assignment` and `hosting_reminder` keys.
+Final read-only Meta re-check found 48 approved language rows across 24 approved template names. All previously missing submission-batch templates are now approved in EN/FR and their variable counts match the app builders.
 
-| App type/key | Recommended Meta template name | Current gap | Recommendation |
+`hosting_assignment` remains excluded from manual Meta creation because Meta already has the similar approved `villageclaq_hosting_reminder` template in EN/FR, and the app uses both `hosting_assignment` and `hosting_reminder` keys.
+
+| App type/key | Meta template name | Meta status | Recommendation |
 | --- | --- | --- | --- |
-| `welcome` | `villageclaq_welcome` | EN approved, FR missing | Add FR language variant to the existing template name if Meta allows it. |
-| `relief_enrollment` | `villageclaq_relief_enrollment` | EN/FR missing; current producer passes blank `memberName` | Submit EN/FR copy, but hold live QA until producer data supplies member name. |
-| `remittance_confirmed` | `villageclaq_remittance_confirmed` | EN/FR missing | Submit EN/FR copy. |
-| `remittance_disputed` | `villageclaq_remittance_disputed` | EN/FR missing | Submit EN/FR copy. |
-| `subscription_expiring` | `villageclaq_subscription_expiring` | EN/FR missing; no group variable in app builder | Submit EN/FR copy with current two-variable order; add group context only in a later code change. |
-| `proxy_claim` | `villageclaq_proxy_claim` | EN/FR missing | Submit EN/FR copy. |
+| `welcome` | `villageclaq_welcome` | EN/FR approved | Ready for template coverage; still confirm the WhatsApp producer path before live QA. |
+| `relief_enrollment` | `villageclaq_relief_enrollment` | EN/FR approved | Hold live QA until producer data supplies `memberName`. |
+| `remittance_confirmed` | `villageclaq_remittance_confirmed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
+| `remittance_disputed` | `villageclaq_remittance_disputed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
+| `subscription_expiring` | `villageclaq_subscription_expiring` | EN/FR approved | Ready for current app behavior; adding group context requires a later code change. |
+| `proxy_claim` | `villageclaq_proxy_claim` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
 
 Do not manually create `villageclaq_hosting_assignment` in this batch. The current app mapping points `hosting_assignment` to that absent name, but the existing approved `villageclaq_hosting_reminder` has the same three-placeholder shape (`memberName`, `hostingDate`, `groupName`). Treat `hosting_assignment` as a later app mapping/producer cleanup decision: either map it to `villageclaq_hosting_reminder` if the reminder copy is acceptable for assignment notices, or create a distinct assignment template only after the producer supplies all three variables.
 
-General submission rules:
+Approval and QA rules:
 
-- Use the exact template names listed here unless Meta forces a new name.
-- Use static text before the first variable for approval safety.
-- Keep every variable as a body variable. Do not put variables in headers or buttons unless app code is updated to send those components.
-- Use no buttons for this round. The current app builders only send body parameters.
-- Use the EN footer `VillageClaq.com — Your Community, Organized`.
-- Use the FR footer `VillageClaq.com — Votre communauté, organisée`.
-- Submit both `en` and `fr` where missing. For `welcome`, add only the missing `fr` variant unless Meta requires a full replacement.
-- Sample values below are safe examples for Meta review. They are not production data and do not include phone numbers, tokens, or secrets.
+- Do not submit additional templates unless a later app/product decision requires a new template name.
+- Keep all current app variables as body variables. Do not add headers or buttons that require new app components unless app code is updated.
+- Sample values below are safe examples for review and QA planning. They are not production data and do not include phone numbers, tokens, or secrets.
 
 ## Variable Source Review
 
 | App type/key | Builder | Current body variable order | Producer path | Payload readiness |
 | --- | --- | --- | --- | --- |
-| `welcome` | `buildWelcomeParams` | `{{1}} memberName`, `{{2}} groupName` | Dispatcher support; current invitation acceptance sends email/SMS welcome but no confirmed WhatsApp welcome producer found | Template FR missing; producer path should be confirmed before live WhatsApp QA. |
+| `welcome` | `buildWelcomeParams` | `{{1}} memberName`, `{{2}} groupName` | Dispatcher support; current invitation acceptance sends email/SMS welcome but no confirmed WhatsApp welcome producer found | EN/FR approved; producer path should be confirmed before live WhatsApp QA. |
 | `hosting_assignment` | `buildHostingAssignmentParams` | `{{1}} memberName`, `{{2}} hostingDate`, `{{3}} groupName` | Hosting page uses `notifyBulkFromClient` with `whatsappType: "hosting_assignment"` | HOLD for live QA and Meta creation: current producer data includes `groupName` but does not populate `memberName` or `hostingDate`; existing `villageclaq_hosting_reminder` may be reusable after mapping cleanup. |
 | `relief_enrollment` | `buildReliefEnrollmentParams` | `{{1}} memberName`, `{{2}} planName`, `{{3}} groupName` | Relief enrollment page uses `notifyBulkFromClient` | HOLD for live QA: current producer data sets `memberName` to an empty string. |
-| `remittance_confirmed` | `buildRemittanceConfirmedParams` | `{{1}} amount`, `{{2}} groupName` | Relief remittances page uses `notifyBulkFromClient` | Ready for submission. |
-| `remittance_disputed` | `buildRemittanceDisputedParams` | `{{1}} amount`, `{{2}} groupName` | Relief remittances page uses `notifyBulkFromClient` | Ready for submission. |
-| `subscription_expiring` | `buildSubscriptionExpiringParams` | `{{1}} planName`, `{{2}} days` | Subscription reminders cron calls `dispatchWhatsApp` | Ready for submission with no group context; adding group context requires a future app-code change. |
-| `proxy_claim` | `buildProxyClaimParams` | `{{1}} memberName`, `{{2}} groupName`, `{{3}} claimUrl` | `/api/proxy-claim/send` calls `dispatchWhatsApp` | Ready for submission. |
+| `remittance_confirmed` | `buildRemittanceConfirmedParams` | `{{1}} amount`, `{{2}} groupName` | Relief remittances page uses `notifyBulkFromClient` | EN/FR approved and variable-compatible. |
+| `remittance_disputed` | `buildRemittanceDisputedParams` | `{{1}} amount`, `{{2}} groupName` | Relief remittances page uses `notifyBulkFromClient` | EN/FR approved and variable-compatible. |
+| `subscription_expiring` | `buildSubscriptionExpiringParams` | `{{1}} planName`, `{{2}} days` | Subscription reminders cron calls `dispatchWhatsApp` | EN/FR approved and variable-compatible for current app behavior; adding group context requires a future app-code change. |
+| `proxy_claim` | `buildProxyClaimParams` | `{{1}} memberName`, `{{2}} groupName`, `{{3}} claimUrl` | `/api/proxy-claim/send` calls `dispatchWhatsApp` | EN/FR approved and variable-compatible. |
 
-## Meta Submission Defaults
+## Meta Component Defaults
 
 - Header type: text
 - Header text: `VillageClaq`
@@ -57,7 +54,7 @@ Template purpose: welcome a user after joining or claiming membership in a group
 
 App type/key: `welcome`
 
-Category recommendation: keep the existing Meta category for the approved EN row. The coverage audit saw the EN row as `MARKETING`; if Meta allows category selection for the new FR language row, use the same category as EN for consistency.
+Meta status: EN/FR approved. Category: `MARKETING`.
 
 Header:
 
@@ -65,7 +62,7 @@ Header:
 VillageClaq
 ```
 
-EN copy status: already approved in Meta. Keep the existing EN language row unless a future v2 alignment project is opened.
+EN copy status: approved in Meta.
 
 EN body reference:
 
@@ -79,7 +76,7 @@ EN footer recommendation for any future replacement:
 VillageClaq.com — Your Community, Organized
 ```
 
-FR body to submit:
+FR body status: approved in Meta.
 
 ```text
 Bienvenue sur VillageClaq
@@ -100,18 +97,12 @@ Variable order:
 | `{{1}}` | `memberName` | `Marie Ngono` |
 | `{{2}}` | `groupName` | `MBACUDA` |
 
-Approval notes:
+Readiness notes:
 
-- The FR copy starts with static text before variables.
-- If Meta requires strict language-component parity with the existing EN row, submit the FR body without the extra static first line and footer:
-
-```text
-Bienvenue {{1}} ! Vous êtes maintenant membre de {{2}} sur VillageClaq. Ouvrez l'application pour commencer.
-```
-
+- Variable count matches the app builder in EN and FR.
 - Live WhatsApp QA should confirm the producer path first because current invitation acceptance clearly sends email/SMS welcome notifications, but a confirmed WhatsApp welcome producer was not found in the current audit.
 
-## Deferred: `villageclaq_hosting_assignment`
+## Deferred App Mapping: `villageclaq_hosting_assignment`
 
 Current recommendation: do not submit this template in the immediate manual Meta batch.
 
@@ -167,7 +158,7 @@ Variable order:
 | `{{2}}` | `hostingDate` | `2026-07-15` |
 | `{{3}}` | `groupName` | `MBACUDA` |
 
-Approval notes:
+Readiness notes:
 
 - Deferred fallback only; not part of the current create-now list.
 - Static text appears before the first variable.
@@ -180,7 +171,7 @@ Template purpose: notify a member that they were enrolled in a relief plan.
 
 App type/key: `relief_enrollment`
 
-Category recommendation: `UTILITY`
+Meta status: EN/FR approved. Category: `UTILITY`.
 
 Header:
 
@@ -224,10 +215,10 @@ Variable order:
 | `{{2}}` | `planName` | `Emergency Relief Fund` |
 | `{{3}}` | `groupName` | `Njimafor Diaspora` |
 
-Approval notes:
+Readiness notes:
 
-- Static text appears before the first variable.
-- HOLD for live QA after approval: the current relief enrollment producer passes `memberName: ""` while notifying multiple recipients. App code should supply the recipient member name before testing live WhatsApp sends.
+- Variable count matches the app builder in EN and FR.
+- HOLD for live QA: the current relief enrollment producer passes `memberName: ""` while notifying multiple recipients. App code should supply the recipient member name before testing live WhatsApp sends.
 - Do not remove `memberName` from the template without a matching app-code change.
 
 ## 3. `villageclaq_remittance_confirmed`
@@ -236,7 +227,7 @@ Template purpose: notify branch admins or leaders that a remittance was confirme
 
 App type/key: `remittance_confirmed`
 
-Category recommendation: `UTILITY`
+Meta status: EN/FR approved. Category: `UTILITY`.
 
 Header:
 
@@ -279,9 +270,9 @@ Variable order:
 | `{{1}}` | `amount` | `$250.00` |
 | `{{2}}` | `groupName` | `MBACUDA Branch A` |
 
-Approval notes:
+Readiness notes:
 
-- Static text appears before the first variable.
+- Variable count matches the app builder in EN and FR.
 - Variable order follows the app builder even though group context appears before amount in the English sentence after the static line.
 - The category is transactional and should remain `UTILITY`.
 
@@ -291,7 +282,7 @@ Template purpose: notify branch admins or leaders that a remittance was disputed
 
 App type/key: `remittance_disputed`
 
-Category recommendation: `UTILITY`
+Meta status: EN/FR approved. Category: `UTILITY`.
 
 Header:
 
@@ -334,9 +325,9 @@ Variable order:
 | `{{1}}` | `amount` | `$250.00` |
 | `{{2}}` | `groupName` | `MBACUDA Branch A` |
 
-Approval notes:
+Readiness notes:
 
-- Static text appears before the first variable.
+- Variable count matches the app builder in EN and FR.
 - Keep tone factual and non-accusatory to reduce approval risk and user alarm.
 - The category is transactional and should remain `UTILITY`.
 
@@ -346,7 +337,7 @@ Template purpose: notify group billing contacts that their VillageClaq subscript
 
 App type/key: `subscription_expiring`
 
-Category recommendation: `UTILITY`
+Meta status: EN/FR approved. Category: `UTILITY`.
 
 Header:
 
@@ -389,12 +380,11 @@ Variable order:
 | `{{1}}` | `planName` | `Premium` |
 | `{{2}}` | `days` | `7` |
 
-Approval notes:
+Readiness notes:
 
-- Static text appears before the first variable.
+- Variable count matches the app builder in EN and FR.
 - This template cannot include `groupName` with the current app builder. The subscription cron has `groupName` available for in-app/email copy, but `buildSubscriptionExpiringParams` only sends `planName` and `days`.
-- Submit this two-variable template now if the immediate goal is to unblock QA for current app behavior.
-- If group-specific subscription wording is required, hold submission and first update app code to pass `groupName` as a third variable.
+- If group-specific subscription wording is required, first update app code to pass `groupName` as a third variable and submit a new/updated template after that app change.
 
 ## 6. `villageclaq_proxy_claim`
 
@@ -402,7 +392,7 @@ Template purpose: invite a proxy member to claim their membership and create an 
 
 App type/key: `proxy_claim`
 
-Category recommendation: `UTILITY`
+Meta status: EN/FR approved. Category: `UTILITY`.
 
 Header:
 
@@ -446,11 +436,11 @@ Variable order:
 | `{{2}}` | `groupName` | `MBACUDA` |
 | `{{3}}` | `claimUrl` | `https://villageclaq.com/claim/sample-token` |
 
-Approval notes:
+Readiness notes:
 
-- Static text appears before the first variable.
+- Variable count matches the app builder in EN and FR.
 - The current app passes the claim URL as a body variable, so do not add a URL button without a code change that sends button parameters.
-- If Meta flags the body URL placeholder, resubmit with the same placeholder order and shorter copy:
+- If a future template version moves the URL into a button, update app code to send button parameters. The approved current shape uses body variables.
 
 ```text
 VillageClaq account claim
@@ -464,23 +454,20 @@ Réclamation de compte VillageClaq
 Bonjour {{1}}, réclamez votre adhésion à {{2}} sur VillageClaq : {{3}}
 ```
 
-## Submission Checklist
+## Post-Approval Checklist
 
-Before submitting:
+Before controlled live QA:
 
 - Confirm template names match `src/lib/whatsapp-templates.ts`.
 - Confirm placeholder count and order match the tables above.
 - Confirm all variables are body placeholders only.
-- Confirm headers are static text.
-- Confirm buttons are omitted.
-- Confirm sample values do not contain production phone numbers, secrets, or real tokens.
-- Confirm `hosting_assignment` is not submitted in this batch and remains held for mapping/producer cleanup.
+- Confirm `hosting_assignment` remains held for mapping/producer cleanup.
 - Confirm `relief_enrollment` remains held from live QA until its producer payload gap is fixed.
+- Confirm `welcome` has a real WhatsApp producer path before live QA.
 
-After Meta approval:
+After this approval pass:
 
 1. Re-run `npm run audit:whatsapp`.
-2. Update the template coverage audit with the newly approved status if desired.
-3. Resolve `hosting_assignment` separately: either map it to the approved `villageclaq_hosting_reminder` template after producer cleanup, or submit a distinct assignment template later if product wants separate copy.
-4. Fix the `relief_enrollment` producer payload gap before live WhatsApp QA.
-5. Run controlled manual QA one template and one language at a time, only after explicit send authorization.
+2. Resolve `hosting_assignment` separately: either map it to the approved `villageclaq_hosting_reminder` template after producer cleanup, or submit a distinct assignment template later if product wants separate copy.
+3. Fix the `relief_enrollment` producer payload gap before live WhatsApp QA.
+4. Run controlled manual QA one template and one language at a time, only after explicit send authorization.

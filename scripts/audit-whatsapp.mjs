@@ -101,10 +101,18 @@ const approvedLaunchTemplateNames = {
   ANNOUNCEMENT: "villageclaq_announcement_v2",
 };
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 for (const [constantName, approvedTemplateName] of Object.entries(approvedLaunchTemplateNames)) {
+  const templateMappingPattern = new RegExp(
+    `\\b${escapeRegex(constantName)}\\s*:\\s*['"]${escapeRegex(approvedTemplateName)}['"]`,
+  );
+
   check(
     `WhatsApp ${constantName} maps to approved v2 template`,
-    whatsappTemplates.includes(`${constantName}: "${approvedTemplateName}"`),
+    templateMappingPattern.test(whatsappTemplates),
     `Launch-critical WhatsApp templates must use ${approvedTemplateName}.`,
   );
 }

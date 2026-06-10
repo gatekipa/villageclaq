@@ -7,55 +7,70 @@ Each template must be submitted in **both English and French**.
 ---
 
 ## 1. villageclaq_payment_receipt_v2
+
 **Category:** UTILITY
 **EN Body:**
+
 ```text
 {{4}} via VillageClaq
 
 Hi {{1}}, your payment of {{2}} for {{3}} was received on {{5}}. Thank you!
 ```
+
 **FR Body:**
+
 ```text
 {{4}} via VillageClaq
 
 Bonjour {{1}}, votre paiement de {{2}} pour {{3}} a été reçu le {{5}}. Merci !
 ```
+
 **Footer EN:** `VillageClaq — Your Community, Organized`
 **Footer FR:** `VillageClaq — Votre communauté, organisée`
 **Parameters:** 1=member_name, 2=amount, 3=contribution_type, 4=group_name, 5=date
 
 ## 2. villageclaq_payment_reminder_v2
+
 **Category:** UTILITY
 **EN Body:**
+
 ```text
 {{5}} via VillageClaq
 
 Hi {{1}}, you have an outstanding payment of {{2}} for {{3}} due on {{4}}. Please make your payment to stay in good standing.
 ```
+
 **FR Body:**
+
 ```text
 {{5}} via VillageClaq
 
 Bonjour {{1}}, vous avez un paiement en attente de {{2}} pour {{3}}, dû le {{4}}. Veuillez effectuer votre paiement pour rester en règle.
 ```
+
 **Footer EN:** `VillageClaq — Your Community, Organized`
 **Footer FR:** `VillageClaq — Votre communauté, organisée`
 **Parameters:** 1=member_name, 2=amount, 3=contribution_type, 4=due_date, 5=group_name
 
 ## 3. villageclaq_event_reminder_v2
+
 **Category:** UTILITY
 **EN Body:**
+
 ```text
 {{5}} via VillageClaq
 
 Hi {{1}}, {{2}} is on {{3}} at {{4}}. Open the app for details.
 ```
+
 **FR Body:**
+
 ```text
 {{5}} via VillageClaq
 
 Bonjour {{1}}, {{2}} a lieu le {{3}} à {{4}}. Ouvrez l'application pour les détails.
 ```
+
 **Footer EN:** `VillageClaq — Your Community, Organized`
 **Footer FR:** `VillageClaq — Votre communauté, organisée`
 **Parameters:** 1=member_name, 2=event_title, 3=event_date, 4=event_location, 5=group_name
@@ -85,21 +100,26 @@ Bonjour {{1}}, {{2}} a lieu le {{3}} à {{4}}. Ouvrez l'application pour les dé
 **Parameters:** 1=member_name, 2=claim_type, 3=reason, 4=group_name
 
 ## 8. villageclaq_announcement_v2
+
 **Category:** MARKETING
 **EN Body:**
+
 ```text
 {{1}} via VillageClaq
 
 Announcement: {{2}}
 {{3}}
 ```
+
 **FR Body:**
+
 ```text
 {{1}} via VillageClaq
 
 Annonce : {{2}}
 {{3}}
 ```
+
 **Footer EN:** `VillageClaq — Your Community, Organized`
 **Footer FR:** `VillageClaq — Votre communauté, organisée`
 **Parameters:** 1=group_name, 2=announcement_title, 3=announcement_body

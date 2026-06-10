@@ -442,18 +442,6 @@ Readiness notes:
 - The current app passes the claim URL as a body variable, so do not add a URL button without a code change that sends button parameters.
 - If a future template version moves the URL into a button, update app code to send button parameters. The approved current shape uses body variables.
 
-```text
-VillageClaq account claim
-
-Hi {{1}}, claim your {{2}} membership on VillageClaq: {{3}}
-```
-
-```text
-Réclamation de compte VillageClaq
-
-Bonjour {{1}}, réclamez votre adhésion à {{2}} sur VillageClaq : {{3}}
-```
-
 ## Post-Approval Checklist
 
 Before controlled live QA:

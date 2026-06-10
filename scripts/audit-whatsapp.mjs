@@ -93,6 +93,22 @@ check(
   "WhatsApp logs must not include full recipient phone numbers.",
 );
 
+const whatsappTemplates = read("src/lib/whatsapp-templates.ts");
+const approvedLaunchTemplateNames = {
+  PAYMENT_RECEIPT: "villageclaq_payment_receipt_v2",
+  PAYMENT_REMINDER: "villageclaq_payment_reminder_v2",
+  EVENT_REMINDER: "villageclaq_event_reminder_v2",
+  ANNOUNCEMENT: "villageclaq_announcement_v2",
+};
+
+for (const [constantName, approvedTemplateName] of Object.entries(approvedLaunchTemplateNames)) {
+  check(
+    `WhatsApp ${constantName} maps to approved v2 template`,
+    whatsappTemplates.includes(`${constantName}: "${approvedTemplateName}"`),
+    `Launch-critical WhatsApp templates must use ${approvedTemplateName}.`,
+  );
+}
+
 const exampleEnv = envNamesFromExample();
 for (const requiredName of [
   "WHATSAPP_API_TOKEN",

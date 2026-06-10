@@ -65,7 +65,7 @@ function loadProducer() {
       };
     }
     if (id === "@/lib/whatsapp-templates") {
-      return { WA_TEMPLATES: { PAYMENT_RECEIPT: "villageclaq_payment_receipt" } };
+      return { WA_TEMPLATES: { PAYMENT_RECEIPT: "villageclaq_payment_receipt_v2" } };
     }
     return require(id);
   };
@@ -239,7 +239,7 @@ test("confirmed payment produces an in-app receipt and server-side WhatsApp queu
   });
 
   assert.equal(result.status, "queued");
-  assert.equal(result.template, "villageclaq_payment_receipt");
+  assert.equal(result.template, "villageclaq_payment_receipt_v2");
 
   const notificationInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "notifications");
   assert.ok(notificationInsert, "expected in-app receipt insert");
@@ -251,7 +251,7 @@ test("confirmed payment produces an in-app receipt and server-side WhatsApp queu
   assert.equal(queueInsert.payload.channel, "whatsapp");
   assert.equal(queueInsert.payload.template, "payment_receipt");
   assert.equal(queueInsert.payload.data.whatsappType, "payment_receipt");
-  assert.equal(queueInsert.payload.data.template, "villageclaq_payment_receipt");
+  assert.equal(queueInsert.payload.data.template, "villageclaq_payment_receipt_v2");
   assert.equal(queueInsert.payload.data.paymentId, ids.payment);
   assert.equal(queueInsert.payload.data.whatsappData.groupName, "Njimafor Diaspora");
 

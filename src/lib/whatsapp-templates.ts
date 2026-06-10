@@ -14,14 +14,14 @@ import type { WhatsAppTemplateComponent } from "@/lib/send-whatsapp";
 // ─── Template Names ─────────────────────────────────────────────────────────
 
 export const WA_TEMPLATES = {
-  PAYMENT_RECEIPT: "villageclaq_payment_receipt",
-  PAYMENT_REMINDER: "villageclaq_payment_reminder",
-  EVENT_REMINDER: "villageclaq_event_reminder",
+  PAYMENT_RECEIPT: "villageclaq_payment_receipt_v2",
+  PAYMENT_REMINDER: "villageclaq_payment_reminder_v2",
+  EVENT_REMINDER: "villageclaq_event_reminder_v2",
   HOSTING_REMINDER: "villageclaq_hosting_reminder",
   MINUTES_PUBLISHED: "villageclaq_minutes_published",
   RELIEF_CLAIM_APPROVED: "villageclaq_relief_claim_approved",
   RELIEF_CLAIM_DENIED: "villageclaq_relief_claim_denied",
-  ANNOUNCEMENT: "villageclaq_announcement",
+  ANNOUNCEMENT: "villageclaq_announcement_v2",
   ELECTION_OPENED: "villageclaq_election_opened",
   INVITATION: "villageclaq_invitation",
   LOAN_APPROVED: "villageclaq_loan_approved",

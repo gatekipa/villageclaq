@@ -14,6 +14,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { getEnabledChannels, type NotificationTypeKey } from "@/lib/notification-prefs";
+import { maskPhoneNumber } from "@/lib/mask-phone";
 
 // ─── Deep Link Map ─────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
 
   console.log("[SMS DIAG] notifyFromClient start", {
     recipientUserId,
-    recipientPhone,
+    recipientPhone: maskPhoneNumber(recipientPhone),
     callerChannels: channels,
     smsTemplate,
     prefType,

@@ -161,6 +161,7 @@ Annonce : {{2}}
 **Parameters:** 1=member_name, 2=new_standing, 3=group_name
 
 ## 15. villageclaq_welcome — SUPERSEDED
+
 > **Superseded (2026-06-11):** Meta approved this template as MARKETING (not the
 > intended UTILITY), and marketing templates are blocked to US numbers (error
 > 131049). The app's `welcome` type now maps to `villageclaq_member_joined`

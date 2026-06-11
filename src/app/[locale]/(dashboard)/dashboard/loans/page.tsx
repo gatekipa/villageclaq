@@ -470,7 +470,11 @@ export default function LoansAdminPage() {
       const amt = Number(approveAmount);
       const rate = config.interest_rate_percent || 0;
       const totalRepayable = amt + (amt * Number(rate) / 100);
-      const { error: e } = await supabase.from("loans").update({
+      // Status precondition: a concurrent second decision (two admins, two
+      // tabs) matches zero rows, and the bail-out below skips ALL
+      // notifications/audit so the borrower is never told "approved" when
+      // another admin already decided (possibly denied) the loan.
+      const { data: updatedRows, error: e } = await supabase.from("loans").update({
         status: "approved",
         amount_approved: amt,
         interest_rate: rate,
@@ -478,8 +482,13 @@ export default function LoansAdminPage() {
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
         review_notes: reviewNotes.trim() || null,
-      }).eq("id", selectedLoan.id as string);
+      }).eq("id", selectedLoan.id as string).eq("status", "pending").select("id");
       if (e) throw e;
+      if (!updatedRows || updatedRows.length === 0) {
+        setReviewError(t("alreadyDecided"));
+        await queryClient.invalidateQueries({ queryKey: ["loans-admin", groupId] });
+        return;
+      }
 
       // Notify borrower
       const membership = selectedLoan.membership as Record<string, unknown> | null;
@@ -498,14 +507,18 @@ export default function LoansAdminPage() {
         } catch { /* best-effort */ }
       }
 
-      // WhatsApp + Email + SMS for loan approval (fire-and-forget)
+      // Email + SMS for loan approval (fire-and-forget). WhatsApp goes
+      // through the server-side queue-backed producer (exactly-once per
+      // loan, borrower-locale, DB-resolved variables). In-app is the direct
+      // insert above; notifyFromClient's typed insert is disabled — "loan"
+      // was never a valid notification_type enum value, so it always
+      // failed silently.
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
-        const borrowerName = membership ? getMemberName(membership as Record<string, unknown>) : "";
         const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
         // profile.phone no longer in useMembers cache. /api/sms/send
-        // and /api/whatsapp/send resolve real-member phone from user_id
-        // server-side. Only proxy phones flow client-side.
+        // resolves real-member phone from user_id server-side. Only proxy
+        // phones flow client-side.
         const phone = (privSettings?.proxy_phone as string) || null;
         notifyFromClient({
           recipientUserId: borrowerUserId,
@@ -513,16 +526,19 @@ export default function LoansAdminPage() {
           groupId: groupId!,
           title: t("loanApprovedNotifTitle"),
           body: t("loanApprovedNotifBody", { amount: formatAmount(amt, currency) }),
-          data: { memberName: borrowerName, amount: formatAmount(amt, currency), groupName: currentGroup?.name || "" },
+          data: { amount: formatAmount(amt, currency), groupName: currentGroup?.name || "" },
           emailTemplate: "notification",
           smsTemplate: "loan-approved",
-          whatsappType: "loan_approved",
           inAppType: "loan",
           locale,
-          channels: { inApp: true, email: true, sms: true, whatsapp: true },
+          channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "loan_updates",
         }).catch(() => {});
-      } catch { /* best-effort */ }
+        const { requestLoanApprovedWhatsApp } = await import("@/lib/notify-money-path");
+        requestLoanApprovedWhatsApp(supabase, selectedLoan.id as string, locale).catch(() => {});
+      } catch (err) {
+        console.warn("[Loans] approval notification dispatch failed:", err instanceof Error ? err.message : err);
+      }
 
       // Audit log
       try {
@@ -620,7 +636,7 @@ export default function LoansAdminPage() {
       const amt = Number(qlAmount);
       const rate = Number(qlInterestRate) || 0;
       const totalRepayable = amt + (amt * rate / 100);
-      const { error: e } = await supabase.from("loans").insert({
+      const { data: newLoan, error: e } = await supabase.from("loans").insert({
         group_id: groupId,
         membership_id: qlMemberId,
         guarantor_membership_id: qlGuarantorId || null,
@@ -636,8 +652,18 @@ export default function LoansAdminPage() {
         reviewed_by: user.id,
         reviewed_at: new Date().toISOString(),
         currency,
-      });
+      }).select("id").single();
       if (e) throw e;
+
+      // Quick loans are created already-approved: send the borrower the same
+      // WhatsApp approval notice as the review flow (previously quick loans
+      // were in-app only). Queue-backed, exactly-once per loan.
+      try {
+        const { requestLoanApprovedWhatsApp } = await import("@/lib/notify-money-path");
+        requestLoanApprovedWhatsApp(supabase, newLoan?.id as string | undefined, locale).catch(() => {});
+      } catch (err) {
+        console.warn("[Loans] quick loan notification dispatch failed:", err instanceof Error ? err.message : err);
+      }
 
       // Notify borrower
       const borrowerMembership = (membersList || []).find((m: Record<string, unknown>) => m.id === qlMemberId);

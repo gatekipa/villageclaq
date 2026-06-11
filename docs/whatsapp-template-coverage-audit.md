@@ -61,14 +61,14 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `event_reminder` | `EVENT_REMINDER` | `villageclaq_event_reminder_v2` | MARKETING | yes | yes | `memberName`, `eventTitle`, `eventDate`, `eventLocation`, `groupName` | 5 | `src/app/api/cron/event-reminders/route.ts` | awaited direct dispatch with result | webhook row can persist, but no queue row for direct sends | Ready for template QA; observability gap |
 | `hosting_reminder` | `HOSTING_REMINDER` | `villageclaq_hosting_reminder` | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | hosting cron and hosting UI | direct dispatch or client route | limited for direct/client sends | Ready for template QA; routing hardening later |
 | `minutes_published` | `MINUTES_PUBLISHED` | `villageclaq_minutes_published` | MARKETING | yes | yes | `groupName`, `meetingTitle`, `meetingDate` | 3 | minutes page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
-| `relief_claim_approved` | `RELIEF_CLAIM_APPROVED` | `villageclaq_relief_claim_approved` | UTILITY | yes | yes | `memberName`, `claimType`, `amount`, `groupName` | 4 | relief claims page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
-| `relief_claim_denied` | `RELIEF_CLAIM_DENIED` | `villageclaq_relief_claim_denied` | UTILITY | yes | yes | `memberName`, `claimType`, `reason`, `groupName` | 4 | relief claims page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
+| `relief_claim_approved` | `RELIEF_CLAIM_APPROVED` | `villageclaq_relief_claim_approved` | UTILITY | yes | yes | `memberName`, `claimType`, `amount`, `groupName` | 4 | `src/lib/relief-claim-decision-producer.ts` via `/api/relief/claim-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093; verify live Meta category before US QA |
+| `relief_claim_denied` | `RELIEF_CLAIM_DENIED` | `villageclaq_relief_claim_denied` | UTILITY | yes | yes | `memberName`, `claimType`, `reason`, `groupName` | 4 | `src/lib/relief-claim-decision-producer.ts` via `/api/relief/claim-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093; verify live Meta category before US QA |
 | `announcement` | `ANNOUNCEMENT` | `villageclaq_announcement_v2` | MARKETING | yes | yes | `groupName`, `title`, `body` | 3 | announcements page, scheduled announcement cron, enterprise transfers | client route or direct cron dispatch | limited for direct/client sends | Ready for template QA; routing hardening later |
 | `election_opened` | `ELECTION_OPENED` | `villageclaq_election_opened` | MARKETING | yes | yes | `groupName`, `electionTitle`, `positions` | 3 | elections page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
 | `invitation` | `INVITATION` | `villageclaq_invitation` | MARKETING | yes | yes | `inviterName`, `groupName`, `acceptUrl` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
-| `loan_approved` | `LOAN_APPROVED` | `villageclaq_loan_approved` | UTILITY | yes | yes | `memberName`, `amount`, `groupName` | 3 | loans page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
+| `loan_approved` | `LOAN_APPROVED` | `villageclaq_loan_approved` | UTILITY | yes | yes | `memberName`, `amount`, `groupName` | 3 | `src/lib/loan-approved-producer.ts` via `/api/loans/approval-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093 before QA |
 | `loan_overdue` | `LOAN_OVERDUE` | `villageclaq_loan_overdue` | UTILITY | yes | yes | `memberName`, `amount`, `dueDate`, `groupName` | 4 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
-| `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `reason`, `groupName` | 5 | fines page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
+| `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `reason`, `groupName` | 5 | `src/lib/fine-issued-producer.ts` via `/api/fines/issued-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093; VERIFY {{4}}/{{5}} ORDER in WhatsApp Manager before live QA (addendum 7) |
 | `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | `src/lib/standing-change-producer.ts` via `/api/members/standing-notifications` (see addendum 6) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00091 before QA |
 | `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
 | `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_reminder` (reused; see addendum 3) | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | `src/lib/hosting-assignment-producer.ts` via `/api/hosting/assignment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
@@ -462,3 +462,77 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   QA. Migration `00092` is forward-looking and can be applied alongside the
   constraint widening. No live messages were sent; all verification is static or
   mocked.
+## Addendum 7 (2026-06-11, money-path producerization: fines, loans, relief claims)
+
+- All three money paths were client-side fire-and-forget `notifyFromClient`
+  sends with **no dedup anywhere** (double-click/refresh/two-admin races
+  double-sent), provider message IDs dropped, the ADMIN's locale instead of
+  the recipient's, and client-cache blank-variable risks (`memberName`/
+  `fineType`/`groupName` could be `""` on cache misses — Meta rejects blank
+  body parameters). The relief **plans** page additionally decided claims
+  with NO notification at all (silent approve/deny).
+- Three new queue-backed producers, each triggered via an authz'd route
+  (affected member / active group owner-admin / platform staff) and reading
+  ALL content authoritatively from the DB:
+  - `fine_issued` — exactly-once per `fineId`; the fines page now captures
+    the inserted fine id. `reason` falls back to `-` (old-path parity).
+  - `loan_approved` — exactly-once per `loanId`; accepts
+    approved/disbursed/repaying (the UI jumps approved→repaying); amount is
+    the APPROVED amount. The approval UPDATE now carries a
+    `.eq("status","pending")` precondition, and **quick loans now send the
+    WhatsApp approval notice too** (previously in-app only — deliberate
+    behavior change).
+  - `relief_claim_approved`/`relief_claim_denied` — keyed per
+    **(claimId, decision template)**: same-decision reruns dedupe, a genuine
+    reversal still notifies once per decision. A denial with an empty review
+    reason (reachable from the plans page) skips as `missing_template_data`.
+    `claimType` is the plan name, localized via `name_fr` for FR recipients.
+    relief_claims has no `group_id` — the plan's group is used throughout,
+    with no membership/plan group-mismatch skip (shared/HQ plans).
+- Proxy members are INCLUDED in all three (privacy_settings.proxy_phone),
+  matching the old client paths. Recipient `preferred_locale` now wins
+  (previously the deciding admin's UI locale). In-app/email/SMS stay on the
+  legacy client path — with one cleanup: `notifyFromClient`'s typed in-app
+  insert is now disabled (`inApp: false`) because `fine`/`loan`/`relief`
+  were never valid `notification_type` enum values, so that insert always
+  failed silently against the DB; the pages' direct `type: "system"` insert
+  is and was the one real in-app row. The loans approve flow additionally
+  bails out (no notifications, no audit log, visible "already decided"
+  error) when its status precondition matches zero rows, so a stale approve
+  after another admin's decision no longer emails/SMSes "approved".
+- Channel asymmetry note: the relief PLANS page decision surface sends
+  WhatsApp only (it previously sent nothing) — in-app/email/SMS for that
+  surface remain absent, unlike the claims page which sends all channels.
+  Also: that page is gated by the `relief.manage` permission, which can
+  include non-owner/admin position holders — but relief_claims UPDATE RLS is
+  owner/admin-only, so such users' decisions never persist and the producer
+  route's owner/admin authz is not a real coverage gap.
+- **Fine template QA gate**: `docs/WHATSAPP_TEMPLATES.md` documents
+  `villageclaq_fine_issued` parameters as 1=member_name, 2=fine_type,
+  3=amount, **4=group_name, 5=reason**, but `buildFineIssuedParams` emits
+  **{{4}}=reason, {{5}}=groupName**. One of the two is wrong; there is no
+  delivery evidence either way (the old path was never live-QA'd). The
+  builder was deliberately left unchanged (code parity). Before live fine
+  QA, check the approved body in WhatsApp Manager: if it reads
+  "({{4}}). Reason: {{5}}" with 4=group, fix `buildFineIssuedParams`'
+  order first, else fix the doc.
+- Claim-template category caution: both doc sources say the claim templates
+  are UTILITY and they are from the original launch batch (not the 2026-06
+  batch that was silently MARKETING), but verify the live category in
+  WhatsApp Manager before US-number QA — precedent: villageclaq_relief_enrollment.
+- `loan_overdue` remains fully plumbed but has NO caller (orphaned) — a
+  future cron producer with a (loanId, day) bucket would light it up; do not
+  enable live sends for it.
+- Migration `00093` (four partial unique indexes: fineId, loanId, claimId
+  per decision) is committed, NOT applied — apply it IN THE SAME RELEASE
+  WINDOW as the deploy: the producers go live immediately and until the
+  indexes exist their check-before-insert is racy. The migration is also
+  late-apply-safe (it deletes any race duplicates, keeping the earliest row
+  per key, before creating the unique indexes).
+- Remaining holdbacks: remittances (template categories unverified — 2026-06
+  batch), invitations, announcements (MARKETING-risk, category strategy
+  pending), membership_status constraint widening + 00092,
+  event/subscription/scheduled-announcement crons, proxy-claim route, and
+  the loan_overdue cron above.
+- No live messages were sent in the production of this addendum; all
+  verification is static or mocked.

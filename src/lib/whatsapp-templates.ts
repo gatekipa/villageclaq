@@ -161,6 +161,9 @@ export function buildLoanOverdueParams(data: {
   return bodyParams(data.memberName, data.amount, data.dueDate, data.groupName);
 }
 
+// Approved Meta body order (verified in WhatsApp Manager, EN + FR):
+// {{1}} memberName, {{2}} fineType, {{3}} amount, {{4}} groupName,
+// {{5}} reason. The original emission had {{4}}/{{5}} swapped.
 export function buildFineIssuedParams(data: {
   memberName: string;
   fineType: string;
@@ -168,7 +171,7 @@ export function buildFineIssuedParams(data: {
   reason: string;
   groupName: string;
 }): WhatsAppTemplateComponent[] {
-  return bodyParams(data.memberName, data.fineType, data.amount, data.reason, data.groupName);
+  return bodyParams(data.memberName, data.fineType, data.amount, data.groupName, data.reason);
 }
 
 export function buildStandingChangedParams(data: {

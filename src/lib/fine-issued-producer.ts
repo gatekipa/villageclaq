@@ -304,12 +304,15 @@ export async function produceFineIssuedNotification(
       membershipId: membership.id,
       fineId: fine.id,
       whatsappType: "fine_issued",
+      // Approved Meta body order: memberName, fineType, amount, groupName,
+      // reason (the dispatcher passes these by key; buildFineIssuedParams
+      // emits the positional order).
       whatsappData: {
         memberName: memberName(membership, profile),
         fineType: fineTypeName,
         amount,
-        reason,
         groupName,
+        reason,
       },
       template: WA_TEMPLATES.FINE_ISSUED,
       locale,

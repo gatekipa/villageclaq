@@ -219,7 +219,9 @@ test("an issued fine queues exactly one WhatsApp row with ordered non-empty vari
   assert.equal(payload.template, "fine_issued");
   assert.equal(payload.data.whatsappType, "fine_issued");
   assert.equal(payload.data.fineId, ids.fine);
-  assert.deepEqual(Object.keys(payload.data.whatsappData), ["memberName", "fineType", "amount", "reason", "groupName"]);
+  // Approved Meta body order (verified in WhatsApp Manager): {{4}} is the
+  // group name and {{5}} is the reason.
+  assert.deepEqual(Object.keys(payload.data.whatsappData), ["memberName", "fineType", "amount", "groupName", "reason"]);
   for (const [key, value] of Object.entries(payload.data.whatsappData)) {
     assert.ok(String(value).length > 0, `${key} must be non-empty`);
   }

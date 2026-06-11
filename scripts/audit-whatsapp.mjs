@@ -187,7 +187,9 @@ const fullTemplateRegistry = {
     constant: "FINE_ISSUED",
     template: "villageclaq_fine_issued",
     builder: "buildFineIssuedParams",
-    vars: ["memberName", "fineType", "amount", "reason", "groupName"],
+    // Approved Meta body order verified in WhatsApp Manager (EN + FR):
+    // {{4}} = groupName, {{5}} = reason.
+    vars: ["memberName", "fineType", "amount", "groupName", "reason"],
   },
   standing_changed: {
     constant: "STANDING_CHANGED",

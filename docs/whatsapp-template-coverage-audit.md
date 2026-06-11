@@ -68,7 +68,7 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `invitation` | `INVITATION` | `villageclaq_invitation` | MARKETING | yes | yes | `inviterName`, `groupName`, `acceptUrl` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
 | `loan_approved` | `LOAN_APPROVED` | `villageclaq_loan_approved` | UTILITY | yes | yes | `memberName`, `amount`, `groupName` | 3 | `src/lib/loan-approved-producer.ts` via `/api/loans/approval-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093 before QA |
 | `loan_overdue` | `LOAN_OVERDUE` | `villageclaq_loan_overdue` | UTILITY | yes | yes | `memberName`, `amount`, `dueDate`, `groupName` | 4 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
-| `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `reason`, `groupName` | 5 | `src/lib/fine-issued-producer.ts` via `/api/fines/issued-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093; VERIFY {{4}}/{{5}} ORDER in WhatsApp Manager before live QA (addendum 7) |
+| `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `groupName`, `reason` | 5 | `src/lib/fine-issued-producer.ts` via `/api/fines/issued-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093 before QA ({{4}}/{{5}} order verified in WhatsApp Manager 2026-06-11) |
 | `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | `src/lib/standing-change-producer.ts` via `/api/members/standing-notifications` (see addendum 6) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00091 before QA |
 | `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
 | `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_reminder` (reused; see addendum 3) | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | `src/lib/hosting-assignment-producer.ts` via `/api/hosting/assignment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
@@ -507,15 +507,14 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   include non-owner/admin position holders — but relief_claims UPDATE RLS is
   owner/admin-only, so such users' decisions never persist and the producer
   route's owner/admin authz is not a real coverage gap.
-- **Fine template QA gate**: `docs/WHATSAPP_TEMPLATES.md` documents
-  `villageclaq_fine_issued` parameters as 1=member_name, 2=fine_type,
-  3=amount, **4=group_name, 5=reason**, but `buildFineIssuedParams` emits
-  **{{4}}=reason, {{5}}=groupName**. One of the two is wrong; there is no
-  delivery evidence either way (the old path was never live-QA'd). The
-  builder was deliberately left unchanged (code parity). Before live fine
-  QA, check the approved body in WhatsApp Manager: if it reads
-  "({{4}}). Reason: {{5}}" with 4=group, fix `buildFineIssuedParams`'
-  order first, else fix the doc.
+- **Fine template order — RESOLVED (2026-06-11)**: the approved Meta body
+  for `villageclaq_fine_issued` was manually verified in WhatsApp Manager
+  (EN + FR, both UTILITY): **{{4}} = groupName, {{5}} = reason**, exactly as
+  `docs/WHATSAPP_TEMPLATES.md` documents. `buildFineIssuedParams` originally
+  emitted those two swapped and was corrected in this PR; the producer's
+  whatsappData, the audit registry, and the tests now all assert the
+  approved order. No live fine WhatsApp had ever been sent through the old
+  swapped emission.
 - Claim-template category caution: both doc sources say the claim templates
   are UTILITY and they are from the original launch batch (not the 2026-06
   batch that was silently MARKETING), but verify the live category in

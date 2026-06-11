@@ -70,7 +70,7 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `loan_overdue` | `LOAN_OVERDUE` | `villageclaq_loan_overdue` | UTILITY | yes | yes | `memberName`, `amount`, `dueDate`, `groupName` | 4 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
 | `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `reason`, `groupName` | 5 | fines page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
 | `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
-| `welcome` | `WELCOME` | `villageclaq_welcome` | MARKETING | yes | yes (see addendum) | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
+| `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
 | `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_assignment` | missing | no | no | `memberName`, `hostingDate`, `groupName` | missing | hosting UI via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_relief_enrollment` | missing | no | no | `memberName`, `planName`, `groupName` | missing | relief enrollment page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `remittance_confirmed` | `REMITTANCE_CONFIRMED` | `villageclaq_remittance_confirmed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
@@ -289,3 +289,29 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   preferences gate the send (default WhatsApp OFF); idempotency is one welcome
   per membership (check-before-insert plus migration 00088 unique index).
   Tested by `npm run test:welcome-producer` and audited by `npm run audit:whatsapp`.
+
+## Addendum 2 (2026-06-11, post-QA: Utility remap and pay-now hardening)
+
+- Controlled EN welcome QA (2026-06-11) proved the pipeline end to end (queue row →
+  drain send → `providerMessageId` → webhook correlation → idempotency), but Meta
+  blocked delivery with error `131049`: `villageclaq_welcome` is MARKETING and Meta
+  pauses marketing templates to US numbers. See
+  `docs/whatsapp-welcome-utility-template.md` for the full analysis.
+- `villageclaq_member_joined` (UTILITY) was approved in Meta for EN and FR, and the
+  app's `welcome` type now maps to it (`WA_TEMPLATES.WELCOME`). Variable order is
+  unchanged (`memberName`, `groupName`); EN/FR selection is unchanged. The old
+  `villageclaq_welcome` MARKETING template is unused by code and can be retired in
+  Meta once this mapping is deployed.
+- Pay-now receipt path hardened: `pay-now-dialog.tsx` no longer sends a client-side
+  WhatsApp `payment_receipt` at submission time (the payment is still
+  `pending_confirmation`). The receipt is produced by the server-side queue-backed
+  producer when an admin confirms the payment (`contributions/history` →
+  `/api/payments/receipt-notifications`, whose authorization now also accepts active
+  group owners/admins of the payment's group). Exactly-once per payment is preserved
+  (queue dedupe + migration 00087 unique index).
+- Ready for manual QA: `welcome` (re-run a fresh join for the QA recipient; expect
+  delivered/read now that the template is UTILITY) and the pay-now → confirm receipt
+  flow. Still held: `relief_enrollment` (producer sends blank `memberName`; needs a
+  server-side queue-backed producer — separate PR) and `hosting_assignment` (mapped
+  Meta template name does not exist; remap to `villageclaq_hosting_reminder` plus a
+  per-recipient payload producer — separate PR).

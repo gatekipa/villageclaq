@@ -12,7 +12,7 @@ Final read-only Meta re-check found 48 approved language rows across 24 approved
 
 | App type/key | Meta template name | Meta status | Recommendation |
 | --- | --- | --- | --- |
-| `welcome` | `villageclaq_welcome` | EN/FR approved | Ready for controlled template QA: server-side queue-backed producer implemented (`src/lib/welcome-producer.ts` via `/api/members/welcome-notifications`). |
+| `welcome` | `villageclaq_member_joined` (UTILITY; replaced MARKETING `villageclaq_welcome` after Meta error 131049 blocked US delivery) | EN/FR approved | Mapped in app. Ready for controlled template QA: server-side queue-backed producer implemented (`src/lib/welcome-producer.ts` via `/api/members/welcome-notifications`). See `docs/whatsapp-welcome-utility-template.md`. |
 | `relief_enrollment` | `villageclaq_relief_enrollment` | EN/FR approved | Hold live QA until producer data supplies `memberName`. |
 | `remittance_confirmed` | `villageclaq_remittance_confirmed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
 | `remittance_disputed` | `villageclaq_remittance_disputed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
@@ -49,6 +49,12 @@ Approval and QA rules:
 - Sample phone numbers: not needed and not included
 
 ## 1. `villageclaq_welcome`
+
+> **Superseded (2026-06-11):** this MARKETING template failed US delivery with Meta
+> error `131049` during controlled QA. The app's `welcome` type now maps to the
+> approved UTILITY template `villageclaq_member_joined` — copy and submission notes
+> in `docs/whatsapp-welcome-utility-template.md`. The section below is retained as
+> the historical record of the original template.
 
 Template purpose: welcome a user after joining or claiming membership in a group.
 

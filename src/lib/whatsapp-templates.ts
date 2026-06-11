@@ -28,7 +28,7 @@ export const WA_TEMPLATES = {
   LOAN_OVERDUE: "villageclaq_loan_overdue",
   FINE_ISSUED: "villageclaq_fine_issued",
   STANDING_CHANGED: "villageclaq_standing_changed",
-  WELCOME: "villageclaq_welcome",
+  WELCOME: "villageclaq_member_joined",
   HOSTING_ASSIGNMENT: "villageclaq_hosting_assignment",
   RELIEF_ENROLLMENT: "villageclaq_relief_enrollment",
   REMITTANCE_CONFIRMED: "villageclaq_remittance_confirmed",

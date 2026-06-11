@@ -75,7 +75,7 @@ function loadProducer() {
       };
     }
     if (id === "@/lib/whatsapp-templates") {
-      return { WA_TEMPLATES: { WELCOME: "villageclaq_welcome" } };
+      return { WA_TEMPLATES: { WELCOME: "villageclaq_member_joined" } };
     }
     return require(id);
   };
@@ -234,7 +234,7 @@ test("active membership produces exactly one server-side WhatsApp welcome queue 
   });
 
   assert.equal(result.status, "queued");
-  assert.equal(result.template, "villageclaq_welcome");
+  assert.equal(result.template, "villageclaq_member_joined");
   assert.equal(result.whatsappQueued, true);
 
   const queueInserts = supabase.calls.filter((call) => call.op === "insert" && call.table === "notifications_queue");
@@ -246,7 +246,7 @@ test("active membership produces exactly one server-side WhatsApp welcome queue 
   assert.equal(queueInsert.payload.status, "queued");
   assert.equal(queueInsert.payload.user_id, ids.user);
   assert.equal(queueInsert.payload.data.whatsappType, "welcome");
-  assert.equal(queueInsert.payload.data.template, "villageclaq_welcome");
+  assert.equal(queueInsert.payload.data.template, "villageclaq_member_joined");
   assert.equal(queueInsert.payload.data.membershipId, ids.membership);
   assert.equal(queueInsert.payload.data.groupId, ids.group);
   assert.equal(queueInsert.payload.data.recipient, fullPhone);

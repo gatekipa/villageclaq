@@ -639,7 +639,7 @@ check(
 const calculateStanding = read("src/lib/calculate-standing.ts");
 check(
   "calculate-standing routes WhatsApp through the producer, not a direct send",
-  !calculateStanding.includes('"/api/whatsapp/send"') &&
+  !/\/api\/whatsapp\/send/.test(calculateStanding) &&
     calculateStanding.includes("/api/members/standing-notifications"),
   "Standing-change WhatsApp must flow through the queue-backed producer route.",
 );
@@ -648,6 +648,7 @@ const standingMigration = read("supabase/migrations/00091_standing_change_notifi
 check(
   "WhatsApp standing change idempotency migration exists",
   standingMigration.includes("idx_notifications_queue_whatsapp_standing_changed_unique") &&
+    standingMigration.includes("data ->> 'membershipId'") &&
     standingMigration.includes("data ->> 'newStanding'") &&
     standingMigration.includes("data ->> 'changeDate'") &&
     standingMigration.includes("template = 'standing_changed'"),

@@ -54,7 +54,8 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (membershipError) {
-      return NextResponse.json({ error: membershipError.message }, { status: 500 });
+      console.warn("[StandingProducerRoute] membership lookup failed:", membershipError.message);
+      return NextResponse.json({ error: "Membership lookup failed" }, { status: 500 });
     }
 
     if (!membership) {

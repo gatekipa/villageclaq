@@ -230,6 +230,38 @@ export default function PaymentHistoryPage() {
         .eq("id", payment.id);
       if (updateErr) throw updateErr;
 
+      // Produce the receipt notifications server-side (queue-backed WhatsApp,
+      // exactly-once per payment) now that the payment is confirmed. This is
+      // the receipt moment for member-submitted pay-now payments — their
+      // dialog intentionally sends no WhatsApp at submission time.
+      // Fire-and-forget: confirmation must never block on notifications.
+      // No locale in the body — the producer falls back to the recipient
+      // member's preferred_locale, not the confirming admin's UI locale.
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          fetch("/api/payments/receipt-notifications", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ paymentId: payment.id }),
+            keepalive: true,
+          })
+            .then((res) => {
+              if (!res.ok) {
+                console.warn("[Notify] receipt production returned", res.status);
+              }
+            })
+            .catch((err) => {
+              console.warn("[Notify] receipt production request failed:", err);
+            });
+        }
+      } catch (err) {
+        console.warn("[Notify] receipt production request failed:", err);
+      }
+
       // Recalculate obligation if linked — sum ALL confirmed payments (consistent with edit/delete)
       if (payment.obligationId) {
         const { data: allPayments } = await supabase

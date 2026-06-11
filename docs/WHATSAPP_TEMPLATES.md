@@ -160,8 +160,15 @@ Annonce : {{2}}
 **FR Body:** `Bonjour {{1}}, votre statut dans {{3}} a été mis à jour : {{2}}.`
 **Parameters:** 1=member_name, 2=new_standing, 3=group_name
 
-## 15. villageclaq_welcome
-**Category:** UTILITY
+## 15. villageclaq_welcome — SUPERSEDED
+
+> **Superseded (2026-06-11):** Meta approved this template as MARKETING (not the
+> intended UTILITY), and marketing templates are blocked to US numbers (error
+> 131049). The app's `welcome` type now maps to `villageclaq_member_joined`
+> (UTILITY) — copy in `docs/whatsapp-welcome-utility-template.md`. Retained for
+> historical record; retire this template in Meta after the mapping is deployed.
+
+**Category:** UTILITY (intended; approved as MARKETING)
 **EN Body:** `Welcome {{1}}! You are now a member of {{2}} on VillageClaq. Open the app to get started.`
 **FR Body:** `Bienvenue {{1}} ! Vous êtes maintenant membre de {{2}} sur VillageClaq. Ouvrez l'application pour commencer.`
 **Parameters:** 1=member_name, 2=group_name

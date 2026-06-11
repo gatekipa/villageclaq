@@ -197,7 +197,7 @@ const fullTemplateRegistry = {
   },
   welcome: {
     constant: "WELCOME",
-    template: "villageclaq_welcome",
+    template: "villageclaq_member_joined",
     builder: "buildWelcomeParams",
     vars: ["memberName", "groupName"],
   },
@@ -468,6 +468,21 @@ check(
     welcomeIdempotencyMigration.includes("channel = 'whatsapp'") &&
     welcomeIdempotencyMigration.includes("data ->> 'membershipId'"),
   "DB-level uniqueness must back the welcome producer's check-before-insert, scoped to whatsapp/welcome/membershipId.",
+);
+
+const payNowDialog = read("src/components/payments/pay-now-dialog.tsx");
+check(
+  "Pay-now dialog defers WhatsApp receipts to the server-side producer",
+  !payNowDialog.includes('whatsappType: "payment_receipt"') &&
+    payNowDialog.includes("whatsapp: false"),
+  "Member-submitted payments must not trigger client-side WhatsApp receipts before confirmation.",
+);
+
+const confirmHistoryPage = read("src/app/[locale]/(dashboard)/dashboard/contributions/history/page.tsx");
+check(
+  "Payment confirmation triggers the queue-backed receipt producer",
+  confirmHistoryPage.includes("/api/payments/receipt-notifications"),
+  "Confirmed pay-now payments must produce the WhatsApp receipt via the server-side producer.",
 );
 
 const webhookDoc = read("docs/whatsapp-webhook-status.md");

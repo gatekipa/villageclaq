@@ -8,12 +8,15 @@ import ts from "typescript";
 const sourcePath = new URL("../src/lib/payment-receipt-producer.ts", import.meta.url);
 const recordPagePath = new URL("../src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx", import.meta.url);
 const receiptRoutePath = new URL("../src/app/api/payments/receipt-notifications/route.ts", import.meta.url);
+const payNowDialogPath = new URL("../src/components/payments/pay-now-dialog.tsx", import.meta.url);
+const historyPagePath = new URL("../src/app/[locale]/(dashboard)/dashboard/contributions/history/page.tsx", import.meta.url);
 const require = createRequire(import.meta.url);
 
 const ids = {
   payment: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   duplicatePayment: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
   pendingPayment: "cccccccc-cccc-4ccc-cccc-cccccccccccc",
+  paynowPayment: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
   mismatchPayment: "dddddddd-dddd-4ddd-dddd-dddddddddddd",
   membership: "11111111-1111-4111-8111-111111111111",
   mismatchMembership: "22222222-2222-4222-8222-222222222222",
@@ -191,6 +194,7 @@ function selectRow(table, filters, state) {
   if (table === "payments") {
     const requestedId = filters.find((filter) => filter.column === "id")?.value;
     if (requestedId === ids.pendingPayment) return { ...state.payment, id: ids.pendingPayment, status: "pending" };
+    if (requestedId === ids.paynowPayment) return { ...state.payment, id: ids.paynowPayment, status: "pending_confirmation" };
     if (requestedId === ids.mismatchPayment) return { ...state.payment, id: ids.mismatchPayment, membership_id: ids.mismatchMembership };
     if (requestedId === ids.duplicatePayment) return { ...state.payment, id: ids.duplicatePayment };
     if (requestedId === state.payment.id) return state.payment;
@@ -372,4 +376,48 @@ test("receipt notification route returns 400 for malformed JSON", () => {
   assert.match(source, /Malformed JSON/);
   assert.match(source, /status:\s*400/);
   assert.match(source, /await request\.json\(\)/);
+});
+
+test("pay-now pending_confirmation payment never produces a receipt", async () => {
+  const { producePaymentReceiptNotifications } = loadProducer();
+  const supabase = createMockSupabase();
+
+  const result = await producePaymentReceiptNotifications(supabase, ids.paynowPayment);
+
+  assert.equal(result.status, "skipped");
+  assert.equal(result.reason, "payment_not_confirmed");
+  assert.equal(supabase.calls.filter((call) => call.op === "insert").length, 0);
+});
+
+test("pay-now dialog no longer sends WhatsApp receipts client-side", () => {
+  const source = fs.readFileSync(payNowDialogPath, "utf8");
+
+  assert.doesNotMatch(source, /whatsappType:\s*"payment_receipt"/);
+  assert.match(source, /whatsapp:\s*false/);
+  // Existing in-app/email/SMS submission behavior is preserved.
+  assert.match(source, /inApp:\s*true/);
+  assert.match(source, /email:\s*true/);
+  assert.match(source, /sms:\s*true/);
+});
+
+test("payment confirmation triggers the server-side receipt producer exactly once, never on reject", () => {
+  const source = fs.readFileSync(historyPagePath, "utf8");
+
+  const occurrences = source.split("/api/payments/receipt-notifications").length - 1;
+  assert.equal(occurrences, 1, "expected exactly one receipt producer call site");
+
+  const callIndex = source.indexOf("/api/payments/receipt-notifications");
+  const confirmIndex = source.indexOf("function handleConfirmPayment");
+  const rejectIndex = source.indexOf("function handleRejectPayment");
+  assert.ok(confirmIndex !== -1 && rejectIndex !== -1 && confirmIndex < rejectIndex);
+  assert.ok(callIndex > confirmIndex && callIndex < rejectIndex, "producer call must live in handleConfirmPayment only");
+});
+
+test("receipt route authorizes the recorder, group owner/admin, and platform staff only", () => {
+  const source = fs.readFileSync(receiptRoutePath, "utf8");
+
+  assert.match(source, /recordedBy === user\.id/);
+  assert.match(source, /\.in\("role", \["owner", "admin"\]\)/);
+  assert.match(source, /membership_status", "active"/);
+  assert.match(source, /isPlatformStaff/);
 });

@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: payment, error: paymentError } = await adminClient
       .from("payments")
-      .select("id,recorded_by")
+      .select("id,recorded_by,group_id")
       .eq("id", paymentId)
       .maybeSingle();
 
@@ -60,8 +60,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Payment not found" }, { status: 404 });
     }
 
+    // Allowed callers: the recorder (member-submitted pay-now payments have
+    // recorded_by = the paying member; admin-recorded payments have the
+    // recording admin), a group owner/admin of the payment's group (the
+    // confirming admin in the pay-now flow), or platform staff.
     const recordedBy = (payment as Record<string, unknown>).recorded_by as string | null;
-    if (recordedBy !== user.id && !(await isPlatformStaff(adminClient, user.id))) {
+    const paymentGroupId = (payment as Record<string, unknown>).group_id as string | null;
+    let authorized = recordedBy === user.id;
+
+    if (!authorized && paymentGroupId) {
+      const { data: adminMembership } = await adminClient
+        .from("memberships")
+        .select("id")
+        .eq("group_id", paymentGroupId)
+        .eq("user_id", user.id)
+        .in("role", ["owner", "admin"])
+        .eq("membership_status", "active")
+        .limit(1)
+        .maybeSingle();
+      authorized = !!adminMembership;
+    }
+
+    if (!authorized && !(await isPlatformStaff(adminClient, user.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

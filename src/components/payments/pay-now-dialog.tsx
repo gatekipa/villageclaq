@@ -225,7 +225,12 @@ export function PayNowDialog({
         }
       }
 
-      // Notify the paying member via Email + WhatsApp (fire-and-forget)
+      // Notify the paying member via in-app/email/SMS (fire-and-forget).
+      // WhatsApp is intentionally NOT sent here: the payment is still
+      // pending_confirmation. The WhatsApp receipt is produced server-side
+      // (queue-backed, exactly-once) when an admin confirms the payment —
+      // see contributions/history handleConfirmPayment and
+      // /api/payments/receipt-notifications.
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const ctName = obligation.contribution_type?.name || "";
@@ -244,13 +249,16 @@ export function PayNowDialog({
           },
           emailTemplate: "payment-receipt",
           smsTemplate: "payment-receipt",
-          whatsappType: "payment_receipt",
           inAppType: "contribution_received",
           locale: "en",
-          channels: { inApp: true, email: true, sms: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: false },
           prefType: "payment_reminders",
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => {
+          console.warn("[Notify] pay-now submission notify failed:", err);
+        });
+      } catch (err) {
+        console.warn("[Notify] pay-now submission notify failed:", err);
+      }
 
       // Invalidate caches
       queryClient.invalidateQueries({ queryKey: ["payments", groupId] });

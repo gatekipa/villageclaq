@@ -2,7 +2,11 @@
 
 Date: 2026-06-11
 
-Status: COPY PREPARED — NOT SUBMITTED TO META. No app code changes in this document.
+Status: APPROVED AND MAPPED (updated 2026-06-11). `villageclaq_member_joined` was
+submitted and approved in Meta as UTILITY for EN and FR, and `WA_TEMPLATES.WELCOME`
+now maps to it (post-approval checklist items 1–4 are done; item 5 — the controlled
+QA re-run — is the next action; item 6 — retiring the old MARKETING template in
+Meta — remains an owner action after deploy).
 
 ## Why this template exists
 
@@ -187,5 +191,7 @@ Header/footer unchanged from the primary copy. Variable order unchanged. Apply v
 6. The old `villageclaq_welcome` MARKETING template can be retired in Meta afterward
    (do not delete before the app mapping switch is deployed).
 
-No part of this document changes app behavior. The `welcome` producer continues to use
-`villageclaq_welcome` until the post-approval PR lands.
+Update 2026-06-11: the post-approval mapping PR has landed — the `welcome` producer
+now uses `villageclaq_member_joined` (see the Status line at the top). Remaining
+actions: re-run the controlled welcome QA (item 5) and retire the old MARKETING
+template in Meta after deploy (item 6).

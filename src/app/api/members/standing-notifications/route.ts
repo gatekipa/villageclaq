@@ -1,0 +1,96 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { isPlatformStaff } from "@/lib/api-recipient-guard";
+import { produceStandingChangeNotification } from "@/lib/standing-change-producer";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+export async function POST(request: Request) {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!supabaseServiceKey) {
+      return NextResponse.json({ error: "Service role key not configured" }, { status: 500 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const authClient = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser(token);
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch (err) {
+      console.warn("[StandingProducerRoute] Malformed JSON:", err instanceof Error ? err.message : err);
+      return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+    }
+
+    const bodyRecord = body && typeof body === "object" ? body as Record<string, unknown> : {};
+    const membershipId = typeof bodyRecord.membershipId === "string" ? bodyRecord.membershipId : "";
+    const locale = typeof bodyRecord.locale === "string" ? bodyRecord.locale : undefined;
+
+    if (!membershipId) {
+      return NextResponse.json({ error: "Missing required field: membershipId" }, { status: 400 });
+    }
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: membership, error: membershipError } = await adminClient
+      .from("memberships")
+      .select("id,user_id,group_id")
+      .eq("id", membershipId)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.warn("[StandingProducerRoute] membership lookup failed:", membershipError.message);
+      return NextResponse.json({ error: "Membership lookup failed" }, { status: 500 });
+    }
+
+    if (!membership) {
+      return NextResponse.json({ error: "Membership not found" }, { status: 404 });
+    }
+
+    // Allowed callers: the affected member (their own dashboard recalc), an
+    // active group owner/admin of the membership's group (admin recalc /
+    // payment confirmation), or platform staff. Standing is read
+    // authoritatively from the DB inside the producer, never from the body.
+    const memberUserId = (membership as Record<string, unknown>).user_id as string | null;
+    const groupId = (membership as Record<string, unknown>).group_id as string | null;
+    let authorized = memberUserId === user.id;
+
+    if (!authorized && groupId) {
+      const { data: adminMembership } = await adminClient
+        .from("memberships")
+        .select("id")
+        .eq("group_id", groupId)
+        .eq("user_id", user.id)
+        .in("role", ["owner", "admin"])
+        .eq("membership_status", "active")
+        .limit(1)
+        .maybeSingle();
+      authorized = !!adminMembership;
+    }
+
+    if (!authorized && !(await isPlatformStaff(adminClient, user.id))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const result = await produceStandingChangeNotification(adminClient, membershipId, { locale });
+    return NextResponse.json(result, { status: result.status === "error" ? 500 : 200 });
+  } catch (err) {
+    console.warn("[StandingProducerRoute] Internal error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

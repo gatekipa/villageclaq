@@ -443,12 +443,15 @@ export async function calculateStanding(
           });
         }
 
-        // WhatsApp — dispatcher picks the template variant per locale.
+        // WhatsApp — server-side, queue-backed producer (exactly-once per
+        // membership/standing/day). The producer reads the authoritative
+        // standing from the DB and resolves the template variables itself,
+        // so provider IDs and webhook status are tracked and the old
+        // newStatus/newStanding mismatch (which produced an empty {{2}}
+        // and a Meta rejection) is fixed by construction.
         if (sendWhatsapp) {
-          postJson("/api/whatsapp/send", {
-            to: membership.user_id,
-            type: "standing_changed",
-            data: { memberName, newStatus: standing, groupName },
+          postJson("/api/members/standing-notifications", {
+            membershipId,
             locale,
           });
         }

@@ -69,7 +69,7 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `loan_approved` | `LOAN_APPROVED` | `villageclaq_loan_approved` | UTILITY | yes | yes | `memberName`, `amount`, `groupName` | 3 | loans page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
 | `loan_overdue` | `LOAN_OVERDUE` | `villageclaq_loan_overdue` | UTILITY | yes | yes | `memberName`, `amount`, `dueDate`, `groupName` | 4 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
 | `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `reason`, `groupName` | 5 | fines page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
-| `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
+| `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | `src/lib/standing-change-producer.ts` via `/api/members/standing-notifications` (see addendum 6) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00091 before QA |
 | `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
 | `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_reminder` (reused; see addendum 3) | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | `src/lib/hosting-assignment-producer.ts` via `/api/hosting/assignment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
 | `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_plan_enrollment_confirmed` (was `villageclaq_relief_enrollment`, see addendum 5) | UTILITY | yes | yes | `memberName`, `planName`, `groupName` | 3 | `src/lib/relief-enrollment-producer.ts` via `/api/relief/enrollment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Migration 00089 applied; ready for QA re-run |
@@ -419,3 +419,46 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   and can be retired in Meta once this mapping is deployed.
 - No live messages were sent in the production of this addendum; all
   verification is static or mocked.
+
+## Addendum 6 (2026-06-11, standing-change producerization + membership_status freeze)
+
+- `standing_changed` WhatsApp was a client-side direct send from
+  `src/lib/calculate-standing.ts` with **no dedup** (concurrent recalcs from
+  multiple tabs / admin+member could double-send) and a **latent bug**: it
+  passed `newStatus` where the dispatcher reads `newStanding`, so the
+  template's `{{2}}` was empty and Meta rejected every send. Now a
+  server-side queue-backed producer (`src/lib/standing-change-producer.ts` via
+  `/api/members/standing-notifications`) resolves `memberName`, the
+  recipient-localized standing label, and `groupName` server-side — the
+  variable-key bug is fixed by construction and provider IDs / webhook status
+  are tracked. In-app/email/SMS behavior in calculate-standing is unchanged
+  (only the WhatsApp block was swapped).
+- Template/category unchanged (`villageclaq_standing_changed`, UTILITY, no US
+  marketing-pause exposure); variable order `memberName`, `newStanding`,
+  `groupName`. The standing value is now localized per recipient (`Good`/`Bon`,
+  `Suspended`/`Suspendu`, etc.) rather than the raw English enum.
+- Idempotency is a per-membership, per-standing, per-UTC-day bucket
+  (`data->>membershipId` + `data->>newStanding` + `data->>changeDate`), backed
+  by migration `00091` (committed, NOT applied). Same-day recalc races dedupe;
+  a later transition to a different standing still notifies.
+- Authorization on the route: the affected member, an active group
+  owner/admin of the membership's group, or platform staff.
+- Known coverage gap (documented, out of scope): DB-trigger standing changes
+  (migrations 00079/00080) update `memberships.standing` silently and consume
+  the old→new delta, so the client transition gate never fires for them — those
+  changes still notify nobody. A future server-side trigger-to-queue path would
+  close this.
+- Security (Part 2, not a WhatsApp item): migration `00092` adds
+  `membership_status` to the `prevent_membership_self_escalation()` freeze list
+  (carving out self-exit) — defense-in-depth against an `exited` former admin
+  self-reinstating to `active`. NOTE: the gap is **latent on current prod** —
+  the live `membership_status` CHECK constraint only allows
+  `active`/`pending_approval` (verified read-only), so no `exited` row can exist
+  and the attack is not yet reachable; `00092` should be sequenced with widening
+  that constraint (a separate, broader change out of this PR's scope). Full
+  analysis incl. the `unsuspend_platform_user` caveat in
+  `src/MEMBERSHIP_STATUS_FREEZE_AUDIT.md`.
+- Migration `00091` (standing idempotency) must be applied before live standing
+  QA. Migration `00092` is forward-looking and can be applied alongside the
+  constraint widening. No live messages were sent; all verification is static or
+  mocked.

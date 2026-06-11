@@ -610,6 +610,60 @@ check(
   "DB-level day-bucket uniqueness must back the producer's check-before-insert.",
 );
 
+const standingProducer = read("src/lib/standing-change-producer.ts");
+check(
+  "WhatsApp standing change producer is server-side and queue-backed",
+  standingProducer.includes('from("notifications_queue")') &&
+    standingProducer.includes('template: "standing_changed"') &&
+    standingProducer.includes('whatsappType: "standing_changed"') &&
+    standingProducer.includes("WA_TEMPLATES.STANDING_CHANGED") &&
+    standingProducer.includes('"standing_changes"') &&
+    standingProducer.includes("maskPhoneNumber("),
+  "Standing change WhatsApp must be queue-backed, pref-gated, and masked so provider IDs and webhook status are tracked.",
+);
+check(
+  "WhatsApp standing change producer keys whatsappData.newStanding for the dispatcher",
+  standingProducer.includes("newStanding: standingDisplay") &&
+    whatsappDispatcher.includes("newStanding: d.newStanding"),
+  "The producer must populate newStanding (not newStatus) so the dispatcher's {{2}} is never blank.",
+);
+check(
+  "WhatsApp standing change idempotency is a per-day, per-standing bucket",
+  standingProducer.includes('.eq("data->>membershipId"') &&
+    standingProducer.includes('.eq("data->>newStanding"') &&
+    standingProducer.includes('.eq("data->>changeDate"') &&
+    standingProducer.includes('"23505"'),
+  "One notice per membership per standing value per UTC day: races dedupe, later transitions still notify.",
+);
+
+const calculateStanding = read("src/lib/calculate-standing.ts");
+check(
+  "calculate-standing routes WhatsApp through the producer, not a direct send",
+  !/\/api\/whatsapp\/send/.test(calculateStanding) &&
+    calculateStanding.includes("/api/members/standing-notifications"),
+  "Standing-change WhatsApp must flow through the queue-backed producer route.",
+);
+
+const standingMigration = read("supabase/migrations/00091_standing_change_notification_idempotency.sql");
+check(
+  "WhatsApp standing change idempotency migration exists",
+  standingMigration.includes("idx_notifications_queue_whatsapp_standing_changed_unique") &&
+    standingMigration.includes("data ->> 'membershipId'") &&
+    standingMigration.includes("data ->> 'newStanding'") &&
+    standingMigration.includes("data ->> 'changeDate'") &&
+    standingMigration.includes("template = 'standing_changed'"),
+  "DB-level day-bucket uniqueness must back the producer's check-before-insert.",
+);
+
+const membershipFreezeMigration = read("supabase/migrations/00092_membership_status_self_freeze.sql");
+check(
+  "membership_status is frozen on non-admin self-edits (self-exit carve-out)",
+  membershipFreezeMigration.includes("prevent_membership_self_escalation") &&
+    membershipFreezeMigration.includes("membership_status_change_requires_admin") &&
+    membershipFreezeMigration.includes("NEW.membership_status <> 'exited'"),
+  "An exited former admin must not self-reinstate; only self-exit (leave-group) is permitted.",
+);
+
 const webhookDoc = read("docs/whatsapp-webhook-status.md");
 check(
   "WhatsApp webhook status runbook exists",

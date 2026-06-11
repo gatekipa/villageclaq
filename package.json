@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:payment-receipt-producer": "node --test scripts/test-payment-receipt-producer.mjs",
+    "test:welcome-producer": "node --test scripts/test-welcome-producer.mjs",
     "audit:whatsapp": "node scripts/audit-whatsapp.mjs",
     "test:whatsapp-webhook": "node --test scripts/test-whatsapp-webhook.mjs"
   },

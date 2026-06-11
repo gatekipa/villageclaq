@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
+import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,7 @@ interface JoinByCodeDialogProps {
 export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) {
   const t = useTranslations("join");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const router = useRouter();
 
   const [code, setCode] = useState("");
@@ -119,6 +121,9 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
       if (result.status === "success") {
         notifyAdmins(supabase, group, displayName, user.email);
         logJoinActivity(supabase, group.group_id);
+        // WhatsApp welcome — server-side, queue-backed producer re-checks
+        // new_member preferences, phone eligibility, and idempotency.
+        requestWelcomeWhatsApp(supabase, result.membership_id, locale);
         onSuccess();
         return;
       }

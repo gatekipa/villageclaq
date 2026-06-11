@@ -425,6 +425,47 @@ check(
   "Invalid phone/template/type failures should return immediately instead of creating poison retry rows.",
 );
 
+const welcomeProducer = read("src/lib/welcome-producer.ts");
+check(
+  "WhatsApp welcome producer is server-side and queue-backed",
+  welcomeProducer.includes('from("notifications_queue")') &&
+    welcomeProducer.includes('template: "welcome"') &&
+    welcomeProducer.includes('whatsappType: "welcome"') &&
+    welcomeProducer.includes("WA_TEMPLATES.WELCOME"),
+  "Welcome WhatsApp must be produced as notifications_queue rows so provider IDs and webhook status are tracked.",
+);
+check(
+  "WhatsApp welcome producer respects new_member preferences",
+  welcomeProducer.includes('"new_member"'),
+  "Welcome sends must be gated by the joining member's new_member notification preferences.",
+);
+check(
+  "WhatsApp welcome producer masks phone numbers in logs",
+  welcomeProducer.includes("maskPhoneNumber("),
+  "Welcome producer logs must not include full recipient phone numbers.",
+);
+check(
+  "WhatsApp welcome producer enforces per-membership idempotency",
+  welcomeProducer.includes('.eq("data->>membershipId"') &&
+    welcomeProducer.includes('"23505"'),
+  "At most one WhatsApp welcome per membership (check-before-insert plus unique index in migration 00088).",
+);
+
+const welcomeProducerRoute = read("src/app/api/members/welcome-notifications/route.ts");
+check(
+  "WhatsApp welcome route authorizes the joining member",
+  welcomeProducerRoute.includes("Bearer ") && welcomeProducerRoute.includes("isPlatformStaff"),
+  "Only the joining member (or platform staff) may trigger welcome production for a membership.",
+);
+
+const welcomeIdempotencyMigration = read("supabase/migrations/00088_welcome_notification_idempotency.sql");
+check(
+  "WhatsApp welcome idempotency migration exists",
+  welcomeIdempotencyMigration.includes("idx_notifications_queue_whatsapp_welcome_unique") &&
+    welcomeIdempotencyMigration.includes("template = 'welcome'"),
+  "DB-level uniqueness must back the welcome producer's check-before-insert.",
+);
+
 const webhookDoc = read("docs/whatsapp-webhook-status.md");
 check(
   "WhatsApp webhook status runbook exists",

@@ -76,7 +76,7 @@ function loadProducer() {
       };
     }
     if (id === "@/lib/whatsapp-templates") {
-      return { WA_TEMPLATES: { RELIEF_ENROLLMENT: "villageclaq_relief_enrollment" } };
+      return { WA_TEMPLATES: { RELIEF_ENROLLMENT: "villageclaq_plan_enrollment_confirmed" } };
     }
     return require(id);
   };
@@ -233,7 +233,7 @@ test("active enrollment queues exactly one WhatsApp row with non-empty variables
   const result = await produceReliefEnrollmentNotifications(supabase, ids.enrollment, { logger });
 
   assert.equal(result.status, "queued");
-  assert.equal(result.template, "villageclaq_relief_enrollment");
+  assert.equal(result.template, "villageclaq_plan_enrollment_confirmed");
 
   const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
   assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
@@ -242,7 +242,7 @@ test("active enrollment queues exactly one WhatsApp row with non-empty variables
   assert.equal(payload.channel, "whatsapp");
   assert.equal(payload.template, "relief_enrollment");
   assert.equal(payload.data.whatsappType, "relief_enrollment");
-  assert.equal(payload.data.template, "villageclaq_relief_enrollment");
+  assert.equal(payload.data.template, "villageclaq_plan_enrollment_confirmed");
   assert.equal(payload.data.enrollmentId, ids.enrollment);
   assert.equal(payload.data.groupId, ids.group);
   assert.deepEqual(Object.keys(payload.data.whatsappData), ["memberName", "planName", "groupName"]);

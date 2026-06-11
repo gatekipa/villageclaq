@@ -45,7 +45,7 @@ SMS remains Africa-only through `isAfricanPhoneNumber()` and `sendSmsNotificatio
 
 | Trigger | Start file/function | Recipients | Channel choice | WhatsApp path | Status/error handling |
 |---|---|---|---|---|---|
-| Payment reminders | `src/app/api/cron/payment-reminders/route.ts` `GET` | overdue real members grouped by user | `getEnabledChannels(..., "payment_reminders")` | `dispatchWhatsAppWithResult("payment_reminder", ...)` | awaited; JSON includes `whatsappSent` / `whatsappFailed`; masked logs |
+| Payment reminders | `src/app/api/cron/payment-reminders/route.ts` `GET` | overdue real members, one producer call per obligation | producer-internal `getEnabledChannels(..., "payment_reminders")` | queue-backed: `src/lib/payment-reminder-producer.ts` enqueues `notifications_queue` rows; the drain cron dispatches and records `providerMessageId` | awaited; JSON includes `whatsappQueued` / `whatsappSkipped` / `whatsappFailed`; one reminder per obligation per UTC day (migration 00090); masked logs |
 | Event reminders | `src/app/api/cron/event-reminders/route.ts` `GET` | event group members with email/phone | `getEnabledChannels(..., "event_reminders")` | `dispatchWhatsAppWithResult("event_reminder", ...)` | awaited; JSON includes WhatsApp counts |
 | Hosting reminders | `src/app/api/cron/hosting-reminders/route.ts` `GET` | upcoming hosting assignments | `getEnabledChannels(..., "hosting_reminders")` | `dispatchWhatsApp("hosting_reminder", ...)` | awaited; best-effort route-level errors |
 | Subscription reminders | `src/app/api/cron/subscription-reminders/route.ts` `GET` | group owner/admin billing contacts | `getEnabledChannels(..., "subscription_updates")` | `dispatchWhatsApp("subscription_expiring", ...)` | awaited; safe warning on failure |
@@ -124,7 +124,12 @@ Local `.env.local` was inspected by key name only. It currently does not expose 
 4. Run `npm run audit:whatsapp` locally or in CI. In an environment shell with secrets available, run `npm run audit:whatsapp -- --strict-env`.
 5. In staging, create a test group/member with a masked-format phone target like `+237******456` or a verified diaspora test number. Enable WhatsApp in notification preferences.
 6. Trigger one safe path, preferably a single overdue payment reminder or a single scheduled announcement, by calling the cron endpoint with `Authorization: Bearer <CRON_SECRET>`.
-7. Confirm the JSON response includes `whatsappSent: 1` and `whatsappFailed: 0` for payment/event reminder paths, or inspect Vercel logs for `[WhatsApp] SUCCESS` with a masked phone and Meta `messageId`.
+7. For the payment-reminder path, confirm the JSON response includes
+   `whatsappQueued: 1` and `whatsappFailed: 0` (the send happens at the next
+   queue-drain tick, not in the cron response), then verify the
+   `notifications_queue` row per step 9. For the event-reminder path, confirm
+   `whatsappSent: 1` / `whatsappFailed: 0`, or inspect Vercel logs for
+   `[WhatsApp] SUCCESS` with a masked phone and Meta `messageId`.
 8. Confirm Meta provider logs show the matching message ID and accepted status.
 9. If a queued send is involved, check `notifications_queue`: `status = sent`, `sent_at` populated, and `data.providerMessageId` present.
 10. Verify language by repeating with a French-preferring test user and checking the Meta template language code is `fr`.

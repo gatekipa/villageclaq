@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
+import { useStableRouter } from "@/lib/hooks/use-stable-router";
 import { createClient } from "@/lib/supabase/client";
 import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,7 +23,8 @@ interface ClaimData {
 
 export default function ClaimPage() {
   const params = useParams();
-  const router = useRouter();
+  // Stable methods — safe in effect deps (CLAUDE.md rule 9).
+  const router = useStableRouter();
   const t = useTranslations("claim");
   const tc = useTranslations("common");
   const token = params.token as string;

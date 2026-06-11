@@ -454,7 +454,9 @@ check(
 const welcomeProducerRoute = read("src/app/api/members/welcome-notifications/route.ts");
 check(
   "WhatsApp welcome route authorizes the joining member",
-  welcomeProducerRoute.includes("Bearer ") && welcomeProducerRoute.includes("isPlatformStaff"),
+  welcomeProducerRoute.includes("Bearer ") &&
+    welcomeProducerRoute.includes("isPlatformStaff") &&
+    welcomeProducerRoute.includes("memberUserId !== user.id"),
   "Only the joining member (or platform staff) may trigger welcome production for a membership.",
 );
 
@@ -462,8 +464,10 @@ const welcomeIdempotencyMigration = read("supabase/migrations/00088_welcome_noti
 check(
   "WhatsApp welcome idempotency migration exists",
   welcomeIdempotencyMigration.includes("idx_notifications_queue_whatsapp_welcome_unique") &&
-    welcomeIdempotencyMigration.includes("template = 'welcome'"),
-  "DB-level uniqueness must back the welcome producer's check-before-insert.",
+    welcomeIdempotencyMigration.includes("template = 'welcome'") &&
+    welcomeIdempotencyMigration.includes("channel = 'whatsapp'") &&
+    welcomeIdempotencyMigration.includes("data ->> 'membershipId'"),
+  "DB-level uniqueness must back the welcome producer's check-before-insert, scoped to whatsapp/welcome/membershipId.",
 );
 
 const webhookDoc = read("docs/whatsapp-webhook-status.md");

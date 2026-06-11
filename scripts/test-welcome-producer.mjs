@@ -178,10 +178,6 @@ function createMockSupabase(options = {}) {
   };
 }
 
-function hasFilter(filters, column, value) {
-  return filters.some((filter) => filter.column === column && filter.value === value);
-}
-
 function selectRow(table, filters, state) {
   if (table === "memberships") {
     const requestedId = filters.find((filter) => filter.column === "id")?.value;
@@ -331,11 +327,12 @@ test("missing phone skips the welcome queue", async () => {
 
 test("invalid phone skips the welcome queue without logging the raw value", async () => {
   const { produceWelcomeNotifications } = loadProducer();
+  const rawInvalidPhone = "12345";
   const supabase = createMockSupabase({
     profile: {
       id: ids.user,
       full_name: "Jude Anyere",
-      phone: "12345",
+      phone: rawInvalidPhone,
       preferred_locale: "en",
     },
   });
@@ -346,6 +343,8 @@ test("invalid phone skips the welcome queue without logging the raw value", asyn
   assert.equal(result.status, "skipped");
   assert.equal(result.reason, "invalid_phone");
   assert.equal(supabase.calls.some((call) => call.op === "insert"), false);
+  const logText = JSON.stringify(logger.records);
+  assert.doesNotMatch(logText, new RegExp(rawInvalidPhone));
 });
 
 test("unclaimed proxy membership (no user account) never receives a welcome", async () => {

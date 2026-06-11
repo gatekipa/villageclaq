@@ -33,7 +33,8 @@ export async function POST(request: Request) {
     let body: unknown;
     try {
       body = await request.json();
-    } catch {
+    } catch (err) {
+      console.warn("[WelcomeProducerRoute] Malformed JSON:", err instanceof Error ? err.message : err);
       return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
     }
 

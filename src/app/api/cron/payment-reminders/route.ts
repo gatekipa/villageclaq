@@ -209,11 +209,15 @@ export async function GET(request: Request) {
     // providerMessageId/webhook tracking). Idempotency is one reminder per
     // obligation per UTC day, so same-day reruns of this cron are safe.
     const reminderDate = now.toISOString().split("T")[0];
-    const whatsappPromises: Promise<PaymentReminderProducerResult>[] = [];
-    for (const o of realObligations) {
-      whatsappPromises.push(
-        producePaymentReminderNotification(supabase, o.id as string, { reminderDate }),
-      );
+    // Bounded concurrency: each producer call performs several DB reads, so
+    // large overdue sets are processed in batches instead of one burst.
+    const WHATSAPP_BATCH_SIZE = 25;
+    const whatsappResults: PromiseSettledResult<PaymentReminderProducerResult>[] = [];
+    for (let i = 0; i < realObligations.length; i += WHATSAPP_BATCH_SIZE) {
+      const batch = realObligations
+        .slice(i, i + WHATSAPP_BATCH_SIZE)
+        .map((o) => producePaymentReminderNotification(supabase, o.id as string, { reminderDate }));
+      whatsappResults.push(...(await Promise.allSettled(batch)));
     }
 
     // ── Send emails + SMS per member per overdue obligation ──
@@ -297,7 +301,6 @@ export async function GET(request: Request) {
       else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
     }
 
-    const whatsappResults = await Promise.allSettled(whatsappPromises);
     for (const r of whatsappResults) {
       if (r.status === "fulfilled" && r.value.status === "queued") {
         whatsappQueued++;

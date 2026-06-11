@@ -104,7 +104,8 @@ async function resolveRecipientPhone(
       data: { user },
     } = await supabase.auth.admin.getUserById(membership.user_id);
     return user?.phone || null;
-  } catch {
+  } catch (err) {
+    console.warn("[PaymentReminderProducer] auth phone lookup failed:", err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -245,6 +246,18 @@ export async function producePaymentReminderNotification(
       ? maybeSingle<ContributionTypeRow>(supabase, "contribution_types", "id,name,name_fr", "id", obligation.contribution_type_id)
       : Promise.resolve({ data: null, error: null }),
   ]);
+
+  // Transient lookup failures are errors, not skips — otherwise they would
+  // masquerade as missing_phone / missing_template_data in cron accounting.
+  if (profileResult.error || groupResult.error || typeResult.error) {
+    logger.warn("[PaymentReminderProducer] related lookup failed", {
+      obligationId: shortId(obligationId),
+      profileLookupError: profileResult.error?.message,
+      groupLookupError: groupResult.error?.message,
+      typeLookupError: typeResult.error?.message,
+    });
+    return { status: "error", reason: "related_lookup_failed", obligationId, reminderDate };
+  }
 
   const profile = profileResult.data;
   const groupName = groupResult.data?.name || "";

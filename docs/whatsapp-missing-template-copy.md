@@ -170,7 +170,7 @@ Readiness notes:
 
 - Deferred fallback only; not part of the current create-now list.
 - Static text appears before the first variable.
-- HOLD for live QA after approval: the current hosting producer sends `whatsappType: "hosting_assignment"` but only passes `groupName` in `data`. App code should populate `memberName` and `hostingDate` before this template is tested with real recipients.
+- ~~HOLD for live QA after approval: the current hosting producer sends `whatsappType: "hosting_assignment"` but only passes `groupName` in `data`.~~ *(Resolved 2026-06-11: `src/lib/hosting-assignment-producer.ts` resolves `memberName`, `hostingDate`, and `groupName` server-side per recipient; live QA delivered.)*
 - Do not reduce the template to one variable. The app builder sends three body parameters for this key.
 
 ## 2. `villageclaq_relief_enrollment`
@@ -233,7 +233,7 @@ Variable order:
 Readiness notes:
 
 - Variable count matches the app builder in EN and FR.
-- HOLD for live QA: the current relief enrollment producer passes `memberName: ""` while notifying multiple recipients. App code should supply the recipient member name before testing live WhatsApp sends.
+- ~~HOLD for live QA: the current relief enrollment producer passes `memberName: ""` while notifying multiple recipients.~~ *(Resolved 2026-06-11: `src/lib/relief-enrollment-producer.ts` resolves `memberName` server-side per recipient; the app now maps to the UTILITY replacement `villageclaq_plan_enrollment_confirmed` — controlled QA re-run is permitted.)*
 - Do not remove `memberName` from the template without a matching app-code change.
 
 ## 3. `villageclaq_remittance_confirmed`
@@ -464,13 +464,13 @@ Before controlled live QA:
 - Confirm template names match `src/lib/whatsapp-templates.ts`.
 - Confirm placeholder count and order match the tables above.
 - Confirm all variables are body placeholders only.
-- Confirm `hosting_assignment` remains held for mapping/producer cleanup.
-- Confirm `relief_enrollment` remains held from live QA until its producer payload gap is fixed.
+- ~~Confirm `hosting_assignment` remains held for mapping/producer cleanup.~~ *(Resolved: remapped to `villageclaq_hosting_reminder`, producer-backed, live QA delivered 2026-06-11.)*
+- ~~Confirm `relief_enrollment` remains held from live QA until its producer payload gap is fixed.~~ *(Resolved: producer-backed and remapped to `villageclaq_plan_enrollment_confirmed`; QA re-run permitted.)*
 - Confirm `welcome` producer readiness: migration 00088 applied, and the QA account has the `new_member` WhatsApp preference enabled (default is OFF).
 
 After this approval pass:
 
 1. Re-run `npm run audit:whatsapp`.
 2. Resolve `hosting_assignment` separately: either map it to the approved `villageclaq_hosting_reminder` template after producer cleanup, or submit a distinct assignment template later if product wants separate copy.
-3. Fix the `relief_enrollment` producer payload gap before live WhatsApp QA.
+3. ~~Fix the `relief_enrollment` producer payload gap before live WhatsApp QA.~~ *(Resolved 2026-06-11: server-side producer resolves all variables; template remapped to `villageclaq_plan_enrollment_confirmed`.)*
 4. Run controlled manual QA one template and one language at a time, only after explicit send authorization.

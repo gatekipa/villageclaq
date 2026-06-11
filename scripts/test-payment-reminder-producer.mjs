@@ -130,6 +130,7 @@ function createMockSupabase(options = {}) {
     // genuinely exercised (same-day blocks, different day does not).
     existingQueueRows: [],
     insertErrorCode: null,
+    selectErrorTables: [],
     authPhone: null,
     ...options,
   };
@@ -170,6 +171,9 @@ function createMockSupabase(options = {}) {
           return Promise.resolve({ data: null, error: { code: state.insertErrorCode, message: "duplicate key value" } });
         }
         return Promise.resolve({ data: { id: "new-row" }, error: null });
+      }
+      if ((state.selectErrorTables || []).includes(this.table)) {
+        return Promise.resolve({ data: null, error: { message: "transient lookup failure" } });
       }
       return Promise.resolve({ data: selectRow(this.table, this.filters, state), error: null });
     }
@@ -463,6 +467,19 @@ test("unique-violation race (23505) is treated as a duplicate skip", async () =>
 
   assert.equal(result.status, "skipped");
   assert.equal(result.reason, "duplicate_whatsapp_reminder");
+});
+
+test("transient related-lookup failures are errors, not silent skips", async () => {
+  const { producePaymentReminderNotification } = loadProducer();
+  const supabase = createMockSupabase({ selectErrorTables: ["groups"] });
+
+  const result = await producePaymentReminderNotification(supabase, ids.obligation, {
+    reminderDate: REMINDER_DATE,
+  });
+
+  assert.equal(result.status, "error");
+  assert.equal(result.reason, "related_lookup_failed");
+  assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 });
 
 test("cron no longer dispatches WhatsApp directly and keeps email/SMS untouched", () => {

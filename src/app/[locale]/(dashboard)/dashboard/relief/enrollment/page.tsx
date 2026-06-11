@@ -113,10 +113,30 @@ export default function ReliefEnrollmentPage() {
         collecting_group_id: groupId || null,
         eligible_date: eligibleDate,
       }));
-      const { error: insertError } = await supabase.from("relief_enrollments").insert(rows);
+      const { data: newEnrollments, error: insertError } = await supabase
+        .from("relief_enrollments")
+        .insert(rows)
+        .select("id");
       if (insertError) throw insertError;
 
-      // Notify enrolled members — In-App + WhatsApp (fire-and-forget)
+      // WhatsApp enrollment notice — server-side, queue-backed producer
+      // resolves per-recipient memberName/planName/groupName (the shared
+      // client payload below cannot carry per-recipient names) and is
+      // exactly-once per enrollment.
+      try {
+        const { requestReliefEnrollmentWhatsApp } = await import("@/lib/notify-relief-enrollment");
+        requestReliefEnrollmentWhatsApp(
+          supabase,
+          (newEnrollments || []).map((e: { id: string }) => e.id),
+          locale,
+        );
+      } catch (err) {
+        console.warn("[WhatsApp] relief enrollment notify failed:", err);
+      }
+
+      // Notify enrolled members — In-App + email/SMS (fire-and-forget).
+      // WhatsApp is intentionally false here: it flows through the
+      // queue-backed producer above.
       try {
         const { notifyBulkFromClient } = await import("@/lib/notify-client");
         const planName = selectedPlan ? (locale === "fr" && (selectedPlan as Record<string, unknown>).name_fr ? (selectedPlan as Record<string, unknown>).name_fr as string : (selectedPlan as Record<string, unknown>).name as string) : "";
@@ -137,13 +157,16 @@ export default function ReliefEnrollmentPage() {
           data: { groupName, planName, memberName: "" },
           emailTemplate: "notification",
           smsTemplate: "relief-enrollment",
-          whatsappType: "relief_enrollment",
           inAppType: "relief",
           locale,
-          channels: { inApp: true, email: true, sms: true, whatsapp: true },
+          channels: { inApp: true, email: true, sms: true, whatsapp: false },
           prefType: "relief_updates",
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => {
+          console.warn("[Notify] relief enrollment notify failed:", err);
+        });
+      } catch (err) {
+        console.warn("[Notify] relief enrollment notify failed:", err);
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["relief-enrollments", groupId] });
       setEnrollDialogOpen(false);

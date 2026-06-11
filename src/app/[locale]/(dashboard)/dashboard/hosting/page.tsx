@@ -502,7 +502,25 @@ export default function HostingPage() {
         description: `Published hosting schedule with ${upcoming.length} upcoming assignments`,
       });
 
-      // WhatsApp + SMS for assigned members (fire-and-forget)
+      // WhatsApp assignment notices — server-side, queue-backed producer
+      // resolves per-recipient memberName/hostingDate/groupName (the shared
+      // client payload below cannot carry per-recipient values) and is
+      // exactly-once per assignment, so re-publishing never re-sends.
+      if (upcoming.length > 0) {
+        try {
+          const { requestHostingAssignmentWhatsApp } = await import("@/lib/notify-hosting-assignment");
+          requestHostingAssignmentWhatsApp(
+            supabase,
+            upcoming.map((a) => a.id),
+            locale,
+          );
+        } catch (err) {
+          console.warn("[WhatsApp] hosting assignment notify failed:", err);
+        }
+      }
+
+      // Email/SMS for assigned members (fire-and-forget). WhatsApp is
+      // intentionally false: it flows through the queue-backed producer above.
       if (upcoming.length > 0) {
         try {
           const { notifyBulkFromClient } = await import("@/lib/notify-client");
@@ -523,13 +541,16 @@ export default function HostingPage() {
             data: { groupName: currentGroup?.name || "" },
             emailTemplate: "notification",
             smsTemplate: "hosting-assignment",
-            whatsappType: "hosting_assignment",
             inAppType: "hosting_assignment",
             locale,
-            channels: { inApp: true, email: true, sms: true, whatsapp: true },
+            channels: { inApp: true, email: true, sms: true, whatsapp: false },
             prefType: "hosting_reminders",
-          }).catch(() => {});
-        } catch { /* best-effort */ }
+          }).catch((err) => {
+            console.warn("[Notify] hosting publish notify failed:", err);
+          });
+        } catch (err) {
+          console.warn("[Notify] hosting publish notify failed:", err);
+        }
       }
 
       showSuccess(t("publishSuccess"));
@@ -1531,9 +1552,10 @@ function AssignHostsDialog({
         order_index: maxOrder + 1 + i,
       }));
 
-      const { error: insertErr } = await supabase
+      const { data: newAssignments, error: insertErr } = await supabase
         .from("hosting_assignments")
-        .insert(assignments);
+        .insert(assignments)
+        .select("id");
       if (insertErr) throw insertErr;
 
       if (groupId) {
@@ -1545,7 +1567,23 @@ function AssignHostsDialog({
           metadata: { date: context.date, membershipIds: selectedIds },
         });
 
-        // Notify assigned members — In-App + WhatsApp + SMS (fire-and-forget)
+        // WhatsApp assignment notices — server-side, queue-backed producer
+        // resolves per-recipient memberName/hostingDate/groupName and is
+        // exactly-once per assignment.
+        try {
+          const { requestHostingAssignmentWhatsApp } = await import("@/lib/notify-hosting-assignment");
+          requestHostingAssignmentWhatsApp(
+            supabase,
+            (newAssignments || []).map((a: { id: string }) => a.id),
+            locale,
+          );
+        } catch (err) {
+          console.warn("[WhatsApp] hosting assignment notify failed:", err);
+        }
+
+        // Notify assigned members — In-App + email/SMS (fire-and-forget).
+        // WhatsApp is intentionally false: it flows through the queue-backed
+        // producer above.
         try {
           const { notifyBulkFromClient } = await import("@/lib/notify-client");
           const recipients = selectedIds.map((mid) => {
@@ -1566,13 +1604,16 @@ function AssignHostsDialog({
             data: { groupName, date: context.date, hostingDate: context.date },
             emailTemplate: "notification",
             smsTemplate: "hosting-assignment",
-            whatsappType: "hosting_assignment",
             inAppType: "hosting_assignment",
             locale,
-            channels: { inApp: true, email: true, sms: true, whatsapp: true },
+            channels: { inApp: true, email: true, sms: true, whatsapp: false },
             prefType: "hosting_reminders",
-          }).catch(() => {});
-        } catch { /* best-effort */ }
+          }).catch((err) => {
+            console.warn("[Notify] hosting assignment notify failed:", err);
+          });
+        } catch (err) {
+          console.warn("[Notify] hosting assignment notify failed:", err);
+        }
       }
 
       onOpenChange(false);

@@ -203,7 +203,9 @@ const fullTemplateRegistry = {
   },
   hosting_assignment: {
     constant: "HOSTING_ASSIGNMENT",
-    template: "villageclaq_hosting_assignment",
+    // Reuses the approved hosting reminder template (identical variable
+    // shape); a distinct assignment template is a future copy upgrade.
+    template: "villageclaq_hosting_reminder",
     builder: "buildHostingAssignmentParams",
     vars: ["memberName", "hostingDate", "groupName"],
   },
@@ -483,6 +485,85 @@ check(
   "Payment confirmation triggers the queue-backed receipt producer",
   confirmHistoryPage.includes("/api/payments/receipt-notifications"),
   "Confirmed pay-now payments must produce the WhatsApp receipt via the server-side producer.",
+);
+
+const reliefProducer = read("src/lib/relief-enrollment-producer.ts");
+check(
+  "WhatsApp relief enrollment producer is server-side and queue-backed",
+  reliefProducer.includes('from("notifications_queue")') &&
+    reliefProducer.includes('template: "relief_enrollment"') &&
+    reliefProducer.includes('whatsappType: "relief_enrollment"') &&
+    reliefProducer.includes("WA_TEMPLATES.RELIEF_ENROLLMENT") &&
+    reliefProducer.includes('"relief_updates"') &&
+    reliefProducer.includes("maskPhoneNumber(") &&
+    reliefProducer.includes('.eq("data->>enrollmentId"') &&
+    reliefProducer.includes('"23505"'),
+  "Relief enrollment WhatsApp must be queue-backed, pref-gated, masked, and exactly-once per enrollment.",
+);
+check(
+  "WhatsApp relief enrollment producer never enqueues blank variables",
+  reliefProducer.includes("missing_template_data"),
+  "Meta rejects empty body parameters — the producer must skip when planName/groupName resolve empty.",
+);
+
+const hostingProducer = read("src/lib/hosting-assignment-producer.ts");
+check(
+  "WhatsApp hosting assignment producer is server-side and queue-backed",
+  hostingProducer.includes('from("notifications_queue")') &&
+    hostingProducer.includes('template: "hosting_assignment"') &&
+    hostingProducer.includes('whatsappType: "hosting_assignment"') &&
+    hostingProducer.includes("WA_TEMPLATES.HOSTING_ASSIGNMENT") &&
+    hostingProducer.includes('"hosting_reminders"') &&
+    hostingProducer.includes("maskPhoneNumber(") &&
+    hostingProducer.includes('.eq("data->>assignmentId"') &&
+    hostingProducer.includes('"23505"'),
+  "Hosting assignment WhatsApp must be queue-backed, pref-gated, masked, and exactly-once per assignment.",
+);
+check(
+  "WhatsApp hosting assignment producer only notifies upcoming, non-past assignments",
+  hostingProducer.includes("assignment_not_upcoming") &&
+    hostingProducer.includes("assignment_in_past"),
+  "Exempted/swapped/completed rows and stale dates must never be notified.",
+);
+
+const reliefRoute = read("src/app/api/relief/enrollment-notifications/route.ts");
+const hostingRoute = read("src/app/api/hosting/assignment-notifications/route.ts");
+for (const [label, routeSource] of [["relief enrollment", reliefRoute], ["hosting assignment", hostingRoute]]) {
+  check(
+    `WhatsApp ${label} route authorizes group owners/admins only`,
+    routeSource.includes('.in("role", ["owner", "admin"])') &&
+      routeSource.includes('membership_status", "active"') &&
+      routeSource.includes("isPlatformStaff") &&
+      routeSource.includes("MAX_BATCH"),
+    "Producer routes must be limited to active group owners/admins (or platform staff) with a bounded batch size.",
+  );
+}
+
+const reliefEnrollmentPage = read("src/app/[locale]/(dashboard)/dashboard/relief/enrollment/page.tsx");
+check(
+  "Relief enrollment page defers WhatsApp to the server-side producer",
+  !reliefEnrollmentPage.includes('whatsappType: "relief_enrollment"') &&
+    reliefEnrollmentPage.includes("requestReliefEnrollmentWhatsApp"),
+  "The shared client payload cannot carry per-recipient names; WhatsApp must flow through the producer.",
+);
+
+const hostingPage = read("src/app/[locale]/(dashboard)/dashboard/hosting/page.tsx");
+check(
+  "Hosting page defers assignment WhatsApp to the server-side producer",
+  !hostingPage.includes('whatsappType: "hosting_assignment"') &&
+    hostingPage.includes("requestHostingAssignmentWhatsApp"),
+  "Publish and assign-dialog WhatsApp must flow through the producer (swap-flow hosting_reminder sends are unchanged).",
+);
+
+const reliefHostingMigration = read("supabase/migrations/00089_relief_hosting_notification_idempotency.sql");
+check(
+  "WhatsApp relief/hosting idempotency migration exists",
+  reliefHostingMigration.includes("idx_notifications_queue_whatsapp_relief_enrollment_unique") &&
+    reliefHostingMigration.includes("data ->> 'enrollmentId'") &&
+    reliefHostingMigration.includes("idx_notifications_queue_whatsapp_hosting_assignment_unique") &&
+    reliefHostingMigration.includes("data ->> 'assignmentId'") &&
+    reliefHostingMigration.includes("channel = 'whatsapp'"),
+  "DB-level uniqueness must back both producers' check-before-insert.",
 );
 
 const webhookDoc = read("docs/whatsapp-webhook-status.md");

@@ -497,7 +497,25 @@ export default function ReliefPlansPage() {
             collecting_group_id: groupId || null,
             eligible_date: eDate,
           }));
-          await supabase.from("relief_enrollments").insert(enrollments);
+          const { data: newEnrollments, error: autoEnrollErr } = await supabase
+            .from("relief_enrollments")
+            .insert(enrollments)
+            .select("id");
+          if (autoEnrollErr) throw autoEnrollErr;
+
+          // WhatsApp enrollment notice — server-side, queue-backed
+          // producer (exactly-once per enrollment). This path previously
+          // notified nobody.
+          try {
+            const { requestReliefEnrollmentWhatsApp } = await import("@/lib/notify-relief-enrollment");
+            requestReliefEnrollmentWhatsApp(
+              supabase,
+              (newEnrollments || []).map((e: { id: string }) => e.id),
+              locale,
+            );
+          } catch (err) {
+            console.warn("[WhatsApp] relief auto-enroll notify failed:", err);
+          }
         }
       }
 
@@ -671,8 +689,25 @@ export default function ReliefPlansPage() {
         collecting_group_id: groupId || null,
         eligible_date: eDate,
       }));
-      const { error: insertErr } = await supabase.from("relief_enrollments").insert(enrollments);
+      const { data: newEnrollments, error: insertErr } = await supabase
+        .from("relief_enrollments")
+        .insert(enrollments)
+        .select("id");
       if (insertErr) throw insertErr;
+
+      // WhatsApp enrollment notice — server-side, queue-backed producer
+      // (exactly-once per enrollment). This path previously notified nobody.
+      try {
+        const { requestReliefEnrollmentWhatsApp } = await import("@/lib/notify-relief-enrollment");
+        requestReliefEnrollmentWhatsApp(
+          supabase,
+          (newEnrollments || []).map((e: { id: string }) => e.id),
+          locale,
+        );
+      } catch (err) {
+        console.warn("[WhatsApp] relief bulk-enroll notify failed:", err);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["relief-enrollments", enrollPlanId] });
       queryClient.invalidateQueries({ queryKey: ["relief-stats", groupId] });
       setShowEnrollDialog(false);

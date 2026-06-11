@@ -9,6 +9,8 @@
     "lint": "eslint",
     "test:payment-receipt-producer": "node --test scripts/test-payment-receipt-producer.mjs",
     "test:welcome-producer": "node --test scripts/test-welcome-producer.mjs",
+    "test:relief-enrollment-producer": "node --test scripts/test-relief-enrollment-producer.mjs",
+    "test:hosting-assignment-producer": "node --test scripts/test-hosting-assignment-producer.mjs",
     "audit:whatsapp": "node scripts/audit-whatsapp.mjs",
     "test:whatsapp-webhook": "node --test scripts/test-whatsapp-webhook.mjs"
   },

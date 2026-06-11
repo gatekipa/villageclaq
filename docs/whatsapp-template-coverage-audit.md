@@ -462,6 +462,7 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   QA. Migration `00092` is forward-looking and can be applied alongside the
   constraint widening. No live messages were sent; all verification is static or
   mocked.
+
 ## Addendum 7 (2026-06-11, money-path producerization: fines, loans, relief claims)
 
 - All three money paths were client-side fire-and-forget `notifyFromClient`

@@ -533,9 +533,13 @@ export default function LoansAdminPage() {
           locale,
           channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "loan_updates",
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn("[Loans] email/SMS notification failed:", err instanceof Error ? err.message : err);
+        });
         const { requestLoanApprovedWhatsApp } = await import("@/lib/notify-money-path");
-        requestLoanApprovedWhatsApp(supabase, selectedLoan.id as string, locale).catch(() => {});
+        requestLoanApprovedWhatsApp(supabase, selectedLoan.id as string, locale).catch((err) => {
+          console.warn("[Loans] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
       } catch (err) {
         console.warn("[Loans] approval notification dispatch failed:", err instanceof Error ? err.message : err);
       }
@@ -660,7 +664,9 @@ export default function LoansAdminPage() {
       // were in-app only). Queue-backed, exactly-once per loan.
       try {
         const { requestLoanApprovedWhatsApp } = await import("@/lib/notify-money-path");
-        requestLoanApprovedWhatsApp(supabase, newLoan?.id as string | undefined, locale).catch(() => {});
+        requestLoanApprovedWhatsApp(supabase, newLoan?.id as string | undefined, locale).catch((err) => {
+          console.warn("[Loans] quick loan WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
       } catch (err) {
         console.warn("[Loans] quick loan notification dispatch failed:", err instanceof Error ? err.message : err);
       }

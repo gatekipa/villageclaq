@@ -721,6 +721,7 @@ check(
     !claimsPage.includes('whatsappType: "relief_claim_approved"') &&
     !claimsPage.includes('whatsappType: "relief_claim_denied"') &&
     claimsPage.includes("requestReliefClaimDecisionWhatsApp") &&
+    !reliefPlansPage.includes("whatsappType:") &&
     reliefPlansPage.includes("requestReliefClaimDecisionWhatsApp"),
   "Fines, loans, and both relief-claim admin surfaces must trigger the queue-backed producers.",
 );
@@ -734,8 +735,13 @@ check(
     moneyPathMigration.includes("idx_notifications_queue_whatsapp_claim_denied_unique") &&
     moneyPathMigration.includes("data ->> 'fineId'") &&
     moneyPathMigration.includes("data ->> 'loanId'") &&
-    moneyPathMigration.includes("data ->> 'claimId'"),
-  "DB-level uniqueness must back the fine/loan/claim producers' check-before-insert.",
+    moneyPathMigration.includes("data ->> 'claimId'") &&
+    moneyPathMigration.includes("template = 'fine_issued'") &&
+    moneyPathMigration.includes("template = 'loan_approved'") &&
+    moneyPathMigration.includes("template = 'relief_claim_approved'") &&
+    moneyPathMigration.includes("template = 'relief_claim_denied'") &&
+    (moneyPathMigration.match(/channel = 'whatsapp'::notification_channel/g) || []).length >= 4,
+  "DB-level uniqueness must back the fine/loan/claim producers' check-before-insert with full channel/template predicates.",
 );
 
 const webhookDoc = read("docs/whatsapp-webhook-status.md");

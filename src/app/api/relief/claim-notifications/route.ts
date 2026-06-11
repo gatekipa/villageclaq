@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     }
 
     const claimRecord = claim as Record<string, unknown>;
-    const [{ data: plan }, { data: claimantMembership }] = await Promise.all([
+    const [planResult, claimantResult] = await Promise.all([
       adminClient
         .from("relief_plans")
         .select("group_id")
@@ -77,15 +77,23 @@ export async function POST(request: Request) {
         .maybeSingle(),
     ]);
 
+    if (planResult.error || claimantResult.error) {
+      console.warn(
+        "[ClaimProducerRoute] authz lookup failed:",
+        planResult.error?.message || claimantResult.error?.message,
+      );
+      return NextResponse.json({ error: "Authorization lookup failed" }, { status: 500 });
+    }
+
     // Allowed callers: the claimant, an active owner/admin of the plan's
     // group, or platform staff. The decision/amount/reason are read
     // authoritatively from the DB inside the producer.
-    const groupId = (plan?.group_id as string | null) ?? null;
-    const memberUserId = (claimantMembership?.user_id as string | null) ?? null;
+    const groupId = (planResult.data?.group_id as string | null) ?? null;
+    const memberUserId = (claimantResult.data?.user_id as string | null) ?? null;
     let authorized = memberUserId !== null && memberUserId === user.id;
 
     if (!authorized && groupId) {
-      const { data: adminMembership } = await adminClient
+      const { data: adminMembership, error: adminLookupError } = await adminClient
         .from("memberships")
         .select("id")
         .eq("group_id", groupId)
@@ -94,6 +102,10 @@ export async function POST(request: Request) {
         .eq("membership_status", "active")
         .limit(1)
         .maybeSingle();
+      if (adminLookupError) {
+        console.warn("[ClaimProducerRoute] authz admin lookup failed:", adminLookupError.message);
+        return NextResponse.json({ error: "Authorization lookup failed" }, { status: 500 });
+      }
       authorized = !!adminMembership;
     }
 

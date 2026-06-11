@@ -341,9 +341,13 @@ export default function FinesAdminPage() {
           locale,
           channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "fine_updates",
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn("[Fines] email/SMS notification failed:", err instanceof Error ? err.message : err);
+        });
         const { requestFineIssuedWhatsApp } = await import("@/lib/notify-money-path");
-        requestFineIssuedWhatsApp(supabase, newFine?.id as string | undefined, locale).catch(() => {});
+        requestFineIssuedWhatsApp(supabase, newFine?.id as string | undefined, locale).catch((err) => {
+          console.warn("[Fines] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
       } catch (err) {
         console.warn("[Fines] fine notification dispatch failed:", err instanceof Error ? err.message : err);
       }

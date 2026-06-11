@@ -565,7 +565,9 @@ export default function ReliefPlansPage() {
       // decision, so deciding from either admin surface never double-sends).
       try {
         const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
-        requestReliefClaimDecisionWhatsApp(supabase, claimId, locale).catch(() => {});
+        requestReliefClaimDecisionWhatsApp(supabase, claimId, locale).catch((err) => {
+          console.warn("[ReliefPlans] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
       } catch (err) {
         console.warn("[ReliefPlans] claim approval notification dispatch failed:", err instanceof Error ? err.message : err);
       }
@@ -598,7 +600,9 @@ export default function ReliefPlansPage() {
       // sending a blank Meta variable.
       try {
         const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
-        requestReliefClaimDecisionWhatsApp(supabase, denyClaimId, locale).catch(() => {});
+        requestReliefClaimDecisionWhatsApp(supabase, denyClaimId, locale).catch((err) => {
+          console.warn("[ReliefPlans] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
       } catch (err) {
         console.warn("[ReliefPlans] claim denial notification dispatch failed:", err instanceof Error ? err.message : err);
       }

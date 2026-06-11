@@ -67,16 +67,20 @@ export async function POST(request: Request) {
     // authoritatively from the DB inside the producer.
     const fineRecord = fine as Record<string, unknown>;
     const groupId = fineRecord.group_id as string | null;
-    const { data: finedMembership } = await adminClient
+    const { data: finedMembership, error: memberLookupError } = await adminClient
       .from("memberships")
       .select("user_id")
       .eq("id", fineRecord.membership_id as string)
       .maybeSingle();
+    if (memberLookupError) {
+      console.warn("[FineProducerRoute] authz member lookup failed:", memberLookupError.message);
+      return NextResponse.json({ error: "Authorization lookup failed" }, { status: 500 });
+    }
     const memberUserId = (finedMembership?.user_id as string | null) ?? null;
     let authorized = memberUserId !== null && memberUserId === user.id;
 
     if (!authorized && groupId) {
-      const { data: adminMembership } = await adminClient
+      const { data: adminMembership, error: adminLookupError } = await adminClient
         .from("memberships")
         .select("id")
         .eq("group_id", groupId)
@@ -85,6 +89,10 @@ export async function POST(request: Request) {
         .eq("membership_status", "active")
         .limit(1)
         .maybeSingle();
+      if (adminLookupError) {
+        console.warn("[FineProducerRoute] authz admin lookup failed:", adminLookupError.message);
+        return NextResponse.json({ error: "Authorization lookup failed" }, { status: 500 });
+      }
       authorized = !!adminMembership;
     }
 

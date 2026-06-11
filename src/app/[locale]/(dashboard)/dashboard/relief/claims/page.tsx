@@ -136,9 +136,13 @@ export default function ReliefClaimsPage() {
           locale,
           channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "relief_updates",
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn("[ReliefClaims] email/SMS notification failed:", err instanceof Error ? err.message : err);
+        });
         const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
-        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch(() => {});
+        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch((err) => {
+          console.warn("[ReliefClaims] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
       } catch (err) {
         console.warn("[ReliefClaims] approval notification dispatch failed:", err instanceof Error ? err.message : err);
       }
@@ -231,9 +235,13 @@ export default function ReliefClaimsPage() {
           locale,
           channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "relief_updates",
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn("[ReliefClaims] email/SMS notification failed:", err instanceof Error ? err.message : err);
+        });
         const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
-        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch(() => {});
+        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch((err) => {
+          console.warn("[ReliefClaims] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
       } catch (err) {
         console.warn("[ReliefClaims] denial notification dispatch failed:", err instanceof Error ? err.message : err);
       }

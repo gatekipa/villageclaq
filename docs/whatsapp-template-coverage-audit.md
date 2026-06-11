@@ -57,7 +57,7 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | App type | Constant | Meta template | Category | EN | FR | App variable order | Meta variable count | Producer path | Send path | Webhook tracking | Risk |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `payment_receipt` | `PAYMENT_RECEIPT` | `villageclaq_payment_receipt_v2` | UTILITY | yes | yes | `memberName`, `amount`, `contributionType`, `groupName`, `date` | 5 | `src/lib/payment-receipt-producer.ts` | queue drain via `notifications_queue` | yes, queue row updated by `providerMessageId` | Ready |
-| `payment_reminder` | `PAYMENT_REMINDER` | `villageclaq_payment_reminder_v2` | UTILITY | yes | yes | `memberName`, `amount`, `contributionType`, `dueDate`, `groupName` | 5 | `src/app/api/cron/payment-reminders/route.ts` | awaited direct dispatch with result | webhook row can persist, but no queue row for direct sends | Ready for template QA; observability gap |
+| `payment_reminder` | `PAYMENT_REMINDER` | `villageclaq_payment_reminder_v2` | UTILITY | yes | yes | `memberName`, `amount`, `contributionType`, `dueDate`, `groupName` | 5 | `src/lib/payment-reminder-producer.ts` called by the daily cron (see addendum 4) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00090 before QA |
 | `event_reminder` | `EVENT_REMINDER` | `villageclaq_event_reminder_v2` | MARKETING | yes | yes | `memberName`, `eventTitle`, `eventDate`, `eventLocation`, `groupName` | 5 | `src/app/api/cron/event-reminders/route.ts` | awaited direct dispatch with result | webhook row can persist, but no queue row for direct sends | Ready for template QA; observability gap |
 | `hosting_reminder` | `HOSTING_REMINDER` | `villageclaq_hosting_reminder` | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | hosting cron and hosting UI | direct dispatch or client route | limited for direct/client sends | Ready for template QA; routing hardening later |
 | `minutes_published` | `MINUTES_PUBLISHED` | `villageclaq_minutes_published` | MARKETING | yes | yes | `groupName`, `meetingTitle`, `meetingDate` | 3 | minutes page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
@@ -352,5 +352,52 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   (client-side recalculation), invitations, fines/loans/relief-claims/
   remittances single-recipient sends, event/subscription/scheduled-announcement
   crons, and the proxy-claim route (lowest priority — result surfaced to UI).
+- No live messages were sent in the production of this addendum; all
+  verification is static or mocked.
+
+## Addendum 4 (2026-06-11, payment reminder cron producerization)
+
+- The daily payment-reminders cron (08:00 UTC) previously dispatched WhatsApp
+  **directly** per overdue obligation: provider message IDs were captured and
+  then dropped (no queue row, no webhook correlation), and the cron had **zero
+  dedup** — a same-day rerun or retry duplicated every channel.
+- WhatsApp now flows through `src/lib/payment-reminder-producer.ts`, called by
+  the cron per overdue obligation. Template mapping is unchanged
+  (`villageclaq_payment_reminder_v2`, UTILITY) and the variable order is
+  `memberName`, `amount`, `contributionType`, `dueDate`, `groupName`. Amount is
+  the outstanding balance (`amount - amount_paid`); `name_fr` is used for
+  French recipients; the recipient's `preferred_locale` wins. Eligibility is
+  re-checked at produce time (`pending/partial/overdue`, due date passed,
+  balance > 0 — note no trigger ever sets `overdue`, so the producer must not
+  require it). Proxy members remain excluded (cron parity), non-active
+  memberships are skipped, and blank template variables are impossible.
+- **Idempotency is a day bucket, deliberately different from the other
+  producers**: one WhatsApp reminder per obligation per UTC `reminderDate`.
+  Same-day reruns/retries/races are blocked; the next scheduled day reminds
+  again, preserving the daily cadence. Backed by migration
+  `00090_payment_reminder_notification_idempotency.sql` (committed, NOT
+  applied — run in the SQL Editor before live QA).
+- Email and SMS reminder paths are unchanged (and remain non-idempotent on
+  same-day reruns — pre-existing, out of scope here). Delivery timing shifts
+  from 08:00 directly to the queue drain, which processes 50 rows per
+  15-minute tick (~200/hour, FIFO, shared with receipts/welcome/relief/
+  hosting): small groups deliver within ~15 minutes, but an 08:00 burst of N
+  reminders finishes roughly N/200 hours later and delays other queued
+  messages behind it — a known head-of-line trade-off, acceptable at current
+  volumes. Two further accepted windows: a member who pays between enqueue
+  and the drain tick still receives that day's reminder (the drain does not
+  re-validate obligations — the old direct path had the same window, only
+  narrower), and a day-D row still retrying when day D+1 enqueues can deliver
+  two reminders close together (requires ~24h of drain backlog; rare).
+- Deliberate behavior deltas from the old WhatsApp path: the cron-level phone
+  pre-filter was dropped (the producer's broader phone resolution — profile →
+  membership → auth — may reach members the old contacts-RPC-only path
+  missed), and `pending_approval`/suspended memberships are now skipped for
+  WhatsApp (the old path only excluded `exited`; email/SMS behavior for them
+  is unchanged).
+- Remaining direct/client WhatsApp paths for later conversion: announcements
+  (bulk, marketing-category), `standing_changed`, invitations,
+  fines/loans/relief-claims/remittances single-recipient sends,
+  event/subscription/scheduled-announcement crons, and the proxy-claim route.
 - No live messages were sent in the production of this addendum; all
   verification is static or mocked.

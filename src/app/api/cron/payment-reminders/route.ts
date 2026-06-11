@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
-import { dispatchWhatsAppWithResult } from "@/lib/whatsapp-dispatcher";
+import { producePaymentReminderNotification } from "@/lib/payment-reminder-producer";
+import type { PaymentReminderProducerResult } from "@/lib/payment-reminder-producer";
 import { formatAmount } from "@/lib/currencies";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
@@ -30,7 +31,8 @@ export async function GET(request: Request) {
   let failed = 0;
   let smsSent = 0;
   let smsSkipped = 0;
-  let whatsappSent = 0;
+  let whatsappQueued = 0;
+  let whatsappSkipped = 0;
   let whatsappFailed = 0;
   const errors: string[] = [];
 
@@ -201,10 +203,22 @@ export async function GET(request: Request) {
       }
     }
 
+    // ── WhatsApp: queue-backed producer per overdue obligation ──
+    // The producer re-validates eligibility, preferences, and phone, then
+    // enqueues into notifications_queue (drained by the queue cron, with
+    // providerMessageId/webhook tracking). Idempotency is one reminder per
+    // obligation per UTC day, so same-day reruns of this cron are safe.
+    const reminderDate = now.toISOString().split("T")[0];
+    const whatsappPromises: Promise<PaymentReminderProducerResult>[] = [];
+    for (const o of realObligations) {
+      whatsappPromises.push(
+        producePaymentReminderNotification(supabase, o.id as string, { reminderDate }),
+      );
+    }
+
     // ── Send emails + SMS per member per overdue obligation ──
     const emailPromises: Promise<{ userId: string; success: boolean; error?: string }>[] = [];
     const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
-    const whatsappPromises: Promise<{ userId: string; success: boolean; error?: string; messageId?: string }>[] = [];
 
     for (const [userId, memberData] of byUser) {
       const email = emailMap.get(userId);
@@ -257,28 +271,8 @@ export async function GET(request: Request) {
           );
         }
 
-        // WhatsApp (only if channel enabled)
-        if (phoneInfo && channels.whatsapp) {
-          whatsappPromises.push(
-            dispatchWhatsAppWithResult(
-              "payment_reminder",
-              phoneInfo.phone,
-              phoneInfo.locale || memberData.locale || "en",
-              {
-                memberName: memberData.memberName,
-                amount: item.amount,
-                contributionType: item.contributionType,
-                dueDate: item.dueDate,
-                groupName: item.groupName,
-              },
-            ).then((result) => ({
-              userId,
-              success: result.success,
-              error: result.error,
-              messageId: result.messageId,
-            })),
-          );
-        }
+        // WhatsApp is handled by the queue-backed producer above — no
+        // direct provider sends from this cron.
       }
     }
 
@@ -305,19 +299,21 @@ export async function GET(request: Request) {
 
     const whatsappResults = await Promise.allSettled(whatsappPromises);
     for (const r of whatsappResults) {
-      if (r.status === "fulfilled" && r.value.success) {
-        whatsappSent++;
+      if (r.status === "fulfilled" && r.value.status === "queued") {
+        whatsappQueued++;
+      } else if (r.status === "fulfilled" && r.value.status === "skipped") {
+        whatsappSkipped++;
       } else {
         whatsappFailed++;
         const errMsg = r.status === "fulfilled"
-          ? r.value.error || "Unknown WhatsApp failure"
+          ? r.value.reason || "Unknown WhatsApp failure"
           : (r.reason as Error)?.message || "Unknown WhatsApp failure";
         errors.push(`WhatsApp: ${errMsg}`);
       }
     }
 
     if (errors.length > 0) {
-      console.warn(`[Cron:PaymentReminders] ${sent} emails sent, ${failed} failed, ${smsSent} SMS sent, ${whatsappSent} WhatsApp sent, ${whatsappFailed} WhatsApp failed:`, errors.slice(0, 10));
+      console.warn(`[Cron:PaymentReminders] ${sent} emails sent, ${failed} failed, ${smsSent} SMS sent, ${whatsappQueued} WhatsApp queued, ${whatsappSkipped} skipped, ${whatsappFailed} failed:`, errors.slice(0, 10));
     }
 
     return NextResponse.json({
@@ -326,13 +322,14 @@ export async function GET(request: Request) {
       failed,
       smsSent,
       smsSkipped,
-      whatsappSent,
+      whatsappQueued,
+      whatsappSkipped,
       whatsappFailed,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:PaymentReminders] Fatal error:", msg);
-    return NextResponse.json({ success: false, error: msg, sent, failed, smsSent, smsSkipped, whatsappSent, whatsappFailed }, { status: 500 });
+    return NextResponse.json({ success: false, error: msg, sent, failed, smsSent, smsSkipped, whatsappQueued, whatsappSkipped, whatsappFailed }, { status: 500 });
   }
 }

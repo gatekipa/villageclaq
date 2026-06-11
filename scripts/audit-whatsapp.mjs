@@ -566,6 +566,48 @@ check(
   "DB-level uniqueness must back both producers' check-before-insert.",
 );
 
+const paymentReminderProducer = read("src/lib/payment-reminder-producer.ts");
+check(
+  "WhatsApp payment reminder producer is server-side and queue-backed",
+  paymentReminderProducer.includes('from("notifications_queue")') &&
+    paymentReminderProducer.includes('template: "payment_reminder"') &&
+    paymentReminderProducer.includes('whatsappType: "payment_reminder"') &&
+    paymentReminderProducer.includes("WA_TEMPLATES.PAYMENT_REMINDER") &&
+    paymentReminderProducer.includes('"payment_reminders"') &&
+    paymentReminderProducer.includes("maskPhoneNumber("),
+  "Payment reminder WhatsApp must be queue-backed, pref-gated, and masked so provider IDs and webhook status are tracked.",
+);
+check(
+  "WhatsApp payment reminder idempotency is a per-day bucket",
+  paymentReminderProducer.includes('.eq("data->>obligationId"') &&
+    paymentReminderProducer.includes('.eq("data->>reminderDate"') &&
+    paymentReminderProducer.includes('"23505"'),
+  "One reminder per obligation per UTC day: same-day reruns are blocked, the daily cadence is preserved.",
+);
+check(
+  "WhatsApp payment reminder producer never enqueues blank variables",
+  paymentReminderProducer.includes("missing_template_data"),
+  "Meta rejects empty body parameters — the producer must skip when contributionType/groupName/dueDate resolve empty.",
+);
+
+const paymentRemindersCron = read("src/app/api/cron/payment-reminders/route.ts");
+check(
+  "Payment reminders cron routes WhatsApp through the queue-backed producer",
+  !paymentRemindersCron.includes("dispatchWhatsApp") &&
+    paymentRemindersCron.includes("producePaymentReminderNotification"),
+  "The cron must never send WhatsApp directly — direct sends drop provider IDs and duplicate on rerun.",
+);
+
+const paymentReminderMigration = read("supabase/migrations/00090_payment_reminder_notification_idempotency.sql");
+check(
+  "WhatsApp payment reminder idempotency migration exists",
+  paymentReminderMigration.includes("idx_notifications_queue_whatsapp_payment_reminder_unique") &&
+    paymentReminderMigration.includes("data ->> 'obligationId'") &&
+    paymentReminderMigration.includes("data ->> 'reminderDate'") &&
+    paymentReminderMigration.includes("channel = 'whatsapp'"),
+  "DB-level day-bucket uniqueness must back the producer's check-before-insert.",
+);
+
 const webhookDoc = read("docs/whatsapp-webhook-status.md");
 check(
   "WhatsApp webhook status runbook exists",

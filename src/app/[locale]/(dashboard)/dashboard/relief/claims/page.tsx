@@ -109,17 +109,19 @@ export default function ReliefClaimsPage() {
         }); } catch { /* notification is best-effort */ }
       }
 
-      // WhatsApp + Email + SMS for relief claim approved (fire-and-forget)
+      // Email + SMS for relief claim approved (fire-and-forget). WhatsApp
+      // goes through the server-side queue-backed producer (exactly-once per
+      // claim decision, claimant-locale, DB-resolved variables). In-app is
+      // the direct insert above; notifyFromClient's typed insert is disabled
+      // — "relief" was never a valid notification_type enum value, so it
+      // always failed silently.
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
-        // profile.phone no longer in useMembers cache. /api/sms/send and
-        // /api/whatsapp/send resolve real-member phone from user_id
-        // server-side. Only proxy phones flow client-side.
+        // profile.phone no longer in useMembers cache. /api/sms/send
+        // resolves real-member phone from user_id server-side. Only proxy
+        // phones flow client-side.
         const phone = (privSettings?.proxy_phone as string) || null;
-        const memberName = getMemberName(membership as Record<string, unknown>);
-        const plan = selectedClaim.relief_plan as Record<string, unknown> | null;
-        const planName = (plan?.name as string) || "";
         const amount = formatAmount(Number(selectedClaim.amount || 0), currentGroup?.currency || "XAF");
         notifyFromClient({
           recipientUserId: claimantUserId,
@@ -127,16 +129,23 @@ export default function ReliefClaimsPage() {
           groupId: groupId!,
           title: t("relief.claimApprovedNotifTitle"),
           body: t("relief.claimApprovedNotifBody"),
-          data: { memberName, claimType: planName, amount, groupName: currentGroup?.name || "" },
+          data: { amount, groupName: currentGroup?.name || "" },
           emailTemplate: "notification",
           smsTemplate: "relief-claim-approved",
-          whatsappType: "relief_claim_approved",
           inAppType: "relief",
           locale,
-          channels: { inApp: true, email: true, sms: true, whatsapp: true },
+          channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "relief_updates",
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => {
+          console.warn("[ReliefClaims] email/SMS notification failed:", err instanceof Error ? err.message : err);
+        });
+        const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
+        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch((err) => {
+          console.warn("[ReliefClaims] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
+      } catch (err) {
+        console.warn("[ReliefClaims] approval notification dispatch failed:", err instanceof Error ? err.message : err);
+      }
 
       // Audit log
       try {
@@ -200,33 +209,42 @@ export default function ReliefClaimsPage() {
         }); } catch { /* notification is best-effort */ }
       }
 
-      // WhatsApp + Email + SMS for relief claim denied (fire-and-forget)
+      // Email + SMS for relief claim denied (fire-and-forget). WhatsApp goes
+      // through the server-side queue-backed producer (exactly-once per claim
+      // decision, claimant-locale, DB-resolved variables). In-app is the
+      // direct insert above; notifyFromClient's typed insert is disabled —
+      // "relief" was never a valid notification_type enum value, so it
+      // always failed silently.
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const privSettings = (membership?.privacy_settings as Record<string, unknown>) || null;
-        // profile.phone no longer in useMembers cache. /api/sms/send and
-        // /api/whatsapp/send resolve real-member phone from user_id
-        // server-side. Only proxy phones flow client-side.
+        // profile.phone no longer in useMembers cache. /api/sms/send
+        // resolves real-member phone from user_id server-side. Only proxy
+        // phones flow client-side.
         const phone = (privSettings?.proxy_phone as string) || null;
-        const memberName = getMemberName(membership as Record<string, unknown>);
-        const plan = selectedClaim.relief_plan as Record<string, unknown> | null;
-        const planName = (plan?.name as string) || "";
         notifyFromClient({
           recipientUserId: claimantUserId,
           recipientPhone: phone,
           groupId: groupId!,
           title: t("relief.claimDeniedNotifTitle"),
           body: reviewNotes.trim(),
-          data: { memberName, claimType: planName, reason: reviewNotes.trim(), groupName: currentGroup?.name || "" },
+          data: { reason: reviewNotes.trim(), groupName: currentGroup?.name || "" },
           emailTemplate: "notification",
           smsTemplate: "relief-claim-denied",
-          whatsappType: "relief_claim_denied",
           inAppType: "relief",
           locale,
-          channels: { inApp: true, email: true, sms: true, whatsapp: true },
+          channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "relief_updates",
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => {
+          console.warn("[ReliefClaims] email/SMS notification failed:", err instanceof Error ? err.message : err);
+        });
+        const { requestReliefClaimDecisionWhatsApp } = await import("@/lib/notify-money-path");
+        requestReliefClaimDecisionWhatsApp(supabase, selectedClaim.id as string, locale).catch((err) => {
+          console.warn("[ReliefClaims] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
+      } catch (err) {
+        console.warn("[ReliefClaims] denial notification dispatch failed:", err instanceof Error ? err.message : err);
+      }
 
       // Audit log
       try {

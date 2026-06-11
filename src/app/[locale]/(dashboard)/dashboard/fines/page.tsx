@@ -284,7 +284,7 @@ export default function FinesAdminPage() {
       const amt = Number(issueAmount);
       if (amt <= 0) throw new Error(t("amount"));
 
-      const { error: e } = await supabase.from("fines").insert({
+      const { data: newFine, error: e } = await supabase.from("fines").insert({
         group_id: groupId,
         fine_type_id: issueFineTypeId,
         membership_id: issueMemberId,
@@ -294,7 +294,7 @@ export default function FinesAdminPage() {
         issued_by: user.id,
         issued_at: new Date().toISOString(),
         status: "pending",
-      });
+      }).select("id").single();
       if (e) throw e;
 
       // Notify member
@@ -314,33 +314,43 @@ export default function FinesAdminPage() {
         } catch { /* best-effort */ }
       }
 
-      // WhatsApp + Email + SMS for fine issued (fire-and-forget)
+      // Email + SMS for fine issued (fire-and-forget). WhatsApp goes through
+      // the server-side queue-backed producer, which resolves all template
+      // variables from the fine row (the old client payload could send blank
+      // memberName/fineType/groupName on cache misses) and is exactly-once
+      // per fine. In-app is the direct insert above; notifyFromClient's
+      // typed insert is disabled — "fine" was never a valid
+      // notification_type enum value, so it always failed silently.
       try {
         const { notifyFromClient } = await import("@/lib/notify-client");
         const privSettings = ((member as Record<string, unknown>)?.privacy_settings as Record<string, unknown>) || null;
         // profile.phone no longer in useMembers cache. /api/sms/send
-        // and /api/whatsapp/send resolve real-member phone from user_id
-        // server-side. Only proxy phones flow client-side.
+        // resolves real-member phone from user_id server-side. Only proxy
+        // phones flow client-side.
         const phone = (privSettings?.proxy_phone as string) || null;
-        const memberName = member ? getMemberName(member as Record<string, unknown>) : "";
-        const fineType = (fineTypes || []).find((ft: Record<string, unknown>) => ft.id === issueFineTypeId);
-        const fineTypeName = (fineType?.name as string) || "";
         notifyFromClient({
           recipientUserId: userId,
           recipientPhone: phone,
           groupId: groupId!,
           title: t("fineIssuedNotifTitle"),
           body: t("fineIssuedNotifBody", { amount: formatAmount(amt, currency), reason: issueReason.trim() || "-" }),
-          data: { memberName, fineType: fineTypeName, amount: formatAmount(amt, currency), reason: issueReason.trim() || "-", groupName: currentGroup?.name || "" },
+          data: { amount: formatAmount(amt, currency), reason: issueReason.trim() || "-", groupName: currentGroup?.name || "" },
           emailTemplate: "notification",
           smsTemplate: "fine-issued",
-          whatsappType: "fine_issued",
           inAppType: "fine",
           locale,
-          channels: { inApp: true, email: true, sms: true, whatsapp: true },
+          channels: { inApp: false, email: true, sms: true, whatsapp: false },
           prefType: "fine_updates",
-        }).catch(() => {});
-      } catch { /* best-effort */ }
+        }).catch((err) => {
+          console.warn("[Fines] email/SMS notification failed:", err instanceof Error ? err.message : err);
+        });
+        const { requestFineIssuedWhatsApp } = await import("@/lib/notify-money-path");
+        requestFineIssuedWhatsApp(supabase, newFine?.id as string | undefined, locale).catch((err) => {
+          console.warn("[Fines] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
+      } catch (err) {
+        console.warn("[Fines] fine notification dispatch failed:", err instanceof Error ? err.message : err);
+      }
 
       // Audit log
       try {

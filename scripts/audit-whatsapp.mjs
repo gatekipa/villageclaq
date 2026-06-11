@@ -187,7 +187,9 @@ const fullTemplateRegistry = {
     constant: "FINE_ISSUED",
     template: "villageclaq_fine_issued",
     builder: "buildFineIssuedParams",
-    vars: ["memberName", "fineType", "amount", "reason", "groupName"],
+    // Approved Meta body order verified in WhatsApp Manager (EN + FR):
+    // {{4}} = groupName, {{5}} = reason.
+    vars: ["memberName", "fineType", "amount", "groupName", "reason"],
   },
   standing_changed: {
     constant: "STANDING_CHANGED",
@@ -662,6 +664,84 @@ check(
     membershipFreezeMigration.includes("membership_status_change_requires_admin") &&
     membershipFreezeMigration.includes("NEW.membership_status <> 'exited'"),
   "An exited former admin must not self-reinstate; only self-exit (leave-group) is permitted.",
+);
+
+const fineProducer = read("src/lib/fine-issued-producer.ts");
+check(
+  "WhatsApp fine producer is server-side, queue-backed, and exactly-once per fine",
+  fineProducer.includes('from("notifications_queue")') &&
+    fineProducer.includes('template: "fine_issued"') &&
+    fineProducer.includes('whatsappType: "fine_issued"') &&
+    fineProducer.includes("WA_TEMPLATES.FINE_ISSUED") &&
+    fineProducer.includes('"fine_updates"') &&
+    fineProducer.includes('.eq("data->>fineId"') &&
+    fineProducer.includes('"23505"') &&
+    fineProducer.includes("maskPhoneNumber("),
+  "Fine WhatsApp must be queue-backed, pref-gated, masked, and deduped per fineId.",
+);
+
+const loanProducer = read("src/lib/loan-approved-producer.ts");
+check(
+  "WhatsApp loan producer is server-side, queue-backed, and exactly-once per loan",
+  loanProducer.includes('from("notifications_queue")') &&
+    loanProducer.includes('template: "loan_approved"') &&
+    loanProducer.includes('whatsappType: "loan_approved"') &&
+    loanProducer.includes("WA_TEMPLATES.LOAN_APPROVED") &&
+    loanProducer.includes('"loan_updates"') &&
+    loanProducer.includes('.eq("data->>loanId"') &&
+    loanProducer.includes('"23505"') &&
+    loanProducer.includes("maskPhoneNumber("),
+  "Loan approval WhatsApp must be queue-backed, pref-gated, masked, and deduped per loanId.",
+);
+
+const claimProducer = read("src/lib/relief-claim-decision-producer.ts");
+check(
+  "WhatsApp relief claim producer is queue-backed with per-decision idempotency",
+  claimProducer.includes('from("notifications_queue")') &&
+    claimProducer.includes("WA_TEMPLATES.RELIEF_CLAIM_APPROVED") &&
+    claimProducer.includes("WA_TEMPLATES.RELIEF_CLAIM_DENIED") &&
+    claimProducer.includes('"relief_updates"') &&
+    claimProducer.includes('.eq("template", templateKey)') &&
+    claimProducer.includes('.eq("data->>claimId"') &&
+    claimProducer.includes('"23505"') &&
+    claimProducer.includes("maskPhoneNumber("),
+  "Claim decision WhatsApp must dedupe per (claimId, decision template) so reversals still notify.",
+);
+
+const finesPage = read("src/app/[locale]/(dashboard)/dashboard/fines/page.tsx");
+const loansPage = read("src/app/[locale]/(dashboard)/dashboard/loans/page.tsx");
+const claimsPage = read("src/app/[locale]/(dashboard)/dashboard/relief/claims/page.tsx");
+const reliefPlansPage = read("src/app/[locale]/(dashboard)/dashboard/relief/plans/page.tsx");
+check(
+  "money-path pages route WhatsApp through the producers, not direct client sends",
+  !finesPage.includes('whatsappType: "fine_issued"') &&
+    finesPage.includes("requestFineIssuedWhatsApp") &&
+    !loansPage.includes('whatsappType: "loan_approved"') &&
+    loansPage.includes("requestLoanApprovedWhatsApp") &&
+    !claimsPage.includes('whatsappType: "relief_claim_approved"') &&
+    !claimsPage.includes('whatsappType: "relief_claim_denied"') &&
+    claimsPage.includes("requestReliefClaimDecisionWhatsApp") &&
+    !reliefPlansPage.includes("whatsappType:") &&
+    reliefPlansPage.includes("requestReliefClaimDecisionWhatsApp"),
+  "Fines, loans, and both relief-claim admin surfaces must trigger the queue-backed producers.",
+);
+
+const moneyPathMigration = read("supabase/migrations/00093_money_path_notification_idempotency.sql");
+check(
+  "WhatsApp money-path idempotency migration exists",
+  moneyPathMigration.includes("idx_notifications_queue_whatsapp_fine_issued_unique") &&
+    moneyPathMigration.includes("idx_notifications_queue_whatsapp_loan_approved_unique") &&
+    moneyPathMigration.includes("idx_notifications_queue_whatsapp_claim_approved_unique") &&
+    moneyPathMigration.includes("idx_notifications_queue_whatsapp_claim_denied_unique") &&
+    moneyPathMigration.includes("data ->> 'fineId'") &&
+    moneyPathMigration.includes("data ->> 'loanId'") &&
+    moneyPathMigration.includes("data ->> 'claimId'") &&
+    moneyPathMigration.includes("template = 'fine_issued'") &&
+    moneyPathMigration.includes("template = 'loan_approved'") &&
+    moneyPathMigration.includes("template = 'relief_claim_approved'") &&
+    moneyPathMigration.includes("template = 'relief_claim_denied'") &&
+    (moneyPathMigration.match(/channel = 'whatsapp'::notification_channel/g) || []).length >= 4,
+  "DB-level uniqueness must back the fine/loan/claim producers' check-before-insert with full channel/template predicates.",
 );
 
 const webhookDoc = read("docs/whatsapp-webhook-status.md");

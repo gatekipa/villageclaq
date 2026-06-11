@@ -4905,6 +4905,7 @@
     "sortAmount": "Montant"
   },
   "loans": {
+    "alreadyDecided": "Ce prêt a déjà été traité par un autre administrateur.",
     "title": "Prêts",
     "subtitle": "Gérer les demandes de prêt, les décaissements et les remboursements",
     "myLoansTitle": "Mes Prêts",

@@ -4906,6 +4906,7 @@
   },
   "loans": {
     "title": "Loans",
+    "alreadyDecided": "This loan has already been decided by another admin.",
     "subtitle": "Manage loan applications, disbursements, and repayments",
     "myLoansTitle": "My Loans",
     "myLoansSubtitle": "View your loan applications and repayment status",

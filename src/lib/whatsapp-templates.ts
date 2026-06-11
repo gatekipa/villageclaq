@@ -33,7 +33,9 @@ export const WA_TEMPLATES = {
   // body (memberName, hostingDate, groupName). A distinct assignment
   // template remains a future copy upgrade.
   HOSTING_ASSIGNMENT: "villageclaq_hosting_reminder",
-  RELIEF_ENROLLMENT: "villageclaq_relief_enrollment",
+  // UTILITY replacement for the MARKETING-approved villageclaq_relief_enrollment,
+  // which Meta blocks to US numbers (error 131049). Same 3-variable body.
+  RELIEF_ENROLLMENT: "villageclaq_plan_enrollment_confirmed",
   REMITTANCE_CONFIRMED: "villageclaq_remittance_confirmed",
   REMITTANCE_DISPUTED: "villageclaq_remittance_disputed",
   SUBSCRIPTION_EXPIRING: "villageclaq_subscription_expiring",

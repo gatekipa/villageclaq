@@ -72,7 +72,7 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
 | `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
 | `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_reminder` (reused; see addendum 3) | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | `src/lib/hosting-assignment-producer.ts` via `/api/hosting/assignment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
-| `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_relief_enrollment` | UTILITY | yes | yes | `memberName`, `planName`, `groupName` | 3 | `src/lib/relief-enrollment-producer.ts` via `/api/relief/enrollment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
+| `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_plan_enrollment_confirmed` (was `villageclaq_relief_enrollment`, see addendum 5) | UTILITY | yes | yes | `memberName`, `planName`, `groupName` | 3 | `src/lib/relief-enrollment-producer.ts` via `/api/relief/enrollment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Migration 00089 applied; ready for QA re-run |
 | `remittance_confirmed` | `REMITTANCE_CONFIRMED` | `villageclaq_remittance_confirmed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `remittance_disputed` | `REMITTANCE_DISPUTED` | `villageclaq_remittance_disputed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `subscription_expiring` | `SUBSCRIPTION_EXPIRING` | `villageclaq_subscription_expiring` | missing | no | no | `planName`, `days` | missing | subscription reminders cron | direct dispatch | no durable queue correlation | Hold: missing Meta approval |
@@ -399,5 +399,23 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   (bulk, marketing-category), `standing_changed`, invitations,
   fines/loans/relief-claims/remittances single-recipient sends,
   event/subscription/scheduled-announcement crons, and the proxy-claim route.
+- No live messages were sent in the production of this addendum; all
+  verification is static or mocked.
+
+## Addendum 5 (2026-06-11, relief enrollment Utility remap)
+
+- The 2026-06-11 controlled relief QA proved the producer pipeline end to end
+  but Meta blocked delivery with error `131049`: `villageclaq_relief_enrollment`
+  was silently approved as **MARKETING**, and Meta pauses marketing templates
+  to US numbers (the same failure signature the original welcome template had).
+- The UTILITY replacement `villageclaq_plan_enrollment_confirmed` is now
+  approved in Meta for EN and FR, and `WA_TEMPLATES.RELIEF_ENROLLMENT` maps to
+  it. Variable order is unchanged (`memberName`, `planName`, `groupName`);
+  EN/FR selection and the per-enrollment idempotency (migration 00089,
+  applied) are unchanged — the dispatcher resolves the template at send time,
+  and the failed QA row from the MARKETING template is terminal and is NOT
+  retried.
+- The old `villageclaq_relief_enrollment` MARKETING template is unused by code
+  and can be retired in Meta once this mapping is deployed.
 - No live messages were sent in the production of this addendum; all
   verification is static or mocked.

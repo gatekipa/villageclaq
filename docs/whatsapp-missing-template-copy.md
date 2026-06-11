@@ -13,7 +13,7 @@ Final read-only Meta re-check found 48 approved language rows across 24 approved
 | App type/key | Meta template name | Meta status | Recommendation |
 | --- | --- | --- | --- |
 | `welcome` | `villageclaq_member_joined` (UTILITY; replaced MARKETING `villageclaq_welcome` after Meta error 131049 blocked US delivery) | EN/FR approved | Mapped in app. Ready for controlled template QA: server-side queue-backed producer implemented (`src/lib/welcome-producer.ts` via `/api/members/welcome-notifications`). See `docs/whatsapp-welcome-utility-template.md`. |
-| `relief_enrollment` | `villageclaq_relief_enrollment` | EN/FR approved | Producer-backed (2026-06-11): `src/lib/relief-enrollment-producer.ts` resolves `memberName` server-side. Ready for controlled QA after migration 00089 is applied. |
+| `relief_enrollment` | `villageclaq_plan_enrollment_confirmed` (UTILITY; replaced MARKETING `villageclaq_relief_enrollment` after Meta error 131049 blocked US delivery) | EN/FR approved | Producer-backed (2026-06-11): `src/lib/relief-enrollment-producer.ts` resolves `memberName` server-side. Migration 00089 applied; ready for controlled QA re-run. |
 | `remittance_confirmed` | `villageclaq_remittance_confirmed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
 | `remittance_disputed` | `villageclaq_remittance_disputed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
 | `subscription_expiring` | `villageclaq_subscription_expiring` | EN/FR approved | Ready for current app behavior; adding group context requires a later code change. |
@@ -174,6 +174,13 @@ Readiness notes:
 - Do not reduce the template to one variable. The app builder sends three body parameters for this key.
 
 ## 2. `villageclaq_relief_enrollment`
+
+> **Superseded (2026-06-11):** this template was silently approved as MARKETING
+> and failed US delivery with Meta error `131049` during controlled QA. The
+> app's `relief_enrollment` type now maps to the approved UTILITY template
+> `villageclaq_plan_enrollment_confirmed` (identical 3-variable body:
+> `memberName`, `planName`, `groupName`). The section below is retained as the
+> historical record of the original template.
 
 Template purpose: notify a member that they were enrolled in a relief plan.
 

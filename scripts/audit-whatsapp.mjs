@@ -211,7 +211,9 @@ const fullTemplateRegistry = {
   },
   relief_enrollment: {
     constant: "RELIEF_ENROLLMENT",
-    template: "villageclaq_relief_enrollment",
+    // UTILITY replacement; the original villageclaq_relief_enrollment was
+    // approved as MARKETING and fails US delivery (Meta 131049).
+    template: "villageclaq_plan_enrollment_confirmed",
     builder: "buildReliefEnrollmentParams",
     vars: ["memberName", "planName", "groupName"],
   },

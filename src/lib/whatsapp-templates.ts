@@ -29,7 +29,10 @@ export const WA_TEMPLATES = {
   FINE_ISSUED: "villageclaq_fine_issued",
   STANDING_CHANGED: "villageclaq_standing_changed",
   WELCOME: "villageclaq_member_joined",
-  HOSTING_ASSIGNMENT: "villageclaq_hosting_assignment",
+  // Reuses the approved hosting reminder template — identical 3-variable
+  // body (memberName, hostingDate, groupName). A distinct assignment
+  // template remains a future copy upgrade.
+  HOSTING_ASSIGNMENT: "villageclaq_hosting_reminder",
   RELIEF_ENROLLMENT: "villageclaq_relief_enrollment",
   REMITTANCE_CONFIRMED: "villageclaq_remittance_confirmed",
   REMITTANCE_DISPUTED: "villageclaq_remittance_disputed",

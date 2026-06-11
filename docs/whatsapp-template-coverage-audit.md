@@ -71,8 +71,8 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `reason`, `groupName` | 5 | fines page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
 | `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
 | `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
-| `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_assignment` | missing | no | no | `memberName`, `hostingDate`, `groupName` | missing | hosting UI via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
-| `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_relief_enrollment` | missing | no | no | `memberName`, `planName`, `groupName` | missing | relief enrollment page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
+| `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_reminder` (reused; see addendum 3) | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | `src/lib/hosting-assignment-producer.ts` via `/api/hosting/assignment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
+| `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_relief_enrollment` | UTILITY | yes | yes | `memberName`, `planName`, `groupName` | 3 | `src/lib/relief-enrollment-producer.ts` via `/api/relief/enrollment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
 | `remittance_confirmed` | `REMITTANCE_CONFIRMED` | `villageclaq_remittance_confirmed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `remittance_disputed` | `REMITTANCE_DISPUTED` | `villageclaq_remittance_disputed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `subscription_expiring` | `SUBSCRIPTION_EXPIRING` | `villageclaq_subscription_expiring` | missing | no | no | `planName`, `days` | missing | subscription reminders cron | direct dispatch | no durable queue correlation | Hold: missing Meta approval |
@@ -232,7 +232,11 @@ Hold back from live WhatsApp QA:
 
 - FR welcome, until `villageclaq_welcome` is approved in FR or code falls back to EN for that template.
 - Hosting assignment, until `villageclaq_hosting_assignment` is approved in EN/FR.
+  *(Superseded by addendum 3: `hosting_assignment` now reuses the approved
+  `villageclaq_hosting_reminder` and is producer-backed.)*
 - Relief enrollment, until `villageclaq_relief_enrollment` is approved in EN/FR.
+  *(Superseded by addendum 3: the template was approved EN/FR and is now
+  producer-backed.)*
 - Remittance confirmed, until `villageclaq_remittance_confirmed` is approved in EN/FR.
 - Remittance disputed, until `villageclaq_remittance_disputed` is approved in EN/FR.
 - Subscription expiring, until `villageclaq_subscription_expiring` is approved in EN/FR.
@@ -264,8 +268,9 @@ Do not live-test the hold-back templates until Meta approval gaps are closed.
 ## Recommended Next Steps
 
 1. Submit or approve the missing Meta templates in EN and FR:
-   - `villageclaq_hosting_assignment`
-   - `villageclaq_relief_enrollment`
+   - `villageclaq_hosting_assignment` *(superseded by addendum 3 — never
+     submitted; `hosting_assignment` reuses `villageclaq_hosting_reminder`)*
+   - `villageclaq_relief_enrollment` *(approved; producer-backed per addendum 3)*
    - `villageclaq_remittance_confirmed`
    - `villageclaq_remittance_disputed`
    - `villageclaq_subscription_expiring`
@@ -311,7 +316,41 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   (queue dedupe + migration 00087 unique index).
 - Ready for manual QA: `welcome` (re-run a fresh join for the QA recipient; expect
   delivered/read now that the template is UTILITY) and the pay-now → confirm receipt
-  flow. Still held: `relief_enrollment` (producer sends blank `memberName`; needs a
+  flow. Formerly held, now resolved in addendum 3: `relief_enrollment` (producer sent blank `memberName`; needed a
   server-side queue-backed producer — separate PR) and `hosting_assignment` (mapped
   Meta template name does not exist; remap to `villageclaq_hosting_reminder` plus a
   per-recipient payload producer — separate PR).
+
+## Addendum 3 (2026-06-11, relief enrollment + hosting assignment producerization)
+
+- `relief_enrollment` is now producer-backed: `src/lib/relief-enrollment-producer.ts`
+  via `/api/relief/enrollment-notifications` (group owner/admin or platform staff,
+  batch-capped). Triggered fire-and-forget from all three enrollment paths —
+  the enrollment page (which previously sent a shared payload with a hardcoded
+  blank `memberName` that Meta rejects), plan auto-enroll, and the admin
+  bulk-enroll dialog (both of which previously notified nobody). Variables
+  `memberName`, `planName` (`name_fr` for FR), `groupName` are resolved
+  server-side per recipient and are never blank. Recipient is the enrolled
+  member only; proxy members included via `proxy_phone`; gated by
+  `relief_updates` preferences (WhatsApp default ON). Exactly-once per
+  enrollment (`data->>enrollmentId` check-before-insert + migration 00089).
+- `hosting_assignment` is now mapped to the approved EN/FR
+  `villageclaq_hosting_reminder` (identical 3-variable body; a distinct
+  assignment template remains a future copy upgrade) and producer-backed:
+  `src/lib/hosting-assignment-producer.ts` via
+  `/api/hosting/assignment-notifications`. Triggered from publish-schedule and
+  the assign-hosts dialog; only `upcoming`, non-past assignments are notified
+  (re-publishing never re-sends); `hostingDate` is formatted per recipient
+  locale, mirroring the hosting-reminders cron. Gated by `hosting_reminders`
+  preferences. Exactly-once per assignment (`data->>assignmentId`
+  check-before-insert + migration 00089). The hosting-reminders cron and the
+  swap-flow `hosting_reminder` sends are unchanged.
+- Migration `00089_relief_hosting_notification_idempotency.sql` is committed
+  but NOT applied — run it in the SQL Editor before live QA.
+- Remaining direct/client WhatsApp paths for later conversion: announcements
+  (bulk, marketing-category), payment-reminders cron, `standing_changed`
+  (client-side recalculation), invitations, fines/loans/relief-claims/
+  remittances single-recipient sends, event/subscription/scheduled-announcement
+  crons, and the proxy-claim route (lowest priority — result surfaced to UI).
+- No live messages were sent in the production of this addendum; all
+  verification is static or mocked.

@@ -10,10 +10,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_queue_whatsapp_relief_enroll
   ON public.notifications_queue ((data ->> 'enrollmentId'))
   WHERE channel = 'whatsapp'::notification_channel
     AND template = 'relief_enrollment'
-    AND data ? 'enrollmentId';
+    AND data ? 'enrollmentId'
+    AND (data ->> 'enrollmentId') IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_queue_whatsapp_hosting_assignment_unique
   ON public.notifications_queue ((data ->> 'assignmentId'))
   WHERE channel = 'whatsapp'::notification_channel
     AND template = 'hosting_assignment'
-    AND data ? 'assignmentId';
+    AND data ? 'assignmentId'
+    AND (data ->> 'assignmentId') IS NOT NULL;

@@ -497,10 +497,11 @@ export default function ReliefPlansPage() {
             collecting_group_id: groupId || null,
             eligible_date: eDate,
           }));
-          const { data: newEnrollments } = await supabase
+          const { data: newEnrollments, error: autoEnrollErr } = await supabase
             .from("relief_enrollments")
             .insert(enrollments)
             .select("id");
+          if (autoEnrollErr) throw autoEnrollErr;
 
           // WhatsApp enrollment notice — server-side, queue-backed
           // producer (exactly-once per enrollment). This path previously

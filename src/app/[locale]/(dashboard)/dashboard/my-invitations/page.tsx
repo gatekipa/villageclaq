@@ -6,6 +6,7 @@ import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
+import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { useGroup } from "@/lib/group-context";
 import { useRouter } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,6 +121,10 @@ export default function MyInvitationsPage() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) throw new Error("Not authenticated");
 
+      // Membership the welcome producer targets — only set when this accept
+      // actually created/claimed a membership (never on already_member).
+      let welcomeMembershipId: string | null = null;
+
       if (isClaim) {
         // ── CLAIM FLOW: claim existing proxy membership ──
         const { error: claimErr } = await supabase.rpc("claim_proxy_membership", {
@@ -137,6 +142,7 @@ export default function MyInvitationsPage() {
           }
           return;
         }
+        welcomeMembershipId = claimMembershipId;
       } else {
         // ── NORMAL FLOW: accept via SECURITY DEFINER RPC ──
         // Direct client inserts into memberships can no longer create
@@ -150,7 +156,12 @@ export default function MyInvitationsPage() {
         const { data: rpcData, error: rpcErr } = await supabase.rpc("accept_invitation", {
           p_invitation_id: invitationId,
         });
-        const rpc = (rpcData || {}) as { ok?: boolean; error?: string };
+        const rpc = (rpcData || {}) as {
+          ok?: boolean;
+          error?: string;
+          membership_id?: string;
+          already_member?: boolean;
+        };
         if (rpcErr) {
           setShowError(rpcErr.message || t("actionFailed"));
           return;
@@ -171,6 +182,9 @@ export default function MyInvitationsPage() {
           }
           setShowError(t("actionFailed"));
           return;
+        }
+        if (!rpc.already_member) {
+          welcomeMembershipId = rpc.membership_id || null;
         }
       }
 
@@ -230,6 +244,11 @@ export default function MyInvitationsPage() {
               }),
             }).catch(() => {});
           }
+
+          // WhatsApp welcome — server-side, queue-backed producer re-checks
+          // new_member preferences, phone eligibility, and idempotency
+          // (at most one welcome per membership).
+          requestWelcomeWhatsApp(supabase, welcomeMembershipId, locale);
         }
       } catch {
         // Email is non-critical — never block invitation acceptance

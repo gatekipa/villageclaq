@@ -3,8 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
+import { useStableRouter } from "@/lib/hooks/use-stable-router";
 import { createClient } from "@/lib/supabase/client";
+import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,10 +23,13 @@ interface ClaimData {
 
 export default function ClaimPage() {
   const params = useParams();
-  const router = useRouter();
+  // Stable methods — safe in effect deps (CLAUDE.md rule 9).
+  const router = useStableRouter();
   const t = useTranslations("claim");
   const tc = useTranslations("common");
   const token = params.token as string;
+  // Extract as a string primitive — never put the params object in deps.
+  const localeParam = (params.locale as string | undefined) || undefined;
 
   const [status, setStatus] = useState<"loading" | "valid" | "invalid" | "claiming" | "claimed" | "error">("loading");
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
@@ -74,6 +79,15 @@ export default function ClaimPage() {
           return;
         }
 
+        // WhatsApp welcome — server-side, queue-backed producer re-checks
+        // new_member preferences, phone eligibility, and idempotency
+        // (at most one welcome per membership).
+        requestWelcomeWhatsApp(
+          supabase,
+          (data as ClaimData).membership_id,
+          localeParam,
+        );
+
         setStatus("claimed");
         // Redirect to dashboard after brief delay
         setTimeout(() => {
@@ -85,7 +99,7 @@ export default function ClaimPage() {
     }
 
     verifyAndClaim();
-  }, [token, t, router]);
+  }, [token, localeParam, t, router]);
 
   // ─── Loading ─────────────────────────────────────────
   if (status === "loading" || status === "claiming") {

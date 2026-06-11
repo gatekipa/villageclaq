@@ -12,7 +12,7 @@ Final read-only Meta re-check found 48 approved language rows across 24 approved
 
 | App type/key | Meta template name | Meta status | Recommendation |
 | --- | --- | --- | --- |
-| `welcome` | `villageclaq_welcome` | EN/FR approved | Ready for template coverage; still confirm the WhatsApp producer path before live QA. |
+| `welcome` | `villageclaq_welcome` | EN/FR approved | Ready for controlled template QA: server-side queue-backed producer implemented (`src/lib/welcome-producer.ts` via `/api/members/welcome-notifications`). |
 | `relief_enrollment` | `villageclaq_relief_enrollment` | EN/FR approved | Hold live QA until producer data supplies `memberName`. |
 | `remittance_confirmed` | `villageclaq_remittance_confirmed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
 | `remittance_disputed` | `villageclaq_remittance_disputed` | EN/FR approved | Ready for controlled template QA after explicit send authorization. |
@@ -31,7 +31,7 @@ Approval and QA rules:
 
 | App type/key | Builder | Current body variable order | Producer path | Payload readiness |
 | --- | --- | --- | --- | --- |
-| `welcome` | `buildWelcomeParams` | `{{1}} memberName`, `{{2}} groupName` | Dispatcher support; current invitation acceptance sends email/SMS welcome but no confirmed WhatsApp welcome producer found | EN/FR approved; producer path should be confirmed before live WhatsApp QA. |
+| `welcome` | `buildWelcomeParams` | `{{1}} memberName`, `{{2}} groupName` | `src/lib/welcome-producer.ts` enqueues `notifications_queue` rows via `/api/members/welcome-notifications`; triggered on invitation acceptance, proxy claim (invitation and token), and join-code success | EN/FR approved; producer queues `memberName`, `groupName` for the joining member only, gated by `new_member` preferences. |
 | `hosting_assignment` | `buildHostingAssignmentParams` | `{{1}} memberName`, `{{2}} hostingDate`, `{{3}} groupName` | Hosting page uses `notifyBulkFromClient` with `whatsappType: "hosting_assignment"` | HOLD for live QA and Meta creation: current producer data includes `groupName` but does not populate `memberName` or `hostingDate`; existing `villageclaq_hosting_reminder` may be reusable after mapping cleanup. |
 | `relief_enrollment` | `buildReliefEnrollmentParams` | `{{1}} memberName`, `{{2}} planName`, `{{3}} groupName` | Relief enrollment page uses `notifyBulkFromClient` | HOLD for live QA: current producer data sets `memberName` to an empty string. |
 | `remittance_confirmed` | `buildRemittanceConfirmedParams` | `{{1}} amount`, `{{2}} groupName` | Relief remittances page uses `notifyBulkFromClient` | EN/FR approved and variable-compatible. |
@@ -100,7 +100,9 @@ Variable order:
 Readiness notes:
 
 - Variable count matches the app builder in EN and FR.
-- Live WhatsApp QA should confirm the producer path first because current invitation acceptance clearly sends email/SMS welcome notifications, but a confirmed WhatsApp welcome producer was not found in the current audit.
+- Producer path implemented: `src/lib/welcome-producer.ts` (server-side, queue-backed via `notifications_queue`, drained by the notification queue cron, provider IDs tracked by the WhatsApp webhook). Triggered fire-and-forget from invitation acceptance, proxy claim (invitation and token link), and join-code success. Recipient is the joining member only; admin-created (unclaimed) proxy members are excluded.
+- Welcome respects the member's `new_member` notification preferences. Note: the default `new_member` matrix has WhatsApp OFF (`src/lib/notification-prefs.ts`), so manual QA must enable the WhatsApp channel for `new_member` on the test account before expecting a queued welcome.
+- Idempotency is strict exactly-once per membership: check-before-insert plus the partial unique index in `supabase/migrations/00088_welcome_notification_idempotency.sql` (apply manually in the SQL Editor before live QA).
 
 ## Deferred App Mapping: `villageclaq_hosting_assignment`
 
@@ -451,7 +453,7 @@ Before controlled live QA:
 - Confirm all variables are body placeholders only.
 - Confirm `hosting_assignment` remains held for mapping/producer cleanup.
 - Confirm `relief_enrollment` remains held from live QA until its producer payload gap is fixed.
-- Confirm `welcome` has a real WhatsApp producer path before live QA.
+- Confirm `welcome` producer readiness: migration 00088 applied, and the QA account has the `new_member` WhatsApp preference enabled (default is OFF).
 
 After this approval pass:
 

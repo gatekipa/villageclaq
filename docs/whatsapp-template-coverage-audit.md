@@ -70,7 +70,7 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `loan_overdue` | `LOAN_OVERDUE` | `villageclaq_loan_overdue` | UTILITY | yes | yes | `memberName`, `amount`, `dueDate`, `groupName` | 4 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
 | `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `reason`, `groupName` | 5 | fines page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
 | `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
-| `welcome` | `WELCOME` | `villageclaq_welcome` | MARKETING | yes | no | `memberName`, `groupName` | 2 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Hold for FR users |
+| `welcome` | `WELCOME` | `villageclaq_welcome` | MARKETING | yes | yes (see addendum) | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
 | `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_assignment` | missing | no | no | `memberName`, `hostingDate`, `groupName` | missing | hosting UI via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_relief_enrollment` | missing | no | no | `memberName`, `planName`, `groupName` | missing | relief enrollment page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
 | `remittance_confirmed` | `REMITTANCE_CONFIRMED` | `villageclaq_remittance_confirmed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
@@ -274,3 +274,18 @@ Do not live-test the hold-back templates until Meta approval gaps are closed.
 3. Move high-value client/direct WhatsApp flows toward queue-backed producers so provider IDs and webhook statuses are durably correlated.
 4. Prefer `dispatchWhatsAppWithResult` over boolean `dispatchWhatsApp` in server paths that must produce audit counts.
 5. Begin manual QA with the 14 EN/FR-ready templates, starting with the four v2 launch-critical templates.
+
+## Addendum (2026-06-10, post-approval follow-up)
+
+This audit was a point-in-time snapshot. Two welcome findings are superseded:
+
+- FR approval: `villageclaq_welcome` is now approved in EN and FR (see
+  `docs/whatsapp-missing-template-copy.md`). The "Hold for FR users" notes at
+  lines above no longer apply.
+- Producer path: a server-side, queue-backed welcome producer now exists —
+  `src/lib/welcome-producer.ts`, triggered via `/api/members/welcome-notifications`
+  from invitation acceptance, proxy claim (invitation and token link), and
+  join-code success. Recipient is the joining member only; `new_member`
+  preferences gate the send (default WhatsApp OFF); idempotency is one welcome
+  per membership (check-before-insert plus migration 00088 unique index).
+  Tested by `npm run test:welcome-producer` and audited by `npm run audit:whatsapp`.

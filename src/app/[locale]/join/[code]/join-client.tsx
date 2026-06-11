@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
+import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -148,6 +149,9 @@ export default function JoinClient() {
         notifyAdmins(supabase, group, displayName, user.email);
         // Fire-and-forget: audit log
         logJoinActivity(supabase, group.id);
+        // WhatsApp welcome — server-side, queue-backed producer re-checks
+        // new_member preferences, phone eligibility, and idempotency.
+        requestWelcomeWhatsApp(supabase, result.membership_id, params.locale as string | undefined);
         setStatus("joined");
         return;
       }

@@ -184,7 +184,7 @@ Header/footer unchanged from the primary copy. Variable order unchanged. Apply v
    longer reads as delivery-ready under the MARKETING template.
 5. Re-run the controlled welcome QA (fresh join event for the QA recipient ending
    `857`) and confirm `latestProviderStatus` reaches `delivered`/`read`.
-6. The old `villageclaq_welcome` MARKETING template can be retired in Meta afterwards
+6. The old `villageclaq_welcome` MARKETING template can be retired in Meta afterward
    (do not delete before the app mapping switch is deployed).
 
 No part of this document changes app behavior. The `welcome` producer continues to use

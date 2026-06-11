@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:payment-receipt-producer": "node --test scripts/test-payment-receipt-producer.mjs",
     "test:payment-reminder-producer": "node --test scripts/test-payment-reminder-producer.mjs",
+    "test:standing-change-producer": "node --test scripts/test-standing-change-producer.mjs",
     "test:welcome-producer": "node --test scripts/test-welcome-producer.mjs",
     "test:relief-enrollment-producer": "node --test scripts/test-relief-enrollment-producer.mjs",
     "test:hosting-assignment-producer": "node --test scripts/test-hosting-assignment-producer.mjs",

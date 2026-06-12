@@ -612,3 +612,50 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   route.
 - No live messages were sent in the production of this addendum; all
   verification is static or mocked.
+
+## Addendum 9 (2026-06-12, phone-invitee matching fix)
+
+- Resolves the **ship-with caveat from addendum 8**: phone-only invitees who
+  tapped the WhatsApp invitation link landed on an empty my-invitations page.
+  Root cause was triple-layered: (1) the page bailed without an auth email
+  and matched email/user_id only; (2) the original phone RLS predicate
+  (00001) subqueried auth.users — which policies cannot do — so 00015
+  dropped it and the phone leg was never restored; (3) accept_invitation
+  (00076) hard-rejected email-NULL invitations, and the invitee UPDATE
+  policy was email-gated so decline silently no-opped too.
+- Migration `00095` (committed, NOT applied) restores the phone leg safely:
+  a SECURITY DEFINER `get_my_phone_digits()` helper (auth phone first,
+  `profiles.phone` fallback — RLS-safe, following the get_user_group_ids
+  pattern); an invitee **SELECT** policy for **email-NULL** phone rows on
+  **exact normalized-digits** match; a shared `caller_matches_invitation()`
+  gate; and `accept_invitation` re-emitted verbatim except the gate is
+  widened through that helper. There is deliberately **no invitee phone
+  UPDATE policy** — an RLS `WITH CHECK` cannot pin immutable columns against
+  the OLD row, so a phone-matching UPDATE policy would let a caller repoint
+  `group_id`/`role` and accept into an arbitrary group. Decline therefore
+  goes through a new SECURITY DEFINER `decline_invitation()` RPC (flips
+  status→declined, stamps user_id, touches nothing else). Trust trade-offs
+  documented in the migration header: phone matching never applies when the
+  invitation carries an email (email invitations stay verified-email-only);
+  phone accept/decline are restricted to **member-role** invitations
+  because `profiles.phone` is a self-asserted, freely-editable identity; and
+  because there is no UPDATE path, acceptance is bounded to exactly the
+  group the inviting admin targeted. No suffix matching — format divergence
+  (local "0677…" invitation vs E.164 profile) yields false negatives only.
+- The my-invitations query resolves the caller's phone, adds a phone
+  or-leg, and applies a **mandatory** client-side digits post-filter (group
+  members can otherwise see all of their group's invitations through the
+  admin policy). Decline now calls `decline_invitation()`. The
+  pending-invitation routing counters (dashboard layout + both auth
+  callbacks, kept identical per rule 10) call a new invitee-scoped
+  `count_my_pending_invitations()` RPC — counting only rows addressed to the
+  caller (email / stamped user_id / member-role phone), NOT the inviter or
+  group-member RLS legs, so a former inviter with 0 memberships is not
+  misrouted to my-invitations. All three call sites fail soft to the
+  email-scoped count if the RPC is not yet applied, so login never breaks.
+- The accepted-invitation welcome producer chain is unchanged
+  (`accept_invitation` return shape frozen; `requestWelcomeWhatsApp` fires
+  exactly as before). PR #13's WhatsApp delivery path is untouched.
+- No live messages were sent; no production data mutated; migration `00095`
+  must be applied in the SQL Editor (code fails soft until then — phone
+  invitees simply keep seeing no rows, exactly as today).

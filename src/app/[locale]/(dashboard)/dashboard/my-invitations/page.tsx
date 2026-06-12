@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
+import { phoneDigits, phoneDigitsMatch } from "@/lib/phone-digits";
 import { useGroup } from "@/lib/group-context";
 import { useRouter } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,18 +71,48 @@ export default function MyInvitationsPage() {
     queryFn: async () => {
       const supabase = createClient();
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser?.email) return [];
+      if (!authUser) return [];
 
-      // Match by email OR user_id — covers both new invitations (email only)
-      // and accepted invitations (user_id stamped on acceptance)
+      // The caller's phone for invitation matching: auth phone when set
+      // (phone auth is currently disabled, so usually empty), else
+      // profiles.phone. Matching is exact normalized digits — mirrors
+      // get_my_phone_digits() and the 00095 policies.
+      let callerDigits = phoneDigits(authUser.phone);
+      if (!callerDigits) {
+        const { data: profileRow, error: profileError } = await supabase
+          .from("profiles")
+          .select("phone")
+          .eq("id", authUser.id)
+          .maybeSingle();
+        // A real lookup failure must surface (retry state), not silently
+        // blank the page; only a missing profile row is a benign miss.
+        if (profileError) throw profileError;
+        callerDigits = phoneDigits((profileRow as Record<string, unknown> | null)?.phone as string | null);
+      }
+
+      // Match by email OR user_id (stamped on acceptance) OR — for
+      // phone-only invitations — the caller's phone. The phone leg pulls
+      // email-NULL phone rows broadly because PostgREST cannot normalize
+      // digits; the post-filter below is MANDATORY (group members can see
+      // all of their group's invitations through the admin policy, so
+      // without it a member could see unrelated phone invitations here).
+      const orLegs = [`user_id.eq.${authUser.id}`];
+      if (authUser.email) orLegs.push(`email.eq.${authUser.email}`);
+      if (callerDigits) orLegs.push("and(email.is.null,phone.not.is.null)");
+      if (orLegs.length === 1 && !callerDigits && !authUser.email) return [];
+
       const { data, error } = await supabase
         .from("invitations")
         .select("*, group:groups(id, name), claim_membership:memberships!invitations_claim_membership_id_fkey(id, display_name, role)")
-        .or(`email.eq.${authUser.email},user_id.eq.${authUser.id}`)
+        .or(orLegs.join(","))
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((row: Record<string, unknown>) => {
+        if (row.user_id === authUser.id) return true;
+        if (authUser.email && row.email === authUser.email) return true;
+        return !row.email && phoneDigitsMatch(row.phone as string | null, callerDigits);
+      });
     },
     enabled: !!user?.id,
   });
@@ -293,12 +324,18 @@ export default function MyInvitationsPage() {
     setShowSuccess(null);
     try {
       const supabase = createClient();
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from("invitations")
-        .update({ status: "declined", user_id: authUser?.id ?? null })
-        .eq("id", invitationId);
+      // Decline goes through a SECURITY DEFINER RPC (not a raw UPDATE) so
+      // neither email nor phone invitees need a row-mutating RLS policy —
+      // the RPC re-validates identity and only flips status -> declined.
+      const { data: rpcData, error } = await supabase.rpc("decline_invitation", {
+        p_invitation_id: invitationId,
+      });
       if (error) throw error;
+      const rpc = (rpcData || {}) as { ok?: boolean; error?: string };
+      if (!rpc.ok) {
+        setShowError(t("actionFailed"));
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
       setShowSuccess(t("declineSuccess"));
       if (successTimerRef.current) clearTimeout(successTimerRef.current);

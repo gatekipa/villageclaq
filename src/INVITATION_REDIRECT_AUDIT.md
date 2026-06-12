@@ -155,3 +155,16 @@ User sees and accepts pending invitation
 - [x] My-invitations page matches by email
 - [x] CLAUDE.md updated with rule #12
 - [ ] Runtime verification pending (requires email confirmation flow test)
+
+## Update (2026-06-12, phone-invitee matching)
+
+The pending-invitation counts in the dashboard layout guard and BOTH auth
+callbacks no longer filter by email — they count the rows RLS exposes to the
+caller (email match, stamped user_id, and — once migration 00095 is applied —
+phone-digit match for phone-only invitations). For a 0-membership user that
+is exactly their own invitations (they cannot be an inviter or group member).
+Both callbacks MUST keep this counting logic identical (rule 10); the
+phone-invitation-matching test suite asserts the two blocks stay in sync.
+The my-invitations page query gained a phone or-leg with a mandatory
+client-side digits post-filter; `accept_invitation` accepts member-role
+phone-only invitations on exact normalized-digits match (migration 00095).

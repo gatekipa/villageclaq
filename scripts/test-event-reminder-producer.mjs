@@ -96,7 +96,7 @@ function loadProducer() {
       };
     }
     if (id === "@/lib/whatsapp-templates") {
-      return { WA_TEMPLATES: { EVENT_REMINDER: "villageclaq_event_reminder_v2" } };
+      return { WA_TEMPLATES: { EVENT_REMINDER: "villageclaq_event_reminder" } };
     }
     return require(id);
   };
@@ -283,7 +283,7 @@ test("an upcoming event queues one row per eligible member with ordered non-empt
   const result = await produceEventReminderNotification(supabase, ids.event, { logger, now: NOW });
 
   assert.equal(result.status, "queued");
-  assert.equal(result.template, "villageclaq_event_reminder_v2");
+  assert.equal(result.template, "villageclaq_event_reminder");
   assert.equal(result.whatsappQueued, 2);
   // Proxy (user_id NULL, is_proxy) and pending memberships never become
   // recipients. (Array.from: the producer's array lives in the vm realm.)
@@ -298,7 +298,7 @@ test("an upcoming event queues one row per eligible member with ordered non-empt
     assert.equal(payload.template, "event_reminder");
     assert.equal(payload.status, "queued");
     assert.equal(payload.data.whatsappType, "event_reminder");
-    assert.equal(payload.data.template, "villageclaq_event_reminder_v2");
+    assert.equal(payload.data.template, "villageclaq_event_reminder");
     assert.equal(payload.data.eventId, ids.event);
     assert.equal(payload.data.groupId, ids.group);
     assert.ok(payload.data.membershipId, "membershipId must be present");

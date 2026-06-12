@@ -16,7 +16,15 @@ import type { WhatsAppTemplateComponent } from "@/lib/send-whatsapp";
 export const WA_TEMPLATES = {
   PAYMENT_RECEIPT: "villageclaq_payment_receipt_v2",
   PAYMENT_REMINDER: "villageclaq_payment_reminder_v2",
-  EVENT_REMINDER: "villageclaq_event_reminder_v2",
+  // UTILITY remap (2026-06-13): villageclaq_event_reminder_v2 is
+  // MARKETING-categorized (Meta blocks it to US numbers, error 131049 —
+  // confirmed live in the PR #16 release QA). The original
+  // villageclaq_event_reminder was manually verified in WhatsApp Manager:
+  // EN Utility Active - Quality pending, FR Utility, IDENTICAL body order
+  // {{1}} memberName, {{2}} eventTitle, {{3}} eventDate,
+  // {{4}} eventLocation (NOT time), {{5}} groupName — so this is a pure
+  // name remap with no builder/dispatcher/producer changes.
+  EVENT_REMINDER: "villageclaq_event_reminder",
   HOSTING_REMINDER: "villageclaq_hosting_reminder",
   MINUTES_PUBLISHED: "villageclaq_minutes_published",
   RELIEF_CLAIM_APPROVED: "villageclaq_relief_claim_approved",

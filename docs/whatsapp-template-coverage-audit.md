@@ -821,3 +821,43 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
 - No live messages were sent in the production of this addendum; no Meta
   template, category, WABA, or provider configuration was touched; no
   migration is needed (queue keys and indexes unchanged).
+
+## Addendum 13 (2026-06-13, event-reminder Utility remap)
+
+- Addendum 12 deferred this remap because the original
+  `villageclaq_event_reminder` could not be verified from this environment.
+  That blocker is now cleared: the owner **manually verified it in WhatsApp
+  Manager on 2026-06-13** — EN Utility (Active - Quality pending), FR
+  Utility, and the variable order is correct in BOTH languages:
+  `{{1}}` memberName, `{{2}}` eventTitle, `{{3}}` eventDate,
+  `{{4}}` eventLocation (the location, NOT the event time),
+  `{{5}}` groupName.
+- Runtime remap: `WA_TEMPLATES.EVENT_REMINDER` →
+  `villageclaq_event_reminder` (from the MARKETING-categorized
+  `villageclaq_event_reminder_v2`, which Meta blocks to US numbers — error
+  131049, confirmed live in the PR #16 release QA on 2026-06-12). Because
+  the verified body order is IDENTICAL to v2, this is a **pure name
+  remap**: `buildEventReminderParams`, the dispatcher's `event_reminder`
+  case, the producer payload, the queue idempotency keys
+  (per eventId + userId), and migration 00097's index are all unchanged.
+- Drain compatibility: the drain resolves templates from `whatsappType` at
+  send time; the only `event_reminder` queue row (the PR #16 QA row) is
+  terminal `sent`, so nothing can dispatch with a stale name. Old failed
+  rows are never retried.
+- Audit guardrails added: event reminders must map to
+  `villageclaq_event_reminder` and may never reference the Marketing v2
+  again (templates registry + producer + dispatcher all checked); a second
+  check pins the verified 5-variable body order; the
+  `approvedLaunchTemplateNames` pin was updated to the verified name.
+- Docs: `WHATSAPP_TEMPLATES.md` #3 marked SUPERSEDED FOR RUNTIME USE
+  (its recorded UTILITY category was wrong — Meta categorized v2 as
+  MARKETING), new #3b records the verified runtime target.
+- With this remap, the confirmed-Marketing set still awaiting a category
+  decision shrinks to: `villageclaq_announcement_v2` (announcements
+  strategy — Addendum 11 Option B) and the retired-from-runtime templates
+  (`villageclaq_welcome`, `villageclaq_invitation`,
+  `villageclaq_subscription_expiring`, `villageclaq_event_reminder_v2`);
+  `villageclaq_proxy_claim`'s category remains unverified.
+- No live messages were sent in the production of this addendum; no Meta
+  template, category, WABA, or provider configuration was touched; no
+  migration is needed.

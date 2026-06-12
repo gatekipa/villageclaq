@@ -52,9 +52,18 @@ Bonjour {{1}}, vous avez un paiement en attente de {{2}} pour {{3}}, dû le {{4}
 **Footer FR:** `VillageClaq — Votre communauté, organisée`
 **Parameters:** 1=member_name, 2=amount, 3=contribution_type, 4=due_date, 5=group_name
 
-## 3. villageclaq_event_reminder_v2
+## 3. villageclaq_event_reminder_v2 — SUPERSEDED FOR RUNTIME USE
 
-**Category:** UTILITY
+> **Superseded (2026-06-13):** Meta categorized this template as MARKETING
+> (not the UTILITY recorded below) — marketing templates are blocked to US
+> numbers, error 131049, confirmed live during the PR #16 release QA on
+> 2026-06-12. The `event_reminder` runtime type now maps to the original
+> `villageclaq_event_reminder` (see #3b), which was manually verified in
+> WhatsApp Manager on 2026-06-13: EN Utility (Active - Quality pending),
+> FR Utility, with the IDENTICAL 5-variable body order — so the remap is a
+> pure name change. Retained for historical record.
+
+**Category:** UTILITY (as submitted; Meta actually categorized it MARKETING)
 **EN Body:**
 
 ```text
@@ -74,6 +83,19 @@ Bonjour {{1}}, {{2}} a lieu le {{3}} à {{4}}. Ouvrez l'application pour les dé
 **Footer EN:** `VillageClaq — Your Community, Organized`
 **Footer FR:** `VillageClaq — Votre communauté, organisée`
 **Parameters:** 1=member_name, 2=event_title, 3=event_date, 4=event_location, 5=group_name
+
+## 3b. villageclaq_event_reminder
+
+**Category:** UTILITY (manually verified in WhatsApp Manager 2026-06-13: EN Active - Quality pending, FR Utility)
+**Parameters:** 1=member_name, 2=event_title, 3=event_date, 4=event_location, 5=group_name
+
+> The CURRENT runtime template for the `event_reminder` type
+> (`WA_TEMPLATES.EVENT_REMINDER`) as of 2026-06-13, replacing the
+> MARKETING-categorized v2 (#3). Verified in Manager: correct variable
+> order in BOTH languages — note `{{4}}` is the event LOCATION, not the
+> event time. Identical body order to v2, so the builder
+> (`buildEventReminderParams`), dispatcher case, and producer payload are
+> unchanged; the audit script blocks any mapping back to the Marketing v2.
 
 ## 4. villageclaq_hosting_reminder
 **Category:** UTILITY

@@ -191,6 +191,14 @@ const fullTemplateRegistry = {
     // {{4}} = groupName, {{5}} = reason.
     vars: ["memberName", "fineType", "amount", "groupName", "reason"],
   },
+  member_invitation: {
+    constant: "MEMBER_INVITATION",
+    // UTILITY replacement for the MARKETING villageclaq_invitation; {{1}}
+    // is the INVITEE (the old template's {{1}} was the inviter).
+    template: "villageclaq_member_invitation_notice",
+    builder: "buildMemberInvitationParams",
+    vars: ["inviteeName", "groupName", "invitationLink"],
+  },
   standing_changed: {
     constant: "STANDING_CHANGED",
     template: "villageclaq_standing_changed",
@@ -742,6 +750,74 @@ check(
     moneyPathMigration.includes("template = 'relief_claim_denied'") &&
     (moneyPathMigration.match(/channel = 'whatsapp'::notification_channel/g) || []).length >= 4,
   "DB-level uniqueness must back the fine/loan/claim producers' check-before-insert with full channel/template predicates.",
+);
+
+const invitationProducer = read("src/lib/member-invitation-producer.ts");
+check(
+  "WhatsApp member invitation producer is server-side, queue-backed, and day-bucketed",
+  invitationProducer.includes('from("notifications_queue")') &&
+    invitationProducer.includes('template: "member_invitation"') &&
+    invitationProducer.includes('whatsappType: "member_invitation"') &&
+    invitationProducer.includes("WA_TEMPLATES.MEMBER_INVITATION") &&
+    invitationProducer.includes('.eq("data->>invitationId"') &&
+    invitationProducer.includes('.eq("data->>sendDate"') &&
+    invitationProducer.includes('"23505"') &&
+    invitationProducer.includes('reason: "invitation_not_pending"') &&
+    invitationProducer.includes('reason: "invitation_expired"') &&
+    invitationProducer.includes("maskPhoneNumber("),
+  "Invitee WhatsApp must be queue-backed, pending-only, masked, and deduped per (invitationId, sendDate).",
+);
+
+const invitationsPageSrc = read("src/app/[locale]/(dashboard)/dashboard/invitations/page.tsx");
+const onboardingPageSrc = read("src/app/[locale]/(dashboard)/dashboard/onboarding/group/page.tsx");
+const branchesPageSrc = read("src/app/[locale]/(dashboard)/dashboard/enterprise/branches/page.tsx");
+check(
+  "invitation pages route WhatsApp through the producer, never the old direct path",
+  !/fetch\("\/api\/whatsapp\/send"/.test(invitationsPageSrc) &&
+    !invitationsPageSrc.includes('type: "invitation"') &&
+    onboardingPageSrc.includes("requestMemberInvitationWhatsApp") &&
+    branchesPageSrc.includes("requestMemberInvitationWhatsApp"),
+  "The dead inline invitation send must stay removed; phone-invite flows must trigger the producer.",
+);
+
+const loanOverdueProducer = read("src/lib/loan-overdue-producer.ts");
+check(
+  "WhatsApp loan overdue producer is queue-backed with a per-day bucket and no lazy-flag dependence",
+  loanOverdueProducer.includes('from("notifications_queue")') &&
+    loanOverdueProducer.includes('template: "loan_overdue"') &&
+    loanOverdueProducer.includes('whatsappType: "loan_overdue"') &&
+    loanOverdueProducer.includes("WA_TEMPLATES.LOAN_OVERDUE") &&
+    loanOverdueProducer.includes('"loan_updates"') &&
+    loanOverdueProducer.includes('.eq("data->>loanId"') &&
+    loanOverdueProducer.includes('.eq("data->>reminderDate"') &&
+    loanOverdueProducer.includes('["pending", "partial", "overdue"]') &&
+    loanOverdueProducer.includes('"23505"') &&
+    loanOverdueProducer.includes("maskPhoneNumber("),
+  "Overdue reminders must accept pending/partial/overdue installments (nothing server-side sets the flag) and dedupe per (loanId, reminderDate).",
+);
+
+const loanOverdueCron = read("src/app/api/cron/loan-overdue-reminders/route.ts");
+check(
+  "loan overdue cron is secret-gated and producer-backed",
+  loanOverdueCron.includes("Bearer ${cronSecret}") &&
+    loanOverdueCron.includes("produceLoanOverdueNotification") &&
+    !loanOverdueCron.includes("dispatchWhatsApp") &&
+    loanOverdueCron.includes('.eq("loans.status", "repaying")'),
+  "The cron must only discover candidate loans; the producer re-validates and queues.",
+);
+
+const invitationLoanMigration = read("supabase/migrations/00094_invitation_loan_overdue_idempotency.sql");
+check(
+  "WhatsApp invitation/loan-overdue idempotency migration exists",
+  invitationLoanMigration.includes("idx_notifications_queue_whatsapp_member_invitation_unique") &&
+    invitationLoanMigration.includes("idx_notifications_queue_whatsapp_loan_overdue_unique") &&
+    invitationLoanMigration.includes("data ->> 'invitationId'") &&
+    invitationLoanMigration.includes("data ->> 'sendDate'") &&
+    invitationLoanMigration.includes("data ->> 'reminderDate'") &&
+    invitationLoanMigration.includes("template = 'member_invitation'") &&
+    invitationLoanMigration.includes("template = 'loan_overdue'") &&
+    (invitationLoanMigration.match(/channel = 'whatsapp'::notification_channel/g) || []).length >= 2,
+  "DB-level day-bucket uniqueness must back both producers' check-before-insert.",
 );
 
 const webhookDoc = read("docs/whatsapp-webhook-status.md");

@@ -13,6 +13,8 @@
     "test:fine-issued-producer": "node --test scripts/test-fine-issued-producer.mjs",
     "test:loan-approved-producer": "node --test scripts/test-loan-approved-producer.mjs",
     "test:relief-claim-decision-producer": "node --test scripts/test-relief-claim-decision-producer.mjs",
+    "test:member-invitation-producer": "node --test scripts/test-member-invitation-producer.mjs",
+    "test:loan-overdue-producer": "node --test scripts/test-loan-overdue-producer.mjs",
     "test:welcome-producer": "node --test scripts/test-welcome-producer.mjs",
     "test:relief-enrollment-producer": "node --test scripts/test-relief-enrollment-producer.mjs",
     "test:hosting-assignment-producer": "node --test scripts/test-hosting-assignment-producer.mjs",

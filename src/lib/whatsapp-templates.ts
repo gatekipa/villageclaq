@@ -24,6 +24,12 @@ export const WA_TEMPLATES = {
   ANNOUNCEMENT: "villageclaq_announcement_v2",
   ELECTION_OPENED: "villageclaq_election_opened",
   INVITATION: "villageclaq_invitation",
+  // UTILITY replacement for villageclaq_invitation, which was approved as
+  // MARKETING (Meta blocks marketing templates to US numbers, error 131049).
+  // NOTE: {{1}} semantics CHANGE — the old template's {{1}} was the INVITER,
+  // the new one's {{1}} is the INVITEE — so this ships as the separate
+  // member_invitation type, never as an in-place INVITATION remap.
+  MEMBER_INVITATION: "villageclaq_member_invitation_notice",
   LOAN_APPROVED: "villageclaq_loan_approved",
   LOAN_OVERDUE: "villageclaq_loan_overdue",
   FINE_ISSUED: "villageclaq_fine_issued",
@@ -142,6 +148,17 @@ export function buildInvitationParams(data: {
   acceptUrl: string;
 }): WhatsAppTemplateComponent[] {
   return bodyParams(data.inviterName, data.groupName, data.acceptUrl);
+}
+
+// Approved Meta body order for villageclaq_member_invitation_notice
+// (UTILITY, EN + FR): {{1}} inviteeName, {{2}} groupName,
+// {{3}} invitationLink.
+export function buildMemberInvitationParams(data: {
+  inviteeName: string;
+  groupName: string;
+  invitationLink: string;
+}): WhatsAppTemplateComponent[] {
+  return bodyParams(data.inviteeName, data.groupName, data.invitationLink);
 }
 
 export function buildLoanApprovedParams(data: {

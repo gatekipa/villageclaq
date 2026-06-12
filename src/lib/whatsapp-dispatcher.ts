@@ -17,6 +17,7 @@ import {
   buildAnnouncementParams,
   buildElectionOpenedParams,
   buildInvitationParams,
+  buildMemberInvitationParams,
   buildLoanApprovedParams,
   buildLoanOverdueParams,
   buildFineIssuedParams,
@@ -45,6 +46,7 @@ export type WhatsAppNotificationType =
   | "announcement"
   | "election_opened"
   | "invitation"
+  | "member_invitation"
   | "loan_approved"
   | "loan_overdue"
   | "fine_issued"
@@ -68,6 +70,7 @@ const TYPE_TO_TEMPLATE: Record<WhatsAppNotificationType, string> = {
   announcement: WA_TEMPLATES.ANNOUNCEMENT,
   election_opened: WA_TEMPLATES.ELECTION_OPENED,
   invitation: WA_TEMPLATES.INVITATION,
+  member_invitation: WA_TEMPLATES.MEMBER_INVITATION,
   loan_approved: WA_TEMPLATES.LOAN_APPROVED,
   loan_overdue: WA_TEMPLATES.LOAN_OVERDUE,
   fine_issued: WA_TEMPLATES.FINE_ISSUED,
@@ -156,6 +159,12 @@ function buildComponents(
         inviterName: d.inviterName || "",
         groupName: d.groupName || "",
         acceptUrl: d.acceptUrl || "",
+      });
+    case "member_invitation":
+      return buildMemberInvitationParams({
+        inviteeName: d.inviteeName || "",
+        groupName: d.groupName || "",
+        invitationLink: d.invitationLink || "",
       });
     case "loan_approved":
       return buildLoanApprovedParams({

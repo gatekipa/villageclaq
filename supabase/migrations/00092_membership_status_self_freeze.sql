@@ -9,7 +9,18 @@
 -- ║ the fix. Decision record: docs/membership-status-vocabulary.md.       ║
 -- ║ Retained, unapplied, for historical reference only.                   ║
 -- ╚══════════════════════════════════════════════════════════════════════╝
---
+
+-- Fail-fast guard: this file must never execute. Running it would install
+-- the OBSOLETE trigger version (status freeze AFTER the admin bypass),
+-- overwriting 00098's hardened one. The historical SQL below is unreachable
+-- because this exception aborts the script (and any wrapping transaction).
+DO $$
+BEGIN
+  RAISE EXCEPTION
+    'migration 00092 is SUPERSEDED by 00098_membership_status_lifecycle.sql — do not apply (see docs/membership-status-vocabulary.md)';
+END;
+$$;
+
 -- Close a privilege-escalation gap in the membership self-edit guard
 -- (defense-in-depth; latent on current prod — see SEQUENCING below).
 --

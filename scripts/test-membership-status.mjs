@@ -116,10 +116,17 @@ test("00098 encodes the hardened self-edit freeze: status frozen BEFORE the admi
   assert.match(sql, /CREATE TRIGGER prevent_membership_self_escalation/);
 });
 
-test("00092 is marked SUPERSEDED and both files carry the do-not-apply pairing", () => {
+test("00092 is marked SUPERSEDED, fail-fast guarded, and both files carry the do-not-apply pairing", () => {
   const superseded = read(SUPERSEDED);
   assert.match(superseded, /SUPERSEDED \(2026-06-13\) — DO NOT APPLY THIS MIGRATION/);
   assert.match(superseded, /00098_membership_status_lifecycle\.sql/);
+  // Executable fail-fast: accidentally running 00092 must RAISE before any
+  // DDL, so the obsolete trigger version can never overwrite 00098's.
+  const guardAt = superseded.indexOf("RAISE EXCEPTION");
+  const ddlAt = superseded.indexOf("CREATE OR REPLACE FUNCTION");
+  assert.ok(guardAt > 0 && ddlAt > 0, "guard and historical DDL must both exist");
+  assert.ok(guardAt < ddlAt, "the fail-fast RAISE must precede all executable DDL");
+  assert.match(superseded, /SUPERSEDED by 00098_membership_status_lifecycle\.sql — do not apply/);
   const sql = read(MIGRATION);
   assert.match(sql, /SUPERSEDES 00092_membership_status_self_freeze\.sql — DO NOT APPLY 00092/);
 });

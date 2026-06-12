@@ -222,7 +222,7 @@ function buildComponents(
       });
     case "subscription_expiring":
       return buildSubscriptionExpiringParams({
-        planName: d.planName || "",
+        groupName: d.groupName || "",
         days: d.days || "",
       });
     case "proxy_claim":

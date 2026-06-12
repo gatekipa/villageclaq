@@ -44,7 +44,13 @@ export const WA_TEMPLATES = {
   RELIEF_ENROLLMENT: "villageclaq_plan_enrollment_confirmed",
   REMITTANCE_CONFIRMED: "villageclaq_remittance_confirmed",
   REMITTANCE_DISPUTED: "villageclaq_remittance_disputed",
-  SUBSCRIPTION_EXPIRING: "villageclaq_subscription_expiring",
+  // UTILITY replacement for villageclaq_subscription_expiring, which Meta
+  // categorized as MARKETING (US delivery blocked, error 131049 — confirmed
+  // live 2026-06-12). NOTE: {{1}} semantics CHANGE — the old template's
+  // {{1}} was the plan/tier name, the new one's {{1}} is the GROUP or
+  // organization name; {{2}} stays days left. Approved EN/FR in WhatsApp
+  // Manager (Utility, Active - Quality pending).
+  SUBSCRIPTION_EXPIRING: "villageclaq_account_access_notice",
   PROXY_CLAIM: "villageclaq_proxy_claim",
 } as const;
 
@@ -236,11 +242,16 @@ export function buildRemittanceDisputedParams(data: {
   return bodyParams(data.amount, data.groupName);
 }
 
+// Approved Meta body order for villageclaq_account_access_notice
+// (UTILITY, EN + FR): {{1}} groupName (group or organization name),
+// {{2}} days left.
+// EN: "Your VillageClaq access for {{1}} will end in {{2}} day(s). ..."
+// FR: "Votre accès à VillageClaq ({{1}}) prendra fin dans {{2}} jour(s). ..."
 export function buildSubscriptionExpiringParams(data: {
-  planName: string;
+  groupName: string;
   days: string;
 }): WhatsAppTemplateComponent[] {
-  return bodyParams(data.planName, data.days);
+  return bodyParams(data.groupName, data.days);
 }
 
 export function buildProxyClaimParams(data: {

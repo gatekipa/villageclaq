@@ -346,13 +346,22 @@ Readiness notes:
 - Keep tone factual and non-accusatory to reduce approval risk and user alarm.
 - The category is transactional and should remain `UTILITY`.
 
-## 5. `villageclaq_subscription_expiring`
+## 5. `villageclaq_subscription_expiring` — SUPERSEDED
+
+> **Superseded (2026-06-13):** Meta categorized this template as MARKETING
+> (not the UTILITY recorded below), and marketing templates are blocked to
+> US numbers — error 131049, confirmed live during the PR #16 release QA on
+> 2026-06-12. The `subscription_expiring` runtime type now maps to the
+> approved UTILITY template `villageclaq_account_access_notice`
+> ({{1}} = group/org name — a semantics change from this template's
+> {{1}} = plan name; {{2}} = days left). See
+> `docs/WHATSAPP_TEMPLATES.md` #16. Retained for historical record.
 
 Template purpose: notify group billing contacts that their VillageClaq subscription is expiring.
 
 App type/key: `subscription_expiring`
 
-Meta status: EN/FR approved. Category: `UTILITY`.
+Meta status: EN/FR approved. Category: `UTILITY` (as submitted; Meta actually categorized it MARKETING — see supersession note).
 
 Header:
 

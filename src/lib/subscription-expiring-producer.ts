@@ -11,7 +11,6 @@ type Logger = Pick<Console, "log" | "warn">;
 type SubscriptionRow = {
   id: string;
   group_id: string;
-  tier: string | null;
   status: string | null;
   current_period_end: string | null;
 };
@@ -135,7 +134,7 @@ async function maybeSingle<T>(
  * false) — billing notices only ever go to real accounts.
  *
  * BILLING STATE IS SACRED: this producer only READS group_subscriptions
- * (id, group_id, tier, status, current_period_end). It never calls
+ * (id, group_id, status, current_period_end). It never calls
  * update/insert/delete on that table and never touches stripe fields.
  *
  * Idempotency is a per-recipient DAY BUCKET, not strict exactly-once:
@@ -167,7 +166,7 @@ export async function produceSubscriptionExpiringNotification(
   const { data: subscription, error: subscriptionError } = await maybeSingle<SubscriptionRow>(
     supabase,
     "group_subscriptions",
-    "id,group_id,tier,status,current_period_end",
+    "id,group_id,status,current_period_end",
     "id",
     subscriptionId,
   );
@@ -242,14 +241,16 @@ export async function produceSubscriptionExpiringNotification(
     return { status: "skipped", reason: "group_inactive", subscriptionId, reminderDate, daysLeft, whatsappQueued: 0, recipients: [] };
   }
 
-  const planName = subscription.tier || "";
+  // villageclaq_account_access_notice {{1}} is the GROUP/ORG name (the old
+  // MARKETING template's {{1}} was the plan/tier name).
+  const groupName = group.name || "";
 
   // Meta rejects empty body parameters — never enqueue blank variables.
   // days is always non-blank (String(daysLeft) of a clamped number).
-  if (!planName) {
+  if (!groupName) {
     logger.warn("[SubscriptionExpiringProducer] missing template data", {
       subscriptionId: shortId(subscriptionId),
-      hasPlanName: false,
+      hasGroupName: false,
     });
     return { status: "skipped", reason: "missing_template_data", subscriptionId, reminderDate, daysLeft, whatsappQueued: 0, recipients: [] };
   }
@@ -280,7 +281,7 @@ export async function produceSubscriptionExpiringNotification(
     const recipientResult = await produceForRecipient(
       supabase,
       subscription,
-      { planName, days: String(daysLeft) },
+      { groupName, days: String(daysLeft) },
       daysLeft,
       reminderDate,
       admin,
@@ -321,7 +322,7 @@ export async function produceSubscriptionExpiringNotification(
 async function produceForRecipient(
   supabase: SupabaseClient,
   subscription: SubscriptionRow,
-  vars: { planName: string; days: string },
+  vars: { groupName: string; days: string },
   daysLeft: number,
   reminderDate: string,
   membership: MembershipRow,
@@ -430,7 +431,7 @@ async function produceForRecipient(
       daysLeft,
       whatsappType: "subscription_expiring",
       whatsappData: {
-        planName: vars.planName,
+        groupName: vars.groupName,
         days: vars.days,
       },
       template: WA_TEMPLATES.SUBSCRIPTION_EXPIRING,

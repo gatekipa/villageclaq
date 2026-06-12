@@ -16,6 +16,7 @@
     "test:member-invitation-producer": "node --test scripts/test-member-invitation-producer.mjs",
     "test:loan-overdue-producer": "node --test scripts/test-loan-overdue-producer.mjs",
     "test:phone-invitation-matching": "node --test scripts/test-phone-invitation-matching.mjs",
+    "test:remittance-decision-producer": "node --test scripts/test-remittance-decision-producer.mjs",
     "test:welcome-producer": "node --test scripts/test-welcome-producer.mjs",
     "test:relief-enrollment-producer": "node --test scripts/test-relief-enrollment-producer.mjs",
     "test:hosting-assignment-producer": "node --test scripts/test-hosting-assignment-producer.mjs",

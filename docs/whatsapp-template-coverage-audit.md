@@ -74,8 +74,8 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
 | `hosting_assignment` | `HOSTING_ASSIGNMENT` | `villageclaq_hosting_reminder` (reused; see addendum 3) | UTILITY | yes | yes | `memberName`, `hostingDate`, `groupName` | 3 | `src/lib/hosting-assignment-producer.ts` via `/api/hosting/assignment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00089 before QA |
 | `relief_enrollment` | `RELIEF_ENROLLMENT` | `villageclaq_plan_enrollment_confirmed` (was `villageclaq_relief_enrollment`, see addendum 5) | UTILITY | yes | yes | `memberName`, `planName`, `groupName` | 3 | `src/lib/relief-enrollment-producer.ts` via `/api/relief/enrollment-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Migration 00089 applied; ready for QA re-run |
-| `remittance_confirmed` | `REMITTANCE_CONFIRMED` | `villageclaq_remittance_confirmed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
-| `remittance_disputed` | `REMITTANCE_DISPUTED` | `villageclaq_remittance_disputed` | missing | no | no | `amount`, `groupName` | missing | relief remittances page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued | Hold: missing Meta approval |
+| `remittance_confirmed` | `REMITTANCE_CONFIRMED` | `villageclaq_remittance_confirmed` | UTILITY (confirmed in WhatsApp Manager 2026-06-12) | yes | yes | `amount`, `groupName` | 2 | `src/lib/remittance-decision-producer.ts` via `/api/relief/remittance-notifications` (see addendum 10) | queue-backed (`notifications_queue`), one row per branch admin | provider ID + webhook status correlated via queue row | Apply migration 00096 before QA |
+| `remittance_disputed` | `REMITTANCE_DISPUTED` | `villageclaq_remittance_disputed` | UTILITY (confirmed in WhatsApp Manager 2026-06-12) | yes | yes | `amount`, `groupName` | 2 | `src/lib/remittance-decision-producer.ts` via `/api/relief/remittance-notifications` (see addendum 10) | queue-backed (`notifications_queue`), one row per branch admin | provider ID + webhook status correlated via queue row | Apply migration 00096 before QA |
 | `subscription_expiring` | `SUBSCRIPTION_EXPIRING` | `villageclaq_subscription_expiring` | missing | no | no | `planName`, `days` | missing | subscription reminders cron | direct dispatch | no durable queue correlation | Hold: missing Meta approval |
 | `proxy_claim` | `PROXY_CLAIM` | `villageclaq_proxy_claim` | missing | no | no | `memberName`, `groupName`, `claimUrl` | missing | `src/app/api/proxy-claim/send/route.ts` | direct dispatch | no durable queue correlation | Hold: missing Meta approval |
 
@@ -659,3 +659,45 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
 - No live messages were sent; no production data mutated; migration `00095`
   must be applied in the SQL Editor (code fails soft until then — phone
   invitees simply keep seeing no rows, exactly as today).
+
+## Addendum 10 (2026-06-12, remittance decision producerization)
+
+- Remittances are branch-to-HQ relief transfers; when HQ confirms or
+  disputes one, the BRANCH group's owner/admins are notified. The old path
+  was the familiar client-side fire-and-forget (`notifyBulkFromClient` from
+  the remittances page): no dedup (an HQ admin double-click or two-admin
+  race re-sent every channel; the status UPDATE had no `pending`
+  precondition), provider IDs dropped, and the deciding HQ admin's locale
+  used for every branch recipient. Both templates were previously listed as
+  "missing Meta approval" — they are now **confirmed UTILITY, approved
+  EN/FR in WhatsApp Manager (2026-06-12)**.
+- New `src/lib/remittance-decision-producer.ts` — the producer family's
+  first MULTI-RECIPIENT producer: one queue row per eligible branch
+  owner/admin, each with the recipient's own `preferred_locale` and
+  `relief_updates` preference. The decision, amount (`formatAmount` with
+  the remittance's currency), and branch group name are read
+  authoritatively from the DB; blank variables are impossible; pending
+  remittances skip. Proxy admins remain EXCLUDED (`user_id` required) —
+  parity with the old path's filter.
+- Idempotency is per **(remittanceId, decision template, recipient)**
+  (migration `00096`, committed NOT applied, with the late-apply dedupe
+  preamble): reruns dedupe per admin, a genuine confirmed→disputed
+  reversal still notifies once per decision. Apply in the same release
+  window as the deploy.
+- Route `/api/relief/remittance-notifications` authz: active owner/admin
+  of the BRANCH group, active owner/admin of an HQ group in the same
+  organization (mirroring the relief_remittances UPDATE RLS), or platform
+  staff.
+- The remittances page's status UPDATE now carries a `pending`
+  precondition with a visible "already decided" bail-out (loans
+  precedent), so a stale decision no longer re-fires in-app/email/SMS
+  either; in-app/email/SMS otherwise stay on the legacy client path with
+  payload fields preserved (the SMS template reads groupName/amount/
+  status).
+- Remaining holdbacks: announcements (MARKETING-risk, category strategy
+  pending), membership_status constraint widening + 00092,
+  event/subscription/scheduled-announcement crons, and the proxy-claim
+  route. With remittances done, every member-facing money path is
+  producer-backed.
+- No live messages were sent in the production of this addendum; all
+  verification is static or mocked.

@@ -2233,6 +2233,7 @@
     "remittanceSubmitted": "Remittance submitted successfully",
     "remittanceConfirmed": "Remittance confirmed",
     "remittanceDisputed": "Remittance disputed",
+    "remittanceAlreadyDecided": "This remittance has already been decided by another admin.",
     "remittanceConfirmedTitle": "Remittance Confirmed",
     "remittanceConfirmedBody": "Your remittance of {amount} has been confirmed by HQ.",
     "remittanceDisputedTitle": "Remittance Disputed",

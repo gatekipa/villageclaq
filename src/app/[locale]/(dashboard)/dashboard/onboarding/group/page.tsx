@@ -572,7 +572,7 @@ export default function GroupOnboardingPage() {
     // Step 7: Send invitations if provided (non-fatal)
     const validInvites = invites.filter((i) => i.value.trim());
     if (validInvites.length > 0) {
-      await supabase.from("invitations").insert(
+      const { data: insertedInvites } = await supabase.from("invitations").insert(
         validInvites.map((inv) => ({
           group_id: group.id,
           invited_by: user.id,
@@ -581,7 +581,24 @@ export default function GroupOnboardingPage() {
           role: "member" as const,
           token: crypto.randomUUID(),
         }))
-      );
+      ).select("id, phone");
+
+      // Phone invitations previously received NOTHING (the email leg below
+      // is email-only). The server-side queue-backed producer sends the
+      // Utility invitation notice, one per invitation per day.
+      try {
+        const phoneInvites = (insertedInvites || []).filter((inv) => inv.phone);
+        if (phoneInvites.length > 0) {
+          const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
+          for (const inv of phoneInvites) {
+            requestMemberInvitationWhatsApp(supabase, inv.id as string, locale).catch((err) => {
+              console.warn("[Onboarding] invitation WhatsApp trigger failed:", err instanceof Error ? err.message : err);
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[Onboarding] invitation WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
+      }
 
       // Send invitation emails for email-based invites (fire-and-forget)
       const emailInvites = validInvites.filter((inv) => inv.value.includes("@"));

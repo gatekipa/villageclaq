@@ -131,10 +131,24 @@ Annonce : {{2}}
 **Parameters:** 1=group_name, 2=election_title, 3=positions
 
 ## 10. villageclaq_invitation
-**Category:** UTILITY
+
+> **Superseded (2026-06-12):** approved as **MARKETING** (Meta blocks marketing
+> templates to US numbers, error 131049). App sends now use the UTILITY
+> replacement `villageclaq_member_invitation_notice` (#10b) via the
+> `member_invitation` type — note `{{1}}` changes from the inviter to the
+> invitee. This section is retained as the historical record.
+
+**Category:** MARKETING (intended UTILITY)
 **EN Body:** `{{1}} has invited you to join {{2}} on VillageClaq. Accept here: {{3}}`
 **FR Body:** `{{1}} vous a invité(e) à rejoindre {{2}} sur VillageClaq. Acceptez ici : {{3}}`
 **Parameters:** 1=inviter_name, 2=group_name, 3=accept_url
+
+## 10b. villageclaq_member_invitation_notice
+
+**Category:** UTILITY (approved EN + FR — confirmed in WhatsApp Manager 2026-06-12)
+**Bodies:** see WhatsApp Manager for the approved copy. Parameter semantics
+are confirmed and are what the app emits:
+**Parameters:** 1=invitee_name, 2=group_name, 3=invitation_link
 
 ## 11. villageclaq_loan_approved
 **Category:** UTILITY

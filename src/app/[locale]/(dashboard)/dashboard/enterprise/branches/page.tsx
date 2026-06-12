@@ -183,18 +183,30 @@ export default function BranchesPage() {
       const presidentEmail = formPresidentEmail.trim().toLowerCase();
       if (presidentEmail && newBranch?.id && user) {
         // Insert invitation record
-        const { error: invError } = await supabase.from("invitations").insert({
+        const { data: newInvitation, error: invError } = await supabase.from("invitations").insert({
           group_id: newBranch.id,
           email: presidentEmail,
           phone: formPhone.trim() || null,
           invited_by: user.id,
           role: "owner",
           status: "pending",
-        });
+        }).select("id").single();
 
         if (invError) {
           setInvitationWarning(t("branchCreatedInvitationFailed"));
         } else {
+          // Phone-carrying invitations get the WhatsApp notice via the
+          // server-side queue-backed producer (previously nothing).
+          if (formPhone.trim()) {
+            try {
+              const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
+              requestMemberInvitationWhatsApp(supabase, newInvitation?.id as string | undefined, locale).catch((err) => {
+                console.warn("[Branches] invitation WhatsApp trigger failed:", err instanceof Error ? err.message : err);
+              });
+            } catch (err) {
+              console.warn("[Branches] invitation WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
+            }
+          }
           // Fire-and-forget invitation email via /api/email/send
           try {
             const { data: { session } } = await supabase.auth.getSession();

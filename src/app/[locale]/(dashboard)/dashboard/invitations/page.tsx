@@ -222,7 +222,8 @@ export default function InvitationsPage() {
     setRegenerating(false);
   }
 
-  /** Send invitation email (and optionally WhatsApp). Returns true if email sent OK. */
+  /** Send the invitation email. Returns true if it sent OK. (WhatsApp for
+   *  phone-carrying invitations goes through the queue-backed producer.) */
   async function sendInvitationEmail(recipientEmail: string): Promise<boolean> {
     try {
       const supabase = createClient();
@@ -235,9 +236,12 @@ export default function InvitationsPage() {
       const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
 
       // Invitation emails are ALWAYS sent — the recipient isn't a user yet,
-      // so notification preferences don't apply. WhatsApp is best-effort.
+      // so notification preferences don't apply. This dialog is email-only;
+      // phone invitations (onboarding, branches) go through the server-side
+      // queue-backed producer at /api/invitations/whatsapp-notifications.
+      // The old inline WhatsApp branch here was dead code: this flow never
+      // collects a phone, and the direct send route rejects non-members.
       const sendEmail = true;
-      const sendWhatsapp = true;
 
       let emailOk = true;
       if (sendEmail) {
@@ -258,25 +262,6 @@ export default function InvitationsPage() {
           console.warn("[Invitations] Email API returned", res.status, "for", recipientEmail);
           emailOk = false;
         }
-      }
-      // WhatsApp invitation — only attempt if recipient looks like a phone or UUID
-      // (emails are not resolvable to phone numbers by the WhatsApp route)
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(recipientEmail);
-      const isPhone = /^\+?\d{7,}/.test(recipientEmail);
-      if (sendWhatsapp && (isUUID || isPhone)) {
-        fetch("/api/whatsapp/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            to: recipientEmail,
-            type: "invitation",
-            data: { inviterName, groupName, acceptUrl },
-            locale,
-          }),
-        }).catch(() => {});
       }
       return emailOk;
     } catch {
@@ -377,6 +362,18 @@ export default function InvitationsPage() {
     setResendingId(inviteId);
     try {
       await sendInvitationEmail(inviteEmail);
+      // Invitations that also carry a phone get the WhatsApp notice
+      // re-delivered too (the producer's day bucket allows one per day;
+      // email-only rows skip server-side as missing_phone).
+      try {
+        const supabase = createClient();
+        const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
+        requestMemberInvitationWhatsApp(supabase, inviteId, locale).catch((err) => {
+          console.warn("[Invitations] resend WhatsApp trigger failed:", err instanceof Error ? err.message : err);
+        });
+      } catch (err) {
+        console.warn("[Invitations] resend WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
+      }
     } finally {
       setResendingId(null);
     }

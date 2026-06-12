@@ -65,9 +65,10 @@ Secrets, tokens, provider payloads, and full phone numbers were not captured in 
 | `relief_claim_denied` | `RELIEF_CLAIM_DENIED` | `villageclaq_relief_claim_denied` | UTILITY | yes | yes | `memberName`, `claimType`, `reason`, `groupName` | 4 | `src/lib/relief-claim-decision-producer.ts` via `/api/relief/claim-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093; verify live Meta category before US QA |
 | `announcement` | `ANNOUNCEMENT` | `villageclaq_announcement_v2` | MARKETING | yes | yes | `groupName`, `title`, `body` | 3 | announcements page, scheduled announcement cron, enterprise transfers | client route or direct cron dispatch | limited for direct/client sends | Ready for template QA; routing hardening later |
 | `election_opened` | `ELECTION_OPENED` | `villageclaq_election_opened` | MARKETING | yes | yes | `groupName`, `electionTitle`, `positions` | 3 | elections page via `notifyFromClient` | client route `/api/whatsapp/send` | no durable queue correlation unless queued on retry | Ready for template QA; routing hardening later |
-| `invitation` | `INVITATION` | `villageclaq_invitation` | MARKETING | yes | yes | `inviterName`, `groupName`, `acceptUrl` | 3 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
+| `invitation` | `INVITATION` | `villageclaq_invitation` | MARKETING | yes | yes | `inviterName`, `groupName`, `acceptUrl` | 3 | superseded — legacy type retained for historical rows only (see addendum 8) | none (old inline path removed; was dead code) | n/a | Superseded by `member_invitation`; never use for live sends |
+| `member_invitation` | `MEMBER_INVITATION` | `villageclaq_member_invitation_notice` | UTILITY | yes | yes | `inviteeName`, `groupName`, `invitationLink` | 3 | `src/lib/member-invitation-producer.ts` via `/api/invitations/whatsapp-notifications` (see addendum 8) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00094 before QA |
 | `loan_approved` | `LOAN_APPROVED` | `villageclaq_loan_approved` | UTILITY | yes | yes | `memberName`, `amount`, `groupName` | 3 | `src/lib/loan-approved-producer.ts` via `/api/loans/approval-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093 before QA |
-| `loan_overdue` | `LOAN_OVERDUE` | `villageclaq_loan_overdue` | UTILITY | yes | yes | `memberName`, `amount`, `dueDate`, `groupName` | 4 | generic dispatcher support | direct/client if invoked | no durable queue correlation unless queued | Ready for template QA only after producer path is confirmed |
+| `loan_overdue` | `LOAN_OVERDUE` | `villageclaq_loan_overdue` | UTILITY | yes | yes | `memberName`, `amount`, `dueDate`, `groupName` | 4 | `src/lib/loan-overdue-producer.ts` via the daily 10:00 UTC cron (see addendum 8) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00094 before QA |
 | `fine_issued` | `FINE_ISSUED` | `villageclaq_fine_issued` | UTILITY | yes | yes | `memberName`, `fineType`, `amount`, `groupName`, `reason` | 5 | `src/lib/fine-issued-producer.ts` via `/api/fines/issued-notifications` (see addendum 7) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00093 before QA ({{4}}/{{5}} order verified in WhatsApp Manager 2026-06-11) |
 | `standing_changed` | `STANDING_CHANGED` | `villageclaq_standing_changed` | UTILITY | yes | yes | `memberName`, `newStanding`, `groupName` | 3 | `src/lib/standing-change-producer.ts` via `/api/members/standing-notifications` (see addendum 6) | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Apply migration 00091 before QA |
 | `welcome` | `WELCOME` | `villageclaq_member_joined` (was `villageclaq_welcome`, see addendum 2) | UTILITY | yes | yes | `memberName`, `groupName` | 2 | `src/lib/welcome-producer.ts` via `/api/members/welcome-notifications` | queue-backed (`notifications_queue`) | provider ID + webhook status correlated via queue row | Default `new_member` prefs keep WhatsApp off; enable for QA |
@@ -534,5 +535,80 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   pending), membership_status constraint widening + 00092,
   event/subscription/scheduled-announcement crons, proxy-claim route, and
   the loan_overdue cron above.
+- No live messages were sent in the production of this addendum; all
+  verification is static or mocked.
+
+## Addendum 8 (2026-06-12, invitation + loan overdue producerization)
+
+- **Invitation WhatsApp was dead code twice over**: the invitations dialog
+  only collects emails (its phone/UUID regex never matched), and the direct
+  send route's recipient guard 403s invitees (they are not members yet). The
+  net effect: **phone-only invitations — onboarding step 7 and the branches
+  founding-president flow — never received anything on any channel.** The
+  old `villageclaq_invitation` template is additionally **MARKETING**
+  (blocked to US numbers, error 131049) and its `{{1}}` was the inviter.
+- New `member_invitation` type → UTILITY `villageclaq_member_invitation_notice`
+  (`{{1}} inviteeName`, `{{2}} groupName`, `{{3}} invitationLink`) via
+  `src/lib/member-invitation-producer.ts` and the authz'd route
+  `/api/invitations/whatsapp-notifications` (inviter / active owner-admin /
+  staff — tight by design, since this producer messages external phone
+  numbers). The producer re-reads the invitation row: pending-only, expiry
+  honored, phone from the row only. `{{1}}` is the claim-target membership's
+  name for proxy-claim invitations and a localized fallback label otherwise
+  (the invitee has no account — also why no notification preference applies,
+  matching the always-send email leg, and why the locale is the inviter's UI
+  locale). The link is the same `/login?redirectTo=/dashboard/my-invitations`
+  destination as the email (rule 12), locale-prefixed.
+- Invitation idempotency is a DAY BUCKET on (invitationId, sendDate):
+  same-day double-clicks dedupe while the existing resend feature still
+  re-delivers on a later day. Wired into the onboarding bulk insert and the
+  branches flow (both now capture inserted ids); the email-only invite
+  dialog needs no wiring — its dead WhatsApp block was removed.
+- **`loan_overdue` was fully plumbed but orphaned** (template, builder, and
+  dispatcher case existed; zero callers). New daily cron
+  `/api/cron/loan-overdue-reminders` (10:00 UTC — staggered after the 08:00
+  payment-reminders burst to keep the shared 50-row/15-min drain from
+  head-of-line blocking) discovers candidate repaying loans and calls
+  `src/lib/loan-overdue-producer.ts` per loan. Eligibility deliberately
+  accepts `pending`/`partial`/`overdue` installments past due —
+  **nothing server-side ever sets the `overdue` flag** (the client marks it
+  lazily on page visits), the exact pitfall the payment-reminder producer
+  documents. Only `repaying` loans are nagged (never completed/defaulted/
+  written_off); the message quotes the EARLIEST overdue installment's
+  outstanding amount and due date (the template body is singular). One
+  reminder per loan per UTC day — (loanId, reminderDate) bucket. Proxy
+  borrowers are included (money-path family precedent; WhatsApp is the only
+  channel that reaches them). WhatsApp-only: no loan-overdue email/SMS
+  exists, and the in-app notice stays with the client-side
+  markOverdueInstallments path (unchanged).
+- Migration `00094` (committed, NOT applied): both day-bucket unique
+  indexes with the 00093-style late-apply dedupe preamble. Apply in the
+  same release window as the deploy.
+- Operational notes: the invitation route carries the same 50/hour
+  per-caller rate limit as the direct send route — it is the only producer
+  route whose recipients are non-members. The overdue cadence is daily
+  while a loan stays overdue (payment-reminder precedent); note that PROXY
+  borrowers cannot opt out (preferences require an account), so a
+  long-overdue proxy loan nags daily until paid, defaulted, or archived —
+  accepted for now, a cap/backoff is a candidate follow-up. Both reminder
+  crons share PostgREST's ~1000-row response ceiling on candidate
+  discovery (unordered truncation at extreme scale) — parity with
+  payment-reminders, flagged for a follow-up RPC when volumes grow.
+- **Ship-with caveat — phone-invitee acceptance gap**: my-invitations
+  matches invitations by email/user_id only (and the invitations RLS
+  SELECT policy is likewise email/inviter/user_id-based), so a phone-only
+  invitee who taps the WhatsApp link and signs up cannot yet SEE their
+  invitation — the notice delivers a CTA the app cannot complete. The
+  matching + RLS fix should land in the same release window or immediately
+  after; until it does, treat onboarding phone invitations as
+  message-only. Branch-flow invitations are unaffected (they always carry
+  an email). The pre-existing dead email gates (getEnabledChannels(null)
+  on the members/onboarding/branches email legs always returns
+  email:false) are likewise untouched and flagged.
+- Remaining holdbacks: remittances (template categories unverified —
+  2026-06 batch), announcements (MARKETING-risk, category strategy
+  pending), membership_status constraint widening + 00092,
+  event/subscription/scheduled-announcement crons, and the proxy-claim
+  route.
 - No live messages were sent in the production of this addendum; all
   verification is static or mocked.

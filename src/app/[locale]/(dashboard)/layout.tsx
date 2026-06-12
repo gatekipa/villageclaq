@@ -348,15 +348,25 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
         const email = authUser.email;
         let destination = "/dashboard/onboarding/group";
 
-        if (email) {
-          const { count, error } = await supabase
-            .from("invitations")
-            .select("id", { count: "exact", head: true })
-            .eq("email", email)
-            .eq("status", "pending");
-
-          if (!error && count && count > 0) {
-            destination = "/dashboard/my-invitations";
+        // Count pending invitations ADDRESSED to this user (email / stamped
+        // user_id / member-role phone match) via a SECURITY DEFINER RPC —
+        // not all RLS-visible rows, which would also include invitations a
+        // former inviter sent before leaving their group. Fail soft to the
+        // email-scoped count if the RPC is not yet applied so login never
+        // breaks (migration 00095 is applied manually).
+        {
+          const { data: inviteCount, error } = await supabase.rpc("count_my_pending_invitations");
+          if (!error) {
+            if (typeof inviteCount === "number" && inviteCount > 0) {
+              destination = "/dashboard/my-invitations";
+            }
+          } else if (email) {
+            const { count } = await supabase
+              .from("invitations")
+              .select("id", { count: "exact", head: true })
+              .eq("email", email)
+              .eq("status", "pending");
+            if (count && count > 0) destination = "/dashboard/my-invitations";
           }
         }
 

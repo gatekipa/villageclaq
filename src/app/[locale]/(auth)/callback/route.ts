@@ -41,9 +41,19 @@ export async function GET(request: Request) {
               .eq("user_id", user.id)
               .neq("membership_status", "exited");
 
+            // Count pending invitations ADDRESSED to this user (email /
+            // stamped user_id / member-role phone match) via a SECURITY
+            // DEFINER RPC. Fail soft to the email-scoped count if the RPC
+            // is not yet applied. MUST stay identical to the root auth
+            // callback (CLAUDE.md rule 10).
             let inviteCount = 0;
             if (!membershipCount || membershipCount === 0) {
-              if (user.email) {
+              const { data: rpcCount, error: countErr } = await supabase.rpc(
+                "count_my_pending_invitations"
+              );
+              if (!countErr && typeof rpcCount === "number") {
+                inviteCount = rpcCount;
+              } else if (user.email) {
                 const { count } = await supabase
                   .from("invitations")
                   .select("id", { count: "exact", head: true })

@@ -820,6 +820,36 @@ check(
   "DB-level day-bucket uniqueness must back both producers' check-before-insert.",
 );
 
+const phoneMatchingMigration = read("supabase/migrations/00095_phone_invitation_matching.sql");
+check(
+  "phone-invitee invitation matching is restored safely (visibility + accept/decline)",
+  phoneMatchingMigration.includes("get_my_phone_digits") &&
+    phoneMatchingMigration.includes("SECURITY DEFINER") &&
+    phoneMatchingMigration.includes('"Invitees can view their phone invitations"') &&
+    // No invitee phone UPDATE policy — that WITH CHECK could not pin
+    // group_id, so decline is RPC-only.
+    !phoneMatchingMigration.includes('CREATE POLICY "Invitees can update their phone invitations"') &&
+    phoneMatchingMigration.includes("caller_matches_invitation") &&
+    phoneMatchingMigration.includes("COALESCE(p_role, 'member') = 'member'") &&
+    phoneMatchingMigration.includes("decline_invitation") &&
+    phoneMatchingMigration.includes("count_my_pending_invitations") &&
+    phoneMatchingMigration.includes("'error', 'use_claim_rpc'") &&
+    phoneMatchingMigration.includes("'ok', true, 'membership_id', v_membership_id"),
+  "Phone invitees must see and accept/decline member-role phone invitations through controlled RPCs without an UPDATE policy, weakening the email path, the claim guard, or the welcome-producer return shape.",
+);
+
+const myInvitationsPage = read("src/app/[locale]/(dashboard)/dashboard/my-invitations/page.tsx");
+check(
+  "my-invitations matches phone invitees, declines via RPC, and keeps the welcome chain",
+  !myInvitationsPage.includes("if (!authUser?.email) return [];") &&
+    myInvitationsPage.includes("phoneDigitsMatch(") &&
+    myInvitationsPage.includes("and(email.is.null,phone.not.is.null)") &&
+    myInvitationsPage.includes('.rpc("decline_invitation"') &&
+    !myInvitationsPage.includes('.update({ status: "declined"') &&
+    myInvitationsPage.includes("requestWelcomeWhatsApp(supabase, welcomeMembershipId, locale)"),
+  "Phone-only invitees must see their invitations (with the mandatory digits post-filter), decline through the RPC, and keep the accepted-invitation welcome trigger.",
+);
+
 const webhookDoc = read("docs/whatsapp-webhook-status.md");
 check(
   "WhatsApp webhook status runbook exists",

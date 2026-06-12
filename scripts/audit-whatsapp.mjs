@@ -117,7 +117,10 @@ const whatsappDispatcher = read("src/lib/whatsapp-dispatcher.ts");
 const approvedLaunchTemplateNames = {
   PAYMENT_RECEIPT: "villageclaq_payment_receipt_v2",
   PAYMENT_REMINDER: "villageclaq_payment_reminder_v2",
-  EVENT_REMINDER: "villageclaq_event_reminder_v2",
+  // Remapped 2026-06-13: the v2 template is MARKETING-categorized
+  // (US-blocked, 131049); the original villageclaq_event_reminder was
+  // Manager-verified Utility with the identical 5-variable body order.
+  EVENT_REMINDER: "villageclaq_event_reminder",
   ANNOUNCEMENT: "villageclaq_announcement_v2",
 };
 
@@ -136,7 +139,10 @@ const fullTemplateRegistry = {
   },
   event_reminder: {
     constant: "EVENT_REMINDER",
-    template: "villageclaq_event_reminder_v2",
+    // UTILITY remap target (Manager-verified 2026-06-13): {{1}} memberName,
+    // {{2}} eventTitle, {{3}} eventDate, {{4}} eventLocation (NOT time),
+    // {{5}} groupName — identical to the MARKETING v2 it replaces.
+    template: "villageclaq_event_reminder",
     builder: "buildEventReminderParams",
     vars: ["memberName", "eventTitle", "eventDate", "eventLocation", "groupName"],
   },
@@ -1019,6 +1025,20 @@ check(
     !subscriptionProducerSrc.includes("villageclaq_subscription_expiring") &&
     !whatsappDispatcher.includes("villageclaq_subscription_expiring"),
   "villageclaq_subscription_expiring is MARKETING-categorized (Meta blocks it to US numbers, error 131049, confirmed live 2026-06-12). Runtime must use villageclaq_account_access_notice ({{1}} group/org name, {{2}} days left).",
+);
+check(
+  "Event reminders map to the verified UTILITY template, never the Marketing v2",
+  whatsappTemplates.includes('EVENT_REMINDER: "villageclaq_event_reminder"') &&
+    !whatsappTemplates.includes('"villageclaq_event_reminder_v2"') &&
+    !eventReminderProducerSrc.includes("villageclaq_event_reminder_v2") &&
+    !whatsappDispatcher.includes("villageclaq_event_reminder_v2"),
+  "villageclaq_event_reminder_v2 is MARKETING-categorized (Meta blocks it to US numbers, error 131049, confirmed live 2026-06-12). Runtime must use villageclaq_event_reminder (Manager-verified Utility, identical 5-variable body).",
+);
+check(
+  "Event reminder template variables keep the verified 5-variable order",
+  /buildEventReminderParams\(data: \{\s*memberName: string;\s*eventTitle: string;\s*eventDate: string;\s*eventLocation: string;\s*groupName: string;\s*\}\)/.test(whatsappTemplates) &&
+    whatsappTemplates.includes("bodyParams(data.memberName, data.eventTitle, data.eventDate, data.eventLocation, data.groupName)"),
+  "villageclaq_event_reminder verified body order: {{1}} memberName, {{2}} eventTitle, {{3}} eventDate, {{4}} eventLocation (NOT event time), {{5}} groupName.",
 );
 check(
   "Subscription-expiring template variables are groupName + days in the approved order",

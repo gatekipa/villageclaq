@@ -5780,6 +5780,7 @@
     "alreadyClaimed": "Cette adhésion a déjà été réclamée par un autre utilisateur."
   },
   "cron": {
+    "eventLocationFallback": "Lieu à confirmer",
     "hostingReminderTitle": "Rappel d'hébergement",
     "hostingReminderBody": "Rappel : Vous êtes prévu(e) pour héberger le {date}",
     "subscriptionExpiringEmailTitle": "Abonnement expirant dans {days} jours",

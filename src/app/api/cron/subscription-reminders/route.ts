@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
-import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
+import { produceSubscriptionExpiringNotification } from "@/lib/subscription-expiring-producer";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { buildTranslator, fetchLocaleMap, getLocale } from "@/lib/cron-notify-helper";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+function shortId(id: string | null | undefined): string {
+  return id ? `${id.slice(0, 8)}...` : "(missing)";
+}
 
 /**
  * GET /api/cron/subscription-reminders
@@ -17,6 +21,16 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
  * Recipients: the billing contacts (group owner/admin memberships).
  * Every title/body is rendered per admin in their preferred_locale
  * via the bilingual translator (cron namespace).
+ *
+ * In-app/email/SMS are sent directly from this route, deduped by the
+ * locale-agnostic `dedup_key` row. WhatsApp is queued exclusively via
+ * the subscription-expiring producer (notifications_queue, drained by
+ * the queue cron) with its own per-recipient day-bucket idempotency —
+ * decoupled from the in-app dedup row, so same-day reruns are safe on
+ * both paths independently. No direct WhatsApp provider sends here.
+ *
+ * Billing state is read-only: this route only SELECTs from
+ * group_subscriptions and never writes to it.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("Authorization");
@@ -29,6 +43,9 @@ export async function GET(request: Request) {
   const bt = await buildTranslator("cron");
   let notified = 0;
   let failed = 0;
+  let whatsappQueued = 0;
+  let whatsappSkipped = 0;
+  let whatsappFailed = 0;
   const errors: string[] = [];
 
   try {
@@ -61,22 +78,60 @@ export async function GET(request: Request) {
     }
 
     for (const sub of expiring) {
+      // ── WhatsApp: queue-backed producer, called BEFORE the in-app dedup
+      // check below. The producer re-validates eligibility, preferences,
+      // and phone per billing contact, then enqueues into
+      // notifications_queue. Its idempotency is a per-recipient day bucket
+      // (subscriptionId + reminderDate + userId), owned by the producer —
+      // deliberately decoupled from the dedup_key row so neither channel's
+      // dedupe can starve the other.
+      try {
+        const waResult = await produceSubscriptionExpiringNotification(
+          supabase,
+          sub.id as string,
+          { reminderDate: todayStr },
+        );
+        whatsappQueued += waResult.whatsappQueued;
+        whatsappSkipped += waResult.recipients.filter((r) => r.status === "skipped").length;
+        whatsappFailed += waResult.recipients.filter((r) => r.status === "error").length;
+        if (waResult.recipients.length === 0) {
+          if (waResult.status === "error") {
+            whatsappFailed++;
+            errors.push(`WhatsApp: ${waResult.reason || "unknown"}`);
+          } else {
+            whatsappSkipped++;
+          }
+        }
+      } catch (err) {
+        whatsappFailed++;
+        console.warn(
+          `[Cron:SubscriptionReminders] whatsapp producer failed for ${shortId(sub.id as string)}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+
       try {
         const group = sub.group as unknown as Record<string, unknown>;
         const groupId = group?.id as string;
         const groupName = (group?.name as string) || "";
         const tier = (sub.tier as string) || "free";
         const periodEnd = sub.current_period_end as string;
+        // Calendar-day difference at UTC midnight — the same bucket math
+        // the WhatsApp producer uses, so every channel in this run shows
+        // the same countdown number regardless of period_end's time-of-day.
         const daysLeft = Math.max(
           0,
-          Math.ceil((new Date(periodEnd).getTime() - now.getTime()) / 86400000),
+          Math.round(
+            (new Date(`${periodEnd.slice(0, 10)}T00:00:00.000Z`).getTime() -
+              new Date(`${todayStr}T00:00:00.000Z`).getTime()) / 86400000,
+          ),
         );
 
         // Get group owner/admin memberships
         const { data: admins } = await supabase
           .from("memberships")
           .select(
-            "user_id, profiles:profiles!memberships_user_id_fkey(full_name, email, phone)",
+            "user_id, profiles:profiles!memberships_user_id_fkey(email, phone)",
           )
           .eq("group_id", groupId)
           .in("role", ["owner", "admin"])
@@ -113,7 +168,6 @@ export async function GET(request: Request) {
             : admin.profiles) as Record<string, unknown> | null;
           const email = (profile?.email as string) || null;
           const phone = (profile?.phone as string) || null;
-          const fullName = (profile?.full_name as string) || "";
           const locale = getLocale(localeMap, userId);
 
           // Fail-open channel preferences
@@ -157,7 +211,7 @@ export async function GET(request: Request) {
               });
             } catch (err) {
               console.warn(
-                `[Cron:SubscriptionReminders] in-app failed for ${userId}:`,
+                `[Cron:SubscriptionReminders] in-app failed for ${shortId(userId)}:`,
                 err instanceof Error ? err.message : err,
               );
             }
@@ -180,7 +234,7 @@ export async function GET(request: Request) {
               });
             } catch (err) {
               console.warn(
-                `[Cron:SubscriptionReminders] email failed for ${userId}:`,
+                `[Cron:SubscriptionReminders] email failed for ${shortId(userId)}:`,
                 err instanceof Error ? err.message : err,
               );
             }
@@ -197,27 +251,14 @@ export async function GET(request: Request) {
               });
             } catch (err) {
               console.warn(
-                `[Cron:SubscriptionReminders] sms failed for ${userId}:`,
+                `[Cron:SubscriptionReminders] sms failed for ${shortId(userId)}:`,
                 err instanceof Error ? err.message : err,
               );
             }
           }
 
-          // WhatsApp — locale passed through to the dispatcher
-          if (phone && channels.whatsapp) {
-            try {
-              await dispatchWhatsApp("subscription_expiring", phone, locale, {
-                planName: tier,
-                days: String(daysLeft),
-                memberName: fullName,
-              });
-            } catch (err) {
-              console.warn(
-                `[Cron:SubscriptionReminders] whatsapp failed for ${userId}:`,
-                err instanceof Error ? err.message : err,
-              );
-            }
-          }
+          // WhatsApp is handled by the queue-backed producer above — no
+          // direct provider sends from this cron.
 
           notified++;
         }
@@ -231,10 +272,16 @@ export async function GET(request: Request) {
       message: `Subscription reminders sent`,
       notified,
       failed,
+      whatsappQueued,
+      whatsappSkipped,
+      whatsappFailed,
       errors: errors.slice(0, 5),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json(
+      { error: msg, notified, failed, whatsappQueued, whatsappSkipped, whatsappFailed },
+      { status: 500 },
+    );
   }
 }

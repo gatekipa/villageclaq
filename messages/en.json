@@ -5780,6 +5780,7 @@
     "alreadyClaimed": "This membership has already been claimed by another user."
   },
   "cron": {
+    "eventLocationFallback": "Location to be announced",
     "hostingReminderTitle": "Hosting Reminder",
     "hostingReminderBody": "Reminder: You are scheduled to host on {date}",
     "subscriptionExpiringEmailTitle": "Subscription expiring in {days} days",

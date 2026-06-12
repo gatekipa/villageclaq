@@ -701,3 +701,77 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
   producer-backed.
 - No live messages were sent in the production of this addendum; all
   verification is static or mocked.
+
+## Addendum 11 (2026-06-12, legacy cron producerization: hosting, events, subscriptions; announcements deferred)
+
+- This pass converts the remaining legacy direct-dispatch reminder crons to
+  the queue-backed producer discipline. After it, the ONLY cron route that
+  dispatches WhatsApp directly is `send-scheduled-announcements` (an
+  explicit, audited allowlist — see the deferral note below) plus the queue
+  drain itself.
+- **Hosting reminders** (`/api/cron/hosting-reminders`) — this was an
+  active production bug, found during the 2026-06-12 QA cleanup
+  (`docs/qa-cleanup-2026-06-12.md`): the in-app insert used
+  `type: "hosting_reminder"`, which is NOT in the `notification_type` enum,
+  so it always failed; and the dedup compared the ISO `assigned_date`
+  against a body containing a locale-formatted date via `.like("body", …)`,
+  so it never matched — duplicate daily WhatsApp/email sends for every
+  assignment inside the 7-day window. Replaced by
+  `src/lib/hosting-reminder-producer.ts`: strict idempotency per
+  **(assignmentId, assignedDate)** — one reminder per assignment
+  occurrence, ever; a reschedule (new `assigned_date`) legitimately
+  re-reminds. The cron's in-app/email/SMS now gate on a deterministic
+  `dedup_key` (`hosting_reminder_<assignmentId>_<assignedDate>`) with a
+  valid `type: "system"` in-app row; proxy SMS gates on the producer's
+  first-enqueue result (proxies cannot carry a notifications dedup row —
+  `notifications.user_id` is NOT NULL).
+- **Event reminders** (`/api/cron/event-reminders`) — WhatsApp moved to
+  multi-recipient `src/lib/event-reminder-producer.ts`, strict per
+  **(eventId, userId)** (parity with `events.reminder_sent_at` = remind
+  once per event). The `reminder_sent_at` flip is now race-gated with
+  `.is("reminder_sent_at", null)`. Two latent legacy bugs fixed: WhatsApp
+  recipients were derived from the EMAIL list (phone-but-no-email members
+  never got WhatsApp), and location-less events passed an EMPTY `{{4}}`
+  body param (Meta rejects blank params) — now a translated fallback
+  (`cron.eventLocationFallback`, EN/FR).
+- **Subscription-expiring reminders** (`/api/cron/subscription-reminders`)
+  — WhatsApp moved to multi-recipient
+  `src/lib/subscription-expiring-producer.ts`, day-bucket per
+  **(subscriptionId, reminderDate, userId)**: the daily daysLeft-countdown
+  cadence inside the 7-day window is intentional; same-day reruns are
+  idempotent. The producer and route are strictly READ-ONLY on
+  `group_subscriptions` (billing/Stripe state untouched, test-enforced).
+  The existing windowed `dedup_key` mechanism for in-app/email/SMS is
+  unchanged. NOTE: `villageclaq_subscription_expiring`'s Meta category is
+  still UNVERIFIED (2026-06 submission batch — MARKETING risk per the
+  131049 memory); producerization does not change that — verify category
+  in WhatsApp Manager before any controlled QA to a US number.
+- **Scheduled announcements — DEFERRED (Option B), deliberately.**
+  `/api/cron/send-scheduled-announcements` keeps its current direct
+  dispatch because announcements are strategy-sensitive, not just
+  mechanics: `villageclaq_announcement_v2` is MARKETING-category, which
+  Meta silently drops to US numbers (error 131049) — and VillageClaq's
+  diaspora is largely US-based. Producerizing the dispatch now would bake
+  today's template/category assumptions into queue rows and webhook
+  correlation before the open product decision (UTILITY re-submission of
+  announcement copy vs. accepting non-US-only delivery vs. channel
+  fallback). Required decision, in order: (1) owner picks the announcement
+  category strategy; (2) if a UTILITY replacement is approved, verify BOTH
+  the category AND the WABA placement (131005 lesson) in WhatsApp Manager;
+  (3) only then producerize the announcement path (multi-recipient,
+  per (announcementId, userId) strict idempotency — design already proven
+  by the event producer). Guardrails added NOW: the audit script pins an
+  explicit direct-dispatch allowlist for cron routes, so any new direct
+  `dispatchWhatsApp` use — or announcements silently growing one elsewhere
+  — fails the audit.
+- Migration `00097_legacy_cron_reminder_idempotency.sql` (committed, NOT
+  applied): three partial unique indexes on `notifications_queue` (one per
+  producer key above) with the 00096-style late-apply dedupe preamble, plus
+  a unique backstop on `notifications (user_id, dedup_key)` for the hosting
+  dedup keys. Deliberately NO unique index for the existing
+  `subscription_expiring_%` dedup keys — those legitimately repeat across
+  billing years; the cron's 24h-windowed check remains the right guard.
+  Apply in the same release window as the deploy.
+- No live messages were sent in the production of this addendum; all
+  verification is static or mocked. No Meta template, category, WABA, or
+  provider configuration was touched.

@@ -1,5 +1,6 @@
 import { sendSMS } from "@/lib/notifications/sms-sender";
 import { isAfricanPhoneNumber } from "@/lib/is-african-phone";
+import { maskPhoneNumber } from "@/lib/mask-phone";
 import {
   paymentReminderSms,
   eventReminderSms,
@@ -62,11 +63,13 @@ export async function sendSmsNotification({
   data,
   locale = "en",
 }: SendSmsNotificationParams): Promise<{ sent: boolean; skipped: boolean; error?: string }> {
-  console.log("[SMS DIAG] sendSmsNotification called", { to, template, locale });
+  // Diagnostics never log the raw phone — maskPhoneNumber() keeps enough
+  // prefix/suffix to debug country/recipient matching (repo-wide rule).
+  console.log("[SMS DIAG] sendSmsNotification called", { to: maskPhoneNumber(to), template, locale });
 
   // Only send to African numbers
   const isAfrican = isAfricanPhoneNumber(to);
-  console.log("[SMS DIAG] isAfricanPhoneNumber check", { phone: to, result: isAfrican });
+  console.log("[SMS DIAG] isAfricanPhoneNumber check", { phone: maskPhoneNumber(to), result: isAfrican });
   if (!isAfrican) {
     console.log("[SMS DIAG] SKIPPING — non-African phone number");
     return { sent: false, skipped: true, error: "Non-African phone number" };
@@ -79,13 +82,14 @@ export async function sendSmsNotification({
       return { sent: false, skipped: true, error: `Unknown template: ${template}` };
     }
 
-    console.log("[SMS DIAG] Built message, calling sendSMS", { to, messagePreview: message.substring(0, 80) });
+    // Length only — the rendered body can contain member names.
+    console.log("[SMS DIAG] Built message, calling sendSMS", { to: maskPhoneNumber(to), messageLength: message.length });
     const result = await sendSMS({ to, message });
     console.log("[SMS DIAG] sendSMS result", { sent: result.sent, queued: result.queued, error: result.error });
     return { sent: result.sent, skipped: false, error: result.error };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[SMS DIAG] sendSmsNotification EXCEPTION for ${template} to ${to}:`, msg);
+    console.error(`[SMS DIAG] sendSmsNotification EXCEPTION for ${template} to ${maskPhoneNumber(to)}:`, msg);
     return { sent: false, skipped: false, error: msg };
   }
 }

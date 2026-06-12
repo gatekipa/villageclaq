@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { maskPhoneNumber } from "@/lib/mask-phone";
 
 interface SendSMSParams {
   to: string;
@@ -14,11 +15,12 @@ export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: b
   const apiKey = process.env.AFRICASTALKING_API_KEY;
   const username = process.env.AFRICASTALKING_USERNAME || "villageclaq";
 
+  // Diagnostics never log the raw phone (maskPhoneNumber, repo-wide rule)
+  // or any fragment of the API key.
   console.log("[SMS DIAG] sendSMS called", {
-    to,
+    to: maskPhoneNumber(to),
     messageLength: message.length,
     hasApiKey: !!apiKey,
-    apiKeyPrefix: apiKey ? apiKey.substring(0, 8) + "..." : "MISSING",
     username,
   });
 
@@ -38,24 +40,33 @@ export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: b
     const smsPayload: { to: string[]; message: string; from?: string } = { to: [to], message };
     if (senderId) smsPayload.from = senderId;
 
-    console.log("[SMS DIAG] Calling Africa's Talking SDK", { to, senderId: senderId || "(default shortcode)", username });
+    console.log("[SMS DIAG] Calling Africa's Talking SDK", { to: maskPhoneNumber(to), senderId: senderId || "(default shortcode)", username });
     const response = await at.SMS.send(smsPayload);
-    console.log("[SMS DIAG] Africa's Talking raw response:", JSON.stringify(response));
 
-    // Log the AT response for debugging delivery issues
+    // Log a structured AT response summary for debugging delivery issues.
+    // Never dump the raw response JSON — its Recipients array echoes the
+    // full recipient phone number.
     const msgData = (response as Record<string, unknown>)?.SMSMessageData as Record<string, unknown> | undefined;
     const recipients = (msgData?.Recipients as Array<Record<string, unknown>>) || [];
+    console.log("[SMS DIAG] Africa's Talking response", {
+      message: (msgData?.Message as string) || null,
+      recipients: recipients.map((r) => ({
+        number: maskPhoneNumber(r.number as string),
+        statusCode: r.statusCode,
+        status: r.status,
+      })),
+    });
     const firstStatus = recipients[0]?.statusCode as number | undefined;
     if (firstStatus && firstStatus !== 101) {
       const statusMsg = (recipients[0]?.status as string) || "Unknown status";
-      console.warn(`[SMS DIAG] AT returned non-success status ${firstStatus} for ${to}: ${statusMsg}`);
+      console.warn(`[SMS DIAG] AT returned non-success status ${firstStatus} for ${maskPhoneNumber(to)}: ${statusMsg}`);
     } else {
-      console.log("[SMS DIAG] AT success — status 101 (sent to carrier)", { to });
+      console.log("[SMS DIAG] AT success — status 101 (sent to carrier)", { to: maskPhoneNumber(to) });
     }
     return { sent: true, queued: false };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown SMS error";
-    console.error(`[SMS DIAG] Africa's Talking SDK EXCEPTION for ${to}:`, msg);
+    console.error(`[SMS DIAG] Africa's Talking SDK EXCEPTION for ${maskPhoneNumber(to)}:`, msg);
     await queueNotification("sms", to, { message });
     return { sent: false, queued: true, error: msg };
   }

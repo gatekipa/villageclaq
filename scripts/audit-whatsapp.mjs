@@ -93,6 +93,17 @@ check(
   "WhatsApp logs must not include full recipient phone numbers.",
 );
 
+const sendSmsNotificationSrc = read("src/lib/send-sms-notification.ts");
+const smsSenderSrc = read("src/lib/notifications/sms-sender.ts");
+check(
+  "SMS senders mask phone numbers in logs",
+  sendSmsNotificationSrc.includes("maskPhoneNumber(") &&
+    smsSenderSrc.includes("maskPhoneNumber(") &&
+    !sendSmsNotificationSrc.includes("phone: to") &&
+    !smsSenderSrc.includes("JSON.stringify(response)"),
+  "SMS diagnostics must mask recipient phones and never dump the raw provider response (its Recipients array echoes the full number).",
+);
+
 const notifyClient = read("src/lib/notify-client.ts");
 check(
   "Client notification diagnostics mask recipient phone numbers",

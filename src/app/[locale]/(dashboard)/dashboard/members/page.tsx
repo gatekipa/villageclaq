@@ -226,6 +226,7 @@ export default function MembersPage() {
   const tCommon = useTranslations("common");
   const tr = useTranslations("roles");
   const tt = useTranslations("transfers");
+  const tInv = useTranslations("invitations");
   const router = useRouter();
   const { groupId, user, currentGroup, currentMembership, isAdmin } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
@@ -528,7 +529,16 @@ export default function MembersPage() {
           status: "pending",
           invited_by: user.id,
         });
-        if (invErr) { failed++; continue; }
+        if (invErr) {
+          // unique_violation from the invitations_group_*_active_unique
+          // partial indexes (00029 email / 00099 phone): this address
+          // already holds an active invite — surface the friendly message.
+          if (invErr.code === "23505") {
+            setBulkInviteError(tInv("duplicateInviteError"));
+          }
+          failed++;
+          continue;
+        }
 
         // Send email (fire-and-forget)
         try {

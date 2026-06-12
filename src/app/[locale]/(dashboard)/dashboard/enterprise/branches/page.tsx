@@ -70,6 +70,7 @@ interface BranchRow {
 export default function BranchesPage() {
   const t = useTranslations("enterprise");
   const tc = useTranslations("common");
+  const tInv = useTranslations("invitations");
   const locale = useLocale();
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -193,7 +194,18 @@ export default function BranchesPage() {
         }).select("id").single();
 
         if (invError) {
-          setInvitationWarning(t("branchCreatedInvitationFailed"));
+          // Defensive only: this invitation targets the branch group created
+          // moments earlier in this same mutation, and the
+          // invitations_group_*_active_unique indexes (00029 email / 00099
+          // phone) are scoped per group_id — so a duplicate-invite 23505
+          // should be unreachable here. The branch exists for symmetry with
+          // the other invite sites; the generic warning remains the real
+          // failure path.
+          setInvitationWarning(
+            invError.code === "23505"
+              ? tInv("duplicateInviteError")
+              : t("branchCreatedInvitationFailed")
+          );
         } else {
           // Phone-carrying invitations get the WhatsApp notice via the
           // server-side queue-backed producer (previously nothing).

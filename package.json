@@ -24,6 +24,9 @@
     "test:event-reminder-producer": "node --test scripts/test-event-reminder-producer.mjs",
     "test:subscription-expiring-producer": "node --test scripts/test-subscription-expiring-producer.mjs",
     "test:membership-status": "node --test scripts/test-membership-status.mjs",
+    "test:invitation-integrity": "node --test scripts/test-invitation-integrity.mjs",
+    "test:onboarding-invites": "node --test scripts/test-onboarding-invites.mjs",
+    "test:cron-ceilings": "node --test scripts/test-cron-ceilings.mjs",
     "audit:whatsapp": "node scripts/audit-whatsapp.mjs",
     "test:whatsapp-webhook": "node --test scripts/test-whatsapp-webhook.mjs"
   },

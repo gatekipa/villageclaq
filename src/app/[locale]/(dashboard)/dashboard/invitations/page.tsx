@@ -350,6 +350,11 @@ export default function InvitationsPage() {
         setEmail("");
         setTimeout(() => setSendSuccess(false), 3000);
         queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
+      } else if (error.code === "23505") {
+        // unique_violation from the invitations_group_*_active_unique partial
+        // indexes (00029 email / 00099 phone) — race-safe duplicate guard
+        // behind the pre-check above.
+        setSendError(t("invitations.duplicateInviteError"));
       } else {
         setSendError(error.message);
       }

@@ -9,6 +9,16 @@ import { buildTranslator, fetchLocaleMap, getLocale } from "@/lib/cron-notify-he
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Candidate-query row ceiling. PostgREST silently caps un-limited selects at
+// its max-rows default (1000) with zero signal that rows were dropped — this
+// explicit ceiling replaces that silent truncation with a deterministic cut
+// (soonest current_period_end first) that is audited (warn + ceilingHit
+// response flag). Deferral is safe: the WhatsApp producer is idempotent per
+// recipient per day bucket and the dedup_key row dedupes in-app/email/SMS,
+// so the next run resumes the remainder without duplicates.
+// Keyset pagination over (current_period_end, id) is the upgrade path.
+const CANDIDATE_CEILING = 500;
+
 function shortId(id: string | null | undefined): string {
   return id ? `${id.slice(0, 8)}...` : "(missing)";
 }
@@ -46,6 +56,7 @@ export async function GET(request: Request) {
   let whatsappQueued = 0;
   let whatsappSkipped = 0;
   let whatsappFailed = 0;
+  let ceilingHit = false;
   const errors: string[] = [];
 
   try {
@@ -67,7 +78,10 @@ export async function GET(request: Request) {
       `)
       .eq("status", "active")
       .gte("current_period_end", todayStr)
-      .lte("current_period_end", futureStr);
+      .lte("current_period_end", futureStr)
+      .order("current_period_end", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(CANDIDATE_CEILING);
 
     if (queryErr) {
       return NextResponse.json({ error: queryErr.message }, { status: 500 });
@@ -75,6 +89,11 @@ export async function GET(request: Request) {
 
     if (!expiring || expiring.length === 0) {
       return NextResponse.json({ message: "No expiring subscriptions", notified: 0 });
+    }
+
+    if (expiring.length >= CANDIDATE_CEILING) {
+      ceilingHit = true;
+      console.warn(`[Cron:SubscriptionReminders] candidate ceiling reached (${CANDIDATE_CEILING}) — remainder deferred to the next run`);
     }
 
     for (const sub of expiring) {
@@ -275,12 +294,13 @@ export async function GET(request: Request) {
       whatsappQueued,
       whatsappSkipped,
       whatsappFailed,
+      ceilingHit,
       errors: errors.slice(0, 5),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
-      { error: msg, notified, failed, whatsappQueued, whatsappSkipped, whatsappFailed },
+      { error: msg, notified, failed, whatsappQueued, whatsappSkipped, whatsappFailed, ceilingHit },
       { status: 500 },
     );
   }

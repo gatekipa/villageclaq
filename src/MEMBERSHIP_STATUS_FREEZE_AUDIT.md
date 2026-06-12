@@ -2,6 +2,19 @@
 
 Date: 2026-06-11 · Migration: `supabase/migrations/00092_membership_status_self_freeze.sql`
 
+> **OUTCOME (2026-06-13):** 00092 is **SUPERSEDED by
+> `00098_membership_status_lifecycle.sql`** and must never be applied. 00098
+> ships the CHECK widening this audit's "Recommended sequencing" required,
+> together with a HARDENED version of the trigger: the `membership_status`
+> freeze runs **before** the `is_group_admin` bypass, which closes both this
+> audit's "Known residual" (a `suspended` owner/admin self-reactivating via
+> the admin path) and the `unsuspend_platform_user` self-block caveat (a
+> self-targeted unsuspend now raises 42501 and rolls back; staff unsuspends
+> of OTHER users early-return unchanged). Full decision record, vocabulary,
+> and authorization matrix: `docs/membership-status-vocabulary.md`. The
+> analysis below remains accurate as of its date and is retained as the
+> source record.
+
 ## TL;DR
 
 `prevent_membership_self_escalation()` (migration `00075`) freezes privilege

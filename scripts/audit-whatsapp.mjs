@@ -1097,6 +1097,67 @@ for (const entry of fs.readdirSync(cronDir, { withFileTypes: true })) {
   );
 }
 
+// ── Scheduled announcements: Marketing-risk strategy guardrails ─────────────
+// villageclaq_announcement_v2 is MARKETING-categorized; Meta blocks marketing
+// templates to US (+1) numbers (131049, silent at send time). Scheduled-
+// announcement WhatsApp is DEFERRED per docs/announcements-whatsapp-strategy.md.
+// These checks make the deferral self-enforcing: a remap, an allowlist
+// removal without a producer strategy, or a new announcement-named template
+// all fail the audit until the strategy doc is updated alongside the code.
+const announcementStrategyDoc = read("docs/announcements-whatsapp-strategy.md");
+const templatesDoc = read("docs/WHATSAPP_TEMPLATES.md");
+check(
+  "Announcement strategy doc exists and carries the binding markers",
+  announcementStrategyDoc.includes("MARKETING-categorized") &&
+    announcementStrategyDoc.includes("not US-safe") &&
+    announcementStrategyDoc.includes("131049") &&
+    announcementStrategyDoc.includes("deferred") &&
+    announcementStrategyDoc.includes("Do not remap `villageclaq_announcement_v2`"),
+  "docs/announcements-whatsapp-strategy.md is the audit-enforced category strategy; its binding markers must stay intact.",
+);
+check(
+  "ANNOUNCEMENT stays pinned to the Marketing template with its risk annotation",
+  /\bANNOUNCEMENT\s*:\s*"villageclaq_announcement_v2"/.test(whatsappTemplates) &&
+    whatsappTemplates.includes("MARKETING-risk") &&
+    whatsappTemplates.includes("announcements-whatsapp-strategy.md"),
+  "Remapping ANNOUNCEMENT (e.g. to a Utility template) requires an approved class-1 operational use case AND updating docs/announcements-whatsapp-strategy.md + this check together — see the strategy doc. The risk annotation comment must not be removed.",
+);
+check(
+  "Generic announcements never treated as US-safe Utility in the templates doc",
+  templatesDoc.includes("villageclaq_announcement_v2 — MARKETING-RISK / NOT US-SAFE"),
+  "docs/WHATSAPP_TEMPLATES.md must keep announcement_v2 flagged Marketing-risk/not US-safe so nobody mistakes it for a deliverable Utility template.",
+);
+{
+  // Any announcement-named template constant must be covered by the
+  // strategy doc — a NEW announcement template without category/risk
+  // annotation fails here.
+  const constants = parseTemplateConstants(whatsappTemplates);
+  for (const [constantName, templateName] of Object.entries(constants)) {
+    if (!/announcement/i.test(constantName) && !/announcement/i.test(templateName)) continue;
+    check(
+      `Announcement template ${templateName} is annotated in the strategy doc`,
+      announcementStrategyDoc.includes(templateName),
+      "Every announcement-named template must be classified (operational Utility vs Marketing) in docs/announcements-whatsapp-strategy.md before runtime use.",
+    );
+  }
+}
+{
+  // The scheduled-announcements cron must either remain direct-dispatch
+  // (and allowlisted above) or be converted to the queue-backed producer
+  // pattern WITH per-recipient idempotency — never silently neither.
+  const scheduledAnnouncements = read("src/app/api/cron/send-scheduled-announcements/route.ts");
+  const directDispatch = scheduledAnnouncements.includes("dispatchWhatsApp");
+  const producerBacked =
+    scheduledAnnouncements.includes("notifications_queue") ||
+    /produce[A-Za-z]*Announcement/.test(scheduledAnnouncements);
+  check(
+    "Scheduled announcements are either allowlisted direct-dispatch or producer-backed",
+    (directDispatch && cronDirectDispatchAllowlist.has("send-scheduled-announcements")) ||
+      (!directDispatch && producerBacked),
+    "Removing the direct-dispatch allowlist entry requires replacing it with a queue-backed producer carrying per-recipient idempotency (per announcementId + recipient) in the same change.",
+  );
+}
+
 const legacyCronMigration = read("supabase/migrations/00097_legacy_cron_reminder_idempotency.sql");
 check(
   "WhatsApp legacy-cron reminder idempotency migration exists",

@@ -29,6 +29,12 @@ export const WA_TEMPLATES = {
   MINUTES_PUBLISHED: "villageclaq_minutes_published",
   RELIEF_CLAIM_APPROVED: "villageclaq_relief_claim_approved",
   RELIEF_CLAIM_DENIED: "villageclaq_relief_claim_denied",
+  // MARKETING-risk — NOT US-safe. Meta blocks MARKETING templates to US
+  // (+1) numbers (error 131049, silent: the API returns a wamid and the
+  // failure only surfaces in the delivery webhook). Scheduled-announcement
+  // WhatsApp is DEFERRED; do not remap this constant to any Utility
+  // template without an approved operational use case — see
+  // docs/announcements-whatsapp-strategy.md (audit-enforced).
   ANNOUNCEMENT: "villageclaq_announcement_v2",
   ELECTION_OPENED: "villageclaq_election_opened",
   INVITATION: "villageclaq_invitation",

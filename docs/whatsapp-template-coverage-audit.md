@@ -861,3 +861,39 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
 - No live messages were sent in the production of this addendum; no Meta
   template, category, WABA, or provider configuration was touched; no
   migration is needed.
+
+## Addendum 14 (2026-06-13, scheduled-announcements category strategy + guardrails)
+
+- With PR #17 (subscription expiring → `villageclaq_account_access_notice`)
+  and PR #18 (event reminders → `villageclaq_event_reminder`) released and
+  QA-delivered to the US controlled recipient, the LAST Marketing-risk
+  runtime path is announcements. This pass documents the strategy and makes
+  the deferral self-enforcing — **no runtime behavior changed**.
+- Path audit (full detail in `docs/announcements-whatsapp-strategy.md`):
+  announcements direct-dispatch from exactly two places — the manual
+  composer (client `notifyBulkFromClient` → `/api/whatsapp/send` per
+  recipient; WhatsApp is opt-in, channel defaults are in-app only; no
+  dedupe) and the every-5-min scheduled cron (`dispatchWhatsApp` per
+  recipient; row-level `sent_at` idempotency only, no per-recipient keys;
+  allowlisted direct dispatch). There is NO queue-backed announcement path.
+  Both use `villageclaq_announcement_v2` (MARKETING) and can reach US
+  recipients, where delivery silently fails with 131049.
+- Strategy (binding, audit-enforced): generic/promotional announcements
+  stay off WhatsApp for US recipients (in-app/email instead); the
+  `ANNOUNCEMENT` constant is pinned to the Marketing template and may not
+  be remapped to any Utility template without an approved class-1
+  operational use case; specific operational notice types get their OWN
+  Manager-verified Utility templates (PR #17/#18 procedure) if ever needed.
+- New audit guardrails: strategy-doc binding markers; `ANNOUNCEMENT`
+  mapping + MARKETING-risk annotation pinned; `WHATSAPP_TEMPLATES.md` #8
+  must stay flagged not-US-safe; every announcement-named template constant
+  must be classified in the strategy doc (new-template guard); the
+  scheduled cron must remain allowlisted direct-dispatch OR become
+  producer-backed with per-recipient idempotency — never silently neither.
+- A low-risk runtime guard (skip announcement WhatsApp to +1 recipients
+  while the template is Marketing) was considered and deliberately NOT
+  implemented — it touches the shared dispatch path used by every send.
+  Documented as a proposed follow-up in the strategy doc.
+- No live messages were sent in the production of this addendum; no
+  production data was touched; no Meta template, category, WABA, or
+  provider configuration was changed; no migration is needed.

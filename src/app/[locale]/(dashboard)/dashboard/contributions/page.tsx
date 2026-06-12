@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +20,7 @@ import {
 import {
   Plus,
   HandCoins,
-  CreditCard,
-  History,
-  Grid3X3,
-  AlertTriangle,
   Calendar,
-  BarChart3,
   MoreVertical,
   Edit,
   Trash2,
@@ -36,6 +30,7 @@ import {
   Users,
   HelpCircle,
 } from "lucide-react";
+import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -68,7 +63,7 @@ import { LimitPrompt } from "@/components/ui/upgrade-prompt";
 export default function ContributionsPage() {
   const t = useTranslations();
   const th = useTranslations("helpTips");
-  const { currentGroup, isAdmin, groupId } = useGroup();
+  const { currentGroup, groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageContributions = hasPermission("contributions.manage");
   const { data: contributionTypes, isLoading, isError, refetch } = useAllContributionTypes();
@@ -95,15 +90,6 @@ export default function ContributionsPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
-
-  const subNavItems = [
-    { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
-    { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
-    { key: "history", href: "/dashboard/contributions/history", icon: History, label: t("contributions.history") },
-    { key: "matrix", href: "/dashboard/contributions/matrix", icon: Grid3X3, label: t("contributions.matrix") },
-    { key: "unpaid", href: "/dashboard/contributions/unpaid", icon: AlertTriangle, label: t("contributions.unpaid") },
-    { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
-  ];
 
   function resetForm() {
     setFormName("");
@@ -238,10 +224,14 @@ export default function ContributionsPage() {
 
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollError, setEnrollError] = useState<string | null>(null);
+  const [enrollSuccessCount, setEnrollSuccessCount] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleEnrollAll(typeId: string, amount: number, currency: string) {
     if (!groupId) return;
     setEnrollingId(typeId);
+    setEnrollError(null);
+    setEnrollSuccessCount(null);
     try {
       const supabase = createClient();
       const currentYear = new Date().getFullYear();
@@ -272,12 +262,16 @@ export default function ContributionsPage() {
           status: "pending" as const,
           period_label: String(currentYear),
         }));
-        await supabase.from("contribution_obligations").insert(obligations);
+        const { error: insertErr } = await supabase
+          .from("contribution_obligations")
+          .insert(obligations);
+        if (insertErr) throw insertErr;
       }
+      setEnrollSuccessCount(missing.length);
       await queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
     } catch (err) {
-      console.error("Enroll error:", err);
+      console.warn("[Contributions] enroll-all failed:", err instanceof Error ? err.message : err);
       setEnrollError(t("contributions.enrollError"));
     } finally {
       setEnrollingId(null);
@@ -286,13 +280,18 @@ export default function ContributionsPage() {
 
   async function handleDelete(typeId: string) {
     setDeletingId(typeId);
+    setDeleteError(null);
     try {
       const supabase = createClient();
-      await supabase.from("contribution_types").delete().eq("id", typeId);
+      const { error } = await supabase.from("contribution_types").delete().eq("id", typeId);
+      if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      setShowDeleteConfirm(null);
+    } catch (err) {
+      console.warn("[Contributions] delete type failed:", err instanceof Error ? err.message : err);
+      setDeleteError(t("contributions.deleteTypeFailed"));
     } finally {
       setDeletingId(null);
-      setShowDeleteConfirm(null);
     }
   }
 
@@ -305,16 +304,7 @@ export default function ContributionsPage() {
             <p className="text-muted-foreground">{t("contributions.subtitle")}</p>
           </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {subNavItems.map((item) => (
-            <Link key={item.key} href={item.href}>
-              <Button variant={item.key === "types" ? "default" : "outline"} size="sm" className="shrink-0">
-                <item.icon className="mr-1.5 h-3.5 w-3.5" />
-                {item.label}
-              </Button>
-            </Link>
-          ))}
-        </div>
+        <ContributionsSubNav active="types" />
         <CardGridSkeleton cards={4} />
       </div></RequirePermission>
     );
@@ -480,7 +470,7 @@ export default function ContributionsPage() {
                 )}
                 {createMutation.isError && (
                   <p className="text-sm text-destructive">
-                    {(createMutation.error as Error)?.message || t("contributions.createFailed")}
+                    {t("contributions.createFailed")}
                   </p>
                 )}
                 <DialogFooter>
@@ -496,22 +486,21 @@ export default function ContributionsPage() {
       </div>
 
       {/* Sub Navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {subNavItems.map((item) => (
-          <Link key={item.key} href={item.href}>
-            <Button variant={item.key === "types" ? "default" : "outline"} size="sm" className="shrink-0">
-              <item.icon className="mr-1.5 h-3.5 w-3.5" />
-              {item.label}
-            </Button>
-          </Link>
-        ))}
-      </div>
+      <ContributionsSubNav active="types" />
 
       {/* Enroll Error */}
       {enrollError && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive flex items-center justify-between">
           <span>{enrollError}</span>
           <button onClick={() => setEnrollError(null)} className="ml-2 text-destructive hover:text-destructive/80">&times;</button>
+        </div>
+      )}
+
+      {/* Enroll Success */}
+      {enrollSuccessCount !== null && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 flex items-center justify-between">
+          <span>{t("contributions.enrollAllSuccess", { count: enrollSuccessCount })}</span>
+          <button onClick={() => setEnrollSuccessCount(null)} className="ml-2 hover:opacity-80">&times;</button>
         </div>
       )}
 
@@ -522,7 +511,7 @@ export default function ContributionsPage() {
           title={t("contributions.typesEmptyTitle")}
           description={t("contributions.typesEmptyDesc")}
           action={
-            isAdmin ? (
+            canManageContributions ? (
               <Button onClick={() => setShowCreate(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 {t("contributions.createType")}
@@ -690,10 +679,11 @@ export default function ContributionsPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) setShowDeleteConfirm(null); }}>
+      <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) { setShowDeleteConfirm(null); setDeleteError(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogTitle>{t("common.confirmDeleteTitle")}</DialogTitle>
-          <DialogDescription>{t("contributions.deleteTypeConfirm")}</DialogDescription>
+          <DialogDescription>{t("contributions.deleteTypeConfirmCascade")}</DialogDescription>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
             <Button variant="destructive" disabled={!!deletingId} onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}>
@@ -723,7 +713,7 @@ export default function ContributionsPage() {
       <Dialog open={!!showReopenConfirm} onOpenChange={(open) => { if (!open) setShowReopenConfirm(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogTitle>{t("contributions.reopenPeriod")}</DialogTitle>
-          <DialogDescription>{t("contributions.closePeriodDesc")}</DialogDescription>
+          <DialogDescription>{t("contributions.reopenPeriodDesc")}</DialogDescription>
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
             <Button disabled={!!togglingId} onClick={() => showReopenConfirm && handleReopenPeriod(showReopenConfirm)}>

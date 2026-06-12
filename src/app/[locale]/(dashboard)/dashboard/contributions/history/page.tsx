@@ -13,12 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Search,
   Download,
-  HandCoins,
-  CreditCard,
   History,
-  Grid3X3,
-  AlertTriangle,
-  BarChart3,
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
@@ -31,6 +26,8 @@ import {
   Eye,
   FileImage,
 } from "lucide-react";
+import { ContributionsSubNav } from "@/components/contributions/sub-nav";
+import { signedUrlFor } from "@/lib/storage-urls";
 import { useGroup } from "@/lib/group-context";
 import { usePayments } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -91,6 +88,35 @@ export default function PaymentHistoryPage() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Receipts live in a private bucket — stored values (object paths, or
+  // legacy signed/public URLs) must be re-signed on every open, otherwise
+  // links 404 once the original 1-hour signature expires.
+  // Popup-blocker safety (iOS/Safari): open the window SYNCHRONOUSLY inside
+  // the click's user activation, then navigate it after the async signing —
+  // window.open after an await gets blocked.
+  async function openReceipt(rawValue: string | undefined) {
+    if (!rawValue) return;
+    const popup = window.open("", "_blank", "noopener,noreferrer");
+    try {
+      const supabase = createClient();
+      const freshUrl = await signedUrlFor(supabase, "receipts", rawValue);
+      if (freshUrl) {
+        if (popup) {
+          popup.location.href = freshUrl;
+        } else {
+          window.location.assign(freshUrl);
+        }
+      } else {
+        popup?.close();
+        setActionError(t("contributions.receiptOpenFailed"));
+      }
+    } catch (err) {
+      popup?.close();
+      console.warn("[Receipts] open failed:", err instanceof Error ? err.message : err);
+      setActionError(t("contributions.receiptOpenFailed"));
+    }
+  }
 
   // Edit payment state
   const [editPayment, setEditPayment] = useState<typeof normalizedPayments[0] | null>(null);
@@ -483,15 +509,6 @@ export default function PaymentHistoryPage() {
     }
   }
 
-  const subNavItems = [
-    { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
-    { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
-    { key: "history", href: "/dashboard/contributions/history", icon: History, label: t("contributions.history") },
-    { key: "matrix", href: "/dashboard/contributions/matrix", icon: Grid3X3, label: t("contributions.matrix") },
-    { key: "unpaid", href: "/dashboard/contributions/unpaid", icon: AlertTriangle, label: t("contributions.unpaid") },
-    { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
-  ];
-
   if (isLoading) {
     return (
       <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
@@ -501,16 +518,7 @@ export default function PaymentHistoryPage() {
             <p className="text-muted-foreground">{t("contributions.historyDesc")}</p>
           </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {subNavItems.map((item) => (
-            <Link key={item.key} href={item.href}>
-              <Button variant={item.key === "history" ? "default" : "outline"} size="sm" className="shrink-0">
-                <item.icon className="mr-1.5 h-3.5 w-3.5" />
-                {item.label}
-              </Button>
-            </Link>
-          ))}
-        </div>
+        <ContributionsSubNav active="history" />
         <ListSkeleton rows={6} />
       </div></RequirePermission>
     );
@@ -543,16 +551,7 @@ export default function PaymentHistoryPage() {
       </div>
 
       {/* Sub Navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {subNavItems.map((item) => (
-          <Link key={item.key} href={item.href}>
-            <Button variant={item.key === "history" ? "default" : "outline"} size="sm" className="shrink-0">
-              <item.icon className="mr-1.5 h-3.5 w-3.5" />
-              {item.label}
-            </Button>
-          </Link>
-        ))}
-      </div>
+      <ContributionsSubNav active="history" />
 
       {/* Action Error */}
       {actionError && (
@@ -693,15 +692,14 @@ export default function PaymentHistoryPage() {
                           </p>
                         )}
                         {payment.receiptUrl && (
-                          <a
-                            href={payment.receiptUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => openReceipt(payment.receiptUrl)}
                             className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
                           >
                             <FileImage className="h-3 w-3" />
                             {t("contributions.viewReceipt")}
-                          </a>
+                          </button>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
@@ -747,7 +745,7 @@ export default function PaymentHistoryPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               {payment.receiptUrl && (
-                                <DropdownMenuItem onClick={() => window.open(payment.receiptUrl, "_blank")}>
+                                <DropdownMenuItem onClick={() => openReceipt(payment.receiptUrl)}>
                                   <Eye className="mr-2 h-4 w-4" />
                                   {t("contributions.viewReceipt")}
                                 </DropdownMenuItem>
@@ -838,6 +836,7 @@ export default function PaymentHistoryPage() {
                 <option value="online">{t("contributions.online")}</option>
                 <option value="cashapp">{t("contributions.cashapp")}</option>
                 <option value="zelle">{t("contributions.zelle")}</option>
+                <option value="other">{t("contributions.other")}</option>
               </select>
             </div>
             <div className="space-y-2">

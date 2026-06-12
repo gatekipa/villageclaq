@@ -27,6 +27,11 @@
     "test:invitation-integrity": "node --test scripts/test-invitation-integrity.mjs",
     "test:onboarding-invites": "node --test scripts/test-onboarding-invites.mjs",
     "test:cron-ceilings": "node --test scripts/test-cron-ceilings.mjs",
+    "test:product-dashboard": "node --test scripts/test-product-dashboard.mjs",
+    "test:product-invites": "node --test scripts/test-product-invites.mjs",
+    "test:product-dues": "node --test scripts/test-product-dues.mjs",
+    "test:product-events": "node --test scripts/test-product-events.mjs",
+    "test:product-onboarding": "node --test scripts/test-product-onboarding.mjs",
     "audit:whatsapp": "node scripts/audit-whatsapp.mjs",
     "test:whatsapp-webhook": "node --test scripts/test-whatsapp-webhook.mjs"
   },

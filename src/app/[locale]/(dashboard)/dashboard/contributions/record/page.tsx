@@ -19,11 +19,8 @@ import {
   Search,
   Check,
   Upload,
-  HandCoins,
-  History,
-  Grid3X3,
   AlertTriangle,
-  BarChart3,
+  ArrowLeft,
   X,
   Loader2,
   Users,
@@ -31,6 +28,7 @@ import {
   Square,
   MessageCircle,
 } from "lucide-react";
+import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +46,7 @@ import {
   checkDuplicatePayment,
   type PaymentCascadeResult,
 } from "@/lib/hooks/use-supabase-query";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -65,6 +63,7 @@ export default function RecordPaymentPage() {
   const { data: members, isLoading: membersLoading, isError: membersError, refetch: refetchMembers } = useMembers();
   const { data: contributionTypes, isLoading: typesLoading, isError: typesError, refetch: refetchTypes } = useContributionTypes();
   const recordPayment = useRecordPayment();
+  const queryClient = useQueryClient();
 
   const currency = currentGroup?.currency || "XAF";
 
@@ -119,6 +118,22 @@ export default function RecordPaymentPage() {
 
     return methods;
   })();
+
+  // Translate a payment-method value before it reaches UI copy or
+  // notification bodies — raw values like "mobile_money" must never be
+  // interpolated into member-facing text.
+  const METHOD_LABEL_KEYS: Record<string, string> = {
+    cash: "contributions.cash",
+    cashapp: "contributions.cashapp",
+    zelle: "contributions.zelle",
+    mobile_money: "contributions.mobileMoney",
+    bank_transfer: "contributions.bankTransfer",
+    online: "contributions.online",
+    other: "contributions.other",
+  };
+  function methodLabel(value: string): string {
+    return t(METHOD_LABEL_KEYS[value] || "contributions.other");
+  }
 
   // Relief plan linking (optional — federated relief)
   const [selectedReliefPlanId, setSelectedReliefPlanId] = useState("");
@@ -263,7 +278,9 @@ export default function RecordPaymentPage() {
         currency,
         payment_method: method,
         reference_number: reference || undefined,
-        receipt_url: receiptUrl && !receiptUrl.startsWith("pending:") ? receiptUrl : undefined,
+        // Bare object path — receipt viewers sign a fresh URL on demand
+        // via signedUrlFor(); stored signed URLs expire after an hour.
+        receipt_url: receiptUrl || undefined,
         notes: notes || undefined,
         payment_date: payDate,
         skipDuplicateCheck,
@@ -386,13 +403,17 @@ export default function RecordPaymentPage() {
         setDupDialogOpen(true);
         return;
       }
-      // Handle concurrent payment conflict — another admin updated this obligation
+      // Handle concurrent payment conflict — another admin updated this
+      // obligation. Keep the mutation error so the translated conflict
+      // message renders below the form, and refresh the stale obligation
+      // data so a retry uses current amounts.
       if (err instanceof Error && err.message === "CONCURRENT_PAYMENT_CONFLICT") {
-        recordPayment.reset();
-        // Refetch stale data and let the user retry
+        queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
         return;
       }
-      // Other errors displayed via mutation state
+      // Other errors render via mutation state as a translated message —
+      // log the raw error for diagnostics only.
+      console.warn("[RecordPayment] save failed:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -427,6 +448,7 @@ export default function RecordPaymentPage() {
   const [bulkSearch, setBulkSearch] = useState("");
   const [bulkSuccess, setBulkSuccess] = useState<number | null>(null);
   const [bulkDupCount, setBulkDupCount] = useState(0);
+  const [bulkFailCount, setBulkFailCount] = useState(0);
 
   const bulkType = types.find((ct: Record<string, unknown>) => ct.id === bulkTypeId);
 
@@ -462,6 +484,7 @@ export default function RecordPaymentPage() {
     setBulkSubmitting(true);
     let successCount = 0;
     let dupCount = 0;
+    let failCount = 0;
     // Track successful payments for server-side receipt production.
     const paidPayments: Array<{ memberId: string; paymentId: string }> = [];
 
@@ -497,8 +520,16 @@ export default function RecordPaymentPage() {
           if (typeof paymentId === "string") {
             paidPayments.push({ memberId, paymentId });
           }
-        } catch {
-          // Continue with remaining members even if one fails
+        } catch (err) {
+          // Continue with remaining members even if one fails — but count
+          // and log the failure so it surfaces in the result summary.
+          failCount++;
+          console.warn(
+            "[BulkRecord] payment failed for membership",
+            memberId,
+            ":",
+            err instanceof Error ? err.message : err,
+          );
         }
       }
 
@@ -538,8 +569,8 @@ export default function RecordPaymentPage() {
             body: t("contributions.paymentReceivedNotifBody", {
               amount: formattedAmt,
               type: typeName,
-              method: bulkMethod,
-              reference: bulkNotes || "N/A",
+              method: methodLabel(bulkMethod),
+              reference: bulkNotes || t("contributions.noReference"),
             }),
             emailTemplate: "payment-receipt",
             data: {
@@ -567,6 +598,7 @@ export default function RecordPaymentPage() {
       if (dupCount > 0) {
         setBulkDupCount(dupCount);
       }
+      setBulkFailCount(failCount);
       setBulkSelected(new Set());
       setBulkTypeId("");
       setBulkAmount("");
@@ -577,21 +609,13 @@ export default function RecordPaymentPage() {
       setTimeout(() => {
         setBulkSuccess(null);
         setBulkDupCount(0);
+        setBulkFailCount(0);
         setBulkOpen(false);
-      }, 4000);
+      }, 6000);
     } finally {
       setBulkSubmitting(false);
     }
   }
-
-  const subNavItems = [
-    { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
-    { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
-    { key: "history", href: "/dashboard/contributions/history", icon: History, label: t("contributions.history") },
-    { key: "matrix", href: "/dashboard/contributions/matrix", icon: Grid3X3, label: t("contributions.matrix") },
-    { key: "unpaid", href: "/dashboard/contributions/unpaid", icon: AlertTriangle, label: t("contributions.unpaid") },
-    { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
-  ];
 
   if (isLoading) {
     return (
@@ -600,16 +624,7 @@ export default function RecordPaymentPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t("contributions.recordPayment")}</h1>
           <p className="text-muted-foreground">{t("contributions.recordPaymentDesc")}</p>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {subNavItems.map((item) => (
-            <Link key={item.key} href={item.href}>
-              <Button variant={item.key === "record" ? "default" : "outline"} size="sm" className="shrink-0">
-                <item.icon className="mr-1.5 h-3.5 w-3.5" />
-                {item.label}
-              </Button>
-            </Link>
-          ))}
-        </div>
+        <ContributionsSubNav active="record" />
         <ListSkeleton rows={4} />
       </div></RequirePermission>
     );
@@ -636,6 +651,12 @@ export default function RecordPaymentPage() {
         <Shield className="h-12 w-12 text-muted-foreground/50 mb-4" />
         <h2 className="text-lg font-semibold">{t("roles.accessDenied")}</h2>
         <p className="text-sm text-muted-foreground mt-1">{t("roles.accessDeniedDesc")}</p>
+        <Link href="/dashboard/contributions" className="mt-4">
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+            {t("contributions.backToContributions")}
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -660,16 +681,7 @@ export default function RecordPaymentPage() {
       </div>
 
       {/* Sub Navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {subNavItems.map((item) => (
-          <Link key={item.key} href={item.href}>
-            <Button variant={item.key === "record" ? "default" : "outline"} size="sm" className="shrink-0">
-              <item.icon className="mr-1.5 h-3.5 w-3.5" />
-              {item.label}
-            </Button>
-          </Link>
-        ))}
-      </div>
+      <ContributionsSubNav active="record" />
 
       {/* Success Card with WhatsApp Share */}
       {showSuccess && (
@@ -800,7 +812,7 @@ export default function RecordPaymentPage() {
         <CardContent>
           <div className="space-y-5">
             {/* Member Autocomplete */}
-            <div className="space-y-2" ref={dropdownRef}>
+            <div className="relative space-y-2" ref={dropdownRef}>
               <Label>{t("contributions.member")}</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -975,20 +987,21 @@ export default function RecordPaymentPage() {
                           .from("receipts")
                           .upload(path, file);
                         if (uploadErr) {
-                          setReceiptUrl(`pending:${file.name}`);
+                          console.warn("[RecordPayment] receipt upload failed:", uploadErr.message);
+                          setReceiptUrl("");
+                          setReceiptError(t("contributions.receiptUploadFailed"));
                         } else {
-                          // receipts bucket is private — short-lived signed URL.
-                          const { data: urlData, error: signErr } = await supabase.storage
-                            .from("receipts")
-                            .createSignedUrl(path, 3600);
-                          if (signErr || !urlData?.signedUrl) {
-                            setReceiptUrl(`pending:${file.name}`);
-                          } else {
-                            setReceiptUrl(urlData.signedUrl);
-                          }
+                          // Store the bare object path — receipt viewers
+                          // sign a fresh URL on demand (signed URLs expire).
+                          setReceiptUrl(path);
                         }
-                      } catch {
-                        setReceiptUrl(`pending:${file.name}`);
+                      } catch (err) {
+                        console.warn("[RecordPayment] receipt upload threw:", err instanceof Error ? err.message : err);
+                        setReceiptUrl("");
+                        setReceiptError(t("contributions.receiptUploadFailed"));
+                      } finally {
+                        // Allow re-selecting the same file after a failure.
+                        e.target.value = "";
                       }
                     }}
                   />
@@ -999,7 +1012,7 @@ export default function RecordPaymentPage() {
                     onClick={() => document.getElementById("receipt-upload")?.click()}
                   >
                     <Upload className="mr-2 h-4 w-4" />
-                    {receiptUrl ? "✓ " + (receiptUrl.startsWith("pending:") ? receiptUrl.slice(8) : t("contributions.receiptUploaded")) : t("contributions.uploadReceipt")}
+                    {receiptUrl ? "✓ " + t("contributions.receiptUploaded") : t("contributions.uploadReceipt")}
                   </Button>
                 </div>
               </div>
@@ -1033,12 +1046,12 @@ export default function RecordPaymentPage() {
               />
             </div>
 
-            {/* Error display */}
+            {/* Error display — always translated, never raw DB text */}
             {recordPayment.isError && (
               <p className="text-sm text-destructive">
                 {(recordPayment.error as Error)?.message === "CONCURRENT_PAYMENT_CONFLICT"
                   ? t("contributions.concurrentConflict")
-                  : (recordPayment.error as Error)?.message || t("contributions.recordFailed")}
+                  : t("contributions.recordFailed")}
               </p>
             )}
 
@@ -1097,13 +1110,26 @@ export default function RecordPaymentPage() {
 
           {bulkSuccess !== null ? (
             <div className="flex flex-col items-center gap-3 py-8">
-              <Check className="h-12 w-12 text-emerald-500" />
+              {bulkFailCount > 0 ? (
+                <AlertTriangle className="h-12 w-12 text-amber-500" />
+              ) : (
+                <Check className="h-12 w-12 text-emerald-500" />
+              )}
               <p className="text-lg font-semibold">
                 {t("contributions.bulkSuccess", { count: bulkSuccess })}
               </p>
               {bulkDupCount > 0 && (
                 <p className="text-sm text-amber-600 dark:text-amber-400">
                   {t("contributions.bulkDuplicatesSkipped", { count: bulkDupCount })}
+                </p>
+              )}
+              {bulkFailCount > 0 && (
+                <p className="text-sm text-destructive">
+                  {t("contributions.bulkResultSummary", {
+                    recorded: bulkSuccess,
+                    skipped: bulkDupCount,
+                    failed: bulkFailCount,
+                  })}
                 </p>
               )}
             </div>

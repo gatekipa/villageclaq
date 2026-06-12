@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { phoneDigits, phoneDigitsMatch } from "@/lib/phone-digits";
+import { getMemberName } from "@/lib/get-member-name";
 import { useGroup } from "@/lib/group-context";
 import { useRouter } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,15 +43,19 @@ export default function MyInvitationsPage() {
   const t = useTranslations("myInvitations");
   const tc = useTranslations("common");
   const tj = useTranslations("join");
+  const ti = useTranslations("invitations");
   const locale = useLocale();
   const queryClient = useQueryClient();
-  const { user, memberships, currentGroup } = useGroup();
+  const { user, memberships, currentGroup, refresh } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const router = useRouter();
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [showError, setShowError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
+  // When other pending invitations remain we stay on the page and offer a
+  // manual dashboard link instead of yanking the user away.
+  const [showDashboardLink, setShowDashboardLink] = useState(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -103,7 +108,7 @@ export default function MyInvitationsPage() {
 
       const { data, error } = await supabase
         .from("invitations")
-        .select("*, group:groups(id, name), claim_membership:memberships!invitations_claim_membership_id_fkey(id, display_name, role)")
+        .select("*, group:groups(id, name), inviter:profiles!invitations_invited_by_fkey(full_name), claim_membership:memberships!invitations_claim_membership_id_fkey(id, display_name, role)")
         .or(orLegs.join(","))
         .order("created_at", { ascending: false });
 
@@ -131,6 +136,7 @@ export default function MyInvitationsPage() {
     setUpdatingId(invitationId);
     setShowError(null);
     setShowSuccess(null);
+    setShowDashboardLink(false);
     try {
       const supabase = createClient();
 
@@ -169,7 +175,9 @@ export default function MyInvitationsPage() {
           } else if (claimErr.message?.includes("not a claimable")) {
             setShowError(t("alreadyClaimed"));
           } else {
-            setShowError(claimErr.message || t("actionFailed"));
+            // Friendly errors only — raw RPC text goes to the console.
+            console.warn("[MyInvitations] claim_proxy_membership failed:", claimErr.message);
+            setShowError(t("actionFailed"));
           }
           return;
         }
@@ -194,7 +202,9 @@ export default function MyInvitationsPage() {
           already_member?: boolean;
         };
         if (rpcErr) {
-          setShowError(rpcErr.message || t("actionFailed"));
+          // Friendly errors only — raw RPC text goes to the console.
+          console.warn("[MyInvitations] accept_invitation failed:", rpcErr.message);
+          setShowError(t("actionFailed"));
           return;
         }
         if (!rpc.ok) {
@@ -233,7 +243,10 @@ export default function MyInvitationsPage() {
             const prefs = await getEnabledChannels(supabase, authUser.id, "new_member", groupId);
             sendEmail = prefs.email;
             sendSms = prefs.sms;
-          } catch { /* fail-open */ }
+          } catch (err) {
+            // fail-open
+            console.warn("[MyInvitations] notification prefs lookup failed:", err instanceof Error ? err.message : err);
+          }
 
           // Email (fire-and-forget)
           if (sendEmail) {
@@ -253,7 +266,9 @@ export default function MyInvitationsPage() {
                 },
                 locale,
               }),
-            }).catch(() => {});
+            }).catch((err) => {
+              console.warn("[MyInvitations] welcome email request failed:", err instanceof Error ? err.message : err);
+            });
           }
 
           // SMS (fire-and-forget)
@@ -273,7 +288,9 @@ export default function MyInvitationsPage() {
                 },
                 locale,
               }),
-            }).catch(() => {});
+            }).catch((err) => {
+              console.warn("[MyInvitations] welcome SMS request failed:", err instanceof Error ? err.message : err);
+            });
           }
 
           // WhatsApp welcome — server-side, queue-backed producer re-checks
@@ -281,8 +298,9 @@ export default function MyInvitationsPage() {
           // (at most one welcome per membership).
           requestWelcomeWhatsApp(supabase, welcomeMembershipId, locale);
         }
-      } catch {
-        // Email is non-critical — never block invitation acceptance
+      } catch (err) {
+        // Notifications are non-critical — never block invitation acceptance
+        console.warn("[MyInvitations] welcome notification dispatch failed:", err instanceof Error ? err.message : err);
       }
 
       // Audit log
@@ -295,7 +313,10 @@ export default function MyInvitationsPage() {
           entityType: "membership",
           description: isClaim ? `Member claimed proxy profile` : `New member joined the group`,
         });
-      } catch { /* best-effort */ }
+      } catch (err) {
+        // best-effort
+        console.warn("[MyInvitations] audit log failed:", err instanceof Error ? err.message : err);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
       queryClient.invalidateQueries({ queryKey: ["members", groupId] });
@@ -304,13 +325,35 @@ export default function MyInvitationsPage() {
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => setShowSuccess(null), 5000);
 
-      // Redirect after brief delay so user sees the success message.
-      // Use window.location for a full page reload to avoid DashboardGuard
-      // flicker from stale memberships during GroupProvider re-fetch.
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 1200);
+      // Only auto-redirect when no other actionable (pending, unexpired)
+      // invitations remain — otherwise keep the user here so they can
+      // handle the rest, with a manual dashboard link in the banner.
+      const remainingPending = invitations.filter((i: Record<string, unknown>) => {
+        if (i.id === invitationId || i.status !== "pending") return false;
+        const exp = i.expires_at as string | null;
+        return !exp || new Date(exp).getTime() >= Date.now();
+      }).length;
+
+      if (remainingPending === 0) {
+        // Redirect after brief delay so user sees the success message.
+        // Use window.location for a full page reload to avoid DashboardGuard
+        // flicker from stale memberships during GroupProvider re-fetch.
+        // Keep the active locale in the URL so FR users stay in FR.
+        setTimeout(() => {
+          window.location.href = `/${locale}/dashboard`;
+        }, 1200);
+      } else {
+        // Staying on the page: the full reload above is what used to refresh
+        // GroupProvider — force-refresh it here so the newly joined group
+        // appears in the switcher and the dashboard guard sees fresh
+        // memberships when the user navigates on.
+        refresh(true).catch((err) =>
+          console.warn("[MyInvitations] context refresh failed:", err instanceof Error ? err.message : err),
+        );
+        setShowDashboardLink(true);
+      }
     } catch (err) {
+      console.warn("[MyInvitations] accept failed:", err instanceof Error ? err.message : err);
       setShowError(t("actionFailed"));
     } finally {
       setUpdatingId(null);
@@ -322,6 +365,7 @@ export default function MyInvitationsPage() {
     setUpdatingId(invitationId);
     setShowError(null);
     setShowSuccess(null);
+    setShowDashboardLink(false);
     try {
       const supabase = createClient();
       // Decline goes through a SECURITY DEFINER RPC (not a raw UPDATE) so
@@ -341,6 +385,7 @@ export default function MyInvitationsPage() {
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       successTimerRef.current = setTimeout(() => setShowSuccess(null), 3000);
     } catch (err) {
+      console.warn("[MyInvitations] decline failed:", err instanceof Error ? err.message : err);
       setShowError(t("actionFailed"));
     } finally {
       setUpdatingId(null);
@@ -350,12 +395,10 @@ export default function MyInvitationsPage() {
   if (isLoading) return <ListSkeleton rows={4} />;
 
   if (error) {
-    return (
-      <ErrorState
-        message={(error as Error)?.message}
-        onRetry={() => refetch()}
-      />
-    );
+    // Raw DB error text stays in the console; the UI shows the localized
+    // generic copy from ErrorState (common.errorTitle/errorDesc).
+    console.warn("[MyInvitations] load failed:", error instanceof Error ? error.message : error);
+    return <ErrorState onRetry={() => refetch()} />;
   }
 
   return (
@@ -375,8 +418,21 @@ export default function MyInvitationsPage() {
 
       {/* Success banner */}
       {showSuccess && (
-        <div className="rounded-lg border border-emerald-500/50 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-400">
-          {showSuccess}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-emerald-500/50 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+          <span>{showSuccess}</span>
+        </div>
+      )}
+
+      {/* Persistent dashboard link after an accept — must survive the
+          auto-dismissing success banner so the user is never stranded. */}
+      {showDashboardLink && (
+        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+          <a
+            href={`/${locale}/dashboard`}
+            className="font-medium underline underline-offset-2 hover:opacity-80"
+          >
+            {t("goToDashboard")}
+          </a>
         </div>
       )}
 
@@ -435,83 +491,115 @@ export default function MyInvitationsPage() {
               {invitations.map((inv: Record<string, unknown>) => {
                 const id = inv.id as string;
                 const status = (inv.status as InvitationStatus) || "pending";
+                // A pending invitation past its expiry is dead — render it
+                // honestly as Expired instead of a live Accept that fails.
+                const expiresAtRaw = inv.expires_at as string | null;
+                const isExpired =
+                  status === "pending" &&
+                  !!expiresAtRaw &&
+                  new Date(expiresAtRaw).getTime() < Date.now();
+                const effectiveStatus: InvitationStatus = isExpired ? "expired" : status;
                 const group = inv.group as Record<string, unknown> | null;
                 const groupName = (group?.name as string) || "—";
                 const createdAt = inv.created_at
                   ? formatDateWithGroupFormat(inv.created_at as string, groupDateFormat, locale)
                   : "—";
-                const config = statusConfig[status] || statusConfig.pending;
+                const config = statusConfig[effectiveStatus] || statusConfig.pending;
                 const StatusIcon = config.icon;
-                const isPending = status === "pending";
+                const isPending = status === "pending" && !isExpired;
                 const isUpdating = updatingId === id;
                 const isClaim = !!(inv.claim_membership_id);
+                const inviter = inv.inviter as Record<string, unknown> | null;
+                const inviterName = inviter ? getMemberName({ profile: inviter }) : null;
+                const invitedRole = (inv.role as string) || "member";
+                const roleLabel = invitedRole === "admin" ? ti("roleAdmin") : ti("roleMember");
 
                 return (
-                  <div
-                    key={id}
-                    className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{groupName}</p>
-                        {isClaim && (
-                          <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400 text-[10px]">
-                            <UserCheck className="mr-1 h-3 w-3" />
-                            {t("claimInvite")}
-                          </Badge>
+                  <div key={id} className="space-y-3 rounded-lg border p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate">{groupName}</p>
+                          {isClaim && (
+                            <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400 text-[10px]">
+                              <UserCheck className="mr-1 h-3 w-3" />
+                              {t("claimInvite")}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                          <span>{t("invitedOn")}: {createdAt}</span>
+                          <span aria-hidden="true">&middot;</span>
+                          <span>{roleLabel}</span>
+                          {inviterName && inviterName !== "Member" && (
+                            <>
+                              <span aria-hidden="true">&middot;</span>
+                              <span>{t("invitedBy", { name: inviterName })}</span>
+                            </>
+                          )}
+                        </div>
+                        {isClaim && isPending && (
+                          <p className="text-xs text-muted-foreground">
+                            {t("claimDescription", { groupName })}
+                          </p>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span>{t("invitedOn")}: {createdAt}</span>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge className={config.color}>
+                          <StatusIcon className="mr-1 h-3 w-3" />
+                          {t(effectiveStatus as "pending")}
+                        </Badge>
+
+                        {isPending && (
+                          <div className="flex gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
+                              disabled={isUpdating}
+                              onClick={() => handleAccept(id)}
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : isClaim ? (
+                                <UserCheck className="mr-1 h-3 w-3" />
+                              ) : (
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                              )}
+                              {isClaim ? t("claimProfile") : t("accept")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20"
+                              disabled={isUpdating}
+                              onClick={() => handleDecline(id)}
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <XCircle className="mr-1 h-3 w-3" />
+                              )}
+                              {t("decline")}
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      {isClaim && isPending && (
-                        <p className="text-xs text-muted-foreground">
-                          {t("claimDescription", { groupName })}
-                        </p>
-                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge className={config.color}>
-                        <StatusIcon className="mr-1 h-3 w-3" />
-                        {t(status as "pending")}
-                      </Badge>
-
-                      {isPending && (
-                        <div className="flex gap-1.5">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/20"
-                            disabled={isUpdating}
-                            onClick={() => handleAccept(id)}
-                          >
-                            {isUpdating ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : isClaim ? (
-                              <UserCheck className="mr-1 h-3 w-3" />
-                            ) : (
-                              <CheckCircle2 className="mr-1 h-3 w-3" />
-                            )}
-                            {isClaim ? t("claimProfile") : t("accept")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20"
-                            disabled={isUpdating}
-                            onClick={() => handleDecline(id)}
-                          >
-                            {isUpdating ? (
-                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                            ) : (
-                              <XCircle className="mr-1 h-3 w-3" />
-                            )}
-                            {t("decline")}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                    {/* What accept/decline actually do — shown on actionable rows */}
+                    {isPending && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("acceptExplainer")} {t("declineExplainer")}
+                      </p>
+                    )}
+                    {/* Expired invitations get honest next-step copy, no dead buttons */}
+                    {isExpired && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("invitationExpired")}
+                      </p>
+                    )}
                   </div>
                 );
               })}

@@ -12,15 +12,11 @@ import {
   Check,
   X,
   Minus,
-  HandCoins,
-  CreditCard,
-  History,
   Grid3X3,
-  AlertTriangle,
-  BarChart3,
   Download,
   HelpCircle,
 } from "lucide-react";
+import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
 import { useContributionTypes } from "@/lib/hooks/use-supabase-query";
@@ -219,15 +215,6 @@ export default function DuesMatrixPage() {
     return { paid, partial, total };
   });
 
-  const subNavItems = [
-    { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
-    { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
-    { key: "history", href: "/dashboard/contributions/history", icon: History, label: t("contributions.history") },
-    { key: "matrix", href: "/dashboard/contributions/matrix", icon: Grid3X3, label: t("contributions.matrix") },
-    { key: "unpaid", href: "/dashboard/contributions/unpaid", icon: AlertTriangle, label: t("contributions.unpaid") },
-    { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
-  ];
-
   if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ListSkeleton rows={8} /></RequirePermission>;
 
   if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => refetch()} /></RequirePermission>;
@@ -270,20 +257,7 @@ export default function DuesMatrixPage() {
       </div>
 
       {/* Sub Navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {subNavItems.map((item) => (
-          <Link key={item.key} href={item.href}>
-            <Button
-              variant={item.key === "matrix" ? "default" : "outline"}
-              size="sm"
-              className="shrink-0"
-            >
-              <item.icon className="mr-1.5 h-3.5 w-3.5" />
-              {item.label}
-            </Button>
-          </Link>
-        ))}
-      </div>
+      <ContributionsSubNav active="matrix" />
 
       {/* Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -334,6 +308,12 @@ export default function DuesMatrixPage() {
             <X className="h-3 w-3 text-red-600 dark:text-red-400" />
           </span>
           {t("contributions.legendUnpaid")}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-500/10">
+            <Check className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+          </span>
+          {t("contributions.legendWaived")}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="flex h-5 w-5 items-center justify-center rounded bg-muted/50">

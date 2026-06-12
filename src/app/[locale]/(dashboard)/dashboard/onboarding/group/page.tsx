@@ -370,22 +370,46 @@ export default function GroupOnboardingPage() {
   }
 
   /* ─── handle profile save (Step 1 Next) ─── */
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
   async function handleProfileSave() {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase
-      .from("profiles")
-      .update({
-        full_name: fullName.trim(),
-        display_name: displayName.trim() || null,
-        phone: phone.trim() || null,
-        preferred_locale: preferredLocale,
-      })
-      .eq("id", user.id);
-    goNext();
+    if (profileSaving) return;
+    setProfileSaving(true);
+    setProfileError(null);
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        // Session vanished mid-step — stay on the step with a friendly error
+        // instead of silently doing nothing.
+        setProfileError(t("profileSaveFailed"));
+        return;
+      }
+      const { error: updateErr } = await supabase
+        .from("profiles")
+        .update({
+          full_name: fullName.trim(),
+          display_name: displayName.trim() || null,
+          phone: phone.trim() || null,
+          preferred_locale: preferredLocale,
+        })
+        .eq("id", user.id);
+      if (updateErr) {
+        // Friendly error only — never surface raw Supabase text in the UI.
+        console.warn("[Onboarding] profile save failed:", updateErr.code, updateErr.message);
+        setProfileError(t("profileSaveFailed"));
+        return;
+      }
+      goNext();
+    } catch (err) {
+      console.warn("[Onboarding] profile save failed:", err instanceof Error ? err.message : err);
+      setProfileError(t("profileSaveFailed"));
+    } finally {
+      setProfileSaving(false);
+    }
   }
 
   /* ─── invite helpers ─── */
@@ -696,9 +720,13 @@ export default function GroupOnboardingPage() {
       }
     }
 
-    // Success — refresh context and navigate to dashboard
+    // Success — refresh context and navigate to dashboard.
+    // FORCE the refresh: a non-forced refresh() no-ops under the provider's
+    // 5s cooldown / in-flight guard, so memberships could still be [] when
+    // the dashboard guard runs — bouncing the brand-new owner straight back
+    // to onboarding with the wizard state reset.
     setSetupProgress(t("progressDone"));
-    await refresh();
+    await refresh(true);
     router.push("/dashboard");
     setIsSubmitting(false);
   }
@@ -848,7 +876,17 @@ export default function GroupOnboardingPage() {
 
       {/* Progress bar with step names */}
       <div className="mb-8 w-full">
-        <div className="flex justify-between mb-2">
+        {/* Mobile (<sm): six labels don't fit at 375px — show ONE line for the
+            current step instead. The segmented bar below still shows position. */}
+        <p className="mb-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 sm:hidden">
+          {t("stepProgress", {
+            n: currentStep,
+            total: totalSteps,
+            label: t(stepLabelKeys[currentStepKey]),
+          })}
+        </p>
+        {/* sm:+ — the full step-label row */}
+        <div className="mb-2 hidden justify-between sm:flex">
           {stepKeys.map((key, i) => (
             <span
               key={key}
@@ -999,6 +1037,13 @@ export default function GroupOnboardingPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Inline profile-save error — user stays on this step on failure */}
+              {profileError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {profileError}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1375,10 +1420,13 @@ export default function GroupOnboardingPage() {
           <Button
             size="lg"
             onClick={handleProfileSave}
-            disabled={!canProceed()}
+            disabled={!canProceed() || profileSaving}
           >
-            {t("next")}
-            <ArrowRight className="size-4" />
+            {profileSaving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            {profileSaving ? t("saving") : t("next")}
+            {!profileSaving && <ArrowRight className="size-4" />}
           </Button>
         ) : (
           <Button size="lg" onClick={goNext} disabled={!canProceed()}>

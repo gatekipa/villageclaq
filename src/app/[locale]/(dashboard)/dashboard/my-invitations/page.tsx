@@ -79,11 +79,14 @@ export default function MyInvitationsPage() {
       // get_my_phone_digits() and the 00095 policies.
       let callerDigits = phoneDigits(authUser.phone);
       if (!callerDigits) {
-        const { data: profileRow } = await supabase
+        const { data: profileRow, error: profileError } = await supabase
           .from("profiles")
           .select("phone")
           .eq("id", authUser.id)
           .maybeSingle();
+        // A real lookup failure must surface (retry state), not silently
+        // blank the page; only a missing profile row is a benign miss.
+        if (profileError) throw profileError;
         callerDigits = phoneDigits((profileRow as Record<string, unknown> | null)?.phone as string | null);
       }
 

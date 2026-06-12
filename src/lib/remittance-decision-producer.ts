@@ -165,8 +165,11 @@ export async function produceRemittanceDecisionNotifications(
   }
 
   const groupName = group?.name || "";
-  const amount = Number(remittance.amount || 0) > 0
-    ? formatAmount(Number(remittance.amount), remittance.currency || "USD")
+  // No invented currency: the column is NOT NULL with a default, so a
+  // missing value means broken data — skip rather than render a wrong
+  // amount/currency pair.
+  const amount = Number(remittance.amount || 0) > 0 && remittance.currency
+    ? formatAmount(Number(remittance.amount), remittance.currency)
     : "";
 
   // Meta rejects empty body parameters — never enqueue blank variables.
@@ -289,7 +292,8 @@ async function produceForRecipient(
     return { userId, status: "skipped", reason: "missing_phone" };
   }
 
-  if (!formatPhoneForWhatsApp(recipientPhone)) {
+  const formattedPhone = formatPhoneForWhatsApp(recipientPhone);
+  if (!formattedPhone) {
     logger.log("[RemittanceProducer] WhatsApp remittance notice skipped", {
       remittanceId: shortId(remittance.id),
       userId: shortId(userId),
@@ -331,7 +335,8 @@ async function produceForRecipient(
     template: templateKey,
     status: "queued",
     data: {
-      recipient: recipientPhone,
+      // The normalized (digits-only) form, not the raw profile value.
+      recipient: formattedPhone,
       user_id: userId,
       recipientUserId: userId,
       groupId: remittance.branch_group_id,

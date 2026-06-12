@@ -194,7 +194,12 @@ test("a confirmed remittance queues one row PER branch admin with ordered non-em
     }
     assert.equal(payload.data.whatsappData.amount, "250,000 FCFA");
     assert.equal(payload.data.whatsappData.groupName, "Bamenda Branch");
+    // The queued recipient is the NORMALIZED digits-only form, never the
+    // raw profile value.
+    assert.match(String(payload.data.recipient), /^\d+$/);
   }
+  const recipients = queueInserts.map((c) => String(c.payload.data.recipient)).sort();
+  assert.deepEqual(recipients, [phoneA.replace("+", ""), phoneB.replace("+", "")].sort());
 
   // Per-recipient locale: admin A en, admin B fr.
   const locales = queueInserts.map((c) => c.payload.data.locale).sort();

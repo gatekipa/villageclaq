@@ -361,7 +361,10 @@ export async function produceHostingReminderNotification(
     return { status: "skipped", reason: "missing_phone", assignmentId, assignedDate };
   }
 
-  if (!formatPhoneForWhatsApp(recipientPhone)) {
+  // Queue the normalized digits-only phone, matching the event/subscription
+  // producers (and the remittance exemplar) rather than the raw row value.
+  const formattedPhone = formatPhoneForWhatsApp(recipientPhone);
+  if (!formattedPhone) {
     logger.log("[HostingReminderProducer] WhatsApp reminder skipped", {
       assignmentId: shortId(assignmentId),
       userId: shortId(userId),
@@ -371,7 +374,7 @@ export async function produceHostingReminderNotification(
     return { status: "skipped", reason: "invalid_phone", assignmentId, assignedDate };
   }
 
-  const { data: existingQueue } = await supabase
+  const { data: existingQueue, error: dedupeError } = await supabase
     .from("notifications_queue")
     .select("id,status")
     .eq("channel", "whatsapp")
@@ -380,6 +383,17 @@ export async function produceHostingReminderNotification(
     .eq("data->>assignedDate", assignment.assigned_date)
     .limit(1)
     .maybeSingle();
+
+  // A failed pre-check must never pass silently: before migration 00097 is
+  // applied it is the only duplicate guard, so leave a trail (rule 11). We
+  // still proceed — once 00097 lands, the unique index is the authoritative
+  // guard and turns any race into the 23505 duplicate-skip below.
+  if (dedupeError) {
+    logger.warn("[HostingReminderProducer] dedupe pre-check failed", {
+      assignmentId: shortId(assignmentId),
+      error: dedupeError.message,
+    });
+  }
 
   // Strict exactly-once per (assignment, scheduled date): any existing
   // queue row blocks re-enqueue, including failed rows. A rescheduled
@@ -400,7 +414,7 @@ export async function produceHostingReminderNotification(
     template: "hosting_reminder",
     status: "queued",
     data: {
-      recipient: recipientPhone,
+      recipient: formattedPhone,
       user_id: userId,
       groupId: roster.group_id,
       membershipId: membership.id,

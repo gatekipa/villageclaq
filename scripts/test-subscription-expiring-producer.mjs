@@ -621,3 +621,54 @@ test("cron schedule remains daily at 09:00 UTC", () => {
   assert.ok(entry, "subscription-reminders cron entry must exist");
   assert.equal(entry.schedule, "0 9 * * *");
 });
+
+test("REGRESSION: a non-midnight period_end yields the calendar-day countdown, never an inflated one", async () => {
+  const { produceSubscriptionExpiringNotification } = loadProducer();
+  // Stripe period ends carry arbitrary times-of-day. 06:30Z three calendar
+  // days out must count as 3 — a ceil against the reminder-day midnight
+  // would inflate it to 4 and disagree with the cron's email/SMS copy.
+  const supabase = createMockSupabase({
+    subscriptions: {
+      [ids.subscription]: {
+        id: ids.subscription,
+        group_id: ids.group,
+        tier: "premium",
+        status: "active",
+        current_period_end: "2026-06-15T06:30:00.000Z",
+      },
+    },
+  });
+
+  const result = await produceSubscriptionExpiringNotification(supabase, ids.subscription, {
+    reminderDate: REMINDER_DATE,
+  });
+
+  assert.equal(result.status, "queued");
+  assert.equal(result.daysLeft, 3);
+  const rows = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
+  assert.equal(rows.length, 2);
+  for (const row of rows) {
+    assert.equal(row.payload.data.whatsappData.days, "3");
+  }
+});
+
+test("REGRESSION: a throwing preference lookup fails open per billing contact instead of aborting the batch", async () => {
+  const { produceSubscriptionExpiringNotification } = loadProducer();
+  const supabase = createMockSupabase();
+  const logger = createLogger();
+
+  const result = await produceSubscriptionExpiringNotification(supabase, ids.subscription, {
+    reminderDate: REMINDER_DATE,
+    logger,
+    getChannels: async (client, userId) => {
+      if (userId === ids.ownerUser) throw new Error("prefs backend down");
+      return { in_app: true, email: true, sms: true, whatsapp: true, push: false };
+    },
+  });
+
+  // The owner fails open to default channels (WhatsApp allowed) and the
+  // admin is completely unaffected.
+  assert.equal(result.status, "queued");
+  assert.equal(result.whatsappQueued, 2);
+  assert.match(JSON.stringify(logger.records), /preference lookup failed/);
+});

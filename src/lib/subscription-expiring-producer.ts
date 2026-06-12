@@ -196,11 +196,15 @@ export async function produceSubscriptionExpiringNotification(
   }
 
   // Deterministic from the reminderDate bucket — never the wall clock.
+  // daysLeft is the CALENDAR-DAY difference between the period-end day and
+  // the reminder day (both at UTC midnight), so a period_end carrying an
+  // arbitrary Stripe time-of-day cannot inflate the count by one relative
+  // to the cron's same-run email/SMS copy.
   const periodEndDay = String(subscription.current_period_end).slice(0, 10);
   const daysLeft = Math.max(
     0,
-    Math.ceil(
-      (new Date(subscription.current_period_end).getTime() -
+    Math.round(
+      (new Date(`${periodEndDay}T00:00:00.000Z`).getTime() -
         new Date(`${reminderDate}T00:00:00.000Z`).getTime()) / 86400000,
     ),
   );
@@ -346,7 +350,20 @@ async function produceForRecipient(
   // Recipient-first locale: the caller is the cron, not the recipient.
   const locale = asLocale(profile?.preferred_locale);
 
-  const channels = await getChannels(supabase, userId, "subscription_updates", subscription.group_id);
+  // Fail-open per recipient: one billing contact's transient
+  // preference-lookup failure must not abort the whole batch (legacy
+  // parity — the cron's own prefs lookup was fail-open too).
+  let channels: EnabledChannels;
+  try {
+    channels = await getChannels(supabase, userId, "subscription_updates", subscription.group_id);
+  } catch (err) {
+    logger.warn("[SubscriptionExpiringProducer] preference lookup failed — failing open", {
+      subscriptionId: shortId(subscription.id),
+      userId: shortId(userId),
+      error: err instanceof Error ? err.message : String(err),
+    });
+    channels = { in_app: true, email: true, sms: true, whatsapp: true, push: false };
+  }
   if (!channels.whatsapp) {
     return { userId, status: "skipped", reason: "whatsapp_disabled" };
   }

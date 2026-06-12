@@ -562,3 +562,25 @@ test("eventLocationFallback exists in the cron namespace of both message bundles
   assert.equal(en.cron?.eventLocationFallback, EN_FALLBACK);
   assert.equal(fr.cron?.eventLocationFallback, FR_FALLBACK);
 });
+
+test("REGRESSION: a throwing preference lookup fails open per recipient instead of aborting the batch", async () => {
+  const { produceEventReminderNotification } = loadProducer();
+  const supabase = createMockSupabase();
+  const logger = createLogger();
+
+  const result = await produceEventReminderNotification(supabase, ids.event, {
+    now: NOW,
+    logger,
+    getChannels: async (client, userId) => {
+      if (userId === ids.userA) throw new Error("prefs backend down");
+      return { in_app: true, email: true, sms: true, whatsapp: true, push: false };
+    },
+  });
+
+  // userA fails open to default channels (WhatsApp allowed) and userB is
+  // completely unaffected — one bad prefs lookup must never strand the
+  // rest of the group.
+  assert.equal(result.status, "queued");
+  assert.equal(result.whatsappQueued, 2);
+  assert.match(JSON.stringify(logger.records), /preference lookup failed/);
+});

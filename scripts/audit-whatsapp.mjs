@@ -969,7 +969,7 @@ check(
   "Event reminders cron race-gates the reminder_sent_at flip",
   eventRemindersCron.includes('.is("reminder_sent_at", null)') &&
     (eventRemindersCron.split('.is("reminder_sent_at", null)').length - 1) >= 2,
-  "Both the candidate query and the post-dispatch UPDATE must filter on reminder_sent_at IS NULL so concurrent runs cannot double-process.",
+  "Both the candidate query and the post-dispatch UPDATE must filter on reminder_sent_at IS NULL so two runs cannot both flip or clobber the timestamp; WhatsApp stays exactly-once via the producer's queue idempotency (email/SMS remain at-least-once under truly overlapping runs — legacy parity).",
 );
 
 const subscriptionProducerSrc = read("src/lib/subscription-expiring-producer.ts");

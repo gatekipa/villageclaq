@@ -514,4 +514,39 @@ test("cron route queues WhatsApp via the producer and never inserts an invalid n
   assert.match(source, /sendEmail\(/);
   assert.match(source, /sendSmsNotification\(/);
   assert.match(source, /template: "hosting-reminder"/);
+
+  // Locale parity: the route must pass the group locale through to the
+  // producer so proxies/members without preferred_locale keep the legacy
+  // fallback chain instead of hard-defaulting to English WhatsApp.
+  assert.match(source, /locale: groupLocale/);
+});
+
+test("REGRESSION: options.locale supplies the group-locale fallback for proxies (no profile row)", async () => {
+  const { produceHostingReminderNotification } = loadProducer();
+  const supabase = createMockSupabase({
+    membership: {
+      id: ids.membership,
+      group_id: ids.group,
+      user_id: null,
+      display_name: null,
+      is_proxy: true,
+      phone: null,
+      privacy_settings: { proxy_name: "Papa Mbarga", proxy_phone: fullPhone },
+      membership_status: "active",
+    },
+    profile: null,
+  });
+
+  const result = await produceHostingReminderNotification(supabase, ids.assignment, {
+    todayDate: TODAY,
+    locale: "fr",
+  });
+
+  assert.equal(result.status, "queued");
+  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
+  // No profile locale exists, so the caller-provided group locale wins.
+  assert.equal(payload.data.locale, "fr");
+  // The queued recipient is the normalized digits-only phone, not the raw
+  // row value (consistency with the event/subscription producers).
+  assert.equal(payload.data.recipient, fullPhone.replace("+", ""));
 });

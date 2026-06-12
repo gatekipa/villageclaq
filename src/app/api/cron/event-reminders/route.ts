@@ -21,7 +21,11 @@ function shortId(id: unknown): string {
  *
  * Uses a `reminder_sent_at` timestamp on the event row to prevent duplicates.
  * Only events where `reminder_sent_at IS NULL` are processed, and the flip
- * is gated on `reminder_sent_at IS NULL` so concurrent runs cannot race.
+ * is gated on `reminder_sent_at IS NULL` so two runs cannot both flip it
+ * or clobber the timestamp. Scope of that guarantee: WhatsApp is
+ * exactly-once via the producer's per-(eventId, userId) queue idempotency;
+ * email/SMS remain at-least-once under truly overlapping runs (both runs
+ * can pass the candidate query before either flips — legacy parity).
  *
  * WhatsApp is queued exclusively via produceEventReminderNotification
  * (notifications_queue, drained by the queue cron) — no direct provider

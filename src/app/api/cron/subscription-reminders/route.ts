@@ -116,9 +116,15 @@ export async function GET(request: Request) {
         const groupName = (group?.name as string) || "";
         const tier = (sub.tier as string) || "free";
         const periodEnd = sub.current_period_end as string;
+        // Calendar-day difference at UTC midnight — the same bucket math
+        // the WhatsApp producer uses, so every channel in this run shows
+        // the same countdown number regardless of period_end's time-of-day.
         const daysLeft = Math.max(
           0,
-          Math.ceil((new Date(periodEnd).getTime() - now.getTime()) / 86400000),
+          Math.round(
+            (new Date(`${periodEnd.slice(0, 10)}T00:00:00.000Z`).getTime() -
+              new Date(`${todayStr}T00:00:00.000Z`).getTime()) / 86400000,
+          ),
         );
 
         // Get group owner/admin memberships

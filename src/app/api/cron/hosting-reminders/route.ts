@@ -206,8 +206,13 @@ export async function GET(request: Request) {
         // assignment + scheduled date — same-window reruns are no-ops) ──
         let waResult: HostingReminderProducerResult | null = null;
         try {
+          // locale: groupLocale preserves the legacy fallback chain
+          // (profile.preferred_locale || group locale) for proxies and
+          // members without a preferred_locale — the producer's own
+          // fallback would otherwise hard-default to "en".
           waResult = await produceHostingReminderNotification(supabase, assignmentId, {
             todayDate: todayStr,
+            locale: groupLocale,
           });
           if (waResult.status === "queued") {
             whatsappQueued++;
@@ -273,10 +278,17 @@ export async function GET(request: Request) {
         // result doubles as the once-per-(assignment, date) marker: SMS
         // fires only on the run that first queued the WhatsApp reminder,
         // so daily reruns inside the 7-day window never re-text.
-        // Edge case: a proxy whose phone is WhatsApp-ineligible never
-        // reaches "queued" and thus never gets SMS — acceptable and
-        // documented (sendSmsNotification independently gates non-African
-        // numbers anyway). ──
+        // This makes proxy SMS deliberately AT-MOST-ONCE: if the process
+        // dies between the queue insert and the SMS call, or this run's
+        // SMS attempt fails, no later run re-texts (re-texting would
+        // reintroduce the duplicate-send bug this PR fixes — proxies have
+        // no per-channel marker to distinguish "SMS failed" from "SMS
+        // sent"). Transport-level SMS failures are retried by the SMS
+        // sender's own queue path, and the WhatsApp queue row still
+        // delivers via the drain. Known accepted edge: a proxy whose phone
+        // is WhatsApp-ineligible never reaches "queued" and thus never
+        // gets SMS (sendSmsNotification independently gates non-African
+        // numbers before any provider call). ──
         if (!userId) {
           if (waResult?.status === "queued") {
             remindersSent++;
@@ -301,12 +313,23 @@ export async function GET(request: Request) {
         // ── 3d. Cross-channel dedup for real users: locale-agnostic
         // dedup_key on the raw ISO assigned_date ──
         const dedupKey = `hosting_reminder_${assignmentId}_${assignedDate}`;
-        const { data: existing } = await supabase
+        const { data: existing, error: dedupReadError } = await supabase
           .from("notifications")
           .select("id")
           .eq("user_id", userId)
           .eq("dedup_key", dedupKey)
           .limit(1);
+
+        // If the dedup read fails we cannot know whether this assignment was
+        // already sent — skip email/SMS for this run rather than risk a
+        // duplicate (the strict no-duplicate guarantee beats availability;
+        // before migration 00097 there is no unique-index backstop on this
+        // key). The next eligible run retries.
+        if (dedupReadError) {
+          console.warn(`[Cron:HostingReminders] dedup read failed for assignment ${shortId(assignmentId)}:`, dedupReadError.message);
+          errors.push(`Dedup read failed for membership ${shortId(membershipId)}`);
+          continue;
+        }
 
         if (existing && existing.length > 0) {
           alreadyNotified++;
@@ -337,7 +360,11 @@ export async function GET(request: Request) {
           }
           // If the marker can't be written we also skip email/SMS: a
           // strict no-duplicate guarantee beats availability for a daily
-          // reminder cron — tomorrow's run retries the whole assignment.
+          // reminder cron. The next run retries while the assignment is
+          // still inside the [today, today+7] window; if the failure lands
+          // on the assignment's final eligible day there is no later retry
+          // and in-app/email/SMS are dropped for it (WhatsApp is unaffected
+          // — the producer queued independently above).
           console.warn(`[Cron:HostingReminders] in-app insert failed for assignment ${shortId(assignmentId)}:`, inAppError.message);
           errors.push(`In-app failed for membership ${shortId(membershipId)}`);
           continue;

@@ -147,8 +147,12 @@ async function maybeSingle<T>(
  * producer resolves recipients from memberships directly, fixing that.
  *
  * Recipients are ACTIVE REAL members only (user_id required, is_proxy
- * false) — parity with the legacy WhatsApp path; proxy members keep
- * receiving SMS via the cron's leftover-phone loop instead.
+ * false) — parity with the legacy WhatsApp path. NOTE: proxy members
+ * receive NO event reminders on any channel (also legacy parity — the
+ * cron's "leftover-phone" SMS loop excludes proxies via its
+ * !isProxy/userId filter and only reaches real members who have a phone
+ * but no email). Adding proxy event coverage is a product decision, not
+ * a producer concern.
  *
  * eventLocation falls back to the translated cron.eventLocationFallback
  * string when events.location is empty: Meta rejects EMPTY body
@@ -248,7 +252,8 @@ export async function produceEventReminderNotification(
   }
 
   // Recipients: active REAL members only. Proxy members are excluded
-  // (legacy parity — they keep getting SMS from the cron's leftover loop).
+  // (legacy parity — the events cron has never notified proxies on any
+  // channel; its "leftover-phone" SMS loop filters them out too).
   const { data: members, error: membersError } = await supabase
     .from("memberships")
     .select("id,user_id,display_name,is_proxy,phone,privacy_settings")
@@ -338,7 +343,20 @@ async function produceForRecipient(
   // Recipient-first locale: the caller is the cron, not the recipient.
   const locale = asLocale(profile?.preferred_locale);
 
-  const channels = await getChannels(supabase, userId, "event_reminders", event.group_id);
+  // Fail-open per recipient: one member's transient preference-lookup
+  // failure must not abort the whole multi-recipient batch (legacy parity
+  // — the cron's own prefs lookup was fail-open too).
+  let channels: EnabledChannels;
+  try {
+    channels = await getChannels(supabase, userId, "event_reminders", event.group_id);
+  } catch (err) {
+    logger.warn("[EventReminderProducer] preference lookup failed — failing open", {
+      eventId: shortId(event.id),
+      userId: shortId(userId),
+      error: err instanceof Error ? err.message : String(err),
+    });
+    channels = { in_app: true, email: true, sms: true, whatsapp: true, push: false };
+  }
   if (!channels.whatsapp) {
     return { userId, status: "skipped", reason: "whatsapp_disabled" };
   }

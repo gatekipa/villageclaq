@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAmount } from "@/lib/currencies";
+import { getDateLocale } from "@/lib/date-utils";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
 import { getMemberName } from "@/lib/get-member-name";
 import { maskPhoneNumber } from "@/lib/mask-phone";
@@ -274,7 +275,16 @@ export async function produceLoanOverdueNotification(
   const outstanding =
     Number(overdueInstallment.amount_due || 0) - Number(overdueInstallment.amount_paid || 0);
   const amount = outstanding > 0 ? formatAmount(outstanding, currency) : "";
-  const dueDate = overdueInstallment.due_date || "";
+  // The template's {{3}} is member-facing — render the DATE column in the
+  // recipient's locale (UTC pinned so the calendar day never shifts).
+  const dueDate = overdueInstallment.due_date
+    ? new Date(`${overdueInstallment.due_date}T00:00:00Z`).toLocaleDateString(getDateLocale(locale), {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        timeZone: "UTC",
+      })
+    : "";
 
   // Meta rejects empty body parameters — never enqueue blank variables.
   if (!groupName || !amount || !dueDate) {

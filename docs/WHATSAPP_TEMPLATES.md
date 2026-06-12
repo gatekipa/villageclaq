@@ -144,6 +144,7 @@ Annonce : {{2}}
 **Parameters:** 1=inviter_name, 2=group_name, 3=accept_url
 
 ## 10b. villageclaq_member_invitation_notice
+
 **Category:** UTILITY (approved EN + FR — confirmed in WhatsApp Manager 2026-06-12)
 **Bodies:** see WhatsApp Manager for the approved copy. Parameter semantics
 are confirmed and are what the app emits:

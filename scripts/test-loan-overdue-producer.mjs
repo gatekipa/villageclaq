@@ -42,6 +42,9 @@ function loadProducer() {
         },
       };
     }
+    if (id === "@/lib/date-utils") {
+      return { getDateLocale: (locale) => (locale === "fr" ? "fr-FR" : "en-US") };
+    }
     if (id === "@/lib/format-phone-whatsapp") {
       return {
         formatPhoneForWhatsApp(phone) {
@@ -242,8 +245,9 @@ test("an overdue repaying loan queues exactly one row quoting the EARLIEST overd
   }
   // Earliest installment (2026-05-15, status "pending" — the lazy overdue
   // flag is NOT required) with its outstanding balance: 10,000 - 2,500.
+  // The due date renders in the recipient's locale (en-US here).
   assert.equal(payload.data.whatsappData.amount, "7,500 FCFA");
-  assert.equal(payload.data.whatsappData.dueDate, "2026-05-15");
+  assert.equal(payload.data.whatsappData.dueDate, "May 15, 2026");
   assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
 
   const logText = JSON.stringify(logger.records);
@@ -265,6 +269,8 @@ test("recipient's French preferred locale wins over the caller's", async () => {
   assert.equal(result.status, "queued");
   const payload = supabase.calls.find((c) => c.op === "insert").payload;
   assert.equal(payload.data.locale, "fr");
+  // The due date localizes with the recipient's locale too.
+  assert.equal(payload.data.whatsappData.dueDate, "15 mai 2026");
 });
 
 test("non-repaying loans (completed/defaulted/written off) are never nagged", async () => {

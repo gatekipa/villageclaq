@@ -12,6 +12,25 @@ import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Candidate-query bounds. PostgREST silently caps un-limited selects at its
+// max-rows default (1000) with zero signal that rows were dropped — these
+// explicit bounds replace that silent truncation with audited behavior
+// (warn + ceiling_hit response flag).
+// - Groups: paginated with .range() to exhaustion (a plain LIMIT would
+//   permanently exclude groups beyond the cut — groups never leave
+//   candidacy by being processed). MAX_GROUP_PAGES is a runaway backstop.
+// - Assignments (per group): bounded by ASSIGNMENT_CANDIDATE_CEILING.
+//   Idempotency (strict per (assignmentId, assignedDate) queue key +
+//   dedup_key rows) prevents DUPLICATES on re-selection, but
+//   already-notified assignments still occupy slots until their date exits
+//   the 7-day window — so under per-group saturation, later assignments are
+//   reached with reduced notice, and >ceiling assignments sharing one
+//   assigned_date can starve. ceiling_hit is the operator cue; a
+//   dedup-aware candidate filter is the upgrade path at scale.
+const GROUP_CANDIDATE_CEILING = 500;
+const MAX_GROUP_PAGES = 10;
+const ASSIGNMENT_CANDIDATE_CEILING = 200;
+
 function shortId(id: string | null | undefined): string {
   return id ? `${id.slice(0, 8)}...` : "(missing)";
 }
@@ -63,6 +82,7 @@ export async function GET(request: Request) {
   let whatsappQueued = 0;
   let whatsappSkipped = 0;
   let whatsappFailed = 0;
+  let ceilingHit = false;
   const errors: string[] = [];
 
   // Bilingual translator scoped to the cron notifications namespace.
@@ -70,20 +90,36 @@ export async function GET(request: Request) {
   const bt = await buildTranslator("cron");
 
   try {
-    // ── 1. Query ALL active groups ──
-    const { data: groups, error: groupErr } = await supabase
-      .from("groups")
-      .select("id, name, locale")
-      .eq("is_active", true);
+    // ── 1. Query ALL active groups — paginated to exhaustion ──
+    // Groups never leave this candidate set by being processed, so a plain
+    // LIMIT would permanently exclude groups beyond the cut (not defer
+    // them). Page with .range() until a short page instead; the page cap is
+    // a runaway backstop only, and exhausting it is loudly audited.
+    const groups: Array<Record<string, unknown>> = [];
+    for (let page = 0; page < MAX_GROUP_PAGES; page++) {
+      const from = page * GROUP_CANDIDATE_CEILING;
+      const { data: groupPage, error: groupErr } = await supabase
+        .from("groups")
+        .select("id, name, locale")
+        .eq("is_active", true)
+        .order("id", { ascending: true })
+        .range(from, from + GROUP_CANDIDATE_CEILING - 1);
 
-    if (groupErr) {
-      return NextResponse.json(
-        { success: false, error: groupErr.message },
-        { status: 500 },
-      );
+      if (groupErr) {
+        return NextResponse.json(
+          { success: false, error: groupErr.message },
+          { status: 500 },
+        );
+      }
+      groups.push(...(groupPage || []));
+      if (!groupPage || groupPage.length < GROUP_CANDIDATE_CEILING) break;
+      if (page === MAX_GROUP_PAGES - 1) {
+        ceilingHit = true;
+        console.warn(`[Cron:HostingReminders] group page cap reached (${MAX_GROUP_PAGES} x ${GROUP_CANDIDATE_CEILING}) — active groups beyond the cap are SKIPPED this run (see ceiling_hit)`);
+      }
     }
 
-    if (!groups || groups.length === 0) {
+    if (groups.length === 0) {
       return NextResponse.json({
         success: true,
         groups_checked: 0,
@@ -133,7 +169,10 @@ export async function GET(request: Request) {
               .eq("group_id", groupId)
               .eq("is_active", true)
           ).data?.map((r) => r.id) || [],
-        );
+        )
+        .order("assigned_date", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(ASSIGNMENT_CANDIDATE_CEILING);
 
       if (assignErr) {
         errors.push(`Group ${shortId(groupId)}: ${assignErr.message}`);
@@ -141,6 +180,11 @@ export async function GET(request: Request) {
       }
 
       if (!assignments || assignments.length === 0) continue;
+
+      if (assignments.length >= ASSIGNMENT_CANDIDATE_CEILING) {
+        ceilingHit = true;
+        console.warn(`[Cron:HostingReminders] assignment candidate ceiling reached (${ASSIGNMENT_CANDIDATE_CEILING}) for group ${shortId(groupId)} — later assignments get reduced notice while the window slides (see ceiling_hit)`);
+      }
 
       // Get phone map for real members. Proxy phones are read from the
       // assignment membership row below.
@@ -424,6 +468,7 @@ export async function GET(request: Request) {
       whatsapp_queued: whatsappQueued,
       whatsapp_skipped: whatsappSkipped,
       whatsapp_failed: whatsappFailed,
+      ceiling_hit: ceilingHit,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
@@ -440,6 +485,7 @@ export async function GET(request: Request) {
         whatsapp_queued: whatsappQueued,
         whatsapp_skipped: whatsappSkipped,
         whatsapp_failed: whatsappFailed,
+        ceiling_hit: ceilingHit,
       },
       { status: 500 },
     );

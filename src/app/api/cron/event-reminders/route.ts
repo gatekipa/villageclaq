@@ -10,6 +10,16 @@ import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Candidate-query row ceiling. PostgREST silently caps un-limited selects at
+// its max-rows default (1000) with zero signal that rows were dropped — this
+// explicit ceiling replaces that silent truncation with a deterministic cut
+// (soonest starts_at first) that is audited (warn + ceilingHit response
+// flag). Deferral is safe because this route self-paginates naturally:
+// every processed event flips reminder_sent_at and drops out of candidacy,
+// so the deferred remainder is picked up by the next run. Keyset pagination
+// over (starts_at, id) is the upgrade path at scale.
+const CANDIDATE_CEILING = 200;
+
 function shortId(id: unknown): string {
   return id ? `${String(id).slice(0, 8)}...` : "(missing)";
 }
@@ -50,6 +60,7 @@ export async function GET(request: Request) {
   let whatsappQueued = 0;
   let whatsappSkipped = 0;
   let whatsappFailed = 0;
+  let ceilingHit = false;
   const errors: string[] = [];
 
   try {
@@ -69,7 +80,10 @@ export async function GET(request: Request) {
       .gte("starts_at", now.toISOString())
       .lt("starts_at", in48h.toISOString())
       .eq("status", "upcoming")
-      .is("reminder_sent_at", null);
+      .is("reminder_sent_at", null)
+      .order("starts_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(CANDIDATE_CEILING);
 
     if (queryErr) {
       return NextResponse.json(
@@ -86,6 +100,11 @@ export async function GET(request: Request) {
         emailsFailed: 0,
         message: "No events in the 24–48h window",
       });
+    }
+
+    if (events.length >= CANDIDATE_CEILING) {
+      ceilingHit = true;
+      console.warn(`[Cron:EventReminders] candidate ceiling reached (${CANDIDATE_CEILING}) — remainder deferred to the next run`);
     }
 
     // ── Process each event ──
@@ -302,13 +321,14 @@ export async function GET(request: Request) {
       whatsappQueued,
       whatsappSkipped,
       whatsappFailed,
+      ceilingHit,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:EventReminders] Fatal error:", msg);
     return NextResponse.json(
-      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed, smsSent, smsSkipped, whatsappQueued, whatsappSkipped, whatsappFailed },
+      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed, smsSent, smsSkipped, whatsappQueued, whatsappSkipped, whatsappFailed, ceilingHit },
       { status: 500 }
     );
   }

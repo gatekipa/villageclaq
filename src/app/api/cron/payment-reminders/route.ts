@@ -12,6 +12,20 @@ import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Candidate-query row ceiling. PostgREST silently caps un-limited selects at
+// its max-rows default (1000) with zero signal that rows were dropped — this
+// explicit ceiling replaces that silent truncation with a deterministic,
+// AUDITED cut (oldest due_date first; warn + ceilingHit response flag).
+// HONESTY NOTE: overdue obligations leave candidacy only when paid or
+// waived, so under a sustained backlog above the ceiling the same oldest
+// rows are re-selected every day and obligations beyond the ceiling receive
+// NO reminders until older ones resolve. ceilingHit is the operator cue to
+// raise the ceiling or move to keyset pagination over (due_date, id); a
+// reminded-today candidacy filter is the other upgrade path at scale.
+// (The ceiling also counts proxy obligations, which are filtered out below —
+// so the effective real-member pool per run can be smaller than the limit.)
+const CANDIDATE_CEILING = 500;
+
 /**
  * GET /api/cron/payment-reminders
  * Vercel Cron — runs daily at 08:00 UTC.
@@ -34,6 +48,7 @@ export async function GET(request: Request) {
   let whatsappQueued = 0;
   let whatsappSkipped = 0;
   let whatsappFailed = 0;
+  let ceilingHit = false;
   const errors: string[] = [];
 
   try {
@@ -67,7 +82,10 @@ export async function GET(request: Request) {
         )
       `)
       .in("status", ["pending", "partial", "overdue"])
-      .lt("due_date", now.toISOString().split("T")[0]);
+      .lt("due_date", now.toISOString().split("T")[0])
+      .order("due_date", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(CANDIDATE_CEILING);
 
     if (queryErr) {
       return NextResponse.json(
@@ -80,6 +98,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, sent: 0, failed: 0, message: "No overdue obligations" });
     }
 
+    if (obligations.length >= CANDIDATE_CEILING) {
+      ceilingHit = true;
+      console.warn(`[Cron:PaymentReminders] candidate ceiling reached (${CANDIDATE_CEILING}) — obligations beyond the ceiling are NOT processed this run and will starve under a sustained backlog (see ceilingHit)`);
+    }
+
     // ── Filter out proxy members (user_id IS NULL) ──
     const realObligations = obligations.filter((o: Record<string, unknown>) => {
       const raw = o.membership;
@@ -88,7 +111,7 @@ export async function GET(request: Request) {
     });
 
     if (realObligations.length === 0) {
-      return NextResponse.json({ success: true, sent: 0, failed: 0, message: "No overdue obligations for real members" });
+      return NextResponse.json({ success: true, sent: 0, failed: 0, ceilingHit, message: "No overdue obligations for real members" });
     }
 
     // ── Group by user_id → one email per member with all their overdue items ──
@@ -328,11 +351,12 @@ export async function GET(request: Request) {
       whatsappQueued,
       whatsappSkipped,
       whatsappFailed,
+      ceilingHit,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:PaymentReminders] Fatal error:", msg);
-    return NextResponse.json({ success: false, error: msg, sent, failed, smsSent, smsSkipped, whatsappQueued, whatsappSkipped, whatsappFailed }, { status: 500 });
+    return NextResponse.json({ success: false, error: msg, sent, failed, smsSent, smsSkipped, whatsappQueued, whatsappSkipped, whatsappFailed, ceilingHit }, { status: 500 });
   }
 }

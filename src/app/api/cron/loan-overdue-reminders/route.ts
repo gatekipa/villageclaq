@@ -9,6 +9,22 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const cronSecret = process.env.CRON_SECRET;
 
+// Candidate-query row ceiling. PostgREST silently caps un-limited selects at
+// its max-rows default (1000) with zero signal that rows were dropped — this
+// explicit ceiling replaces that silent truncation with a deterministic,
+// AUDITED cut (oldest due_date first; warn + ceilingHit response flag).
+// HONESTY NOTES:
+// - Unpaid past-due installments leave candidacy only when paid, so under a
+//   sustained backlog above the ceiling the same oldest rows are re-selected
+//   daily and loans beyond the ceiling receive NO reminders until older
+//   installments resolve.
+// - The ceiling counts INSTALLMENT rows while dispatch dedupes to one
+//   reminder per loan, so a few long-delinquent loans (many unpaid
+//   installments each) can consume most of the slots.
+// ceilingHit is the operator cue to raise the ceiling, dedupe candidates
+// per loan, or move to keyset pagination over (due_date, id) at scale.
+const CANDIDATE_CEILING = 500;
+
 /**
  * Daily WhatsApp reminders for overdue loan installments (10:00 UTC,
  * staggered after the 08:00 payment-reminders burst so the shared queue
@@ -44,14 +60,24 @@ export async function GET(request: Request) {
       .select("loan_id, loans!inner(id, status)")
       .in("status", ["pending", "partial", "overdue"])
       .lt("due_date", reminderDate)
-      .eq("loans.status", "repaying");
+      .eq("loans.status", "repaying")
+      .order("due_date", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(CANDIDATE_CEILING);
 
     if (overdueError) {
       console.warn("[LoanOverdueCron] candidate query failed:", overdueError.message);
       return NextResponse.json({ error: "Candidate query failed" }, { status: 500 });
     }
 
-    const loanIds = [...new Set((overdueRows || []).map((row) => row.loan_id as string))];
+    const candidateRows = overdueRows || [];
+    let ceilingHit = false;
+    if (candidateRows.length >= CANDIDATE_CEILING) {
+      ceilingHit = true;
+      console.warn(`[LoanOverdueCron] candidate ceiling reached (${CANDIDATE_CEILING}) — installments beyond the ceiling are NOT processed this run and will starve under a sustained backlog (see ceilingHit)`);
+    }
+
+    const loanIds = [...new Set(candidateRows.map((row) => row.loan_id as string))];
 
     // Bounded concurrency, mirroring the payment-reminders cron.
     const WHATSAPP_BATCH_SIZE = 25;
@@ -88,6 +114,7 @@ export async function GET(request: Request) {
       whatsappQueued,
       whatsappSkipped,
       whatsappFailed,
+      ceilingHit,
       errors: errors.slice(0, 10),
     });
   } catch (err) {

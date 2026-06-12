@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
+import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
 
 /* ───────────────────────── types ───────────────────────── */
 
@@ -58,8 +59,12 @@ type GroupTemplate =
 
 interface InviteRow {
   id: number;
+  type: "email" | "phone";
   value: string;
 }
+
+// Basic shape check only — deliverability is the email provider's problem.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* ───────────────────────── country / currency maps ───────────────────────── */
 
@@ -166,9 +171,9 @@ export default function GroupOnboardingPage() {
 
   // Step 6: Invites
   const [invites, setInvites] = useState<InviteRow[]>([
-    { id: 1, value: "" },
-    { id: 2, value: "" },
-    { id: 3, value: "" },
+    { id: 1, type: "email", value: "" },
+    { id: 2, type: "email", value: "" },
+    { id: 3, type: "email", value: "" },
   ]);
 
   // ─── Pending invitations check (safety net) ────────────────────────────
@@ -275,7 +280,9 @@ export default function GroupOnboardingPage() {
         const idx = avatarUrl.indexOf(marker);
         if (idx !== -1) {
           const oldPath = avatarUrl.substring(idx + marker.length);
-          await supabase.storage.from("avatars").remove([oldPath]).catch(() => {});
+          await supabase.storage.from("avatars").remove([oldPath]).catch((err) => {
+            console.warn("[Onboarding] old avatar cleanup failed:", err instanceof Error ? err.message : err);
+          });
         }
       }
 
@@ -383,7 +390,7 @@ export default function GroupOnboardingPage() {
 
   /* ─── invite helpers ─── */
   const addInviteRow = () => {
-    setInvites((prev) => [...prev, { id: Date.now(), value: "" }]);
+    setInvites((prev) => [...prev, { id: Date.now(), type: "email", value: "" }]);
   };
 
   const updateInvite = (id: number, value: string) => {
@@ -392,9 +399,45 @@ export default function GroupOnboardingPage() {
     );
   };
 
+  const setInviteType = (id: number, type: InviteRow["type"]) => {
+    setInvites((prev) =>
+      prev.map((row) =>
+        row.id === id && row.type !== type ? { ...row, type, value: "" } : row
+      )
+    );
+  };
+
   /* ─── SUBMIT HANDLER — kept exactly as-is ─── */
   async function handleFinish() {
     if (isSubmitting) return;
+
+    // Validate invite rows up-front — invalid input must abort BEFORE any
+    // organization/group rows are created. Empty rows are fine (optional).
+    // Intra-form duplicates must also abort here: the rows go to the DB as
+    // ONE multi-row INSERT, so a single unique-index collision (00029 email
+    // / 00099 normalized phone digits) would atomically drop EVERY invite.
+    const seenInvites = new Set<string>();
+    for (const row of invites) {
+      const value = row.value.trim();
+      if (!value) continue;
+      if (row.type === "email" && !EMAIL_PATTERN.test(value)) {
+        setError(t("invalidInviteEmail"));
+        return;
+      }
+      if (row.type === "phone" && formatPhoneForWhatsApp(value) === null) {
+        setError(t("invalidInvitePhone"));
+        return;
+      }
+      const dedupeKey = row.type === "email"
+        ? `email:${value.toLowerCase()}`
+        : `phone:${value.replace(/\D/g, "")}`;
+      if (seenInvites.has(dedupeKey)) {
+        setError(t("duplicateInviteRow"));
+        return;
+      }
+      seenInvites.add(dedupeKey);
+    }
+
     setIsSubmitting(true);
     setError(null);
     setSetupProgress(null);
@@ -572,16 +615,26 @@ export default function GroupOnboardingPage() {
     // Step 7: Send invitations if provided (non-fatal)
     const validInvites = invites.filter((i) => i.value.trim());
     if (validInvites.length > 0) {
-      const { data: insertedInvites } = await supabase.from("invitations").insert(
+      const { data: insertedInvites, error: inviteErr } = await supabase.from("invitations").insert(
         validInvites.map((inv) => ({
           group_id: group.id,
           invited_by: user.id,
-          email: inv.value.includes("@") ? inv.value : null,
-          phone: !inv.value.includes("@") ? inv.value : null,
+          email: inv.type === "email" ? inv.value.trim().toLowerCase() : null,
+          phone: inv.type === "phone" ? inv.value : null,
           role: "member" as const,
           token: crypto.randomUUID(),
         }))
       ).select("id, phone");
+      if (inviteErr) {
+        // Non-fatal — onboarding continues. NEVER log recipient values.
+        console.warn(
+          inviteErr.code === "23505"
+            ? "[Onboarding] invitation insert failed (duplicate invite):"
+            : "[Onboarding] invitation insert failed:",
+          inviteErr.code,
+          inviteErr.message
+        );
+      }
 
       // Phone invitations previously received NOTHING (the email leg below
       // is email-only). The server-side queue-backed producer sends the
@@ -600,8 +653,11 @@ export default function GroupOnboardingPage() {
         console.warn("[Onboarding] invitation WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
       }
 
-      // Send invitation emails for email-based invites (fire-and-forget)
-      const emailInvites = validInvites.filter((inv) => inv.value.includes("@"));
+      // Send invitation emails for email-based invites (fire-and-forget).
+      // Gated on the insert having succeeded: if zero invitation rows were
+      // created, an email would point the recipient at an empty
+      // my-invitations page (ghost invite).
+      const emailInvites = inviteErr ? [] : validInvites.filter((inv) => inv.type === "email");
       if (emailInvites.length > 0) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
@@ -609,7 +665,10 @@ export default function GroupOnboardingPage() {
           try {
             const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", group.id);
             sendEmail = prefs.email;
-          } catch { /* fail-open */ }
+          } catch (err) {
+            // fail-open
+            console.warn("[Onboarding] channel prefs check failed:", err instanceof Error ? err.message : err);
+          }
 
           if (sendEmail) {
             const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
@@ -627,7 +686,10 @@ export default function GroupOnboardingPage() {
                   data: { groupName, inviterName, acceptUrl },
                   locale,
                 }),
-              }).catch(() => {}); // Non-fatal
+              }).catch((err) => {
+                // Non-fatal — never log the recipient address.
+                console.warn("[Onboarding] invitation email send failed:", err instanceof Error ? err.message : err);
+              });
             }
           }
         }
@@ -1220,12 +1282,40 @@ export default function GroupOnboardingPage() {
 
             <div className="space-y-3">
               {invites.map((row) => (
-                <Input
-                  key={row.id}
-                  placeholder={t("emailOrPhonePlaceholder")}
-                  value={row.value}
-                  onChange={(e) => updateInvite(row.id, e.target.value)}
-                />
+                <div key={row.id} className="space-y-1.5">
+                  <div className="flex gap-1.5">
+                    {(["email", "phone"] as const).map((mode) => (
+                      <Button
+                        key={mode}
+                        type="button"
+                        size="sm"
+                        variant={row.type === mode ? "default" : "outline"}
+                        className={cn(
+                          "h-7 px-2.5 text-xs",
+                          row.type === mode &&
+                            "bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+                        )}
+                        onClick={() => setInviteType(row.id, mode)}
+                      >
+                        {mode === "email" ? t("inviteTypeEmail") : t("inviteTypePhone")}
+                      </Button>
+                    ))}
+                  </div>
+                  {row.type === "email" ? (
+                    <Input
+                      type="email"
+                      placeholder={t("inviteEmailPlaceholder")}
+                      value={row.value}
+                      onChange={(e) => updateInvite(row.id, e.target.value)}
+                    />
+                  ) : (
+                    <PhoneInput
+                      value={row.value}
+                      onChange={(p) => updateInvite(row.id, p)}
+                      defaultCountryCode={getDefaultCountryCode(autoCurrency || undefined)}
+                    />
+                  )}
+                </div>
               ))}
               <Button
                 variant="outline"

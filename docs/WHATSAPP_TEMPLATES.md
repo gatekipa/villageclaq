@@ -121,7 +121,21 @@ Bonjour {{1}}, {{2}} a lieu le {{3}} à {{4}}. Ouvrez l'application pour les dé
 **FR Body:** `Bonjour {{1}}, votre demande de {{2}} a été refusée par {{4}}. Raison : {{3}}.`
 **Parameters:** 1=member_name, 2=claim_type, 3=reason, 4=group_name
 
-## 8. villageclaq_announcement_v2
+## 8. villageclaq_announcement_v2 — MARKETING-RISK / NOT US-SAFE
+
+> **Marketing-risk guardrail (2026-06-13):** this template is
+> MARKETING-categorized, and Meta blocks marketing templates to US (+1)
+> numbers — error 131049, which is SILENT at send time (the API returns a
+> wamid; the failure only appears in the delivery webhook). The PR #16
+> release QA (2026-06-12) proved this failure mode live on this WABA, and
+> the PR #17/#18 Utility remaps (`villageclaq_account_access_notice`,
+> `villageclaq_event_reminder`) proved that Manager-verified UTILITY
+> templates DO deliver to the same US recipient — those findings are the
+> basis for this guardrail. Scheduled-announcement WhatsApp is **deferred**:
+> keep general announcements on in-app/email for US recipients, never remap
+> this constant to a Utility template without an approved operational use
+> case, and see `docs/announcements-whatsapp-strategy.md` (audit-enforced)
+> for the classification and procedure.
 
 **Category:** MARKETING
 **EN Body:**

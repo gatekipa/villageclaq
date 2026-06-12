@@ -889,6 +889,189 @@ check(
   "DB-level per-recipient uniqueness must back the remittance producer's check-before-insert.",
 );
 
+const hostingReminderProducerSrc = read("src/lib/hosting-reminder-producer.ts");
+check(
+  "WhatsApp hosting reminder producer is server-side and queue-backed",
+  hostingReminderProducerSrc.includes('from("notifications_queue")') &&
+    hostingReminderProducerSrc.includes('template: "hosting_reminder"') &&
+    hostingReminderProducerSrc.includes('whatsappType: "hosting_reminder"') &&
+    hostingReminderProducerSrc.includes("WA_TEMPLATES.HOSTING_REMINDER") &&
+    hostingReminderProducerSrc.includes('"hosting_reminders"') &&
+    hostingReminderProducerSrc.includes("maskPhoneNumber("),
+  "Hosting reminder WhatsApp must be queue-backed, pref-gated, and masked so provider IDs and webhook status are tracked.",
+);
+check(
+  "WhatsApp hosting reminder idempotency is strict per assignment occurrence",
+  hostingReminderProducerSrc.includes('.eq("data->>assignmentId"') &&
+    hostingReminderProducerSrc.includes('.eq("data->>assignedDate"') &&
+    hostingReminderProducerSrc.includes('"23505"'),
+  "One reminder per (assignmentId, assignedDate), ever — this replaces the legacy body-LIKE dedup that never matched.",
+);
+check(
+  "WhatsApp hosting reminder producer never enqueues blank variables",
+  hostingReminderProducerSrc.includes("missing_template_data"),
+  "Meta rejects empty body parameters — the producer must skip when memberName/groupName/hostingDate resolve empty.",
+);
+
+const hostingRemindersCron = read("src/app/api/cron/hosting-reminders/route.ts");
+check(
+  "Hosting reminders cron routes WhatsApp through the queue-backed producer",
+  !hostingRemindersCron.includes("dispatchWhatsApp") &&
+    hostingRemindersCron.includes("produceHostingReminderNotification"),
+  "The cron must never send WhatsApp directly — direct sends drop provider IDs and duplicate on rerun.",
+);
+check(
+  "Hosting reminders cron uses a valid notification_type enum value",
+  !hostingRemindersCron.includes('type: "hosting_reminder"') &&
+    hostingRemindersCron.includes('type: "system"'),
+  "notification_type has no 'hosting_reminder' value — the legacy insert always failed. In-app rows must use a valid enum value.",
+);
+check(
+  "Hosting reminders cron dedups via dedup_key, never body text",
+  !hostingRemindersCron.includes('.like("body"') &&
+    hostingRemindersCron.includes("dedup_key"),
+  "The legacy dedup compared an ISO date to a locale-formatted body and never matched, causing daily duplicate sends.",
+);
+
+const eventReminderProducerSrc = read("src/lib/event-reminder-producer.ts");
+check(
+  "WhatsApp event reminder producer is server-side and queue-backed",
+  eventReminderProducerSrc.includes('from("notifications_queue")') &&
+    eventReminderProducerSrc.includes('template: "event_reminder"') &&
+    eventReminderProducerSrc.includes('whatsappType: "event_reminder"') &&
+    eventReminderProducerSrc.includes("WA_TEMPLATES.EVENT_REMINDER") &&
+    eventReminderProducerSrc.includes('"event_reminders"') &&
+    eventReminderProducerSrc.includes("maskPhoneNumber("),
+  "Event reminder WhatsApp must be queue-backed, pref-gated, and masked so provider IDs and webhook status are tracked.",
+);
+check(
+  "WhatsApp event reminder idempotency is strict per event per recipient",
+  eventReminderProducerSrc.includes('.eq("data->>eventId"') &&
+    eventReminderProducerSrc.includes('.eq("data->>userId"') &&
+    eventReminderProducerSrc.includes('"23505"'),
+  "Events remind once per (eventId, userId) — parity with events.reminder_sent_at.",
+);
+check(
+  "WhatsApp event reminder producer never enqueues blank variables",
+  eventReminderProducerSrc.includes("missing_template_data") &&
+    eventReminderProducerSrc.includes("eventLocationFallback"),
+  "Meta rejects empty body parameters — location-less events must use the translated fallback, never an empty string.",
+);
+
+const eventRemindersCron = read("src/app/api/cron/event-reminders/route.ts");
+check(
+  "Event reminders cron routes WhatsApp through the queue-backed producer",
+  !eventRemindersCron.includes("dispatchWhatsApp") &&
+    eventRemindersCron.includes("produceEventReminderNotification"),
+  "The cron must never send WhatsApp directly — direct sends drop provider IDs and duplicate on rerun.",
+);
+check(
+  "Event reminders cron race-gates the reminder_sent_at flip",
+  eventRemindersCron.includes('.is("reminder_sent_at", null)') &&
+    (eventRemindersCron.split('.is("reminder_sent_at", null)').length - 1) >= 2,
+  "Both the candidate query and the post-dispatch UPDATE must filter on reminder_sent_at IS NULL so concurrent runs cannot double-process.",
+);
+
+const subscriptionProducerSrc = read("src/lib/subscription-expiring-producer.ts");
+check(
+  "WhatsApp subscription-expiring producer is server-side and queue-backed",
+  subscriptionProducerSrc.includes('from("notifications_queue")') &&
+    subscriptionProducerSrc.includes('template: "subscription_expiring"') &&
+    subscriptionProducerSrc.includes('whatsappType: "subscription_expiring"') &&
+    subscriptionProducerSrc.includes("WA_TEMPLATES.SUBSCRIPTION_EXPIRING") &&
+    subscriptionProducerSrc.includes('"subscription_updates"') &&
+    subscriptionProducerSrc.includes("maskPhoneNumber("),
+  "Subscription-expiring WhatsApp must be queue-backed, pref-gated, and masked so provider IDs and webhook status are tracked.",
+);
+check(
+  "WhatsApp subscription-expiring idempotency is a per-recipient day bucket",
+  subscriptionProducerSrc.includes('.eq("data->>subscriptionId"') &&
+    subscriptionProducerSrc.includes('.eq("data->>reminderDate"') &&
+    subscriptionProducerSrc.includes('.eq("data->>userId"') &&
+    subscriptionProducerSrc.includes('"23505"'),
+  "One reminder per (subscriptionId, reminderDate, recipient): the daysLeft countdown cadence is intentional, same-day reruns are idempotent.",
+);
+check(
+  "WhatsApp subscription-expiring producer never writes billing state",
+  !subscriptionProducerSrc.includes(".update(") &&
+    !subscriptionProducerSrc.includes(".delete(") &&
+    !subscriptionProducerSrc.includes("stripe_"),
+  "group_subscriptions is read-only for notification code — Stripe/billing state must never be touched.",
+);
+
+const subscriptionRemindersCron = read("src/app/api/cron/subscription-reminders/route.ts");
+check(
+  "Subscription reminders cron routes WhatsApp through the queue-backed producer",
+  !subscriptionRemindersCron.includes("dispatchWhatsApp") &&
+    subscriptionRemindersCron.includes("produceSubscriptionExpiringNotification"),
+  "The cron must never send WhatsApp directly — direct sends drop provider IDs and duplicate on rerun.",
+);
+check(
+  "Subscription reminders cron never writes billing state",
+  !subscriptionRemindersCron.includes(".update(") &&
+    !subscriptionRemindersCron.includes("stripe_"),
+  "The subscription cron is a pure reminder path; it must never mutate group_subscriptions or Stripe fields.",
+);
+
+// ── Direct-dispatch allowlist for cron routes ────────────────────────────────
+// After the legacy-cron producerization, the ONLY cron routes allowed to call
+// the WhatsApp dispatcher directly are:
+//   - drain-notification-queue (it IS the queue consumer), and
+//   - send-scheduled-announcements (DEFERRED, Option B: announcements remain
+//     strategy-sensitive — villageclaq_announcement_v2 is MARKETING-category,
+//     which Meta blocks to US numbers (131049). Producerizing before the
+//     category strategy decision would bake the wrong template assumptions
+//     into queue rows. See docs/whatsapp-template-coverage-audit.md
+//     Addendum 11.)
+// Any other cron route gaining a direct dispatchWhatsApp call must fail this
+// audit and be converted to a queue-backed producer instead.
+const cronDirectDispatchAllowlist = new Set([
+  "drain-notification-queue",
+  "send-scheduled-announcements",
+]);
+const cronDir = path.join(root, "src/app/api/cron");
+for (const entry of fs.readdirSync(cronDir, { withFileTypes: true })) {
+  if (!entry.isDirectory()) continue;
+  const routePath = `src/app/api/cron/${entry.name}/route.ts`;
+  let source = "";
+  try {
+    source = read(routePath);
+  } catch (err) {
+    warnings.push(`cron route ${routePath} could not be read: ${err instanceof Error ? err.message : err}`);
+    continue;
+  }
+  const usesDirectDispatch = source.includes("dispatchWhatsApp");
+  check(
+    `cron route ${entry.name} respects the direct-dispatch allowlist`,
+    !usesDirectDispatch || cronDirectDispatchAllowlist.has(entry.name),
+    "Only the queue drain and the explicitly deferred scheduled-announcements route may dispatch WhatsApp directly; everything else must enqueue via a producer.",
+  );
+}
+
+const legacyCronMigration = read("supabase/migrations/00097_legacy_cron_reminder_idempotency.sql");
+check(
+  "WhatsApp legacy-cron reminder idempotency migration exists",
+  legacyCronMigration.includes("idx_notifications_queue_whatsapp_hosting_reminder_unique") &&
+    legacyCronMigration.includes("idx_notifications_queue_whatsapp_event_reminder_unique") &&
+    legacyCronMigration.includes("idx_notifications_queue_whatsapp_subscription_expiring_unique") &&
+    legacyCronMigration.includes("idx_notifications_hosting_reminder_dedup_unique") &&
+    legacyCronMigration.includes("data ->> 'assignmentId'") &&
+    legacyCronMigration.includes("data ->> 'assignedDate'") &&
+    legacyCronMigration.includes("data ->> 'eventId'") &&
+    legacyCronMigration.includes("data ->> 'subscriptionId'") &&
+    (legacyCronMigration.match(/channel = 'whatsapp'::notification_channel/g) || []).length >= 3,
+  "DB-level uniqueness must back all three legacy-cron producers' check-before-insert, plus the hosting dedup_key race backstop.",
+);
+
+const cronMessagesEn = JSON.parse(read("messages/en.json"));
+const cronMessagesFr = JSON.parse(read("messages/fr.json"));
+check(
+  "Event location fallback is translated in both locales",
+  JSON.stringify(cronMessagesEn).includes("eventLocationFallback") &&
+    JSON.stringify(cronMessagesFr).includes("eventLocationFallback"),
+  "Meta rejects empty body params; the location fallback must exist in messages/en.json AND messages/fr.json (rule 1).",
+);
+
 const webhookDoc = read("docs/whatsapp-webhook-status.md");
 check(
   "WhatsApp webhook status runbook exists",

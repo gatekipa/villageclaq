@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
-import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
+import { produceHostingReminderNotification } from "@/lib/hosting-reminder-producer";
+import type { HostingReminderProducerResult } from "@/lib/hosting-reminder-producer";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
 import { buildTranslator } from "@/lib/cron-notify-helper";
@@ -11,16 +12,35 @@ import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+function shortId(id: string | null | undefined): string {
+  return id ? `${id.slice(0, 8)}...` : "(missing)";
+}
+
 /**
  * GET /api/cron/hosting-reminders
  * Vercel Cron — runs daily at 07:00 UTC.
  * Sends hosting reminder notifications for assignments within the next 7 days.
  *
- * Dedup: checks notifications table for existing hosting_reminder with matching
- * assignment date in the body. Each assignment only triggers one reminder.
+ * WhatsApp is queued exclusively via produceHostingReminderNotification
+ * (notifications_queue, drained by the queue cron) — no direct provider
+ * sends from this route. The producer is strictly idempotent per
+ * (assignmentId, assignedDate), fixing the legacy duplicate daily sends.
  *
- * Channels: In-App (always), Email, SMS, WhatsApp (per member preferences).
- * Proxy members (user_id = NULL): skip email, send SMS/WhatsApp if phone exists.
+ * In-app/email/SMS dedup for real users: a notifications.dedup_key check
+ * ("hosting_reminder_<assignmentId>_<assignedDate>", ISO date). This
+ * replaces the legacy body-LIKE match that compared the ISO
+ * assigned_date against a locale-FORMATTED date inside the body — it
+ * never matched, so every daily run inside the 7-day window re-sent.
+ * The in-app row is inserted with the valid "system" enum value — the
+ * legacy insert used a value missing from the notification_type enum,
+ * so the insert always failed (which is also why its dedup never had a
+ * row to find).
+ *
+ * Channels: In-App + Email + SMS direct (per member preferences),
+ * WhatsApp via the queue-backed producer.
+ * Proxy members (user_id = NULL): no in-app/email/dedup row is possible —
+ * the producer's first-enqueue result doubles as the once-per-
+ * (assignment, date) marker for proxy SMS.
  */
 export async function GET(request: Request) {
   // ── Auth: verify CRON_SECRET ──
@@ -40,6 +60,9 @@ export async function GET(request: Request) {
   let remindersSent = 0;
   let alreadyNotified = 0;
   let smsSent = 0;
+  let whatsappQueued = 0;
+  let whatsappSkipped = 0;
+  let whatsappFailed = 0;
   const errors: string[] = [];
 
   // Bilingual translator scoped to the cron notifications namespace.
@@ -113,7 +136,7 @@ export async function GET(request: Request) {
         );
 
       if (assignErr) {
-        errors.push(`Group ${groupId}: ${assignErr.message}`);
+        errors.push(`Group ${shortId(groupId)}: ${assignErr.message}`);
         continue;
       }
 
@@ -130,7 +153,7 @@ export async function GET(request: Request) {
           }
         }
       } catch (err) {
-        console.warn(`[Cron:HostingReminders] member phone lookup failed for group ${groupId}:`, err instanceof Error ? err.message : err);
+        console.warn(`[Cron:HostingReminders] member phone lookup failed for group ${shortId(groupId)}:`, err instanceof Error ? err.message : err);
       }
 
       // Get email map
@@ -153,6 +176,7 @@ export async function GET(request: Request) {
         ) as Record<string, unknown> | null;
         if (!membership) continue;
 
+        const assignmentId = a.id as string;
         const userId = membership.user_id as string | null;
         const isProxy = !!membership.is_proxy;
         const membershipId = membership.id as string;
@@ -171,27 +195,33 @@ export async function GET(request: Request) {
         ) as "en" | "fr";
         const assignedDate = a.assigned_date as string;
 
-        // Format date for notification body (used for dedup)
+        // Display-only formatted date for notification copy. Dedup never
+        // uses this — dedup keys use the raw ISO assigned_date.
         const formattedDate = new Date(assignedDate + "T00:00:00").toLocaleDateString(
           preferredLocale === "fr" ? "fr-FR" : "en-US",
           { year: "numeric", month: "short", day: "numeric" },
         );
 
-        // ── 3a. Dedup: check if reminder already sent ──
-        if (userId) {
-          const { data: existing } = await supabase
-            .from("notifications")
-            .select("id")
-            .eq("user_id", userId)
-            .eq("group_id", groupId)
-            .eq("type", "hosting_reminder")
-            .like("body", `%${assignedDate}%`)
-            .limit(1);
-
-          if (existing && existing.length > 0) {
-            alreadyNotified++;
-            continue;
+        // ── 3a. WhatsApp: queue-backed producer (idempotent per
+        // assignment + scheduled date — same-window reruns are no-ops) ──
+        let waResult: HostingReminderProducerResult | null = null;
+        try {
+          waResult = await produceHostingReminderNotification(supabase, assignmentId, {
+            todayDate: todayStr,
+          });
+          if (waResult.status === "queued") {
+            whatsappQueued++;
+          } else if (waResult.status === "skipped") {
+            whatsappSkipped++;
+          } else {
+            whatsappFailed++;
+            errors.push(`WhatsApp: ${waResult.reason || "unknown"} for assignment ${shortId(assignmentId)}`);
           }
+        } catch (err) {
+          whatsappFailed++;
+          const msg = err instanceof Error ? err.message : "unknown";
+          console.warn(`[Cron:HostingReminders] WhatsApp producer failed for assignment ${shortId(assignmentId)}:`, msg);
+          errors.push(`WhatsApp: ${msg} for assignment ${shortId(assignmentId)}`);
         }
 
         // ── 3b. Check member notification preferences ──
@@ -210,8 +240,9 @@ export async function GET(request: Request) {
               "hosting_reminders",
               groupId,
             );
-          } catch {
+          } catch (err) {
             // Fail-open: use defaults
+            console.warn(`[Cron:HostingReminders] preference lookup failed for user ${shortId(userId)}:`, err instanceof Error ? err.message : err);
           }
         }
 
@@ -225,28 +256,9 @@ export async function GET(request: Request) {
         }
 
         // Title + body rendered in the recipient's preferred locale via
-        // the bilingual translator. Previously hardcoded EN/FR literals
-        // in the cron route — now sourced from messages/{en,fr}.json so
-        // translations live in one place.
+        // the bilingual translator, sourced from messages/{en,fr}.json.
         const title = bt(preferredLocale, "hostingReminderTitle");
         const body = bt(preferredLocale, "hostingReminderBody", { date: formattedDate });
-
-        // ── 3c. In-App notification (always, only for real users) ──
-        if (userId) {
-          try {
-            await supabase.from("notifications").insert({
-              group_id: groupId,
-              user_id: userId,
-              type: "hosting_reminder",
-              title,
-              body,
-              is_read: false,
-              data: { link: "/dashboard/my-hosting" },
-            });
-          } catch {
-            errors.push(`In-app failed for membership ${membershipId}`);
-          }
-        }
 
         const templateData = {
           memberName,
@@ -256,8 +268,85 @@ export async function GET(request: Request) {
           location: "",
         };
 
-        // ── 3d. Email (skip for proxy members) ──
-        if (!isProxy && userId && channels.email) {
+        // ── 3c. Proxy members: no user_id, so no in-app notification and
+        // no dedup_key row is possible. The producer's first-enqueue
+        // result doubles as the once-per-(assignment, date) marker: SMS
+        // fires only on the run that first queued the WhatsApp reminder,
+        // so daily reruns inside the 7-day window never re-text.
+        // Edge case: a proxy whose phone is WhatsApp-ineligible never
+        // reaches "queued" and thus never gets SMS — acceptable and
+        // documented (sendSmsNotification independently gates non-African
+        // numbers anyway). ──
+        if (!userId) {
+          if (waResult?.status === "queued") {
+            remindersSent++;
+            if (phone && channels.sms) {
+              try {
+                const result = await sendSmsNotification({
+                  to: phone,
+                  template: "hosting-reminder",
+                  data: templateData,
+                  locale: preferredLocale,
+                });
+                if (result.sent) smsSent++;
+              } catch (err) {
+                console.warn(`[Cron:HostingReminders] SMS failed for membership ${shortId(membershipId)}:`, err instanceof Error ? err.message : err);
+                errors.push(`SMS failed for membership ${shortId(membershipId)}`);
+              }
+            }
+          }
+          continue;
+        }
+
+        // ── 3d. Cross-channel dedup for real users: locale-agnostic
+        // dedup_key on the raw ISO assigned_date ──
+        const dedupKey = `hosting_reminder_${assignmentId}_${assignedDate}`;
+        const { data: existing } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("dedup_key", dedupKey)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          alreadyNotified++;
+          continue;
+        }
+
+        // ── 3e. In-app notification FIRST — the dedup_key row doubles as
+        // the cross-channel send marker. Inserted with the valid "system"
+        // enum value (the legacy insert used an enum value missing from
+        // notification_type and always failed). ──
+        const { error: inAppError } = await supabase.from("notifications").insert({
+          group_id: groupId,
+          user_id: userId,
+          type: "system",
+          title,
+          body,
+          is_read: false,
+          dedup_key: dedupKey,
+          data: { link: "/dashboard/my-hosting" },
+        });
+
+        if (inAppError) {
+          if (inAppError.code === "23505") {
+            // Unique-violation race: a concurrent run already marked this
+            // assignment — treat as already notified, skip email/SMS.
+            alreadyNotified++;
+            continue;
+          }
+          // If the marker can't be written we also skip email/SMS: a
+          // strict no-duplicate guarantee beats availability for a daily
+          // reminder cron — tomorrow's run retries the whole assignment.
+          console.warn(`[Cron:HostingReminders] in-app insert failed for assignment ${shortId(assignmentId)}:`, inAppError.message);
+          errors.push(`In-app failed for membership ${shortId(membershipId)}`);
+          continue;
+        }
+
+        remindersSent++;
+
+        // ── 3f. Email (real users only, per preferences) ──
+        if (!isProxy && channels.email) {
           const email = emailMap.get(userId);
           if (email) {
             try {
@@ -267,13 +356,14 @@ export async function GET(request: Request) {
                 data: { title, body, ...templateData },
                 locale: preferredLocale,
               });
-            } catch {
-              errors.push(`Email failed for ${membershipId}`);
+            } catch (err) {
+              console.warn(`[Cron:HostingReminders] email failed for membership ${shortId(membershipId)}:`, err instanceof Error ? err.message : err);
+              errors.push(`Email failed for membership ${shortId(membershipId)}`);
             }
           }
         }
 
-        // ── 3e. SMS (real + proxy members with phones) ──
+        // ── 3g. SMS (per preferences) ──
         if (phone && channels.sms) {
           try {
             const result = await sendSmsNotification({
@@ -283,36 +373,17 @@ export async function GET(request: Request) {
               locale: preferredLocale,
             });
             if (result.sent) smsSent++;
-          } catch {
-            errors.push(`SMS failed for ${membershipId}`);
+          } catch (err) {
+            console.warn(`[Cron:HostingReminders] SMS failed for membership ${shortId(membershipId)}:`, err instanceof Error ? err.message : err);
+            errors.push(`SMS failed for membership ${shortId(membershipId)}`);
           }
         }
-
-        // ── 3f. WhatsApp (real + proxy members with phones) ──
-        if (phone && channels.whatsapp) {
-          try {
-            await dispatchWhatsApp(
-              "hosting_reminder",
-              phone,
-              preferredLocale,
-              {
-                memberName,
-                hostingDate: formattedDate,
-                groupName,
-              },
-            );
-          } catch {
-            // Best-effort
-          }
-        }
-
-        remindersSent++;
       }
     }
 
     if (errors.length > 0) {
       console.warn(
-        `[Cron:HostingReminders] ${groupsChecked} groups, ${remindersSent} sent, ${alreadyNotified} deduped:`,
+        `[Cron:HostingReminders] ${groupsChecked} groups, ${remindersSent} sent, ${alreadyNotified} deduped, ${whatsappQueued} WhatsApp queued, ${whatsappSkipped} skipped, ${whatsappFailed} failed:`,
         errors.slice(0, 10),
       );
     }
@@ -323,6 +394,9 @@ export async function GET(request: Request) {
       reminders_sent: remindersSent,
       already_notified: alreadyNotified,
       sms_sent: smsSent,
+      whatsapp_queued: whatsappQueued,
+      whatsapp_skipped: whatsappSkipped,
+      whatsapp_failed: whatsappFailed,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
@@ -335,6 +409,10 @@ export async function GET(request: Request) {
         groups_checked: groupsChecked,
         reminders_sent: remindersSent,
         already_notified: alreadyNotified,
+        sms_sent: smsSent,
+        whatsapp_queued: whatsappQueued,
+        whatsapp_skipped: whatsappSkipped,
+        whatsapp_failed: whatsappFailed,
       },
       { status: 500 },
     );

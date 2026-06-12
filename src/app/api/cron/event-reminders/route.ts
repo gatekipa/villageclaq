@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/send-email";
 import { sendSmsNotification } from "@/lib/send-sms-notification";
-import { dispatchWhatsAppWithResult } from "@/lib/whatsapp-dispatcher";
+import { produceEventReminderNotification } from "@/lib/event-reminder-producer";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
 import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
@@ -10,13 +10,22 @@ import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+function shortId(id: unknown): string {
+  return id ? `${String(id).slice(0, 8)}...` : "(missing)";
+}
+
 /**
  * GET /api/cron/event-reminders
  * Vercel Cron — runs daily at 08:00 UTC.
  * Sends reminder emails for events starting within the next 48 hours.
  *
  * Uses a `reminder_sent_at` timestamp on the event row to prevent duplicates.
- * Only events where `reminder_sent_at IS NULL` are processed.
+ * Only events where `reminder_sent_at IS NULL` are processed, and the flip
+ * is gated on `reminder_sent_at IS NULL` so concurrent runs cannot race.
+ *
+ * WhatsApp is queued exclusively via produceEventReminderNotification
+ * (notifications_queue, drained by the queue cron) — no direct provider
+ * sends from this route. Email and SMS remain direct.
  */
 export async function GET(request: Request) {
   // ── Auth: verify CRON_SECRET ──
@@ -34,7 +43,8 @@ export async function GET(request: Request) {
   let emailsFailed = 0;
   let smsSent = 0;
   let smsSkipped = 0;
-  let whatsappSent = 0;
+  let whatsappQueued = 0;
+  let whatsappSkipped = 0;
   let whatsappFailed = 0;
   const errors: string[] = [];
 
@@ -82,12 +92,38 @@ export async function GET(request: Request) {
       const groupLocale = ((group?.locale as string) || "en") as "en" | "fr";
       const startsAt = new Date(event.starts_at as string);
 
+      // ── WhatsApp: queue-backed producer — one call per event ──
+      // The producer resolves recipients itself (active real members, so
+      // phone-but-no-email members are no longer skipped), re-validates
+      // preferences and phone per recipient, and enqueues into
+      // notifications_queue. Idempotency is strict once-per-event-per-user,
+      // so cron reruns are safe even before the reminder_sent_at flip lands.
+      try {
+        const waResult = await produceEventReminderNotification(supabase, event.id as string);
+        whatsappQueued += waResult.whatsappQueued;
+        whatsappSkipped += waResult.recipients.filter((r) => r.status === "skipped").length;
+        whatsappFailed += waResult.recipients.filter((r) => r.status === "error").length;
+        if (waResult.recipients.length === 0) {
+          if (waResult.status === "error") {
+            whatsappFailed++;
+            errors.push(`WhatsApp: ${waResult.reason || "Unknown WhatsApp failure"}`);
+          } else {
+            whatsappSkipped++;
+          }
+        } else if (waResult.status === "error") {
+          errors.push(`WhatsApp: ${waResult.reason || "recipient_errors"}`);
+        }
+      } catch (err) {
+        whatsappFailed++;
+        errors.push(`WhatsApp: ${err instanceof Error ? err.message : "Unknown WhatsApp failure"}`);
+      }
+
       // Get all non-proxy members + emails for this group
       const { data: memberEmails, error: rpcErr } = await supabase
         .rpc("get_member_emails", { p_group_id: groupId });
 
       if (rpcErr) {
-        errors.push(`Group ${groupId} emails: ${rpcErr.message}`);
+        errors.push(`Group ${shortId(groupId)} emails: ${rpcErr.message}`);
       }
 
       // Build phone lookup: user_id → phone
@@ -100,7 +136,7 @@ export async function GET(request: Request) {
           }
         }
       } catch (err) {
-        console.warn(`[Cron:EventReminders] member phone lookup failed for group ${groupId}:`, err instanceof Error ? err.message : err);
+        console.warn(`[Cron:EventReminders] member phone lookup failed for group ${shortId(groupId)}:`, err instanceof Error ? err.message : err);
       }
 
       const emailList = (memberEmails && Array.isArray(memberEmails))
@@ -117,7 +153,8 @@ export async function GET(request: Request) {
         try {
           const channels = await getEnabledChannels(supabase, m.user_id, "event_reminders", groupId);
           prefsMap.set(m.user_id, channels);
-        } catch {
+        } catch (err) {
+          console.warn(`[Cron:EventReminders] preference lookup failed for user ${shortId(m.user_id)}:`, err instanceof Error ? err.message : err);
           // Fail-open: allow defaults
           prefsMap.set(m.user_id, { in_app: true, email: true, sms: true, whatsapp: true, push: false });
         }
@@ -126,7 +163,6 @@ export async function GET(request: Request) {
       // Build and send emails + SMS
       const emailPromises: Promise<{ success: boolean; error?: string }>[] = [];
       const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
-      const whatsappPromises: Promise<{ success: boolean; error?: string; messageId?: string }>[] = [];
 
       for (const m of emailList.filter((m) => m.user_id && m.email)) {
         const email = m.email;
@@ -185,27 +221,8 @@ export async function GET(request: Request) {
           );
         }
 
-        // WhatsApp (if this member has a phone and channel enabled)
-        if (phone && channels.whatsapp) {
-          whatsappPromises.push(
-            dispatchWhatsAppWithResult(
-              "event_reminder",
-              phone,
-              preferredLocale,
-              {
-                memberName: templateData.memberName || "",
-                eventTitle: templateData.eventName || "",
-                eventDate: templateData.eventDate || "",
-                eventLocation: templateData.eventLocation || "",
-                groupName: templateData.groupName || "",
-              },
-            ).then((result) => ({
-              success: result.success,
-              error: result.error,
-              messageId: result.messageId,
-            })),
-          );
-        }
+        // WhatsApp is handled by the queue-backed producer above — no
+        // direct provider sends from this cron.
 
         // Remove from phoneMap so we don't double-send for proxy members below
         if (phone) {
@@ -253,30 +270,22 @@ export async function GET(request: Request) {
         else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
       }
 
-      const whatsappResults = await Promise.allSettled(whatsappPromises);
-      for (const r of whatsappResults) {
-        if (r.status === "fulfilled" && r.value.success) {
-          whatsappSent++;
-        } else {
-          whatsappFailed++;
-          const errMsg = r.status === "fulfilled"
-            ? r.value.error || "Unknown WhatsApp failure"
-            : (r.reason as Error)?.message || "Unknown WhatsApp failure";
-          errors.push(`WhatsApp: ${errMsg}`);
-        }
-      }
-
-      // Mark event as reminded to prevent duplicate sends on next cron run
-      await supabase
+      // Mark event as reminded — gated on reminder_sent_at IS NULL so a
+      // concurrent run can't double-flip or clobber an earlier timestamp.
+      const { error: flipErr } = await supabase
         .from("events")
         .update({ reminder_sent_at: now.toISOString() })
-        .eq("id", event.id as string);
+        .eq("id", event.id as string)
+        .is("reminder_sent_at", null);
+      if (flipErr) {
+        console.warn(`[Cron:EventReminders] reminder_sent_at update failed for event ${shortId(event.id)}:`, flipErr.message);
+      }
 
       eventsProcessed++;
     }
 
     if (errors.length > 0) {
-      console.warn(`[Cron:EventReminders] ${eventsProcessed} events, ${emailsSent} emails, ${smsSent} SMS:`, errors.slice(0, 10));
+      console.warn(`[Cron:EventReminders] ${eventsProcessed} events, ${emailsSent} emails, ${smsSent} SMS, ${whatsappQueued} WhatsApp queued, ${whatsappSkipped} skipped, ${whatsappFailed} failed:`, errors.slice(0, 10));
     }
 
     return NextResponse.json({
@@ -286,7 +295,8 @@ export async function GET(request: Request) {
       emailsFailed,
       smsSent,
       smsSkipped,
-      whatsappSent,
+      whatsappQueued,
+      whatsappSkipped,
       whatsappFailed,
       errors: errors.slice(0, 20),
     });
@@ -294,7 +304,7 @@ export async function GET(request: Request) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.warn("[Cron:EventReminders] Fatal error:", msg);
     return NextResponse.json(
-      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed, smsSent, smsSkipped, whatsappSent, whatsappFailed },
+      { success: false, error: msg, eventsProcessed, emailsSent, emailsFailed, smsSent, smsSkipped, whatsappQueued, whatsappSkipped, whatsappFailed },
       { status: 500 }
     );
   }

@@ -775,3 +775,49 @@ This audit was a point-in-time snapshot. Two welcome findings are superseded:
 - No live messages were sent in the production of this addendum; all
   verification is static or mocked. No Meta template, category, WABA, or
   provider configuration was touched.
+
+## Addendum 12 (2026-06-13, subscription-expiring Utility remap)
+
+- The PR #16 release QA (2026-06-12) confirmed `villageclaq_subscription_expiring`
+  is MARKETING-categorized: Meta accepted the send (wamid issued) and the
+  webhook recorded **failed / 131049** to the US QA number. The owner
+  submitted a UTILITY replacement, now approved EN + FR in WhatsApp Manager
+  (Active - Quality pending): **`villageclaq_account_access_notice`**.
+- Runtime remap: `WA_TEMPLATES.SUBSCRIPTION_EXPIRING` →
+  `villageclaq_account_access_notice`. **Variable semantics changed with the
+  template**: `{{1}}` is now the GROUP/ORGANIZATION name (the old template's
+  `{{1}}` was the plan/tier name); `{{2}}` stays days left. Updated together:
+  `buildSubscriptionExpiringParams` (`{ groupName, days }`), the dispatcher's
+  `subscription_expiring` case (`d.groupName`), and the producer's
+  `whatsappData` + blank guard (group name, already read for the
+  `group_inactive` check; the unused `tier` read was dropped — billing reads
+  stay minimal). Internal type key `subscription_expiring`, the queue
+  idempotency keys, and migration 00097's index are all UNCHANGED — only the
+  Meta-facing template name and `{{1}}` source changed.
+- Drain compatibility: the drain resolves the template from `whatsappType`
+  at send time, so the remap needs no queue surgery. At authoring time the
+  queue held ZERO queued `subscription_expiring` rows (the lone QA row is
+  terminal `sent`), so no row can dispatch with a stale `planName`-shaped
+  payload. Old failed rows are never retried by design.
+- Audit guardrails added: subscription-expiring must map to
+  `villageclaq_account_access_notice` and may never reference the Marketing
+  template again (templates registry + producer + dispatcher are all
+  checked); a second check pins the `{{1}} groupName, {{2}} days` body
+  order.
+- Approved copy (recorded in `docs/WHATSAPP_TEMPLATES.md` #16) —
+  EN: `Your VillageClaq access for {{1}} will end in {{2}} day(s). Review
+  your account status in VillageClaq.` / FR: `Votre accès à VillageClaq
+  ({{1}}) prendra fin dans {{2}} jour(s). Consultez le statut de votre
+  compte dans VillageClaq.` The in-app/email/SMS copy in
+  `messages/{en,fr}.json` is channel-local and intentionally unchanged.
+- **Event reminders deliberately NOT remapped in this pass**:
+  `villageclaq_event_reminder_v2` is also 131049-confirmed MARKETING, but a
+  remap to the older `villageclaq_event_reminder` is NOT "clearly safe" —
+  its current category, Active status, WABA placement, and exact body order
+  cannot be verified from this environment (no WhatsApp Manager access; no
+  Meta API credentials in the local env), and the v2 suffix exists because
+  the body changed. Per the 131049/131005 lessons, any event-reminder remap
+  needs Manager verification of category AND WABA AND variable order first.
+- No live messages were sent in the production of this addendum; no Meta
+  template, category, WABA, or provider configuration was touched; no
+  migration is needed (queue keys and indexes unchanged).

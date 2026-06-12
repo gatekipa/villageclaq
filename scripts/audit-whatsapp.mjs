@@ -252,9 +252,12 @@ const fullTemplateRegistry = {
   },
   subscription_expiring: {
     constant: "SUBSCRIPTION_EXPIRING",
-    template: "villageclaq_subscription_expiring",
+    // UTILITY replacement for the MARKETING-categorized
+    // villageclaq_subscription_expiring (US-blocked, 131049 confirmed
+    // 2026-06-12). {{1}} = group/org name, {{2}} = days left.
+    template: "villageclaq_account_access_notice",
     builder: "buildSubscriptionExpiringParams",
-    vars: ["planName", "days"],
+    vars: ["groupName", "days"],
   },
   proxy_claim: {
     constant: "PROXY_CLAIM",
@@ -1008,6 +1011,21 @@ check(
     !subscriptionProducerSrc.includes(".delete(") &&
     !subscriptionProducerSrc.includes("stripe_"),
   "group_subscriptions is read-only for notification code — Stripe/billing state must never be touched.",
+);
+check(
+  "Subscription-expiring maps to the approved UTILITY template, never the Marketing one",
+  whatsappTemplates.includes('SUBSCRIPTION_EXPIRING: "villageclaq_account_access_notice"') &&
+    !whatsappTemplates.includes('"villageclaq_subscription_expiring"') &&
+    !subscriptionProducerSrc.includes("villageclaq_subscription_expiring") &&
+    !whatsappDispatcher.includes("villageclaq_subscription_expiring"),
+  "villageclaq_subscription_expiring is MARKETING-categorized (Meta blocks it to US numbers, error 131049, confirmed live 2026-06-12). Runtime must use villageclaq_account_access_notice ({{1}} group/org name, {{2}} days left).",
+);
+check(
+  "Subscription-expiring template variables are groupName + days in the approved order",
+  /buildSubscriptionExpiringParams\(data: \{\s*groupName: string;\s*days: string;\s*\}\)/.test(whatsappTemplates) &&
+    whatsappTemplates.includes("bodyParams(data.groupName, data.days)") &&
+    subscriptionProducerSrc.includes("groupName: vars.groupName"),
+  "villageclaq_account_access_notice approved body order: {{1}} groupName, {{2}} days. The old template's {{1}} was planName — emitting planName again would render the wrong variable.",
 );
 
 const subscriptionRemindersCron = read("src/app/api/cron/subscription-reminders/route.ts");

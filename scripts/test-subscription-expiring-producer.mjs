@@ -70,7 +70,7 @@ function loadProducer() {
       };
     }
     if (id === "@/lib/whatsapp-templates") {
-      return { WA_TEMPLATES: { SUBSCRIPTION_EXPIRING: "villageclaq_subscription_expiring" } };
+      return { WA_TEMPLATES: { SUBSCRIPTION_EXPIRING: "villageclaq_account_access_notice" } };
     }
     return require(id);
   };
@@ -314,7 +314,7 @@ function billingWrites(supabase) {
   );
 }
 
-test("an expiring subscription queues one row PER billing contact with exactly { planName, days }", async () => {
+test("an expiring subscription queues one row PER billing contact with exactly { groupName, days }", async () => {
   const { produceSubscriptionExpiringNotification } = loadProducer();
   const supabase = createMockSupabase();
   const logger = createLogger();
@@ -325,7 +325,7 @@ test("an expiring subscription queues one row PER billing contact with exactly {
   });
 
   assert.equal(result.status, "queued");
-  assert.equal(result.template, "villageclaq_subscription_expiring");
+  assert.equal(result.template, "villageclaq_account_access_notice");
   assert.equal(result.subscriptionId, ids.subscription);
   assert.equal(result.reminderDate, REMINDER_DATE);
   assert.equal(result.daysLeft, 3);
@@ -341,18 +341,18 @@ test("an expiring subscription queues one row PER billing contact with exactly {
     assert.equal(payload.template, "subscription_expiring");
     assert.equal(payload.status, "queued");
     assert.equal(payload.data.whatsappType, "subscription_expiring");
-    assert.equal(payload.data.template, "villageclaq_subscription_expiring");
+    assert.equal(payload.data.template, "villageclaq_account_access_notice");
     assert.equal(payload.data.subscriptionId, ids.subscription);
     assert.equal(payload.data.groupId, ids.group);
     assert.equal(payload.data.reminderDate, REMINDER_DATE);
     assert.equal(payload.data.daysLeft, 3);
     assert.equal(payload.data.userId, payload.data.user_id, "dedupe key userId mirrors user_id");
     // buildSubscriptionExpiringParams reads ONLY these two, in this order.
-    assert.deepEqual(Object.keys(payload.data.whatsappData), ["planName", "days"]);
+    assert.deepEqual(Object.keys(payload.data.whatsappData), ["groupName", "days"]);
     for (const [key, value] of Object.entries(payload.data.whatsappData)) {
       assert.ok(String(value).length > 0, `${key} must be non-empty`);
     }
-    assert.equal(payload.data.whatsappData.planName, "premium");
+    assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
     assert.equal(payload.data.whatsappData.days, "3");
     // The queued recipient is the NORMALIZED digits-only form.
     assert.match(String(payload.data.recipient), /^\d+$/);

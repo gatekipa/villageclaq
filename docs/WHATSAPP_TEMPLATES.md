@@ -189,6 +189,25 @@ are confirmed and are what the app emits:
 
 ---
 
+## 16. villageclaq_account_access_notice
+**Category:** UTILITY (verified in WhatsApp Manager: EN + FR Active - Quality pending)
+**EN Body:** `Your VillageClaq access for {{1}} will end in {{2}} day(s). Review your account status in VillageClaq.`
+**FR Body:** `Votre accès à VillageClaq ({{1}}) prendra fin dans {{2}} jour(s). Consultez le statut de votre compte dans VillageClaq.`
+**Parameters:** 1=group_or_organization_name, 2=days_left
+
+> Runtime replacement (2026-06-13) for `villageclaq_subscription_expiring`,
+> which Meta categorized as MARKETING and blocks to US numbers (error 131049,
+> confirmed live in the PR #16 release QA on 2026-06-12). The app's
+> `subscription_expiring` type now maps here via
+> `WA_TEMPLATES.SUBSCRIPTION_EXPIRING`. **Variable semantics changed**: the
+> old template's `{{1}}` was the plan/tier name; this template's `{{1}}` is
+> the group/organization name — the producer, dispatcher, and builder were
+> updated together, and the audit script blocks any mapping back to the
+> Marketing template. Retire `villageclaq_subscription_expiring` in Meta once
+> this mapping is deployed.
+
+---
+
 ## Submission Notes
 
 1. **Category**: Use UTILITY for transactional messages (receipts, reminders). Use MARKETING only for announcements.

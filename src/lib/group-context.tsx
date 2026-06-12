@@ -10,7 +10,9 @@ export interface GroupMembership {
   group_id: string;
   role: "owner" | "admin" | "moderator" | "member";
   standing: "good" | "warning" | "suspended" | "banned";
-  membership_status: "active" | "pending_approval" | "exited";
+  // Official vocabulary — keep in sync with docs/membership-status-vocabulary.md
+  // and the memberships_membership_status_check constraint (migration 00098).
+  membership_status: "active" | "pending_approval" | "exited" | "suspended" | "archived";
   display_name: string | null;
   joined_at: string;
   privacy_settings: Record<string, boolean> | null;

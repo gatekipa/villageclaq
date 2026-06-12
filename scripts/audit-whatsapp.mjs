@@ -850,6 +850,45 @@ check(
   "Phone-only invitees must see their invitations (with the mandatory digits post-filter), decline through the RPC, and keep the accepted-invitation welcome trigger.",
 );
 
+const remittanceProducer = read("src/lib/remittance-decision-producer.ts");
+check(
+  "WhatsApp remittance producer is queue-backed with per-recipient idempotency",
+  remittanceProducer.includes('from("notifications_queue")') &&
+    remittanceProducer.includes("WA_TEMPLATES.REMITTANCE_CONFIRMED") &&
+    remittanceProducer.includes("WA_TEMPLATES.REMITTANCE_DISPUTED") &&
+    remittanceProducer.includes('"relief_updates"') &&
+    remittanceProducer.includes('.eq("template", templateKey)') &&
+    remittanceProducer.includes('.eq("data->>remittanceId"') &&
+    remittanceProducer.includes('.eq("data->>recipientUserId"') &&
+    remittanceProducer.includes('.not("user_id", "is", null)') &&
+    remittanceProducer.includes('"23505"') &&
+    remittanceProducer.includes("maskPhoneNumber("),
+  "Remittance decisions must dedupe per (remittanceId, decision template, recipient) with per-recipient locale/prefs and proxy-exclusion parity.",
+);
+
+const remittancesPageSrc = read("src/app/[locale]/(dashboard)/dashboard/relief/remittances/page.tsx");
+check(
+  "remittances page routes WhatsApp through the producer with a decision precondition",
+  !/whatsappType:\s*(waType|"remittance_)/.test(remittancesPageSrc) &&
+    remittancesPageSrc.includes("requestRemittanceDecisionWhatsApp") &&
+    remittancesPageSrc.includes('.eq("status", "pending")') &&
+    remittancesPageSrc.includes("remittanceAlreadyDecided"),
+  "Remittance decisions must trigger the queue-backed producer and bail out on already-decided rows.",
+);
+
+const remittanceMigration = read("supabase/migrations/00096_remittance_notification_idempotency.sql");
+check(
+  "WhatsApp remittance idempotency migration exists",
+  remittanceMigration.includes("idx_notifications_queue_whatsapp_remittance_confirmed_unique") &&
+    remittanceMigration.includes("idx_notifications_queue_whatsapp_remittance_disputed_unique") &&
+    remittanceMigration.includes("data ->> 'remittanceId'") &&
+    remittanceMigration.includes("data ->> 'recipientUserId'") &&
+    remittanceMigration.includes("template = 'remittance_confirmed'") &&
+    remittanceMigration.includes("template = 'remittance_disputed'") &&
+    (remittanceMigration.match(/channel = 'whatsapp'::notification_channel/g) || []).length >= 2,
+  "DB-level per-recipient uniqueness must back the remittance producer's check-before-insert.",
+);
+
 const webhookDoc = read("docs/whatsapp-webhook-status.md");
 check(
   "WhatsApp webhook status runbook exists",

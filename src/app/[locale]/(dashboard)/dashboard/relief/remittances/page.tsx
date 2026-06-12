@@ -167,14 +167,34 @@ export default function ReliefRemittancesPage() {
         updatePayload.confirmed_by = user?.id;
         updatePayload.confirmed_date = new Date().toISOString();
       }
-      const { error: updateErr } = await supabase.from("relief_remittances").update(updatePayload).eq("id", remittanceId);
+      // Status precondition + bail-out: a concurrent second decision (two
+      // HQ admins, two tabs) matches zero rows and skips ALL notifications,
+      // so branch admins are never told "confirmed" after another admin
+      // already disputed (loans-approve precedent).
+      const { data: updatedRows, error: updateErr } = await supabase
+        .from("relief_remittances")
+        .update(updatePayload)
+        .eq("id", remittanceId)
+        .eq("status", "pending")
+        .select("id");
       if (updateErr) throw updateErr;
+      if (!updatedRows || updatedRows.length === 0) {
+        setUpdateError(t("remittanceAlreadyDecided"));
+        queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
+        queryClient.invalidateQueries({ queryKey: ["relief-branch-summary"] });
+        return;
+      }
 
-      // Notify branch admins — In-App + WhatsApp (fire-and-forget)
+      // Notify branch admins. In-app/email/SMS stay on the legacy client
+      // path; WhatsApp goes through the server-side queue-backed producer
+      // (per-recipient locale + prefs, exactly-once per remittance/decision/
+      // admin, provider IDs tracked).
       try {
         const remittance = remittances.find((r: Record<string, unknown>) => (r.id as string) === remittanceId) as Record<string, unknown> | undefined;
         const branchGroupId = (remittance?.branch_group_id as string) || "";
-        const amt = formatAmount(Number(remittance?.amount || 0), currency);
+        // The remittance row's own currency (the branch's), matching the
+        // producer and the page table — not the deciding HQ group's.
+        const amt = formatAmount(Number(remittance?.amount || 0), (remittance?.currency as string) || currency);
         const branchName = ((remittance?.branch_group as Record<string, unknown>)?.name as string) || "";
         if (branchGroupId) {
           // profiles.phone intentionally NOT selected. Dispatch APIs
@@ -191,7 +211,6 @@ export default function ReliefRemittancesPage() {
               const privSettings = (a.privacy_settings as Record<string, unknown>) || null;
               return { userId: a.user_id as string, phone: (privSettings?.proxy_phone as string) || null };
             });
-            const waType = newStatus === "confirmed" ? "remittance_confirmed" : "remittance_disputed";
             notifyBulkFromClient(recipients, {
               groupId: branchGroupId,
               inAppType: "remittance",
@@ -200,14 +219,21 @@ export default function ReliefRemittancesPage() {
               data: { groupName: branchName, amount: amt, status: newStatus },
               emailTemplate: "notification",
               smsTemplate: "remittance-status",
-              whatsappType: waType,
               locale,
-              channels: { inApp: true, email: true, sms: true, whatsapp: true },
+              channels: { inApp: true, email: true, sms: true, whatsapp: false },
               prefType: "relief_updates",
-            }).catch(() => {});
+            }).catch((err) => {
+              console.warn("[Remittances] email/SMS notification failed:", err instanceof Error ? err.message : err);
+            });
           }
         }
-      } catch { /* best-effort */ }
+        const { requestRemittanceDecisionWhatsApp } = await import("@/lib/notify-money-path");
+        requestRemittanceDecisionWhatsApp(supabase, remittanceId, locale).catch((err) => {
+          console.warn("[Remittances] WhatsApp producer trigger failed:", err instanceof Error ? err.message : err);
+        });
+      } catch (err) {
+        console.warn("[Remittances] decision notification dispatch failed:", err instanceof Error ? err.message : err);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["relief-remittances"] });
       queryClient.invalidateQueries({ queryKey: ["relief-branch-summary"] });

@@ -1,12 +1,13 @@
 /**
  * Client-side triggers for the server-side money-path WhatsApp producers
- * (fine issued, loan approved, relief claim decided). Fire-and-forget:
- * admin flows must never block on notification delivery.
+ * (fine issued, loan approved, relief claim decided, remittance decided).
+ * Fire-and-forget: admin flows must never block on notification delivery.
  *
- * Each route authorizes the caller (affected member, active group
- * owner/admin, or platform staff), re-reads the entity from the DB, and
- * enqueues at most one WhatsApp notice per entity (per decision for
- * claims) — so repeated calls are safe.
+ * Each route authorizes the caller (affected member / active group
+ * owner-admin / platform staff — plus the HQ-admin leg for remittances),
+ * re-reads the entity from the DB, and enqueues at most one WhatsApp
+ * notice per entity per decision (per recipient for the multi-recipient
+ * remittance producer) — so repeated calls are safe.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -84,5 +85,19 @@ export async function requestReliefClaimDecisionWhatsApp(
     "/api/relief/claim-notifications",
     { claimId, ...(locale ? { locale } : {}) },
     "relief claim decision",
+  );
+}
+
+export async function requestRemittanceDecisionWhatsApp(
+  supabase: SupabaseClient,
+  remittanceId: string | null | undefined,
+  locale?: string,
+): Promise<void> {
+  if (!remittanceId) return;
+  await postProducer(
+    supabase,
+    "/api/relief/remittance-notifications",
+    { remittanceId, ...(locale ? { locale } : {}) },
+    "remittance decision",
   );
 }

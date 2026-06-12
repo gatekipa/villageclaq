@@ -2233,6 +2233,7 @@
     "remittanceSubmitted": "Remise soumise avec succès",
     "remittanceConfirmed": "Remise confirmée",
     "remittanceDisputed": "Remise contestée",
+    "remittanceAlreadyDecided": "Cette remise a déjà été traitée par un autre administrateur.",
     "remittanceConfirmedTitle": "Remise confirmée",
     "remittanceConfirmedBody": "Votre remise de {amount} a été confirmée par le siège.",
     "remittanceDisputedTitle": "Remise contestée",

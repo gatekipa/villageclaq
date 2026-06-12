@@ -190,6 +190,7 @@ are confirmed and are what the app emits:
 ---
 
 ## 16. villageclaq_account_access_notice
+
 **Category:** UTILITY (verified in WhatsApp Manager: EN + FR Active - Quality pending)
 **EN Body:** `Your VillageClaq access for {{1}} will end in {{2}} day(s). Review your account status in VillageClaq.`
 **FR Body:** `Votre accès à VillageClaq ({{1}}) prendra fin dans {{2}} jour(s). Consultez le statut de votre compte dans VillageClaq.`

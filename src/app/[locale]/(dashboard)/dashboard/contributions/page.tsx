@@ -44,6 +44,7 @@ import { useGroup } from "@/lib/group-context";
 import {
   useAllContributionTypes,
   useCreateContributionType,
+  useMembers,
 } from "@/lib/hooks/use-supabase-query";
 import {
   CardGridSkeleton,
@@ -67,8 +68,16 @@ export default function ContributionsPage() {
   const { hasPermission } = usePermissions();
   const canManageContributions = hasPermission("contributions.manage");
   const { data: contributionTypes, isLoading, isError, refetch } = useAllContributionTypes();
+  const { data: members } = useMembers();
   const createMutation = useCreateContributionType();
   const queryClient = useQueryClient();
+
+  // Read-only enrollment preview: how many members are on the roster today.
+  // Reuses the already-loaded member list (cached under ["members", groupId])
+  // so it adds no extra query. Used to tell admins "this will enroll up to N
+  // members" before they confirm — the enroll step itself is unchanged and
+  // skips anyone already enrolled for the current period.
+  const memberCount = members?.length ?? 0;
 
   const [showCreate, setShowCreate] = useState(false);
   const [editTypeId, setEditTypeId] = useState<string | null>(null);
@@ -226,6 +235,13 @@ export default function ContributionsPage() {
   const [enrollError, setEnrollError] = useState<string | null>(null);
   const [enrollSuccessCount, setEnrollSuccessCount] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Read-only confirm step for "Enroll All": holds the type the admin is about
+  // to enroll so we can show the member-count preview before running it.
+  const [enrollConfirmType, setEnrollConfirmType] = useState<{
+    id: string;
+    amount: number;
+    currency: string;
+  } | null>(null);
 
   async function handleEnrollAll(typeId: string, amount: number, currency: string) {
     if (!groupId) return;
@@ -474,6 +490,32 @@ export default function ContributionsPage() {
                   />
                   <Label htmlFor="enrollAll">{t("contributions.enrollAll")}</Label>
                 </div>
+
+                {/* Plain-language consequences of creating a contribution. */}
+                <div
+                  role="note"
+                  className="space-y-1.5 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground dark:bg-muted/20"
+                >
+                  <p className="font-medium text-foreground/80">
+                    {t("contributions.setupConsequenceTitle")}
+                  </p>
+                  <ul className="list-disc space-y-1 pl-4">
+                    {formEnrollAll
+                      ? memberCount === 1
+                        ? <li>{t("contributions.setupConsequenceEnrollOne")}</li>
+                        : <li>{t("contributions.setupConsequenceEnroll", { count: memberCount })}</li>
+                      : <li>{t("contributions.setupConsequenceNoEnroll")}</li>}
+                    <li>
+                      {formFrequency === "one_time"
+                        ? t("contributions.setupConsequenceOneTime")
+                        : t("contributions.setupConsequenceRecurring", {
+                            frequency: t(`contributions.freq_${formFrequency}`).toLowerCase(),
+                          })}
+                    </li>
+                    <li>{t("contributions.setupConsequenceReminders")}</li>
+                  </ul>
+                </div>
+
                 {formError && (
                   <p className="text-sm text-destructive">{formError}</p>
                 )}
@@ -515,19 +557,37 @@ export default function ContributionsPage() {
 
       {/* Contribution Types Grid */}
       {types.length === 0 ? (
-        <EmptyState
-          icon={HandCoins}
-          title={t("contributions.typesEmptyTitle")}
-          description={t("contributions.typesEmptyDesc")}
-          action={
-            canManageContributions ? (
-              <Button onClick={() => setShowCreate(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t("contributions.createType")}
-              </Button>
-            ) : undefined
-          }
-        />
+        <div className="space-y-6">
+          <EmptyState
+            icon={HandCoins}
+            title={t("contributions.typesEmptyTitle")}
+            description={t("contributions.typesEmptyDescRich")}
+            action={
+              canManageContributions ? (
+                <Button onClick={() => setShowCreate(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("contributions.createType")}
+                </Button>
+              ) : undefined
+            }
+          />
+
+          {/* First-run guidance: levy vs recurring + what happens after. */}
+          <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border bg-card p-4 text-sm">
+              <p className="font-semibold">{t("contributions.guideOneTimeTitle")}</p>
+              <p className="mt-1 text-muted-foreground">{t("contributions.guideOneTimeDesc")}</p>
+            </div>
+            <div className="rounded-xl border bg-card p-4 text-sm">
+              <p className="font-semibold">{t("contributions.guideRecurringTitle")}</p>
+              <p className="mt-1 text-muted-foreground">{t("contributions.guideRecurringDesc")}</p>
+            </div>
+            <div className="rounded-xl border bg-card p-4 text-sm sm:col-span-2">
+              <p className="font-semibold">{t("contributions.guideAfterTitle")}</p>
+              <p className="mt-1 text-muted-foreground">{t("contributions.guideAfterDesc")}</p>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {types.map((type) => (
@@ -568,7 +628,16 @@ export default function ContributionsPage() {
                           {t("contributions.reopenPeriod")}
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => handleEnrollAll(type.id, Number(type.amount), type.currency || currentGroup?.currency || "XAF")} disabled={enrollingId === type.id}>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setEnrollConfirmType({
+                            id: type.id,
+                            amount: Number(type.amount),
+                            currency: type.currency || currentGroup?.currency || "XAF",
+                          })
+                        }
+                        disabled={enrollingId === type.id}
+                      >
                         <Users className="mr-2 h-4 w-4" />
                         {enrollingId === type.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         {t("standing.enrollAll")}
@@ -728,6 +797,39 @@ export default function ContributionsPage() {
             <Button disabled={!!togglingId} onClick={() => showReopenConfirm && handleReopenPeriod(showReopenConfirm)}>
               {togglingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unlock className="mr-2 h-4 w-4" />}
               {t("contributions.reopenPeriod")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enroll All Confirmation Dialog (read-only preview before running) */}
+      <Dialog
+        open={!!enrollConfirmType}
+        onOpenChange={(open) => { if (!open && !enrollingId) setEnrollConfirmType(null); }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("standing.enrollAll")}</DialogTitle>
+          <DialogDescription>
+            {memberCount === 1
+              ? t("contributions.enrollPreviewOne")
+              : t("contributions.enrollPreview", { count: memberCount })}
+          </DialogDescription>
+          <p className="text-sm text-muted-foreground">{t("contributions.enrollPreviewNote")}</p>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" disabled={!!enrollingId} />}>
+              {t("common.cancel")}
+            </DialogClose>
+            <Button
+              disabled={!!enrollingId || memberCount === 0}
+              onClick={async () => {
+                if (!enrollConfirmType) return;
+                const target = enrollConfirmType;
+                await handleEnrollAll(target.id, target.amount, target.currency);
+                setEnrollConfirmType(null);
+              }}
+            >
+              {enrollingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+              {t("contributions.enrollPreviewConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

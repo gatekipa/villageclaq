@@ -2,14 +2,35 @@ import { createClient } from "@/lib/supabase/client";
 import { formatAmount } from "@/lib/currencies";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { getBilingualTranslator } from "@/lib/bilingual-translator";
+import {
+  resolveStandingRules,
+  type StandingFactorKey,
+  type StandingRules,
+} from "@/lib/standing-rules";
 
+/**
+ * One line item in a member's standing breakdown.
+ *
+ * `category` is kept for backwards compatibility with existing UI that reads
+ * it; `factorKey` is the canonical, type-safe key from standing-rules.ts.
+ * `amount`/`count` are machine-readable values for the UI (rendered through
+ * formatAmount where money), and `fixHref` points at the page the member can
+ * use to resolve the issue.
+ */
 export interface StandingReason {
   category: string;
+  factorKey: StandingFactorKey;
   passed: boolean;
   label_en: string;
   label_fr: string;
   detail_en: string;
   detail_fr: string;
+  /** Machine-readable money amount tied to the reason (e.g. dues outstanding). */
+  amount?: number;
+  /** Machine-readable count tied to the reason (e.g. missed hosting count). */
+  count?: number;
+  /** In-app route the member can visit to fix this factor. */
+  fixHref?: string;
 }
 
 export interface StandingResult {
@@ -18,255 +39,34 @@ export interface StandingResult {
   score: number;
 }
 
-const ATTENDANCE_THRESHOLD = 60;
+/** Where a member is sent to resolve each factor. */
+const FIX_HREFS: Record<StandingFactorKey, string> = {
+  dues: "/dashboard/my-payments",
+  meetingAttendance: "/dashboard/attendance",
+  eventAttendance: "/dashboard/attendance",
+  relief: "/dashboard/relief/my",
+  hosting: "/dashboard/hosting",
+  fines: "/dashboard/my-fines",
+  loans: "/dashboard/my-loans",
+  disputes: "/dashboard/disputes",
+  customActivity: "/dashboard",
+};
 
-/**
- * Auto-calculate member standing from real data.
- * Rules:
- * 1. Dues: any overdue obligation → FAIL
- * 2. Attendance: below 60% in last 12 months → FAIL
- * 3. Relief contributions: behind on any plan → FAIL
- * 4. Disputes: any open dispute → soft FAIL (warning only)
- *
- * Scoring:
- * - All pass → "good"
- * - 1 non-dues fail → "warning"
- * - Dues fail or 2+ fails → "suspended" (not in good standing)
- */
-export async function calculateStanding(
-  membershipId: string,
-  groupId: string,
-  options?: { updateDb?: boolean; currency?: string },
-): Promise<StandingResult> {
-  const supabase = createClient();
-  const reasons: StandingReason[] = [];
-  const now = new Date();
-
-  // Rule 1: Dues
-  const { data: obligations } = await supabase
-    .from("contribution_obligations")
-    .select("amount, amount_paid, status, due_date")
-    .eq("membership_id", membershipId)
-    .eq("group_id", groupId);
-
-  const overdueObls = (obligations || []).filter((o) => {
-    const dueDate = new Date(o.due_date);
-    return (o.status === "pending" || o.status === "partial" || o.status === "overdue") && dueDate < now;
-  });
-  const totalOutstanding = (obligations || [])
-    .filter((o) => o.status !== "paid" && o.status !== "waived")
-    .reduce((sum, o) => sum + (Number(o.amount) - Number(o.amount_paid)), 0);
-
-  const duesPassed = overdueObls.length === 0;
-  reasons.push({
-    category: "dues",
-    passed: duesPassed,
-    label_en: "Dues",
-    label_fr: "Cotisations",
-    detail_en: duesPassed ? "Dues paid in full" : `Dues: ${formatAmount(totalOutstanding, options?.currency || "XAF")} outstanding`,
-    detail_fr: duesPassed ? "Cotisations payées en totalité" : `Cotisations: ${formatAmount(totalOutstanding, options?.currency || "XAF")} impayées`,
-  });
-
-  // Rule 2: Attendance (last 12 months)
-  // Join with events to use event date (not checked_in_at which may be null)
-  // and filter by group_id to avoid cross-group contamination
-  const twelveMonthsAgo = new Date();
-  twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
-
-  const { data: attendances } = await supabase
-    .from("event_attendances")
-    .select("status, checked_in_at, event:events!inner(starts_at, group_id)")
-    .eq("membership_id", membershipId);
-
-  const recentAttendances = (attendances || []).filter((a) => {
-    const eventRaw = a.event as unknown;
-    const event = (Array.isArray(eventRaw) ? eventRaw[0] : eventRaw) as Record<string, unknown> | null;
-    // Only count attendance for events in THIS group
-    if (event?.group_id !== groupId) return false;
-    // Use event start date (reliable) instead of checked_in_at (may be null)
-    const eventDate = event?.starts_at ? new Date(event.starts_at as string) : null;
-    if (!eventDate) return false;
-    // Only count past events (not future scheduled ones)
-    if (eventDate > now) return false;
-    return eventDate >= twelveMonthsAgo;
-  });
-  // Exclude excused absences from the denominator — members should not
-  // be penalized for absences they were granted permission for
-  const nonExcused = recentAttendances.filter((a) => a.status !== "excused");
-  const totalEvents = nonExcused.length;
-  const presentCount = nonExcused.filter(
-    (a) => a.status === "present" || a.status === "late"
-  ).length;
-  const rate = totalEvents > 0 ? Math.round((presentCount / totalEvents) * 100) : 100;
-  const attendancePassed = totalEvents === 0 || rate >= ATTENDANCE_THRESHOLD;
-
-  reasons.push({
-    category: "attendance",
-    passed: attendancePassed,
-    label_en: "Attendance",
-    label_fr: "Présence",
-    detail_en: totalEvents === 0
-      ? "No events recorded"
-      : attendancePassed
-        ? `Attendance: ${rate}% (above ${ATTENDANCE_THRESHOLD}% threshold)`
-        : `Attendance: ${rate}% (below ${ATTENDANCE_THRESHOLD}% threshold)`,
-    detail_fr: totalEvents === 0
-      ? "Aucun événement enregistré"
-      : attendancePassed
-        ? `Présence: ${rate}% (au-dessus du seuil de ${ATTENDANCE_THRESHOLD}%)`
-        : `Présence: ${rate}% (en dessous du seuil de ${ATTENDANCE_THRESHOLD}%)`,
-  });
-
-  // Rule 3: Relief contributions
-  const { data: enrollments } = await supabase
-    .from("relief_enrollments")
-    .select("id, contribution_status, relief_plan_id")
-    .eq("membership_id", membershipId);
-
-  const behindPlans = (enrollments || []).filter(
-    (e) => e.contribution_status === "behind" || e.contribution_status === "overdue"
-  );
-  const reliefPassed = behindPlans.length === 0;
-
-  reasons.push({
-    category: "relief",
-    passed: reliefPassed,
-    label_en: "Relief Contributions",
-    label_fr: "Cotisations de secours",
-    detail_en: reliefPassed
-      ? "Relief contributions: Up to date"
-      : `Relief: Behind on ${behindPlans.length} plans`,
-    detail_fr: reliefPassed
-      ? "Cotisations de secours: À jour"
-      : `Secours: En retard sur ${behindPlans.length} plans`,
-  });
-
-  // Rule 4: Loan repayments
-  // Use left join (not !inner) to avoid query failures when loan_schedule has no matching loans
-  let overdueInstCount = 0;
-  let defaultedCount = 0;
-  try {
-    const { data: loanSchedules } = await supabase
-      .from("loan_schedule")
-      .select("id, status, loan_id, loans(membership_id, status)")
-      .eq("status", "overdue");
-
-    // Filter to this member's loans that are active (repaying)
-    overdueInstCount = (loanSchedules || []).filter((s: Record<string, unknown>) => {
-      const loan = s.loans as Record<string, unknown> | null;
-      return loan && loan.membership_id === membershipId && loan.status === "repaying";
-    }).length;
-
-    const { data: defaultedLoans } = await supabase
-      .from("loans")
-      .select("id")
-      .eq("membership_id", membershipId)
-      .eq("status", "defaulted");
-
-    defaultedCount = (defaultedLoans || []).length;
-  } catch {
-    // If loan tables don't exist or query fails, pass this rule
-    overdueInstCount = 0;
-    defaultedCount = 0;
+function scoreFrom(reasons: StandingReason[]): {
+  standing: StandingResult["standing"];
+  score: number;
+} {
+  const total = reasons.length;
+  if (total === 0) {
+    return { standing: "good", score: 100 };
   }
-  const loansPassed = overdueInstCount === 0 && defaultedCount === 0;
+  const passedCount = reasons.filter((r) => r.passed).length;
+  const failedCount = total - passedCount;
+  const duesReason = reasons.find((r) => r.factorKey === "dues");
+  const duesPassed = duesReason ? duesReason.passed : true;
+  const score = Math.round((passedCount / total) * 100);
 
-  reasons.push({
-    category: "loans",
-    passed: loansPassed,
-    label_en: "Loan Repayments",
-    label_fr: "Remboursements de prêts",
-    detail_en: loansPassed
-      ? "Loan repayments: Up to date"
-      : defaultedCount > 0
-        ? `${defaultedCount} defaulted loan(s)`
-        : `${overdueInstCount} overdue installment(s)`,
-    detail_fr: loansPassed
-      ? "Remboursements de prêts: À jour"
-      : defaultedCount > 0
-        ? `${defaultedCount} prêt(s) en défaut`
-        : `${overdueInstCount} échéance(s) en retard`,
-  });
-
-  // Rule 5: Unpaid Fines (pending only; disputed fines do NOT count)
-  const { data: pendingFines } = await supabase
-    .from("fines")
-    .select("id, status, amount")
-    .eq("group_id", groupId)
-    .eq("membership_id", membershipId)
-    .eq("status", "pending");
-
-  const unpaidFineCount = (pendingFines || []).length;
-  const unpaidFineTotal = (pendingFines || []).reduce((sum, f) => sum + Number(f.amount), 0);
-  const finesPassed = unpaidFineCount === 0;
-
-  reasons.push({
-    category: "fines",
-    passed: finesPassed,
-    label_en: "Fines",
-    label_fr: "Amendes",
-    detail_en: finesPassed
-      ? "No unpaid fines"
-      : `${unpaidFineCount} unpaid fine(s) totaling ${formatAmount(unpaidFineTotal, options?.currency || "XAF")}`,
-    detail_fr: finesPassed
-      ? "Aucune amende impayée"
-      : `${unpaidFineCount} amende(s) impayée(s) totalisant ${formatAmount(unpaidFineTotal, options?.currency || "XAF")}`,
-  });
-
-  // Rule 7: Hosting — missed assignments count against standing (exempted do NOT)
-  const { data: hostingAssignments } = await supabase
-    .from("hosting_assignments")
-    .select("id, status")
-    .eq("membership_id", membershipId)
-    .in("status", ["completed", "missed"]);
-
-  const hostingCompleted = (hostingAssignments || []).filter((a) => a.status === "completed").length;
-  const hostingMissed = (hostingAssignments || []).filter((a) => a.status === "missed").length;
-  const hostingTotal = hostingCompleted + hostingMissed;
-  const hostingPassed = hostingMissed === 0;
-
-  reasons.push({
-    category: "hosting",
-    passed: hostingPassed,
-    label_en: "Hosting",
-    label_fr: "Hébergement",
-    detail_en: hostingTotal === 0
-      ? "No hosting assignments"
-      : hostingPassed
-        ? `Hosting: ${hostingCompleted}/${hostingTotal} completed`
-        : `Hosting: ${hostingMissed} missed assignment(s)`,
-    detail_fr: hostingTotal === 0
-      ? "Aucune mission d'hébergement"
-      : hostingPassed
-        ? `Hébergement: ${hostingCompleted}/${hostingTotal} terminé(s)`
-        : `Hébergement: ${hostingMissed} mission(s) manquée(s)`,
-  });
-
-  // Rule 6: Disputes (filed BY or AGAINST this member)
-  const { data: disputes } = await supabase
-    .from("disputes")
-    .select("id, status")
-    .eq("group_id", groupId)
-    .or(`filed_by.eq.${membershipId},against_membership_id.eq.${membershipId}`)
-    .in("status", ["open", "under_review"]);
-
-  const openDisputes = (disputes || []).length;
-  const disputesPassed = openDisputes === 0;
-
-  reasons.push({
-    category: "disputes",
-    passed: disputesPassed,
-    label_en: "Disputes",
-    label_fr: "Litiges",
-    detail_en: disputesPassed ? "No pending disputes" : `${openDisputes} open dispute(s)`,
-    detail_fr: disputesPassed ? "Aucun litige en cours" : `${openDisputes} litige(s) en cours`,
-  });
-
-  // Calculate standing
-  const failedCount = reasons.filter((r) => !r.passed).length;
-  const score = Math.round((reasons.filter((r) => r.passed).length / reasons.length) * 100);
-
-  let standing: "good" | "warning" | "suspended";
+  let standing: StandingResult["standing"];
   if (failedCount === 0) {
     standing = "good";
   } else if (!duesPassed || failedCount >= 2) {
@@ -274,192 +74,708 @@ export async function calculateStanding(
   } else {
     standing = "warning";
   }
+  return { standing, score };
+}
 
-  // Optionally update DB (standing + standing_updated_at)
-  if (options?.updateDb) {
-    // Fetch old standing to detect change
-    const { data: oldMembership } = await supabase
-      .from("memberships")
-      .select("standing")
-      .eq("id", membershipId)
+/**
+ * Auto-calculate a member's standing from real data, honoring the group's
+ * configurable standing rules (groups.settings.standing_rules).
+ *
+ * Behavior contract:
+ *  - Guards exactly like the SQL engine (compute_member_standing): proxy
+ *    members and members whose membership_status is not active/pending_approval
+ *    keep their stored standing and are never written or notified. The same
+ *    holds when the group has turned auto-standing off (rules.enabled=false).
+ *  - Only ENABLED factors (rules.factors[key] === true) contribute a reason;
+ *    disabled factors push nothing and so never count toward score/fail count.
+ *  - Configured thresholds are used: attendance threshold + lookback, missed
+ *    hosting threshold, dues overdue grace days, and the per-contribution-type
+ *    exclusion list.
+ *
+ * Side effects (DB write + audit log + notification dispatch) happen ONLY when
+ * `options.updateDb === true`. Read paths must call with updateDb:false. The
+ * dispatch block is reachable only through an explicit caller (a recalc
+ * action), never a passive render.
+ */
+export async function calculateStanding(
+  membershipId: string,
+  groupId: string,
+  options?: { updateDb?: boolean; currency?: string; rulesOverride?: StandingRules },
+): Promise<StandingResult> {
+  const supabase = createClient();
+  const currency = options?.currency || "XAF";
+
+  // ── (a) Fetch the membership row + the group's resolved rules ONCE ───────────
+  const { data: membershipRow } = await supabase
+    .from("memberships")
+    .select("is_proxy, membership_status, standing")
+    .eq("id", membershipId)
+    .single();
+
+  const currentStanding =
+    (membershipRow?.standing as StandingResult["standing"] | null) || "good";
+
+  // rulesOverride lets the settings "preview" project CANDIDATE (not-yet-saved)
+  // rules with the same engine the displays use — so the preview is accurate
+  // regardless of whether the SQL engine has been brought to parity yet. When
+  // overriding rules we never write, so callers must use updateDb:false.
+  let rules: StandingRules;
+  if (options?.rulesOverride) {
+    rules = options.rulesOverride;
+  } else {
+    const { data: groupRow } = await supabase
+      .from("groups")
+      .select("settings")
+      .eq("id", groupId)
       .single();
-    const oldStanding = oldMembership?.standing as string | null;
+    rules = resolveStandingRules(groupRow?.settings);
+  }
 
-    await supabase
-      .from("memberships")
-      .update({ standing, standing_updated_at: new Date().toISOString() })
-      .eq("id", membershipId);
+  // ── (b) Guard: proxy / inactive status / auto-standing disabled ──────────────
+  const isProxy = membershipRow?.is_proxy === true;
+  const status = (membershipRow?.membership_status as string | null) || "active";
+  const statusEligible = status === "active" || status === "pending_approval";
 
-    // Audit log + notifications if standing actually changed
-    if (oldStanding && oldStanding !== standing) {
-      try {
-        const { logActivity } = await import("@/lib/audit-log");
-        await logActivity(supabase, {
-          groupId,
-          action: "member.standing_changed",
-          entityType: "membership",
-          entityId: membershipId,
-          description: `Member standing changed from ${oldStanding} to ${standing}`,
-          metadata: { oldStanding, newStanding: standing },
-        });
-      } catch { /* best-effort */ }
+  if (isProxy || !statusEligible || rules.enabled === false) {
+    // Keep the stored standing; never write, never notify. Score mirrors the
+    // stored standing so read UIs have something sensible to show.
+    const score =
+      currentStanding === "good" ? 100 : currentStanding === "warning" ? 75 : 25;
+    return { standing: currentStanding, reasons: [], score };
+  }
 
-      // Per-recipient localized notification dispatch.
-      // ─ Locale: resolved via member_locale RPC (respects profiles.preferred_locale).
-      // ─ Copy:  rendered via getBilingualTranslator("standingChange") — title/body
-      //         keys indexed by `{oldStanding}To{newStanding}` (e.g. "goodToWarning").
-      //         Unknown transition pairs fall back to the generic key.
-      // ─ Auth:  every fetch carries `Authorization: Bearer {user JWT}`, required by
-      //         /api/email|sms|whatsapp/send. If the session can't be read (SSR /
-      //         service-role call path) we log + skip external channels — in-app
-      //         still goes through because the supabase client carries its own auth.
-      try {
-        const { data: membership } = await supabase
-          .from("memberships")
-          .select("user_id, display_name")
-          .eq("id", membershipId)
-          .single();
+  const now = new Date();
+  const reasons: StandingReason[] = [];
 
-        if (!membership?.user_id) {
-          return { standing, reasons, score };
-        }
+  // ── (c) Compute only ENABLED factors ─────────────────────────────────────────
 
-        const { data: group } = await supabase.from("groups").select("name").eq("id", groupId).single();
-        const memberName = (membership.display_name as string) || "";
-        const groupName = (group?.name as string) || "";
+  // Factor: Dues
+  if (rules.factors.dues) {
+    const { data: obligations } = await supabase
+      .from("contribution_obligations")
+      .select("amount, amount_paid, status, due_date, contribution_type_id")
+      .eq("membership_id", membershipId)
+      .eq("group_id", groupId);
 
-        // Resolve recipient locale
-        let locale: "en" | "fr" = "en";
-        try {
-          const { data: localeData } = await supabase.rpc("member_locale", { p_user_id: membership.user_id });
-          if (localeData === "fr") locale = "fr";
-        } catch (err) {
-          console.warn("[calculate-standing] member_locale lookup failed:", err instanceof Error ? err.message : err);
-        }
+    const excluded = new Set(rules.excludedContributionTypeIds);
+    const relevant = (obligations || []).filter(
+      (o) => !excluded.has(o.contribution_type_id as string),
+    );
 
-        // Bilingual translator for title/body. Scoped to the standingChange
-        // namespace; lazy-loads both en.json and fr.json on first call.
-        const bt = await getBilingualTranslator("standingChange");
-
-        const transitionKey = `${oldStanding}To${standing.charAt(0).toUpperCase()}${standing.slice(1)}`;
-        const VALID_KEYS = new Set([
-          "goodToWarning", "goodToSuspended",
-          "warningToGood", "warningToSuspended",
-          "suspendedToGood", "suspendedToWarning",
-        ]);
-        const titleKey = VALID_KEYS.has(transitionKey) ? `title.${transitionKey}` : "title.generic";
-        const bodyKey  = VALID_KEYS.has(transitionKey) ? `body.${transitionKey}`  : "body.generic";
-        const title = bt(locale, titleKey, { groupName, memberName });
-        const body  = bt(locale, bodyKey,  { groupName, memberName });
-
-        // In-app notification — localized copy, sent via the supabase client
-        // (already authenticated, no Authorization header needed).
-        try {
-          await supabase.from("notifications").insert({
-            user_id: membership.user_id,
-            group_id: groupId,
-            type: "system" as const,
-            title,
-            body,
-            is_read: false,
-            data: { link: "/dashboard/members" },
-          });
-        } catch (err) {
-          console.warn("[calculate-standing] in-app notification insert failed:", err instanceof Error ? err.message : err);
-        }
-
-        // External channels — check preferences + get session for Bearer auth.
-        let sendEmail = true, sendSms = true, sendWhatsapp = true;
-        try {
-          const prefs = await getEnabledChannels(supabase, membership.user_id, "standing_changes", groupId);
-          sendEmail = prefs.email;
-          sendSms = prefs.sms;
-          sendWhatsapp = prefs.whatsapp;
-        } catch (err) {
-          console.warn("[calculate-standing] getEnabledChannels failed, fail-open:", err instanceof Error ? err.message : err);
-        }
-
-        if (!sendEmail && !sendSms && !sendWhatsapp) {
-          return { standing, reasons, score };
-        }
-
-        // Session token for the /api/* routes. On the client this is present;
-        // on the server path (service-role caller) it's absent, and we skip
-        // external dispatches rather than hit 401.
-        let accessToken: string | null = null;
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          accessToken = session?.access_token || null;
-        } catch (err) {
-          console.warn("[calculate-standing] getSession failed:", err instanceof Error ? err.message : err);
-        }
-
-        if (!accessToken) {
-          console.warn("[calculate-standing] No session token, skipping external channel dispatch for membership", membershipId);
-          return { standing, reasons, score };
-        }
-
-        const origin = typeof window !== "undefined"
-          ? window.location.origin
-          : (process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com");
-
-        async function postJson(path: string, payload: Record<string, unknown>) {
-          try {
-            const res = await fetch(`${origin}${path}`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${accessToken}`,
-              },
-              body: JSON.stringify(payload),
-            });
-            if (!res.ok) {
-              const text = await res.text().catch(() => "");
-              console.error(`[calculate-standing] ${path} returned ${res.status}:`, text.slice(0, 200));
-            }
-          } catch (err) {
-            console.error(`[calculate-standing] ${path} fetch error:`, err instanceof Error ? err.message : err);
-          }
-        }
-
-        // Email — localized title/body rendered above; notification template
-        // picks locale internally via the `locale` param.
-        if (sendEmail) {
-          postJson("/api/email/send", {
-            to: membership.user_id,
-            template: "notification",
-            data: { title, body, groupName, memberName },
-            locale,
-          });
-        }
-
-        // SMS — sms-templates.ts handles EN/FR internally via `t(locale, en, fr)`.
-        if (sendSms) {
-          postJson("/api/sms/send", {
-            to: membership.user_id,
-            template: "standing-changed",
-            data: { groupName, newStatus: standing },
-            locale,
-          });
-        }
-
-        // WhatsApp — server-side, queue-backed producer (exactly-once per
-        // membership/standing/day). The producer reads the authoritative
-        // standing from the DB and resolves the template variables itself,
-        // so provider IDs and webhook status are tracked and the old
-        // newStatus/newStanding mismatch (which produced an empty {{2}}
-        // and a Meta rejection) is fixed by construction.
-        if (sendWhatsapp) {
-          postJson("/api/members/standing-notifications", {
-            membershipId,
-            locale,
-          });
-        }
-      } catch (err) {
-        console.error("[calculate-standing] notification block failed:", err instanceof Error ? err.message : err);
+    // Overdue = unpaid AND due_date + grace days < today.
+    const overdueObls = relevant.filter((o) => {
+      if (
+        o.status !== "pending" &&
+        o.status !== "partial" &&
+        o.status !== "overdue"
+      ) {
+        return false;
       }
+      const dueWithGrace = new Date(o.due_date as string);
+      dueWithGrace.setDate(dueWithGrace.getDate() + rules.overdueGraceDays);
+      return dueWithGrace < now;
+    });
+
+    const totalOutstanding = relevant
+      .filter((o) => o.status !== "paid" && o.status !== "waived")
+      .reduce(
+        (sum, o) => sum + (Number(o.amount) - Number(o.amount_paid)),
+        0,
+      );
+
+    const duesPassed = overdueObls.length === 0;
+    reasons.push({
+      category: "dues",
+      factorKey: "dues",
+      passed: duesPassed,
+      label_en: "Dues",
+      label_fr: "Cotisations",
+      detail_en: duesPassed
+        ? "Dues paid in full"
+        : `Dues: ${formatAmount(totalOutstanding, currency)} outstanding`,
+      detail_fr: duesPassed
+        ? "Cotisations payées en totalité"
+        : `Cotisations: ${formatAmount(totalOutstanding, currency)} impayées`,
+      amount: duesPassed ? undefined : totalOutstanding,
+      count: duesPassed ? undefined : overdueObls.length,
+      fixHref: FIX_HREFS.dues,
+    });
+  }
+
+  // Factors: Attendance, split into MEETINGS (formal — event_type
+  // meeting/agm) and EVENTS (casual — social/fundraiser/emergency/other).
+  // Both share the configured threshold + lookback. A casual event must not
+  // damage standing unless eventAttendance is explicitly turned on.
+  if (rules.factors.meetingAttendance || rules.factors.eventAttendance) {
+    const lookbackStart = new Date();
+    lookbackStart.setMonth(
+      lookbackStart.getMonth() - rules.attendanceLookbackMonths,
+    );
+
+    const { data: attendances } = await supabase
+      .from("event_attendances")
+      .select("status, event:events!inner(starts_at, group_id, event_type)")
+      .eq("membership_id", membershipId);
+
+    const eventOf = (a: Record<string, unknown>): Record<string, unknown> | null => {
+      const eventRaw = a.event as unknown;
+      return (Array.isArray(eventRaw) ? eventRaw[0] : eventRaw) as
+        | Record<string, unknown>
+        | null;
+    };
+
+    const recent = (attendances || []).filter((a) => {
+      const event = eventOf(a);
+      if (event?.group_id !== groupId) return false;
+      const eventDate = event?.starts_at
+        ? new Date(event.starts_at as string)
+        : null;
+      if (!eventDate || eventDate > now) return false;
+      return eventDate >= lookbackStart;
+    });
+
+    const MEETING_TYPES = new Set(["meeting", "agm"]);
+    const isMeeting = (a: Record<string, unknown>) =>
+      MEETING_TYPES.has(((eventOf(a)?.event_type as string) || "meeting"));
+
+    const threshold = rules.attendanceThresholdPercent;
+    const pushAttendance = (
+      subset: Record<string, unknown>[],
+      factorKey: "meetingAttendance" | "eventAttendance",
+      labelEn: string,
+      labelFr: string,
+    ) => {
+      // Exclude excused absences from the denominator.
+      const nonExcused = subset.filter((a) => a.status !== "excused");
+      const total = nonExcused.length;
+      const present = nonExcused.filter(
+        (a) => a.status === "present" || a.status === "late",
+      ).length;
+      const rate = total > 0 ? Math.round((present / total) * 100) : 100;
+      const passed = total === 0 || rate >= threshold;
+      reasons.push({
+        category: factorKey,
+        factorKey,
+        passed,
+        label_en: labelEn,
+        label_fr: labelFr,
+        detail_en:
+          total === 0
+            ? `No ${labelEn.toLowerCase()} recorded`
+            : passed
+              ? `${labelEn}: ${rate}% (above ${threshold}% threshold)`
+              : `${labelEn}: ${rate}% (below ${threshold}% threshold)`,
+        detail_fr:
+          total === 0
+            ? `Aucune donnée de ${labelFr.toLowerCase()}`
+            : passed
+              ? `${labelFr}: ${rate}% (au-dessus du seuil de ${threshold}%)`
+              : `${labelFr}: ${rate}% (en dessous du seuil de ${threshold}%)`,
+        count: total === 0 ? undefined : rate,
+        fixHref: FIX_HREFS[factorKey],
+      });
+    };
+
+    if (rules.factors.meetingAttendance) {
+      pushAttendance(
+        recent.filter((a) => isMeeting(a)),
+        "meetingAttendance",
+        "Meeting attendance",
+        "Présence aux réunions",
+      );
+    }
+    if (rules.factors.eventAttendance) {
+      pushAttendance(
+        recent.filter((a) => !isMeeting(a)),
+        "eventAttendance",
+        "Event attendance",
+        "Présence aux événements",
+      );
     }
   }
 
+  // Factor: Relief contributions
+  if (rules.factors.relief) {
+    const { data: enrollments } = await supabase
+      .from("relief_enrollments")
+      .select("id, contribution_status, relief_plan_id")
+      .eq("membership_id", membershipId);
+
+    const behindPlans = (enrollments || []).filter(
+      (e) =>
+        e.contribution_status === "behind" ||
+        e.contribution_status === "overdue",
+    );
+    const reliefPassed = behindPlans.length === 0;
+
+    reasons.push({
+      category: "relief",
+      factorKey: "relief",
+      passed: reliefPassed,
+      label_en: "Relief Contributions",
+      label_fr: "Cotisations de secours",
+      detail_en: reliefPassed
+        ? "Relief contributions: Up to date"
+        : `Relief: Behind on ${behindPlans.length} plans`,
+      detail_fr: reliefPassed
+        ? "Cotisations de secours: À jour"
+        : `Secours: En retard sur ${behindPlans.length} plans`,
+      count: reliefPassed ? undefined : behindPlans.length,
+      fixHref: FIX_HREFS.relief,
+    });
+  }
+
+  // Factor: Hosting — fails only when missed >= configured threshold
+  if (rules.factors.hosting) {
+    const { data: hostingAssignments } = await supabase
+      .from("hosting_assignments")
+      .select("id, status")
+      .eq("membership_id", membershipId)
+      .in("status", ["completed", "missed"]);
+
+    const hostingCompleted = (hostingAssignments || []).filter(
+      (a) => a.status === "completed",
+    ).length;
+    const hostingMissed = (hostingAssignments || []).filter(
+      (a) => a.status === "missed",
+    ).length;
+    const hostingTotal = hostingCompleted + hostingMissed;
+    const hostingPassed = hostingMissed < rules.missedHostingThreshold;
+
+    reasons.push({
+      category: "hosting",
+      factorKey: "hosting",
+      passed: hostingPassed,
+      label_en: "Hosting",
+      label_fr: "Hébergement",
+      detail_en:
+        hostingTotal === 0
+          ? "No hosting assignments"
+          : hostingPassed
+            ? `Hosting: ${hostingCompleted}/${hostingTotal} completed`
+            : `Hosting: ${hostingMissed} missed assignment(s)`,
+      detail_fr:
+        hostingTotal === 0
+          ? "Aucune mission d'hébergement"
+          : hostingPassed
+            ? `Hébergement: ${hostingCompleted}/${hostingTotal} terminé(s)`
+            : `Hébergement: ${hostingMissed} mission(s) manquée(s)`,
+      count: hostingPassed ? undefined : hostingMissed,
+      fixHref: FIX_HREFS.hosting,
+    });
+  }
+
+  // Factor: Loan repayments (default OFF)
+  if (rules.factors.loans) {
+    let overdueInstCount = 0;
+    let defaultedCount = 0;
+    try {
+      // Scope to THIS member's repaying loans at the query level (inner join)
+      // instead of fetching every group's overdue installments and filtering
+      // in JS. loan_schedule.loan_id is a FK, so the inner join is safe.
+      const { data: loanSchedules } = await supabase
+        .from("loan_schedule")
+        .select("id, status, loan_id, loans!inner(membership_id, status)")
+        .eq("status", "overdue")
+        .eq("loans.membership_id", membershipId)
+        .eq("loans.status", "repaying");
+
+      overdueInstCount = (loanSchedules || []).length;
+
+      const { data: defaultedLoans } = await supabase
+        .from("loans")
+        .select("id")
+        .eq("membership_id", membershipId)
+        .eq("status", "defaulted");
+
+      defaultedCount = (defaultedLoans || []).length;
+    } catch (err) {
+      // If loan tables don't exist or query fails, pass this factor.
+      console.warn(
+        "[calculate-standing] loans factor query failed:",
+        err instanceof Error ? err.message : err,
+      );
+      overdueInstCount = 0;
+      defaultedCount = 0;
+    }
+    const loansPassed = overdueInstCount === 0 && defaultedCount === 0;
+
+    reasons.push({
+      category: "loans",
+      factorKey: "loans",
+      passed: loansPassed,
+      label_en: "Loan Repayments",
+      label_fr: "Remboursements de prêts",
+      detail_en: loansPassed
+        ? "Loan repayments: Up to date"
+        : defaultedCount > 0
+          ? `${defaultedCount} defaulted loan(s)`
+          : `${overdueInstCount} overdue installment(s)`,
+      detail_fr: loansPassed
+        ? "Remboursements de prêts: À jour"
+        : defaultedCount > 0
+          ? `${defaultedCount} prêt(s) en défaut`
+          : `${overdueInstCount} échéance(s) en retard`,
+      count: loansPassed
+        ? undefined
+        : defaultedCount > 0
+          ? defaultedCount
+          : overdueInstCount,
+      fixHref: FIX_HREFS.loans,
+    });
+  }
+
+  // Factor: Unpaid fines (default OFF) — pending only; disputed do NOT count
+  if (rules.factors.fines) {
+    const { data: pendingFines } = await supabase
+      .from("fines")
+      .select("id, status, amount")
+      .eq("group_id", groupId)
+      .eq("membership_id", membershipId)
+      .eq("status", "pending");
+
+    const unpaidFineCount = (pendingFines || []).length;
+    const unpaidFineTotal = (pendingFines || []).reduce(
+      (sum, f) => sum + Number(f.amount),
+      0,
+    );
+    const finesPassed = unpaidFineCount === 0;
+
+    reasons.push({
+      category: "fines",
+      factorKey: "fines",
+      passed: finesPassed,
+      label_en: "Fines",
+      label_fr: "Amendes",
+      detail_en: finesPassed
+        ? "No unpaid fines"
+        : `${unpaidFineCount} unpaid fine(s) totaling ${formatAmount(unpaidFineTotal, currency)}`,
+      detail_fr: finesPassed
+        ? "Aucune amende impayée"
+        : `${unpaidFineCount} amende(s) impayée(s) totalisant ${formatAmount(unpaidFineTotal, currency)}`,
+      amount: finesPassed ? undefined : unpaidFineTotal,
+      count: finesPassed ? undefined : unpaidFineCount,
+      fixHref: FIX_HREFS.fines,
+    });
+  }
+
+  // Factor: Disputes (filed BY or AGAINST this member)
+  if (rules.factors.disputes) {
+    const { data: disputes } = await supabase
+      .from("disputes")
+      .select("id, status")
+      .eq("group_id", groupId)
+      .or(
+        `filed_by.eq.${membershipId},against_membership_id.eq.${membershipId}`,
+      )
+      .in("status", ["open", "under_review"]);
+
+    const openDisputes = (disputes || []).length;
+    const disputesPassed = openDisputes === 0;
+
+    reasons.push({
+      category: "disputes",
+      factorKey: "disputes",
+      passed: disputesPassed,
+      label_en: "Disputes",
+      label_fr: "Litiges",
+      detail_en: disputesPassed
+        ? "No pending disputes"
+        : `${openDisputes} open dispute(s)`,
+      detail_fr: disputesPassed
+        ? "Aucun litige en cours"
+        : `${openDisputes} litige(s) en cours`,
+      count: disputesPassed ? undefined : openDisputes,
+      fixHref: FIX_HREFS.disputes,
+    });
+  }
+
+  // Factor: Custom activities — a declared slot (see standing-rules.ts).
+  // No activity type currently feeds standing, so this branch is intentionally
+  // INERT and pushes no reason today. When a future standing-impacting
+  // activity type is added, evaluate it HERE so it is gated behind this toggle
+  // (and a per-item flag) and can never silently damage standing. The gate is
+  // present so the audit guardrail (every factor must be handled) is satisfied.
+  if (rules.factors.customActivity) {
+    // Intentionally inert until a custom-activity data source exists.
+  }
+
+  // ── Scoring (identical rules to before) ──────────────────────────────────────
+  const { standing, score } = scoreFrom(reasons);
+
+  // ── (e) updateDb path — explicit callers only; write + log + notify ──────────
+  if (options?.updateDb) {
+    await persistAndNotify(supabase, {
+      membershipId,
+      groupId,
+      standing,
+      reasons,
+      score,
+      currency,
+    });
+  }
+
   return { standing, reasons, score };
+}
+
+/**
+ * Persist the computed standing and, on an actual transition, write an audit
+ * log entry and dispatch notifications (in-app + email/SMS/WhatsApp through the
+ * server producers). Extracted out of the compute path so it can NEVER run on a
+ * render — only `calculateStanding(..., { updateDb: true })` reaches it.
+ *
+ * The dispatch logic is unchanged from the prior implementation.
+ */
+async function persistAndNotify(
+  supabase: ReturnType<typeof createClient>,
+  args: {
+    membershipId: string;
+    groupId: string;
+    standing: StandingResult["standing"];
+    reasons: StandingReason[];
+    score: number;
+    currency: string;
+  },
+): Promise<void> {
+  const { membershipId, groupId, standing } = args;
+
+  // Fetch old standing to detect change
+  const { data: oldMembership } = await supabase
+    .from("memberships")
+    .select("standing")
+    .eq("id", membershipId)
+    .single();
+  const oldStanding = oldMembership?.standing as string | null;
+
+  await supabase
+    .from("memberships")
+    .update({ standing, standing_updated_at: new Date().toISOString() })
+    .eq("id", membershipId);
+
+  // No change → nothing to record.
+  if (oldStanding === standing) {
+    return;
+  }
+
+  // Audit EVERY change, including the first-ever computation (null → X), to
+  // match the SQL engine (which uses IS DISTINCT FROM). Best-effort.
+  try {
+    const { logActivity } = await import("@/lib/audit-log");
+    await logActivity(supabase, {
+      groupId,
+      action: "member.standing_changed",
+      entityType: "membership",
+      entityId: membershipId,
+      description: `Member standing changed from ${oldStanding ?? "none"} to ${standing}`,
+      metadata: { oldStanding, newStanding: standing },
+    });
+  } catch {
+    /* best-effort */
+  }
+
+  // Notifications fire only for a genuine transition FROM a prior standing —
+  // a member's first-ever computation (null → X) is logged above but must not
+  // generate a notification.
+  if (!oldStanding) {
+    return;
+  }
+
+  // Per-recipient localized notification dispatch.
+  // ─ Locale: resolved via member_locale RPC (respects profiles.preferred_locale).
+  // ─ Copy:  rendered via getBilingualTranslator("standingChange") — title/body
+  //         keys indexed by `{oldStanding}To{newStanding}` (e.g. "goodToWarning").
+  //         Unknown transition pairs fall back to the generic key.
+  // ─ Auth:  every fetch carries `Authorization: Bearer {user JWT}`, required by
+  //         /api/email|sms|whatsapp/send. If the session can't be read (SSR /
+  //         service-role call path) we log + skip external channels — in-app
+  //         still goes through because the supabase client carries its own auth.
+  try {
+    const { data: membership } = await supabase
+      .from("memberships")
+      .select("user_id, display_name")
+      .eq("id", membershipId)
+      .single();
+
+    if (!membership?.user_id) {
+      return;
+    }
+
+    const { data: group } = await supabase
+      .from("groups")
+      .select("name")
+      .eq("id", groupId)
+      .single();
+    const memberName = (membership.display_name as string) || "";
+    const groupName = (group?.name as string) || "";
+
+    // Resolve recipient locale
+    let locale: "en" | "fr" = "en";
+    try {
+      const { data: localeData } = await supabase.rpc("member_locale", {
+        p_user_id: membership.user_id,
+      });
+      if (localeData === "fr") locale = "fr";
+    } catch (err) {
+      console.warn(
+        "[calculate-standing] member_locale lookup failed:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    // Bilingual translator for title/body. Scoped to the standingChange
+    // namespace; lazy-loads both en.json and fr.json on first call.
+    const bt = await getBilingualTranslator("standingChange");
+
+    const transitionKey = `${oldStanding}To${standing.charAt(0).toUpperCase()}${standing.slice(1)}`;
+    const VALID_KEYS = new Set([
+      "goodToWarning",
+      "goodToSuspended",
+      "warningToGood",
+      "warningToSuspended",
+      "suspendedToGood",
+      "suspendedToWarning",
+    ]);
+    const titleKey = VALID_KEYS.has(transitionKey)
+      ? `title.${transitionKey}`
+      : "title.generic";
+    const bodyKey = VALID_KEYS.has(transitionKey)
+      ? `body.${transitionKey}`
+      : "body.generic";
+    const title = bt(locale, titleKey, { groupName, memberName });
+    const body = bt(locale, bodyKey, { groupName, memberName });
+
+    // In-app notification — localized copy, sent via the supabase client
+    // (already authenticated, no Authorization header needed).
+    try {
+      await supabase.from("notifications").insert({
+        user_id: membership.user_id,
+        group_id: groupId,
+        type: "system" as const,
+        title,
+        body,
+        is_read: false,
+        data: { link: "/dashboard/members" },
+      });
+    } catch (err) {
+      console.warn(
+        "[calculate-standing] in-app notification insert failed:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    // External channels — check preferences + get session for Bearer auth.
+    let sendEmail = true,
+      sendSms = true,
+      sendWhatsapp = true;
+    try {
+      const prefs = await getEnabledChannels(
+        supabase,
+        membership.user_id,
+        "standing_changes",
+        groupId,
+      );
+      sendEmail = prefs.email;
+      sendSms = prefs.sms;
+      sendWhatsapp = prefs.whatsapp;
+    } catch (err) {
+      console.warn(
+        "[calculate-standing] getEnabledChannels failed, fail-open:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    if (!sendEmail && !sendSms && !sendWhatsapp) {
+      return;
+    }
+
+    // Session token for the /api/* routes. On the client this is present;
+    // on the server path (service-role caller) it's absent, and we skip
+    // external dispatches rather than hit 401.
+    let accessToken: string | null = null;
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      accessToken = session?.access_token || null;
+    } catch (err) {
+      console.warn(
+        "[calculate-standing] getSession failed:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    if (!accessToken) {
+      console.warn(
+        "[calculate-standing] No session token, skipping external channel dispatch for membership",
+        membershipId,
+      );
+      return;
+    }
+
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
+
+    async function postJson(path: string, payload: Record<string, unknown>) {
+      try {
+        const res = await fetch(`${origin}${path}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.error(
+            `[calculate-standing] ${path} returned ${res.status}:`,
+            text.slice(0, 200),
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[calculate-standing] ${path} fetch error:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+
+    // Email — localized title/body rendered above; notification template
+    // picks locale internally via the `locale` param.
+    if (sendEmail) {
+      postJson("/api/email/send", {
+        to: membership.user_id,
+        template: "notification",
+        data: { title, body, groupName, memberName },
+        locale,
+      });
+    }
+
+    // SMS — sms-templates.ts handles EN/FR internally via `t(locale, en, fr)`.
+    if (sendSms) {
+      postJson("/api/sms/send", {
+        to: membership.user_id,
+        template: "standing-changed",
+        data: { groupName, newStatus: standing },
+        locale,
+      });
+    }
+
+    // WhatsApp — server-side, queue-backed producer (exactly-once per
+    // membership/standing/day). The producer reads the authoritative
+    // standing from the DB and resolves the template variables itself.
+    if (sendWhatsapp) {
+      postJson("/api/members/standing-notifications", {
+        membershipId,
+        locale,
+      });
+    }
+  } catch (err) {
+    console.error(
+      "[calculate-standing] notification block failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
 }

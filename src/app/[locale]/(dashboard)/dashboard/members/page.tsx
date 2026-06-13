@@ -87,7 +87,8 @@ import { createClient } from "@/lib/supabase/client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
-import { calculateStanding } from "@/lib/calculate-standing";
+import { StandingBadge } from "@/components/standing-badge";
+import { useRecalculateStanding } from "@/lib/hooks/use-member-standing";
 import { exportCSV } from "@/lib/export";
 import { logActivity } from "@/lib/audit-log";
 import { useSubscription } from "@/lib/hooks/use-subscription";
@@ -363,9 +364,12 @@ export default function MembersPage() {
   const [removeSaving, setRemoveSaving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
-  // Recalculate all standing state
+  // Recalculate all standing state. Routes through the engine-owned
+  // recalc mutation (explicit, admin-gated action) instead of calling the
+  // engine directly from a component — keeps a single recalc code path.
   const [recalcAllLoading, setRecalcAllLoading] = useState(false);
   const ts = useTranslations("standing");
+  const recalcStanding = useRecalculateStanding();
 
   async function handleRecalculateAll() {
     if (!groupId || !members || recalcAllLoading) return;
@@ -377,7 +381,7 @@ export default function MembersPage() {
       });
       for (let i = 0; i < activeMembers.length; i++) {
         const m = activeMembers[i] as Record<string, unknown>;
-        await calculateStanding(m.id as string, groupId, { updateDb: true });
+        await recalcStanding.mutateAsync({ membershipId: m.id as string, groupId });
         // Small delay to avoid overwhelming Supabase
         if (i < activeMembers.length - 1) {
           await new Promise((r) => setTimeout(r, 50));
@@ -1710,7 +1714,7 @@ export default function MembersPage() {
                     {sortField === "role" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
                   </button>
                 </TableHead>
-                <TableHead className="hidden sm:table-cell">
+                <TableHead>
                   <button
                     onClick={() => handleSort("standing")}
                     className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
@@ -1749,7 +1753,6 @@ export default function MembersPage() {
                 const name = getName(member);
                 const phone = getPhone(member);
                 const isProxy = member.is_proxy as boolean;
-                const standingStyle = standingConfig[standing] || standingConfig.good;
                 const roleStyle = roleConfig[role] || roleConfig.member;
                 const isActive = standing === "good" || standing === "warning";
 
@@ -1782,17 +1785,8 @@ export default function MembersPage() {
                         {role}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${standingStyle.color}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${standingStyle.dotColor}`} />
-                        {t(
-                          `standing${standing.charAt(0).toUpperCase() + standing.slice(1)}` as
-                            | "standingGood"
-                            | "standingWarning"
-                            | "standingSuspended"
-                            | "standingBanned"
-                        )}
-                      </span>
+                    <TableCell>
+                      <StandingBadge standing={standing} size="sm" />
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       {(() => {
@@ -1972,20 +1966,7 @@ export default function MembersPage() {
                         >
                           {role}
                         </Badge>
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${standingStyle.color}`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${standingStyle.dotColor}`}
-                          />
-                          {t(
-                            `standing${standing.charAt(0).toUpperCase() + standing.slice(1)}` as
-                              | "standingGood"
-                              | "standingWarning"
-                              | "standingSuspended"
-                              | "standingBanned"
-                          )}
-                        </span>
+                        <StandingBadge standing={standing} size="sm" />
                       </div>
                       {phone ? (
                         <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">

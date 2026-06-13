@@ -13,6 +13,7 @@ import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StandingBadge } from "@/components/standing-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,8 +36,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
-import { useMemberStandingDetailed } from "@/lib/hooks/use-member-standing";
-import { calculateStanding } from "@/lib/calculate-standing";
+import { useMemberStandingDetailed, useRecalculateStanding } from "@/lib/hooks/use-member-standing";
+import { logActivity } from "@/lib/audit-log";
+import { cn } from "@/lib/utils";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount } from "@/lib/currencies";
@@ -276,6 +278,48 @@ function useMemberFamily(membershipId: string | null) {
   });
 }
 
+interface StandingHistoryRow {
+  id: string;
+  action: string;
+  created_at: string;
+  details: Record<string, unknown> | null;
+}
+
+/**
+ * Recent standing-history rows for this member, read from the group audit
+ * log (read-only). Surfaces both automatic recalculations
+ * (member.standing_changed) and admin overrides (member.standing_overridden,
+ * which carries the override reason). Best-effort: RLS already gates the
+ * audit table to group members, and a query failure simply yields an empty
+ * timeline.
+ */
+function useMemberStandingHistory(membershipId: string | null, groupId: string | null) {
+  return useQuery({
+    queryKey: ["member-standing-history", membershipId, groupId],
+    queryFn: async () => {
+      if (!membershipId || !groupId) return [] as StandingHistoryRow[];
+      const { data, error } = await supabase
+        .from("group_audit_logs")
+        .select("id, action, created_at, details")
+        .eq("group_id", groupId)
+        .eq("entity_id", membershipId)
+        .in("action", [
+          "member.standing_changed",
+          "member.standing_recalculated",
+          "member.standing_overridden",
+        ])
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (error) {
+        console.warn("[member-standing-history] query failed:", error.message);
+        return [] as StandingHistoryRow[];
+      }
+      return (data || []) as StandingHistoryRow[];
+    },
+    enabled: !!membershipId && !!groupId,
+  });
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function MemberDetailPage() {
@@ -330,9 +374,13 @@ export default function MemberDetailPage() {
   const [editStanding, setEditStanding] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Engine-owned recalc mutation (explicit, admin-gated action).
+  const recalcStanding = useRecalculateStanding();
+
   // Data queries
   const { data: member, isLoading: memberLoading, error: memberError } = useMemberDetail(membershipId);
   const { data: standingData, refetch: refetchStanding } = useMemberStandingDetailed(membershipId, groupId, currentGroup?.currency);
+  const { data: standingHistory = [], refetch: refetchHistory } = useMemberStandingHistory(membershipId, groupId);
   const { data: payments = [] } = useMemberPayments(membershipId, groupId);
   const { data: attendances = [] } = useMemberAttendance(membershipId);
   const { data: positions = [] } = useMemberPositions(membershipId);
@@ -414,9 +462,12 @@ export default function MemberDetailPage() {
     if (!membershipId || !groupId) return;
     setRecalculating(true);
     try {
-      await calculateStanding(membershipId, groupId, { updateDb: true });
+      // Explicit admin action — routed through the engine-owned recalc
+      // mutation rather than calling the engine directly from the component.
+      await recalcStanding.mutateAsync({ membershipId, groupId });
       await refetchStanding();
       await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
+      await queryClient.invalidateQueries({ queryKey: ["member-standing-history", membershipId] });
     } finally {
       setRecalculating(false);
     }
@@ -443,13 +494,35 @@ export default function MemberDetailPage() {
   }
 
   async function handleStandingOverride() {
-    if (!newStanding) return;
+    // Reason is required so the override is never silently discarded — the
+    // confirm button is also disabled until this is satisfied.
+    if (!newStanding || !overrideReason.trim() || !groupId) return;
     setActionSaving(true);
     try {
+      const oldStanding = (member?.standing as string) || "good";
+      const overriddenName = member ? getMemberName(member as Record<string, unknown>) : "";
       const { error } = await supabase.from("memberships").update({ standing: newStanding }).eq("id", membershipId);
       if (error) throw error;
+
+      // Persist the override REASON to the member's history. No schema column
+      // exists for it, so it lives in the audit log details. Best-effort —
+      // logActivity never throws. No notification is dispatched here.
+      await logActivity(supabase, {
+        groupId,
+        action: "member.standing_overridden",
+        entityType: "membership",
+        entityId: membershipId,
+        description: `${overriddenName} standing overridden from ${oldStanding} to ${newStanding}`,
+        metadata: { oldStanding, newStanding, reason: overrideReason.trim() },
+      });
+
       await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
       await queryClient.invalidateQueries({ queryKey: ["member-standing", membershipId, groupId] });
+      // The card renders the DETAILED query first, so refresh it too or the
+      // badge + breakdown keep showing the pre-override value.
+      await queryClient.invalidateQueries({ queryKey: ["member-standing-detailed", membershipId, groupId] });
+      await refetchStanding();
+      await refetchHistory();
       setShowStandingDialog(false);
     } catch (err) {
       showError((err as Error).message || t("common.error"));
@@ -706,6 +779,7 @@ export default function MemberDetailPage() {
               )}
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <Badge variant="secondary">{t(`roles.${member.role}` as "roles.admin")}</Badge>
+                <StandingBadge standing={standing} size="sm" />
                 {member.is_proxy && (
                   <Badge variant="outline" className="text-xs">{t("members.proxy")}</Badge>
                 )}
@@ -770,18 +844,88 @@ export default function MemberDetailPage() {
           <CardContent className="p-4">
             <p className="text-xs font-medium text-muted-foreground mb-3">{ts("standingBreakdown")}</p>
             <div className="space-y-2">
-              {standingData.reasons.map((reason, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  {reason.passed ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-red-500 shrink-0" />
-                  )}
-                  <span className={reason.passed ? "text-muted-foreground" : "text-foreground font-medium"}>
-                    {locale === "fr" ? reason.detail_fr : reason.detail_en}
-                  </span>
-                </div>
-              ))}
+              {/* Failed reasons first so the member sees what to fix up top. */}
+              {[...standingData.reasons]
+                .sort((a, b) => Number(a.passed) - Number(b.passed))
+                .map((reason, i) => {
+                  // NOTE: the engine's fixHref points at the MEMBER's own
+                  // self-service pages (/dashboard/my-payments, etc.). Those
+                  // are correct on the member-facing dashboard but would send
+                  // an admin viewing someone else to their OWN records, so the
+                  // "Review" link is intentionally not rendered here — the
+                  // detail text still explains exactly what to fix.
+                  return (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      {reason.passed ? (
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <XCircle className="mt-0.5 h-4 w-4 text-red-500 shrink-0" />
+                      )}
+                      <span
+                        className={cn(
+                          "flex-1 min-w-0",
+                          reason.passed ? "text-muted-foreground" : "text-foreground font-medium",
+                        )}
+                      >
+                        {locale === "fr" ? reason.detail_fr : reason.detail_en}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ═══════════════════════ SECTION 2b: STANDING HISTORY ═══════════════════════ */}
+      {standingHistory.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <History className="h-4 w-4 text-primary" />
+              {ts("standingHistory")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {standingHistory.map((row) => {
+                const details = (row.details || {}) as Record<string, unknown>;
+                const oldS = details.oldStanding as string | undefined;
+                const newS = details.newStanding as string | undefined;
+                const reason = (details.reason as string | undefined)?.trim() || "";
+                const isOverride = row.action === "member.standing_overridden";
+                return (
+                  <div key={row.id} className="flex items-start gap-3 px-4 py-3">
+                    <Shield className={`mt-0.5 h-4 w-4 shrink-0 ${isOverride ? "text-amber-500" : "text-muted-foreground"}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {isOverride ? ts("historyOverridden") : ts("historyRecalculated")}
+                        </span>
+                        {(oldS || newS) && (
+                          <span className="flex items-center gap-1.5">
+                            {oldS && <StandingBadge standing={oldS as "good"} size="sm" />}
+                            {newS && (
+                              <>
+                                <ArrowLeft className="h-3 w-3 rotate-180 text-muted-foreground" />
+                                <StandingBadge standing={newS as "good"} size="sm" />
+                              </>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      {isOverride && reason && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {ts("historyReasonLabel")}: {reason}
+                        </p>
+                      )}
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatDateWithGroupFormat(row.created_at, groupDateFormat, locale)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -1231,13 +1375,22 @@ export default function MemberDetailPage() {
               </SelectContent>
             </Select>
             <div className="space-y-2">
-              <Label>{ts("overrideReason")}</Label>
-              <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder={ts("overrideReason")} rows={2} />
+              <Label>
+                {ts("overrideReason")} <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder={ts("overrideReasonPlaceholder")}
+                rows={2}
+                aria-required="true"
+              />
+              <p className="text-[11px] text-muted-foreground">{ts("overrideSavedNote")}</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowStandingDialog(false)}>{t("common.cancel")}</Button>
-            <Button disabled={actionSaving} onClick={handleStandingOverride}>
+            <Button disabled={actionSaving || !newStanding || !overrideReason.trim()} onClick={handleStandingOverride}>
               {actionSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("common.save")}
             </Button>

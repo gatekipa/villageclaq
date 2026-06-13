@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,18 +16,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ShieldCheck, Loader2, Save, Eye } from "lucide-react";
+import { calculateStanding } from "@/lib/calculate-standing";
 import { useGroup } from "@/lib/group-context";
-import { useGroupSettings } from "@/lib/hooks/use-supabase-query";
+import { useGroupSettings, useContributionTypes } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
 import { usePermissions } from "@/lib/hooks/use-permissions";
-
-type StandingRules = {
-  enabled: boolean;
-  attendance_threshold_percent: number;
-  missed_hosting_threshold: number;
-  overdue_grace_days: number;
-  attendance_lookback_months: number;
-};
+import {
+  resolveStandingRules,
+  serializeStandingRules,
+  STANDING_FACTOR_KEYS,
+  type StandingRules,
+  type StandingFactorKey,
+} from "@/lib/standing-rules";
 
 type PreviewResult = {
   total_members: number;
@@ -35,26 +35,36 @@ type PreviewResult = {
   would_become_warning: number;
   would_become_suspended: number;
   would_change: number;
+  /** Members whose projection could not be computed (excluded from the counts). */
+  failed: number;
 };
 
-const DEFAULT_RULES: StandingRules = {
-  enabled: true,
-  attendance_threshold_percent: 60,
-  missed_hosting_threshold: 2,
-  overdue_grace_days: 0,
-  attendance_lookback_months: 12,
+/**
+ * Which numeric threshold (if any) belongs under each factor. Used to group
+ * the threshold input visually beneath its factor and to grey it out when
+ * the factor is switched off.
+ */
+const FACTOR_THRESHOLD: Partial<Record<StandingFactorKey, "attendance" | "hosting">> = {
+  // Meeting + event attendance share one threshold + lookback; render the
+  // editor once, under meeting attendance.
+  meetingAttendance: "attendance",
+  hosting: "hosting",
 };
 
 export function StandingRulesTab() {
   const t = useTranslations("settings");
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const { groupId } = useGroup();
   const { hasPermission } = usePermissions();
   const canManageSettings = hasPermission("settings.manage");
   const { data: group } = useGroupSettings();
+  const { data: contributionTypes } = useContributionTypes();
 
-  const [rules, setRules] = useState<StandingRules>(DEFAULT_RULES);
-  const [loading, setLoading] = useState(false);
+  const [rules, setRules] = useState<StandingRules>(() =>
+    resolveStandingRules(undefined)
+  );
+  const [loading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -63,28 +73,31 @@ export function StandingRulesTab() {
   const [previewing, setPreviewing] = useState(false);
   const [applying, setApplying] = useState(false);
 
-  // Seed state from group.settings.standing_rules whenever group loads.
+  // Seed the FULL rules (thresholds + factors + exclusions) from
+  // group.settings whenever the group loads. resolveStandingRules defaults
+  // and clamps, so partial/legacy JSONB is handled safely.
   useEffect(() => {
     if (!group) return;
     const g = group as Record<string, unknown>;
-    const settings = (g.settings as Record<string, unknown>) || {};
-    const stored = (settings.standing_rules as Partial<StandingRules>) || {};
-    setRules({
-      enabled: stored.enabled ?? DEFAULT_RULES.enabled,
-      attendance_threshold_percent:
-        Number(stored.attendance_threshold_percent ?? DEFAULT_RULES.attendance_threshold_percent),
-      missed_hosting_threshold:
-        Number(stored.missed_hosting_threshold ?? DEFAULT_RULES.missed_hosting_threshold),
-      overdue_grace_days:
-        Number(stored.overdue_grace_days ?? DEFAULT_RULES.overdue_grace_days),
-      attendance_lookback_months:
-        Number(stored.attendance_lookback_months ?? DEFAULT_RULES.attendance_lookback_months),
-    });
+    setRules(resolveStandingRules(g.settings));
   }, [group]);
 
   function clampInt(n: number, min: number, max: number) {
     if (Number.isNaN(n)) return min;
     return Math.max(min, Math.min(max, Math.floor(n)));
+  }
+
+  function setFactor(key: StandingFactorKey, value: boolean) {
+    setRules((r) => ({ ...r, factors: { ...r.factors, [key]: value } }));
+  }
+
+  function toggleExcluded(typeId: string, excluded: boolean) {
+    setRules((r) => {
+      const set = new Set(r.excludedContributionTypeIds);
+      if (excluded) set.add(typeId);
+      else set.delete(typeId);
+      return { ...r, excludedContributionTypeIds: Array.from(set) };
+    });
   }
 
   async function handlePreview() {
@@ -94,20 +107,58 @@ export function StandingRulesTab() {
     setSuccessMsg(null);
     try {
       const supabase = createClient();
-      const { data, error: rpcErr } = await supabase.rpc("preview_standing_changes", {
-        p_group_id: groupId,
-        p_new_rules: rules,
-      });
-      if (rpcErr) throw rpcErr;
-      setPreview(data as PreviewResult);
+      // Project the CANDIDATE (not-yet-saved) rules with the SAME engine the
+      // member/admin displays use (rulesOverride, updateDb:false). This keeps
+      // the preview accurate even before the server engine is brought to
+      // parity — the previous server preview ignored the factor toggles.
+      const { data: members, error: mErr } = await supabase
+        .from("memberships")
+        .select("id, standing")
+        .eq("group_id", groupId)
+        .eq("is_proxy", false)
+        .in("membership_status", ["active", "pending_approval"]);
+      if (mErr) throw mErr;
+
+      const projected = (
+        await Promise.all(
+          (members || []).map((m) =>
+            calculateStanding(m.id as string, groupId, {
+              updateDb: false,
+              rulesOverride: rules,
+            })
+              .then((res) => ({ current: m.standing as string, next: res.standing as string }))
+              .catch(() => null),
+          ),
+        )
+      ).filter((p): p is { current: string; next: string } => p !== null);
+
+      const result: PreviewResult = {
+        total_members: projected.length,
+        would_become_good: projected.filter((p) => p.next === "good").length,
+        would_become_warning: projected.filter((p) => p.next === "warning").length,
+        would_become_suspended: projected.filter((p) => p.next === "suspended").length,
+        would_change: projected.filter((p) => p.next !== p.current).length,
+        failed: (members || []).length - projected.length,
+      };
+      setPreview(result);
       setShowPreview(true);
-    } catch (e) {
-      setError((e as Error).message || t("standingPreviewError"));
+    } catch {
+      setError(t("standingPreviewError"));
     } finally {
       setPreviewing(false);
     }
   }
 
+  // Save writes the FULL serialized rules directly to groups.settings —
+  // the apply_standing_rules RPC normalizes away unknown keys and would drop
+  // the factor toggles and exclusion list, so we merge + update here instead.
+  // Admins can update their own group's row under RLS.
+  //
+  // The read-merge-write below is last-write-wins on the whole settings blob.
+  // The read happens immediately before the write to keep the window tiny.
+  // Once migration 00101 is applied, switch this to the apply_standing_rules
+  // RPC, which merges only the standing_rules key server-side (atomic, no
+  // cross-tab clobber) AND recalculates persisted standing in one call.
   async function handleApply() {
     if (!groupId || applying) return;
     setApplying(true);
@@ -115,33 +166,47 @@ export function StandingRulesTab() {
     setSuccessMsg(null);
     try {
       const supabase = createClient();
-      const { data, error: rpcErr } = await supabase.rpc("apply_standing_rules", {
-        p_group_id: groupId,
-        p_rules: rules,
-      });
-      if (rpcErr) throw rpcErr;
-      const result = (data as { changed: number; rules: StandingRules }) || { changed: 0, rules };
+
+      // Read the current settings so we only replace the standing_rules key.
+      const { data: current, error: readErr } = await supabase
+        .from("groups")
+        .select("settings")
+        .eq("id", groupId)
+        .single();
+      if (readErr) throw readErr;
+
+      const existingSettings =
+        (current?.settings as Record<string, unknown> | null) ?? {};
+      const nextSettings = {
+        ...existingSettings,
+        standing_rules: serializeStandingRules(rules),
+      };
+
+      const { error: updateErr } = await supabase
+        .from("groups")
+        .update({ settings: nextSettings })
+        .eq("id", groupId);
+      if (updateErr) throw updateErr;
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["group-settings", groupId] }),
         queryClient.invalidateQueries({ queryKey: ["group-settings"] }),
         queryClient.invalidateQueries({ queryKey: ["members", groupId] }),
         queryClient.invalidateQueries({ queryKey: ["member-standing"] }),
       ]);
-      setSuccessMsg(
-        result.changed === 0
-          ? t("standingAppliedNoChange")
-          : t("standingApplied", { changed: result.changed })
-      );
+
+      setSuccessMsg(t("standingSavedImmediate"));
       setShowPreview(false);
       setPreview(null);
-    } catch (e) {
-      setError((e as Error).message || t("standingError"));
+    } catch {
+      setError(t("standingError"));
     } finally {
       setApplying(false);
     }
   }
 
   const disabled = !canManageSettings || loading || applying || previewing;
+  const types = contributionTypes ?? [];
 
   return (
     <>
@@ -170,96 +235,237 @@ export function StandingRulesTab() {
             />
           </div>
 
-          {/* Attendance threshold */}
-          <div className="space-y-2 rounded-lg border p-3">
-            <Label className="text-sm font-medium">{t("standingAttendanceThreshold")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={100}
-                value={rules.attendance_threshold_percent}
-                onChange={(e) =>
-                  setRules((r) => ({
-                    ...r,
-                    attendance_threshold_percent: clampInt(Number(e.target.value), 0, 100),
-                  }))
-                }
-                className="max-w-[100px]"
-                disabled={disabled || !rules.enabled}
-              />
-              <span className="text-sm text-muted-foreground">{t("standingPercent")}</span>
+          {/* ── What affects standing ─────────────────────────────────── */}
+          <div className="space-y-3">
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-semibold">{t("standingFactorsTitle")}</h3>
+              <p className="text-xs text-muted-foreground">{t("standingFactorsDesc")}</p>
             </div>
-            <p className="text-xs text-muted-foreground">{t("standingAttendanceThresholdDesc")}</p>
+
+            {STANDING_FACTOR_KEYS.map((key) => {
+              const factorOn = rules.factors[key];
+              const threshold = FACTOR_THRESHOLD[key];
+              return (
+                <div key={key} className="space-y-3 rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">
+                        {t(`standingFactor_${key}`)}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t(`standingFactor_${key}_desc`)}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={factorOn}
+                      onCheckedChange={(v: boolean) => setFactor(key, v)}
+                      disabled={disabled || !rules.enabled}
+                      aria-label={t(`standingFactor_${key}`)}
+                    />
+                  </div>
+
+                  {/* Attendance threshold + lookback — shared by meeting AND
+                      event attendance; editable when either is on. */}
+                  {threshold === "attendance" && (() => {
+                    const attendanceActive =
+                      rules.factors.meetingAttendance || rules.factors.eventAttendance;
+                    return (
+                    <div
+                      className={`grid gap-3 border-t pt-3 sm:grid-cols-2 ${
+                        !attendanceActive ? "opacity-50" : ""
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">
+                          {t("standingAttendanceThreshold")}
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={rules.attendanceThresholdPercent}
+                            onChange={(e) =>
+                              setRules((r) => ({
+                                ...r,
+                                attendanceThresholdPercent: clampInt(
+                                  Number(e.target.value),
+                                  0,
+                                  100
+                                ),
+                              }))
+                            }
+                            className="max-w-[100px]"
+                            disabled={disabled || !rules.enabled || !attendanceActive}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {t("standingPercent")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium">
+                          {t("standingLookback")}
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={60}
+                            value={rules.attendanceLookbackMonths}
+                            onChange={(e) =>
+                              setRules((r) => ({
+                                ...r,
+                                attendanceLookbackMonths: clampInt(
+                                  Number(e.target.value),
+                                  1,
+                                  60
+                                ),
+                              }))
+                            }
+                            className="max-w-[100px]"
+                            disabled={disabled || !rules.enabled || !attendanceActive}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {t("standingUnitMonths")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })()}
+
+                  {/* Hosting factor → missed-turns threshold */}
+                  {threshold === "hosting" && (
+                    <div
+                      className={`space-y-1.5 border-t pt-3 ${
+                        !factorOn ? "opacity-50" : ""
+                      }`}
+                    >
+                      <Label className="text-xs font-medium">
+                        {t("standingMissedHosting")}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={rules.missedHostingThreshold}
+                          onChange={(e) =>
+                            setRules((r) => ({
+                              ...r,
+                              missedHostingThreshold: clampInt(
+                                Number(e.target.value),
+                                0,
+                                50
+                              ),
+                            }))
+                          }
+                          className="max-w-[100px]"
+                          disabled={disabled || !rules.enabled || !factorOn}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {t("standingUnitTurns")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dues factor → grace-period days */}
+                  {key === "dues" && (
+                    <div
+                      className={`space-y-1.5 border-t pt-3 ${
+                        !factorOn ? "opacity-50" : ""
+                      }`}
+                    >
+                      <Label className="text-xs font-medium">
+                        {t("standingGraceDays")}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={365}
+                          value={rules.overdueGraceDays}
+                          onChange={(e) =>
+                            setRules((r) => ({
+                              ...r,
+                              overdueGraceDays: clampInt(
+                                Number(e.target.value),
+                                0,
+                                365
+                              ),
+                            }))
+                          }
+                          className="max-w-[100px]"
+                          disabled={disabled || !rules.enabled || !factorOn}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {t("standingUnitDays")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* Missed hosting threshold */}
-          <div className="space-y-2 rounded-lg border p-3">
-            <Label className="text-sm font-medium">{t("standingMissedHosting")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={50}
-                value={rules.missed_hosting_threshold}
-                onChange={(e) =>
-                  setRules((r) => ({
-                    ...r,
-                    missed_hosting_threshold: clampInt(Number(e.target.value), 0, 50),
-                  }))
-                }
-                className="max-w-[100px]"
-                disabled={disabled || !rules.enabled}
-              />
-              <span className="text-sm text-muted-foreground">{t("standingUnitTurns")}</span>
+          {/* ── Contributions that don't affect standing ──────────────── */}
+          <div className="space-y-3">
+            <div className="space-y-0.5">
+              <h3 className="text-sm font-semibold">{t("standingExclusionsTitle")}</h3>
+              <p className="text-xs text-muted-foreground">{t("standingExclusionsDesc")}</p>
             </div>
-            <p className="text-xs text-muted-foreground">{t("standingMissedHostingDesc")}</p>
-          </div>
 
-          {/* Grace days */}
-          <div className="space-y-2 rounded-lg border p-3">
-            <Label className="text-sm font-medium">{t("standingGraceDays")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={365}
-                value={rules.overdue_grace_days}
-                onChange={(e) =>
-                  setRules((r) => ({
-                    ...r,
-                    overdue_grace_days: clampInt(Number(e.target.value), 0, 365),
-                  }))
-                }
-                className="max-w-[100px]"
-                disabled={disabled || !rules.enabled}
-              />
-              <span className="text-sm text-muted-foreground">{t("standingUnitDays")}</span>
+            <div
+              className={`space-y-2 rounded-lg border p-3 ${
+                !rules.factors.dues ? "opacity-50" : ""
+              }`}
+            >
+              {!rules.factors.dues && (
+                <p className="text-xs text-muted-foreground">
+                  {t("standingExclusionsDuesOff")}
+                </p>
+              )}
+              {types.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("standingExclusionsEmpty")}
+                </p>
+              ) : (
+                types.map((type) => {
+                  const ct = type as Record<string, unknown>;
+                  const id = ct.id as string;
+                  const name =
+                    locale === "fr" && ct.name_fr
+                      ? (ct.name_fr as string)
+                      : (ct.name as string);
+                  // Switch ON = "affects standing" (the common case);
+                  // toggling OFF adds the type to the exclusion list.
+                  const affects = !rules.excludedContributionTypeIds.includes(id);
+                  return (
+                    <div
+                      key={id}
+                      className="flex items-center justify-between gap-4 py-1"
+                    >
+                      <Label
+                        htmlFor={`exclude-${id}`}
+                        className="text-sm font-normal"
+                      >
+                        {name}
+                      </Label>
+                      <Switch
+                        id={`exclude-${id}`}
+                        checked={affects}
+                        onCheckedChange={(v: boolean) => toggleExcluded(id, !v)}
+                        disabled={disabled || !rules.enabled || !rules.factors.dues}
+                        aria-label={name}
+                      />
+                    </div>
+                  );
+                })
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">{t("standingGraceDaysDesc")}</p>
-          </div>
-
-          {/* Lookback months */}
-          <div className="space-y-2 rounded-lg border p-3">
-            <Label className="text-sm font-medium">{t("standingLookback")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={1}
-                max={60}
-                value={rules.attendance_lookback_months}
-                onChange={(e) =>
-                  setRules((r) => ({
-                    ...r,
-                    attendance_lookback_months: clampInt(Number(e.target.value), 1, 60),
-                  }))
-                }
-                className="max-w-[100px]"
-                disabled={disabled || !rules.enabled}
-              />
-              <span className="text-sm text-muted-foreground">{t("standingUnitMonths")}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">{t("standingLookbackDesc")}</p>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -282,7 +488,7 @@ export function StandingRulesTab() {
         </CardContent>
       </Card>
 
-      {/* Preview confirmation dialog */}
+      {/* Preview + confirm-save dialog */}
       <Dialog open={showPreview} onOpenChange={(o) => !applying && setShowPreview(o)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -314,6 +520,14 @@ export function StandingRulesTab() {
                   </p>
                 </>
               )}
+              {preview.failed > 0 && (
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                  {t("standingPreviewPartial", { count: preview.failed })}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t("standingApplyImmediateNote")}
+              </p>
             </div>
           )}
           <DialogFooter>
@@ -330,7 +544,7 @@ export function StandingRulesTab() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              {t("standingPreviewConfirm")}
+              {t("standingSaveBtn")}
             </Button>
           </DialogFooter>
         </DialogContent>

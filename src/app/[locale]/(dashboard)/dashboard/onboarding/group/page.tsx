@@ -5,7 +5,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { useRouter, usePathname, Link } from "@/i18n/routing";
 import { JoinByCodeDialog } from "@/components/ui/join-by-code-dialog";
 import { createClient } from "@/lib/supabase/client";
-import { getEnabledChannels } from "@/lib/notification-prefs";
 import { useGroup } from "@/lib/group-context";
 import {
   Globe,
@@ -175,6 +174,16 @@ export default function GroupOnboardingPage() {
     { id: 2, type: "email", value: "" },
     { id: 3, type: "email", value: "" },
   ]);
+
+  // Honest invite-delivery outcome shown after the group is created. When any
+  // email send fails (or the invitation rows don't save) we stop on a completion
+  // screen instead of silently navigating away as if every invite was delivered.
+  const [setupOutcome, setSetupOutcome] = useState<{
+    emailSent: number;
+    emailFailed: number;
+    phoneQueued: number;
+    insertFailed: boolean;
+  } | null>(null);
 
   // ─── Pending invitations check (safety net) ────────────────────────────
   const [pendingInviteCount, setPendingInviteCount] = useState(0);
@@ -636,7 +645,12 @@ export default function GroupOnboardingPage() {
       is_active: true,
     });
 
-    // Step 7: Send invitations if provided (non-fatal)
+    // Step 7: Send invitations if provided (non-fatal). Track per-channel
+    // outcomes so the owner is told the TRUTH about what was delivered.
+    let emailSent = 0;
+    let emailFailed = 0;
+    let phoneQueued = 0;
+    let inviteInsertFailed = false;
     const validInvites = invites.filter((i) => i.value.trim());
     if (validInvites.length > 0) {
       const { data: insertedInvites, error: inviteErr } = await supabase.from("invitations").insert(
@@ -650,7 +664,10 @@ export default function GroupOnboardingPage() {
         }))
       ).select("id, phone");
       if (inviteErr) {
-        // Non-fatal — onboarding continues. NEVER log recipient values.
+        // Non-fatal — onboarding continues. NEVER log recipient values. A
+        // single unique-index collision atomically drops the whole batch, so
+        // this is surfaced to the owner on the completion screen below.
+        inviteInsertFailed = true;
         console.warn(
           inviteErr.code === "23505"
             ? "[Onboarding] invitation insert failed (duplicate invite):"
@@ -660,9 +677,10 @@ export default function GroupOnboardingPage() {
         );
       }
 
-      // Phone invitations previously received NOTHING (the email leg below
-      // is email-only). The server-side queue-backed producer sends the
-      // Utility invitation notice, one per invitation per day.
+      // Phone invitations are delivered via the server-side queue-backed
+      // WhatsApp producer (Utility invitation notice). This ENQUEUES the
+      // notice; the actual send happens later in the drain worker, so we
+      // report it honestly as "queued", never "sent".
       try {
         const phoneInvites = (insertedInvites || []).filter((inv) => inv.phone);
         if (phoneInvites.length > 0) {
@@ -672,33 +690,30 @@ export default function GroupOnboardingPage() {
               console.warn("[Onboarding] invitation WhatsApp trigger failed:", err instanceof Error ? err.message : err);
             });
           }
+          phoneQueued = phoneInvites.length;
         }
       } catch (err) {
         console.warn("[Onboarding] invitation WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
       }
 
-      // Send invitation emails for email-based invites (fire-and-forget).
-      // Gated on the insert having succeeded: if zero invitation rows were
-      // created, an email would point the recipient at an empty
-      // my-invitations page (ghost invite).
-      const emailInvites = inviteErr ? [] : validInvites.filter((inv) => inv.type === "email");
+      // Send invitation emails for email-based invites. AWAIT and CHECK each
+      // send so a failure (e.g. Resend unconfigured / domain unverified /
+      // address rejected → HTTP 500) is COUNTED, not silently swallowed as it
+      // was when this was fire-and-forget. Gated only on the insert having
+      // succeeded (a failed insert would otherwise point recipients at an
+      // empty my-invitations page). The owner explicitly typed these
+      // addresses, so per-member channel prefs (which a non-member doesn't
+      // have) never gate them.
+      const emailInvites = inviteInsertFailed ? [] : validInvites.filter((inv) => inv.type === "email");
       if (emailInvites.length > 0) {
+        setSetupProgress(t("progressInvites"));
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
-          let sendEmail = true;
-          try {
-            const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", group.id);
-            sendEmail = prefs.email;
-          } catch (err) {
-            // fail-open
-            console.warn("[Onboarding] channel prefs check failed:", err instanceof Error ? err.message : err);
-          }
-
-          if (sendEmail) {
-            const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
-            const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
-            for (const inv of emailInvites) {
-              fetch("/api/email/send", {
+          const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
+          const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
+          for (const inv of emailInvites) {
+            try {
+              const res = await fetch("/api/email/send", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -710,23 +725,44 @@ export default function GroupOnboardingPage() {
                   data: { groupName, inviterName, acceptUrl },
                   locale,
                 }),
-              }).catch((err) => {
-                // Non-fatal — never log the recipient address.
-                console.warn("[Onboarding] invitation email send failed:", err instanceof Error ? err.message : err);
               });
+              if (res.ok) {
+                emailSent++;
+              } else {
+                emailFailed++;
+                // Never log the recipient address — status only.
+                console.warn("[Onboarding] invitation email send failed:", res.status);
+              }
+            } catch (err) {
+              emailFailed++;
+              console.warn("[Onboarding] invitation email send error:", err instanceof Error ? err.message : err);
             }
           }
+        } else {
+          // No session token to authorize the send — count as failed (honest),
+          // never reported as delivered.
+          emailFailed += emailInvites.length;
+          console.warn("[Onboarding] invitation email skipped: no access token");
         }
       }
     }
 
-    // Success — refresh context and navigate to dashboard.
+    // Group is created — refresh context regardless of invite outcome.
     // FORCE the refresh: a non-forced refresh() no-ops under the provider's
     // 5s cooldown / in-flight guard, so memberships could still be [] when
     // the dashboard guard runs — bouncing the brand-new owner straight back
     // to onboarding with the wizard state reset.
     setSetupProgress(t("progressDone"));
     await refresh(true);
+
+    // If every channel went out cleanly, go straight to the dashboard. If any
+    // EMAIL failed or the invitation rows didn't save, stop on an honest
+    // completion screen rather than pretending all invites were delivered.
+    if (emailFailed > 0 || inviteInsertFailed) {
+      setSetupOutcome({ emailSent, emailFailed, phoneQueued, insertFailed: inviteInsertFailed });
+      setIsSubmitting(false);
+      return;
+    }
     router.push("/dashboard");
     setIsSubmitting(false);
   }
@@ -817,6 +853,58 @@ export default function GroupOnboardingPage() {
   ];
 
   /* ═══════════════════════════════════ RENDER ═══════════════════════════════════ */
+
+  // Honest post-creation completion screen. Shown only when some invites did
+  // not go out cleanly (email failed or the rows didn't save) — the group
+  // itself is already created, so this never blocks the owner from continuing.
+  if (setupOutcome) {
+    const { emailSent, emailFailed, phoneQueued, insertFailed } = setupOutcome;
+    return (
+      <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-4 py-8">
+        <img src="/logo-mark.svg" className="mb-6 h-12 w-12" alt="" />
+        <div className="w-full rounded-xl border bg-card p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+            <Check className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h2 className="text-xl font-semibold">{t("setupCompleteTitle")}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t("setupCompleteGroupCreated")}</p>
+
+          <div className="mt-5 space-y-2 text-left text-sm">
+            {emailSent > 0 && (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                {t("inviteEmailSentCount", { count: emailSent })}
+              </p>
+            )}
+            {phoneQueued > 0 && (
+              <p className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300">
+                {t("inviteWhatsappQueuedCount", { count: phoneQueued })}
+              </p>
+            )}
+            {emailFailed > 0 && (
+              <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                {t("inviteEmailFailedCount", { count: emailFailed })}
+              </p>
+            )}
+            {insertFailed && (
+              <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                {t("inviteSaveFailed")}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">{t("inviteResendHint")}</p>
+          </div>
+
+          <Button
+            size="lg"
+            className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+            onClick={() => router.push("/dashboard")}
+          >
+            {t("continueToDashboard")}
+            <ArrowRight className="size-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col items-center px-4 py-8 sm:py-12">
@@ -1372,6 +1460,10 @@ export default function GroupOnboardingPage() {
                 {t("addAnother")}
               </Button>
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              {t("invitePhoneWhatsappNote")}
+            </p>
 
             <button
               type="button"

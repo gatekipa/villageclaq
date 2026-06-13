@@ -1,10 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CheckCircle2, Circle, Rocket, ChevronRight } from "lucide-react";
+import { CheckCircle2, Circle, Rocket, ChevronRight, ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LaunchReadiness } from "@/lib/launch-readiness";
 
@@ -15,7 +16,16 @@ import type { LaunchReadiness } from "@/lib/launch-readiness";
  *
  * All copy lives under dashboard.launch.* in messages/{en,fr}.json (rule 1).
  */
-export function LaunchChecklist({ readiness, className }: { readiness: LaunchReadiness; className?: string }) {
+export function LaunchChecklist({
+  readiness,
+  className,
+  centerHref,
+}: {
+  readiness: LaunchReadiness;
+  className?: string;
+  /** When set, a footer link points to the full Launch Command Center page. */
+  centerHref?: string;
+}) {
   const t = useTranslations("dashboard.launch");
   const pct = Math.round((readiness.doneCount / readiness.totalCount) * 100);
 
@@ -94,6 +104,19 @@ export function LaunchChecklist({ readiness, className }: { readiness: LaunchRea
             );
           })}
         </ul>
+        {centerHref && (
+          <Link
+            href={centerHref}
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "mt-3 w-full gap-1.5",
+            })}
+          >
+            {t("openCenter")}
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        )}
       </CardContent>
     </Card>
   );

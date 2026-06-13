@@ -40,6 +40,7 @@ import {
   KeyRound,
   Landmark,
   Gavel,
+  Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -72,6 +73,10 @@ const adminSections: NavSection[] = [
     labelKey: "sectionOverview",
     items: [
       { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
+      // Owner/admin activation tool. Lives in adminSections (admin-only nav)
+      // and the page itself gates on isAdmin — no per-permission annotation,
+      // matching its dashboard/feed siblings.
+      { key: "launchCenter", href: "/dashboard/launch", icon: Rocket },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
     ],
   },

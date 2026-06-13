@@ -58,6 +58,7 @@ import {
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getMemberName } from "@/lib/get-member-name";
+import { SendReviewNotice } from "@/components/send-review-notice";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
@@ -665,6 +666,11 @@ export default function InvitationsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Pre-send review notice — honest summary of what creating an
+          invitation actually does, read before the first send. Purely
+          informational; no behavior change. */}
+      <SendReviewNotice context="invitations" variant="full" />
 
       {/* Invite by Email */}
       <Card>

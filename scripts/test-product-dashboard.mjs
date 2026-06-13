@@ -28,7 +28,7 @@ const dig = (obj, dotted) => dotted.split(".").reduce((o, k) => (o ? o[k] : unde
 test("dashboard renders LaunchChecklist fed by computeLaunchReadiness, admin-gated", () => {
   assert.match(page, /import \{ LaunchChecklist \} from "@\/components\/launch-checklist"/);
   assert.match(page, /import \{ computeLaunchReadiness \} from "@\/lib\/launch-readiness"/);
-  assert.match(page, /\{isAdmin && launchReadiness && \(\s*<LaunchChecklist readiness=\{launchReadiness\} \/>/);
+  assert.match(page, /\{isAdmin && launchReadiness && \(\s*<LaunchChecklist readiness=\{launchReadiness\} centerHref="\/dashboard\/launch" \/>/);
   // Non-admins never compute (and therefore never render) the checklist.
   assert.match(page, /if \(!isAdmin\) return null;\s*\n\s*return computeLaunchReadiness\(/);
 });

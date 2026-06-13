@@ -99,7 +99,11 @@
     "standing": "Standing",
     "role": "Role",
     "notes": "Notes",
-    "never": "Never"
+    "never": "Never",
+    "errorTitle": "Something went wrong",
+    "errorDesc": "We could not load this data. Please try again.",
+    "retry": "Try again",
+    "sending": "Sending…"
   },
   "join": {
     "enterCode": "Enter join code",
@@ -228,7 +232,9 @@
     "subGroups": "Sub-Groups",
     "constitution": "Constitution",
     "reliefRollup": "Relief Rollup",
-    "remittances": "Remittances"
+    "remittances": "Remittances",
+    "badgeStarter": "Starter",
+    "badgePro": "Pro"
   },
   "cookies": {
     "title": "Cookie Settings",
@@ -564,7 +570,33 @@
       "message": "Add your phone number to receive SMS and WhatsApp notifications",
       "addPhone": "Add Phone",
       "dismiss": "Dismiss"
-    }
+    },
+    "launch": {
+      "title": "Launch readiness",
+      "readyBadge": "Ready to launch",
+      "progressBadge": "{done} of {total} complete",
+      "readyDesc": "Your group is fully set up. Everything members need is in place.",
+      "inProgressDesc": "Finish these steps to get your group ready for members.",
+      "itemCta": "Set up: {item}",
+      "items": {
+        "groupProfile": "Complete your group profile",
+        "adminContact": "Add your contact phone",
+        "inviteMembers": "Invite your first members",
+        "firstMemberAccepted": "First member joined",
+        "duesConfigured": "Set up dues or contributions",
+        "firstEvent": "Create your first event or meeting",
+        "remindersReady": "Reminders run automatically — nothing to configure"
+      }
+    },
+    "collectionRateLabel": "Overall collection rate",
+    "upcomingEventsLabel": "Upcoming events",
+    "allCaughtUp": "All caught up — no outstanding dues.",
+    "needsAttention": "Needs attention",
+    "pendingApprovalsCount": "{count, plural, one {# member awaiting approval} other {# members awaiting approval}}",
+    "pendingInvitationsCount": "{count, plural, one {# invitation awaiting response} other {# invitations awaiting response}}",
+    "reviewApprovals": "Review requests",
+    "viewInvitations": "View invitations",
+    "writeMinutes": "Write minutes"
   },
   "groups": {
     "switchGroup": "Switch Group",
@@ -1261,7 +1293,21 @@
     "closePeriodSuccess": "Period closed successfully.",
     "reopenPeriodSuccess": "Period reopened successfully.",
     "viewReceipt": "View Receipt",
-    "noReceipt": "No receipt attached"
+    "noReceipt": "No receipt attached",
+    "backToContributions": "Back to Contributions",
+    "bulkResultSummary": "{recorded} recorded, {skipped} duplicates skipped, {failed} failed",
+    "contribution": "Contribution",
+    "deleteTypeConfirmCascade": "This will permanently delete this contribution type and all of its obligations (including who-owes records). Payment history is kept, but will no longer be linked to this type. This cannot be undone. Are you sure?",
+    "deleteTypeFailed": "Failed to delete this contribution type. Please try again.",
+    "enrollAllSuccess": "{count} member(s) enrolled successfully",
+    "legendWaived": "Waived",
+    "noReference": "No reference",
+    "proxyReminderUnavailable": "Proxy members don't have accounts and can't receive in-app reminders.",
+    "receiptOpenFailed": "Could not open the receipt. Please try again.",
+    "receiptUploadFailed": "Receipt upload failed. Please try again.",
+    "remindersEligibleNote": "Will notify {eligible} of {total} members.",
+    "remindersSendFailed": "Failed to send reminders. Please try again.",
+    "reopenPeriodDesc": "Reopening this period will allow new payments to be recorded again. Existing records are not affected."
   },
   "finances": {
     "title": "Financial Dashboard",
@@ -1358,7 +1404,18 @@
     "shareEmailBody": "You've been invited to join {group} on VillageClaq.\n\nClick this link to join: {link}\n\nOr use join code: {code}",
     "shareSmsText": "Join {group} on VillageClaq: {link}",
     "printInvite": "Print Invite",
-    "emailSendFailed": "Invitation created but email could not be sent. The recipient can still accept via their dashboard."
+    "emailSendFailed": "Invitation created but email could not be sent. The recipient can still accept via their dashboard.",
+    "allInvitations": "Invitations",
+    "invalidEmail": "Enter a valid email address.",
+    "sendFailed": "Could not send the invitation. Please try again.",
+    "savedEmailFailed": "Invitation saved, but the email could not be sent. Use Resend to try again.",
+    "inviteResent": "Invitation resent.",
+    "revokeConfirmTitle": "Revoke this invitation?",
+    "revokeConfirmDesc": "The invitation to {contact} will no longer be acceptable. You can send a new invitation later if needed.",
+    "regenerateConfirmTitle": "Generate a new join code?",
+    "regenerateConfirmDesc": "The current code will stop working immediately. Anyone using the old code or link will need the new one.",
+    "noJoinCode": "No active join code",
+    "noJoinCodeDesc": "Generate a join code so people can join this group with a code, link, or QR code."
   },
   "events": {
     "title": "Events",
@@ -1447,7 +1504,13 @@
     "searchEventsPlaceholder": "Search events...",
     "eventCancelledNotifTitle": "Event Cancelled",
     "eventCancelledNotifBody": "The event \"{title}\" has been cancelled",
-    "attendance": "Attendance"
+    "attendance": "Attendance",
+    "reminderHint": "Members are reminded automatically by email, SMS and WhatsApp within 48 hours of the start time — nothing to configure.",
+    "reminderSent": "Reminder sent",
+    "locationHint": "If left blank, reminders will say “Location to be announced”.",
+    "actionFailed": "Something went wrong. Please try again.",
+    "noEventsMemberDesc": "No upcoming events yet — check back soon or watch for announcements.",
+    "recurringHintManual": "Marks this as a repeating event — use Repeat Last Meeting to schedule the next occurrence."
   },
   "attendance": {
     "title": "Attendance",
@@ -2291,7 +2354,11 @@
     "pendingConfirmation": "Pending",
     "rejected": "Rejected",
     "viewReceipt": "View Receipt",
-    "noSelfServiceHint": "Online payment is not yet set up for this group. Please contact your treasurer to make a payment or ask them to enable self-service payment methods."
+    "noSelfServiceHint": "Online payment is not yet set up for this group. Please contact your treasurer to make a payment or ask them to enable self-service payment methods.",
+    "dismiss": "Dismiss",
+    "online": "Online",
+    "other": "Other",
+    "receiptOpenFailed": "Could not open the receipt. Please try again."
   },
   "payNow": {
     "dialogTitle": "Pay Now",
@@ -2332,7 +2399,8 @@
     "adminNotifTitle": "Payment submitted for confirmation",
     "adminNotifBody": "A member submitted a {method} payment of {amount} for {type}. Please confirm.",
     "paymentSubmittedTitle": "Payment submitted",
-    "paymentSubmittedBody": "Your {type} payment of {amount} has been submitted and is pending confirmation."
+    "paymentSubmittedBody": "Your {type} payment of {amount} has been submitted and is pending confirmation.",
+    "uploadFailed": "Receipt upload failed. Please check your connection and try again."
   },
   "myAttendance": {
     "title": "My Attendance",
@@ -2437,7 +2505,12 @@
     "alreadyClaimed": "This profile has already been claimed.",
     "alreadyMember": "You already have a membership in this group.",
     "emailMismatch": "This invitation was sent to a different email address. Please log in with the email the invitation was sent to.",
-    "invitationExpired": "This invitation has expired. Ask the group admin to send a new one."
+    "invitationExpired": "This invitation has expired. Ask the group admin to send a new one.",
+    "invitedBy": "Invited by {name}",
+    "acceptExplainer": "Accepting adds you to this group as a member.",
+    "declineExplainer": "Declining removes this invitation. The group admin can invite you again.",
+    "goToDashboard": "Go to dashboard",
+    "revoked": "Revoked"
   },
   "myHosting": {
     "title": "My Hosting",
@@ -4604,8 +4677,11 @@
       "continue": "Continue",
       "skip": "Skip for now",
       "invalid": "Please enter a valid phone number",
-      "saving": "Saving..."
-    }
+      "saving": "Saving...",
+      "saveFailed": "We could not save your phone number. Please try again."
+    },
+    "profileSaveFailed": "We could not save your profile. Check your connection and try again.",
+    "stepProgress": "Step {n} of {total} — {label}"
   },
   "forgotPassword": {
     "title": "Forgot Password",

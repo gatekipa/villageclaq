@@ -29,7 +29,6 @@ import {
   FileText,
   CheckCircle2,
   ListChecks,
-  Rocket,
   Mail,
   UserRoundPlus,
   Activity,
@@ -49,25 +48,135 @@ import {
   usePayments,
   useEvents,
   useMeetingMinutes,
+  useContributionTypes,
 } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { DashboardSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
+import { LaunchChecklist } from "@/components/launch-checklist";
+import { computeLaunchReadiness } from "@/lib/launch-readiness";
+
+/** Safely read the shown-milestones list from localStorage (rule: no bare
+ *  JSON.parse over user-writable storage — a corrupted value must never
+ *  crash the dashboard). */
+function readShownMilestones(storageKey: string): string[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn("[Dashboard] milestone storage parse failed:", err);
+    return [];
+  }
+}
 
 export default function DashboardPage() {
   const locale = useLocale();
   const t = useTranslations();
   const router = useRouter();
-  const { currentGroup, user, isAdmin } = useGroup();
+  const { currentGroup, user, isAdmin, groupId } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);
   const { data: events, isLoading: eventsLoading } = useEvents();
   const { data: minutes, isLoading: minutesLoading } = useMeetingMinutes();
+  const { data: contributionTypes } = useContributionTypes();
 
-  const isLoading = statsLoading || paymentsLoading || eventsLoading || minutesLoading;
+  // ─── Roster-aligned member counts (all users) ──────────────────────────
+  // useDashboardStats counts every membership row including ones awaiting
+  // approval; the roster (members page) hides pending_approval. Cheap head
+  // counts keep the headline stat honest and power the needs-attention card.
+  const { data: memberCounts, isLoading: memberCountsLoading } = useQuery({
+    queryKey: ["dashboard-member-counts", groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
+      const supabase = createClient();
+      const [rosterRes, activeRes, pendingRes] = await Promise.all([
+        supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId).neq("membership_status", "pending_approval"),
+        // Real (non-proxy) active members — proxies are admin-created and
+        // must not mark "first member joined" done by themselves.
+        supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId).eq("membership_status", "active").eq("is_proxy", false),
+        supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId).eq("membership_status", "pending_approval"),
+      ]);
+      // THROW on failure so React Query reports an error and the render
+      // falls back to stats.totalMembers — coercing to 0 would show
+      // "0 members" on a populated group and re-surface the invite nag.
+      for (const res of [rosterRes, activeRes, pendingRes]) {
+        if (res.error) {
+          console.warn("[Dashboard] member count query failed:", res.error.message);
+          throw res.error;
+        }
+      }
+      return {
+        rosterCount: rosterRes.count ?? 0,
+        activeCount: activeRes.count ?? 0,
+        pendingApprovals: pendingRes.count ?? 0,
+      };
+    },
+    enabled: !!groupId,
+    staleTime: 60_000,
+  });
+
+  // ─── Launch-readiness counts (admins only) ─────────────────────────────
+  const { data: launchCounts, isLoading: launchCountsLoading } = useQuery({
+    queryKey: ["dashboard-launch-counts", groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
+      const supabase = createClient();
+      // "Awaiting response" must exclude pending rows that have already
+      // expired — the invitations page renders those as Expired with no
+      // actions, and the accept RPC rejects them.
+      const nowIso = new Date().toISOString();
+      const [invitationsRes, pendingInvitesRes, eventsRes] = await Promise.all([
+        supabase.from("invitations").select("id", { count: "exact", head: true }).eq("group_id", groupId),
+        supabase.from("invitations").select("id", { count: "exact", head: true }).eq("group_id", groupId).eq("status", "pending").or(`expires_at.is.null,expires_at.gt.${nowIso}`),
+        supabase.from("events").select("id", { count: "exact", head: true }).eq("group_id", groupId),
+      ]);
+      // THROW on failure (see member-counts note above).
+      for (const res of [invitationsRes, pendingInvitesRes, eventsRes]) {
+        if (res.error) {
+          console.warn("[Dashboard] launch count query failed:", res.error.message);
+          throw res.error;
+        }
+      }
+      return {
+        invitationCount: invitationsRes.count ?? 0,
+        pendingInvitations: pendingInvitesRes.count ?? 0,
+        eventCount: eventsRes.count ?? 0,
+      };
+    },
+    enabled: !!groupId && isAdmin,
+    staleTime: 60_000,
+  });
+
+  const isLoading = statsLoading || paymentsLoading || eventsLoading || minutesLoading || memberCountsLoading || launchCountsLoading;
+
+  // Extract primitives before using them in memo deps (rule 9: no raw
+  // objects in dependency arrays).
+  const rosterCount = memberCounts?.rosterCount;
+  const activeCount = memberCounts?.activeCount ?? 0;
+  const pendingApprovals = memberCounts?.pendingApprovals ?? 0;
+  const invitationCount = launchCounts?.invitationCount ?? 0;
+  const pendingInvitations = launchCounts?.pendingInvitations ?? 0;
+  const eventCount = launchCounts?.eventCount ?? 0;
+  const contributionTypeCount = contributionTypes?.length ?? 0;
+  const groupProfileComplete = !!(currentGroup?.name && currentGroup?.currency);
+  // Boolean presence check only — the phone value itself is never rendered
+  // or logged (rule 11: no raw contact values in UI or console).
+  const adminContactReady = !!user?.phone;
+
+  const launchReadiness = useMemo(() => {
+    if (!isAdmin) return null;
+    return computeLaunchReadiness({
+      groupProfileComplete,
+      adminContactReady,
+      invitationCount,
+      acceptedMemberCount: Math.max(0, activeCount - 1),
+      contributionTypeCount,
+      eventCount,
+    });
+  }, [isAdmin, groupProfileComplete, adminContactReady, invitationCount, activeCount, contributionTypeCount, eventCount]);
 
   const groupCurrency = currentGroup?.currency || "XAF";
   const formatCurrency = useMemo(() => {
@@ -77,7 +186,12 @@ export default function DashboardPage() {
   const nextEvent = useMemo(() => {
     if (!events || events.length === 0) return null;
     const now = new Date().toISOString();
-    return events.find((e: Record<string, unknown>) => (e.starts_at as string) > now) || null;
+    // useEvents orders starts_at DESC, so find() would return the
+    // FURTHEST-future event — pick the soonest upcoming one instead.
+    const upcoming = events.filter((e: Record<string, unknown>) => (e.starts_at as string) > now);
+    if (upcoming.length === 0) return null;
+    return upcoming.reduce((soonest: Record<string, unknown>, e: Record<string, unknown>) =>
+      (e.starts_at as string) < (soonest.starts_at as string) ? e : soonest);
   }, [events]);
 
   const latestMinutes = useMemo(() => {
@@ -117,7 +231,7 @@ export default function DashboardPage() {
     }
     setInviteDismissed(true);
   }, [currentGroup?.id]);
-  const showInviteCta = isAdmin && !inviteDismissed && (stats?.totalMembers ?? 0) < 5;
+  const showInviteCta = isAdmin && !inviteDismissed && (rosterCount ?? stats?.totalMembers ?? 0) < 5;
 
   // ─── Milestone detection ──────────────────────────────────────────────
   const [milestone, setMilestone] = useState<{ key: string; title: string; desc: string } | null>(null);
@@ -125,7 +239,7 @@ export default function DashboardPage() {
     if (!stats || !currentGroup) return;
     const groupId = currentGroup.id;
     const shownKey = `vc_milestones_shown_${groupId}`;
-    const shown: string[] = JSON.parse(localStorage.getItem(shownKey) || "[]");
+    const shown = readShownMilestones(shownKey);
 
     const memberCount = stats.totalMembers ?? 0;
     const collectionRate = stats.collectionRate ?? 0;
@@ -162,7 +276,7 @@ export default function DashboardPage() {
   const dismissMilestone = useCallback(() => {
     if (!milestone || !currentGroup) return;
     const shownKey = `vc_milestones_shown_${currentGroup.id}`;
-    const shown: string[] = JSON.parse(localStorage.getItem(shownKey) || "[]");
+    const shown = readShownMilestones(shownKey);
     shown.push(milestone.key);
     localStorage.setItem(shownKey, JSON.stringify(shown));
     setMilestone(null);
@@ -179,9 +293,11 @@ export default function DashboardPage() {
     return <DashboardSkeleton />;
   }
 
-  // Show error state
+  // Show error state — never surface raw query/Postgres text in the UI;
+  // ErrorState falls back to the localized common.errorDesc copy.
   if (statsError) {
-    return <ErrorState message={(statsError as Error).message} onRetry={() => refetchStats()} />;
+    console.warn("[Dashboard] stats query failed:", statsError);
+    return <ErrorState onRetry={() => refetchStats()} />;
   }
 
   // Empty state for brand-new groups
@@ -192,13 +308,7 @@ export default function DashboardPage() {
     stats.collectionRate === 0 &&
     (!payments || payments.length === 0);
 
-  const onboardingTasks = isNewGroup ? [
-    { key: "createGroup", done: true, icon: CheckCircle2, href: "" },
-    { key: "addMember", done: (stats?.totalMembers ?? 0) > 1, icon: UserPlus, href: "/dashboard/invitations" },
-    { key: "createContribution", done: false, icon: CreditCard, href: "/dashboard/contributions" },
-    { key: "scheduleEvent", done: (stats?.upcomingEvents ?? 0) > 0, icon: CalendarPlus, href: "/dashboard/events" },
-    { key: "recordPayment", done: (payments && payments.length > 0), icon: HandCoins, href: "/dashboard/contributions/record" },
-  ] : null;
+  const outstanding = stats?.outstanding ?? 0;
 
   return (
     <div className="space-y-8">
@@ -213,38 +323,49 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Getting Started Checklist (for new groups) */}
-      {onboardingTasks && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ListChecks className="h-5 w-5 text-primary" />
-              {t("onboarding.gettingStarted")}
+      {/* Launch readiness (admins) — supersedes the old Getting Started list */}
+      {isAdmin && launchReadiness && (
+        <LaunchChecklist readiness={launchReadiness} />
+      )}
+
+      {/* Needs attention (admins) — pending approvals + unanswered invitations */}
+      {isAdmin && (pendingApprovals > 0 || pendingInvitations > 0) && (
+        <Card className="border-amber-300/60 bg-amber-50/50 dark:border-amber-800/60 dark:bg-amber-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              {t("dashboard.needsAttention")}
             </CardTitle>
-            <p className="text-base text-muted-foreground">{t("onboarding.gettingStartedSubtitle")}</p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {onboardingTasks.map((task) => (
-              <div key={task.key} className="flex items-center gap-3 rounded-lg border bg-card p-3">
-                {task.done ? (
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
-                ) : (
-                  <div className="h-5 w-5 shrink-0 rounded-full border-2 border-muted-foreground/30" />
-                )}
-                <span className={task.done ? "flex-1 text-base line-through text-muted-foreground" : "flex-1 text-base font-medium"}>
-                  {t(`onboarding.task${task.key.charAt(0).toUpperCase() + task.key.slice(1)}` as Parameters<typeof t>[0])}
+            {pendingApprovals > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  {t("dashboard.pendingApprovalsCount", { count: pendingApprovals })}
                 </span>
-                {task.done ? (
-                  <Badge variant="secondary" className="text-xs">{t("onboarding.taskCreateGroupDone")}</Badge>
-                ) : task.href ? (
-                  <Link href={task.href}>
-                    <Button size="sm" variant="outline" className="gap-1">
-                      <ArrowRight className="h-3 w-3" />
-                    </Button>
-                  </Link>
-                ) : null}
+                <Link href="/dashboard/members">
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    {t("dashboard.reviewApprovals")}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
               </div>
-            ))}
+            )}
+            {pendingInvitations > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  {t("dashboard.pendingInvitationsCount", { count: pendingInvitations })}
+                </span>
+                <Link href="/dashboard/invitations">
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    {t("dashboard.viewInvitations")}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -314,7 +435,8 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold">{stats?.totalMembers ?? 0}</div>
+              {/* Roster-aligned: excludes members still awaiting approval */}
+              <div className="text-4xl font-bold">{rosterCount ?? stats?.totalMembers ?? 0}</div>
             </CardContent>
           </Card>
         </Link>
@@ -330,7 +452,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-4xl font-bold">{stats?.collectionRate ?? 0}%</div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {t("dashboard.paidThisMonth")}
+                {t("dashboard.collectionRateLabel")}
               </p>
               <div className="mt-2 h-2 rounded-full bg-muted">
                 <div
@@ -353,26 +475,30 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-4xl font-bold">{stats?.upcomingEvents ?? 0}</div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {t("dashboard.eventsThisMonth")}
+                {t("dashboard.upcomingEventsLabel")}
               </p>
             </CardContent>
           </Card>
         </Link>
 
         <Link href="/dashboard/contributions/unpaid" aria-label={t("dashboard.viewOutstandingCard")}>
-          <Card className={cn("cursor-pointer transition-all hover:shadow-md hover:border-primary/30", (stats?.outstanding ?? 0) > 0 && "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20 hover:border-destructive/50")}>
+          <Card className={cn("cursor-pointer transition-all hover:shadow-md hover:border-primary/30", outstanding > 0 && "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20 hover:border-destructive/50")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base font-medium text-muted-foreground">
                 {t("dashboard.outstandingBalance")}
               </CardTitle>
-              <AlertCircle className="h-5 w-5 text-destructive" />
+              {outstanding > 0 ? (
+                <AlertCircle className="h-5 w-5 text-destructive" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+              )}
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-destructive">
-                {formatCurrency(stats?.outstanding ?? 0)}
+              <div className={cn("text-4xl font-bold", outstanding > 0 ? "text-destructive" : "text-foreground")}>
+                {formatCurrency(outstanding)}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {t("dashboard.overdue")}
+                {outstanding > 0 ? t("dashboard.overdue") : t("dashboard.allCaughtUp")}
               </p>
             </CardContent>
           </Card>
@@ -388,11 +514,12 @@ export default function DashboardPage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <DropdownMenu>
-                <DropdownMenuTrigger className="w-full">
-                  <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
-                    <UserPlus className="h-5 w-5 text-primary" />
-                    <span className="text-sm">{t("dashboard.addMember")}</span>
-                  </Button>
+                {/* Base UI composition: render the trigger AS the Button so we
+                    never nest a <button> inside the trigger's own <button>
+                    (this codebase's equivalent of Radix asChild). */}
+                <DropdownMenuTrigger render={<Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md" />}>
+                  <UserPlus className="h-5 w-5 text-primary" />
+                  <span className="text-sm">{t("dashboard.addMember")}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                   <DropdownMenuItem onClick={() => router.push("/dashboard/invitations")}>
@@ -408,19 +535,19 @@ export default function DashboardPage() {
               <Link href="/dashboard/contributions/record">
                 <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
                   <CreditCard className="h-5 w-5 text-primary" />
-                  <span className="text-xs">{t("dashboard.recordPayment")}</span>
+                  <span className="text-sm">{t("dashboard.recordPayment")}</span>
                 </Button>
               </Link>
               <Link href="/dashboard/events">
                 <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
                   <CalendarPlus className="h-5 w-5 text-primary" />
-                  <span className="text-xs">{t("dashboard.scheduleEvent")}</span>
+                  <span className="text-sm">{t("dashboard.scheduleEvent")}</span>
                 </Button>
               </Link>
               <Link href="/dashboard/announcements">
                 <Button variant="outline" className="h-auto w-full flex-col gap-2 py-5 transition-shadow hover:shadow-md">
                   <Megaphone className="h-5 w-5 text-primary" />
-                  <span className="text-xs">{t("dashboard.sendAnnouncement")}</span>
+                  <span className="text-sm">{t("dashboard.sendAnnouncement")}</span>
                 </Button>
               </Link>
             </div>
@@ -454,7 +581,9 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-base">
-                    {(nextEvent.title as string) || (nextEvent.title_fr as string)}
+                    {locale === "fr"
+                      ? ((nextEvent.title_fr as string) || (nextEvent.title as string))
+                      : (nextEvent.title as string)}
                   </p>
                   {/* QA #682: show full date+time so the upcoming-event
                       widget never hides when the meeting is. */}
@@ -464,7 +593,17 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-base text-muted-foreground">{t("dashboard.noUpcomingEvents")}</p>
+              <div className="space-y-3">
+                <p className="text-base text-muted-foreground">{t("dashboard.noUpcomingEvents")}</p>
+                {isAdmin && (
+                  <Link href="/dashboard/events">
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <CalendarPlus className="h-3.5 w-3.5" />
+                      {t("dashboard.scheduleEvent")}
+                    </Button>
+                  </Link>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -517,7 +656,17 @@ export default function DashboardPage() {
                 )}
               </div>
             ) : (
-              <p className="text-base text-muted-foreground">{t("dashboard.noRecentMinutes")}</p>
+              <div className="space-y-3">
+                <p className="text-base text-muted-foreground">{t("dashboard.noRecentMinutes")}</p>
+                {isAdmin && (
+                  <Link href="/dashboard/minutes">
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <FileText className="h-3.5 w-3.5" />
+                      {t("dashboard.writeMinutes")}
+                    </Button>
+                  </Link>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -572,7 +721,17 @@ export default function DashboardPage() {
               })}
             </div>
           ) : (
-            <p className="text-base text-muted-foreground">{t("dashboard.noRecentPayments")}</p>
+            <div className="space-y-3">
+              <p className="text-base text-muted-foreground">{t("dashboard.noRecentPayments")}</p>
+              {isAdmin && (
+                <Link href="/dashboard/contributions/record">
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    {t("dashboard.recordPayment")}
+                  </Button>
+                </Link>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

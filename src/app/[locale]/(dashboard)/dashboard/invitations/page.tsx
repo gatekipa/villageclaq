@@ -56,6 +56,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { RequirePermission } from "@/components/ui/permission-gate";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { getMemberName } from "@/lib/get-member-name";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
@@ -64,6 +66,22 @@ const statusStyles: Record<string, string> = {
   expired: "bg-muted text-muted-foreground",
   revoked: "bg-red-500/10 text-red-700 dark:text-red-400",
 };
+
+// Same validation the bulk-invite path uses (members/page.tsx bulk import).
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Privacy: the invitation list never renders a full email — first char + domain only. */
+function maskEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at <= 0) return "***";
+  return `${email.slice(0, 1)}***${email.slice(at)}`;
+}
+
+/** Privacy: the invitation list never renders a full phone — last 3 digits only. */
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D+/g, "");
+  return `***${digits.slice(-3)}`;
+}
 
 export default function InvitationsPage() {
   const t = useTranslations();
@@ -86,6 +104,8 @@ export default function InvitationsPage() {
     refetch: refetchCodes,
   } = useJoinCodes();
 
+  const confirm = useConfirmDialog();
+
   const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -94,8 +114,11 @@ export default function InvitationsPage() {
   const [sending, setSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  // Row inserted but the email did not go out — one honest amber notice.
+  const [sendWarning, setSendWarning] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendFeedback, setResendFeedback] = useState<{ id: string; ok: boolean } | null>(null);
 
   function copyCode(text: string) {
     navigator.clipboard.writeText(text);
@@ -213,13 +236,27 @@ export default function InvitationsPage() {
         p_group_id: groupId,
         p_created_by: user.id,
       });
-    } catch {
+    } catch (err) {
       // Fallback to non-atomic approach if RPC not deployed yet
+      console.warn("[Invitations] regenerate_join_code RPC failed, using fallback:", err instanceof Error ? err.message : err);
       await supabase.from("join_codes").update({ is_active: false }).eq("group_id", groupId);
       await supabase.from("join_codes").insert({ group_id: groupId, created_by: user.id, is_active: true });
     }
     queryClient.invalidateQueries({ queryKey: ["join-codes", groupId] });
     setRegenerating(false);
+  }
+
+  /** Regenerating invalidates the live code immediately — confirm first. */
+  async function handleRegenerateClick() {
+    const ok = await confirm({
+      title: t("invitations.regenerateConfirmTitle"),
+      description: t("invitations.regenerateConfirmDesc"),
+      confirmLabel: t("invitations.regenerateCode"),
+      cancelLabel: t("common.cancel"),
+      destructive: true,
+    });
+    if (!ok) return;
+    await regenerateCode();
   }
 
   /** Send the invitation email. Returns true if it sent OK. (WhatsApp for
@@ -259,25 +296,35 @@ export default function InvitationsPage() {
           }),
         });
         if (!res.ok) {
-          console.warn("[Invitations] Email API returned", res.status, "for", recipientEmail);
+          // Rule 11: never log raw contact values — mask the recipient.
+          console.warn("[Invitations] Email API returned", res.status, "for", maskEmail(recipientEmail));
           emailOk = false;
         }
       }
       return emailOk;
-    } catch {
+    } catch (err) {
       // Notification failure is non-fatal — invitation row already exists
+      console.warn("[Invitations] invitation email send failed:", err instanceof Error ? err.message : err);
       return false;
     }
   }
 
   const handleSendInvitation = async () => {
     if (!email || !groupId || !user) return;
-    setSending(true);
+    const trimmedEmail = email.trim().toLowerCase();
     setSendSuccess(false);
     setSendError(null);
+    setSendWarning(null);
+
+    // Same validation as the bulk-invite path — catch typos before inserting.
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      setSendError(t("invitations.invalidEmail"));
+      return;
+    }
+
+    setSending(true);
     try {
       const supabase = createClient();
-      const trimmedEmail = email.trim().toLowerCase();
 
       // Check for existing pending/accepted invitation to prevent duplicates
       const { data: existing } = await supabase
@@ -329,11 +376,9 @@ export default function InvitationsPage() {
         let emailSent = false;
         try {
           emailSent = await sendInvitationEmail(trimmedEmail);
-        } catch {
+        } catch (err) {
+          console.warn("[Invitations] invitation email send failed:", err instanceof Error ? err.message : err);
           emailSent = false;
-        }
-        if (!emailSent) {
-          setSendError(t("invitations.emailSendFailed"));
         }
         // Audit log
         try {
@@ -345,10 +390,19 @@ export default function InvitationsPage() {
             description: `Invited ${trimmedEmail} as ${role}`,
             metadata: { email: trimmedEmail, role },
           });
-        } catch { /* best-effort */ }
-        setSendSuccess(true);
+        } catch (err) {
+          console.warn("[Invitations] audit log failed:", err instanceof Error ? err.message : err);
+        }
+        if (emailSent) {
+          // Green success ONLY when the email actually went out.
+          setSendSuccess(true);
+          setTimeout(() => setSendSuccess(false), 3000);
+        } else {
+          // Row saved but the email failed — one amber notice (never a green
+          // success next to a red failure), pointing the admin at Resend.
+          setSendWarning(t("invitations.savedEmailFailed"));
+        }
         setEmail("");
-        setTimeout(() => setSendSuccess(false), 3000);
         queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
       } else if (error.code === "23505") {
         // unique_violation from the invitations_group_*_active_unique partial
@@ -356,7 +410,9 @@ export default function InvitationsPage() {
         // behind the pre-check above.
         setSendError(t("invitations.duplicateInviteError"));
       } else {
-        setSendError(error.message);
+        // Friendly errors only — raw DB text goes to the console, not the UI.
+        console.warn("[Invitations] invitation insert failed:", error.message);
+        setSendError(t("invitations.sendFailed"));
       }
     } finally {
       setSending(false);
@@ -365,8 +421,9 @@ export default function InvitationsPage() {
 
   const handleResendInvitation = async (inviteEmail: string, inviteId: string) => {
     setResendingId(inviteId);
+    setResendFeedback(null);
     try {
-      await sendInvitationEmail(inviteEmail);
+      const emailOk = await sendInvitationEmail(inviteEmail);
       // Invitations that also carry a phone get the WhatsApp notice
       // re-delivered too (the producer's day bucket allows one per day;
       // email-only rows skip server-side as missing_phone).
@@ -379,6 +436,11 @@ export default function InvitationsPage() {
       } catch (err) {
         console.warn("[Invitations] resend WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
       }
+      // Inline per-row feedback: resent OK, or a friendly failure notice.
+      setResendFeedback({ id: inviteId, ok: emailOk });
+      setTimeout(() => {
+        setResendFeedback((cur) => (cur?.id === inviteId ? null : cur));
+      }, 4000);
     } finally {
       setResendingId(null);
     }
@@ -389,14 +451,26 @@ export default function InvitationsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const [revokingId, setRevokingId] = useState<string | null>(null);
-  const handleRevoke = async (invitationId: string) => {
+  const handleRevoke = async (invitationId: string, maskedContact: string) => {
+    // Revoking is one-way for the recipient — confirm before acting, and
+    // name the target (masked) so the admin can verify which invitation
+    // they are revoking among similar-looking rows.
+    const ok = await confirm({
+      title: t("invitations.revokeConfirmTitle"),
+      description: t("invitations.revokeConfirmDesc", { contact: maskedContact }),
+      confirmLabel: t("invitations.revokeInvite"),
+      cancelLabel: t("common.cancel"),
+      destructive: true,
+    });
+    if (!ok) return;
     setRevokingId(invitationId);
     try {
       const supabase = createClient();
-      await supabase
+      const { error } = await supabase
         .from("invitations")
         .update({ status: "revoked" })
         .eq("id", invitationId);
+      if (error) console.warn("[Invitations] revoke failed:", error.message);
       queryClient.invalidateQueries({ queryKey: ["invitations", groupId] });
     } finally {
       setRevokingId(null);
@@ -443,9 +517,11 @@ export default function InvitationsPage() {
   if (isLoading) return <RequirePermission anyOf={["members.manage", "members.invite"]}><ListSkeleton rows={5} /></RequirePermission>;
 
   if (invError || codesError) {
+    // Raw DB error text stays in the console; the UI shows the localized
+    // generic copy from ErrorState (common.errorTitle/errorDesc).
+    console.warn("[Invitations] load failed:", (invError || codesError)?.message);
     return (
       <RequirePermission anyOf={["members.manage", "members.invite"]}><ErrorState
-        message={(invError || codesError)?.message}
         onRetry={() => {
           refetchInv();
           refetchCodes();
@@ -551,7 +627,7 @@ export default function InvitationsPage() {
                     <span>{t("invitations.unlimitedUses")}</span>
                   )}
                 </div>
-                <Button variant="ghost" size="sm" onClick={regenerateCode} disabled={regenerating} className="gap-1.5 text-xs">
+                <Button variant="ghost" size="sm" onClick={handleRegenerateClick} disabled={regenerating} className="gap-1.5 text-xs">
                   {regenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
                   {t("invitations.regenerateCode")}
                 </Button>
@@ -560,6 +636,35 @@ export default function InvitationsPage() {
           </Card>
         );
       })()}
+
+      {/* No active join code — offer a way out instead of a dead end */}
+      {!activeCode && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Link2 className="h-4 w-4" />
+              {t("invitations.joinCode")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EmptyState
+              icon={Link2}
+              title={t("invitations.noJoinCode")}
+              description={t("invitations.noJoinCodeDesc")}
+              action={
+                <Button onClick={regenerateCode} disabled={regenerating} className="gap-1.5">
+                  {regenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="h-4 w-4" />
+                  )}
+                  {t("invitations.createJoinCode")}
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Invite by Email */}
       <Card>
@@ -572,7 +677,7 @@ export default function InvitationsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>{t("auth.email")}</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 type="email"
                 placeholder="member@example.com"
@@ -581,7 +686,7 @@ export default function InvitationsPage() {
                 className="flex-1"
               />
               <Select value={role} onValueChange={(val) => setRole(val || "member")}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full sm:w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -598,9 +703,14 @@ export default function InvitationsPage() {
               <Button
                 onClick={handleSendInvitation}
                 disabled={!email || sending}
+                className="w-full sm:w-auto"
               >
-                <Send className="mr-2 h-4 w-4" />
-                {t("common.submit")}
+                {sending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                {t("members.sendInvite")}
               </Button>
             </div>
           </div>
@@ -608,6 +718,12 @@ export default function InvitationsPage() {
             <p className="flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400">
               <Check className="h-4 w-4" />
               {t("invitations.inviteSent")}
+            </p>
+          )}
+          {sendWarning && (
+            <p className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
+              <AlertCircle className="h-4 w-4" />
+              {sendWarning}
             </p>
           )}
           {sendError && (
@@ -624,7 +740,7 @@ export default function InvitationsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Clock className="h-4 w-4" />
-            {t("invitations.pendingInvitations")}
+            {t("invitations.allInvitations")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -689,12 +805,21 @@ export default function InvitationsPage() {
             <div className="space-y-3">
               {filteredInvitations.map((invite: Record<string, unknown>) => {
                 const status = (invite.status as string) || "pending";
+                const expiresAtRaw = invite.expires_at as string | null;
+                // A pending invitation past its expiry is shown honestly as
+                // Expired (the accept RPC would reject it anyway).
+                const isExpired =
+                  status === "pending" &&
+                  !!expiresAtRaw &&
+                  new Date(expiresAtRaw).getTime() < Date.now();
+                const effectiveStatus = isExpired ? "expired" : status;
                 const profile = invite.profile as Record<
                   string,
                   unknown
                 > | null;
+                const sentByName = getMemberName({ profile });
                 const sentBy =
-                  (profile?.full_name as string) || t("invitations.unknown");
+                  sentByName !== "Member" ? sentByName : t("invitations.unknown");
                 const inviteDate = invite.created_at
                   ? formatDateWithGroupFormat(invite.created_at as string, groupDateFormat, locale)
                   : "";
@@ -714,20 +839,42 @@ export default function InvitationsPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {(invite.email as string) ||
-                            (invite.phone as string) ||
-                            ""}
+                          {invite.email
+                            ? maskEmail(invite.email as string)
+                            : invite.phone
+                              ? maskPhone(invite.phone as string)
+                              : "—"}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {t("invitations.sentBy")} {sentBy} &middot;{" "}
                           {inviteDate}
+                          {status === "pending" && !isExpired && expiresAtRaw && (
+                            <>
+                              {" "}&middot;{" "}
+                              {t("invitations.expiresOn")}{" "}
+                              {formatDateWithGroupFormat(expiresAtRaw, groupDateFormat, locale)}
+                            </>
+                          )}
                         </p>
+                        {resendFeedback?.id === (invite.id as string) && (
+                          <p
+                            className={
+                              resendFeedback.ok
+                                ? "text-xs text-emerald-600 dark:text-emerald-400"
+                                : "text-xs text-red-600 dark:text-red-400"
+                            }
+                          >
+                            {resendFeedback.ok
+                              ? t("invitations.inviteResent")
+                              : t("invitations.sendFailed")}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 pl-[52px] sm:pl-0">
-                      <Badge className={statusStyles[status] || statusStyles.pending}>
+                      <Badge className={statusStyles[effectiveStatus] || statusStyles.pending}>
                         {t(
-                          `invitations.${status}` as "invitations.pending"
+                          `invitations.${effectiveStatus}` as "invitations.pending"
                         )}
                       </Badge>
                       {status === "pending" && (
@@ -736,7 +883,7 @@ export default function InvitationsPage() {
                             <MoreVertical className="h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {!!(invite.email) && (
+                            {!!(invite.email) && !isExpired && (
                               <DropdownMenuItem
                                 className="flex items-center gap-2"
                                 disabled={resendingId === (invite.id as string)}
@@ -757,8 +904,16 @@ export default function InvitationsPage() {
                             )}
                             <DropdownMenuItem
                               className="flex items-center gap-2 text-destructive"
+                              disabled={revokingId === (invite.id as string)}
                               onClick={() =>
-                                handleRevoke(invite.id as string)
+                                handleRevoke(
+                                  invite.id as string,
+                                  invite.email
+                                    ? maskEmail(invite.email as string)
+                                    : invite.phone
+                                      ? maskPhone(invite.phone as string)
+                                      : "—",
+                                )
                               }
                             >
                               <XCircle className="h-3.5 w-3.5" />

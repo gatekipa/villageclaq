@@ -80,6 +80,9 @@ export default function MyPaymentsPage() {
   // Pay Now dialog state
   const [payNowObligation, setPayNowObligation] = useState<Record<string, unknown> | null>(null);
 
+  // Receipt open failure (translated copy only)
+  const [receiptOpenError, setReceiptOpenError] = useState<string | null>(null);
+
   // Check if group has self-service payment methods enabled
   const { data: paymentConfig } = useQuery({
     queryKey: ["group-payment-config", currentGroup?.id],
@@ -196,10 +199,43 @@ export default function MyPaymentsPage() {
   const methodLabel = (method: string) => {
     if (method === "cashapp") return t("cashapp");
     if (method === "zelle") return t("zelle");
+    if (method === "online") return t("online");
     if (method?.includes("mobile")) return t("mobileMoney");
     if (method?.includes("bank")) return t("bankTransfer");
-    return t("cash");
+    if (method === "cash") return t("cash");
+    return t("other");
   };
+
+  // Receipts live in a private bucket — stored values (object paths, or
+  // legacy signed/public URLs) must be re-signed on every open, otherwise
+  // links 404 once the original 1-hour signature expires.
+  // Popup-blocker safety (iOS/Safari): the window must be opened
+  // SYNCHRONOUSLY inside the click's user activation, then navigated once
+  // the async signing completes — window.open after an await gets blocked.
+  async function openReceipt(rawValue: string | undefined) {
+    if (!rawValue) return;
+    const popup = window.open("", "_blank", "noopener,noreferrer");
+    try {
+      const supabase = createClient();
+      const { signedUrlFor } = await import("@/lib/storage-urls");
+      const freshUrl = await signedUrlFor(supabase, "receipts", rawValue);
+      if (freshUrl) {
+        if (popup) {
+          popup.location.href = freshUrl;
+        } else {
+          // Popup was blocked even synchronously — same-tab fallback.
+          window.location.assign(freshUrl);
+        }
+      } else {
+        popup?.close();
+        setReceiptOpenError(t("receiptOpenFailed"));
+      }
+    } catch (err) {
+      popup?.close();
+      console.warn("[Receipts] open failed:", err instanceof Error ? err.message : err);
+      setReceiptOpenError(t("receiptOpenFailed"));
+    }
+  }
 
   function renderUrgencyBadge(dueDate: string) {
     const days = getDaysUntilDue(dueDate);
@@ -235,9 +271,16 @@ export default function MyPaymentsPage() {
   if (isLoading) return <ListSkeleton rows={5} />;
 
   if (oblError || paymentsError) {
+    // Raw DB error text never reaches the UI — log it for diagnostics and
+    // let ErrorState render its translated default copy.
+    console.warn(
+      "[MyPayments] load failed:",
+      (oblError || paymentsError) instanceof Error
+        ? (oblError || paymentsError)?.message
+        : (oblError || paymentsError),
+    );
     return (
       <ErrorState
-        message={(oblError || paymentsError)?.message}
         onRetry={() => {
           refetchObl();
           refetchPayments();
@@ -302,6 +345,16 @@ export default function MyPaymentsPage() {
         </div>
       )}
 
+      {/* Receipt open failure */}
+      {receiptOpenError && (
+        <div className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+          <p className="text-sm text-destructive">{receiptOpenError}</p>
+          <Button variant="ghost" size="sm" onClick={() => setReceiptOpenError(null)} className="h-7 text-xs">
+            {t("dismiss")}
+          </Button>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex gap-2">
         <Button
@@ -361,7 +414,7 @@ export default function MyPaymentsPage() {
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <span className="inline-flex items-center gap-1">
                             <CalendarDays className="h-3 w-3" />
-                            {t("dueDate")}: {dueDate}
+                            {t("dueDate")}: {dueDate ? formatDateWithGroupFormat(dueDate, groupDateFormat, locale) : ""}
                           </span>
                         </div>
                         <div className="pt-1">
@@ -441,10 +494,10 @@ export default function MyPaymentsPage() {
                         </span>
                         {ref && <span className="font-mono">{ref}</span>}
                         {(item.receipt_url as string) && (
-                          <a href={item.receipt_url as string} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                          <button type="button" onClick={() => openReceipt(item.receipt_url as string)} className="inline-flex items-center gap-1 text-primary hover:underline">
                             <FileImage className="h-3 w-3" />
                             {t("viewReceipt")}
-                          </a>
+                          </button>
                         )}
                         <Badge
                           variant={isPaid ? "default" : "secondary"}
@@ -479,10 +532,10 @@ export default function MyPaymentsPage() {
                       <span className="col-span-2 text-xs text-muted-foreground font-mono">
                         {ref}
                         {(item.receipt_url as string) && (
-                          <a href={item.receipt_url as string} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline mt-0.5">
+                          <button type="button" onClick={() => openReceipt(item.receipt_url as string)} className="flex items-center gap-1 text-primary hover:underline mt-0.5">
                             <FileImage className="h-3 w-3" />
                             {t("viewReceipt")}
-                          </a>
+                          </button>
                         )}
                       </span>
                       <span className="col-span-1">

@@ -56,10 +56,10 @@ interface NavItem {
   permission?: string;
   /** If set, show when user has ANY of these permissions */
   anyPermission?: string[];
-  /** If set, show a small "Pro" badge next to the item label */
+  /** If set, show a small "Pro" tier badge next to the item label (nav.badgePro) */
   proBadge?: boolean;
-  /** If set, show a badge with this tier name (e.g. "Starter") */
-  tierBadge?: string;
+  /** If set, show a tier badge labelled by this nav.* i18n key (e.g. "badgeStarter") */
+  tierBadgeKey?: string;
 }
 
 interface NavSection {
@@ -104,14 +104,14 @@ const adminSections: NavSection[] = [
   {
     labelKey: "sectionGroupFeatures",
     items: [
-      { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw, tierBadge: "Starter" },
-      { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadge: "Starter" },
-      { key: "relief", href: "/dashboard/relief", icon: Heart, tierBadge: "Starter" },
+      { key: "savingsCircle", href: "/dashboard/savings-circle", icon: RefreshCw, tierBadgeKey: "badgeStarter" },
+      { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadgeKey: "badgeStarter" },
+      { key: "relief", href: "/dashboard/relief", icon: Heart, tierBadgeKey: "badgeStarter" },
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
       { key: "announcements", href: "/dashboard/announcements", icon: Megaphone },
       { key: "projects", href: "/dashboard/projects", icon: FolderKanban },
-      { key: "fines", href: "/dashboard/fines", icon: Gavel, anyPermission: ["disputes.manage", "finances.manage"], tierBadge: "Starter" },
+      { key: "fines", href: "/dashboard/fines", icon: Gavel, anyPermission: ["disputes.manage", "finances.manage"], tierBadgeKey: "badgeStarter" },
     ],
   },
   {
@@ -163,7 +163,7 @@ const memberSections: NavSection[] = [
     labelKey: "sectionGroup",
     items: [
       { key: "directory", href: "/dashboard/directory", icon: Users },
-      { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadge: "Starter" },
+      { key: "elections", href: "/dashboard/elections", icon: Vote, tierBadgeKey: "badgeStarter" },
       { key: "meetings", href: "/dashboard/minutes", icon: BookOpen },
       { key: "constitution", href: "/dashboard/constitution", icon: ScrollText },
       { key: "documents", href: "/dashboard/documents", icon: FolderLock },
@@ -360,9 +360,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   >
                     <item.icon className="h-5 w-5 shrink-0" />
                     <span className="flex-1">{t(item.key)}</span>
-                    {(item.proBadge || item.tierBadge) && (
+                    {(item.proBadge || item.tierBadgeKey) && (
                       <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
-                        {item.tierBadge || "Pro"}
+                        {t(item.tierBadgeKey || "badgePro")}
                       </Badge>
                     )}
                   </Link>

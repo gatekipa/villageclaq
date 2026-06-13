@@ -210,10 +210,16 @@ function PhoneCollectionDialog({
         .update({ phone: phone.trim() })
         .eq("id", user.id);
       if (error) {
-        setSaveError(error.message);
+        // Friendly error only — never surface raw Supabase text in the UI,
+        // and never log the phone value itself (rule 11).
+        console.warn("[PhoneCollection] phone save failed:", error.code, error.message);
+        setSaveError(t("addPhone.saveFailed"));
       } else {
         onSaved();
       }
+    } catch (err) {
+      console.warn("[PhoneCollection] phone save failed:", err instanceof Error ? err.message : err);
+      setSaveError(t("addPhone.saveFailed"));
     } finally {
       setSaving(false);
     }

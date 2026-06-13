@@ -954,7 +954,10 @@ export function useInvitations() {
         .select("*, profile:profiles!invitations_invited_by_fkey(id, full_name)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
+      // Throw so the invitations page's ErrorState + retry actually fire —
+      // returning [] rendered failures as a fake "no invitations" empty
+      // state. (Sole consumer: dashboard/invitations.)
+      if (error) { console.warn("[Query] failed:", error.message); throw error; }
       return data || [];
     },
     enabled: !!groupId,
@@ -972,7 +975,8 @@ export function useJoinCodes() {
         .select("*")
         .eq("group_id", groupId)
         .eq("is_active", true);
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
+      // Throw for the same reason as useInvitations (same sole consumer).
+      if (error) { console.warn("[Query] failed:", error.message); throw error; }
       return data || [];
     },
     enabled: !!groupId,

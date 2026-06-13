@@ -99,7 +99,11 @@
     "standing": "Statut",
     "role": "Rôle",
     "notes": "Notes",
-    "never": "Jamais"
+    "never": "Jamais",
+    "errorTitle": "Une erreur est survenue",
+    "errorDesc": "Impossible de charger ces données. Veuillez réessayer.",
+    "retry": "Réessayer",
+    "sending": "Envoi…"
   },
   "join": {
     "enterCode": "Entrer le code d'adhésion",
@@ -228,7 +232,9 @@
     "subGroups": "Sous-groupes",
     "constitution": "Constitution",
     "reliefRollup": "Synthèse entraide",
-    "remittances": "Remises"
+    "remittances": "Remises",
+    "badgeStarter": "Starter",
+    "badgePro": "Pro"
   },
   "cookies": {
     "title": "Paramètres des cookies",
@@ -564,7 +570,33 @@
       "message": "Ajoutez votre numéro de téléphone pour recevoir les notifications SMS et WhatsApp",
       "addPhone": "Ajouter le téléphone",
       "dismiss": "Ignorer"
-    }
+    },
+    "launch": {
+      "title": "Préparation au lancement",
+      "readyBadge": "Prêt à lancer",
+      "progressBadge": "{done} sur {total} terminées",
+      "readyDesc": "Votre groupe est entièrement configuré. Tout est en place pour vos membres.",
+      "inProgressDesc": "Terminez ces étapes pour préparer votre groupe à accueillir des membres.",
+      "itemCta": "Configurer : {item}",
+      "items": {
+        "groupProfile": "Complétez le profil de votre groupe",
+        "adminContact": "Ajoutez votre numéro de téléphone",
+        "inviteMembers": "Invitez vos premiers membres",
+        "firstMemberAccepted": "Premier membre inscrit",
+        "duesConfigured": "Configurez les cotisations",
+        "firstEvent": "Créez votre premier événement ou réunion",
+        "remindersReady": "Les rappels sont automatiques — rien à configurer"
+      }
+    },
+    "collectionRateLabel": "Taux de recouvrement global",
+    "upcomingEventsLabel": "Événements à venir",
+    "allCaughtUp": "Tout est à jour — aucune cotisation en retard.",
+    "needsAttention": "À traiter",
+    "pendingApprovalsCount": "{count, plural, one {# membre en attente d’approbation} other {# membres en attente d’approbation}}",
+    "pendingInvitationsCount": "{count, plural, one {# invitation en attente de réponse} other {# invitations en attente de réponse}}",
+    "reviewApprovals": "Examiner les demandes",
+    "viewInvitations": "Voir les invitations",
+    "writeMinutes": "Rédiger le compte rendu"
   },
   "groups": {
     "switchGroup": "Changer de groupe",
@@ -1261,7 +1293,21 @@
     "closePeriodSuccess": "Période clôturée avec succès.",
     "reopenPeriodSuccess": "Période rouverte avec succès.",
     "viewReceipt": "Voir le reçu",
-    "noReceipt": "Aucun reçu joint"
+    "noReceipt": "Aucun reçu joint",
+    "backToContributions": "Retour aux cotisations",
+    "bulkResultSummary": "{recorded} enregistré(s), {skipped} doublon(s) ignoré(s), {failed} échec(s)",
+    "contribution": "Cotisation",
+    "deleteTypeConfirmCascade": "Ceci supprimera définitivement ce type de cotisation et toutes ses obligations (y compris les montants dus). L'historique des paiements est conservé, mais ne sera plus lié à ce type. Cette action est irréversible. Êtes-vous sûr ?",
+    "deleteTypeFailed": "Échec de la suppression de ce type de cotisation. Veuillez réessayer.",
+    "enrollAllSuccess": "{count} membre(s) inscrit(s) avec succès",
+    "legendWaived": "Exonéré",
+    "noReference": "Aucune référence",
+    "proxyReminderUnavailable": "Les membres mandataires n'ont pas de compte et ne peuvent pas recevoir de rappels dans l'application.",
+    "receiptOpenFailed": "Impossible d'ouvrir le reçu. Veuillez réessayer.",
+    "receiptUploadFailed": "Échec du téléchargement du reçu. Veuillez réessayer.",
+    "remindersEligibleNote": "{eligible} membre(s) sur {total} seront notifié(s).",
+    "remindersSendFailed": "Échec de l'envoi des rappels. Veuillez réessayer.",
+    "reopenPeriodDesc": "La réouverture de cette période permettra d'enregistrer à nouveau des paiements. Les enregistrements existants ne sont pas affectés."
   },
   "finances": {
     "title": "Tableau de bord financier",
@@ -1358,7 +1404,18 @@
     "shareEmailBody": "Vous êtes invité(e) à rejoindre {group} sur VillageClaq.\n\nCliquez sur ce lien pour rejoindre : {link}\n\nOu utilisez le code : {code}",
     "shareSmsText": "Rejoignez {group} sur VillageClaq : {link}",
     "printInvite": "Imprimer l'invitation",
-    "emailSendFailed": "Invitation créée mais l'email n'a pas pu être envoyé. Le destinataire peut toujours accepter via son tableau de bord."
+    "emailSendFailed": "Invitation créée mais l'email n'a pas pu être envoyé. Le destinataire peut toujours accepter via son tableau de bord.",
+    "allInvitations": "Invitations",
+    "invalidEmail": "Saisissez une adresse email valide.",
+    "sendFailed": "Impossible d'envoyer l'invitation. Veuillez réessayer.",
+    "savedEmailFailed": "Invitation enregistrée, mais l'email n'a pas pu être envoyé. Utilisez « Renvoyer » pour réessayer.",
+    "inviteResent": "Invitation renvoyée.",
+    "revokeConfirmTitle": "Révoquer cette invitation ?",
+    "revokeConfirmDesc": "L'invitation pour {contact} ne pourra plus être acceptée. Vous pourrez envoyer une nouvelle invitation plus tard si nécessaire.",
+    "regenerateConfirmTitle": "Générer un nouveau code d'adhésion ?",
+    "regenerateConfirmDesc": "Le code actuel cessera de fonctionner immédiatement. Toute personne utilisant l'ancien code ou lien aura besoin du nouveau.",
+    "noJoinCode": "Aucun code d'adhésion actif",
+    "noJoinCodeDesc": "Générez un code d'adhésion pour que les gens puissent rejoindre ce groupe avec un code, un lien ou un code QR."
   },
   "events": {
     "title": "Événements",
@@ -1447,7 +1504,13 @@
     "searchEventsPlaceholder": "Rechercher des événements...",
     "eventCancelledNotifTitle": "Événement annulé",
     "eventCancelledNotifBody": "L'événement « {title} » a été annulé",
-    "attendance": "Présence"
+    "attendance": "Présence",
+    "reminderHint": "Les membres reçoivent automatiquement un rappel par e-mail, SMS et WhatsApp dans les 48 heures précédant le début — rien à configurer.",
+    "reminderSent": "Rappel envoyé",
+    "locationHint": "Si laissé vide, les rappels indiqueront « Lieu à confirmer ».",
+    "actionFailed": "Une erreur est survenue. Veuillez réessayer.",
+    "noEventsMemberDesc": "Aucun événement à venir pour le moment — revenez bientôt ou surveillez les annonces.",
+    "recurringHintManual": "Indique un événement récurrent — utilisez « Répéter la dernière réunion » pour planifier la prochaine occurrence."
   },
   "attendance": {
     "title": "Présence",
@@ -2332,7 +2395,11 @@
     "pendingConfirmation": "En attente",
     "rejected": "Rejeté",
     "viewReceipt": "Voir le reçu",
-    "noSelfServiceHint": "Le paiement en ligne n'est pas encore configuré pour ce groupe. Veuillez contacter votre trésorier pour effectuer un paiement ou demandez-lui d'activer les méthodes de paiement en libre-service."
+    "noSelfServiceHint": "Le paiement en ligne n'est pas encore configuré pour ce groupe. Veuillez contacter votre trésorier pour effectuer un paiement ou demandez-lui d'activer les méthodes de paiement en libre-service.",
+    "dismiss": "Fermer",
+    "online": "En ligne",
+    "other": "Autre",
+    "receiptOpenFailed": "Impossible d'ouvrir le reçu. Veuillez réessayer."
   },
   "payNow": {
     "dialogTitle": "Payer maintenant",
@@ -2373,7 +2440,8 @@
     "adminNotifTitle": "Paiement soumis pour confirmation",
     "adminNotifBody": "Un membre a soumis un paiement {method} de {amount} pour {type}. Veuillez confirmer.",
     "paymentSubmittedTitle": "Paiement soumis",
-    "paymentSubmittedBody": "Votre paiement {type} de {amount} a été soumis et est en attente de confirmation."
+    "paymentSubmittedBody": "Votre paiement {type} de {amount} a été soumis et est en attente de confirmation.",
+    "uploadFailed": "Échec du téléchargement du reçu. Veuillez vérifier votre connexion et réessayer."
   },
   "myAttendance": {
     "title": "Ma Présence",
@@ -2478,7 +2546,12 @@
     "alreadyClaimed": "Ce profil a déjà été réclamé.",
     "alreadyMember": "Vous avez déjà une adhésion dans ce groupe.",
     "emailMismatch": "Cette invitation a été envoyée à une autre adresse e-mail. Connectez-vous avec l'adresse à laquelle l'invitation a été envoyée.",
-    "invitationExpired": "Cette invitation a expiré. Demandez à l'administrateur du groupe d'en envoyer une nouvelle."
+    "invitationExpired": "Cette invitation a expiré. Demandez à l'administrateur du groupe d'en envoyer une nouvelle.",
+    "invitedBy": "Invité par {name}",
+    "acceptExplainer": "Accepter vous ajoute à ce groupe en tant que membre.",
+    "declineExplainer": "Refuser supprime cette invitation. L'administrateur du groupe peut vous inviter à nouveau.",
+    "goToDashboard": "Aller au tableau de bord",
+    "revoked": "Révoquée"
   },
   "myHosting": {
     "title": "Mon Accueil",
@@ -4604,8 +4677,11 @@
       "continue": "Continuer",
       "skip": "Passer pour le moment",
       "invalid": "Veuillez entrer un numéro de téléphone valide",
-      "saving": "Enregistrement..."
-    }
+      "saving": "Enregistrement...",
+      "saveFailed": "Impossible d'enregistrer votre numéro de téléphone. Veuillez réessayer."
+    },
+    "profileSaveFailed": "Impossible d'enregistrer votre profil. Vérifiez votre connexion et réessayez.",
+    "stepProgress": "Étape {n} sur {total} — {label}"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

@@ -159,22 +159,17 @@ export function PayNowDialog({
           .from("receipts")
           .upload(path, receiptFile);
         if (uploadErr) {
-          setSubmitError(uploadErr.message);
+          // Translated, retryable error — never raw storage text. The
+          // attached file stays selected so the member can simply retry.
+          console.warn("[PayNow] receipt upload failed:", uploadErr.message);
+          setSubmitError(t("uploadFailed"));
           setSubmitting(false);
           return;
         }
-        // receipts bucket is private. We sign a long-lived URL for
-        // immediate storage; display code regenerates from the path
-        // via normaliseObjectPath() when the URL has expired.
-        const { data: urlData, error: signErr } = await supabase.storage
-          .from("receipts")
-          .createSignedUrl(path, 3600);
-        if (signErr || !urlData?.signedUrl) {
-          setSubmitError(signErr?.message || "Failed to finalize receipt upload");
-          setSubmitting(false);
-          return;
-        }
-        receiptUrl = urlData.signedUrl;
+        // receipts bucket is private — store the bare object path.
+        // Receipt viewers sign a fresh URL on demand via signedUrlFor(),
+        // so the stored value never expires.
+        receiptUrl = path;
       }
 
       // Insert payment with pending_confirmation status
@@ -205,6 +200,14 @@ export function PayNowDialog({
 
       if (admins && admins.length > 0) {
         const ctName = obligation.contribution_type?.name || "";
+        // Translate the method before interpolation — raw values like
+        // "mobile_money" must never appear in notification copy.
+        const methodLabels: Record<PaymentMethod, string> = {
+          cashapp: t("cashapp"),
+          zelle: t("zelle"),
+          mobile_money: t("mobileMoney"),
+          bank_transfer: t("bankTransfer"),
+        };
         const notifications = admins
           .filter((a) => a.user_id && a.user_id !== user.id)
           .map((a) => ({
@@ -215,7 +218,7 @@ export function PayNowDialog({
             body: t("adminNotifBody", {
               amount: formatAmount(amountDue, currency),
               type: ctName,
-              method: selectedMethod,
+              method: methodLabels[selectedMethod],
             }),
             is_read: false,
             data: { link: "/dashboard/my-payments", payment_method: selectedMethod, amount: amountDue, currency },
@@ -268,7 +271,9 @@ export function PayNowDialog({
 
       setStep("success");
     } catch (err) {
-      setSubmitError((err as Error).message || t("submitError"));
+      // Translated copy only — log the raw error for diagnostics.
+      console.warn("[PayNow] submit failed:", err instanceof Error ? err.message : err);
+      setSubmitError(t("submitError"));
     } finally {
       setSubmitting(false);
     }

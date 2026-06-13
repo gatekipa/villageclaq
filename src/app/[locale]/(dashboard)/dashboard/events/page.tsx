@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateWithGroupFormat, formatTime, formatEventDateTime } from "@/lib/format";
+import { getDateLocale } from "@/lib/date-utils";
 import { cn, normalizeSearch } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ import {
   Search,
   Video,
   ExternalLink,
+  BellRing,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -78,6 +80,15 @@ function getDaysInMonth(year: number, month: number) {
 
 function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
+}
+
+/** Format a Date for a `datetime-local` input in the user's LOCAL timezone.
+ *  Never use `toISOString().slice(0, 16)` here — that renders UTC, which the
+ *  input then re-interprets as local time, silently shifting the event time
+ *  every time an admin opens the edit dialog and saves without touching it. */
+function toDatetimeLocal(date: Date) {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 export default function EventsPage() {
@@ -145,7 +156,8 @@ export default function EventsPage() {
       if (err) throw err;
       queryClient.invalidateQueries({ queryKey: ["my-rsvps"] });
       queryClient.invalidateQueries({ queryKey: ["rsvp-counts"] });
-    } catch {
+    } catch (err) {
+      console.warn("[Events] RSVP update failed:", err);
       showError(t("rsvpFailed"));
     } finally {
       setRsvpLoading(null);
@@ -154,6 +166,10 @@ export default function EventsPage() {
 
   const [view, setView] = useState<"calendar" | "list">("list");
   const [editEventId, setEditEventId] = useState<string | null>(null);
+  // Original starts_at (datetime-local string) of the event being edited, so
+  // the no-past-date rule only fires when the start time actually CHANGED —
+  // admins can still fix typos on past events without touching the date.
+  const [editOriginalStartsAt, setEditOriginalStartsAt] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -171,7 +187,9 @@ export default function EventsPage() {
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"date" | "name">("date");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Default filter is "upcoming", so the default date sort is ASCENDING
+  // (soonest event first). Switching to "past" flips it to most recent first.
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Create form state
   const [formTitle, setFormTitle] = useState("");
@@ -192,15 +210,20 @@ export default function EventsPage() {
   const month = calendarDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const monthName = calendarDate.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", year: "numeric" });
-
-  const now = new Date().toISOString();
+  const monthName = calendarDate.toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" });
 
   const filteredEvents = useMemo(() => {
     if (!events) return [];
+    // "now" is computed inside the memo body and kept OUT of the deps —
+    // a fresh timestamp string in the dep array would defeat the memo and
+    // recompute the whole filter+sort on every render (rule 9).
+    const now = new Date().toISOString();
+    // Status note: nothing in the app ever writes status "completed", so the
+    // predicates rely on starts_at only; "cancelled" is the one status that
+    // matters (cancelled events drop out of "upcoming" but stay in "all").
     let result = events.filter((e: Record<string, unknown>) => {
-      if (filter === "upcoming") return (e.starts_at as string) >= now || e.status === "upcoming";
-      if (filter === "past") return (e.starts_at as string) < now || e.status === "completed";
+      if (filter === "upcoming") return (e.starts_at as string) >= now && e.status !== "cancelled";
+      if (filter === "past") return (e.starts_at as string) < now;
       return true;
     });
     if (searchQuery.trim()) {
@@ -223,7 +246,14 @@ export default function EventsPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [events, filter, now, searchQuery, sortField, sortDir]);
+  }, [events, filter, searchQuery, sortField, sortDir]);
+
+  // FR users see the French title when one was provided; everywhere a title
+  // is displayed (list cards, calendar chips) goes through this helper.
+  const displayTitle = (event: Record<string, unknown>) =>
+    locale === "fr"
+      ? ((event.title_fr as string) || (event.title as string))
+      : (event.title as string);
 
   const eventsInMonth = useMemo(() => {
     if (!events) return [];
@@ -251,6 +281,7 @@ export default function EventsPage() {
     setFormIsRecurring(false);
     setFormRecurrenceRule("monthly");
     setPreFilledBanner(null);
+    setEditOriginalStartsAt(null);
   };
 
   const handleRepeatLastMeeting = () => {
@@ -285,17 +316,14 @@ export default function EventsPage() {
       lastDate.setMonth(lastDate.getMonth() + 1);
     }
 
-    // Format for datetime-local input
-    const pad = (n: number) => n.toString().padStart(2, "0");
-    const dateStr = `${lastDate.getFullYear()}-${pad(lastDate.getMonth() + 1)}-${pad(lastDate.getDate())}T${pad(lastDate.getHours())}:${pad(lastDate.getMinutes())}`;
-    setFormStartsAt(dateStr);
+    // Format for datetime-local input (LOCAL timezone — see toDatetimeLocal)
+    setFormStartsAt(toDatetimeLocal(lastDate));
 
     if (lastEvent.ends_at) {
       const lastEnd = new Date(lastEvent.ends_at as string);
       const duration = lastEnd.getTime() - new Date(lastEvent.starts_at as string).getTime();
       const newEnd = new Date(lastDate.getTime() + duration);
-      const endStr = `${newEnd.getFullYear()}-${pad(newEnd.getMonth() + 1)}-${pad(newEnd.getDate())}T${pad(newEnd.getHours())}:${pad(newEnd.getMinutes())}`;
-      setFormEndsAt(endStr);
+      setFormEndsAt(toDatetimeLocal(newEnd));
     }
 
     setPreFilledBanner(
@@ -332,7 +360,8 @@ export default function EventsPage() {
       setShowCreateDialog(false);
       resetForm();
     } catch (err) {
-      showError((err as Error).message || tc("error"));
+      console.warn("[Events] create failed:", err);
+      showError(t("actionFailed"));
     } finally {
       setCreating(false);
     }
@@ -344,11 +373,14 @@ export default function EventsPage() {
     setFormTitleFr((event.title_fr as string) || "");
     setFormDescription((event.description as string) || "");
     setFormEventType((event.event_type as EventType) || "meeting");
-    const startsAtDate = new Date(event.starts_at as string);
-    setFormStartsAt(startsAtDate.toISOString().slice(0, 16));
+    // LOCAL-timezone formatting (toDatetimeLocal) — using toISOString() here
+    // put UTC into the input, so saving without touching the field silently
+    // shifted the event time by the timezone offset.
+    const localStartsAt = toDatetimeLocal(new Date(event.starts_at as string));
+    setFormStartsAt(localStartsAt);
+    setEditOriginalStartsAt(localStartsAt);
     if (event.ends_at) {
-      const endsAtDate = new Date(event.ends_at as string);
-      setFormEndsAt(endsAtDate.toISOString().slice(0, 16));
+      setFormEndsAt(toDatetimeLocal(new Date(event.ends_at as string)));
     } else {
       setFormEndsAt("");
     }
@@ -361,8 +393,10 @@ export default function EventsPage() {
 
   async function handleEditEvent() {
     if (!editEventId || !formTitle || !formStartsAt) return;
-    // Block past dates for new events (allow editing past events for corrections)
-    if (new Date(formStartsAt) < new Date()) {
+    // Only enforce the no-past-date rule when the start time actually CHANGED
+    // — editing other fields (typo fixes) on a past event must stay possible.
+    const startsAtChanged = formStartsAt !== editOriginalStartsAt;
+    if (startsAtChanged && new Date(formStartsAt) < new Date()) {
       showError(t("pastDateError"));
       return;
     }
@@ -390,7 +424,8 @@ export default function EventsPage() {
       resetForm();
       setEditEventId(null);
     } catch (err) {
-      showError((err as Error).message || tc("error"));
+      console.warn("[Events] update failed:", err);
+      showError(t("actionFailed"));
     } finally {
       setEditSaving(false);
     }
@@ -441,9 +476,14 @@ export default function EventsPage() {
             }))
           );
         }
-      } catch { /* best-effort notification */ }
+      } catch (notifErr) {
+        // Best-effort notification — never block the cancellation itself,
+        // but always log the failure (rule 11: no silent notification drops).
+        console.warn("[Events] cancellation notification insert failed:", notifErr);
+      }
     } catch (err) {
-      showError((err as Error).message || tc("error"));
+      console.warn("[Events] cancel failed:", err);
+      showError(t("actionFailed"));
     } finally {
       setCancellingId(null);
     }
@@ -458,7 +498,8 @@ export default function EventsPage() {
       await queryClient.invalidateQueries({ queryKey: ["events", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["meeting-minutes", groupId] });
     } catch (err) {
-      showError((err as Error).message || tc("error"));
+      console.warn("[Events] delete failed:", err);
+      showError(t("actionFailed"));
     } finally {
       setDeletingId(null);
       setShowDeleteConfirm(null);
@@ -470,7 +511,10 @@ export default function EventsPage() {
   }
 
   if (isError) {
-    return <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />;
+    // Never surface raw Supabase/Postgres text in the UI — log it and let
+    // ErrorState render its translated fallback copy.
+    console.warn("[Events] load failed:", error);
+    return <ErrorState onRetry={() => refetch()} />;
   }
 
   return (
@@ -482,7 +526,7 @@ export default function EventsPage() {
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         {hasPermission("events.manage") && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={handleRepeatLastMeeting} disabled={!events || events.length === 0}>
               <Copy className="mr-2 h-4 w-4" />
               {t("repeatLastMeeting")}
@@ -536,14 +580,22 @@ export default function EventsPage() {
           <Button
             variant={filter === "upcoming" ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilter("upcoming")}
+            onClick={() => {
+              setFilter("upcoming");
+              // Default for upcoming: soonest event first.
+              if (sortField === "date") setSortDir("asc");
+            }}
           >
             {tc("upcoming")}
           </Button>
           <Button
             variant={filter === "past" ? "default" : "outline"}
             size="sm"
-            onClick={() => setFilter("past")}
+            onClick={() => {
+              setFilter("past");
+              // Default for past: most recent event first.
+              if (sortField === "date") setSortDir("desc");
+            }}
           >
             {tc("past")}
           </Button>
@@ -589,7 +641,7 @@ export default function EventsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-px">
-              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { weekday: "short" })).map((day) => (
+              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(getDateLocale(locale), { weekday: "short" })).map((day) => (
                 <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
                   {day}
                 </div>
@@ -624,9 +676,9 @@ export default function EventsPage() {
                           className={`w-full truncate rounded px-1 py-0.5 text-[10px] font-medium ${
                             eventTypeColors[(event.event_type as string) || "other"]
                           }`}
-                          title={`${event.title as string} — ${timeStr}`}
+                          title={`${displayTitle(event)} — ${timeStr}`}
                         >
-                          <span className="opacity-70">{timeStr}</span>{" "}{event.title as string}
+                          <span className="opacity-70">{timeStr}</span>{" "}{displayTitle(event)}
                         </div>
                         );
                       })}
@@ -654,7 +706,11 @@ export default function EventsPage() {
               <EmptyState
                 icon={Calendar}
                 title={t("noEvents")}
-                description={t("noEventsDesc")}
+                description={
+                  hasPermission("events.manage")
+                    ? t("noEventsDesc")
+                    : t("noEventsMemberDesc")
+                }
                 action={
                   hasPermission("events.manage") ? (
                     <Button onClick={() => setShowCreateDialog(true)}>
@@ -682,7 +738,7 @@ export default function EventsPage() {
                       <div className="flex gap-4 flex-1 min-w-0">
                         <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                           <span className="text-xs font-medium text-primary">
-                            {startsAt.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" })}
+                            {startsAt.toLocaleDateString(getDateLocale(locale), { month: "short" })}
                           </span>
                           <span className="text-xl font-bold leading-none text-primary">
                             {startsAt.getDate()}
@@ -690,7 +746,7 @@ export default function EventsPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-semibold">{event.title as string}</h3>
+                            <h3 className="font-semibold">{displayTitle(event)}</h3>
                             <Badge className={eventTypeColors[eventType]} variant="secondary">
                               {t(`eventTypes.${eventType}`)}
                             </Badge>
@@ -704,6 +760,12 @@ export default function EventsPage() {
                                 {tc("cancelled")}
                               </Badge>
                             )}
+                            {event.reminder_sent_at ? (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                <BellRing className="mr-1 h-3 w-3" />
+                                {t("reminderSent")}
+                              </Badge>
+                            ) : null}
                           </div>
                           {/*
                             QA #682 fix: show full date+time prominently under
@@ -933,13 +995,23 @@ export default function EventsPage() {
               </div>
             </div>
 
+            {/* Reminder transparency — reminders are fully automatic */}
+            <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2">
+              <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">{t("reminderHint")}</p>
+            </div>
+
             <div className="space-y-2">
-              <Label>{t("location")}</Label>
+              <Label>
+                {t("location")}{" "}
+                <span className="font-normal text-muted-foreground">({tc("optional")})</span>
+              </Label>
               <Input
                 value={formLocation}
                 onChange={(e) => setFormLocation(e.target.value)}
                 placeholder={t("locationPlaceholder")}
               />
+              <p className="text-xs text-muted-foreground">{t("locationHint")}</p>
             </div>
 
             <div className="space-y-2">
@@ -957,7 +1029,7 @@ export default function EventsPage() {
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div>
                 <p className="text-sm font-medium">{t("recurring")}</p>
-                <p className="text-xs text-muted-foreground">{t("recurringHint")}</p>
+                <p className="text-xs text-muted-foreground">{t("recurringHintManual")}</p>
               </div>
               <button
                 type="button"

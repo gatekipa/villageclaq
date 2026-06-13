@@ -63,8 +63,14 @@ interface GroupContextValue {
   loading: boolean;
   /** Switch to a different group */
   switchGroup: (groupId: string) => void;
-  /** Refetch memberships (e.g., after creating a group) */
-  refresh: () => Promise<void>;
+  /**
+   * Refetch memberships (e.g., after creating a group).
+   * Pass `true` to FORCE the refetch: bypasses the 5s cooldown and, if a
+   * fetch is already in flight, waits for it and then runs a fresh fetch.
+   * Only use force on paths where stale data causes a wrong redirect
+   * (e.g., right after group creation — see onboarding wizard).
+   */
+  refresh: (force?: boolean) => Promise<void>;
 }
 
 const GroupContext = createContext<GroupContextValue>({
@@ -112,14 +118,29 @@ export function GroupProvider({ children }: { children: ReactNode }) {
   const userRef = useRef<UserProfile | null>(null);
   useEffect(() => { userRef.current = user; }, [user]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force: boolean = false) => {
     // Prevent overlapping fetches (e.g., TOKEN_REFRESHED firing while initial load runs)
-    if (fetchInProgress.current) return;
+    if (fetchInProgress.current) {
+      if (!force) return;
+      // FORCED refresh while a fetch is in flight: the in-flight fetch may
+      // have read the DB BEFORE the change that prompted this force (e.g.,
+      // the owner membership created milliseconds ago by the onboarding
+      // wizard). Returning early would resolve refresh() against stale data
+      // and bounce the new owner back to onboarding. Instead, wait for the
+      // in-flight fetch to settle, then fall through to a FRESH fetch.
+      // Bounded wait (10s) so a wedged flag can never hang the caller.
+      const waitStart = Date.now();
+      while (fetchInProgress.current && Date.now() - waitStart < 10_000) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
 
     // Cooldown guard: prevent rapid sequential fetches (the root cause of the
     // 331-request/min loop). The first fetch is always allowed (lastFetchTime = 0).
+    // FORCED refreshes bypass the cooldown — they are explicit one-shot calls
+    // from success paths (group just created), not render-loop driven.
     const now = Date.now();
-    if (lastFetchTime.current > 0 && now - lastFetchTime.current < 5000) {
+    if (!force && lastFetchTime.current > 0 && now - lastFetchTime.current < 5000) {
       if (process.env.NODE_ENV === "development") {
         console.warn("[GroupProvider] fetchData throttled — last fetch was", now - lastFetchTime.current, "ms ago");
       }
@@ -281,13 +302,16 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     });
   }, [queryClient]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force?: boolean) => {
     // Do NOT set loading=true here — that causes DashboardGuard to unmount the
     // entire layout (Sidebar + Header + children) and replace it with a full-screen
     // spinner, then remount everything when loading=false. This is the primary
     // cause of the "flickering" bug. Refetches happen silently; only the initial
     // load (loading default = true) shows the spinner.
-    await fetchData();
+    //
+    // `force === true` (strict — guards against refresh being passed directly
+    // as an event handler) bypasses the 5s cooldown and any in-flight fetch.
+    await fetchData(force === true);
   }, [fetchData]);
 
   const currentMembership = memberships.find((m) => m.group_id === currentGroupId) || null;

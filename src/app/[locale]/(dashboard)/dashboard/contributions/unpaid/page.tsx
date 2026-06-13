@@ -1,25 +1,31 @@
 "use client";
 import { formatAmount } from "@/lib/currencies";
+import { formatDateWithGroupFormat } from "@/lib/format";
 
 import { useState, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   AlertTriangle,
   Send,
-  HandCoins,
   CreditCard,
-  History,
-  Grid3X3,
-  BarChart3,
   MessageSquare,
   Download,
   ArrowUpDown,
   Users,
+  Loader2,
 } from "lucide-react";
+import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import { useObligations } from "@/lib/hooks/use-supabase-query";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
@@ -54,13 +60,17 @@ const standingColors: Record<string, string> = {
 
 export default function UnpaidReportPage() {
   const t = useTranslations();
+  const locale = useLocale();
   const { currentGroup, groupId } = useGroup();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const currency = currentGroup?.currency || "XAF";
   const [sortBy, setSortBy] = useState<"amount" | "name">("amount");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sendingReminders, setSendingReminders] = useState(false);
   const [remindersSentCount, setRemindersSentCount] = useState(0);
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
+  const [showRemindersConfirm, setShowRemindersConfirm] = useState(false);
+  const [remindersError, setRemindersError] = useState<string | null>(null);
 
   // Fetch ALL non-paid obligations (pending, partial, overdue)
   const { data: allObligations, isLoading, isError, refetch } = useObligations();
@@ -122,13 +132,17 @@ export default function UnpaidReportPage() {
 
   const totalOutstanding = sorted.reduce((sum, m) => sum + m.totalOutstanding, 0);
 
+  // Only members with accounts (userId) can receive in-app reminders —
+  // proxy members have no account to notify.
+  const eligibleMembers = useMemo(() => sorted.filter((m) => m.userId), [sorted]);
+
   async function handleSendAllReminders() {
     const supabase = createClient();
-    const validMembers = sorted.filter((m) => m.userId);
-    if (validMembers.length === 0) return;
+    if (eligibleMembers.length === 0) return;
     setSendingReminders(true);
+    setRemindersError(null);
     try {
-      const notifications = validMembers.map((m) => ({
+      const notifications = eligibleMembers.map((m) => ({
         user_id: m.userId!,
         group_id: groupId!,
         type: "contribution_due" as const,
@@ -137,19 +151,25 @@ export default function UnpaidReportPage() {
         is_read: false,
         data: { link: "/dashboard/my-payments" },
       }));
-      await supabase.from("notifications").insert(notifications);
-      setRemindersSentCount(validMembers.length);
+      const { error } = await supabase.from("notifications").insert(notifications);
+      if (error) throw error;
+      setRemindersSentCount(eligibleMembers.length);
+    } catch (err) {
+      console.warn("[Reminders] bulk insert failed:", err instanceof Error ? err.message : err);
+      setRemindersError(t("contributions.remindersSendFailed"));
     } finally {
       setSendingReminders(false);
+      setShowRemindersConfirm(false);
     }
   }
 
   async function handleSendReminder(member: UnpaidMember) {
     if (!member.userId || !groupId || sendingReminderId) return;
     setSendingReminderId(member.id);
+    setRemindersError(null);
     try {
       const supabase = createClient();
-      await supabase.from("notifications").insert({
+      const { error } = await supabase.from("notifications").insert({
         user_id: member.userId,
         group_id: groupId,
         type: "contribution_due" as const,
@@ -158,7 +178,11 @@ export default function UnpaidReportPage() {
         is_read: false,
         data: { link: "/dashboard/my-payments" },
       });
+      if (error) throw error;
       setRemindersSentCount(1);
+    } catch (err) {
+      console.warn("[Reminders] insert failed:", err instanceof Error ? err.message : err);
+      setRemindersError(t("contributions.remindersSendFailed"));
     } finally {
       setSendingReminderId(null);
     }
@@ -176,15 +200,6 @@ export default function UnpaidReportPage() {
     exportCSV(data, "unpaid_members");
   }
 
-  const subNavItems = [
-    { key: "types", href: "/dashboard/contributions", icon: HandCoins, label: t("contributions.types") },
-    { key: "record", href: "/dashboard/contributions/record", icon: CreditCard, label: t("contributions.recordPayment") },
-    { key: "history", href: "/dashboard/contributions/history", icon: History, label: t("contributions.history") },
-    { key: "matrix", href: "/dashboard/contributions/matrix", icon: Grid3X3, label: t("contributions.matrix") },
-    { key: "unpaid", href: "/dashboard/contributions/unpaid", icon: AlertTriangle, label: t("contributions.unpaid") },
-    { key: "finances", href: "/dashboard/finances", icon: BarChart3, label: t("contributions.financeDashboard") },
-  ];
-
   if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ListSkeleton rows={6} /></RequirePermission>;
 
   if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => refetch()} /></RequirePermission>;
@@ -195,9 +210,19 @@ export default function UnpaidReportPage() {
       {remindersSentCount > 0 && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            ✅ {t("contributions.remindersSentSuccess", { count: remindersSentCount })}
+            ✅ {t("finances.remindersSentSuccess", { count: remindersSentCount })}
           </p>
           <Button variant="ghost" size="sm" onClick={() => setRemindersSentCount(0)} className="h-7 text-xs">
+            {t("common.close")}
+          </Button>
+        </div>
+      )}
+
+      {/* Failure banner */}
+      {remindersError && (
+        <div className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+          <p className="text-sm text-destructive">{remindersError}</p>
+          <Button variant="ghost" size="sm" onClick={() => setRemindersError(null)} className="h-7 text-xs">
             {t("common.close")}
           </Button>
         </div>
@@ -213,7 +238,11 @@ export default function UnpaidReportPage() {
             <Download className="mr-2 h-4 w-4" />
             {t("contributions.exportCSV")}
           </Button>
-          <Button variant="default" onClick={handleSendAllReminders} disabled={sendingReminders || sorted.length === 0}>
+          <Button
+            variant="default"
+            onClick={() => setShowRemindersConfirm(true)}
+            disabled={sendingReminders || eligibleMembers.length === 0}
+          >
             <Send className="mr-2 h-4 w-4" />
             {t("contributions.sendAllReminders")}
           </Button>
@@ -221,20 +250,7 @@ export default function UnpaidReportPage() {
       </div>
 
       {/* Sub Navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {subNavItems.map((item) => (
-          <Link key={item.key} href={item.href}>
-            <Button
-              variant={item.key === "unpaid" ? "default" : "outline"}
-              size="sm"
-              className="shrink-0"
-            >
-              <item.icon className="mr-1.5 h-3.5 w-3.5" />
-              {item.label}
-            </Button>
-          </Link>
-        ))}
-      </div>
+      <ContributionsSubNav active="unpaid" />
 
       {sorted.length === 0 ? (
         <EmptyState
@@ -327,7 +343,7 @@ export default function UnpaidReportPage() {
                               <p className="font-medium">{obl.type}</p>
                               <p className="text-xs text-muted-foreground">
                                 {obl.period}
-                                {obl.dueDate && ` \u2022 ${t("contributions.due")}: ${obl.dueDate}`}
+                                {obl.dueDate && ` \u2022 ${t("contributions.due")}: ${formatDateWithGroupFormat(obl.dueDate, groupDateFormat, locale)}`}
                               </p>
                             </div>
                             <div className="text-right">
@@ -350,10 +366,16 @@ export default function UnpaidReportPage() {
                             {t("contributions.recordPayment")}
                           </Button>
                         </Link>
-                        <Button size="sm" onClick={() => handleSendReminder(member)} disabled={!member.userId || sendingReminderId === member.id}>
-                          <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-                          {t("contributions.sendReminder")}
-                        </Button>
+                        <span title={!member.userId ? t("contributions.proxyReminderUnavailable") : undefined}>
+                          <Button size="sm" onClick={() => handleSendReminder(member)} disabled={!member.userId || sendingReminderId === member.id}>
+                            {sendingReminderId === member.id ? (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                            )}
+                            {sendingReminderId === member.id ? t("common.sending") : t("contributions.sendReminder")}
+                          </Button>
+                        </span>
                       </div>
                     </div>
                   )}
@@ -363,6 +385,31 @@ export default function UnpaidReportPage() {
           </div>
         </>
       )}
+
+      {/* Send-All Reminders Confirmation Dialog */}
+      <Dialog open={showRemindersConfirm} onOpenChange={(open) => { if (!open) setShowRemindersConfirm(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("contributions.sendAllReminders")}</DialogTitle>
+          <DialogDescription>
+            {t("contributions.remindersEligibleNote", {
+              eligible: eligibleMembers.length,
+              total: sorted.length,
+            })}
+            {eligibleMembers.length < sorted.length && (
+              <> {t("contributions.proxyReminderUnavailable")}</>
+            )}
+          </DialogDescription>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRemindersConfirm(false)} disabled={sendingReminders}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={handleSendAllReminders} disabled={sendingReminders || eligibleMembers.length === 0}>
+              {sendingReminders ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {t("contributions.sendAllReminders")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div></RequirePermission>
   );
 }

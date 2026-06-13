@@ -5,7 +5,7 @@ import { Info, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-export type SendReviewContext = "invitations" | "reminders" | "announcements";
+export type SendReviewContext = "invitations" | "reminders" | "announcements" | "receipts";
 
 /** Order of the labelled lines in the full variant. */
 const ROW_KEYS = ["who", "channels", "preview", "confirm"] as const;

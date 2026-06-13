@@ -43,6 +43,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
+import { MoneyOverview } from "@/components/finances/money-overview";
 
 
 function useFineStats(groupId: string | null) {
@@ -161,11 +162,28 @@ export default function FinancesPage() {
     const obligations = allObligations || [];
     const payments = allPayments || [];
 
-    const totalDue = obligations.reduce((sum, o) => sum + Number(o.amount), 0);
-    const totalPaidOnObligations = obligations.reduce((sum, o) => sum + Number(o.amount_paid), 0);
-    const totalCollected = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalOutstanding = totalDue - totalPaidOnObligations;
-    const collectionRate = totalDue > 0 ? Math.round((totalPaidOnObligations / totalDue) * 100) : 0;
+    // Expected excludes waived obligations (forgiven money is not owed).
+    const totalDueExclWaived = obligations.reduce(
+      (sum, o) => (((o as Record<string, unknown>).status as string) === "waived" ? sum : sum + Number(o.amount)),
+      0,
+    );
+    // Collected = CONFIRMED dues payments only. payments.status defaults to
+    // 'confirmed'; treat null/empty as confirmed to match the column default,
+    // but exclude pending-confirmation and rejected so unconfirmed member
+    // submissions never inflate the collected figure (matches MoneyOverview).
+    const isConfirmed = (s: unknown) => {
+      const status = (s as string) || "confirmed";
+      return status !== "pending_confirmation" && status !== "rejected";
+    };
+    const totalCollected = payments.reduce(
+      (sum, p) => (isConfirmed((p as Record<string, unknown>).status) ? sum + Number(p.amount) : sum),
+      0,
+    );
+    // Outstanding and collection rate use the SAME confirmed-only /
+    // waived-excluded basis as the Collection overview above, so the two
+    // figures on this screen never disagree.
+    const totalOutstanding = Math.max(0, totalDueExclWaived - totalCollected);
+    const collectionRate = totalDueExclWaived > 0 ? Math.round((totalCollected / totalDueExclWaived) * 100) : 0;
 
     // This month's payments
     const now = new Date();
@@ -178,6 +196,7 @@ export default function FinancesPage() {
     let paymentsThisMonth = 0;
 
     for (const p of payments) {
+      if (!isConfirmed((p as Record<string, unknown>).status)) continue;
       const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
       if (pMonth === thisMonthKey) {
         collectedThisMonth += Number(p.amount);
@@ -207,6 +226,8 @@ export default function FinancesPage() {
     for (const m of months) monthMap.set(m.key, 0);
 
     for (const p of payments) {
+      const status = ((p as Record<string, unknown>).status as string) || "confirmed";
+      if (status === "pending_confirmation" || status === "rejected") continue;
       const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
       if (monthMap.has(pMonth)) {
         monthMap.set(pMonth, (monthMap.get(pMonth) || 0) + Number(p.amount));
@@ -403,6 +424,9 @@ export default function FinancesPage() {
           {syncResult && <span className="text-xs text-muted-foreground">{syncResult}</span>}
         </div>
       )}
+
+      {/* Collection overview — money command center */}
+      <MoneyOverview />
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

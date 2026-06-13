@@ -598,7 +598,10 @@
     "pendingInvitationsCount": "{count, plural, one {# invitation awaiting response} other {# invitations awaiting response}}",
     "reviewApprovals": "Review requests",
     "viewInvitations": "View invitations",
-    "writeMinutes": "Write minutes"
+    "writeMinutes": "Write minutes",
+    "viewMyPaymentsCard": "View your balance",
+    "groupOutstandingBalance": "Group outstanding balance",
+    "groupWideViewMine": "Group-wide total — view your balance"
   },
   "groups": {
     "switchGroup": "Switch Group",
@@ -1309,7 +1312,39 @@
     "receiptUploadFailed": "Receipt upload failed. Please try again.",
     "remindersEligibleNote": "Will notify {eligible} of {total} members.",
     "remindersSendFailed": "Failed to send reminders. Please try again.",
-    "reopenPeriodDesc": "Reopening this period will allow new payments to be recorded again. Existing records are not affected."
+    "reopenPeriodDesc": "Reopening this period will allow new payments to be recorded again. Existing records are not affected.",
+    "typesEmptyDescRich": "Create your first contribution: one-time levy or recurring due. Members are enrolled and reminded automatically.",
+    "setupConsequenceTitle": "What happens after you save",
+    "setupConsequenceEnroll": "Each of your {count} members gets a balance to pay.",
+    "setupConsequenceEnrollOne": "Your 1 member gets a balance to pay.",
+    "setupConsequenceNoEnroll": "No member is enrolled yet; enroll everyone later.",
+    "setupConsequenceOneTime": "One-time levy: owed once, due on the date you set.",
+    "setupConsequenceRecurring": "Repeats {frequency}: a new balance each period.",
+    "setupConsequenceReminders": "Once balances exist, members are reminded automatically.",
+    "enrollPreview": "This will enroll up to {count} members.",
+    "enrollPreviewOne": "This will enroll your 1 member.",
+    "enrollPreviewNote": "Members already enrolled this period are skipped.",
+    "enrollPreviewConfirm": "Enroll members",
+    "guideOneTimeTitle": "One-time levy",
+    "guideOneTimeDesc": "A single charge owed once, like a registration fee.",
+    "guideRecurringTitle": "Recurring due",
+    "guideRecurringDesc": "A charge that returns each period: monthly, quarterly, yearly.",
+    "guideAfterTitle": "After you create one",
+    "guideAfterDesc": "Enroll all members at once; each gets a balance, reminders automatic.",
+    "viewProof": "View proof",
+    "noPaymentsForFilter": "No payments match this filter.",
+    "statusFilterLabel": "Filter payments by status",
+    "statusFilterAll": "All",
+    "statusFilterPending": "Pending confirmation",
+    "statusFilterConfirmed": "Confirmed",
+    "statusFilterRejected": "Rejected",
+    "recordReviewSummary": "You're recording {amount} from {member} for {type}.",
+    "confirmPaymentReviewTitle": "Confirm this payment?",
+    "confirmPaymentReviewDesc": "Confirming credits {amount} from {member} to their balance and sends them a receipt.",
+    "confirmPaymentReviewAction": "Confirm payment",
+    "rejectPaymentReviewTitle": "Reject this payment?",
+    "rejectPaymentReviewDesc": "Rejecting marks {amount} from {member} as not accepted. The member is not sent anything.",
+    "rejectPaymentReviewAction": "Reject payment"
   },
   "finances": {
     "title": "Financial Dashboard",
@@ -1345,7 +1380,38 @@
     "contribution": "Contribution",
     "syncSuccess": "Synced {updated} obligations from {total} payments",
     "syncError": "Error: {message}",
-    "remindersSentSuccess": "{count} reminder(s) sent successfully"
+    "remindersSentSuccess": "{count} reminder(s) sent successfully",
+    "overview": {
+      "title": "Collection overview",
+      "subtitle": "Your group's money at a glance",
+      "collected": "Total collected",
+      "expected": "Total expected",
+      "collectionRate": "Collection rate",
+      "outstanding": "Outstanding balance",
+      "overdue": "Overdue",
+      "memberSingular": "member behind",
+      "memberPlural": "members behind",
+      "pendingConfirmation": {
+        "title": "Pending confirmation",
+        "awaitingSingular": "payment awaiting confirmation",
+        "awaitingPlural": "payments awaiting confirmation"
+      },
+      "cta": {
+        "recordPayment": "Record a payment",
+        "reviewConfirmations": "Review confirmations",
+        "reviewUnpaid": "Review unpaid members",
+        "setUpDues": "Set up dues"
+      },
+      "recentPayments": {
+        "title": "Recent payments",
+        "empty": "No confirmed payments yet"
+      },
+      "nextDue": {
+        "title": "Next due",
+        "empty": "Nothing due soon"
+      },
+      "viewAll": "View all"
+    }
   },
   "invitations": {
     "title": "Invitations",
@@ -2360,7 +2426,28 @@
     "dismiss": "Dismiss",
     "online": "Online",
     "other": "Other",
-    "receiptOpenFailed": "Could not open the receipt. Please try again."
+    "receiptOpenFailed": "Could not open the receipt. Please try again.",
+    "youOweNow": "You owe now",
+    "nextPaymentDue": "Next payment due {date}",
+    "overdueBy": "Overdue by {days, plural, one {# day} other {# days}}",
+    "dueInDays": "Due in {days, plural, one {# day} other {# days}}",
+    "caughtUpTitle": "You're all caught up",
+    "caughtUpDesc": "You have no payments due right now. Nice work!",
+    "noDuesYetTitle": "No dues set up yet",
+    "noDuesYetDesc": "Your group hasn't set up any dues for you yet. Nothing is owed.",
+    "pendingConfirmationNotice": "{count, plural, one {# payment of {amount} is} other {# payments totaling {amount} are}} awaiting confirmation. This is not yet credited to your balance.",
+    "confirmedOnlyNote": "Confirmed payments only",
+    "partiallyPaid": "Partially paid",
+    "partiallyPaidProgress": "Paid {paid} of {total}",
+    "statusOverdue": "Overdue",
+    "statusDueNow": "Due now",
+    "awaitingConfirmation": "Awaiting confirmation",
+    "notYetCredited": "This submission is awaiting confirmation and is not yet credited to your balance.",
+    "legendTitle": "What these labels mean",
+    "legendDueNow": "A payment that is due but not yet past its date.",
+    "legendOverdue": "A payment whose due date has passed.",
+    "legendPartiallyPaid": "Part of this amount has been paid; a balance remains.",
+    "legendPendingConfirmation": "You submitted a payment that is awaiting confirmation. It is not yet credited."
   },
   "payNow": {
     "dialogTitle": "Pay Now",
@@ -6000,6 +6087,13 @@
         "preview": "You can write, edit, and save drafts freely — drafts never reach members.",
         "confirm": "Members are contacted only when you confirm a send, or at the exact time you set for a scheduled announcement.",
         "compactNote": "Members are contacted only when you send or schedule an announcement."
+      },
+      "receipts": {
+        "who": "The member whose payment you record or confirm — only that person receives the receipt.",
+        "channels": "A receipt appears in the member's account, and reaches them by email, WhatsApp, or text message when their saved details and preferences allow.",
+        "preview": "Reviewing a payment, opening the proof, and filtering this list contacts no one.",
+        "confirm": "The receipt goes out when you record a payment or confirm a pending one — those are the actions that notify the member.",
+        "compactNote": "Recording or confirming a payment sends the member a receipt."
       }
     },
     "demo": {

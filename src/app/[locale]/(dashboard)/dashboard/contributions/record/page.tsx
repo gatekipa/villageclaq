@@ -29,6 +29,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { ContributionsSubNav } from "@/components/contributions/sub-nav";
+import { SendReviewNotice } from "@/components/send-review-notice";
 import {
   Dialog,
   DialogContent,
@@ -1055,8 +1056,25 @@ export default function RecordPaymentPage() {
               </p>
             )}
 
+            {/* Review summary + honest send notice — display only, sends nothing */}
+            <div className="space-y-2 border-t pt-4">
+              {selectedMembership && selectedTypeId && amount && Number(amount) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {t("contributions.recordReviewSummary", {
+                    member: selectedMembership.name,
+                    amount: formatAmount(Number(amount), currency),
+                    type:
+                      (locale === "fr" && (selectedType?.name_fr as string))
+                        ? (selectedType?.name_fr as string)
+                        : ((selectedType?.name as string) || t("contributions.contributionType")),
+                  })}
+                </p>
+              )}
+              <SendReviewNotice context="receipts" variant="compact" />
+            </div>
+
             {/* Action Buttons */}
-            <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-end">
               <Button
                 variant="default"
                 size="lg"

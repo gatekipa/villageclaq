@@ -38,6 +38,7 @@ import {
   DollarSign,
   CreditCard,
   Info,
+  Hourglass,
 } from "lucide-react";
 
 
@@ -143,13 +144,33 @@ export default function MyPaymentsPage() {
     );
   }, [allPayments, currentMembership]);
 
+  // "Paid This Year" must count CONFIRMED money only. Member-submitted
+  // payments awaiting review (pending_confirmation) and rejected ones are
+  // NOT yet credited — including them inflates the figure.
   const totalPaidThisYear = useMemo(() => {
     const year = new Date().getFullYear().toString();
     return myPayments
-      .filter((p: Record<string, unknown>) =>
-        (p.recorded_at as string)?.startsWith(year)
-      )
+      .filter((p: Record<string, unknown>) => {
+        const status = (p.status as string) || "confirmed";
+        if (status === "pending_confirmation" || status === "rejected") return false;
+        return (p.recorded_at as string)?.startsWith(year);
+      })
       .reduce((sum: number, p: Record<string, unknown>) => sum + Number(p.amount), 0);
+  }, [myPayments]);
+
+  // Member-submitted payments still awaiting confirmation. This money is NOT
+  // yet credited to the balance, so it is surfaced separately (never folded
+  // into "Paid This Year" or used to reduce what is owed).
+  const pendingConfirmation = useMemo(() => {
+    const rows = myPayments.filter(
+      (p: Record<string, unknown>) =>
+        ((p.status as string) || "confirmed") === "pending_confirmation"
+    );
+    const total = rows.reduce(
+      (sum: number, p: Record<string, unknown>) => sum + Number(p.amount),
+      0
+    );
+    return { count: rows.length, total };
   }, [myPayments]);
 
   const totalOutstanding = useMemo(() => {
@@ -157,6 +178,25 @@ export default function MyPaymentsPage() {
       (sum: number, o: Record<string, unknown>) =>
         sum + (Number(o.amount) - Number(o.amount_paid || 0)),
       0
+    );
+  }, [outstanding]);
+
+  // Whether the member has ANY obligations at all — distinguishes
+  // "all caught up" (has dues, all settled) from "no dues set up yet".
+  const hasAnyObligations = (obligations?.length ?? 0) > 0;
+
+  // The single most-urgent next payment drives the balance hero: the
+  // earliest due date among what is still owed.
+  const nextDue = useMemo(() => {
+    if (outstanding.length === 0) return null;
+    return outstanding.reduce(
+      (soonest: Record<string, unknown> | null, o: Record<string, unknown>) => {
+        const due = o.due_date as string | undefined;
+        if (!due) return soonest;
+        if (!soonest) return o;
+        return due < (soonest.due_date as string) ? o : soonest;
+      },
+      null as Record<string, unknown> | null
     );
   }, [outstanding]);
 
@@ -237,6 +277,24 @@ export default function MyPaymentsPage() {
     }
   }
 
+  // Short urgency phrase for the balance hero's next-due line.
+  function urgencyPhrase(dueDate: string): string {
+    const days = getDaysUntilDue(dueDate);
+    if (days < 0) return t("overdueBy", { days: Math.abs(days) });
+    if (days === 0) return t("dueToday");
+    return t("dueInDays", { days });
+  }
+
+  // Per-obligation status label shown alongside the urgency badge.
+  function obligationStatusLabel(item: Record<string, unknown>): string {
+    const amountPaid = Number(item.amount_paid || 0);
+    const dueDate = (item.due_date as string) || "";
+    const overdue = dueDate ? getDaysUntilDue(dueDate) < 0 : false;
+    if (amountPaid > 0) return t("partiallyPaid");
+    if (overdue) return t("statusOverdue");
+    return t("statusDueNow");
+  }
+
   function renderUrgencyBadge(dueDate: string) {
     const days = getDaysUntilDue(dueDate);
     let label: string;
@@ -297,6 +355,99 @@ export default function MyPaymentsPage() {
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
+      {/* Balance Hero — single clear statement of what's owed right now */}
+      {totalOutstanding > 0 ? (
+        <Card className="border-red-500/40 bg-red-500/5 dark:bg-red-500/10">
+          <CardContent className="py-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-red-700/90 dark:text-red-300/90">
+                  {t("youOweNow")}
+                </p>
+                <p className="text-4xl font-bold tracking-tight text-red-700 dark:text-red-400">
+                  {formatAmount(totalOutstanding, currency)}
+                </p>
+                {nextDue?.due_date ? (
+                  <p className="flex items-center gap-1.5 pt-1 text-sm text-muted-foreground">
+                    <CalendarDays className="h-4 w-4 shrink-0" />
+                    <span>
+                      {t("nextPaymentDue", {
+                        date: formatDateWithGroupFormat(
+                          nextDue.due_date as string,
+                          groupDateFormat,
+                          locale,
+                        ),
+                      })}
+                    </span>
+                    <span className="font-medium text-foreground">
+                      · {urgencyPhrase(nextDue.due_date as string)}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+              {hasSelfServiceMethods && nextDue && (
+                <Button
+                  className="gap-1.5 self-start sm:self-auto"
+                  onClick={() => setPayNowObligation(nextDue)}
+                >
+                  <Wallet className="h-4 w-4" />
+                  {t("payNow")}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card
+          className={
+            hasAnyObligations
+              ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/10"
+              : "border-border"
+          }
+        >
+          <CardContent className="py-6">
+            <div className="flex items-center gap-4">
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                  hasAnyObligations
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {hasAnyObligations ? (
+                  <CheckCircle2 className="h-6 w-6" />
+                ) : (
+                  <Info className="h-6 w-6" />
+                )}
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-lg font-semibold">
+                  {hasAnyObligations ? t("caughtUpTitle") : t("noDuesYetTitle")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {hasAnyObligations ? t("caughtUpDesc") : t("noDuesYetDesc")}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Pending confirmation notice — money submitted but not yet credited */}
+      {pendingConfirmation.count > 0 && (
+        <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 dark:border-yellow-800 dark:bg-yellow-900/20">
+          <p className="flex items-start gap-2 text-sm text-yellow-800 dark:text-yellow-300">
+            <Hourglass className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {t("pendingConfirmationNotice", {
+                count: pendingConfirmation.count,
+                amount: formatAmount(pendingConfirmation.total, currency),
+              })}
+            </span>
+          </p>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
         <Card className="border-emerald-500/30">
@@ -311,6 +462,9 @@ export default function MyPaymentsPage() {
                 </p>
                 <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                   {formatAmount(totalPaidThisYear, currency)}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {t("confirmedOnlyNote")}
                 </p>
               </div>
             </div>
@@ -401,7 +555,17 @@ export default function MyPaymentsPage() {
               const ct = item.contribution_type as Record<string, unknown> | null;
               const name = (ct?.name as string) || "";
               const dueDate = (item.due_date as string) || "";
-              const remaining = Number(item.amount) - Number(item.amount_paid || 0);
+              const total = Number(item.amount);
+              const amountPaid = Number(item.amount_paid || 0);
+              const remaining = total - amountPaid;
+              const isPartial = amountPaid > 0;
+              // Clamp progress to [0,100] — amount_paid can be over-credited
+              // by submissions still awaiting confirmation.
+              const progressPct =
+                total > 0
+                  ? Math.min(100, Math.max(0, Math.round((amountPaid / total) * 100)))
+                  : 0;
+              const statusLabel = obligationStatusLabel(item);
               return (
                 <Card
                   key={item.id as string}
@@ -417,9 +581,35 @@ export default function MyPaymentsPage() {
                             {t("dueDate")}: {dueDate ? formatDateWithGroupFormat(dueDate, groupDateFormat, locale) : ""}
                           </span>
                         </div>
-                        <div className="pt-1">
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <span className="inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-0.5 text-[11px] font-medium">
+                            {statusLabel}
+                          </span>
                           {renderUrgencyBadge(dueDate)}
                         </div>
+                        {isPartial && (
+                          <div className="space-y-1 pt-2">
+                            <p className="text-xs text-muted-foreground">
+                              {t("partiallyPaidProgress", {
+                                paid: formatAmount(amountPaid, currency),
+                                total: formatAmount(total, currency),
+                              })}
+                            </p>
+                            <div
+                              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                              role="progressbar"
+                              aria-valuenow={progressPct}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-label={t("partiallyPaid")}
+                            >
+                              <div
+                                className="h-full rounded-full bg-emerald-500 transition-all"
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right shrink-0 space-y-2">
                         <p className="text-xl font-bold">
@@ -441,6 +631,33 @@ export default function MyPaymentsPage() {
                 </Card>
               );
             })
+          )}
+
+          {/* Status legend — keeps the labels self-explanatory */}
+          {filteredOutstanding.length > 0 && (
+            <div className="rounded-md border border-border bg-muted/40 px-4 py-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                {t("legendTitle")}
+              </p>
+              <ul className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                <li className="flex gap-1.5">
+                  <span className="font-medium text-foreground">{t("statusDueNow")}:</span>
+                  <span>{t("legendDueNow")}</span>
+                </li>
+                <li className="flex gap-1.5">
+                  <span className="font-medium text-foreground">{t("statusOverdue")}:</span>
+                  <span>{t("legendOverdue")}</span>
+                </li>
+                <li className="flex gap-1.5">
+                  <span className="font-medium text-foreground">{t("partiallyPaid")}:</span>
+                  <span>{t("legendPartiallyPaid")}</span>
+                </li>
+                <li className="flex gap-1.5">
+                  <span className="font-medium text-foreground">{t("pendingConfirmation")}:</span>
+                  <span>{t("legendPendingConfirmation")}</span>
+                </li>
+              </ul>
+            </div>
           )}
         </div>
       )}
@@ -511,9 +728,14 @@ export default function MyPaymentsPage() {
                               : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
                           }
                         >
-                          {isPaid ? t("paid") : isPending ? t("pendingConfirmation") : isRejected ? t("rejected") : t("pending")}
+                          {isPaid ? t("paid") : isPending ? t("awaitingConfirmation") : isRejected ? t("rejected") : t("pending")}
                         </Badge>
                       </div>
+                      {isPending && (
+                        <p className="text-[11px] leading-snug text-yellow-700 dark:text-yellow-400">
+                          {t("notYetCredited")}
+                        </p>
+                      )}
                     </div>
 
                     {/* Desktop layout */}
@@ -551,9 +773,14 @@ export default function MyPaymentsPage() {
                               : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20"
                           }
                         >
-                          {isPaid ? t("paid") : isPending ? t("pendingConfirmation") : isRejected ? t("rejected") : t("pending")}
+                          {isPaid ? t("paid") : isPending ? t("awaitingConfirmation") : isRejected ? t("rejected") : t("pending")}
                         </Badge>
                       </span>
+                      {isPending && (
+                        <p className="col-span-12 text-[11px] leading-snug text-yellow-700 dark:text-yellow-400">
+                          {t("notYetCredited")}
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

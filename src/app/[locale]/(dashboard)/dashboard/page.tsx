@@ -481,11 +481,18 @@ export default function DashboardPage() {
           </Card>
         </Link>
 
-        <Link href="/dashboard/contributions/unpaid" aria-label={t("dashboard.viewOutstandingCard")}>
+        {/* Outstanding balance is a GROUP-WIDE collection figure. For
+            non-admins the admin unpaid view is off-limits and the number is
+            not personal, so members are sent to their own balance page and
+            the card is clearly labelled as group-wide. */}
+        <Link
+          href={isAdmin ? "/dashboard/contributions/unpaid" : "/dashboard/my-payments"}
+          aria-label={isAdmin ? t("dashboard.viewOutstandingCard") : t("dashboard.viewMyPaymentsCard")}
+        >
           <Card className={cn("cursor-pointer transition-all hover:shadow-md hover:border-primary/30", outstanding > 0 && "border border-destructive/30 bg-red-50/50 dark:bg-red-950/20 hover:border-destructive/50")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base font-medium text-muted-foreground">
-                {t("dashboard.outstandingBalance")}
+                {isAdmin ? t("dashboard.outstandingBalance") : t("dashboard.groupOutstandingBalance")}
               </CardTitle>
               {outstanding > 0 ? (
                 <AlertCircle className="h-5 w-5 text-destructive" />
@@ -498,7 +505,11 @@ export default function DashboardPage() {
                 {formatCurrency(outstanding)}
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {outstanding > 0 ? t("dashboard.overdue") : t("dashboard.allCaughtUp")}
+                {!isAdmin
+                  ? t("dashboard.groupWideViewMine")
+                  : outstanding > 0
+                  ? t("dashboard.overdue")
+                  : t("dashboard.allCaughtUp")}
               </p>
             </CardContent>
           </Card>

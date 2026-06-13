@@ -110,9 +110,19 @@ test("misleading stat sublabels are replaced with honest ones", () => {
 test("outstanding balance card goes neutral + positive when nothing is owed", () => {
   assert.match(page, /outstanding > 0 && "border border-destructive\/30/);
   assert.match(page, /outstanding > 0 \? "text-destructive" : "text-foreground"/);
-  assert.match(page, /outstanding > 0 \? t\("dashboard\.overdue"\) : t\("dashboard\.allCaughtUp"\)/);
+  // Admin path still flips overdue → all-caught-up by the outstanding figure
+  // (Sprint C wraps it in a member-aware branch, so allow whitespace/newlines).
+  assert.match(page, /outstanding > 0\s*\?\s*t\("dashboard\.overdue"\)\s*:\s*t\("dashboard\.allCaughtUp"\)/);
   // The alert icon only shows when there is something to alert about.
   assert.match(page, /\{outstanding > 0 \? \(\s*<AlertCircle/);
+});
+
+test("outstanding card is member-aware (Sprint C): members see a group-wide label and a link to their own balance", () => {
+  // Non-admins are sent to their personal balance, not the admin unpaid view.
+  assert.match(page, /href=\{isAdmin \? "\/dashboard\/contributions\/unpaid" : "\/dashboard\/my-payments"\}/);
+  // The title and subtitle stop implying the group figure is personal.
+  assert.match(page, /isAdmin \? t\("dashboard\.outstandingBalance"\) : t\("dashboard\.groupOutstandingBalance"\)/);
+  assert.match(page, /groupWideViewMine/);
 });
 
 // ─── 5. Friendly errors ────────────────────────────────────────────────────

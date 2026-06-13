@@ -3,7 +3,7 @@ import { formatAmount } from "@/lib/currencies";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatDateWithGroupFormat } from "@/lib/format";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,7 +53,18 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useSearchParam } from "@/lib/hooks/use-stable-search-params";
 import { Check, X } from "lucide-react";
+
+// Status filter values for the payment history view. "all" is the default;
+// the others map 1:1 to a payment's status. A sibling page deep-links here
+// with ?status=pending_confirmation, so that value must be parseable.
+const STATUS_FILTERS = ["all", "pending_confirmation", "confirmed", "rejected"] as const;
+type StatusFilter = (typeof STATUS_FILTERS)[number];
+function isStatusFilter(value: string | null): value is StatusFilter {
+  return value !== null && (STATUS_FILTERS as readonly string[]).includes(value);
+}
 
 // Method labels resolved via t() inside component — see getMethodLabel()
 
@@ -85,9 +96,26 @@ export default function PaymentHistoryPage() {
   const { data: payments, isLoading, isError, refetch } = usePayments(100);
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("finances.manage");
+  const confirmDialog = useConfirmDialog();
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Status filter — initial value comes from the ?status= deep-link (a sibling
+  // links here with ?status=pending_confirmation). useSearchParam returns a
+  // stable string primitive, so it is safe to read directly (rule 9).
+  const statusParam = useSearchParam("status");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(
+    isStatusFilter(statusParam) ? statusParam : "all"
+  );
+  // Keep the filter in sync if the ?status= deep-link changes while this
+  // route stays mounted (in-app nav, back/forward). statusParam is a stable
+  // string primitive (rule 9), so it is safe in the dependency array. Pill
+  // clicks only mutate local state and leave the URL untouched, so this
+  // effect won't fire and clobber a manual selection.
+  useEffect(() => {
+    if (isStatusFilter(statusParam)) setStatusFilter(statusParam);
+  }, [statusParam]);
 
   // Receipts live in a private bucket — stored values (object paths, or
   // legacy signed/public URLs) must be re-signed on every open, otherwise
@@ -186,16 +214,32 @@ export default function PaymentHistoryPage() {
     });
   }, [payments, currency]);
 
+  // Count of items still awaiting an admin's confirm/reject decision — shown
+  // on the "Pending confirmation" pill regardless of the active filter.
+  const pendingCount = useMemo(
+    () => normalizedPayments.filter((p) => p.status === "pending_confirmation").length,
+    [normalizedPayments]
+  );
+
   const filtered = useMemo(() => {
-    if (!search) return normalizedPayments;
+    let rows = normalizedPayments;
+    if (statusFilter !== "all") {
+      rows = rows.filter((p) =>
+        statusFilter === "confirmed"
+          ? // Legacy/default rows store no status; treat them as confirmed.
+            p.status === "confirmed" || (p.status !== "pending_confirmation" && p.status !== "rejected")
+          : p.status === statusFilter
+      );
+    }
+    if (!search) return rows;
     const q = normalizeSearch(search);
-    return normalizedPayments.filter(
+    return rows.filter(
       (p) =>
         normalizeSearch(p.memberName).includes(q) ||
         (p.referenceNumber && normalizeSearch(p.referenceNumber).includes(q)) ||
         normalizeSearch(p.contributionTypeName).includes(q)
     );
-  }, [normalizedPayments, search]);
+  }, [normalizedPayments, search, statusFilter]);
 
   const sortedPayments = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -328,6 +372,41 @@ export default function PaymentHistoryPage() {
     } finally {
       setConfirmingId(null);
     }
+  }
+
+  // ── Review gates ──────────────────────────────────────────────────────
+  // These wrap the existing confirm/reject handlers in a confirmation step so
+  // the admin knows, honestly, that confirming sends the member a receipt
+  // (in-app for members with an account; email/WhatsApp/text per their saved
+  // details and preferences) while rejecting sends nothing. The underlying
+  // handlers are unchanged — only gated.
+  async function confirmThenConfirmPayment(payment: typeof normalizedPayments[0]) {
+    const ok = await confirmDialog({
+      title: t("contributions.confirmPaymentReviewTitle"),
+      description: t("contributions.confirmPaymentReviewDesc", {
+        member: payment.memberName,
+        amount: formatAmount(payment.amount, payment.currency),
+      }),
+      confirmLabel: t("contributions.confirmPaymentReviewAction"),
+      cancelLabel: tc("cancel"),
+    });
+    if (!ok) return;
+    await handleConfirmPayment(payment);
+  }
+
+  async function confirmThenRejectPayment(payment: typeof normalizedPayments[0]) {
+    const ok = await confirmDialog({
+      title: t("contributions.rejectPaymentReviewTitle"),
+      description: t("contributions.rejectPaymentReviewDesc", {
+        member: payment.memberName,
+        amount: formatAmount(payment.amount, payment.currency),
+      }),
+      confirmLabel: t("contributions.rejectPaymentReviewAction"),
+      cancelLabel: tc("cancel"),
+      destructive: true,
+    });
+    if (!ok) return;
+    await handleRejectPayment(payment.id);
   }
 
   async function handleRejectPayment(paymentId: string) {
@@ -577,6 +656,54 @@ export default function PaymentHistoryPage() {
         </div>
       </div>
 
+      {/* Status filter pills */}
+      <div
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label={t("contributions.statusFilterLabel")}
+      >
+        {STATUS_FILTERS.map((value) => {
+          const isActive = statusFilter === value;
+          const label =
+            value === "all"
+              ? t("contributions.statusFilterAll")
+              : value === "pending_confirmation"
+              ? t("contributions.statusFilterPending")
+              : value === "confirmed"
+              ? t("contributions.statusFilterConfirmed")
+              : t("contributions.statusFilterRejected");
+          return (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => {
+                setStatusFilter(value);
+                setPage(1);
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                isActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {label}
+              {value === "pending_confirmation" && pendingCount > 0 && (
+                <span
+                  className={`inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
+                    isActive
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400"
+                  }`}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Summary Stats */}
       <div className="flex flex-wrap gap-4">
         <div className="rounded-lg bg-primary/10 px-4 py-2">
@@ -638,8 +765,10 @@ export default function PaymentHistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginated.length === 0 && search.trim() && (
-                    <tr><td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">{tc("noSearchResults")}</td></tr>
+                  {paginated.length === 0 && (search.trim() || statusFilter !== "all") && (
+                    <tr><td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">
+                      {search.trim() ? tc("noSearchResults") : t("contributions.noPaymentsForFilter")}
+                    </td></tr>
                   )}
                   {paginated.map((payment) => (
                     <tr
@@ -698,7 +827,7 @@ export default function PaymentHistoryPage() {
                             className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mt-0.5"
                           >
                             <FileImage className="h-3 w-3" />
-                            {t("contributions.viewReceipt")}
+                            {t("contributions.viewProof")}
                           </button>
                         )}
                       </td>
@@ -712,19 +841,29 @@ export default function PaymentHistoryPage() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-                              onClick={() => handleConfirmPayment(payment)}
-                              disabled={confirmingId === payment.id}
+                              onClick={() => confirmThenConfirmPayment(payment)}
+                              disabled={confirmingId === payment.id || rejectingId === payment.id}
+                              aria-label={t("contributions.confirmPaymentReviewAction")}
                             >
-                              <Check className="h-3.5 w-3.5" />
+                              {confirmingId === payment.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Check className="h-3.5 w-3.5" />
+                              )}
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                              onClick={() => handleRejectPayment(payment.id)}
-                              disabled={rejectingId === payment.id}
+                              onClick={() => confirmThenRejectPayment(payment)}
+                              disabled={rejectingId === payment.id || confirmingId === payment.id}
+                              aria-label={t("contributions.rejectPaymentReviewAction")}
                             >
-                              <X className="h-3.5 w-3.5" />
+                              {rejectingId === payment.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <X className="h-3.5 w-3.5" />
+                              )}
                             </Button>
                           </div>
                         ) : payment.status === "rejected" ? (
@@ -747,7 +886,7 @@ export default function PaymentHistoryPage() {
                               {payment.receiptUrl && (
                                 <DropdownMenuItem onClick={() => openReceipt(payment.receiptUrl)}>
                                   <Eye className="mr-2 h-4 w-4" />
-                                  {t("contributions.viewReceipt")}
+                                  {t("contributions.viewProof")}
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem onClick={() => openEditDialog(payment)}>

@@ -598,7 +598,10 @@
     "pendingInvitationsCount": "{count, plural, one {# invitation en attente de réponse} other {# invitations en attente de réponse}}",
     "reviewApprovals": "Examiner les demandes",
     "viewInvitations": "Voir les invitations",
-    "writeMinutes": "Rédiger le compte rendu"
+    "writeMinutes": "Rédiger le compte rendu",
+    "viewMyPaymentsCard": "Voir votre solde",
+    "groupOutstandingBalance": "Solde impayé du groupe",
+    "groupWideViewMine": "Total du groupe — voir votre solde"
   },
   "groups": {
     "switchGroup": "Changer de groupe",
@@ -1309,7 +1312,39 @@
     "receiptUploadFailed": "Échec du téléchargement du reçu. Veuillez réessayer.",
     "remindersEligibleNote": "{eligible} membre(s) sur {total} seront notifié(s).",
     "remindersSendFailed": "Échec de l'envoi des rappels. Veuillez réessayer.",
-    "reopenPeriodDesc": "La réouverture de cette période permettra d'enregistrer à nouveau des paiements. Les enregistrements existants ne sont pas affectés."
+    "reopenPeriodDesc": "La réouverture de cette période permettra d'enregistrer à nouveau des paiements. Les enregistrements existants ne sont pas affectés.",
+    "typesEmptyDescRich": "Créez votre première contribution : prélèvement ponctuel ou cotisation récurrente. Les membres sont inscrits et relancés automatiquement.",
+    "setupConsequenceTitle": "Ce qui se passe après l'enregistrement",
+    "setupConsequenceEnroll": "Chacun de vos {count} membres reçoit un solde à payer.",
+    "setupConsequenceEnrollOne": "Votre membre unique reçoit un solde à payer.",
+    "setupConsequenceNoEnroll": "Aucun membre inscrit pour l'instant ; inscrivez tout le monde plus tard.",
+    "setupConsequenceOneTime": "Prélèvement ponctuel : dû une fois, à l'échéance fixée.",
+    "setupConsequenceRecurring": "Se répète {frequency} : un nouveau solde chaque période.",
+    "setupConsequenceReminders": "Dès que des soldes existent, les membres sont relancés automatiquement.",
+    "enrollPreview": "Cela inscrira jusqu'à {count} membres.",
+    "enrollPreviewOne": "Cela inscrira votre membre unique.",
+    "enrollPreviewNote": "Les membres déjà inscrits cette période sont ignorés.",
+    "enrollPreviewConfirm": "Inscrire les membres",
+    "guideOneTimeTitle": "Prélèvement ponctuel",
+    "guideOneTimeDesc": "Un montant dû une seule fois, comme des frais d'inscription.",
+    "guideRecurringTitle": "Cotisation récurrente",
+    "guideRecurringDesc": "Un montant qui revient chaque période : mensuel, trimestriel, annuel.",
+    "guideAfterTitle": "Après l'avoir créée",
+    "guideAfterDesc": "Inscrivez tous les membres d'un coup ; chacun reçoit un solde, rappels automatiques.",
+    "viewProof": "Voir la preuve",
+    "noPaymentsForFilter": "Aucun paiement ne correspond à ce filtre.",
+    "statusFilterLabel": "Filtrer les paiements par statut",
+    "statusFilterAll": "Tous",
+    "statusFilterPending": "En attente de confirmation",
+    "statusFilterConfirmed": "Confirmés",
+    "statusFilterRejected": "Rejetés",
+    "recordReviewSummary": "Vous enregistrez {amount} de {member} pour {type}.",
+    "confirmPaymentReviewTitle": "Confirmer ce paiement ?",
+    "confirmPaymentReviewDesc": "La confirmation crédite {amount} de {member} à son solde et lui envoie un reçu.",
+    "confirmPaymentReviewAction": "Confirmer le paiement",
+    "rejectPaymentReviewTitle": "Rejeter ce paiement ?",
+    "rejectPaymentReviewDesc": "Le rejet marque {amount} de {member} comme non accepté. Aucun message n'est envoyé au membre.",
+    "rejectPaymentReviewAction": "Rejeter le paiement"
   },
   "finances": {
     "title": "Tableau de bord financier",
@@ -1345,7 +1380,38 @@
     "contribution": "Cotisation",
     "syncSuccess": "{updated} obligations synchronisées à partir de {total} paiements",
     "syncError": "Erreur : {message}",
-    "remindersSentSuccess": "{count} rappel(s) envoyé(s) avec succès"
+    "remindersSentSuccess": "{count} rappel(s) envoyé(s) avec succès",
+    "overview": {
+      "title": "Aperçu des encaissements",
+      "subtitle": "Les finances de votre groupe en un coup d'œil",
+      "collected": "Total encaissé",
+      "expected": "Total attendu",
+      "collectionRate": "Taux d'encaissement",
+      "outstanding": "Solde restant dû",
+      "overdue": "En retard",
+      "memberSingular": "membre en retard",
+      "memberPlural": "membres en retard",
+      "pendingConfirmation": {
+        "title": "En attente de confirmation",
+        "awaitingSingular": "paiement en attente de confirmation",
+        "awaitingPlural": "paiements en attente de confirmation"
+      },
+      "cta": {
+        "recordPayment": "Enregistrer un paiement",
+        "reviewConfirmations": "Examiner les confirmations",
+        "reviewUnpaid": "Voir les membres en attente",
+        "setUpDues": "Configurer les cotisations"
+      },
+      "recentPayments": {
+        "title": "Paiements récents",
+        "empty": "Aucun paiement confirmé pour l'instant"
+      },
+      "nextDue": {
+        "title": "Prochaines échéances",
+        "empty": "Rien à échéance prochaine"
+      },
+      "viewAll": "Tout afficher"
+    }
   },
   "invitations": {
     "title": "Invitations",
@@ -2401,7 +2467,28 @@
     "dismiss": "Fermer",
     "online": "En ligne",
     "other": "Autre",
-    "receiptOpenFailed": "Impossible d'ouvrir le reçu. Veuillez réessayer."
+    "receiptOpenFailed": "Impossible d'ouvrir le reçu. Veuillez réessayer.",
+    "youOweNow": "Vous devez actuellement",
+    "nextPaymentDue": "Prochain paiement dû le {date}",
+    "overdueBy": "En retard de {days, plural, one {# jour} other {# jours}}",
+    "dueInDays": "Dû dans {days, plural, one {# jour} other {# jours}}",
+    "caughtUpTitle": "Vous êtes à jour",
+    "caughtUpDesc": "Vous n'avez aucun paiement dû pour le moment. Bravo !",
+    "noDuesYetTitle": "Aucune cotisation configurée",
+    "noDuesYetDesc": "Votre groupe n'a pas encore configuré de cotisations pour vous. Rien n'est dû.",
+    "pendingConfirmationNotice": "{count, plural, one {# paiement de {amount} est} other {# paiements totalisant {amount} sont}} en attente de confirmation. Ce montant n'est pas encore crédité à votre solde.",
+    "confirmedOnlyNote": "Paiements confirmés uniquement",
+    "partiallyPaid": "Partiellement payé",
+    "partiallyPaidProgress": "Payé {paid} sur {total}",
+    "statusOverdue": "En retard",
+    "statusDueNow": "À payer",
+    "awaitingConfirmation": "En attente de confirmation",
+    "notYetCredited": "Cette soumission est en attente de confirmation et n'est pas encore créditée à votre solde.",
+    "legendTitle": "Signification de ces libellés",
+    "legendDueNow": "Un paiement dû mais dont la date n'est pas encore dépassée.",
+    "legendOverdue": "Un paiement dont la date d'échéance est dépassée.",
+    "legendPartiallyPaid": "Une partie de ce montant a été payée ; un solde reste dû.",
+    "legendPendingConfirmation": "Vous avez soumis un paiement en attente de confirmation. Il n'est pas encore crédité."
   },
   "payNow": {
     "dialogTitle": "Payer maintenant",
@@ -6000,6 +6087,13 @@
         "preview": "Vous pouvez rédiger, modifier et enregistrer des brouillons librement — les brouillons ne parviennent jamais aux membres.",
         "confirm": "Les membres ne sont contactés que lorsque vous confirmez un envoi, ou à l'heure exacte définie pour une annonce programmée.",
         "compactNote": "Les membres ne sont contactés que lorsque vous envoyez ou programmez une annonce."
+      },
+      "receipts": {
+        "who": "Le membre dont vous enregistrez ou confirmez le paiement — lui seul reçoit le reçu.",
+        "channels": "Un reçu apparaît dans le compte du membre, et lui parvient par e-mail, WhatsApp ou SMS selon ses coordonnées et ses préférences.",
+        "preview": "Consulter un paiement, ouvrir la preuve et filtrer cette liste ne contacte personne.",
+        "confirm": "Le reçu part lorsque vous enregistrez un paiement ou confirmez un paiement en attente — ce sont ces actions qui notifient le membre.",
+        "compactNote": "Enregistrer ou confirmer un paiement envoie un reçu au membre."
       }
     },
     "demo": {

@@ -103,12 +103,30 @@ function DeactivatedGroupScreen({
   const router = useRouter();
   const supabase = createClient();
   const isOwner = currentMembership.role === "owner";
+  const [reactivating, setReactivating] = useState(false);
+  const [reactivateBlocked, setReactivateBlocked] = useState(false);
   const otherActiveMemberships = memberships.filter(
     (m) => m.group_id !== currentMembership.group_id && m.group?.is_active !== false
   );
 
   async function handleReactivate() {
-    await supabase.from("groups").update({ is_active: true }).eq("id", currentMembership.group_id);
+    setReactivating(true);
+    const { data } = await supabase
+      .from("groups")
+      .update({ is_active: true })
+      .eq("id", currentMembership.group_id)
+      .select("is_active")
+      .maybeSingle();
+    // The 00103 lifecycle trigger forces is_active=false while a group is
+    // platform-suspended/archived, so an owner cannot self-reactivate out of a
+    // VillageClaq action. If our write didn't take, surface that honestly
+    // instead of reloading into the same deactivated screen. (Pre-migration the
+    // write succeeds normally and is_active comes back true.)
+    if (data && data.is_active === false) {
+      setReactivateBlocked(true);
+      setReactivating(false);
+      return;
+    }
     window.location.reload();
   }
 
@@ -130,10 +148,16 @@ function DeactivatedGroupScreen({
             {t("deactivateGroupScreen.desc")}
           </p>
         </div>
-        {isOwner && (
-          <Button className="w-full" onClick={handleReactivate}>
+        {isOwner && !reactivateBlocked && (
+          <Button className="w-full" onClick={handleReactivate} disabled={reactivating}>
+            {reactivating && <Loader2 className="size-4 animate-spin" />}
             {t("deactivateGroupScreen.reactivate")}
           </Button>
+        )}
+        {reactivateBlocked && (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+            {t("deactivateGroupScreen.platformSuspended")}
+          </p>
         )}
         {otherActiveMemberships.length > 0 ? (
           <Button

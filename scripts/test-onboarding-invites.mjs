@@ -117,9 +117,13 @@ test("invite validation dedupes intra-form duplicates BEFORE the atomic multi-ro
 
 test("invitation emails are gated on the insert having succeeded (no ghost invites)", () => {
   const page = read(PAGE);
+  // Build 3 renamed the insert-failure flag from `inviteErr` to
+  // `inviteInsertFailed` while making the email leg await + check delivery.
+  // Whitespace-tolerant: assert the semantics (email list gated on the
+  // insert-failure flag), not the exact layout.
   assert.match(
     page,
-    /const emailInvites = inviteErr \? \[\] : validInvites\.filter\(\(inv\) => inv\.type === "email"\)/,
+    /emailInvites\s*=\s*inviteInsertFailed\s*\?\s*\[\]\s*:/,
     "the email leg must not send when zero invitation rows were created",
   );
 });

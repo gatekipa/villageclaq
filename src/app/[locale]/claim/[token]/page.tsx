@@ -72,6 +72,14 @@ export default function ClaimPage() {
             setErrorMsg(t("alreadyMember"));
           } else if (claimErr.message?.includes("not a claimable")) {
             setErrorMsg(t("alreadyClaimed"));
+          } else if (
+            claimErr.message?.includes("claim_identity_mismatch") ||
+            claimErr.message?.includes("claim_user_mismatch")
+          ) {
+            // The claim link was issued for a specific person (matched by the
+            // email/phone the admin entered). A different signed-in account
+            // cannot redeem it.
+            setErrorMsg(t("identityMismatch"));
           } else {
             setErrorMsg(claimErr.message || t("claimFailed"));
           }

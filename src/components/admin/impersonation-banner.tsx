@@ -2,13 +2,17 @@
 
 /**
  * Fixed-top banner rendered by the admin layout whenever the current
- * platform staff member has an active impersonation session. Polls
+ * platform staff member has an active PLATFORM SUPPORT SESSION. Polls
  * /api/admin/impersonate/active every 30 seconds so it appears/
  * disappears without a full page reload.
  *
- * All actions during an active session are audit-logged by the
- * RPCs that write platform_audit_logs — the banner itself is purely
- * UI surface to make the active state obvious.
+ * TRUTH IN LABELLING: this feature is an audit-record-only support window —
+ * it does NOT switch the staff member's effective user/group context (no RLS
+ * impersonation). The banner therefore says "Platform support session active"
+ * and surfaces the reason, rather than claiming "you are impersonating X".
+ * A real read-only view-as-group mode is a documented follow-up that would
+ * require its own design + migration. All session lifecycle events are
+ * audit-logged by the start/end RPCs that write platform_audit_logs.
  */
 
 import { useEffect, useState } from "react";
@@ -86,16 +90,24 @@ export function ImpersonationBanner() {
       aria-live="polite"
       className="flex items-center justify-between gap-3 border-b border-red-900/40 bg-red-600 px-4 py-2 text-sm text-white shadow-sm"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <AlertOctagon className="h-4 w-4 shrink-0" />
-        <span className="font-semibold">
-          {t("impersonationBannerTitle", {
-            name: session.impersonatedName || t("impersonationUnknownUser"),
-          })}
-        </span>
-        <span className="hidden text-red-100 sm:inline">
-          {t("impersonationBannerAudited")}
-        </span>
+        <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+          <span className="font-semibold">{t("supportSessionBannerTitle")}</span>
+          {session.impersonatedName && (
+            <span className="truncate text-red-100">
+              {t("supportSessionBannerSubject", { name: session.impersonatedName })}
+            </span>
+          )}
+          {session.reason && (
+            <span className="truncate text-red-100">
+              {t("supportSessionBannerReason", { reason: session.reason })}
+            </span>
+          )}
+          <span className="hidden text-red-100 sm:inline">
+            {t("impersonationBannerAudited")}
+          </span>
+        </div>
       </div>
       <button
         onClick={handleEnd}

@@ -5,8 +5,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
 
-const supabase = createClient();
-
 /** One reconciled payment row for the "Recent payments" list (confirmed only). */
 export interface RecentPaymentRow {
   id: string;
@@ -97,6 +95,9 @@ export function useMoneyOverview() {
     enabled: !!groupId,
     staleTime: 60_000,
     queryFn: async () => {
+      // Create the client inside the queryFn (never at module level) so the
+      // request always uses the caller's current session in this multi-tenant app.
+      const supabase = createClient();
       if (!groupId) {
         // enabled guards this, but keep the type contract honest.
         return {

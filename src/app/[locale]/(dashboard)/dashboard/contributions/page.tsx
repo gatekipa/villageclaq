@@ -39,12 +39,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGroup } from "@/lib/group-context";
 import {
   useAllContributionTypes,
   useCreateContributionType,
-  useMembers,
 } from "@/lib/hooks/use-supabase-query";
 import {
   CardGridSkeleton,
@@ -68,16 +67,32 @@ export default function ContributionsPage() {
   const { hasPermission } = usePermissions();
   const canManageContributions = hasPermission("contributions.manage");
   const { data: contributionTypes, isLoading, isError, refetch } = useAllContributionTypes();
-  const { data: members } = useMembers();
   const createMutation = useCreateContributionType();
   const queryClient = useQueryClient();
 
   // Read-only enrollment preview: how many members are on the roster today.
-  // Reuses the already-loaded member list (cached under ["members", groupId])
-  // so it adds no extra query. Used to tell admins "this will enroll up to N
-  // members" before they confirm — the enroll step itself is unchanged and
-  // skips anyone already enrolled for the current period.
-  const memberCount = members?.length ?? 0;
+  // A count-only head query (no row hydration, no sensitive fields) — used to
+  // tell admins "this will enroll up to N members" before they confirm. The
+  // enroll step itself is unchanged and skips anyone already enrolled for the
+  // current period. Counts ALL memberships, matching enroll-all's own scope.
+  const { data: memberCount = 0 } = useQuery({
+    queryKey: ["member-count", groupId],
+    queryFn: async () => {
+      if (!groupId) return 0;
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from("memberships")
+        .select("id", { count: "exact", head: true })
+        .eq("group_id", groupId);
+      if (error) {
+        console.warn("[Contributions] member count failed:", error.message);
+        throw error;
+      }
+      return count ?? 0;
+    },
+    enabled: !!groupId,
+    staleTime: 60_000,
+  });
 
   const [showCreate, setShowCreate] = useState(false);
   const [editTypeId, setEditTypeId] = useState<string | null>(null);

@@ -3,7 +3,7 @@ import { formatAmount } from "@/lib/currencies";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatDateWithGroupFormat } from "@/lib/format";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent } from "@/components/ui/card";
@@ -108,6 +108,14 @@ export default function PaymentHistoryPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(
     isStatusFilter(statusParam) ? statusParam : "all"
   );
+  // Keep the filter in sync if the ?status= deep-link changes while this
+  // route stays mounted (in-app nav, back/forward). statusParam is a stable
+  // string primitive (rule 9), so it is safe in the dependency array. Pill
+  // clicks only mutate local state and leave the URL untouched, so this
+  // effect won't fire and clobber a manual selection.
+  useEffect(() => {
+    if (isStatusFilter(statusParam)) setStatusFilter(statusParam);
+  }, [statusParam]);
 
   // Receipts live in a private bucket — stored values (object paths, or
   // legacy signed/public URLs) must be re-signed on every open, otherwise

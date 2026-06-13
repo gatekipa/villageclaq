@@ -235,7 +235,8 @@
     "remittances": "Remises",
     "badgeStarter": "Starter",
     "badgePro": "Pro",
-    "launchCenter": "Centre de lancement"
+    "launchCenter": "Centre de lancement",
+    "myGroups": "Mes groupes"
   },
   "cookies": {
     "title": "Paramètres des cookies",
@@ -923,7 +924,10 @@
       "member": "Ce groupe a atteint sa limite de membres. Contactez l'administrateur du groupe.",
       "upgrade": "Passer au plan supérieur"
     },
-    "joined": "Inscrit"
+    "joined": "Inscrit",
+    "wrongGroupTitle": "Ce membre ne fait pas partie de votre groupe actuel",
+    "wrongGroupDesc": "Vous consultez actuellement un autre groupe, les détails de ce membre ne sont donc pas disponibles ici. Basculez vers son groupe ou revenez à la liste des membres de votre groupe actuel.",
+    "backToMembers": "Retour aux membres"
   },
   "settings": {
     "title": "Paramètres du groupe",
@@ -2465,7 +2469,8 @@
     "alreadyCollected": "Collecté",
     "waitingToCollect": "En attente de collecte",
     "totalContributed": "Total cotisé",
-    "roundsAway": "{count} tours restants"
+    "roundsAway": "{count} tours restants",
+    "inGroup": "Dans {group}"
   },
   "myPayments": {
     "title": "Mes paiements",
@@ -2526,7 +2531,8 @@
     "legendDueNow": "Un paiement dû mais dont la date n'est pas encore dépassée.",
     "legendOverdue": "Un paiement dont la date d'échéance est dépassée.",
     "legendPartiallyPaid": "Une partie de ce montant a été payée ; un solde reste dû.",
-    "legendPendingConfirmation": "Vous avez soumis un paiement en attente de confirmation. Il n'est pas encore crédité."
+    "legendPendingConfirmation": "Vous avez soumis un paiement en attente de confirmation. Il n'est pas encore crédité.",
+    "inGroup": "Dans {group}"
   },
   "payNow": {
     "dialogTitle": "Payer maintenant",
@@ -6145,5 +6151,30 @@
       "noSendWarning": "Faites la démonstration dans un groupe d'essai, jamais dans un vrai groupe : envoyer des invitations ou enregistrer des paiements avec les coordonnées de vrais membres joindrait de vraies personnes.",
       "toggle": "Afficher ou masquer le parcours de démonstration"
     }
+  },
+  "groupType": {
+    "hq": "Siège",
+    "branch": "Antenne",
+    "standalone": "Groupe"
+  },
+  "groupSwitcher": {
+    "searchPlaceholder": "Rechercher des groupes",
+    "noMatches": "Aucun groupe ne correspond à votre recherche"
+  },
+  "myGroups": {
+    "title": "Mes groupes",
+    "subtitle": "Vous appartenez à {count} groupes. Basculez vers celui que vous souhaitez gérer.",
+    "subtitleOne": "Vous appartenez à un seul groupe. C'est ici qu'il se trouve.",
+    "current": "Groupe actuel",
+    "switchCta": "Basculer vers ce groupe",
+    "awaitingApproval": "En attente d'approbation",
+    "pending": "Approbation en attente",
+    "roleOwner": "Propriétaire",
+    "roleAdmin": "Administrateur",
+    "roleModerator": "Modérateur",
+    "roleMember": "Membre",
+    "emptyTitle": "Aucun groupe pour le moment",
+    "emptyDesc": "Dès que vous rejoignez ou créez un groupe, il apparaîtra ici.",
+    "untitledGroup": "Groupe sans nom"
   }
 }

@@ -71,7 +71,11 @@ function getUrgencyBadgeClass(dueDate: string) {
 export default function MyPaymentsPage() {
   const t = useTranslations("myPayments");
   const locale = useLocale();
-  const { currentMembership, currentGroup, loading: groupLoading } = useGroup();
+  const { currentMembership, currentGroup, memberships, loading: groupLoading } = useGroup();
+  // Multi-group members can misread one group's balance as a global figure.
+  // Surface which group these dues belong to — only when the member actually
+  // belongs to more than one group (single-group members need no disambiguation).
+  const showGroupContext = memberships.length > 1 && !!currentGroup?.name;
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const [activeTab, setActiveTab] = useState<"outstanding" | "history">("outstanding");
   const [search, setSearch] = useState("");
@@ -353,6 +357,11 @@ export default function MyPaymentsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
+        {showGroupContext && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("inGroup", { group: currentGroup!.name })}
+          </p>
+        )}
       </div>
 
       {/* Balance Hero — single clear statement of what's owed right now */}

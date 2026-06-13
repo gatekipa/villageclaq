@@ -235,7 +235,8 @@
     "remittances": "Remittances",
     "badgeStarter": "Starter",
     "badgePro": "Pro",
-    "launchCenter": "Launch Center"
+    "launchCenter": "Launch Center",
+    "myGroups": "My Groups"
   },
   "cookies": {
     "title": "Cookie Settings",
@@ -923,7 +924,10 @@
       "member": "This group has reached its member limit. Contact the group admin.",
       "upgrade": "Upgrade Plan"
     },
-    "joined": "Joined"
+    "joined": "Joined",
+    "wrongGroupTitle": "This member isn't in your current group",
+    "wrongGroupDesc": "You're viewing a different group right now, so this member's details aren't available here. Switch to their group, or go back to your current group's member list.",
+    "backToMembers": "Back to members"
   },
   "settings": {
     "title": "Group Settings",
@@ -2485,7 +2489,8 @@
     "legendDueNow": "A payment that is due but not yet past its date.",
     "legendOverdue": "A payment whose due date has passed.",
     "legendPartiallyPaid": "Part of this amount has been paid; a balance remains.",
-    "legendPendingConfirmation": "You submitted a payment that is awaiting confirmation. It is not yet credited."
+    "legendPendingConfirmation": "You submitted a payment that is awaiting confirmation. It is not yet credited.",
+    "inGroup": "In {group}"
   },
   "payNow": {
     "dialogTitle": "Pay Now",
@@ -2904,7 +2909,8 @@
     "alreadyCollected": "Collected",
     "waitingToCollect": "Waiting to Collect",
     "totalContributed": "Total Contributed",
-    "roundsAway": "{count} rounds away"
+    "roundsAway": "{count} rounds away",
+    "inGroup": "In {group}"
   },
   "reports": {
     "title": "Reports Hub",
@@ -6145,5 +6151,30 @@
       "noSendWarning": "Demo inside a practice group, never a real one — submitting invitations or recording payments with real member details will reach real people.",
       "toggle": "Show or hide the demo path"
     }
+  },
+  "groupType": {
+    "hq": "Headquarters",
+    "branch": "Branch",
+    "standalone": "Group"
+  },
+  "groupSwitcher": {
+    "searchPlaceholder": "Search groups",
+    "noMatches": "No groups match your search"
+  },
+  "myGroups": {
+    "title": "My Groups",
+    "subtitle": "You belong to {count} groups. Switch to the one you want to manage.",
+    "subtitleOne": "You belong to one group. This is where it lives.",
+    "current": "Current group",
+    "switchCta": "Switch to this group",
+    "awaitingApproval": "Awaiting approval",
+    "pending": "Pending approval",
+    "roleOwner": "Owner",
+    "roleAdmin": "Admin",
+    "roleModerator": "Moderator",
+    "roleMember": "Member",
+    "emptyTitle": "No groups yet",
+    "emptyDesc": "Once you join or create a group, it will show up here.",
+    "untitledGroup": "Untitled group"
   }
 }

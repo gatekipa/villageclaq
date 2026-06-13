@@ -46,7 +46,7 @@ export default function MyInvitationsPage() {
   const ti = useTranslations("invitations");
   const locale = useLocale();
   const queryClient = useQueryClient();
-  const { user, memberships, currentGroup, refresh } = useGroup();
+  const { user, memberships, currentGroup, refresh, switchGroup } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const router = useRouter();
 
@@ -334,22 +334,26 @@ export default function MyInvitationsPage() {
         return !exp || new Date(exp).getTime() >= Date.now();
       }).length;
 
+      // Land the user IN the group they just joined rather than their previous
+      // active group.
       if (remainingPending === 0) {
-        // Redirect after brief delay so user sees the success message.
-        // Use window.location for a full page reload to avoid DashboardGuard
-        // flicker from stale memberships during GroupProvider re-fetch.
-        // Keep the active locale in the URL so FR users stay in FR.
+        // Persist the joined group as active, then full-reload so the dashboard
+        // opens on it. switchGroup() persists the selection (GroupProvider
+        // effect); the reload re-reads it and masks the brief context refetch.
+        switchGroup(groupId);
         setTimeout(() => {
           window.location.href = `/${locale}/dashboard`;
         }, 1200);
       } else {
-        // Staying on the page: the full reload above is what used to refresh
-        // GroupProvider — force-refresh it here so the newly joined group
-        // appears in the switcher and the dashboard guard sees fresh
-        // memberships when the user navigates on.
-        refresh(true).catch((err) =>
-          console.warn("[MyInvitations] context refresh failed:", err instanceof Error ? err.message : err),
-        );
+        // Staying on the page: refresh context FIRST so the just-joined
+        // membership exists, THEN make it active — switching before the
+        // refresh would briefly resolve currentMembership to null (the joined
+        // group isn't in memberships[] yet). Matches the join-by-code dialog.
+        refresh(true)
+          .catch((err) =>
+            console.warn("[MyInvitations] context refresh failed:", err instanceof Error ? err.message : err),
+          )
+          .finally(() => switchGroup(groupId));
         setShowDashboardLink(true);
       }
     } catch (err) {

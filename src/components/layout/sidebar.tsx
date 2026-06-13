@@ -41,6 +41,7 @@ import {
   Landmark,
   Gavel,
   Rocket,
+  LayoutGrid,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/lib/hooks/use-permissions";
@@ -79,6 +80,7 @@ const adminSections: NavSection[] = [
       // page content, so there is no dead end either way.
       { key: "launchCenter", href: "/dashboard/launch", icon: Rocket, permission: "settings.manage" },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
+      { key: "myGroups", href: "/dashboard/my-groups", icon: LayoutGrid },
     ],
   },
   {
@@ -147,6 +149,7 @@ const memberSections: NavSection[] = [
     items: [
       { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
+      { key: "myGroups", href: "/dashboard/my-groups", icon: LayoutGrid },
     ],
   },
   {

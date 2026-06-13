@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { createClient } from "@/lib/supabase/client";
+import { useGroup } from "@/lib/group-context";
 import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
+  const { switchGroup, refresh } = useGroup();
 
   const [code, setCode] = useState("");
   const [state, setState] = useState<DialogState>("idle");
@@ -124,6 +126,20 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
         // WhatsApp welcome — server-side, queue-backed producer re-checks
         // new_member preferences, phone eligibility, and idempotency.
         requestWelcomeWhatsApp(supabase, result.membership_id, locale);
+        // Land the user IN the group they just joined rather than their
+        // previous localStorage group. Refresh memberships so the new group
+        // is present, then make it the active context. switchGroup persists
+        // the selection (GroupProvider effect), so the reload in onSuccess()
+        // re-reads it. Refresh is best-effort — never block the success flow.
+        const joinedGroupId = (result.group_id as string | undefined) || group.group_id;
+        refresh(true)
+          .catch((err) =>
+            console.warn(
+              "[JoinByCode] context refresh failed:",
+              err instanceof Error ? err.message : err,
+            ),
+          )
+          .finally(() => switchGroup(joinedGroupId));
         onSuccess();
         return;
       }

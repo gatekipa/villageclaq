@@ -35,6 +35,8 @@ type PreviewResult = {
   would_become_warning: number;
   would_become_suspended: number;
   would_change: number;
+  /** Members whose projection could not be computed (excluded from the counts). */
+  failed: number;
 };
 
 /**
@@ -134,6 +136,7 @@ export function StandingRulesTab() {
         would_become_warning: projected.filter((p) => p.next === "warning").length,
         would_become_suspended: projected.filter((p) => p.next === "suspended").length,
         would_change: projected.filter((p) => p.next !== p.current).length,
+        failed: (members || []).length - projected.length,
       };
       setPreview(result);
       setShowPreview(true);
@@ -148,6 +151,12 @@ export function StandingRulesTab() {
   // the apply_standing_rules RPC normalizes away unknown keys and would drop
   // the factor toggles and exclusion list, so we merge + update here instead.
   // Admins can update their own group's row under RLS.
+  //
+  // The read-merge-write below is last-write-wins on the whole settings blob.
+  // The read happens immediately before the write to keep the window tiny.
+  // Once migration 00101 is applied, switch this to the apply_standing_rules
+  // RPC, which merges only the standing_rules key server-side (atomic, no
+  // cross-tab clobber) AND recalculates persisted standing in one call.
   async function handleApply() {
     if (!groupId || applying) return;
     setApplying(true);
@@ -503,6 +512,11 @@ export function StandingRulesTab() {
                     })}
                   </p>
                 </>
+              )}
+              {preview.failed > 0 && (
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                  {t("standingPreviewPartial", { count: preview.failed })}
+                </p>
               )}
               <p className="text-xs text-muted-foreground">
                 {t("standingApplyImmediateNote")}

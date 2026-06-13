@@ -518,6 +518,10 @@ export default function MemberDetailPage() {
 
       await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
       await queryClient.invalidateQueries({ queryKey: ["member-standing", membershipId, groupId] });
+      // The card renders the DETAILED query first, so refresh it too or the
+      // badge + breakdown keep showing the pre-override value.
+      await queryClient.invalidateQueries({ queryKey: ["member-standing-detailed", membershipId, groupId] });
+      await refetchStanding();
       await refetchHistory();
       setShowStandingDialog(false);
     } catch (err) {

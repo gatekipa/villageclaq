@@ -412,6 +412,18 @@ BEGIN
              updated_at = now()
        WHERE id = r.id;
       v_changed := v_changed + 1;
+
+      -- Audit rule-driven batch changes too, so they appear in history like
+      -- the trigger path. Failure-isolated; actor_id NULL (admin RPC, system).
+      BEGIN
+        INSERT INTO group_audit_logs (group_id, actor_id, action, entity_type, entity_id, details)
+        VALUES (
+          p_group_id, NULL, 'member.standing_recalculated', 'membership', r.id,
+          jsonb_build_object('oldStanding', v_before, 'newStanding', v_after, 'source', 'rules_applied')
+        );
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END;
     END IF;
   END LOOP;
 

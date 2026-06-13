@@ -1141,8 +1141,9 @@
     "standingExclusionsDesc": "Turn off standing impact for a one-time levy so it never marks members as needing attention.",
     "standingExclusionsDuesOff": "Overdue dues do not affect standing now, so these settings have no effect until you turn that on above.",
     "standingExclusionsEmpty": "No active contributions yet.",
-    "standingSavedImmediate": "Saved. Member standing now reflects these rules.",
-    "standingApplyImmediateNote": "Once saved, every member standing updates to match these rules right away."
+    "standingSavedImmediate": "Saved. These rules now shape every member's standing.",
+    "standingApplyImmediateNote": "A member's standing on their profile reflects these rules right away. Run Recalculate to update the status shown in the member list.",
+    "standingPreviewPartial": "{count} member(s) could not be projected and are not included in these numbers."
   },
   "contributions": {
     "title": "Contributions",

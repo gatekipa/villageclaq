@@ -198,9 +198,14 @@ export default function MyDashboardPage() {
     );
   }
 
-  const standing = standingData?.standing || currentMembership?.standing || "good";
-  const standingValue = (standing as "good" | "warning" | "suspended" | "banned");
-  const standingStyle = standingStyles[standing] || standingStyles.good;
+  const rawStanding = standingData?.standing || currentMembership?.standing || "good";
+  // Normalize an unknown/drifted value to "warning" (needs attention) rather
+  // than silently showing the healthy "good" state.
+  const standing = (["good", "warning", "suspended", "banned"].includes(rawStanding as string)
+    ? rawStanding
+    : "warning") as "good" | "warning" | "suspended" | "banned";
+  const standingValue = standing;
+  const standingStyle = standingStyles[standing] || standingStyles.warning;
   const StandingIcon = standingStyle.icon;
   const currency = currentGroup?.currency || "XAF";
   const isGoodStanding = standing === "good";

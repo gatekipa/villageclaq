@@ -62,13 +62,16 @@ export function StandingBadge({
   className,
 }: StandingBadgeProps) {
   const t = useTranslations("standing");
-  // Defensive: an unexpected value falls back to the neutral "good" visual
-  // rather than crashing on undefined.
-  const visual = STANDING_VISUALS[standing] || STANDING_VISUALS.good;
-  const labelKey = LABEL_KEY[standing] || LABEL_KEY.good;
-  const label = t(
-    labelKey as "badgeGood" | "badgeWarning" | "badgeSuspended" | "badgeBanned",
-  );
+  // Defensive: an UNKNOWN value (contract drift) must never be shown as the
+  // healthy "good" state. Fall back to a neutral slate badge labelled with the
+  // raw value instead of falsely reassuring the viewer.
+  const known = Object.prototype.hasOwnProperty.call(STANDING_VISUALS, standing);
+  const visual = known
+    ? STANDING_VISUALS[standing]
+    : { container: "bg-slate-500/10 text-slate-700 dark:text-slate-300", dot: "bg-slate-400" };
+  const label = known
+    ? t(LABEL_KEY[standing] as "badgeGood" | "badgeWarning" | "badgeSuspended" | "badgeBanned")
+    : String(standing);
 
   const isSm = size === "sm";
 

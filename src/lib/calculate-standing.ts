@@ -339,23 +339,17 @@ export async function calculateStanding(
     let overdueInstCount = 0;
     let defaultedCount = 0;
     try {
-      // Left join (not !inner) to avoid query failures when loan_schedule has
-      // no matching loans.
+      // Scope to THIS member's repaying loans at the query level (inner join)
+      // instead of fetching every group's overdue installments and filtering
+      // in JS. loan_schedule.loan_id is a FK, so the inner join is safe.
       const { data: loanSchedules } = await supabase
         .from("loan_schedule")
-        .select("id, status, loan_id, loans(membership_id, status)")
-        .eq("status", "overdue");
+        .select("id, status, loan_id, loans!inner(membership_id, status)")
+        .eq("status", "overdue")
+        .eq("loans.membership_id", membershipId)
+        .eq("loans.status", "repaying");
 
-      overdueInstCount = (loanSchedules || []).filter(
-        (s: Record<string, unknown>) => {
-          const loan = s.loans as Record<string, unknown> | null;
-          return (
-            loan &&
-            loan.membership_id === membershipId &&
-            loan.status === "repaying"
-          );
-        },
-      ).length;
+      overdueInstCount = (loanSchedules || []).length;
 
       const { data: defaultedLoans } = await supabase
         .from("loans")
@@ -517,11 +511,13 @@ async function persistAndNotify(
     .update({ standing, standing_updated_at: new Date().toISOString() })
     .eq("id", membershipId);
 
-  // Audit log + notifications only if standing actually changed
-  if (!oldStanding || oldStanding === standing) {
+  // No change → nothing to record.
+  if (oldStanding === standing) {
     return;
   }
 
+  // Audit EVERY change, including the first-ever computation (null → X), to
+  // match the SQL engine (which uses IS DISTINCT FROM). Best-effort.
   try {
     const { logActivity } = await import("@/lib/audit-log");
     await logActivity(supabase, {
@@ -529,11 +525,18 @@ async function persistAndNotify(
       action: "member.standing_changed",
       entityType: "membership",
       entityId: membershipId,
-      description: `Member standing changed from ${oldStanding} to ${standing}`,
+      description: `Member standing changed from ${oldStanding ?? "none"} to ${standing}`,
       metadata: { oldStanding, newStanding: standing },
     });
   } catch {
     /* best-effort */
+  }
+
+  // Notifications fire only for a genuine transition FROM a prior standing —
+  // a member's first-ever computation (null → X) is logged above but must not
+  // generate a notification.
+  if (!oldStanding) {
+    return;
   }
 
   // Per-recipient localized notification dispatch.

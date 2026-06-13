@@ -110,8 +110,12 @@ export default function MyDashboardPage() {
   const tCommon = useTranslations("common");
   const tStanding = useTranslations("standing");
   const th = useTranslations("helpTips");
-  const { user, currentMembership, currentGroup, groupId, loading: groupLoading } = useGroup();
+  const { user, currentMembership, currentGroup, groupId, memberships, loading: groupLoading } = useGroup();
   const [explainerDismissed, setExplainerDismissed] = useState(false);
+  // Multi-group members can misread one group's standing/dues as global.
+  // Surface which group this dashboard reflects — only when the member
+  // actually belongs to more than one group.
+  const showGroupContext = memberships.length > 1 && !!currentGroup?.name;
 
   const { data: standingData } = useMemberStanding(currentMembership?.id || null, groupId, currentGroup?.currency);
 
@@ -218,6 +222,11 @@ export default function MyDashboardPage() {
           {t("title", { name: user?.full_name || user?.display_name || "" })}
         </h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
+        {showGroupContext && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("inGroup", { group: currentGroup!.name })}
+          </p>
+        )}
       </div>
 
       {/* Top Row: Standing + Notifications */}

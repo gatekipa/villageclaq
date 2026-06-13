@@ -152,6 +152,24 @@ export default function JoinClient() {
         // WhatsApp welcome — server-side, queue-backed producer re-checks
         // new_member preferences, phone eligibility, and idempotency.
         requestWelcomeWhatsApp(supabase, result.membership_id, params.locale as string | undefined);
+        // Land the user IN the group they just joined. This public route is
+        // OUTSIDE the dashboard GroupProvider, so we can't call switchGroup()
+        // here. Instead persist the joined group to the same localStorage key
+        // GroupProvider reads on dashboard load (STORAGE_KEY in
+        // group-context.tsx) — that makes it the active context when the
+        // "Go to dashboard" navigation lands, rather than their old group.
+        const joinedGroupId = (result.group_id as string | undefined) || group.id;
+        try {
+          if (typeof window !== "undefined" && joinedGroupId) {
+            localStorage.setItem("villageclaq_current_group", joinedGroupId);
+          }
+        } catch (err) {
+          // Storage may be unavailable (private mode) — non-critical.
+          console.warn(
+            "[Join] could not persist active group:",
+            err instanceof Error ? err.message : err,
+          );
+        }
         setStatus("joined");
         return;
       }

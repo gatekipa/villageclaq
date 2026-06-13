@@ -12,7 +12,7 @@ import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { StandingBadge } from "@/components/standing-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -670,6 +670,28 @@ export default function MemberDetailPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t("members.memberNotFound")}</p>
         <Link href="/dashboard/members" className="mt-4 text-sm text-primary hover:underline">
           {t("common.back")}
+        </Link>
+      </div>
+    );
+  }
+
+  // ─── Active-group boundary ─────────────────────────────────────────────────
+  // The member is loaded purely by the URL id, so an admin who is co-membered
+  // in another group could otherwise open a member from THAT group via a deep
+  // link. Once the membership's group_id is known, require it to match the
+  // currently-active group. RLS still governs what rows are readable; this is
+  // an explicit UI boundary on top of it. We wait until groupId is resolved so
+  // we never flash this state during the initial group load.
+  const memberGroupId = (member.group_id as string | null) || null;
+  if (groupId && memberGroupId && memberGroupId !== groupId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Users className="h-12 w-12 text-muted-foreground/50" />
+        <h3 className="mt-4 text-lg font-semibold">{t("members.wrongGroupTitle")}</h3>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">{t("members.wrongGroupDesc")}</p>
+        <Link href="/dashboard/members" className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t("members.backToMembers")}
         </Link>
       </div>
     );

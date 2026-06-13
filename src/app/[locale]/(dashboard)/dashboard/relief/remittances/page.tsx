@@ -74,7 +74,21 @@ export default function ReliefRemittancesPage() {
   // Confirm/dispute state
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-  // Fetch relief plans (shared ones)
+  // Fetch relief plans for the submit-remittance dropdown.
+  //
+  // This dropdown is only rendered for BRANCH groups submitting a remittance
+  // against an org-shared plan, so the only plans that ever belong here are
+  // active plans flagged shared_from_org=true. Previously this query selected
+  // ALL active plans (no org/group scope) and relied solely on RLS plus a JS
+  // filter — which meant a branch admin co-membered elsewhere could pull
+  // unrelated active plans into the in-memory result before the JS filter ran.
+  //
+  // We now push shared_from_org=true into the DB query itself (the tightest
+  // safe server-side scope) and keep the JS filter as defense-in-depth. We do
+  // NOT filter by group_id here: a shared plan's group_id is the HQ that owns
+  // it, not the submitting branch, so scoping by group_id would wrongly hide
+  // every shared plan from branches. RLS continues to gate which shared plans
+  // this group is actually allowed to see.
   const { data: reliefPlans = [] } = useQuery({
     queryKey: ["relief-plans-for-remittance", groupId],
     queryFn: async () => {
@@ -83,9 +97,10 @@ export default function ReliefRemittancesPage() {
       const { data, error } = await supabase
         .from("relief_plans")
         .select("id, name, name_fr, shared_from_org")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .eq("shared_from_org", true);
       if (error) throw error;
-      // For branches, show plans where shared_from_org=true; for HQ, show own plans
+      // Defense-in-depth: re-assert the shared-plan scope client-side.
       return (data || []).filter((p: Record<string, unknown>) => p.shared_from_org === true);
     },
     enabled: !!groupId,

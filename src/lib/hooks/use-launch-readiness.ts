@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import type { LaunchReadinessInputs } from "@/lib/launch-readiness";
 
 /**
@@ -19,8 +20,11 @@ import type { LaunchReadinessInputs } from "@/lib/launch-readiness";
  * - adminContactReady as a boolean presence check of the profile phone —
  *   the phone value itself is never rendered or logged (rule 11)
  *
- * Admin-only by design: the query is disabled for non-admins and the hook
- * returns null inputs so callers can show a friendly non-admin state.
+ * Gated on settings.manage (owner/admins bypass that check inside
+ * usePermissions) — the same permission the Launch Center page and its
+ * sidebar link enforce, so nav, page, and data agree for every user. The
+ * query stays disabled for anyone without it and the hook returns null
+ * inputs so callers can show a friendly fallback state.
  */
 export function useLaunchReadinessInputs(): {
   inputs: LaunchReadinessInputs | null;
@@ -28,7 +32,9 @@ export function useLaunchReadinessInputs(): {
   error: Error | null;
   refetch: () => void;
 } {
-  const { groupId, currentGroup, user, isAdmin } = useGroup();
+  const { groupId, currentGroup, user } = useGroup();
+  const { hasPermission } = usePermissions();
+  const canManageSetup = hasPermission("settings.manage");
 
   const { data: counts, isLoading, error, refetch } = useQuery({
     queryKey: ["launch-readiness-inputs", groupId],
@@ -61,7 +67,7 @@ export function useLaunchReadinessInputs(): {
         contributionTypeCount: contributionTypesRes.count ?? 0,
       };
     },
-    enabled: !!groupId && isAdmin,
+    enabled: !!groupId && canManageSetup,
     staleTime: 60_000,
   });
 

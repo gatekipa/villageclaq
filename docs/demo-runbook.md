@@ -65,8 +65,8 @@ per the established QA procedure. Never from a customer demo group.
 ## Launch Command Center as the demo backbone
 
 Since Product Sprint B the demo has a home base: **/dashboard/launch**,
-the Launch Command Center. It shows the activation stages (basics →
-invite → dues → event → reminders → summary → go-live) on one screen, so
+the Launch Command Center. It shows the activation stages (Basics →
+Invite → Dues → First event → Reminders → Review → Go live) on one screen, so
 the demo becomes "watch the stages light up" instead of hunting through
 menus. Open it right after creating the demo group, walk each beat of the
 story above in order, and return to it between beats — the progress you

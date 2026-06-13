@@ -73,10 +73,11 @@ const adminSections: NavSection[] = [
     labelKey: "sectionOverview",
     items: [
       { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
-      // Owner/admin activation tool. Lives in adminSections (admin-only nav)
-      // and the page itself gates on isAdmin — no per-permission annotation,
-      // matching its dashboard/feed siblings.
-      { key: "launchCenter", href: "/dashboard/launch", icon: Rocket },
+      // Group-setup activation tool — gated on settings.manage to match the
+      // page and the inputs query exactly. Owner/admins bypass that check; a
+      // scoped admin without settings.manage sees neither the link nor the
+      // page content, so there is no dead end either way.
+      { key: "launchCenter", href: "/dashboard/launch", icon: Rocket, permission: "settings.manage" },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
     ],
   },
@@ -270,6 +271,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       positionItems.push({ key: "documents", href: "/dashboard/documents", icon: FolderLock });
     }
     if (hasPermission("settings.manage")) {
+      // Same permission gates the Launch Center page + data, so a settings
+      // officer who can reach it also sees it in their nav.
+      positionItems.push({ key: "launchCenter", href: "/dashboard/launch", icon: Rocket });
       positionItems.push({ key: "settings", href: "/dashboard/settings", icon: Settings });
     }
     if (positionItems.length === 0) return memberSections;

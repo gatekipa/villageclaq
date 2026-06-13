@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState, ListSkeleton } from "@/components/ui/page-skeleton";
 import { useGroup } from "@/lib/group-context";
+import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useLaunchReadinessInputs } from "@/lib/hooks/use-launch-readiness";
 import {
   computeLaunchCenter,
@@ -64,16 +65,23 @@ const STATUS_BADGE_CLASSES: Record<LaunchItemStatus, string> = {
 
 export default function LaunchCenterPage() {
   const t = useTranslations("launchCenter");
-  const { currentGroup, isAdmin, loading: groupLoading } = useGroup();
+  const { currentGroup, loading: groupLoading } = useGroup();
+  const { hasPermission, isLoading: permsLoading } = usePermissions();
   const { inputs, isLoading, error, refetch } = useLaunchReadinessInputs();
 
-  // Context still resolving — don't flash the non-admin card at admins.
-  if (groupLoading) {
+  // Group setup is gated on settings.manage (owner/admin bypass that check
+  // inside usePermissions) — the same permission the sidebar link and the
+  // inputs query use, so nav, page, and data agree for every user.
+  const canManageSetup = hasPermission("settings.manage");
+
+  // Context/permissions still resolving — don't flash the fallback card.
+  if (groupLoading || permsLoading) {
     return <ListSkeleton rows={8} />;
   }
 
-  // Friendly localized state for members — no access-denied dead end.
-  if (!isAdmin) {
+  // Friendly localized state for members without setup access — no
+  // access-denied dead end.
+  if (!canManageSetup) {
     return (
       <div className="mx-auto max-w-lg py-10">
         <Card>

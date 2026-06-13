@@ -89,8 +89,10 @@ test("hook mirrors the dashboard's member semantics (active, non-proxy, minus ow
   assert.match(hook, /\.eq\("is_active", true\)/);
 });
 
-test("hook is admin-gated and cached", () => {
-  assert.match(hook, /enabled: !!groupId && isAdmin/);
+test("hook is permission-gated (settings.manage, not raw isAdmin) and cached", () => {
+  assert.match(hook, /enabled: !!groupId && canManageSetup/);
+  assert.match(hook, /hasPermission\("settings\.manage"\)/);
+  assert.ok(!/&& isAdmin\b/.test(hook), "hook must not gate the query on raw isAdmin");
   assert.match(hook, /staleTime: 60_000/);
 });
 
@@ -110,9 +112,16 @@ test("page consumes the shared model and sibling components", () => {
   assert.ok(page.includes('from "@/components/demo-path-card"'), "page must render the demo path card");
 });
 
-test("non-admins get a friendly card, not an access-denied dead end", () => {
-  assert.ok(page.includes('t("nonAdmin.title")'), "non-admin title must render");
-  assert.ok(page.includes('t("nonAdmin.backCta")'), "non-admin back CTA must render");
+test("page gates on settings.manage (permission system), not raw isAdmin", () => {
+  assert.ok(page.includes('hasPermission("settings.manage")'), "page must gate on the settings.manage permission");
+  assert.ok(!/if \(!isAdmin\)/.test(page), "page must not gate on raw isAdmin");
+  // Don't flash the fallback while permissions resolve.
+  assert.match(page, /groupLoading \|\| permsLoading/);
+});
+
+test("users without setup access get a friendly card, not an access-denied dead end", () => {
+  assert.ok(page.includes('t("nonAdmin.title")'), "fallback title must render");
+  assert.ok(page.includes('t("nonAdmin.backCta")'), "fallback back CTA must render");
   assert.ok(!page.includes("RequirePermission"), "no RequirePermission dead end on this page");
 });
 
@@ -221,12 +230,16 @@ test("runbook gained the command-center backbone without losing its safety rules
 // 6. Entry points: sidebar + dashboard card
 // ---------------------------------------------------------------------------
 
-test("sidebar links the launch center as an admin-only item (no dead annotation)", () => {
-  // It lives in adminSections (admin-only nav) and the page gates on isAdmin,
-  // so it carries no per-permission annotation — a non-admin never sees it,
-  // and the annotation would only have been misleading.
-  assert.match(read(SIDEBAR), /key: "launchCenter", href: "\/dashboard\/launch", icon: Rocket \}/);
-  assert.ok(!/launchCenter".*permission: "settings\.manage"/.test(read(SIDEBAR)), "no dead permission annotation");
+test("sidebar gates the launch link on settings.manage, matching the page and data", () => {
+  const s = read(SIDEBAR);
+  // adminSections entry carries the SAME permission the page + hook enforce,
+  // so a scoped admin without settings.manage sees neither the link nor a
+  // dead end.
+  assert.match(s, /key: "launchCenter", href: "\/dashboard\/launch", icon: Rocket, permission: "settings\.manage"/);
+  // Non-admin officers who hold settings.manage get the link in their member
+  // nav too (so nav visibility == page access for everyone).
+  const settingsBlock = s.match(/if \(hasPermission\("settings\.manage"\)\) \{[\s\S]*?\n {4}\}/)?.[0] ?? "";
+  assert.ok(settingsBlock.includes('key: "launchCenter"'), "settings.manage officers must see the launch link in member nav");
 });
 
 test("dashboard checklist card links to the full command center", () => {

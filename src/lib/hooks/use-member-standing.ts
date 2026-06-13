@@ -1,52 +1,34 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { calculateStanding, type StandingResult } from "@/lib/calculate-standing";
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Hook that returns a member's standing.
+ * Hook that returns a member's standing breakdown.
  *
- * Strategy:
- * 1. Read the stored standing + standing_updated_at from the memberships row.
- * 2. If standing_updated_at is within the last 5 minutes, return the stored value
- *    (avoids 4+ Supabase queries per render).
- * 3. Otherwise, recalculate from scratch, persist the result to DB, and return it.
+ * READ-ONLY: this always computes with `updateDb: false`, so passively viewing
+ * a member NEVER writes standing and NEVER dispatches a notification. (The old
+ * implementation persisted-on-render and could fire a standing-change
+ * notification just from rendering a stale member — that side effect is gone.)
+ *
+ * Writes happen ONLY through `useRecalculateStanding()`, invoked by an explicit
+ * admin action.
  */
-export function useMemberStanding(membershipId: string | null, groupId: string | null) {
+export function useMemberStanding(
+  membershipId: string | null,
+  groupId: string | null,
+  currency?: string,
+) {
   return useQuery<StandingResult | null>({
-    queryKey: ["member-standing", membershipId, groupId],
+    queryKey: ["member-standing", membershipId, groupId, currency],
     queryFn: async () => {
       if (!membershipId || !groupId) return null;
-
-      // Step 1: Try reading cached standing from DB
-      const supabase = createClient();
-      const { data: membership } = await supabase
-        .from("memberships")
-        .select("standing, standing_updated_at")
-        .eq("id", membershipId)
-        .single();
-
-      if (membership?.standing_updated_at) {
-        const updatedAt = new Date(membership.standing_updated_at).getTime();
-        const age = Date.now() - updatedAt;
-
-        if (age < STALE_THRESHOLD_MS && membership.standing) {
-          // DB value is fresh enough — return it without full recalculation
-          // We return a minimal StandingResult; the full reasons are only
-          // needed for detail views, which can call calculateStanding directly
-          return {
-            standing: membership.standing as StandingResult["standing"],
-            reasons: [],
-            score: membership.standing === "good" ? 100 : membership.standing === "warning" ? 75 : 25,
-          };
-        }
-      }
-
-      // Step 2: Stale or missing — recalculate and persist
-      return calculateStanding(membershipId, groupId, { updateDb: true });
+      return calculateStanding(membershipId, groupId, {
+        updateDb: false,
+        currency,
+      });
     },
     staleTime: STALE_THRESHOLD_MS,
     enabled: !!membershipId && !!groupId,
@@ -54,17 +36,57 @@ export function useMemberStanding(membershipId: string | null, groupId: string |
 }
 
 /**
- * Hook that always does a full recalculation with detailed reasons.
- * Use this for the member detail page where you need the breakdown.
+ * Hook that returns a member's full standing breakdown (every reason).
+ *
+ * READ-ONLY: computes with `updateDb: false`. Use on the member detail page for
+ * the breakdown. `currency` is part of the query key so a currency change
+ * re-renders the money-formatted reasons (previously omitted — fixed here).
  */
-export function useMemberStandingDetailed(membershipId: string | null, groupId: string | null, currency?: string) {
+export function useMemberStandingDetailed(
+  membershipId: string | null,
+  groupId: string | null,
+  currency?: string,
+) {
   return useQuery<StandingResult | null>({
-    queryKey: ["member-standing-detailed", membershipId, groupId],
+    queryKey: ["member-standing-detailed", membershipId, groupId, currency],
     queryFn: async () => {
       if (!membershipId || !groupId) return null;
-      return calculateStanding(membershipId, groupId, { updateDb: true, currency });
+      return calculateStanding(membershipId, groupId, {
+        updateDb: false,
+        currency,
+      });
     },
     staleTime: STALE_THRESHOLD_MS,
     enabled: !!membershipId && !!groupId,
+  });
+}
+
+/**
+ * Mutation hook that recalculates AND persists a member's standing, and may
+ * dispatch a standing-change notification on a real transition.
+ *
+ * This is the ONLY hook that writes/notifies, and it does so ONLY when its
+ * `mutate`/`mutateAsync` is explicitly invoked (e.g. an admin "Recalculate"
+ * button). On success it invalidates both standing query keys so the read hooks
+ * pick up the persisted value.
+ */
+export function useRecalculateStanding() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    StandingResult,
+    Error,
+    { membershipId: string; groupId: string; currency?: string }
+  >({
+    mutationFn: ({ membershipId, groupId, currency }) =>
+      calculateStanding(membershipId, groupId, { updateDb: true, currency }),
+    onSuccess: (_data, { membershipId, groupId }) => {
+      queryClient.invalidateQueries({
+        queryKey: ["member-standing", membershipId, groupId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["member-standing-detailed", membershipId, groupId],
+      });
+    },
   });
 }

@@ -23,6 +23,10 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { formatAmount as formatAmt } from "@/lib/currencies";
 import { useMemberStanding } from "@/lib/hooks/use-member-standing";
+import { StandingBadge } from "@/components/standing-badge";
+import type { StandingReason } from "@/lib/calculate-standing";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   ShieldCheck,
   AlertTriangle,
@@ -109,7 +113,7 @@ export default function MyDashboardPage() {
   const { user, currentMembership, currentGroup, groupId, loading: groupLoading } = useGroup();
   const [explainerDismissed, setExplainerDismissed] = useState(false);
 
-  const { data: standingData } = useMemberStanding(currentMembership?.id || null, groupId);
+  const { data: standingData } = useMemberStanding(currentMembership?.id || null, groupId, currentGroup?.currency);
 
   const {
     data: pendingObligations,
@@ -195,6 +199,7 @@ export default function MyDashboardPage() {
   }
 
   const standing = standingData?.standing || currentMembership?.standing || "good";
+  const standingValue = (standing as "good" | "warning" | "suspended" | "banned");
   const standingStyle = standingStyles[standing] || standingStyles.good;
   const StandingIcon = standingStyle.icon;
   const currency = currentGroup?.currency || "XAF";
@@ -225,11 +230,7 @@ export default function MyDashboardPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <Badge className={`${standingStyle.text} border-0`}>
-                    {isGoodStanding
-                      ? t("goodStanding")
-                      : t("actionNeeded")}
-                  </Badge>
+                  <StandingBadge standing={standingValue} size="sm" />
                   <Tooltip>
                     <TooltipTrigger className="cursor-help">
                       <HelpCircle className="h-4 w-4 text-muted-foreground" />
@@ -246,21 +247,43 @@ export default function MyDashboardPage() {
                 </p>
               </div>
             </div>
-            {/* Standing Breakdown */}
+            {/* Standing Breakdown — failed reasons first, with a fix link. */}
             {standingData && standingData.reasons.length > 0 && (
               <div className="mt-3 space-y-1.5 border-t pt-3">
-                {standingData.reasons.map((reason, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    {reason.passed ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                    ) : (
-                      <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                    )}
-                    <span className={reason.passed ? "text-muted-foreground" : "text-foreground font-medium"}>
-                      {locale === "fr" ? reason.detail_fr : reason.detail_en}
-                    </span>
-                  </div>
-                ))}
+                {[...standingData.reasons]
+                  .sort((a, b) => Number(a.passed) - Number(b.passed))
+                  .map((reason, i) => {
+                    const fixHref = (reason as StandingReason & { fixHref?: string }).fixHref;
+                    const showReview = !reason.passed && !!fixHref;
+                    return (
+                      <div key={i} className="flex items-start gap-2 text-xs">
+                        {reason.passed ? (
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                        ) : (
+                          <XCircle className="mt-0.5 h-3.5 w-3.5 text-red-500 shrink-0" />
+                        )}
+                        <span
+                          className={cn(
+                            "flex-1 min-w-0",
+                            reason.passed ? "text-muted-foreground" : "text-foreground font-medium",
+                          )}
+                        >
+                          {locale === "fr" ? reason.detail_fr : reason.detail_en}
+                        </span>
+                        {showReview && (
+                          <Link
+                            href={fixHref as "/dashboard"}
+                            className={cn(
+                              buttonVariants({ variant: "outline", size: "sm" }),
+                              "h-6 shrink-0 px-2 text-[11px]",
+                            )}
+                          >
+                            {tStanding("reviewFix")}
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </CardContent>

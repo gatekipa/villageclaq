@@ -234,7 +234,8 @@
     "reliefRollup": "Synthèse entraide",
     "remittances": "Remises",
     "badgeStarter": "Starter",
-    "badgePro": "Pro"
+    "badgePro": "Pro",
+    "launchCenter": "Centre de lancement"
   },
   "cookies": {
     "title": "Paramètres des cookies",
@@ -586,7 +587,8 @@
         "duesConfigured": "Configurez les cotisations",
         "firstEvent": "Créez votre premier événement ou réunion",
         "remindersReady": "Les rappels sont automatiques — rien à configurer"
-      }
+      },
+      "openCenter": "Ouvrir le Centre de lancement"
     },
     "collectionRateLabel": "Taux de recouvrement global",
     "upcomingEventsLabel": "Événements à venir",
@@ -5892,5 +5894,124 @@
       "generic": "Votre standing d'adhésion dans {groupName} a été mis à jour. Consultez votre tableau de bord pour plus de détails."
     },
     "smsLocaleHint": "Garder les SMS de standing courts — les modèles vivent dans sms-templates.ts."
+  },
+  "launchCenter": {
+    "title": "Centre de lancement",
+    "subtitle": "Tout ce qu'il faut pour mettre votre groupe en route : configurez l'essentiel, invitez vos membres et abordez votre premier mois en toute confiance.",
+    "heroReadyBadge": "Prêt au lancement",
+    "heroProgressBadge": "{done} sur {total} prêts",
+    "heroReadyDesc": "Tout l'essentiel est en place. Votre groupe peut fonctionner dès maintenant.",
+    "heroProgressDesc": "Avancez sur les étapes essentielles ci-dessous. Chacune ne prend que quelques minutes.",
+    "status": {
+      "ready": "Prêt",
+      "attention": "À compléter",
+      "optional": "Optionnel",
+      "blocked": "Verrouillé"
+    },
+    "items": {
+      "groupProfile": {
+        "title": "Profil du groupe",
+        "desc": "Le nom et la devise de votre groupe posent les bases de tout ce que voient les membres.",
+        "cta": "Vérifier les paramètres"
+      },
+      "adminContact": {
+        "title": "Vos coordonnées",
+        "desc": "Un numéro de téléphone sur votre profil permet aux membres de joindre la personne qui gère le groupe.",
+        "cta": "Ajouter votre téléphone"
+      },
+      "inviteMembers": {
+        "title": "Invitez vos membres",
+        "desc": "Envoyez des invitations personnelles pour que les membres créent leur compte et rejoignent votre groupe.",
+        "cta": "Envoyer les invitations"
+      },
+      "firstMemberAccepted": {
+        "title": "Premier membre",
+        "desc": "Votre premier membre a rejoint le groupe — votre communauté prend vie.",
+        "descBlocked": "Invitez d'abord des membres — cette étape se déverrouille une fois les invitations envoyées.",
+        "descWaiting": "Les invitations sont parties. Cette étape se termine dès qu'un premier membre rejoint le groupe.",
+        "cta": "Voir les invitations"
+      },
+      "duesConfigured": {
+        "title": "Cotisations",
+        "desc": "Définissez ce que les membres versent et à quelle fréquence. Le suivi des paiements commence ici.",
+        "cta": "Configurer les cotisations"
+      },
+      "firstEvent": {
+        "title": "Première réunion ou événement",
+        "desc": "Inscrivez votre prochaine rencontre au calendrier pour suivre les présences dès le premier jour.",
+        "cta": "Planifier un événement"
+      },
+      "remindersReady": {
+        "title": "Rappels automatiques",
+        "desc": "Dès qu'une cotisation ou un événement existe, les membres reçoivent leurs rappels à temps. Rien à activer.",
+        "cta": "À propos des rappels"
+      },
+      "announcements": {
+        "title": "Annonces",
+        "desc": "Partagez les nouvelles avec tout le groupe quand vous le souhaitez. Toujours disponible, jamais obligatoire.",
+        "cta": "Rédiger une annonce"
+      }
+    },
+    "stages": {
+      "title": "Parcours d'activation",
+      "currentBadge": "Vous êtes ici",
+      "basics": "Essentiels",
+      "invite": "Invitations",
+      "dues": "Cotisations",
+      "event": "Premier événement",
+      "reminders": "Rappels",
+      "summary": "Bilan",
+      "golive": "Lancement",
+      "completed": "Terminé",
+      "upcoming": "À venir"
+    },
+    "nonAdmin": {
+      "title": "Réservé aux responsables du groupe",
+      "desc": "Le Centre de lancement aide les personnes qui gèrent ce groupe à finaliser sa mise en place. Tout est en ordre de votre côté — votre tableau de bord contient déjà tout ce qu'il vous faut.",
+      "backCta": "Retour au tableau de bord"
+    },
+    "backToDashboard": "Retour au tableau de bord",
+    "sendReview": {
+      "title": "Avant tout envoi",
+      "noSendNote": "Rien ne part tant que vous ne confirmez pas l'envoi.",
+      "labels": {
+        "who": "Qui le reçoit",
+        "channels": "Comment ils sont contactés",
+        "preview": "À consulter librement",
+        "confirm": "Confirmation requise"
+      },
+      "invitations": {
+        "who": "Uniquement les personnes que vous invitez directement — une personne par adresse e-mail. Les codes et liens d'adhésion n'atteignent que les personnes avec qui vous choisissez de les partager.",
+        "channels": "Les invitations envoyées à une adresse e-mail arrivent par e-mail. Celles créées avec un numéro de téléphone peuvent recevoir un message WhatsApp. Les boutons de partage ouvrent simplement vos propres applications de messagerie — VillageClaq n'envoie rien de lui-même.",
+        "preview": "Vous pouvez copier le code et le lien d'adhésion, afficher ou imprimer le code QR et consulter les invitations passées — rien de tout cela ne contacte qui que ce soit.",
+        "confirm": "Une invitation ne part que lorsque vous appuyez sur Envoyer. Renvoyer une invitation existante est aussi une action délibérée de votre part.",
+        "compactNote": "Rien n'est envoyé tant que vous n'appuyez pas sur Envoyer."
+      },
+      "reminders": {
+        "who": "Uniquement les membres ayant un solde impayé et disposant de leur propre compte VillageClaq. Les membres gérés par un tiers ne sont pas contactés.",
+        "channels": "Les rappels apparaissent dans le compte VillageClaq de chaque membre. Les rappels de paiement quotidiens peuvent aussi parvenir aux membres par e-mail, WhatsApp ou SMS, selon les coordonnées et les préférences de chaque membre.",
+        "preview": "Consulter cette liste, ouvrir les détails d'un membre et télécharger le rapport ne contacte personne.",
+        "confirm": "L'envoi à tous les membres demande d'abord votre confirmation et indique exactement combien de personnes seront notifiées. Un rappel individuel ne part que lorsque vous appuyez sur Envoyer pour ce membre.",
+        "compactNote": "Les rappels dans l'application sont publiés dès que vous les envoyez. Les rappels de paiement quotidiens sont envoyés automatiquement, à leur rythme."
+      },
+      "announcements": {
+        "who": "Les membres que vous choisissez pour chaque annonce — tout votre groupe, certains rôles ou seulement des membres sélectionnés.",
+        "channels": "Les annonces apparaissent toujours dans l'application. L'e-mail et WhatsApp ne sont envoyés que si vous activez ces canaux pour une annonce donnée — les deux sont désactivés par défaut.",
+        "preview": "Vous pouvez rédiger, modifier et enregistrer des brouillons librement — les brouillons ne parviennent jamais aux membres.",
+        "confirm": "Les membres ne sont contactés que lorsque vous confirmez un envoi, ou à l'heure exacte définie pour une annonce programmée.",
+        "compactNote": "Les membres ne sont contactés que lorsque vous envoyez ou programmez une annonce."
+      }
+    },
+    "demo": {
+      "title": "Vous présentez une démonstration ?",
+      "desc": "Un parcours en cinq étapes qui montre tout le produit sans jamais joindre de vraies personnes.",
+      "step1": "Commencez par la vue d'ensemble du tableau de bord",
+      "step2": "Montrez l'invitation des membres — présentez l'écran sans envoyer de vrais contacts",
+      "step3": "Parcourez la configuration des paiements et des cotisations",
+      "step4": "Présentez les événements et les rappels automatiques",
+      "step5": "Terminez sur le récapitulatif de préparation au lancement",
+      "noSendWarning": "Faites la démonstration dans un groupe d'essai, jamais dans un vrai groupe : envoyer des invitations ou enregistrer des paiements avec les coordonnées de vrais membres joindrait de vraies personnes.",
+      "toggle": "Afficher ou masquer le parcours de démonstration"
+    }
   }
 }

@@ -5,7 +5,7 @@ union, or church group) — from group creation to launch readiness —
 **without sending a single real message or touching real members' data.**
 
 Audience: whoever is giving the demo (owner, sales, support).
-Last updated: 2026-06-12 (Product Sprint A).
+Last updated: 2026-06-12 (Product Sprint B).
 
 ## The one rule
 
@@ -61,6 +61,42 @@ per the established QA procedure. Never from a customer demo group.
    checklist has visibly progressed. Walk the remaining items, then the
    bilingual story: flip to FR (language switcher) and show the same
    dashboard in French — this lands hard with diaspora groups.
+
+## Launch Command Center as the demo backbone
+
+Since Product Sprint B the demo has a home base: **/dashboard/launch**,
+the Launch Command Center. It shows the activation stages (Basics →
+Invite → Dues → First event → Reminders → Review → Go live) on one screen, so
+the demo becomes "watch the stages light up" instead of hunting through
+menus. Open it right after creating the demo group, walk each beat of the
+story above in order, and return to it between beats — the progress you
+create during the demo is reflected immediately, and the close ("the
+product tells you exactly what's left") lands on the same screen you
+started from.
+
+The Launch Command Center also shows a **"Walking someone through a
+demo?"** card with the same recommended path as this runbook, including
+the no-send warning. If you lose your place mid-demo, the path is on
+screen in front of you.
+
+### Deep links for each demo beat
+
+Use these to jump straight to a beat instead of navigating menus on a
+screen-share:
+
+| Demo beat | Route |
+| --- | --- |
+| Launch Command Center (start and finish here) | `/dashboard/launch` |
+| Dashboard overview (honest zeros, quick actions) | `/dashboard` |
+| Inviting members (review the screen only — do not submit real contacts) | `/dashboard/invitations` |
+| Payment setup (dues types, matrix, record a payment) | `/dashboard/contributions` |
+| Events and reminders (far-future date rule applies) | `/dashboard/events` |
+| Launch readiness summary | `/dashboard/launch` |
+
+Every safety rule in this runbook still applies on each of these screens.
+Nothing on the Launch Command Center itself sends anything — it only
+navigates — but the screens it links to can (see the safe/unsafe table
+above).
 
 ## After the demo
 

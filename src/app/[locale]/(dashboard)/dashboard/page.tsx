@@ -325,7 +325,7 @@ export default function DashboardPage() {
 
       {/* Launch readiness (admins) — supersedes the old Getting Started list */}
       {isAdmin && launchReadiness && (
-        <LaunchChecklist readiness={launchReadiness} />
+        <LaunchChecklist readiness={launchReadiness} centerHref="/dashboard/launch" />
       )}
 
       {/* Needs attention (admins) — pending approvals + unanswered invitations */}

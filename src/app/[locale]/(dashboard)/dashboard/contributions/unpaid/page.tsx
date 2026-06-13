@@ -33,6 +33,7 @@ import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 import { RequirePermission } from "@/components/ui/permission-gate";
+import { SendReviewNotice } from "@/components/send-review-notice";
 
 interface UnpaidMember {
   id: string;
@@ -248,6 +249,10 @@ export default function UnpaidReportPage() {
           </Button>
         </div>
       </div>
+
+      {/* Pre-send review notice — complements the "will notify X of Y"
+          preview in the confirmation dialog. Purely informational. */}
+      <SendReviewNotice context="reminders" variant="compact" />
 
       {/* Sub Navigation */}
       <ContributionsSubNav active="unpaid" />

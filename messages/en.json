@@ -234,7 +234,8 @@
     "reliefRollup": "Relief Rollup",
     "remittances": "Remittances",
     "badgeStarter": "Starter",
-    "badgePro": "Pro"
+    "badgePro": "Pro",
+    "launchCenter": "Launch Center"
   },
   "cookies": {
     "title": "Cookie Settings",
@@ -586,7 +587,8 @@
         "duesConfigured": "Set up dues or contributions",
         "firstEvent": "Create your first event or meeting",
         "remindersReady": "Reminders run automatically — nothing to configure"
-      }
+      },
+      "openCenter": "Open the Launch Command Center"
     },
     "collectionRateLabel": "Overall collection rate",
     "upcomingEventsLabel": "Upcoming events",
@@ -5892,5 +5894,124 @@
       "generic": "Your membership standing in {groupName} has been updated. Check your dashboard for details."
     },
     "smsLocaleHint": "Keep standing SMS copy short — templates live in sms-templates.ts."
+  },
+  "launchCenter": {
+    "title": "Launch Command Center",
+    "subtitle": "Everything your group needs to go live — set up the essentials, invite your members, and start your first month with confidence.",
+    "heroReadyBadge": "Ready to go live",
+    "heroProgressBadge": "{done} of {total} ready",
+    "heroReadyDesc": "Every essential is in place. Your group can operate from here.",
+    "heroProgressDesc": "Work through the essentials below. Each one takes only a few minutes.",
+    "status": {
+      "ready": "Ready",
+      "attention": "Needs attention",
+      "optional": "Optional",
+      "blocked": "Locked"
+    },
+    "items": {
+      "groupProfile": {
+        "title": "Group profile",
+        "desc": "Your group's name and currency set the foundation for everything members see.",
+        "cta": "Review settings"
+      },
+      "adminContact": {
+        "title": "Your contact details",
+        "desc": "A phone number on your profile lets members reach the person running the group.",
+        "cta": "Add your phone"
+      },
+      "inviteMembers": {
+        "title": "Invite your members",
+        "desc": "Send personal invitations so members can create their accounts and join your group.",
+        "cta": "Send invitations"
+      },
+      "firstMemberAccepted": {
+        "title": "First member joins",
+        "desc": "Your first member has joined — your community is taking shape.",
+        "descBlocked": "Invite members first — this unlocks once invitations are out.",
+        "descWaiting": "Invitations are out. This completes when your first member joins.",
+        "cta": "Check invitations"
+      },
+      "duesConfigured": {
+        "title": "Dues and contributions",
+        "desc": "Define what members contribute and how often. Payment tracking starts here.",
+        "cta": "Set up dues"
+      },
+      "firstEvent": {
+        "title": "First meeting or event",
+        "desc": "Put your next gathering on the calendar so attendance counts from day one.",
+        "cta": "Schedule an event"
+      },
+      "remindersReady": {
+        "title": "Automatic reminders",
+        "desc": "Once dues or an event exist, members receive their reminders on time. Nothing to switch on.",
+        "cta": "About reminders"
+      },
+      "announcements": {
+        "title": "Announcements",
+        "desc": "Share news with the whole group whenever you are ready. Always available, never required.",
+        "cta": "Write an announcement"
+      }
+    },
+    "stages": {
+      "title": "Activation path",
+      "currentBadge": "You are here",
+      "basics": "Basics",
+      "invite": "Invite",
+      "dues": "Dues",
+      "event": "First event",
+      "reminders": "Reminders",
+      "summary": "Review",
+      "golive": "Go live",
+      "completed": "Completed",
+      "upcoming": "Upcoming"
+    },
+    "nonAdmin": {
+      "title": "For group leaders",
+      "desc": "The Launch Command Center helps the people running this group finish setting it up. You are all set — your dashboard has everything you need.",
+      "backCta": "Back to dashboard"
+    },
+    "backToDashboard": "Back to dashboard",
+    "sendReview": {
+      "title": "Before anything is sent",
+      "noSendNote": "Nothing goes out until you confirm a send.",
+      "labels": {
+        "who": "Who receives it",
+        "channels": "How it reaches them",
+        "preview": "Safe to review",
+        "confirm": "Needs your confirmation"
+      },
+      "invitations": {
+        "who": "Only the people you invite directly — one person per email address. Join codes and links reach only those you choose to share them with.",
+        "channels": "Invitations sent to an email address arrive by email. Invitations created with a phone number may receive a WhatsApp notice. The share buttons simply open your own messaging apps — VillageClaq sends nothing on its own.",
+        "preview": "You can copy the join code and link, view or print the QR code, and review past invitations — none of that contacts anyone.",
+        "confirm": "An invitation goes out only when you press Send. Resending an existing invitation is also a deliberate step you take yourself.",
+        "compactNote": "Nothing is sent until you press Send."
+      },
+      "reminders": {
+        "who": "Only members with an outstanding balance who have their own VillageClaq account. Members managed on someone's behalf are not contacted.",
+        "channels": "Reminders appear in each member's VillageClaq account. Daily payment reminders may also reach members by email, WhatsApp, or text message, depending on each member's contact details and preferences.",
+        "preview": "Reviewing this list, opening a member's details, and downloading the report contacts no one.",
+        "confirm": "Sending to all members asks for your confirmation first and shows exactly how many people will be notified. A single reminder goes out only when you press Send for that member.",
+        "compactNote": "In-app reminders post the moment you send them. The daily payment reminders are sent automatically on their schedule."
+      },
+      "announcements": {
+        "who": "The members you choose for each announcement — your whole group, specific roles, or selected members only.",
+        "channels": "Announcements always appear in the app. Email and WhatsApp are sent only when you turn those channels on for a given announcement — both are off by default.",
+        "preview": "You can write, edit, and save drafts freely — drafts never reach members.",
+        "confirm": "Members are contacted only when you confirm a send, or at the exact time you set for a scheduled announcement.",
+        "compactNote": "Members are contacted only when you send or schedule an announcement."
+      }
+    },
+    "demo": {
+      "title": "Walking someone through a demo?",
+      "desc": "A five-stop path that shows off the whole product without reaching anyone for real.",
+      "step1": "Start with the dashboard overview",
+      "step2": "Show how members are invited — review the screen, don't submit real contacts",
+      "step3": "Walk through payment setup and dues",
+      "step4": "Show events and automatic reminders",
+      "step5": "Finish on the launch readiness summary",
+      "noSendWarning": "Demo inside a practice group, never a real one — submitting invitations or recording payments with real member details will reach real people.",
+      "toggle": "Show or hide the demo path"
+    }
   }
 }

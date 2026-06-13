@@ -5,7 +5,7 @@ union, or church group) — from group creation to launch readiness —
 **without sending a single real message or touching real members' data.**
 
 Audience: whoever is giving the demo (owner, sales, support).
-Last updated: 2026-06-14 (Product Sprint A).
+Last updated: 2026-06-12 (Product Sprint A).
 
 ## The one rule
 

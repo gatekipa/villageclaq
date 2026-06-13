@@ -102,7 +102,8 @@
     "never": "Jamais",
     "errorTitle": "Une erreur est survenue",
     "errorDesc": "Impossible de charger ces données. Veuillez réessayer.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "sending": "Envoi…"
   },
   "join": {
     "enterCode": "Entrer le code d'adhésion",

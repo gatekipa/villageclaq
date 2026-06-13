@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateWithGroupFormat, formatTime, formatEventDateTime } from "@/lib/format";
+import { getDateLocale } from "@/lib/date-utils";
 import { cn, normalizeSearch } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -209,7 +210,7 @@ export default function EventsPage() {
   const month = calendarDate.getMonth();
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
-  const monthName = calendarDate.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "long", year: "numeric" });
+  const monthName = calendarDate.toLocaleDateString(getDateLocale(locale), { month: "long", year: "numeric" });
 
   const filteredEvents = useMemo(() => {
     if (!events) return [];
@@ -640,7 +641,7 @@ export default function EventsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-px">
-              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { weekday: "short" })).map((day) => (
+              {Array.from({ length: 7 }, (_, i) => new Date(2023, 11, 31 + i).toLocaleDateString(getDateLocale(locale), { weekday: "short" })).map((day) => (
                 <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
                   {day}
                 </div>
@@ -737,7 +738,7 @@ export default function EventsPage() {
                       <div className="flex gap-4 flex-1 min-w-0">
                         <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10">
                           <span className="text-xs font-medium text-primary">
-                            {startsAt.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short" })}
+                            {startsAt.toLocaleDateString(getDateLocale(locale), { month: "short" })}
                           </span>
                           <span className="text-xl font-bold leading-none text-primary">
                             {startsAt.getDate()}

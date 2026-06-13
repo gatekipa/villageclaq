@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   HandCoins,
   CreditCard,
@@ -86,15 +86,18 @@ export function ContributionsSubNav({ active }: { active: ContributionsSubNavKey
   return (
     <div className="flex gap-2 overflow-x-auto pb-1">
       {items.map((item) => (
-        <Link key={item.key} href={item.href}>
-          <Button
-            variant={item.key === active ? "default" : "outline"}
-            size="sm"
-            className="shrink-0"
-          >
-            <item.icon className="mr-1.5 h-3.5 w-3.5" />
-            {item.label}
-          </Button>
+        <Link
+          key={item.key}
+          href={item.href}
+          aria-current={item.key === active ? "page" : undefined}
+          className={buttonVariants({
+            variant: item.key === active ? "default" : "outline",
+            size: "sm",
+            className: "shrink-0",
+          })}
+        >
+          <item.icon className="mr-1.5 h-3.5 w-3.5" />
+          {item.label}
         </Link>
       ))}
     </div>

@@ -223,3 +223,14 @@ test("reused existing keys (onboarding.saving, onboarding.next, addPhone.*) exis
     }
   }
 });
+
+test("new sprint keys (profileSaveFailed, stepProgress, addPhone.saveFailed) exist in both bundles", () => {
+  for (const localeFile of ["messages/en.json", "messages/fr.json"]) {
+    const json = JSON.parse(read(localeFile));
+    for (const key of ["profileSaveFailed", "stepProgress"]) {
+      assert.equal(typeof json.onboarding?.[key], "string", `${localeFile}: onboarding.${key} must exist`);
+      assert.ok(json.onboarding[key].length > 0, `${localeFile}: onboarding.${key} must be non-empty`);
+    }
+    assert.equal(typeof json.onboarding?.addPhone?.saveFailed, "string", `${localeFile}: onboarding.addPhone.saveFailed must exist`);
+  }
+});

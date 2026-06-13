@@ -268,8 +268,12 @@ export default function ContributionsPage() {
         if (insertErr) throw insertErr;
       }
       setEnrollSuccessCount(missing.length);
-      await queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] }),
+      ]);
     } catch (err) {
       console.warn("[Contributions] enroll-all failed:", err instanceof Error ? err.message : err);
       setEnrollError(t("contributions.enrollError"));
@@ -285,7 +289,12 @@ export default function ContributionsPage() {
       const supabase = createClient();
       const { error } = await supabase.from("contribution_types").delete().eq("id", typeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
+        queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] }),
+      ]);
       setShowDeleteConfirm(null);
     } catch (err) {
       console.warn("[Contributions] delete type failed:", err instanceof Error ? err.message : err);

@@ -368,8 +368,12 @@ export default function UnpaidReportPage() {
                         </Link>
                         <span title={!member.userId ? t("contributions.proxyReminderUnavailable") : undefined}>
                           <Button size="sm" onClick={() => handleSendReminder(member)} disabled={!member.userId || sendingReminderId === member.id}>
-                            <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-                            {t("contributions.sendReminder")}
+                            {sendingReminderId === member.id ? (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                            )}
+                            {sendingReminderId === member.id ? t("common.sending") : t("contributions.sendReminder")}
                           </Button>
                         </span>
                       </div>

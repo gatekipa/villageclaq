@@ -184,6 +184,17 @@ test("reused existing i18n keys are present in both bundles", () => {
   }
 });
 
+test("new sprint keys landed in BOTH bundles (no runtime missing-message regressions)", () => {
+  const en = JSON.parse(read("messages/en.json"));
+  const fr = JSON.parse(read("messages/fr.json"));
+  for (const bundle of [en, fr]) {
+    for (const key of ["reminderHint", "reminderSent", "locationHint", "actionFailed", "noEventsMemberDesc", "recurringHintManual"]) {
+      assert.equal(typeof bundle.events?.[key], "string", `events.${key} must exist in both bundles`);
+      assert.ok(bundle.events[key].length > 0, `events.${key} must be non-empty`);
+    }
+  }
+});
+
 test("requested new keys are referenced through t() in the page (no hardcoded strings)", () => {
   for (const key of ["reminderHint", "reminderSent", "locationHint", "actionFailed", "noEventsMemberDesc", "recurringHintManual"]) {
     assert.ok(page.includes(`t("${key}")`), `page must reference t("${key}")`);

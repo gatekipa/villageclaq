@@ -14,10 +14,15 @@
 -- This migration teaches the SQL engine the same configurable FACTOR model
 -- the TypeScript engine now uses (src/lib/standing-rules.ts):
 --   groups.settings.standing_rules.factors = {
---     dues, attendance, relief, hosting, fines, loans, disputes : boolean }
+--     dues, meetingAttendance, eventAttendance, relief, hosting, fines,
+--     loans, disputes, customActivity : boolean }
 --   groups.settings.standing_rules.excluded_contribution_type_ids = [uuid,...]
--- Defaults: dues/attendance/relief/hosting/disputes = true; fines/loans =
--- false (a random fine or loan must not silently damage standing).
+-- Defaults: dues/meetingAttendance/relief/hosting/disputes = true;
+-- eventAttendance/fines/loans/customActivity = false — a random event, fine,
+-- loan, or activity must not silently damage standing. Attendance is split:
+-- meetings (event_type meeting/agm) count by default, casual events do not.
+-- Back-compat: a pre-split JSONB with a single 'attendance' flag applies it
+-- to both meeting + event attendance.
 --
 -- It also closes the audit hole: trigger-driven recalculation used to change
 -- memberships.standing silently. recalculate_membership_standing() now writes
@@ -96,14 +101,16 @@ DECLARE
   v_grace_days int;
   v_lookback_months int;
 
-  -- factor switches (fines/loans default false, the rest true)
+  -- factor switches (fines/loans/customActivity default false, the rest true)
   v_f_dues boolean;
-  v_f_attendance boolean;
+  v_f_meeting boolean;
+  v_f_event boolean;
   v_f_relief boolean;
   v_f_hosting boolean;
   v_f_fines boolean;
   v_f_loans boolean;
   v_f_disputes boolean;
+  v_f_custom boolean;
 
   v_overdue_count int;
   v_relief_behind int;
@@ -155,12 +162,18 @@ BEGIN
   v_factors    := COALESCE(v_rules->'factors', '{}'::jsonb);
   v_excluded   := COALESCE(v_rules->'excluded_contribution_type_ids', '[]'::jsonb);
   v_f_dues       := COALESCE((v_factors->>'dues')::boolean, true);
-  v_f_attendance := COALESCE((v_factors->>'attendance')::boolean, true);
+  -- Meeting vs event attendance. Back-compat: a pre-split JSONB stored a
+  -- single 'attendance' flag — apply it to both when the new keys are absent.
+  v_f_meeting    := COALESCE((v_factors->>'meetingAttendance')::boolean,
+                             (v_factors->>'attendance')::boolean, true);
+  v_f_event      := COALESCE((v_factors->>'eventAttendance')::boolean,
+                             (v_factors->>'attendance')::boolean, false);
   v_f_relief     := COALESCE((v_factors->>'relief')::boolean, true);
   v_f_hosting    := COALESCE((v_factors->>'hosting')::boolean, true);
   v_f_fines      := COALESCE((v_factors->>'fines')::boolean, false);
   v_f_loans      := COALESCE((v_factors->>'loans')::boolean, false);
   v_f_disputes   := COALESCE((v_factors->>'disputes')::boolean, true);
+  v_f_custom     := COALESCE((v_factors->>'customActivity')::boolean, false);
 
   v_cutoff := now() - (v_lookback_months || ' months')::interval;
 
@@ -179,10 +192,9 @@ BEGIN
     END IF;
   END IF;
 
-  -- Rule: Attendance — below threshold over the lookback window. Mirrors the
-  -- TypeScript engine: 'present' and 'late' both count as attended, and
-  -- 'excused' absences are excluded from the denominator.
-  IF v_f_attendance THEN
+  -- Rule: Meeting attendance — formal gatherings (event_type meeting/agm).
+  -- 'present'/'late' count as attended; 'excused' excluded from denominator.
+  IF v_f_meeting THEN
     SELECT
       COUNT(*) FILTER (WHERE ea.status IS NOT NULL AND ea.status <> 'excused'),
       COUNT(*) FILTER (WHERE ea.status IN ('present','late'))
@@ -190,6 +202,29 @@ BEGIN
     FROM event_attendances ea
     JOIN events e ON e.id = ea.event_id
     WHERE ea.membership_id = p_membership_id
+      AND COALESCE(e.event_type::text, 'meeting') IN ('meeting','agm')
+      AND e.ends_at IS NOT NULL
+      AND e.ends_at >= v_cutoff
+      AND e.ends_at <= now();
+    IF v_attendance_eligible > 0 THEN
+      v_attendance_rate := (v_attendance_present::numeric / v_attendance_eligible::numeric) * 100;
+      IF v_attendance_rate < v_attendance_pct THEN
+        v_fail_count := v_fail_count + 1;
+      END IF;
+    END IF;
+  END IF;
+
+  -- Rule: Event attendance — casual events (everything except meeting/agm).
+  -- OFF by default: a random event must not damage standing unless enabled.
+  IF v_f_event THEN
+    SELECT
+      COUNT(*) FILTER (WHERE ea.status IS NOT NULL AND ea.status <> 'excused'),
+      COUNT(*) FILTER (WHERE ea.status IN ('present','late'))
+      INTO v_attendance_eligible, v_attendance_present
+    FROM event_attendances ea
+    JOIN events e ON e.id = ea.event_id
+    WHERE ea.membership_id = p_membership_id
+      AND COALESCE(e.event_type::text, 'meeting') NOT IN ('meeting','agm')
       AND e.ends_at IS NOT NULL
       AND e.ends_at >= v_cutoff
       AND e.ends_at <= now();
@@ -265,6 +300,14 @@ BEGIN
     IF v_disputes_open > 0 THEN
       v_fail_count := v_fail_count + 1;
     END IF;
+  END IF;
+
+  -- Rule: Custom activities — declared slot, intentionally inert. No activity
+  -- type feeds standing yet; this gate exists so a future standing-impacting
+  -- activity type is evaluated HERE behind the toggle, never silently. Mirrors
+  -- the TypeScript engine's customActivity slot.
+  IF v_f_custom THEN
+    NULL; -- no custom-activity data source yet
   END IF;
 
   IF v_dues_fail OR v_fail_count >= 2 THEN

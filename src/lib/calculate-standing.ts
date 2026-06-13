@@ -42,12 +42,14 @@ export interface StandingResult {
 /** Where a member is sent to resolve each factor. */
 const FIX_HREFS: Record<StandingFactorKey, string> = {
   dues: "/dashboard/my-payments",
-  attendance: "/dashboard/attendance",
+  meetingAttendance: "/dashboard/attendance",
+  eventAttendance: "/dashboard/attendance",
   relief: "/dashboard/relief/my",
   hosting: "/dashboard/hosting",
   fines: "/dashboard/my-fines",
   loans: "/dashboard/my-loans",
   disputes: "/dashboard/disputes",
+  customActivity: "/dashboard",
 };
 
 function scoreFrom(reasons: StandingReason[]): {
@@ -200,8 +202,11 @@ export async function calculateStanding(
     });
   }
 
-  // Factor: Attendance (configurable threshold + lookback window)
-  if (rules.factors.attendance) {
+  // Factors: Attendance, split into MEETINGS (formal — event_type
+  // meeting/agm) and EVENTS (casual — social/fundraiser/emergency/other).
+  // Both share the configured threshold + lookback. A casual event must not
+  // damage standing unless eventAttendance is explicitly turned on.
+  if (rules.factors.meetingAttendance || rules.factors.eventAttendance) {
     const lookbackStart = new Date();
     lookbackStart.setMonth(
       lookbackStart.getMonth() - rules.attendanceLookbackMonths,
@@ -209,58 +214,84 @@ export async function calculateStanding(
 
     const { data: attendances } = await supabase
       .from("event_attendances")
-      .select("status, checked_in_at, event:events!inner(starts_at, group_id)")
+      .select("status, event:events!inner(starts_at, group_id, event_type)")
       .eq("membership_id", membershipId);
 
-    const recentAttendances = (attendances || []).filter((a) => {
+    const eventOf = (a: Record<string, unknown>): Record<string, unknown> | null => {
       const eventRaw = a.event as unknown;
-      const event = (Array.isArray(eventRaw) ? eventRaw[0] : eventRaw) as
+      return (Array.isArray(eventRaw) ? eventRaw[0] : eventRaw) as
         | Record<string, unknown>
         | null;
-      // Only count attendance for events in THIS group
+    };
+
+    const recent = (attendances || []).filter((a) => {
+      const event = eventOf(a);
       if (event?.group_id !== groupId) return false;
-      // Use event start date (reliable) instead of checked_in_at (may be null)
       const eventDate = event?.starts_at
         ? new Date(event.starts_at as string)
         : null;
-      if (!eventDate) return false;
-      // Only count past events (not future scheduled ones)
-      if (eventDate > now) return false;
+      if (!eventDate || eventDate > now) return false;
       return eventDate >= lookbackStart;
     });
 
-    // Exclude excused absences from the denominator.
-    const nonExcused = recentAttendances.filter((a) => a.status !== "excused");
-    const totalEvents = nonExcused.length;
-    const presentCount = nonExcused.filter(
-      (a) => a.status === "present" || a.status === "late",
-    ).length;
-    const rate =
-      totalEvents > 0 ? Math.round((presentCount / totalEvents) * 100) : 100;
-    const threshold = rules.attendanceThresholdPercent;
-    const attendancePassed = totalEvents === 0 || rate >= threshold;
+    const MEETING_TYPES = new Set(["meeting", "agm"]);
+    const isMeeting = (a: Record<string, unknown>) =>
+      MEETING_TYPES.has(((eventOf(a)?.event_type as string) || "meeting"));
 
-    reasons.push({
-      category: "attendance",
-      factorKey: "attendance",
-      passed: attendancePassed,
-      label_en: "Attendance",
-      label_fr: "Présence",
-      detail_en:
-        totalEvents === 0
-          ? "No events recorded"
-          : attendancePassed
-            ? `Attendance: ${rate}% (above ${threshold}% threshold)`
-            : `Attendance: ${rate}% (below ${threshold}% threshold)`,
-      detail_fr:
-        totalEvents === 0
-          ? "Aucun événement enregistré"
-          : attendancePassed
-            ? `Présence: ${rate}% (au-dessus du seuil de ${threshold}%)`
-            : `Présence: ${rate}% (en dessous du seuil de ${threshold}%)`,
-      count: totalEvents === 0 ? undefined : rate,
-      fixHref: FIX_HREFS.attendance,
-    });
+    const threshold = rules.attendanceThresholdPercent;
+    const pushAttendance = (
+      subset: Record<string, unknown>[],
+      factorKey: "meetingAttendance" | "eventAttendance",
+      labelEn: string,
+      labelFr: string,
+    ) => {
+      // Exclude excused absences from the denominator.
+      const nonExcused = subset.filter((a) => a.status !== "excused");
+      const total = nonExcused.length;
+      const present = nonExcused.filter(
+        (a) => a.status === "present" || a.status === "late",
+      ).length;
+      const rate = total > 0 ? Math.round((present / total) * 100) : 100;
+      const passed = total === 0 || rate >= threshold;
+      reasons.push({
+        category: factorKey,
+        factorKey,
+        passed,
+        label_en: labelEn,
+        label_fr: labelFr,
+        detail_en:
+          total === 0
+            ? `No ${labelEn.toLowerCase()} recorded`
+            : passed
+              ? `${labelEn}: ${rate}% (above ${threshold}% threshold)`
+              : `${labelEn}: ${rate}% (below ${threshold}% threshold)`,
+        detail_fr:
+          total === 0
+            ? `Aucune donnée de ${labelFr.toLowerCase()}`
+            : passed
+              ? `${labelFr}: ${rate}% (au-dessus du seuil de ${threshold}%)`
+              : `${labelFr}: ${rate}% (en dessous du seuil de ${threshold}%)`,
+        count: total === 0 ? undefined : rate,
+        fixHref: FIX_HREFS[factorKey],
+      });
+    };
+
+    if (rules.factors.meetingAttendance) {
+      pushAttendance(
+        recent.filter((a) => isMeeting(a)),
+        "meetingAttendance",
+        "Meeting attendance",
+        "Présence aux réunions",
+      );
+    }
+    if (rules.factors.eventAttendance) {
+      pushAttendance(
+        recent.filter((a) => !isMeeting(a)),
+        "eventAttendance",
+        "Event attendance",
+        "Présence aux événements",
+      );
+    }
   }
 
   // Factor: Relief contributions
@@ -457,6 +488,16 @@ export async function calculateStanding(
       count: disputesPassed ? undefined : openDisputes,
       fixHref: FIX_HREFS.disputes,
     });
+  }
+
+  // Factor: Custom activities — a declared slot (see standing-rules.ts).
+  // No activity type currently feeds standing, so this branch is intentionally
+  // INERT and pushes no reason today. When a future standing-impacting
+  // activity type is added, evaluate it HERE so it is gated behind this toggle
+  // (and a per-item flag) and can never silently damage standing. The gate is
+  // present so the audit guardrail (every factor must be handled) is satisfied.
+  if (rules.factors.customActivity) {
+    // Intentionally inert until a custom-activity data source exists.
   }
 
   // ── Scoring (identical rules to before) ──────────────────────────────────────

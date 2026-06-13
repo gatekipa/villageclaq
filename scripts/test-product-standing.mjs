@@ -42,38 +42,61 @@ const fr = JSON.parse(read("messages/fr.json"));
 // is added there, it MUST be added here too — that is the guardrail.
 const EXPECTED_FACTOR_KEYS = [
   "dues",
-  "attendance",
+  "meetingAttendance",
+  "eventAttendance",
   "relief",
   "hosting",
   "fines",
   "loans",
   "disputes",
+  "customActivity",
 ];
 
 // ---------------------------------------------------------------------------
 // 1. standing-rules.ts — the shared configurable model
 // ---------------------------------------------------------------------------
 
-test("DEFAULT_STANDING_FACTORS defaults fines OFF and loans OFF (separate debts)", () => {
-  // A random fine or loan must not auto-damage standing unless opted in.
+test("DEFAULT_STANDING_FACTORS: random items OFF (fines/loans/event/custom), core ON", () => {
+  // A random fine, loan, casual event, or activity must not auto-damage
+  // standing unless the group opts in.
   assert.match(rules, /fines:\s*false/);
   assert.match(rules, /loans:\s*false/);
-  // Core obligations stay on by default.
+  assert.match(rules, /eventAttendance:\s*false/);
+  assert.match(rules, /customActivity:\s*false/);
+  // Core obligations + formal meetings stay on by default.
   assert.match(rules, /dues:\s*true/);
-  assert.match(rules, /attendance:\s*true/);
+  assert.match(rules, /meetingAttendance:\s*true/);
   assert.match(rules, /relief:\s*true/);
   assert.match(rules, /hosting:\s*true/);
   assert.match(rules, /disputes:\s*true/);
 });
 
-test("STANDING_FACTOR_KEYS lists exactly the seven contract factors", () => {
+test("STANDING_FACTOR_KEYS lists exactly the contract factors (incl. meeting/event/custom)", () => {
   for (const key of EXPECTED_FACTOR_KEYS) {
     assert.ok(rules.includes(`"${key}"`), `STANDING_FACTOR_KEYS must include "${key}"`);
-  }
-  // The StandingFactorKey union covers the same seven.
-  for (const key of EXPECTED_FACTOR_KEYS) {
     assert.ok(rules.includes(`| "${key}"`), `StandingFactorKey union must include "${key}"`);
   }
+  // The old single "attendance" factor must be gone (split into meeting/event).
+  assert.ok(!/\|\s*"attendance"/.test(rules), "the single 'attendance' factor key must be split out");
+});
+
+test("meeting/event attendance split: separable factors with safe event default", () => {
+  // Both attendance factors are real, separately togglable factor keys.
+  assert.ok(rules.includes('"meetingAttendance"') && rules.includes('"eventAttendance"'));
+  // The engine scopes each to the right event types.
+  assert.ok(calc.includes('"meeting"') && calc.includes('"agm"'), "meetings = event_type meeting/agm");
+  assert.ok(calc.includes("event_type"), "engine reads events.event_type to split attendance");
+  assert.ok(calc.includes("rules.factors.meetingAttendance") && calc.includes("rules.factors.eventAttendance"));
+  // Legacy single 'attendance' flag still resolves (back-compat).
+  assert.ok(rules.includes("rawFactors.attendance"), "resolveStandingRules keeps attendance back-compat");
+});
+
+test("custom activities are an inert, gated slot (no silent standing impact)", () => {
+  // The factor is gated in the engine even though it has no data source yet,
+  // so a future activity type cannot bypass the toggle model.
+  assert.ok(calc.includes("rules.factors.customActivity"), "customActivity is gated in the engine");
+  // Default OFF (asserted above) means a random/custom activity never damages
+  // standing unless a group explicitly turns it on.
 });
 
 test("resolveStandingRules reads excluded_contribution_type_ids and per-factor flags", () => {
@@ -121,6 +144,19 @@ test("each factor rule is gated behind rules.factors[...] (toggle-aware)", () =>
       `${key} rule must be gated behind its factor flag`,
     );
   }
+});
+
+test("the SQL engine (migration 00101) gates EVERY factor — TS/SQL parity guardrail", () => {
+  // The TS engine and the SQL engine must honour the same factor model. This
+  // fails CI if a factor is added to the contract but not taught to the SQL
+  // compute function, preventing silent TS/SQL drift.
+  const sql = read("supabase/migrations/00101_standing_factors_and_history.sql");
+  for (const key of EXPECTED_FACTOR_KEYS) {
+    assert.ok(sql.includes(`'${key}'`), `00101 must read the ${key} factor from the JSONB`);
+  }
+  // The meeting/event split is scoped by event_type in SQL (NULL-safe).
+  assert.ok(sql.includes("event_type") && sql.includes("'meeting','agm'"), "SQL splits attendance by event_type");
+  assert.ok(sql.includes("v_f_custom"), "SQL declares + gates the custom-activity switch");
 });
 
 test("attendance threshold comes from rules, not a hardcoded 60 in the rule", () => {

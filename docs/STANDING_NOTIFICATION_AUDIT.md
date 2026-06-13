@@ -171,3 +171,35 @@ sprint.** The dispatch in §2 is unchanged.
 
 Idempotency note: the day-bucket dedupe (`00091`) covers the **WhatsApp** column
 only. In-app / email / SMS rely solely on the transition guard.
+
+---
+
+## Build 1 addendum — Activity Impact (meeting / event / custom)
+
+The standing factor model (`src/lib/standing-rules.ts`) now treats activities
+explicitly so a **random activity cannot damage good standing unless the group
+turns it on**:
+
+- **Attendance is split** into `meetingAttendance` (formal — `event_type` in
+  `meeting`/`agm`, **default ON**) and `eventAttendance` (casual — socials,
+  fundraisers, emergencies, other, **default OFF**). Both share the configured
+  attendance threshold + lookback. The TS engine and the SQL engine
+  (migration 00101) apply the same `event_type` split.
+- **`customActivity`** is a declared, **default-OFF** slot. No activity type
+  feeds standing yet, so the factor is intentionally inert in both engines —
+  but it is *gated* (a guarded branch exists), so when a future
+  standing-impacting activity type is added it must be evaluated behind this
+  toggle (and a per-item flag), never silently.
+- **Guardrail**: `STANDING_FACTOR_KEYS` + `DEFAULT_STANDING_FACTORS` are the
+  single source of truth; `scripts/test-product-standing.mjs` asserts every
+  factor key is gated in the engine and defaulted, so a new activity/attendance
+  type cannot be added without declaring its standing behaviour.
+- **Back-compat**: a JSONB written before the split (a single `attendance`
+  flag) maps to both new attendance factors, so an already-configured group
+  keeps its prior all-events behaviour.
+
+Defaults summary — ON: dues, meetingAttendance, relief, hosting, disputes ·
+OFF: eventAttendance, fines, loans, customActivity.
+
+This activity-impact delta completes **Build 1 (Standing + Activity Impact
+OS)**; PR #25 now fully satisfies the Build 1 directive.

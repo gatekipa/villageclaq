@@ -1125,8 +1125,6 @@
     "standingFactorsDesc": "Choisissez quelles obligations peuvent faire perdre la bonne situation à un membre.",
     "standingFactor_dues": "Cotisations en retard",
     "standingFactor_dues_desc": "Les membres ayant des cotisations en retard perdent leur bonne situation.",
-    "standingFactor_attendance": "Faible présence",
-    "standingFactor_attendance_desc": "Les membres qui assistent à trop peu de réunions récentes sont signalés.",
     "standingFactor_relief": "Contributions d'entraide",
     "standingFactor_relief_desc": "Les membres en retard sur un plan d'entraide auquel ils ont adhéré sont signalés.",
     "standingFactor_hosting": "Tours d'accueil manqués",
@@ -1143,7 +1141,13 @@
     "standingExclusionsEmpty": "Aucune contribution active pour l'instant.",
     "standingSavedImmediate": "Enregistré. Ces règles déterminent désormais la situation de chaque membre.",
     "standingApplyImmediateNote": "La situation d'un membre sur son profil reflète ces règles immédiatement. Lancez Recalculer pour mettre à jour le statut affiché dans la liste des membres.",
-    "standingPreviewPartial": "{count} membre(s) n'ont pas pu être projetés et ne sont pas inclus dans ces chiffres."
+    "standingPreviewPartial": "{count} membre(s) n'ont pas pu être projetés et ne sont pas inclus dans ces chiffres.",
+    "standingFactor_meetingAttendance": "Présence aux réunions",
+    "standingFactor_meetingAttendance_desc": "Les membres qui manquent trop de réunions (et AG) sont signalés.",
+    "standingFactor_eventAttendance": "Présence aux événements",
+    "standingFactor_eventAttendance_desc": "Désactivé par défaut. Activez pour compter la présence aux activités sociales, collectes de fonds et autres événements.",
+    "standingFactor_customActivity": "Activités personnalisées",
+    "standingFactor_customActivity_desc": "Désactivé par défaut. Un réglage réservé — activez-le lorsque votre groupe aura des activités qui affectent la situation."
   },
   "contributions": {
     "title": "Cotisations",

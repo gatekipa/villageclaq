@@ -22,42 +22,52 @@
 
 export type StandingFactorKey =
   | "dues"
-  | "attendance"
+  | "meetingAttendance"
+  | "eventAttendance"
   | "relief"
   | "hosting"
   | "fines"
   | "loans"
-  | "disputes";
+  | "disputes"
+  | "customActivity";
 
 /** Stable display/order list of every configurable factor. */
 export const STANDING_FACTOR_KEYS: StandingFactorKey[] = [
   "dues",
-  "attendance",
+  "meetingAttendance",
+  "eventAttendance",
   "relief",
   "hosting",
   "fines",
   "loans",
   "disputes",
+  "customActivity",
 ];
 
 export type StandingFactors = Record<StandingFactorKey, boolean>;
 
 /**
- * Safe, honest defaults. Core obligations (dues, attendance, relief,
- * hosting) and open disputes affect standing out of the box — matching the
- * long-standing product behaviour. Fines and loans are OFF by default:
- * they are separate liabilities a group opts into, and leaving them off
- * keeps the TS and SQL engines in agreement until a group decides
- * otherwise.
+ * Safe, honest defaults. The principle (Build 1): a RANDOM activity must not
+ * damage good standing unless the group turns it on.
+ *  - dues / relief / hosting / disputes — core obligations, ON.
+ *  - meetingAttendance — formal meetings (and AGMs) matter, ON.
+ *  - eventAttendance — casual events (socials, fundraisers, …) are OFF by
+ *    default; missing a social must not auto-suspend a member.
+ *  - fines / loans — separate liabilities a group opts into, OFF.
+ *  - customActivity — a declared slot for future activity types that may opt
+ *    into standing; nothing feeds it yet, so OFF and inert until then.
+ * Fines/loans/customActivity OFF also keeps the TS and SQL engines aligned.
  */
 export const DEFAULT_STANDING_FACTORS: StandingFactors = {
   dues: true,
-  attendance: true,
+  meetingAttendance: true,
+  eventAttendance: false,
   relief: true,
   hosting: true,
   fines: false,
   loans: false,
   disputes: true,
+  customActivity: false,
 };
 
 export interface StandingRules {
@@ -113,7 +123,19 @@ export function resolveStandingRules(groupSettings: unknown): StandingRules {
   const rawFactors = (raw.factors ?? {}) as Record<string, unknown>;
   const factors = {} as StandingFactors;
   for (const key of STANDING_FACTOR_KEYS) {
-    factors[key] = coerceBool(rawFactors[key], DEFAULT_STANDING_FACTORS[key]);
+    let rawValue = rawFactors[key];
+    // Back-compat: a JSONB written before the meeting/event attendance split
+    // stored a single `attendance` flag. Apply it to BOTH new attendance
+    // factors when their own keys are absent, so an already-configured group
+    // keeps its prior all-events behaviour.
+    if (
+      (key === "meetingAttendance" || key === "eventAttendance") &&
+      rawValue === undefined &&
+      rawFactors.attendance !== undefined
+    ) {
+      rawValue = rawFactors.attendance;
+    }
+    factors[key] = coerceBool(rawValue, DEFAULT_STANDING_FACTORS[key]);
   }
 
   const rawExcluded = raw.excluded_contribution_type_ids;

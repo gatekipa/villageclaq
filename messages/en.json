@@ -1125,8 +1125,6 @@
     "standingFactorsDesc": "Choose which obligations can move a member out of good standing.",
     "standingFactor_dues": "Overdue dues",
     "standingFactor_dues_desc": "Members with overdue dues lose good standing.",
-    "standingFactor_attendance": "Low attendance",
-    "standingFactor_attendance_desc": "Members who attend too few recent meetings are flagged.",
     "standingFactor_relief": "Relief contributions",
     "standingFactor_relief_desc": "Members behind on a relief plan they joined are flagged.",
     "standingFactor_hosting": "Missed hosting",
@@ -1143,7 +1141,13 @@
     "standingExclusionsEmpty": "No active contributions yet.",
     "standingSavedImmediate": "Saved. These rules now shape every member's standing.",
     "standingApplyImmediateNote": "A member's standing on their profile reflects these rules right away. Run Recalculate to update the status shown in the member list.",
-    "standingPreviewPartial": "{count} member(s) could not be projected and are not included in these numbers."
+    "standingPreviewPartial": "{count} member(s) could not be projected and are not included in these numbers.",
+    "standingFactor_meetingAttendance": "Meeting attendance",
+    "standingFactor_meetingAttendance_desc": "Members who miss too many meetings (and AGMs) are flagged.",
+    "standingFactor_eventAttendance": "Event attendance",
+    "standingFactor_eventAttendance_desc": "Off by default. Turn on to count attendance at socials, fundraisers, and other events.",
+    "standingFactor_customActivity": "Custom activities",
+    "standingFactor_customActivity_desc": "Off by default. A reserved control — turn it on once your group has activities set to affect standing."
   },
   "contributions": {
     "title": "Contributions",

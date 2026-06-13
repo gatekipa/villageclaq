@@ -45,7 +45,9 @@ type PreviewResult = {
  * the factor is switched off.
  */
 const FACTOR_THRESHOLD: Partial<Record<StandingFactorKey, "attendance" | "hosting">> = {
-  attendance: "attendance",
+  // Meeting + event attendance share one threshold + lookback; render the
+  // editor once, under meeting attendance.
+  meetingAttendance: "attendance",
   hosting: "hosting",
 };
 
@@ -262,11 +264,15 @@ export function StandingRulesTab() {
                     />
                   </div>
 
-                  {/* Attendance factor → threshold % + lookback window */}
-                  {threshold === "attendance" && (
+                  {/* Attendance threshold + lookback — shared by meeting AND
+                      event attendance; editable when either is on. */}
+                  {threshold === "attendance" && (() => {
+                    const attendanceActive =
+                      rules.factors.meetingAttendance || rules.factors.eventAttendance;
+                    return (
                     <div
                       className={`grid gap-3 border-t pt-3 sm:grid-cols-2 ${
-                        !factorOn ? "opacity-50" : ""
+                        !attendanceActive ? "opacity-50" : ""
                       }`}
                     >
                       <div className="space-y-1.5">
@@ -290,7 +296,7 @@ export function StandingRulesTab() {
                               }))
                             }
                             className="max-w-[100px]"
-                            disabled={disabled || !rules.enabled || !factorOn}
+                            disabled={disabled || !rules.enabled || !attendanceActive}
                           />
                           <span className="text-sm text-muted-foreground">
                             {t("standingPercent")}
@@ -318,7 +324,7 @@ export function StandingRulesTab() {
                               }))
                             }
                             className="max-w-[100px]"
-                            disabled={disabled || !rules.enabled || !factorOn}
+                            disabled={disabled || !rules.enabled || !attendanceActive}
                           />
                           <span className="text-sm text-muted-foreground">
                             {t("standingUnitMonths")}
@@ -326,7 +332,8 @@ export function StandingRulesTab() {
                         </div>
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Hosting factor → missed-turns threshold */}
                   {threshold === "hosting" && (

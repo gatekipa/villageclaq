@@ -57,6 +57,7 @@ export function GroupSwitcher() {
   } = useGroup();
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leaveSaving, setLeaveSaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
   const [joinOpen, setJoinOpen] = useState(false);
   const [search, setSearch] = useState("");
   const searchInputId = useId();
@@ -72,16 +73,30 @@ export function GroupSwitcher() {
 
   async function handleLeaveGroup() {
     if (!currentMembership || leaveSaving) return;
+    setLeaveError(null);
     setLeaveSaving(true);
     try {
       const supabase = createClient();
-      await supabase.from("memberships").delete().eq("id", currentMembership.id);
+      // Supabase returns { error } rather than throwing — check it explicitly
+      // so a failed leave does not close the dialog and redirect anyway.
+      const { error } = await supabase
+        .from("memberships")
+        .delete()
+        .eq("id", currentMembership.id);
+      if (error) {
+        console.warn("[GroupSwitcher] leave group failed:", error.message);
+        setLeaveError(t("leaveFailed"));
+        setLeaveSaving(false);
+        return;
+      }
       setLeaveOpen(false);
       router.push("/dashboard");
       // Re-resolve group context (which group is current, memberships list)
       // instead of a hard page reload.
       await refresh(true);
-    } catch {
+    } catch (err) {
+      console.warn("[GroupSwitcher] leave group error:", err instanceof Error ? err.message : err);
+      setLeaveError(t("leaveFailed"));
       setLeaveSaving(false);
     }
   }
@@ -225,27 +240,29 @@ export function GroupSwitcher() {
                 })
               )}
               <DropdownMenuSeparator />
-              <Link href="/dashboard/my-groups">
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
-                    <Layers className="h-4 w-4" />
-                  </div>
-                  <span className="text-sm font-medium">{tNav("myGroups")}</span>
-                </DropdownMenuItem>
-              </Link>
+              <DropdownMenuItem
+                className="flex items-center gap-2"
+                onClick={() => router.push("/dashboard/my-groups")}
+              >
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">{tNav("myGroups")}</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
           {!hasMultiple && (
             <>
-              <Link href="/dashboard/my-groups">
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
-                    <Layers className="h-4 w-4" />
-                  </div>
-                  <span className="text-sm font-medium">{tNav("myGroups")}</span>
-                </DropdownMenuItem>
-              </Link>
+              <DropdownMenuItem
+                className="flex items-center gap-2"
+                onClick={() => router.push("/dashboard/my-groups")}
+              >
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">{tNav("myGroups")}</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
@@ -305,7 +322,7 @@ export function GroupSwitcher() {
       <JoinByCodeDialog open={joinOpen} onOpenChange={setJoinOpen} />
 
       {/* Leave Group Confirmation Dialog */}
-      <Dialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+      <Dialog open={leaveOpen} onOpenChange={(o) => { setLeaveOpen(o); if (!o) setLeaveError(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -316,6 +333,9 @@ export function GroupSwitcher() {
           <p className="text-sm text-muted-foreground">
             {t("leaveGroupConfirm", { groupName: currentGroup?.name || "" })}
           </p>
+          {leaveError && (
+            <p className="text-sm font-medium text-destructive" role="alert">{leaveError}</p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setLeaveOpen(false)} disabled={leaveSaving}>
               {tCommon("cancel")}

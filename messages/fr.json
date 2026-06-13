@@ -617,7 +617,8 @@
     "leaveGroupConfirm": "Êtes-vous sûr de vouloir quitter {groupName} ? Votre historique de cotisations et de présence sera conservé.",
     "leaveGroupOwnerHint": "Transférez la propriété d'abord",
     "joinGroup": "Rejoindre un groupe",
-    "joinGroupDesc": "Entrez un code pour rejoindre"
+    "joinGroupDesc": "Entrez un code pour rejoindre",
+    "leaveFailed": "Impossible de quitter le groupe. Veuillez réessayer."
   },
   "header": {
     "notifications": "Notifications",

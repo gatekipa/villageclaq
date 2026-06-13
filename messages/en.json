@@ -617,7 +617,8 @@
     "leaveGroupConfirm": "Are you sure you want to leave {groupName}? Your contribution and attendance history will be preserved.",
     "joinGroup": "Join a Group",
     "joinGroupDesc": "Enter a code to join",
-    "leaveGroupOwnerHint": "Transfer ownership first"
+    "leaveGroupOwnerHint": "Transfer ownership first",
+    "leaveFailed": "Could not leave the group. Please try again."
   },
   "header": {
     "notifications": "Notifications",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useGroup, type GroupMembership } from "@/lib/group-context";
 import { GroupTypeBadge } from "@/components/layout/group-type-badge";
@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   ShieldHalf,
   UserRound,
+  Loader2,
 } from "lucide-react";
 
 type Role = "owner" | "admin" | "moderator" | "member";
@@ -110,6 +111,7 @@ function GroupCard({
   onSwitch: () => void;
 }) {
   const t = useTranslations("myGroups");
+  const [switching, setSwitching] = useState(false);
 
   const role = (membership.role || "member") as Role;
   const rc = roleConfig[role] ?? roleConfig.member;
@@ -173,11 +175,18 @@ function GroupCard({
               variant="outline"
               size="sm"
               className="w-full justify-between"
-              onClick={onSwitch}
-              disabled={isPending}
+              onClick={() => {
+                setSwitching(true);
+                onSwitch();
+              }}
+              disabled={isPending || switching}
             >
               <span>{isPending ? t("awaitingApproval") : t("switchCta")}</span>
-              {!isPending && <ArrowRight className="size-4" aria-hidden="true" />}
+              {switching ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                !isPending && <ArrowRight className="size-4" aria-hidden="true" />
+              )}
             </Button>
           )}
         </div>

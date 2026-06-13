@@ -145,7 +145,9 @@ test("FUTURE-PROOF guardrail: every group-filtered hook also keys on groupId", (
   // in a queryKey array. This catches a NEW tenant-scoped hook that forgets the
   // key (→ stale cross-group data on switch) even if it was never added above.
   const src = read("src/lib/hooks/use-supabase-query.ts");
-  const chunks = src.split(/export function (use[A-Za-z0-9]+)/);
+  // Match both `export function useX` and `export const useX =` declarations so
+  // a future hook in either style cannot bypass the guardrail.
+  const chunks = src.split(/export (?:function|const) (use[A-Za-z0-9]+)/);
   // chunks = [preamble, name1, body1, name2, body2, ...]
   const offenders = [];
   for (let i = 1; i < chunks.length; i += 2) {

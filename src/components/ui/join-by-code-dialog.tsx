@@ -126,20 +126,20 @@ export function JoinByCodeDialog({ open, onOpenChange }: JoinByCodeDialogProps) 
         // WhatsApp welcome — server-side, queue-backed producer re-checks
         // new_member preferences, phone eligibility, and idempotency.
         requestWelcomeWhatsApp(supabase, result.membership_id, locale);
-        // Land the user IN the group they just joined rather than their
-        // previous localStorage group. Refresh memberships so the new group
-        // is present, then make it the active context. switchGroup persists
-        // the selection (GroupProvider effect), so the reload in onSuccess()
-        // re-reads it. Refresh is best-effort — never block the success flow.
+        // Land the user IN the group they just joined. Persist it as the
+        // active context IMMEDIATELY (switchGroup writes localStorage via the
+        // GroupProvider effect) so the reload in onSuccess() re-reads it no
+        // matter how long the best-effort refresh takes — a slow refresh must
+        // not defer the switch past the reload. The success screen masks the
+        // brief context refetch.
         const joinedGroupId = (result.group_id as string | undefined) || group.group_id;
-        refresh(true)
-          .catch((err) =>
-            console.warn(
-              "[JoinByCode] context refresh failed:",
-              err instanceof Error ? err.message : err,
-            ),
-          )
-          .finally(() => switchGroup(joinedGroupId));
+        switchGroup(joinedGroupId);
+        refresh(true).catch((err) =>
+          console.warn(
+            "[JoinByCode] context refresh failed:",
+            err instanceof Error ? err.message : err,
+          ),
+        );
         onSuccess();
         return;
       }

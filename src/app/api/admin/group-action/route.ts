@@ -147,14 +147,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Audit every action.
-    await admin.from("platform_audit_logs").insert({
+    // 4. Audit every action. The mutation already succeeded, so an audit-insert
+    // failure does not fail the request — but it must never be swallowed, since
+    // an incomplete audit trail on a platform control-plane action is a
+    // compliance gap. Surface it loudly in the logs.
+    const { error: auditError } = await admin.from("platform_audit_logs").insert({
       staff_id: staffRow.id,
       action: auditAction,
       target_type: "groups",
       target_id: groupId,
       details: auditDetails,
     });
+    if (auditError) {
+      console.warn("[group-action] audit log insert failed:", auditError.message);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

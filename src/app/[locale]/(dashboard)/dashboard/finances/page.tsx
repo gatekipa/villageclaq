@@ -44,6 +44,14 @@ import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { MoneyOverview } from "@/components/finances/money-overview";
+import {
+  confirmedPaidByType,
+  confirmedPaidByMember,
+  isConfirmedPayment,
+  num,
+  type MoneyObligation,
+  type MoneyPayment,
+} from "@/lib/money";
 
 
 function useFineStats(groupId: string | null) {
@@ -237,52 +245,66 @@ export default function FinancesPage() {
     return months.map((m) => ({ month: m.label, amount: monthMap.get(m.key) || 0 }));
   }, [allPayments]);
 
-  // Top overdue members: group pending obligations by membership
+  // Top members who owe: outstanding is computed PER MEMBER from CONFIRMED
+  // payments (member expected − member confirmed). Per-member (not per-obligation)
+  // because most dues payments are recorded without an obligation_id; keying on
+  // obligation_id would miss them and falsely show paid-up members as owing.
   const topOverdue = useMemo(() => {
-    const obligations = allObligations || [];
-    const pending = obligations.filter((o) => o.status === "pending" || o.status === "overdue" || o.status === "partial");
-    const memberMap = new Map<string, { name: string; amount: number; obligations: number }>();
-
-    for (const obl of pending) {
-      const membership = obl.membership as { id: string; profiles: { full_name: string } | { full_name: string }[] };
-      const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
+    const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
+    const payments = (allPayments || []) as unknown as MoneyPayment[];
+    const confirmedByMember = confirmedPaidByMember(payments);
+    // Aggregate each member's non-waived expected + obligation count + name.
+    const memberAgg = new Map<string, { name: string; expected: number; obligations: number }>();
+    for (const obl of obligations) {
+      if (obl.status === "waived") continue;
+      const membership = obl.membership as { id: string };
       const mid = membership.id;
-      const outstanding = Number(obl.amount) - Number(obl.amount_paid);
-
-      if (!memberMap.has(mid)) {
-        memberMap.set(mid, { name: getMemberName(obl.membership as Record<string, unknown>), amount: 0, obligations: 0 });
+      if (!memberAgg.has(mid)) {
+        memberAgg.set(mid, { name: getMemberName(obl.membership as Record<string, unknown>), expected: 0, obligations: 0 });
       }
-      const entry = memberMap.get(mid)!;
-      entry.amount += outstanding;
-      entry.obligations++;
+      const e = memberAgg.get(mid)!;
+      e.expected += num(obl.amount);
+      e.obligations++;
     }
 
-    return Array.from(memberMap.entries())
-      .map(([id, data]) => ({ id, ...data }))
+    return Array.from(memberAgg.entries())
+      .map(([id, e]) => ({ id, name: e.name, amount: Math.max(0, e.expected - (confirmedByMember.get(id) || 0)), obligations: e.obligations }))
+      .filter((m) => m.amount > 0)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
-  }, [allObligations]);
+  }, [allObligations, allPayments]);
 
-  // Collection by contribution type
+  // Collection by contribution type. Per-type "collected" = Σ CONFIRMED payments
+  // carrying that contribution_type_id (most dues payments have no obligation_id,
+  // so attribute by type — not the polluted amount_paid column, not obligation
+  // links); per-type "target" (expected) excludes waived obligations.
   const collectionByType = useMemo(() => {
-    const obligations = allObligations || [];
+    const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
+    const payments = (allPayments || []) as unknown as MoneyPayment[];
+    const collectedByType = confirmedPaidByType(payments);
     const typeMap = new Map<string, { name: string; collected: number; target: number }>();
 
     for (const obl of obligations) {
+      const isWaived = obl.status === "waived";
       const ct = obl.contribution_type as { id: string; name: string } | null;
       const typeId = ct?.id || "unknown";
       if (!typeMap.has(typeId)) {
-        typeMap.set(typeId, { name: ct?.name || t("common.unknown"), collected: 0, target: 0 });
+        typeMap.set(typeId, {
+          name: ct?.name || t("common.unknown"),
+          collected: collectedByType.get(typeId) || 0,
+          target: 0,
+        });
       }
       const entry = typeMap.get(typeId)!;
-      entry.target += Number(obl.amount);
-      entry.collected += Number(obl.amount_paid);
+      // Waived money is neither owed (target) nor counted as collected.
+      if (isWaived) continue;
+      entry.target += num(obl.amount);
     }
 
     return Array.from(typeMap.values())
       .map((t) => ({ ...t, rate: t.target > 0 ? Math.round((t.collected / t.target) * 100) : 0 }))
       .sort((a, b) => b.target - a.target);
-  }, [allObligations]);
+  }, [allObligations, allPayments]);
 
   // Recent payments (top 5)
   const recentPayments = useMemo(() => {
@@ -317,7 +339,7 @@ export default function FinancesPage() {
       // Get all dues payments for this group (exclude relief payments)
       const { data: payments } = await supabase
         .from("payments")
-        .select("id, membership_id, contribution_type_id, amount, group_id, recorded_at")
+        .select("id, membership_id, contribution_type_id, amount, status, group_id, recorded_at")
         .eq("group_id", groupId)
         .is("relief_plan_id", null);
 
@@ -326,12 +348,15 @@ export default function FinancesPage() {
         return;
       }
 
-      // Group payments by member + contribution type
+      // Group payments by member + contribution type. Only CONFIRMED payments
+      // may be persisted into amount_paid — never pending_confirmation/rejected,
+      // so unconfirmed member submissions never inflate the stored paid figure.
       const paymentMap = new Map<string, number>();
       for (const p of payments) {
         if (!p.contribution_type_id) continue;
+        if (!isConfirmedPayment(p.status)) continue;
         const key = `${p.membership_id}__${p.contribution_type_id}`;
-        paymentMap.set(key, (paymentMap.get(key) || 0) + Number(p.amount));
+        paymentMap.set(key, (paymentMap.get(key) || 0) + num(p.amount));
       }
 
       let updated = 0;

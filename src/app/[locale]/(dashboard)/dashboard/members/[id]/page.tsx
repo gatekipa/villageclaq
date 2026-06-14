@@ -43,6 +43,15 @@ import { PermissionGate } from "@/components/ui/permission-gate";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount } from "@/lib/currencies";
 import {
+  num,
+  isConfirmedPayment,
+  isPendingPayment,
+  isRejectedPayment,
+  computeMoneyFigures,
+  type MoneyObligation,
+  type MoneyPayment,
+} from "@/lib/money";
+import {
   ArrowLeft,
   Mail,
   Phone,
@@ -618,12 +627,23 @@ export default function MemberDetailPage() {
     else break;
   }
 
-  const totalOutstandingAmount = obligations.reduce((sum: number, o: Record<string, unknown>) => {
-    if (o.status === "paid" || o.status === "waived") return sum;
-    return sum + (Number(o.amount) - Number(o.amount_paid));
-  }, 0);
+  // Outstanding on the CONFIRMED basis: recompute remaining per obligation from
+  // this member's CONFIRMED payments via the money engine, NEVER from the
+  // polluted contribution_obligations.amount_paid column. computeMoneyFigures
+  // also keeps waived obligations out of expected/outstanding.
+  const memberMoneyFigures = computeMoneyFigures(
+    obligations as MoneyObligation[],
+    payments as MoneyPayment[],
+  );
+  const totalOutstandingAmount = memberMoneyFigures.outstanding;
 
-  const totalPaidAllTime = payments.reduce((sum: number, p: Record<string, unknown>) => sum + Number(p.amount), 0);
+  // Total paid = Σ CONFIRMED payments only. Pending and rejected submissions are
+  // NOT collected money and must not inflate this figure.
+  const totalPaidAllTime = payments.reduce(
+    (sum: number, p: Record<string, unknown>) =>
+      isConfirmedPayment(p.status as string | null | undefined) ? sum + num(p.amount) : sum,
+    0,
+  );
   const lastPayment = payments[0] as Record<string, unknown> | undefined;
 
   // Hosting stats
@@ -1256,15 +1276,30 @@ export default function MemberDetailPage() {
         <CardContent className="p-0">
           {(() => {
             // Build unified timeline from payments + attendances
-            const timeline: Array<{ type: string; date: Date; label: string; detail: string }> = [];
+            const timeline: Array<{
+              type: string;
+              date: Date;
+              label: string;
+              detail: string;
+              paymentStatus?: "pending" | "rejected" | null;
+            }> = [];
 
             for (const p of payments.slice(0, 10) as Array<Record<string, unknown>>) {
               const ct = p.contribution_type as Record<string, unknown> | null;
+              const status = p.status as string | null | undefined;
+              // Flag pending/rejected so the row is not read as a confirmed
+              // collection; confirmed payments carry no status badge.
+              const paymentStatus = isPendingPayment(status)
+                ? "pending"
+                : isRejectedPayment(status)
+                ? "rejected"
+                : null;
               timeline.push({
                 type: "payment",
                 date: new Date(p.recorded_at as string),
                 label: (ct?.name as string) || t("members.contributionHistory"),
-                detail: formatAmount(Number(p.amount), (p.currency as string) || currency),
+                detail: formatAmount(num(p.amount), (p.currency as string) || currency),
+                paymentStatus,
               });
             }
 
@@ -1303,9 +1338,32 @@ export default function MemberDetailPage() {
                       <p className="text-sm font-medium truncate">{item.label}</p>
                       <p className="text-xs text-muted-foreground">{formatDateWithGroupFormat(item.date, groupDateFormat, locale)}</p>
                     </div>
-                    <span className="text-xs font-medium shrink-0">
+                    <span className="flex items-center gap-1.5 text-xs font-medium shrink-0">
                       {item.type === "payment" ? (
-                        <span className="text-primary">{item.detail}</span>
+                        <>
+                          {/* Pending/rejected money is not collected — flag it so
+                              the amount is not read as a confirmed collection. */}
+                          {item.paymentStatus === "pending" ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {t("contributions.pendingConfirmation")}
+                            </Badge>
+                          ) : item.paymentStatus === "rejected" ? (
+                            <Badge variant="destructive" className="text-[10px]">
+                              {t("contributions.rejected")}
+                            </Badge>
+                          ) : null}
+                          <span
+                            className={cn(
+                              item.paymentStatus === "rejected"
+                                ? "text-muted-foreground line-through"
+                                : item.paymentStatus === "pending"
+                                ? "text-muted-foreground"
+                                : "text-primary",
+                            )}
+                          >
+                            {item.detail}
+                          </span>
+                        </>
                       ) : (
                         <Badge variant={item.detail === "present" || item.detail === "late" ? "secondary" : "destructive"} className="text-[10px]">
                           {item.detail}

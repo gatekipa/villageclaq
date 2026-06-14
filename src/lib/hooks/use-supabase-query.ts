@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
+import { computeMoneyFigures } from "@/lib/money";
 
 const supabase = createClient();
 
@@ -18,22 +19,21 @@ export function useDashboardStats() {
       const [membersRes, eventsRes, obligationsRes, paymentsRes] = await Promise.all([
         supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId),
         supabase.from("events").select("id", { count: "exact", head: true }).eq("group_id", groupId).gte("starts_at", new Date().toISOString()),
-        supabase.from("contribution_obligations").select("amount, amount_paid, status").eq("group_id", groupId),
-        supabase.from("payments").select("amount").eq("group_id", groupId).is("relief_plan_id", null), // Exclude relief payments
+        supabase.from("contribution_obligations").select("id, amount, amount_paid, status, due_date, membership_id").eq("group_id", groupId),
+        // Pull status + obligation link so collected is CONFIRMED-only (never
+        // pending/rejected) and outstanding excludes waived — via money.ts, the
+        // single accounting basis shared with the reports and overview.
+        supabase.from("payments").select("amount, status, obligation_id, relief_plan_id").eq("group_id", groupId).is("relief_plan_id", null),
       ]);
 
-      const obligations = obligationsRes.data || [];
-      const totalDue = obligations.reduce((sum, o) => sum + Number(o.amount), 0);
-      const totalPaid = obligations.reduce((sum, o) => sum + Number(o.amount_paid), 0);
-      const outstanding = totalDue - totalPaid;
-      const collectionRate = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+      const figures = computeMoneyFigures(obligationsRes.data || [], paymentsRes.data || []);
 
       return {
         totalMembers: membersRes.count || 0,
         upcomingEvents: eventsRes.count || 0,
-        collectionRate,
-        outstanding,
-        totalCollected: (paymentsRes.data || []).reduce((sum, p) => sum + Number(p.amount), 0),
+        collectionRate: figures.expected > 0 ? Math.round((figures.collected / figures.expected) * 100) : 0,
+        outstanding: figures.outstanding,
+        totalCollected: figures.collected,
       };
     },
     enabled: !!groupId,

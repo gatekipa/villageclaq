@@ -795,30 +795,30 @@ export default function PaymentHistoryPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">
+                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground">
                       <button className="flex items-center gap-1 hover:text-foreground" onClick={() => handleSort("recorded_at")}>
                         {t("contributions.date")} {sortField === "recorded_at" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                       </button>
                     </th>
-                    <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">
+                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground">
                       {t("contributions.member")}
                     </th>
-                    <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground hidden sm:table-cell">
+                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground hidden sm:table-cell">
                       {t("contributions.contributionType")}
                     </th>
-                    <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-muted-foreground">
+                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-right font-medium text-muted-foreground">
                       <button className="flex items-center gap-1 ml-auto hover:text-foreground" onClick={() => handleSort("amount")}>
                         {t("contributions.amount")} {sortField === "amount" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                       </button>
                     </th>
-                    <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">
+                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground hidden md:table-cell">
                       {t("contributions.method")}
                     </th>
-                    <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground">
+                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground">
                       {t("contributions.statusHeader")}
                     </th>
                     {canManage && (
-                      <th className="whitespace-nowrap px-4 py-3 text-right font-medium text-muted-foreground">
+                      <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-right font-medium text-muted-foreground">
                         {t("contributions.actions")}
                       </th>
                     )}
@@ -835,13 +835,13 @@ export default function PaymentHistoryPage() {
                       key={payment.id}
                       className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                     >
-                      <td className="whitespace-nowrap px-4 py-3">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-4">
                         <div>
                           <p className="font-medium">{formatDateWithGroupFormat(payment.recordedAt, groupDateFormat, locale)}</p>
                           <p className="text-xs text-muted-foreground">{formatTime(payment.recordedAt, dateLocale)}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3 sm:px-4">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-7 w-7">
                             <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
@@ -859,15 +859,15 @@ export default function PaymentHistoryPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 hidden sm:table-cell">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-4 hidden sm:table-cell">
                         <span className="text-muted-foreground">{payment.contributionTypeName}</span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-4 text-right">
                         <span className="font-semibold">
                           {formatAmount(payment.amount, payment.currency)}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 hidden md:table-cell">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-4 hidden md:table-cell">
                         <span
                           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                             methodColors[payment.paymentMethod] || ""
@@ -891,7 +891,7 @@ export default function PaymentHistoryPage() {
                           </button>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-4">
                         {payment.status === "pending_confirmation" ? (
                           <div className="flex items-center gap-1.5">
                             <Badge className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20 text-[10px]">
@@ -937,7 +937,7 @@ export default function PaymentHistoryPage() {
                         )}
                       </td>
                       {canManage && (
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <td className="whitespace-nowrap px-3 py-3 sm:px-4 text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
                               <MoreVertical className="h-4 w-4" />
@@ -969,7 +969,7 @@ export default function PaymentHistoryPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t px-4 py-3">
+              <div className="flex items-center justify-between border-t px-3 py-3 sm:px-4">
                 <p className="text-xs text-muted-foreground">
                   {t("contributions.showing", {
                     from: (page - 1) * perPage + 1,

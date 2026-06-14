@@ -36,7 +36,8 @@
     "test:whatsapp-webhook": "node --test scripts/test-whatsapp-webhook.mjs",
     "test:product-launch": "node --test scripts/test-product-launch.mjs",
     "test:product-money": "node --test scripts/test-product-money.mjs",
-    "test:product-p0-bulk-receipts": "node --test scripts/test-product-p0-bulk-receipts.mjs"
+    "test:product-p0-bulk-receipts": "node --test scripts/test-product-p0-bulk-receipts.mjs",
+    "test:product-build6": "node --test scripts/test-product-build6.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

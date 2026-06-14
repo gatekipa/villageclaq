@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { GroupProvider, useGroup, type GroupMembership } from "@/lib/group-context";
 import { useRouter, usePathname, Link } from "@/i18n/routing";
 import { DashboardSkeleton } from "@/components/ui/page-skeleton";
+import { PageContainer } from "@/components/ui/page-container";
 import { ScrollToTopOnNav } from "@/components/ui/scroll-to-top-on-nav";
 import { SupportWidget } from "@/components/ui/support-widget";
 import { createClient } from "@/lib/supabase/client";
@@ -613,19 +614,21 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           <Header onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 lg:p-6">
             <ScrollToTopOnNav />
-            {showPhoneBanner && (
-              <PhoneBanner
-                onDismiss={() => {
-                  if (typeof window !== "undefined") {
-                    sessionStorage.setItem("vc_phone_banner_dismissed", "1");
-                  }
-                  setBannerDismissed(true);
-                }}
-              />
-            )}
-            <Suspense fallback={<DashboardSkeleton />}>
-              {children}
-            </Suspense>
+            <PageContainer>
+              {showPhoneBanner && (
+                <PhoneBanner
+                  onDismiss={() => {
+                    if (typeof window !== "undefined") {
+                      sessionStorage.setItem("vc_phone_banner_dismissed", "1");
+                    }
+                    setBannerDismissed(true);
+                  }}
+                />
+              )}
+              <Suspense fallback={<DashboardSkeleton />}>
+                {children}
+              </Suspense>
+            </PageContainer>
           </main>
         </div>
       </div>

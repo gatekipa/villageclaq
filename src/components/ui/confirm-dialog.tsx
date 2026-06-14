@@ -19,6 +19,7 @@
  */
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "./button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./dialog";
 
@@ -64,7 +65,16 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
       <Dialog open={open} onOpenChange={(next) => { if (!next) close(false); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{options?.title ?? ""}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {options?.destructive && (
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertTriangle className="size-4 text-destructive" aria-hidden="true" />
+                </span>
+              )}
+              <span className={options?.destructive ? "font-semibold" : undefined}>
+                {options?.title ?? ""}
+              </span>
+            </DialogTitle>
             {options?.description && (
               <DialogDescription>{options.description}</DialogDescription>
             )}

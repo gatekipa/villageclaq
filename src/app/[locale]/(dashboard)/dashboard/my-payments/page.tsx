@@ -735,29 +735,33 @@ export default function MyPaymentsPage() {
                               </span>
                               {renderUrgencyBadge(dueDate)}
                             </div>
-                            {isPartial && (
-                              <div className="space-y-1 pt-2">
+                            {/* Progress bar always renders so every obligation
+                                card feels complete — at 0% for fully-unpaid
+                                items, partial fill for partials. The descriptive
+                                "X of Y paid" line only shows when partial. */}
+                            <div className="space-y-1 pt-2">
+                              {isPartial && (
                                 <p className="text-xs text-muted-foreground">
                                   {t("partiallyPaidProgress", {
                                     paid: formatAmount(confirmedPaid, currency),
                                     total: formatAmount(total, currency),
                                   })}
                                 </p>
+                              )}
+                              <div
+                                className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                                role="progressbar"
+                                aria-valuenow={progressPct}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-label={isPartial ? t("partiallyPaid") : statusLabel}
+                              >
                                 <div
-                                  className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-                                  role="progressbar"
-                                  aria-valuenow={progressPct}
-                                  aria-valuemin={0}
-                                  aria-valuemax={100}
-                                  aria-label={t("partiallyPaid")}
-                                >
-                                  <div
-                                    className="h-full rounded-full bg-emerald-500 transition-all"
-                                    style={{ width: `${progressPct}%` }}
-                                  />
-                                </div>
+                                  className="h-full rounded-full bg-emerald-500 transition-all"
+                                  style={{ width: `${progressPct}%` }}
+                                />
                               </div>
-                            )}
+                            </div>
                           </div>
                           <div className="text-right shrink-0 space-y-2">
                             <p className="text-xl font-bold">
@@ -785,9 +789,9 @@ export default function MyPaymentsPage() {
 
           {/* Waived / excused section — not owed, not collected */}
           {waivedRows.length > 0 && (
-            <div className="rounded-md border border-border bg-muted/30 px-4 py-3">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                <Info className="h-3.5 w-3.5" />
+            <div className="rounded-md border border-emerald-200 bg-emerald-50/50 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
                 {t("waivedTitle")}
               </p>
               <ul className="space-y-1.5">

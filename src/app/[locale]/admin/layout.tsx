@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname, Link, useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PageContainer } from "@/components/ui/page-container";
 import { createClient } from "@/lib/supabase/client";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import {
@@ -364,7 +365,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {t("signOut")}
             </Button>
           </header>
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+            <PageContainer>{children}</PageContainer>
+          </main>
         </div>
       </div>
     </PlatformAdminGuard>

@@ -342,11 +342,11 @@ export default function DuesMatrixPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="sticky left-0 z-10 bg-muted/50 whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground min-w-[180px]">
+                    <th className="sticky left-0 z-10 bg-muted/50 whitespace-nowrap px-4 py-3 text-left font-medium text-muted-foreground min-w-[140px] sm:min-w-[180px]">
                       {t("contributions.member")}
                     </th>
                     {columnLabels.map((label, i) => (
-                      <th key={columns[i]} className="whitespace-nowrap px-3 py-3 text-center font-medium text-muted-foreground min-w-[70px]">
+                      <th key={columns[i]} className="whitespace-nowrap px-3 py-3 text-center font-medium text-muted-foreground min-w-[60px] sm:min-w-[70px]">
                         {label}
                       </th>
                     ))}

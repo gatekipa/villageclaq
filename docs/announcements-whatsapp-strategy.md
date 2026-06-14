@@ -83,3 +83,44 @@ and removal plan for the day a Utility announcement template exists.
 Implement it, if desired, as a narrow follow-up PR: a type-scoped recipient
 check in the announcement dispatch sites (not in the generic dispatcher),
 with masked skip logging and audit coverage.
+
+## UI guardrails (binding — added Build 7, 2026-06-14)
+
+The composer and history UI must stay honest about what the system can prove.
+These are enforced by `scripts/test-product-announcement-honesty.mjs` (static)
+and `scripts/test-announcement-channels.mjs` (unit tests on
+`src/lib/announcement-channels.ts`):
+
+1. **Channel-availability truth model.** `src/lib/announcement-channels.ts` is
+   the single source of truth for per-channel availability + derived status.
+   WhatsApp announcement is `category_restricted` (`warn: true`) sourced from
+   `TEMPLATE_METADATA.ANNOUNCEMENT.usBlocked` in `whatsapp-templates.ts`. The
+   two must agree (audited).
+2. **WhatsApp is opt-in, off by default, and never presented as guaranteed.**
+   The composer keeps WhatsApp selectable (strategy class 5) but shows an amber
+   warning affordance on the toggle, the `channelReasonWhatsappUsBlocked`
+   disclosure, and a red `whatsappUsWarningBanner` in the send-confirm dialog.
+   It is **not** disabled — Africa-only groups legitimately use it — but the US/
+   not-delivery-confirmed truth is always disclosed.
+3. **Status vocabulary.** The history badge reads **"Published"** (in-app only)
+   or **"Published + sent"** (external channels dispatched best-effort), derived
+   by `deriveAnnouncementStatus`. The word **"Sent"** as a standalone success
+   badge, and **"Delivered"**, are forbidden for announcements until per-recipient
+   delivery state is persisted — we do not claim delivery we cannot prove.
+4. **External channels are best-effort.** Email/SMS/WhatsApp are fire-and-forget;
+   the composer discloses `externalNotConfirmedNote` whenever any is selected.
+5. **No misleading audit log.** The activity-log action splits into
+   `announcement.created` / `announcement.scheduled` / `announcement.sent` by the
+   actual state — never "sent" for a draft or a future-scheduled row.
+
+## Future work for compliant WhatsApp announcements
+
+Honest `delivered`/`failed`/`partially failed` statuses require per-recipient
+delivery tracking. The path is: producerize announcements (queue-backed, with a
+per-`(announcementId, userId, channel)` dispatch log written to the existing
+`announcement_deliveries` table — see created-not-applied migration
+`00106_announcement_delivery_idempotency.sql`), wire the webhook to flip
+`delivered`, and **remove this cron from the audit's direct-dispatch allowlist in
+the same change**. Compliant US WhatsApp delivery additionally requires a
+Manager-verified UTILITY template per operational notice type (class 1) — never
+remap the generic `villageclaq_announcement_v2` (MARKETING / not US-safe).

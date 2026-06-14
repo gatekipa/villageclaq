@@ -136,6 +136,13 @@ Bonjour {{1}}, {{2}} a lieu le {{3}} à {{4}}. Ouvrez l'application pour les dé
 > this constant to a Utility template without an approved operational use
 > case, and see `docs/announcements-whatsapp-strategy.md` (audit-enforced)
 > for the classification and procedure.
+>
+> **Structured source (Build 7):** `TEMPLATE_METADATA.ANNOUNCEMENT` in
+> `src/lib/whatsapp-templates.ts` encodes this as
+> `{ category: "MARKETING", usBlocked: true }` — the machine-readable source
+> the announcement composer reads (via `src/lib/announcement-channels.ts`) to
+> disclose, in the UI, that WhatsApp announcements are not delivered to US (+1)
+> members and are not delivery-confirmed. It changes no mapping or send path.
 
 **Category:** MARKETING
 **EN Body:**

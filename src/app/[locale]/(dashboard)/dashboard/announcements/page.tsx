@@ -23,6 +23,8 @@ import {
   Edit,
   Trash2,
   EyeOff,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -61,6 +63,13 @@ import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { normalizeSearch } from "@/lib/utils";
 import { getMemberName } from "@/lib/get-member-name";
+import {
+  getAnnouncementChannelDescriptor,
+  deriveAnnouncementStatus,
+  announcementStatusLabelKey,
+  announcementAuditAction,
+  type AnnouncementChannelKey,
+} from "@/lib/announcement-channels";
 
 type AudienceType = "all" | "roles" | "members";
 type ScheduleType = "now" | "later";
@@ -112,27 +121,32 @@ const CHANNEL_CONFIG: {
 ];
 
 function getStatusBadge(announcement: Record<string, unknown>, t: (key: string) => string) {
-  const sentAt = announcement.sent_at as string | null;
-  const scheduledAt = announcement.scheduled_at as string | null;
-  if (sentAt) {
+  // Honest status derived ONLY from facts we persist (sent_at / scheduled_at /
+  // channels). "Published" = in-app delivered (provable); "Published + sent" =
+  // in-app published AND external channels dispatched best-effort (NOT
+  // delivery-confirmed). We never render "delivered"/"failed" — no per-recipient
+  // delivery state exists. See src/lib/announcement-channels.ts.
+  const status = deriveAnnouncementStatus({
+    sent_at: announcement.sent_at as string | null,
+    scheduled_at: announcement.scheduled_at as string | null,
+    channels: announcement.channels,
+  });
+  const labelKey = announcementStatusLabelKey(status);
+  if (status === "published" || status === "published_external") {
     return (
       <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-        {t("sent")}
+        {t(labelKey)}
       </Badge>
     );
   }
-  if (scheduledAt) {
+  if (status === "scheduled") {
     return (
       <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-        {t("scheduled")}
+        {t(labelKey)}
       </Badge>
     );
   }
-  return (
-    <Badge variant="secondary">
-      {t("draft")}
-    </Badge>
-  );
+  return <Badge variant="secondary">{t(labelKey)}</Badge>;
 }
 
 
@@ -261,12 +275,14 @@ export default function AnnouncementsPage() {
       // Audit log
       try {
         const { logActivity } = await import("@/lib/audit-log");
+        const scheduledForLater = !asDraft && schedule === "later" && !!scheduledDate;
         await logActivity(supabase, {
           groupId,
-          action: "announcement.sent",
+          // Honest action: created (draft) / scheduled (future) / sent (now).
+          action: announcementAuditAction({ asDraft, scheduledForLater }),
           entityType: "announcement",
-          description: `Announcement "${titleEn}" ${asDraft ? "saved as draft" : "sent"}`,
-          metadata: { title: titleEn, isDraft: asDraft },
+          description: `Announcement "${titleEn}" ${asDraft ? "saved as draft" : scheduledForLater ? "scheduled" : "published in-app (external channels best-effort)"}`,
+          metadata: { title: titleEn, isDraft: asDraft, scheduled: scheduledForLater },
         });
       } catch (err) {
         console.warn("[Announcements:Audit] activity log failed:", err instanceof Error ? err.message : err);
@@ -696,25 +712,65 @@ export default function AnnouncementsPage() {
                 />
               </div>
 
-              {/* Channels */}
+              {/* Channels — availability-aware + honest about delivery. WhatsApp
+                  stays opt-in (off by default) but is flagged category-restricted
+                  (Marketing template / not delivered to US +1). In-app is the
+                  always-on safe channel. See src/lib/announcement-channels.ts. */}
               <div className="space-y-3">
                 <Label>{t("selectChannels")}</Label>
                 <div className="flex flex-wrap gap-3">
-                  {CHANNEL_CONFIG.map((ch) => (
-                    <button
-                      key={ch.key}
-                      type="button"
-                      onClick={() => toggleChannel(ch.key)}
-                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                        channels[ch.key]
-                          ? "border-primary bg-primary/10 text-primary dark:bg-primary/20"
-                          : "border-border bg-background text-muted-foreground hover:bg-muted dark:bg-input/30"
-                      } ${ch.key === "in_app" ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
-                    >
-                      {ch.icon}
-                      <span>{t(ch.label)}</span>
-                    </button>
-                  ))}
+                  {CHANNEL_CONFIG.map((ch) => {
+                    const desc = getAnnouncementChannelDescriptor(ch.key as AnnouncementChannelKey);
+                    const selected = channels[ch.key];
+                    const isInApp = ch.key === "in_app";
+                    return (
+                      <button
+                        key={ch.key}
+                        type="button"
+                        onClick={() => toggleChannel(ch.key)}
+                        disabled={!desc.selectable}
+                        title={desc.reasonKey ? t(desc.reasonKey) : undefined}
+                        aria-label={desc.reasonKey ? t(desc.reasonKey) : undefined}
+                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          selected
+                            ? desc.warn
+                              ? "border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+                              : "border-primary bg-primary/10 text-primary dark:bg-primary/20"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted dark:bg-input/30"
+                        } ${isInApp ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                      >
+                        {ch.icon}
+                        <span>{t(ch.label)}</span>
+                        {desc.warn ? (
+                          <AlertTriangle className="size-3.5 text-amber-600 dark:text-amber-400" />
+                        ) : !desc.deliveryConfirmable && !isInApp ? (
+                          <Info className="size-3 opacity-60" />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Honest channel disclosures */}
+                <div className="space-y-1.5 text-xs">
+                  <p className="flex items-start gap-1.5 text-muted-foreground">
+                    <Info className="mt-0.5 size-3.5 shrink-0" />
+                    <span>{t("channelReasonInAppAlwaysOn")}</span>
+                  </p>
+                  {(channels.email || channels.sms || channels.whatsapp) && (
+                    <p className="flex items-start gap-1.5 text-muted-foreground">
+                      <Info className="mt-0.5 size-3.5 shrink-0" />
+                      <span>{t("externalNotConfirmedNote")}</span>
+                    </p>
+                  )}
+                  {channels.sms && (
+                    <p className="pl-5 text-muted-foreground">{t("channelReasonSmsAfricaOnly")}</p>
+                  )}
+                  {channels.whatsapp && (
+                    <p className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 p-2 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                      <span>{t("channelReasonWhatsappUsBlocked")}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -880,7 +936,7 @@ export default function AnnouncementsPage() {
           </div>
           <div className="flex gap-2">
             <Button variant={annStatusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("all")}>{t("filterAll")}</Button>
-            <Button variant={annStatusFilter === "sent" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("sent")}>{t("filterSent")}</Button>
+            <Button variant={annStatusFilter === "sent" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("sent")}>{t("filterPublished")}</Button>
             <Button variant={annStatusFilter === "scheduled" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("scheduled")}>{t("filterScheduled")}</Button>
             <Button variant={annStatusFilter === "draft" ? "default" : "outline"} size="sm" onClick={() => setAnnStatusFilter("draft")}>{t("filterDraft")}</Button>
           </div>
@@ -987,19 +1043,26 @@ export default function AnnouncementsPage() {
                     </span>
                   </div>
 
-                  {/* Channel badges */}
+                  {/* Channel badges — external channels carry an honesty caveat
+                      (best-effort / not delivery-confirmed); WhatsApp is flagged
+                      category-restricted via a warning icon + tooltip. */}
                   <div className="flex flex-wrap gap-1.5">
                     {CHANNEL_CONFIG.filter(
                       (ch) => channelObj[ch.key]
-                    ).map((ch) => (
-                      <span
-                        key={ch.key}
-                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${ch.color}`}
-                      >
-                        {ch.icon}
-                        {t(ch.label)}
-                      </span>
-                    ))}
+                    ).map((ch) => {
+                      const desc = getAnnouncementChannelDescriptor(ch.key as AnnouncementChannelKey);
+                      return (
+                        <span
+                          key={ch.key}
+                          title={desc.reasonKey ? t(desc.reasonKey) : undefined}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${ch.color}`}
+                        >
+                          {ch.icon}
+                          {t(ch.label)}
+                          {desc.warn && <AlertTriangle className="size-3" />}
+                        </span>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -1044,6 +1107,20 @@ export default function AnnouncementsPage() {
                 {t("sendConfirmNoRecipients")}
               </p>
             )}
+            {/* Honesty disclosures: external channels are best-effort; WhatsApp
+                is category-restricted (Marketing / not delivered to US +1). */}
+            {(channels.email || channels.sms || channels.whatsapp) && (
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <Info className="mt-0.5 size-3.5 shrink-0" />
+                <span>{t("externalNotConfirmedNote")}</span>
+              </p>
+            )}
+            {channels.whatsapp && (
+              <p className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                <span>{t("whatsappUsWarningBanner")}</span>
+              </p>
+            )}
           </div>
           {mutationError && (
             <p className="text-sm text-destructive">{mutationError}</p>
@@ -1061,7 +1138,7 @@ export default function AnnouncementsPage() {
               disabled={saving || !titleEn.trim() || estimatedRecipientCount === 0}
             >
               {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Send className="mr-2 size-4" />}
-              {t("sendConfirmAction")}
+              {t("sendConfirmActionQueued")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -137,10 +137,14 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          // Apply limit
-          if (q.limit) {
-            query = query.limit(q.limit);
-          }
+          // Apply limit — ALWAYS bounded. A spec with no limit previously
+          // returned the ENTIRE table (the admin client bypasses RLS), so an
+          // unbounded admin list could pull every row across all tenants. Clamp
+          // to a sane default and hard maximum. count:"exact" still returns the
+          // exact total (PostgREST computes it independently of the row cap).
+          const ADMIN_DEFAULT_LIMIT = 1000;
+          const ADMIN_MAX_LIMIT = 10000;
+          query = query.limit(Math.min(q.limit ?? ADMIN_DEFAULT_LIMIT, ADMIN_MAX_LIMIT));
 
           const { data, error, count } = await query;
           results[q.key] = {

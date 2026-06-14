@@ -46,8 +46,8 @@ import { useGroup } from "@/lib/group-context";
 import {
   useDashboardStats,
   usePayments,
-  useEvents,
-  useMeetingMinutes,
+  useNextEvent,
+  useLatestMinutes,
   useContributionTypes,
 } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
@@ -79,8 +79,8 @@ export default function DashboardPage() {
 
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats();
   const { data: payments, isLoading: paymentsLoading } = usePayments(5);
-  const { data: events, isLoading: eventsLoading } = useEvents();
-  const { data: minutes, isLoading: minutesLoading } = useMeetingMinutes();
+  const { data: nextEvent, isLoading: eventsLoading } = useNextEvent();
+  const { data: latestMinutes, isLoading: minutesLoading } = useLatestMinutes();
   const { data: contributionTypes } = useContributionTypes();
 
   // ─── Roster-aligned member counts (all users) ──────────────────────────
@@ -183,21 +183,9 @@ export default function DashboardPage() {
     return (amount: number) => formatAmount(amount, groupCurrency);
   }, [groupCurrency]);
 
-  const nextEvent = useMemo(() => {
-    if (!events || events.length === 0) return null;
-    const now = new Date().toISOString();
-    // useEvents orders starts_at DESC, so find() would return the
-    // FURTHEST-future event — pick the soonest upcoming one instead.
-    const upcoming = events.filter((e: Record<string, unknown>) => (e.starts_at as string) > now);
-    if (upcoming.length === 0) return null;
-    return upcoming.reduce((soonest: Record<string, unknown>, e: Record<string, unknown>) =>
-      (e.starts_at as string) < (soonest.starts_at as string) ? e : soonest);
-  }, [events]);
-
-  const latestMinutes = useMemo(() => {
-    if (!minutes || minutes.length === 0) return null;
-    return minutes[0]; // already ordered by created_at desc
-  }, [minutes]);
+  // nextEvent (soonest upcoming) and latestMinutes now come directly from
+  // dedicated single-row hooks (useNextEvent / useLatestMinutes) — no full-table
+  // fetch + client-side filter/reduce.
 
   // Recent audit log entries (admin only, best-effort)
   const { data: recentAuditLogs } = useQuery({
@@ -643,19 +631,19 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-base">
-                    {(latestMinutes.event as Record<string, unknown>)?.title as string || t("dashboard.recentMinutes")}
+                    {(latestMinutes.event as unknown as Record<string, unknown>)?.title as string || t("dashboard.recentMinutes")}
                   </p>
                   <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-                    {latestMinutes.decisions_count != null && (
+                    {Array.isArray(latestMinutes.decisions_json) && (latestMinutes.decisions_json as unknown[]).length > 0 && (
                       <span className="flex items-center gap-1">
                         <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                        {t("dashboard.decisionsCount", { count: latestMinutes.decisions_count as number })}
+                        {t("dashboard.decisionsCount", { count: (latestMinutes.decisions_json as unknown[]).length })}
                       </span>
                     )}
-                    {latestMinutes.action_items_count != null && (
+                    {Array.isArray(latestMinutes.action_items_json) && (latestMinutes.action_items_json as unknown[]).length > 0 && (
                       <span className="flex items-center gap-1">
                         <ListChecks className="h-3.5 w-3.5 text-primary" />
-                        {t("dashboard.actionItemsCount", { count: latestMinutes.action_items_count as number })}
+                        {t("dashboard.actionItemsCount", { count: (latestMinutes.action_items_json as unknown[]).length })}
                       </span>
                     )}
                   </div>

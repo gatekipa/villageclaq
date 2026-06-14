@@ -173,8 +173,12 @@ test("SendReviewNotice gains a 'receipts' context (component otherwise unchanged
   assert.match(notice, /"invitations" \| "reminders" \| "announcements" \| "receipts"/);
 });
 
-test("record page shows the receipts review notice and a plain summary — no new send", () => {
-  assert.match(record, /<SendReviewNotice context="receipts" variant="compact" \/>/);
+test("record page shows an HONEST single-record receipt note + a plain summary (Build 9)", () => {
+  // Build 9 (WS1) replaced the misleading review-only SendReviewNotice — single
+  // record DOES send a receipt the moment you record — with an explicit honest
+  // note. The page must no longer use the review-only notice here.
+  assert.ok(!/<SendReviewNotice/.test(record), "misleading review-only notice removed from the record form");
+  assert.ok(record.includes("recordSendsReceiptNote"), "honest 'recording sends a receipt' note");
   assert.ok(record.includes("recordReviewSummary"), "a who/how-much summary line");
 });
 

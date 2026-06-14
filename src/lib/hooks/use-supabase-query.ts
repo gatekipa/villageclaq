@@ -13,6 +13,10 @@ export function useDashboardStats() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["dashboard-stats", groupId],
+    // WS4 (Build 9): cut refetch churn on tab switch / remount for low-bandwidth
+    // admins. Mutations still invalidate this key, so a write is reflected
+    // immediately; only idle re-renders within 5 min reuse the cache.
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!groupId) return null;
 
@@ -101,6 +105,7 @@ export function useContributionTypes() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["contribution-types", groupId],
+    staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on type changes
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -120,6 +125,7 @@ export function useAllContributionTypes() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["all-contribution-types", groupId],
+    staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on type changes
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -181,6 +187,7 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
   const filterMembershipId = filters?.membershipId ?? "";
   return useQuery({
     queryKey: ["obligations", groupId, filterStatus, filterMembershipId],
+    staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on payment/type changes
     queryFn: async () => {
       if (!groupId) return [];
       let q = supabase
@@ -204,6 +211,7 @@ export function usePayments(limit = 50) {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["payments", groupId, limit],
+    staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on record/confirm
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase

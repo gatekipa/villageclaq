@@ -42,7 +42,10 @@
     "test:product-announcement-honesty": "node --test scripts/test-product-announcement-honesty.mjs",
     "test:announcement-producer": "node --test scripts/test-announcement-producer.mjs",
     "test:announcement-delivery-status-mapping": "node --test scripts/test-announcement-delivery-status-mapping.mjs",
-    "test:product-build8": "node --test scripts/test-product-build8.mjs"
+    "test:product-build8": "node --test scripts/test-product-build8.mjs",
+    "test:due-date-preview": "node --test scripts/test-due-date-preview.mjs",
+    "test:standing-exclusion": "node --test scripts/test-standing-exclusion.mjs",
+    "test:product-build9-money": "node --test scripts/test-product-build9-money.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

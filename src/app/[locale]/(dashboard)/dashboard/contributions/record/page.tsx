@@ -27,9 +27,9 @@ import {
   CheckSquare,
   Square,
   MessageCircle,
+  Info,
 } from "lucide-react";
 import { ContributionsSubNav } from "@/components/contributions/sub-nav";
-import { SendReviewNotice } from "@/components/send-review-notice";
 import {
   Dialog,
   DialogContent,
@@ -709,6 +709,7 @@ export default function RecordPaymentPage() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">{t("contributions.paymentSaved")}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{lastSavedName}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("contributions.receiptSentNote")}</p>
             </div>
             <Button
               variant="ghost"
@@ -1071,7 +1072,10 @@ export default function RecordPaymentPage() {
               </p>
             )}
 
-            {/* Review summary + honest send notice — display only, sends nothing */}
+            {/* Review summary + HONEST receipt notice. Single-record DOES send
+                a receipt the moment you record (in-app now; WhatsApp/email/SMS
+                per the member's preferences). This is NOT the bulk path — the
+                P0 bulk guard (opt-in + reconfirm) is unchanged and untouched. */}
             <div className="space-y-2 border-t pt-4">
               {selectedMembership && selectedTypeId && amount && Number(amount) > 0 && (
                 <p className="text-xs text-muted-foreground">
@@ -1085,11 +1089,30 @@ export default function RecordPaymentPage() {
                   })}
                 </p>
               )}
-              <SendReviewNotice context="receipts" variant="compact" />
+              <p className="flex items-start gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+                <Info className="mt-0.5 size-3.5 shrink-0" />
+                <span>{t("contributions.recordSendsReceiptNote")}</span>
+              </p>
             </div>
 
-            {/* Action Buttons */}
+            {/* Action Buttons — one clear primary "Record payment"; the
+                secondary keeps type+method for the next member. */}
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => handleSave(true)}
+                disabled={!canSubmit}
+                title={t("contributions.recordAnotherHint")}
+                aria-label={t("contributions.recordAnotherHint")}
+              >
+                {savingMode === "next" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CreditCard className="mr-2 h-4 w-4" />
+                )}
+                {t("contributions.recordAnother")}
+              </Button>
               <Button
                 variant="default"
                 size="lg"
@@ -1102,20 +1125,7 @@ export default function RecordPaymentPage() {
                 ) : (
                   <Check className="mr-2 h-4 w-4" />
                 )}
-                {t("contributions.savePayment")}
-              </Button>
-              <Button
-                size="lg"
-                onClick={() => handleSave(true)}
-                disabled={!canSubmit}
-                className="bg-emerald-600 font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:text-white dark:hover:bg-emerald-700"
-              >
-                {savingMode === "next" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CreditCard className="mr-2 h-4 w-4" />
-                )}
-                {t("contributions.saveAndNext")}
+                {t("contributions.recordPayment")}
               </Button>
             </div>
           </div>

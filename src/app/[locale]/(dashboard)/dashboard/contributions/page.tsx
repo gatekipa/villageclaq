@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { formatDateWithGroupFormat } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,12 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount, CURRENCIES } from "@/lib/currencies";
 import { useSubscription } from "@/lib/hooks/use-subscription";
 import { LimitPrompt } from "@/components/ui/upgrade-prompt";
+import {
+  setContributionStandingExclusion,
+  isContributionExcluded,
+  standingExclusionQueryKeys,
+} from "@/lib/standing-exclusion";
+import { describeDueDay, ordinalDay } from "@/lib/due-date-preview";
 
 
 // Frequency labels resolved via t() inside the component
@@ -113,9 +120,57 @@ export default function ContributionsPage() {
   const [formDueDay, setFormDueDay] = useState("");
   const [formEnrollAll, setFormEnrollAll] = useState(true);
   const [formIsFlexible, setFormIsFlexible] = useState(false);
+  // WS3: "Counts toward good standing" — managed via the existing per-type
+  // standing exclusion list (groups.settings.standing_rules). Default ON =
+  // counts (not excluded). The Settings → Standing tab edits the same setting.
+  const [formCountsTowardStanding, setFormCountsTowardStanding] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
 
   const currency = currentGroup?.currency || "XAF";
+  const locale = useLocale();
+  const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
+
+  // WS2: human-readable due-date preview over the existing due_day (display-only;
+  // mirrors the obligation trigger's LEAST(due_day,28) clamp).
+  function duePreviewNode(dueDayStr: string, frequency: string) {
+    if (frequency === "one_time") {
+      return <p className="text-xs text-muted-foreground">{t("contributions.oneTimeDueDateNote")}</p>;
+    }
+    const preview = describeDueDay({ dueDay: dueDayStr ? Number(dueDayStr) : null, frequency });
+    if (preview.kind === "none") {
+      return <p className="text-xs text-muted-foreground">{t("contributions.dueDayHelp")}</p>;
+    }
+    const ord = ordinalDay(preview.clampedDay, locale);
+    if (preview.period === "month" && preview.nextDueISO) {
+      return (
+        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+          {t("contributions.duePreviewMonthly", {
+            day: ord,
+            date: formatDateWithGroupFormat(preview.nextDueISO, groupDateFormat, locale),
+            days: preview.daysUntil ?? 0,
+          })}
+        </p>
+      );
+    }
+    return (
+      <p className="text-xs text-muted-foreground">
+        {t("contributions.duePreviewRecurring", { day: ord, period: t(`contributions.duePeriod_${preview.period}`) })}
+      </p>
+    );
+  }
+
+  // Human due-date label for a contribution type card (string form).
+  function cardDueLabel(dueDay: number | null | undefined, frequency: string): string {
+    const dd = describeDueDay({ dueDay, frequency });
+    if (dd.kind === "none") {
+      return frequency === "one_time" ? t("contributions.dueDateFlexible") : t("contributions.noDueDate");
+    }
+    const ord = ordinalDay(dd.clampedDay, locale);
+    if (dd.period === "month" && dd.nextDueISO) {
+      return t("contributions.cardDueMonthly", { day: ord, date: formatDateWithGroupFormat(dd.nextDueISO, groupDateFormat, locale) });
+    }
+    return t("contributions.cardDueRecurring", { day: ord, period: t(`contributions.duePeriod_${dd.period}`) });
+  }
 
   function resetForm() {
     setFormName("");
@@ -127,6 +182,7 @@ export default function ContributionsPage() {
     setFormDueDay("");
     setFormEnrollAll(true);
     setFormIsFlexible(false);
+    setFormCountsTowardStanding(true);
     setFormError(null);
   }
 
@@ -141,7 +197,7 @@ export default function ContributionsPage() {
       return;
     }
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         name: formName,
         name_fr: formNameFr || undefined,
         description: formDescription || undefined,
@@ -152,6 +208,20 @@ export default function ContributionsPage() {
         enroll_all_members: formEnrollAll,
         is_flexible: formIsFlexible,
       });
+      // WS3: default ON (counts) needs no write (absent from the exclusion list
+      // already counts). Only when the admin turned it OFF do we add this type
+      // to the group's standing exclusion list — via the SAME helper the
+      // Settings → Standing tab uses (one source of truth, no new schema).
+      const newId = (created as { id?: string } | null)?.id;
+      if (newId && groupId && !formCountsTowardStanding) {
+        try {
+          const supabase = createClient();
+          await setContributionStandingExclusion(supabase, groupId, newId, true);
+          await Promise.all(standingExclusionQueryKeys(groupId).map((k) => queryClient.invalidateQueries({ queryKey: k })));
+        } catch (err) {
+          console.warn("[Contributions] standing exclusion write failed:", err instanceof Error ? err.message : err);
+        }
+      }
       setShowCreate(false);
       resetForm();
     } catch {
@@ -169,6 +239,9 @@ export default function ContributionsPage() {
     setFormFrequency((type.frequency as string) || "monthly");
     setFormDueDay(type.due_day ? String(type.due_day) : "");
     setFormIsFlexible(!!type.is_flexible);
+    // Seed the standing toggle from the current group setting (single source of
+    // truth): counts toward standing iff this type id is NOT excluded.
+    setFormCountsTowardStanding(!isContributionExcluded(currentGroup?.settings, type.id as string));
     setShowEditDialog(true);
   }
 
@@ -199,6 +272,16 @@ export default function ContributionsPage() {
         .eq("id", editTypeId);
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      // WS3: reconcile this type's standing impact with the toggle, via the
+      // shared exclusion writer (same setting the Settings → Standing tab uses).
+      if (groupId) {
+        try {
+          await setContributionStandingExclusion(supabase, groupId, editTypeId, !formCountsTowardStanding);
+          await Promise.all(standingExclusionQueryKeys(groupId).map((k) => queryClient.invalidateQueries({ queryKey: k })));
+        } catch (err) {
+          console.warn("[Contributions] standing exclusion write failed:", err instanceof Error ? err.message : err);
+        }
+      }
       setShowEditDialog(false);
       resetForm();
       setEditTypeId(null);
@@ -472,18 +555,22 @@ export default function ContributionsPage() {
                     </select>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dueDay">{t("contributions.dueDay")}</Label>
-                  <Input
-                    id="dueDay"
-                    type="number"
-                    min="1"
-                    max="31"
-                    placeholder="1"
-                    value={formDueDay}
-                    onChange={(e) => setFormDueDay(e.target.value)}
-                  />
-                </div>
+                {formFrequency !== "one_time" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="dueDay">{t("contributions.dueDay")}</Label>
+                    <Input
+                      id="dueDay"
+                      type="number"
+                      min="1"
+                      max="31"
+                      placeholder="1"
+                      value={formDueDay}
+                      onChange={(e) => setFormDueDay(e.target.value)}
+                    />
+                    {duePreviewNode(formDueDay, formFrequency)}
+                  </div>
+                )}
+                {formFrequency === "one_time" && duePreviewNode(formDueDay, formFrequency)}
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -506,6 +593,21 @@ export default function ContributionsPage() {
                     className="h-4 w-4 rounded border-input"
                   />
                   <Label htmlFor="enrollAll">{t("contributions.enrollAll")}</Label>
+                </div>
+                {/* WS3: standing impact — managed via the existing per-type
+                    exclusion list (Settings → Standing edits the same setting). */}
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="countsTowardStanding"
+                    checked={formCountsTowardStanding}
+                    onChange={(e) => setFormCountsTowardStanding(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input"
+                  />
+                  <div>
+                    <Label htmlFor="countsTowardStanding">{t("contributions.countsTowardStanding")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("contributions.countsTowardStandingHint")}</p>
+                  </div>
                 </div>
 
                 {/* Plain-language consequences of creating a contribution. */}
@@ -690,9 +792,7 @@ export default function ContributionsPage() {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {type.due_day
-                      ? `${t("contributions.dueDay")} ${type.due_day}`
-                      : t("contributions.noDueDate")}
+                    {cardDueLabel(type.due_day as number | null, (type.frequency as string) || "monthly")}
                   </span>
                   <Link
                     href={`/dashboard/contributions/${type.id}/report`}
@@ -750,10 +850,14 @@ export default function ContributionsPage() {
                 </select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-dueDay">{t("contributions.dueDay")}</Label>
-              <Input id="edit-dueDay" type="number" min="1" max="31" value={formDueDay} onChange={(e) => setFormDueDay(e.target.value)} />
-            </div>
+            {formFrequency !== "one_time" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-dueDay">{t("contributions.dueDay")}</Label>
+                <Input id="edit-dueDay" type="number" min="1" max="31" value={formDueDay} onChange={(e) => setFormDueDay(e.target.value)} />
+                {duePreviewNode(formDueDay, formFrequency)}
+              </div>
+            )}
+            {formFrequency === "one_time" && duePreviewNode(formDueDay, formFrequency)}
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -765,6 +869,19 @@ export default function ContributionsPage() {
               <div>
                 <Label htmlFor="edit-flexibleAmount">{t("contributions.flexibleAmount")}</Label>
                 <p className="text-xs text-muted-foreground">{t("contributions.flexibleAmountHint")}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="edit-countsTowardStanding"
+                checked={formCountsTowardStanding}
+                onChange={(e) => setFormCountsTowardStanding(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <div>
+                <Label htmlFor="edit-countsTowardStanding">{t("contributions.countsTowardStanding")}</Label>
+                <p className="text-xs text-muted-foreground">{t("contributions.countsTowardStandingHint")}</p>
               </div>
             </div>
             {formError && <p className="text-sm text-destructive">{formError}</p>}

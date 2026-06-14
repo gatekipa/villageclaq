@@ -157,6 +157,22 @@ test("migration 00104 replaces the trigger with a confirmed recompute + backfill
 
 // ── 8. i18n parity for Build-4 keys ─────────────────────────────────────────
 
+test("EN/FR message bundles have identical key structure (full parity)", () => {
+  const flat = (o, p = "", a = {}) => {
+    for (const k in o) {
+      const v = o[k];
+      const key = p ? `${p}.${k}` : k;
+      if (v && typeof v === "object" && !Array.isArray(v)) flat(v, key, a);
+      else a[key] = true;
+    }
+    return a;
+  };
+  const fe = flat(en);
+  const ff = flat(fr);
+  assert.deepEqual(Object.keys(fe).filter((k) => !(k in ff)), [], "keys in EN but missing in FR");
+  assert.deepEqual(Object.keys(ff).filter((k) => !(k in fe)), [], "keys in FR but missing in EN");
+});
+
 test("Build-4 report + statement keys present in both locales", () => {
   const reportKeys = [
     "viewReport", "totalCollected", "totalOutstanding", "totalPending", "totalWaived",

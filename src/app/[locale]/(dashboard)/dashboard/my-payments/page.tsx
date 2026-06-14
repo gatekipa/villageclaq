@@ -148,19 +148,41 @@ export default function MyPaymentsPage() {
     );
   }, [allPayments, currentMembership]);
 
-  // Confirmed-paid map keyed by obligation_id, derived from the member's
-  // CONFIRMED payments only (money.ts). Most dues payments carry no
-  // obligation_id, so we take the member's confirmed TOTAL and allocate it
-  // across their obligations oldest-first — never the polluted amount_paid
-  // column, and never obligation-keyed sums that would miss obligation-less
-  // payments and show a paid-up member as owing everything.
+  // The member's COMPLETE dues-payment ledger (membership-scoped, uncapped).
+  // usePayments() above is a capped group feed (latest 50) used only for the
+  // recent-history display; the balance math must see ALL of this member's
+  // confirmed payments or it would over-state what they still owe.
+  const { data: myPaymentsFull } = useQuery({
+    queryKey: ["my-payments-full", currentMembership?.id],
+    enabled: !!currentMembership?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("payments")
+        .select("id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
+        .eq("membership_id", currentMembership!.id)
+        .is("relief_plan_id", null)
+        .order("recorded_at", { ascending: false });
+      if (error) {
+        console.warn("[MyPayments] full ledger query failed:", error.message);
+        return [];
+      }
+      return data || [];
+    },
+  });
+
+  // Confirmed-paid map keyed by obligation_id. Most dues payments carry no
+  // obligation_id, so we take the member's confirmed TOTAL (from the COMPLETE
+  // ledger above) and allocate it across their obligations oldest-first — never
+  // the polluted amount_paid column, and never obligation-keyed sums that would
+  // miss obligation-less payments and show a paid-up member as owing everything.
   const confirmedByObl = useMemo(
     () =>
       allocateConfirmedToObligations(
         (obligations || []) as unknown as MoneyObligation[],
-        confirmedPaidByMember(myPayments as unknown as MoneyPayment[]),
+        confirmedPaidByMember((myPaymentsFull || []) as unknown as MoneyPayment[]),
       ),
-    [obligations, myPayments]
+    [obligations, myPaymentsFull]
   );
 
   const today = todayKey();
@@ -188,19 +210,20 @@ export default function MyPaymentsPage() {
   // NOT yet credited — including them inflates the figure.
   const totalPaidThisYear = useMemo(() => {
     const year = new Date().getFullYear().toString();
-    return myPayments
+    return (myPaymentsFull || [])
       .filter((p: Record<string, unknown>) => {
         if (!isConfirmedPayment(p.status as string)) return false;
         return (p.recorded_at as string)?.startsWith(year);
       })
       .reduce((sum: number, p: Record<string, unknown>) => sum + num(p.amount), 0);
-  }, [myPayments]);
+  }, [myPaymentsFull]);
 
   // Member-submitted payments still awaiting confirmation. This money is NOT
   // yet credited to the balance, so it is surfaced separately (never folded
-  // into "Paid This Year" or used to reduce what is owed).
+  // into "Paid This Year" or used to reduce what is owed). From the COMPLETE
+  // ledger so nothing is missed beyond the capped recent-history feed.
   const pendingConfirmation = useMemo(() => {
-    const rows = myPayments.filter((p: Record<string, unknown>) =>
+    const rows = (myPaymentsFull || []).filter((p: Record<string, unknown>) =>
       isPendingPayment(p.status as string)
     );
     const total = rows.reduce(
@@ -208,7 +231,7 @@ export default function MyPaymentsPage() {
       0
     );
     return { count: rows.length, total };
-  }, [myPayments]);
+  }, [myPaymentsFull]);
 
   // Total owed = Σ confirmed-basis remaining across open obligations. Derives
   // from confirmed payments via money.ts, NOT the polluted amount_paid column.

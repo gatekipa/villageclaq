@@ -13,6 +13,7 @@ import { ArrowLeft, Download, Printer, HandCoins } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { getMemberName } from "@/lib/get-member-name";
+import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
 import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -175,7 +176,7 @@ export default function ContributionReportPage() {
       [t("contributions.report.colOutstanding")]: formatAmount(r.remaining, currency),
       [t("contributions.report.colOverdue")]: r.isOverdue ? t("common.yes") : t("common.no"),
       [t("contributions.report.colLastPayment")]: r.lastConfirmedPaymentAt
-        ? new Date(r.lastConfirmedPaymentAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US")
+        ? new Date(r.lastConfirmedPaymentAt).toLocaleDateString(getDateLocale(locale))
         : "--",
     }));
     exportCSV(out, `contribution_report_${data?.type?.name || "report"}`);
@@ -332,7 +333,7 @@ export default function ContributionReportPage() {
                           </td>
                           <td className="px-3 py-2.5 text-muted-foreground">
                             {r.lastConfirmedPaymentAt
-                              ? new Date(r.lastConfirmedPaymentAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
+                              ? new Date(r.lastConfirmedPaymentAt).toLocaleDateString(getDateLocale(locale), {
                                   year: "numeric",
                                   month: "short",
                                   day: "numeric",

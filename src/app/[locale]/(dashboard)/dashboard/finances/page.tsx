@@ -115,14 +115,7 @@ function useLoanStats(groupId: string | null) {
         .filter((l) => new Date(l.created_at).getFullYear() === thisYear)
         .reduce((sum, l) => sum + Number(l.total_repaid || 0), 0);
 
-      // Overdue installments count
-      const { count } = await supabase
-        .from("loan_schedule")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "overdue")
-        .in("loan_id", (activeLoans || []).map(() => "").length > 0 ? [] : [""]);
-
-      // Better approach: query overdue directly with join
+      // Overdue installments — group-scoped via the loans!inner join.
       const { data: overdueInst } = await supabase
         .from("loan_schedule")
         .select("id, loans!inner(group_id)")

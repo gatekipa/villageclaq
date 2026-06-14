@@ -137,12 +137,24 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          // Apply limit
-          if (q.limit) {
-            query = query.limit(q.limit);
-          }
+          // Apply a hard SAFETY CEILING — never a low default. A spec with no
+          // limit previously returned the ENTIRE table (the admin client
+          // bypasses RLS), risking an unbounded cross-tenant payload. We cap at
+          // a generous ceiling so callers that intentionally omit `limit` to
+          // build a count/aggregate from the full result (e.g. admin/groups
+          // per-group member counts, admin/revenue) are NOT silently truncated
+          // at today's scale — only an extreme >10k-row result is bounded, and
+          // those screens are slated to move to server-side aggregation (see
+          // src/PERFORMANCE_NOTES.md). count:"exact" still returns the exact
+          // total independently of the row cap.
+          const ADMIN_MAX_LIMIT = 10000;
+          const lim = Math.min(q.limit ?? ADMIN_MAX_LIMIT, ADMIN_MAX_LIMIT);
+          query = query.limit(lim);
 
           const { data, error, count } = await query;
+          if ((data?.length ?? 0) >= lim) {
+            console.warn(`[ADMIN QUERY] '${q.key}' on ${q.table} hit the ${lim}-row ceiling — result may be truncated; move this to a server-side aggregate.`);
+          }
           results[q.key] = {
             data: data ?? [],
             error: error?.message ?? null,

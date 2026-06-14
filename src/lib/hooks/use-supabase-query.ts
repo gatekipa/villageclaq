@@ -552,6 +552,32 @@ export function useEvents() {
   });
 }
 
+/**
+ * Soonest UPCOMING event — a single lean row for the dashboard "next event"
+ * card. Replaces a full-table useEvents() scan + client-side filter/reduce; the
+ * 00xxx idx_events_group_date (group_id, starts_at) makes this an index seek.
+ */
+export function useNextEvent() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["next-event", groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
+      const { data, error } = await supabase
+        .from("events")
+        .select("id, title, title_fr, starts_at")
+        .eq("group_id", groupId)
+        .gte("starts_at", new Date().toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) { console.warn("[NextEvent] failed:", error.message); return null; }
+      return data;
+    },
+    enabled: !!groupId,
+  });
+}
+
 export function useCreateEvent() {
   const queryClient = useQueryClient();
   const { groupId, user } = useGroup();
@@ -750,6 +776,35 @@ export function useMeetingMinutes() {
         .order("created_at", { ascending: false });
       if (error) { console.warn("[Query] failed:", error.message); return []; }
       return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
+/**
+ * Latest meeting minutes — a single lean row for the dashboard "recent minutes"
+ * card. Deliberately omits the heavy rich-text body/content column (select * on
+ * useMeetingMinutes pulls every historical minutes body); only the card fields.
+ */
+export function useLatestMinutes() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["latest-minutes", groupId],
+    queryFn: async () => {
+      if (!groupId) return null;
+      const { data, error } = await supabase
+        .from("meeting_minutes")
+        // decisions/action items are JSONB arrays (decisions_json /
+        // action_items_json) — there are no *_count scalar columns. Pull the
+        // arrays (small) and count client-side; still far lighter than the full
+        // content_json body that select * would drag in.
+        .select("id, status, created_at, decisions_json, action_items_json, event:events(id, title, title_fr)")
+        .eq("group_id", groupId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) { console.warn("[LatestMinutes] failed:", error.message); return null; }
+      return data;
     },
     enabled: !!groupId,
   });

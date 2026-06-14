@@ -445,6 +445,11 @@ export default function RecordPaymentPage() {
   const [bulkMethod, setBulkMethod] = useState("cash");
   const [bulkNotes, setBulkNotes] = useState("");
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  // P0 guard state: mandatory confirmation before a bulk record, with receipts
+  // opt-in (default OFF) and a second "money was actually received" check.
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkSendReceipts, setBulkSendReceipts] = useState(false);
+  const [bulkReconfirm, setBulkReconfirm] = useState(false);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [bulkSearch, setBulkSearch] = useState("");
   const [bulkSuccess, setBulkSuccess] = useState<number | null>(null);
@@ -480,7 +485,7 @@ export default function RecordPaymentPage() {
     }
   }
 
-  async function handleBulkSave() {
+  async function handleBulkSave(sendReceipts: boolean) {
     if (!bulkTypeId || !bulkAmount || Number(bulkAmount) <= 0 || bulkSelected.size === 0) return;
     setBulkSubmitting(true);
     let successCount = 0;
@@ -535,7 +540,14 @@ export default function RecordPaymentPage() {
       }
 
       // ── Produce payment-receipt notifications for every successful payment ──
-      if (paidPayments.length > 0 && groupId) {
+      // P0 GUARD: receipts are OPT-IN for bulk record. When the admin did NOT
+      // tick "send receipts", the payments are recorded but NO "payment
+      // received" message goes out on ANY channel (WhatsApp / email / SMS /
+      // in-app) — so a bulk record can never silently blast false receipts to
+      // members who have not actually paid. The confirmed-payment send pipeline
+      // (payment-receipt-producer: confirmed + membership/group/amount gated) is
+      // unchanged and still drives every message that IS sent.
+      if (sendReceipts && paidPayments.length > 0 && groupId) {
         await Promise.allSettled(
           paidPayments.map(({ paymentId }) => produceServerSideReceiptNotifications(paymentId)),
         );
@@ -606,6 +618,9 @@ export default function RecordPaymentPage() {
       setBulkMethod("cash");
       setBulkNotes("");
       setBulkSearch("");
+      setBulkConfirmOpen(false);
+      setBulkSendReceipts(false);
+      setBulkReconfirm(false);
 
       setTimeout(() => {
         setBulkSuccess(null);
@@ -1279,20 +1294,85 @@ export default function RecordPaymentPage() {
                 {t("common.cancel")}
               </Button>
               <Button
-                onClick={handleBulkSave}
+                onClick={() => { setBulkSendReceipts(false); setBulkReconfirm(false); setBulkConfirmOpen(true); }}
                 disabled={bulkSubmitting || !bulkTypeId || !bulkAmount || bulkSelected.size === 0}
               >
-                {bulkSubmitting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                {bulkSubmitting
-                  ? t("contributions.bulkRecording")
-                  : t("contributions.recordForSelected", { count: bulkSelected.size })}
+                <Check className="mr-2 h-4 w-4" />
+                {t("contributions.recordForSelected", { count: bulkSelected.size })}
               </Button>
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* P0: mandatory confirmation before a bulk record. Receipts are opt-in
+          (default OFF); turning them on requires a second explicit confirmation
+          that the money was actually received. */}
+      <Dialog open={bulkConfirmOpen} onOpenChange={(open) => { if (!open && !bulkSubmitting) { setBulkConfirmOpen(false); setBulkReconfirm(false); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>{t("contributions.bulkConfirmTitle")}</DialogTitle>
+          <DialogDescription>
+            {t("contributions.bulkConfirmSummary", {
+              count: bulkSelected.size,
+              type: bulkType
+                ? (locale === "fr" && (bulkType as Record<string, unknown>).name_fr
+                    ? (bulkType as Record<string, unknown>).name_fr as string
+                    : (bulkType as Record<string, unknown>).name as string)
+                : "",
+            })}
+          </DialogDescription>
+
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("contributions.bulkConfirmMembers")}</span><span className="font-medium">{bulkSelected.size}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("contributions.bulkConfirmTotal")}</span><span className="font-medium">{formatAmount(Number(bulkAmount || 0) * bulkSelected.size, currency)}</span></div>
+            </div>
+
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={bulkSendReceipts}
+                onChange={(e) => { setBulkSendReceipts(e.target.checked); if (!e.target.checked) setBulkReconfirm(false); }}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <span>
+                <span className="font-medium">{t("contributions.bulkSendReceiptsLabel")}</span>
+                <span className="block text-xs text-muted-foreground">{t("contributions.bulkSendReceiptsHint")}</span>
+              </span>
+            </label>
+
+            {bulkSendReceipts ? (
+              <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+                <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                  {t("contributions.bulkReceiptsWillQueue", { count: bulkSelected.size })}
+                </p>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={bulkReconfirm}
+                    onChange={(e) => setBulkReconfirm(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input"
+                  />
+                  <span className="text-xs text-amber-900 dark:text-amber-200">{t("contributions.bulkReconfirmLabel")}</span>
+                </label>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t("contributions.bulkReceiptsNoneWillSend")}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkConfirmOpen(false)} disabled={bulkSubmitting}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => handleBulkSave(bulkSendReceipts)}
+              disabled={bulkSubmitting || (bulkSendReceipts && !bulkReconfirm)}
+            >
+              {bulkSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              {bulkSubmitting ? t("contributions.bulkRecording") : t("contributions.bulkConfirmRecord")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div></RequirePermission>

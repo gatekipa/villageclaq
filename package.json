@@ -39,7 +39,10 @@
     "test:product-p0-bulk-receipts": "node --test scripts/test-product-p0-bulk-receipts.mjs",
     "test:product-build6": "node --test scripts/test-product-build6.mjs",
     "test:announcement-channels": "node --test scripts/test-announcement-channels.mjs",
-    "test:product-announcement-honesty": "node --test scripts/test-product-announcement-honesty.mjs"
+    "test:product-announcement-honesty": "node --test scripts/test-product-announcement-honesty.mjs",
+    "test:announcement-producer": "node --test scripts/test-announcement-producer.mjs",
+    "test:announcement-delivery-status-mapping": "node --test scripts/test-announcement-delivery-status-mapping.mjs",
+    "test:product-build8": "node --test scripts/test-product-build8.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

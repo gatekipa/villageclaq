@@ -25,9 +25,25 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
  *   3. Flip sent_at on success. On failure, leave sent_at NULL so
  *      the next cron run retries the row.
  *
- * Idempotency: the WHERE clause filters sent_at IS NULL, and sent_at
- * is written AFTER dispatch succeeds. Running twice in the same
- * window cannot re-fire a row that was already sent.
+ * Idempotency (ROW-LEVEL ONLY — honest limitation, Build 7):
+ *   The WHERE clause filters sent_at IS NULL and sent_at is written
+ *   AFTER the per-recipient loop completes, so a fully-completed row is
+ *   never re-fired. BUT there is NO per-recipient idempotency: if this
+ *   handler crashes (or times out) mid-loop — after dispatching to some
+ *   recipients but before flipping sent_at — the next 5-min tick re-sends
+ *   email/SMS/WhatsApp to recipients already processed. The honest fix is
+ *   producerization with a per-(announcementId,userId,channel) dispatch
+ *   log (the existing-but-unwired `announcement_deliveries` table; see the
+ *   created-not-applied migration 00106 and docs/announcements-whatsapp-
+ *   strategy.md). That conversion must ALSO remove this route from the
+ *   audit's direct-dispatch allowlist in the same change (audit enforces
+ *   "allowlisted direct-dispatch OR producer-backed, never neither").
+ *   Until then this route stays direct-dispatch + allowlisted.
+ *
+ * WhatsApp announcements use the MARKETING-categorized
+ * villageclaq_announcement_v2 (not delivered to US +1 numbers, error
+ * 131049 — silent at send). Composer discloses this; do not present
+ * WhatsApp announcements as delivery-confirmed.
  *
  * Processes rows sequentially to avoid hammering SMS/WhatsApp rate
  * limits.

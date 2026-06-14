@@ -68,6 +68,31 @@ export const WA_TEMPLATES = {
   PROXY_CLAIM: "villageclaq_proxy_claim",
 } as const;
 
+// ─── Structured template category metadata ──────────────────────────────────
+//
+// Machine-readable source for channel-availability truth (consumed by the
+// announcement honesty model — see src/lib/announcement-channels.ts). The
+// `category` is what Meta APPROVED the template as; `usBlocked` marks
+// MARKETING-category templates that Meta does NOT deliver to US (+1) numbers
+// (error 131049 — the send API still returns a wamid, so the failure is silent
+// at send time). This is metadata ONLY: it changes no template mapping and no
+// send path, and it does NOT remap the ANNOUNCEMENT constant.
+//
+// Only templates whose Meta category is VERIFIED (in the per-constant comments
+// above, confirmed in WhatsApp Manager / live QA) are listed — we never guess a
+// category. Critically, ANNOUNCEMENT is MARKETING/US-blocked, which is the fact
+// the composer must disclose.
+export const TEMPLATE_METADATA: Record<
+  string,
+  { name: string; category: "UTILITY" | "MARKETING"; usBlocked: boolean }
+> = {
+  ANNOUNCEMENT: { name: WA_TEMPLATES.ANNOUNCEMENT, category: "MARKETING", usBlocked: true },
+  EVENT_REMINDER: { name: WA_TEMPLATES.EVENT_REMINDER, category: "UTILITY", usBlocked: false },
+  MEMBER_INVITATION: { name: WA_TEMPLATES.MEMBER_INVITATION, category: "UTILITY", usBlocked: false },
+  RELIEF_ENROLLMENT: { name: WA_TEMPLATES.RELIEF_ENROLLMENT, category: "UTILITY", usBlocked: false },
+  SUBSCRIPTION_EXPIRING: { name: WA_TEMPLATES.SUBSCRIPTION_EXPIRING, category: "UTILITY", usBlocked: false },
+} as const;
+
 // ─── Helpers: build body-only components ────────────────────────────────────
 
 function bodyParams(...texts: string[]): WhatsAppTemplateComponent[] {

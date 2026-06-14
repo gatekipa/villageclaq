@@ -39,6 +39,15 @@ import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendan
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
+import { RequirePermission } from "@/components/ui/permission-gate";
+import {
+  computeMoneyFigures,
+  isPendingPayment,
+  isRejectedPayment,
+  num,
+  type MoneyObligation,
+  type MoneyPayment,
+} from "@/lib/money";
 
 /** Convert markdown to plain text (strip **, ##, etc.) */
 function stripMarkdown(md: string): string {
@@ -196,7 +205,23 @@ function engagementColor(level: string) {
 
 import { getMemberName } from "@/lib/get-member-name";
 
+/**
+ * Permission gate for the report detail route. The reports LIST page gates the
+ * View/Generate button on `reports.view`; this route is the actual data
+ * surface (full financials + roster export), so it must enforce the same
+ * authorisation server-of-truth before ANY branch (loading / error / content)
+ * renders. Without this, any group member could deep-link to
+ * /dashboard/reports/<id> and read/export group financials.
+ */
 export default function ReportDetailPage() {
+  return (
+    <RequirePermission anyOf={["reports.view", "finances.view", "finances.manage"]}>
+      <ReportDetailContent />
+    </RequirePermission>
+  );
+}
+
+function ReportDetailContent() {
   const t = useTranslations();
   const locale = useLocale();
   const params = useParams();
@@ -382,13 +407,32 @@ export default function ReportDetailPage() {
     });
   const whoHasntPaid: UnpaidRow[] = Object.values(unpaidMap).sort((a, b) => b.days - a.days).slice(0, 20);
 
-  // Report 2: Financial Summary
-  const totalCollected = paymentList.reduce((s: number, p: Record<string, unknown>) => s + Number(p.amount || 0), 0);
-  const totalExpected = obligationList.reduce((s: number, o: Record<string, unknown>) => s + Number(o.amount || 0), 0);
+  // Report 2: Financial Summary (Reports 16/17/20 reuse these figures).
+  // Canonical money.ts accounting: collected = Σ CONFIRMED dues payments only
+  // (pending_confirmation and rejected never count); expected EXCLUDES waived
+  // obligations; outstanding = max(0, expected − collected). This replaces the
+  // old "sum every payment.amount with no status filter" / "sum every
+  // obligation.amount including waived" logic that over-stated collection.
+  const moneyFigures = computeMoneyFigures(
+    obligationList as unknown as MoneyObligation[],
+    paymentList as unknown as MoneyPayment[],
+  );
+  const totalCollected = moneyFigures.collected;
+  const totalExpected = moneyFigures.expected;
+  const totalOutstanding = moneyFigures.outstanding;
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  // Pending (member-submitted, awaiting admin confirm/reject) — shown SEPARATELY
+  // from collected so the headline never folds unconfirmed money into revenue.
+  const pendingMoney = moneyFigures.pending;
 
-  // Report 3: Contribution Ledger - all payments (no limit for exports, show 50 on screen)
-  const ledgerPayments = paymentList;
+  // Report 3: Contribution Ledger - all payments (no limit for exports, show 50 on
+  // screen). Rejected payments are NOT real money and are excluded entirely;
+  // pending_confirmation rows are kept but clearly badged as pending (not
+  // collected). Confirmed per-obligation amounts come from money.ts, never the
+  // polluted contribution_obligations.amount_paid column.
+  const ledgerPayments = paymentList.filter(
+    (p: Record<string, unknown>) => !isRejectedPayment(p.status as string | null | undefined),
+  );
 
   // Report 4: AR Aging — PRD spec buckets 30/60/90/120+.
   // Pre-due balances (due_date in the future) are NOT aged receivables,
@@ -678,9 +722,15 @@ export default function ReportDetailPage() {
       data = [{ Collected: totalCollected, Expected: totalExpected, CollectionRate: `${collectionRate}%` }];
       filename = "financial_summary";
     } else if (reportId === "3") {
+      // Rejected payments are already filtered out of ledgerPayments. A Status
+      // column distinguishes confirmed (collected) from pending_confirmation
+      // (not collected) rows so the spreadsheet never reads pending as revenue.
       data = ledgerPayments.map((r: Record<string, unknown>) => {
         const membership = r.membership as Record<string, unknown>;
-        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method };
+        const status = isPendingPayment(r.status as string | null | undefined)
+          ? t("contributions.pendingConfirmation")
+          : t("contributions.confirmed");
+        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method, Status: status };
       });
       filename = "contribution_ledger";
     } else if (reportId === "4") {
@@ -807,9 +857,14 @@ export default function ReportDetailPage() {
       data = [{ Collected: totalCollected, Expected: totalExpected, CollectionRate: `${collectionRate}%` }];
       filename = "financial_summary";
     } else if (reportId === "3") {
+      // Rejected already excluded; Status marks pending vs confirmed so the
+      // PDF ledger does not present pending submissions as collected money.
       data = ledgerPayments.map((r: Record<string, unknown>) => {
         const membership = r.membership as Record<string, unknown>;
-        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method };
+        const status = isPendingPayment(r.status as string | null | undefined)
+          ? t("contributions.pendingConfirmation")
+          : t("contributions.confirmed");
+        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method, Status: status };
       });
       filename = "contribution_ledger";
     } else if (reportId === "4") {
@@ -1028,7 +1083,8 @@ export default function ReportDetailPage() {
     goodStandingPct: memberList.length > 0 ? Math.round((memberList.filter((m: Record<string, unknown>) => (m.standing as string) === "good").length / memberList.length) * 100) : 0,
     totalCollected,
     totalExpected,
-    totalOutstanding: totalExpected - totalCollected,
+    // Confirmed-only outstanding from money.ts (already clamped to ≥ 0).
+    totalOutstanding,
     collectionRate,
     totalEvents: eventList.length,
     avgAttendanceRate: attendanceSummary.length > 0 ? Math.round(attendanceSummary.reduce((s, e) => s + e.rate, 0) / attendanceSummary.length) : 0,
@@ -1394,6 +1450,14 @@ export default function ReportDetailPage() {
               <p className="text-xs text-muted-foreground">{t("reports.collectionRate")}</p>
             </CardContent></Card>
           </div>
+          {/* Pending (member-submitted) money shown SEPARATELY — never folded
+              into collected. Hidden when there is none. */}
+          {pendingMoney.amount > 0 && (
+            <Card><CardContent className="pt-6 text-center">
+              <p className="text-2xl font-bold text-amber-600">{formatAmount(pendingMoney.amount, currency)}</p>
+              <p className="text-xs text-muted-foreground">{t("reports.pendingConfirmationTotal", { count: pendingMoney.count })}</p>
+            </CardContent></Card>
+          )}
         </div>
       )}
 
@@ -1416,14 +1480,26 @@ export default function ReportDetailPage() {
                   const method = (row.payment_method as string) || "";
                   const ref = (row.reference_number as string) || "";
                   const date = row.recorded_at ? fd(row.recorded_at as string) : "";
+                  // Rejected rows are already filtered out of ledgerPayments.
+                  // Pending (member-submitted, awaiting confirm) rows are NOT
+                  // collected money — badge them and dim the amount so the
+                  // ledger never reads a pending submission as confirmed revenue.
+                  const isPending = isPendingPayment(row.status as string | null | undefined);
                   return (
                     <div key={row.id as string || i} className="flex flex-col gap-1 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{memberName}</p>
                         <p className="text-xs text-muted-foreground">{date} · {typeName} · {method} {ref ? `· ${ref}` : ""}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-sm text-primary">+{formatAmount(Number(row.amount || 0), currency)}</p>
+                      <div className="flex items-center justify-end gap-2 text-right">
+                        {isPending && (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                            {t("contributions.pendingConfirmation")}
+                          </Badge>
+                        )}
+                        <p className={`font-semibold text-sm ${isPending ? "text-muted-foreground" : "text-primary"}`}>
+                          {isPending ? "" : "+"}{formatAmount(num(row.amount), currency)}
+                        </p>
                       </div>
                     </div>
                   );

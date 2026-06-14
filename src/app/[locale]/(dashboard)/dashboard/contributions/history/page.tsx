@@ -51,6 +51,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
+import { exportCSV } from "@/lib/export";
+import { isConfirmedPayment, isPendingPayment, isRejectedPayment, num } from "@/lib/money";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -268,25 +270,41 @@ export default function PaymentHistoryPage() {
   const paginated = sortedPayments.slice((page - 1) * perPage, page * perPage);
   const totalAmount = sortedPayments.reduce((sum, p) => sum + p.amount, 0);
 
+  // Localized status label so pending/rejected rows in the CSV are never
+  // silently read as collected. Mirrors money.ts's confirmed/pending/rejected
+  // classification (the column default is confirmed → null/legacy = confirmed).
+  function getStatusLabel(status: string): string {
+    if (isPendingPayment(status)) return t("contributions.pendingConfirmation");
+    if (isRejectedPayment(status)) return t("contributions.rejected");
+    return t("contributions.confirmed");
+  }
+
   function handleExportCSV() {
-    const headers = [t("contributions.csvDate"), t("contributions.csvMember"), t("contributions.csvType"), t("contributions.csvAmount"), t("contributions.csvCurrency"), t("contributions.csvMethod"), t("contributions.csvReference")];
-    const rows = filtered.map((p) => [
-      formatDateWithGroupFormat(p.recordedAt, groupDateFormat, locale),
-      p.memberName,
-      p.contributionTypeName,
-      p.amount.toString(),
-      p.currency,
-      methodLabels[p.paymentMethod] || p.paymentMethod,
-      p.referenceNumber || "",
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `payments-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Export the currently-filtered rows via the shared exportCSV() helper,
+    // which escapes commas/quotes/newlines and adds an Excel BOM. Keys are the
+    // English column names; headerLabels carries the localized header row.
+    const rows = filtered.map((p) => ({
+      Date: formatDateWithGroupFormat(p.recordedAt, groupDateFormat, locale),
+      Member: p.memberName,
+      Type: p.contributionTypeName,
+      Amount: num(p.amount).toString(),
+      Currency: p.currency,
+      Method: methodLabels[p.paymentMethod] || p.paymentMethod,
+      Reference: p.referenceNumber || "",
+      Status: getStatusLabel(p.status),
+    }));
+    exportCSV(rows, "payments", {
+      headerLabels: {
+        Date: t("contributions.csvDate"),
+        Member: t("contributions.csvMember"),
+        Type: t("contributions.csvType"),
+        Amount: t("contributions.csvAmount"),
+        Currency: t("contributions.csvCurrency"),
+        Method: t("contributions.csvMethod"),
+        Reference: t("contributions.csvReference"),
+        Status: t("contributions.csvStatus"),
+      },
+    });
   }
 
   async function handleConfirmPayment(payment: typeof normalizedPayments[0]) {
@@ -406,10 +424,11 @@ export default function PaymentHistoryPage() {
       destructive: true,
     });
     if (!ok) return;
-    await handleRejectPayment(payment.id);
+    await handleRejectPayment(payment);
   }
 
-  async function handleRejectPayment(paymentId: string) {
+  async function handleRejectPayment(payment: typeof normalizedPayments[0]) {
+    const paymentId = payment.id;
     setRejectingId(paymentId);
     try {
       const supabase = createClient();
@@ -418,8 +437,49 @@ export default function PaymentHistoryPage() {
         .update({ status: "rejected" })
         .eq("id", paymentId);
       if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["member-payments"] });
+
+      // Self-heal the linked obligation. A pending pay-now over-credits
+      // amount_paid via a DB trigger that never reverses on reject, so unless
+      // we recompute here the obligation stays permanently over-credited.
+      // Mirror handleConfirmPayment: recompute amount_paid = Σ CONFIRMED
+      // payments for this obligation and re-derive its status. (We use
+      // money.ts's isConfirmedPayment over a status-bearing fetch so legacy
+      // null/'' rows still count as confirmed, matching the column default.)
+      if (payment.obligationId) {
+        const { data: allPayments } = await supabase
+          .from("payments")
+          .select("amount, status")
+          .eq("obligation_id", payment.obligationId);
+
+        if (allPayments) {
+          const totalPaid = allPayments
+            .filter((p) => isConfirmedPayment(p.status as string | null))
+            .reduce((s, p) => s + num(p.amount), 0);
+          const { data: obl } = await supabase
+            .from("contribution_obligations")
+            .select("amount")
+            .eq("id", payment.obligationId)
+            .single();
+          if (obl) {
+            const newStatus = totalPaid >= num(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
+            await supabase
+              .from("contribution_obligations")
+              .update({ amount_paid: totalPaid, status: newStatus })
+              .eq("id", payment.obligationId);
+          }
+        }
+      }
+
+      // Recalculate standing for the affected member — a reversed credit can
+      // flip a member back into arrears.
+      if (payment.membershipId && groupId) {
+        try {
+          const { calculateStanding } = await import("@/lib/calculate-standing");
+          await calculateStanding(payment.membershipId, groupId, { updateDb: true, currency });
+        } catch { /* non-critical */ }
+      }
+
+      invalidateFinancialCaches(payment.membershipId);
     } catch (err) {
       console.warn("Reject payment failed:", (err as Error).message);
       setActionError(t("contributions.rejectFailed"));

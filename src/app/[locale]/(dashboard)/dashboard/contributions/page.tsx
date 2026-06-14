@@ -29,7 +29,9 @@ import {
   Loader2,
   Users,
   HelpCircle,
+  BarChart3,
 } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -692,6 +694,13 @@ export default function ContributionsPage() {
                       ? `${t("contributions.dueDay")} ${type.due_day}`
                       : t("contributions.noDueDate")}
                   </span>
+                  <Link
+                    href={`/dashboard/contributions/${type.id}/report`}
+                    className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                  >
+                    <BarChart3 className="h-3 w-3" />
+                    {t("contributions.report.viewReport")}
+                  </Link>
                 </div>
               </CardContent>
             </Card>

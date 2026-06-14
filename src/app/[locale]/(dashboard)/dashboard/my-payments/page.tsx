@@ -20,6 +20,17 @@ import {
 } from "@/components/ui/page-skeleton";
 import { useGroup } from "@/lib/group-context";
 import { useObligations, usePayments } from "@/lib/hooks/use-supabase-query";
+import {
+  allocateConfirmedToObligations,
+  confirmedPaidByMember,
+  computeObligation,
+  isPendingPayment,
+  isConfirmedPayment,
+  todayKey,
+  num,
+  type MoneyPayment,
+  type MoneyObligation,
+} from "@/lib/money";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { PayNowDialog } from "@/components/payments/pay-now-dialog";
@@ -126,17 +137,6 @@ export default function MyPaymentsPage() {
     refetch: refetchPayments,
   } = usePayments();
 
-  // Filter outstanding obligations (pending/partial/overdue — exclude paid/waived)
-  const outstanding = useMemo(() => {
-    if (!obligations) return [];
-    return obligations.filter((o: Record<string, unknown>) => {
-      const status = o.status as string;
-      if (status === "paid" || status === "waived") return false;
-      const remaining = Number(o.amount) - Number(o.amount_paid || 0);
-      return remaining > 0;
-    });
-  }, [obligations]);
-
   // Filter payments for current membership
   const myPayments = useMemo(() => {
     if (!allPayments || !currentMembership) return [];
@@ -148,42 +148,99 @@ export default function MyPaymentsPage() {
     );
   }, [allPayments, currentMembership]);
 
+  // The member's COMPLETE dues-payment ledger (membership-scoped, uncapped).
+  // usePayments() above is a capped group feed (latest 50) used only for the
+  // recent-history display; the balance math must see ALL of this member's
+  // confirmed payments or it would over-state what they still owe.
+  const { data: myPaymentsFull } = useQuery({
+    queryKey: ["my-payments-full", currentMembership?.id],
+    enabled: !!currentMembership?.id,
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("payments")
+        .select("id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
+        .eq("membership_id", currentMembership!.id)
+        .is("relief_plan_id", null)
+        .order("recorded_at", { ascending: false });
+      if (error) {
+        console.warn("[MyPayments] full ledger query failed:", error.message);
+        return [];
+      }
+      return data || [];
+    },
+  });
+
+  // Confirmed-paid map keyed by obligation_id. Most dues payments carry no
+  // obligation_id, so we take the member's confirmed TOTAL (from the COMPLETE
+  // ledger above) and allocate it across their obligations oldest-first — never
+  // the polluted amount_paid column, and never obligation-keyed sums that would
+  // miss obligation-less payments and show a paid-up member as owing everything.
+  const confirmedByObl = useMemo(
+    () =>
+      allocateConfirmedToObligations(
+        (obligations || []) as unknown as MoneyObligation[],
+        confirmedPaidByMember((myPaymentsFull || []) as unknown as MoneyPayment[]),
+      ),
+    [obligations, myPaymentsFull]
+  );
+
+  const today = todayKey();
+
+  // Outstanding obligations on the confirmed basis: not waived, not fully
+  // covered by confirmed payments, with confirmed remaining > 0.
+  const outstanding = useMemo(() => {
+    if (!obligations) return [];
+    return obligations.filter((o: Record<string, unknown>) => {
+      const c = computeObligation(o as unknown as MoneyObligation, confirmedByObl, today);
+      return c.isOpen;
+    });
+  }, [obligations, confirmedByObl, today]);
+
+  // Waived (excused) obligations — not owed, not collected, shown for clarity.
+  const waivedObligations = useMemo(() => {
+    if (!obligations) return [];
+    return obligations.filter(
+      (o: Record<string, unknown>) => (o.status as string) === "waived"
+    );
+  }, [obligations]);
+
   // "Paid This Year" must count CONFIRMED money only. Member-submitted
   // payments awaiting review (pending_confirmation) and rejected ones are
   // NOT yet credited — including them inflates the figure.
   const totalPaidThisYear = useMemo(() => {
     const year = new Date().getFullYear().toString();
-    return myPayments
+    return (myPaymentsFull || [])
       .filter((p: Record<string, unknown>) => {
-        const status = (p.status as string) || "confirmed";
-        if (status === "pending_confirmation" || status === "rejected") return false;
+        if (!isConfirmedPayment(p.status as string)) return false;
         return (p.recorded_at as string)?.startsWith(year);
       })
-      .reduce((sum: number, p: Record<string, unknown>) => sum + Number(p.amount), 0);
-  }, [myPayments]);
+      .reduce((sum: number, p: Record<string, unknown>) => sum + num(p.amount), 0);
+  }, [myPaymentsFull]);
 
   // Member-submitted payments still awaiting confirmation. This money is NOT
   // yet credited to the balance, so it is surfaced separately (never folded
-  // into "Paid This Year" or used to reduce what is owed).
+  // into "Paid This Year" or used to reduce what is owed). From the COMPLETE
+  // ledger so nothing is missed beyond the capped recent-history feed.
   const pendingConfirmation = useMemo(() => {
-    const rows = myPayments.filter(
-      (p: Record<string, unknown>) =>
-        ((p.status as string) || "confirmed") === "pending_confirmation"
+    const rows = (myPaymentsFull || []).filter((p: Record<string, unknown>) =>
+      isPendingPayment(p.status as string)
     );
     const total = rows.reduce(
-      (sum: number, p: Record<string, unknown>) => sum + Number(p.amount),
+      (sum: number, p: Record<string, unknown>) => sum + num(p.amount),
       0
     );
     return { count: rows.length, total };
-  }, [myPayments]);
+  }, [myPaymentsFull]);
 
+  // Total owed = Σ confirmed-basis remaining across open obligations. Derives
+  // from confirmed payments via money.ts, NOT the polluted amount_paid column.
   const totalOutstanding = useMemo(() => {
-    return outstanding.reduce(
-      (sum: number, o: Record<string, unknown>) =>
-        sum + (Number(o.amount) - Number(o.amount_paid || 0)),
-      0
-    );
-  }, [outstanding]);
+    return outstanding.reduce((sum: number, o: Record<string, unknown>) => {
+      const c = computeObligation(o as unknown as MoneyObligation, confirmedByObl, today);
+      return sum + c.remaining;
+    }, 0);
+  }, [outstanding, confirmedByObl, today]);
 
   // Whether the member has ANY obligations at all — distinguishes
   // "all caught up" (has dues, all settled) from "no dues set up yet".
@@ -215,6 +272,65 @@ export default function MyPaymentsPage() {
       return name.toLowerCase().includes(q) || dueDate.includes(q);
     });
   }, [outstanding, search]);
+
+  // Group the outstanding statement by contribution type (object), so it reads
+  // as a true per-object statement: "Baby Shower: paid X of Y". Each group
+  // carries a confirmed-basis subtotal (expected / confirmed paid / remaining).
+  type OutstandingGroup = {
+    key: string;
+    name: string;
+    items: Record<string, unknown>[];
+    expected: number;
+    confirmedPaid: number;
+    remaining: number;
+  };
+  const outstandingGroups = useMemo<OutstandingGroup[]>(() => {
+    const map = new Map<string, OutstandingGroup>();
+    for (const o of filteredOutstanding) {
+      const ct = o.contribution_type as Record<string, unknown> | null;
+      const name = (ct?.name as string) || "";
+      const key = ((ct?.id as string) || name || (o.id as string)) as string;
+      const c = computeObligation(o as unknown as MoneyObligation, confirmedByObl, today);
+      let g = map.get(key);
+      if (!g) {
+        g = { key, name, items: [], expected: 0, confirmedPaid: 0, remaining: 0 };
+        map.set(key, g);
+      }
+      g.items.push(o);
+      g.expected += c.expected;
+      g.confirmedPaid += c.confirmedPaid;
+      g.remaining += c.remaining;
+    }
+    // Sort each group's items by soonest due date, and groups by name.
+    const groups = Array.from(map.values());
+    for (const g of groups) {
+      g.items.sort((a, b) => {
+        const da = (a.due_date as string) || "";
+        const db = (b.due_date as string) || "";
+        if (!da) return 1;
+        if (!db) return -1;
+        return da < db ? -1 : da > db ? 1 : 0;
+      });
+    }
+    groups.sort((a, b) => a.name.localeCompare(b.name));
+    return groups;
+  }, [filteredOutstanding, confirmedByObl, today]);
+
+  // Waived statement rows (excused) — confirmed-basis expected per object.
+  const waivedRows = useMemo(() => {
+    return waivedObligations.map((o: Record<string, unknown>) => {
+      const ct = o.contribution_type as Record<string, unknown> | null;
+      return {
+        id: o.id as string,
+        name: (ct?.name as string) || "",
+        amount: num(o.amount),
+      };
+    });
+  }, [waivedObligations]);
+  const waivedTotal = useMemo(
+    () => waivedRows.reduce((sum, r) => sum + r.amount, 0),
+    [waivedRows]
+  );
 
   const filteredHistory = useMemo(() => {
     if (!search) return myPayments;
@@ -289,12 +405,12 @@ export default function MyPaymentsPage() {
     return t("dueInDays", { days });
   }
 
-  // Per-obligation status label shown alongside the urgency badge.
-  function obligationStatusLabel(item: Record<string, unknown>): string {
-    const amountPaid = Number(item.amount_paid || 0);
-    const dueDate = (item.due_date as string) || "";
+  // Per-obligation status label shown alongside the urgency badge. The
+  // "partially paid" determination uses CONFIRMED money only (confirmedPaid),
+  // never the polluted amount_paid column.
+  function obligationStatusLabel(confirmedPaid: number, dueDate: string): string {
     const overdue = dueDate ? getDaysUntilDue(dueDate) < 0 : false;
-    if (amountPaid > 0) return t("partiallyPaid");
+    if (confirmedPaid > 0) return t("partiallyPaid");
     if (overdue) return t("statusOverdue");
     return t("statusDueNow");
   }
@@ -560,86 +676,146 @@ export default function MyPaymentsPage() {
               </CardContent>
             </Card>
           ) : (
-            filteredOutstanding.map((item: Record<string, unknown>) => {
-              const ct = item.contribution_type as Record<string, unknown> | null;
-              const name = (ct?.name as string) || "";
-              const dueDate = (item.due_date as string) || "";
-              const total = Number(item.amount);
-              const amountPaid = Number(item.amount_paid || 0);
-              const remaining = total - amountPaid;
-              const isPartial = amountPaid > 0;
-              // Clamp progress to [0,100] — amount_paid can be over-credited
-              // by submissions still awaiting confirmation.
-              const progressPct =
-                total > 0
-                  ? Math.min(100, Math.max(0, Math.round((amountPaid / total) * 100)))
-                  : 0;
-              const statusLabel = obligationStatusLabel(item);
-              return (
-                <Card
-                  key={item.id as string}
-                  className={`border transition-colors ${getUrgencyColor(dueDate)}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <p className="font-semibold truncate">{name}</p>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1">
-                            <CalendarDays className="h-3 w-3" />
-                            {t("dueDate")}: {dueDate ? formatDateWithGroupFormat(dueDate, groupDateFormat, locale) : ""}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <span className="inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-0.5 text-[11px] font-medium">
-                            {statusLabel}
-                          </span>
-                          {renderUrgencyBadge(dueDate)}
-                        </div>
-                        {isPartial && (
-                          <div className="space-y-1 pt-2">
-                            <p className="text-xs text-muted-foreground">
-                              {t("partiallyPaidProgress", {
-                                paid: formatAmount(amountPaid, currency),
-                                total: formatAmount(total, currency),
-                              })}
-                            </p>
-                            <div
-                              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-                              role="progressbar"
-                              aria-valuenow={progressPct}
-                              aria-valuemin={0}
-                              aria-valuemax={100}
-                              aria-label={t("partiallyPaid")}
-                            >
-                              <div
-                                className="h-full rounded-full bg-emerald-500 transition-all"
-                                style={{ width: `${progressPct}%` }}
-                              />
+            // Per-object statement: one section per contribution type, each with
+            // a confirmed-basis subtotal ("paid X of Y") above its obligations.
+            outstandingGroups.map((group) => (
+              <div key={group.key} className="space-y-2">
+                {/* Object subtotal header — "Baby Shower: paid X of Y" */}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <p className="font-semibold">{group.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("objectSubtotal", {
+                      paid: formatAmount(group.confirmedPaid, currency),
+                      total: formatAmount(group.expected, currency),
+                    })}
+                    {" · "}
+                    <span className="font-medium text-foreground">
+                      {t("objectRemaining", {
+                        amount: formatAmount(group.remaining, currency),
+                      })}
+                    </span>
+                  </p>
+                </div>
+
+                {group.items.map((item: Record<string, unknown>) => {
+                  const dueDate = (item.due_date as string) || "";
+                  // Confirmed basis: paid + remaining derive from this member's
+                  // CONFIRMED payments via money.ts, NOT amount_paid.
+                  const c = computeObligation(
+                    item as unknown as MoneyObligation,
+                    confirmedByObl,
+                    today,
+                  );
+                  const total = c.expected;
+                  const confirmedPaid = c.confirmedPaid;
+                  const remaining = c.remaining;
+                  const isPartial = confirmedPaid > 0;
+                  const progressPct =
+                    total > 0
+                      ? Math.min(100, Math.max(0, Math.round((confirmedPaid / total) * 100)))
+                      : 0;
+                  const statusLabel = obligationStatusLabel(confirmedPaid, dueDate);
+                  return (
+                    <Card
+                      key={item.id as string}
+                      className={`border transition-colors ${getUrgencyColor(dueDate)}`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="inline-flex items-center gap-1">
+                                <CalendarDays className="h-3 w-3" />
+                                {t("dueDate")}: {dueDate ? formatDateWithGroupFormat(dueDate, groupDateFormat, locale) : ""}
+                              </span>
                             </div>
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              <span className="inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-0.5 text-[11px] font-medium">
+                                {statusLabel}
+                              </span>
+                              {renderUrgencyBadge(dueDate)}
+                            </div>
+                            {isPartial && (
+                              <div className="space-y-1 pt-2">
+                                <p className="text-xs text-muted-foreground">
+                                  {t("partiallyPaidProgress", {
+                                    paid: formatAmount(confirmedPaid, currency),
+                                    total: formatAmount(total, currency),
+                                  })}
+                                </p>
+                                <div
+                                  className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                                  role="progressbar"
+                                  aria-valuenow={progressPct}
+                                  aria-valuemin={0}
+                                  aria-valuemax={100}
+                                  aria-label={t("partiallyPaid")}
+                                >
+                                  <div
+                                    className="h-full rounded-full bg-emerald-500 transition-all"
+                                    style={{ width: `${progressPct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0 space-y-2">
-                        <p className="text-xl font-bold">
-                          {formatAmount(remaining, currency)}
-                        </p>
-                        {hasSelfServiceMethods && (
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs gap-1"
-                            onClick={() => setPayNowObligation(item)}
-                          >
-                            <Wallet className="h-3 w-3" />
-                            {t("payNow")}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
+                          <div className="text-right shrink-0 space-y-2">
+                            <p className="text-xl font-bold">
+                              {formatAmount(remaining, currency)}
+                            </p>
+                            {hasSelfServiceMethods && (
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => setPayNowObligation(item)}
+                              >
+                                <Wallet className="h-3 w-3" />
+                                {t("payNow")}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ))
+          )}
+
+          {/* Waived / excused section — not owed, not collected */}
+          {waivedRows.length > 0 && (
+            <div className="rounded-md border border-border bg-muted/30 px-4 py-3">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Info className="h-3.5 w-3.5" />
+                {t("waivedTitle")}
+              </p>
+              <ul className="space-y-1.5">
+                {waivedRows.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate">{r.name}</span>
+                    <span className="inline-flex shrink-0 items-center gap-2">
+                      <span className="text-muted-foreground line-through">
+                        {formatAmount(r.amount, currency)}
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-0.5 text-[11px] font-medium">
+                        {t("excused")}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {waivedRows.length > 1 && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {t("waivedTotalNote", {
+                    amount: formatAmount(waivedTotal, currency),
+                  })}
+                </p>
+              )}
+            </div>
           )}
 
           {/* Status legend — keeps the labels self-explanatory */}
@@ -806,7 +982,9 @@ export default function MyPaymentsPage() {
           obligation={{
             id: payNowObligation.id as string,
             amount: Number(payNowObligation.amount),
-            amount_paid: Number(payNowObligation.amount_paid || 0),
+            // Confirmed-basis paid (not the polluted amount_paid column) so the
+            // dialog's prefilled "amount due" matches the corrected statement.
+            amount_paid: confirmedByObl.get(payNowObligation.id as string) || 0,
             currency,
             contribution_type_id: (payNowObligation.contribution_type as Record<string, unknown>)?.id as string || "",
             contribution_type: payNowObligation.contribution_type as { name?: string; name_fr?: string } | undefined,

@@ -124,3 +124,71 @@ per-`(announcementId, userId, channel)` dispatch log written to the existing
 the same change**. Compliant US WhatsApp delivery additionally requires a
 Manager-verified UTILITY template per operational notice type (class 1) — never
 remap the generic `villageclaq_announcement_v2` (MARKETING / not US-safe).
+
+## Build 8 — Producerization prepared, NOT cutover (2026-06-14)
+
+Build 7 made the **UI** honest. Build 8 builds the **backend capability** to prove
+per-recipient announcement delivery state — but ships it **DORMANT**: the
+artifacts are written and unit-tested, and **nothing is live-wired**. No
+migration is applied, no dispatch path is changed, no cron/allowlist change, no
+sends. The live system behaves exactly as after Build 7.
+
+**Dormant artifacts (not imported by any route/cron/component):**
+- `src/lib/announcement-producer.ts` — `produceAnnouncementDeliveries()`:
+  per-recipient × per-channel `announcement_deliveries` rows + `notifications_queue`
+  work rows for enabled external channels. In-app → terminal `in_app_published`
+  (no queue row). Idempotent via the `(announcement_id, membership_id, channel)`
+  unique index (00106) + `23505` handling. Honest skip/block states
+  (`skipped_channel_disabled`, `skipped_no_recipient`, `unavailable`,
+  `blocked_by_policy`) recorded but never enqueued. Group-scoped; proxies + banned
+  excluded; phones masked in logs.
+- `src/lib/announcement-delivery-status-mapping.ts` — `mapWhatsAppStatusToDeliveryStatus()`:
+  `131049 → blocked_by_policy`, `sent → sent_to_provider` (NOT delivered),
+  `delivered/read/failed` straight through, unknown → `unavailable`.
+- `src/lib/announcement-delivery-rollup.ts` — `getAnnouncementDeliveryRollup()`:
+  evidence-backed per-channel counts (the future history-UI source). COUNTS ONLY;
+  no provider id / phone / identity ever returned.
+
+**Migrations (both create-not-apply):** `00106` (unique index + `updated_at`) is
+the foundation; it is **insufficient** alone — the live `delivery_status` enum is
+`(pending,sent,delivered,read,failed)` and the table lacks `group_id`/`queued_at`/
+`failed_at`/`failure_reason`/`provider_message_id`. **`00107_announcement_delivery_states.sql`**
+adds the new enum values (`queued, sent_to_provider, in_app_published,
+blocked_by_policy, unavailable, skipped_no_recipient, skipped_channel_disabled`)
+and those columns. Neither is applied by Build 8.
+
+**Honest status grounding (what each requires):** `in_app_published` = in-app row
+inserted (DB proof); `queued` = work row exists (NOT sent); `sent_to_provider` =
+drain got a provider id (acceptance, NOT delivery); `delivered`/`read` = provider
+webhook; `failed` = provider/queue failure; `blocked_by_policy` = Meta 131049;
+`unavailable`/`skipped_*` = producer-time classification. **`sent` is never
+`delivered`; `delivered`/`failed` require provider/webhook evidence.**
+
+### Cutover checklist (BINDING — a FUTURE PR, all together, in order)
+
+1. Apply **00106 then 00107** (00106 first for the unique index; 00107 second so
+   enum values are committed before any insert uses them — see the `ALTER TYPE
+   ADD VALUE` caveat in the 00107 header).
+2. Live-wire `produceAnnouncementDeliveries` into **both** the composer send and
+   the `send-scheduled-announcements` cron (replace fire-and-forget / direct
+   dispatch with producer enqueue).
+3. Extend the drain (`drain-notification-queue`) to flip the matching
+   `announcement_deliveries` row to `sent_to_provider` + set `provider_message_id`.
+   NOTE: the producer's external queue rows carry `data.whatsappType:"announcement"`;
+   the drain branches on `whatsappType` first, so it needs a matching
+   `"announcement"` handler in the SAME wiring PR or those rows mis-route. Also
+   batch the producer's per-(recipient×channel) existence check before enabling
+   it for large groups (the dormant version does one select-before-insert per
+   row — fine for review, an N+1 at scale).
+4. Extend the webhook (`whatsapp-webhook-status :: persistWhatsAppStatusEvent`) to
+   also UPDATE `announcement_deliveries` by `provider_message_id` via
+   `mapWhatsAppStatusToDeliveryStatus`.
+5. Remove `send-scheduled-announcements` from the audit's `cronDirectDispatchAllowlist`
+   AND add a "producer is invoked" audit check — same commit (the audit enforces
+   allowlisted-direct-dispatch OR producer-backed, never neither).
+6. Swap the history UI to `getAnnouncementDeliveryRollup` (evidence-backed counts);
+   keep the Build-7 honest labels until then.
+7. (Optional) backfill + tighten `announcement_deliveries.group_id` to NOT NULL.
+
+Email/SMS have no provider delivery webhook today, so their rows terminate at
+`sent_to_provider` (`deliveryConfirmable:false`) — documented, not built.

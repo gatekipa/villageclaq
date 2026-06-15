@@ -19,7 +19,8 @@ import {
 import { ContributionsSubNav } from "@/components/contributions/sub-nav";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGroup } from "@/lib/group-context";
-import { useContributionTypes } from "@/lib/hooks/use-supabase-query";
+import { useContributionTypes, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
+import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
 import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -103,6 +104,9 @@ export default function DuesMatrixPage() {
 
   const { data: contributionTypes } = useContributionTypes();
   const { data: matrixData, isLoading, isError, refetch } = useMatrixData(selectedTypeId);
+  // Confirmed-payment basis (Build 12) — cell paid/partial/unpaid is derived from
+  // CONFIRMED payments, never the polluted obligation.amount_paid / status.
+  const { data: duesPayments } = useGroupDuesPayments();
 
   // Auto-select first contribution type when loaded
   const activeTypeId = selectedTypeId || (contributionTypes && contributionTypes.length > 0 ? contributionTypes[0].id : null);
@@ -154,40 +158,49 @@ export default function DuesMatrixPage() {
       }
     }
 
-    // Fill in obligation data
+    // Confirmed-only per-obligation state (Build 12): paid/partial/unpaid is
+    // derived from CONFIRMED payments allocated oldest-due-first within each
+    // contribution type — NEVER obligation.amount_paid / status (both polluted by
+    // the over-credit trigger on pending pay-now, never reversed on reject). Only
+    // `waived` (admin-set) is still read from status.
+    const states = computeObligationStates(
+      obligations as unknown as MoneyObligation[],
+      (duesPayments || []) as unknown as MoneyPayment[],
+    );
+
+    // Accumulate per member×period on the confirmed basis, then color cells.
+    type PeriodAcc = { paid: number; due: number; hasWaived: boolean; hasNonWaived: boolean };
+    const acc = new Map<string, Map<string, PeriodAcc>>();
     for (const obl of obligations) {
       const key = view === "yearly" ? obl.due_date?.slice(0, 4) : obl.due_date?.slice(0, 7);
       if (!key) continue;
-      const row = memberMap.get(obl.membership_id);
-      if (!row) continue;
+      if (!memberMap.has(obl.membership_id)) continue;
+      const c = states.get(obl.id);
+      const isWaived = (obl.status as string) === "waived";
 
-      const amount = Number(obl.amount);
-      const paid = Number(obl.amount_paid);
-
-      // Accumulate if multiple obligations in the same period
-      if (!row.amounts[key]) {
-        row.amounts[key] = { paid: 0, total: 0 };
+      if (!acc.has(obl.membership_id)) acc.set(obl.membership_id, new Map());
+      const periodAcc = acc.get(obl.membership_id)!;
+      if (!periodAcc.has(key)) periodAcc.set(key, { paid: 0, due: 0, hasWaived: false, hasNonWaived: false });
+      const a = periodAcc.get(key)!;
+      if (isWaived) {
+        a.hasWaived = true;
+      } else {
+        a.hasNonWaived = true;
+        a.paid += c ? c.confirmedPaid : 0;
+        a.due += c ? c.expected : Number(obl.amount) || 0;
       }
-      row.amounts[key].paid += paid;
-      row.amounts[key].total += amount;
+    }
 
-      // Determine status
-      const status = obl.status as string;
-      if (status === "waived") {
-        row.cells[key] = "waived";
-      } else if (status === "paid") {
-        // Only set to paid if not already partial
-        if (row.cells[key] !== "partial" && row.cells[key] !== "unpaid") {
-          row.cells[key] = "paid";
-        }
-      } else if (status === "partial") {
-        row.cells[key] = "partial";
-      } else if (status === "pending" || status === "overdue") {
-        // If some amount was paid, it's partial; otherwise unpaid
-        if (paid > 0) {
-          row.cells[key] = "partial";
-        } else if (row.cells[key] !== "partial") {
-          row.cells[key] = "unpaid";
+    for (const [memberId, periodAcc] of acc) {
+      const row = memberMap.get(memberId);
+      if (!row) continue;
+      for (const [key, a] of periodAcc) {
+        if (a.hasNonWaived) {
+          row.amounts[key] = { paid: a.paid, total: a.due };
+          const remaining = a.due - a.paid;
+          row.cells[key] = remaining <= 0 ? "paid" : a.paid > 0 ? "partial" : "unpaid";
+        } else if (a.hasWaived) {
+          row.cells[key] = "waived";
         }
       }
     }
@@ -196,7 +209,7 @@ export default function DuesMatrixPage() {
       columns: cols,
       memberRows: Array.from(memberMap.values()),
     };
-  }, [matrixData, view, activeTypeId]);
+  }, [matrixData, view, activeTypeId, duesPayments]);
 
   // Format column labels
   const columnLabels = useMemo(() => {

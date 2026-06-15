@@ -225,6 +225,104 @@ export function computeObligation(
   return { id: o.id, expected, confirmedPaid, remaining, isWaived, isPaid, isOpen, isOverdue };
 }
 
+/**
+ * THE canonical confirmed-only per-obligation state map (Build 12). Every
+ * paid/unpaid/owing/overdue DISPLAY surface (unpaid list, dues matrix, member
+ * detail, standing, money overview, reports) must route through this instead of
+ * reading the polluted obligation.amount_paid / obligation.status columns.
+ *
+ * It partitions obligations + payments BY contribution type, then within each
+ * type attributes every member's CONFIRMED dues total across that member's
+ * obligations of that type (oldest-due first), and computes per-obligation state.
+ * Partitioning by type is essential: a confirmed payment to "Annual Dues" must
+ * NEVER cover a member's "Baby Shower" obligation. This mirrors buildObjectReport
+ * exactly, so a per-type slice of this map reconciles with that report's rows.
+ *
+ * Pass a CONSISTENT scope: whole-group (all dues obligations + all dues payments)
+ * OR a single type's obligations + payments — either is correct because the
+ * partition is internal. Pending/rejected payments never count; waived
+ * obligations are still computed (computeObligation marks isWaived) so callers
+ * can read state.isWaived rather than the (also-trigger-driven) status column.
+ * A confirmed payment with NO contribution_type_id (a general dues payment — the
+ * admin record path can emit one) is pooled per member and spread across that
+ * member's open obligations oldest-due first, so it reduces what the member owes
+ * and reconciles with computeMoneyFigures.collected instead of stranding.
+ */
+export function computeObligationStates(
+  obligations: MoneyObligation[],
+  payments: MoneyPayment[],
+  opts: { today?: string } = {},
+): Map<string, ObligationComputed> {
+  const today = opts.today || todayKey();
+
+  // Partition obligations by contribution type.
+  const oblByType = new Map<string, MoneyObligation[]>();
+  for (const o of obligations) {
+    const k = o.contribution_type_id || "__none__";
+    if (!oblByType.has(k)) oblByType.set(k, []);
+    oblByType.get(k)!.push(o);
+  }
+
+  // Partition CONFIRMED dues payments: TYPED payments cover only their type's
+  // obligations; TYPELESS payments (no contribution_type_id) go into a per-member
+  // pool that can cover ANY of the member's obligations (Phase 2 below).
+  const payByType = new Map<string, MoneyPayment[]>();
+  const typelessByMember = new Map<string, number>();
+  for (const p of payments) {
+    if (!isDuesPayment(p)) continue; // relief never covers dues
+    if (p.contribution_type_id) {
+      const k = p.contribution_type_id;
+      if (!payByType.has(k)) payByType.set(k, []);
+      payByType.get(k)!.push(p);
+    } else if (isConfirmedPayment(p.status) && p.membership_id) {
+      typelessByMember.set(p.membership_id, (typelessByMember.get(p.membership_id) || 0) + num(p.amount));
+    }
+  }
+
+  // Phase 1: allocate each type's confirmed payments to that type's obligations.
+  const allocated = new Map<string, number>();
+  for (const [typeKey, obls] of oblByType) {
+    const typePayments = payByType.get(typeKey) || [];
+    const a = allocateConfirmedToObligations(obls, confirmedPaidByMember(typePayments));
+    for (const [oid, v] of a) allocated.set(oid, v);
+  }
+
+  // Phase 2: spread each member's TYPELESS confirmed pool across their remaining
+  // open obligations (any type, oldest-due first, capped at each obligation's
+  // gap), so a general payment reduces what the member owes instead of stranding.
+  if (typelessByMember.size > 0) {
+    const oblByMember = new Map<string, MoneyObligation[]>();
+    for (const o of obligations) {
+      const mid = o.membership_id || o.id;
+      if (!oblByMember.has(mid)) oblByMember.set(mid, []);
+      oblByMember.get(mid)!.push(o);
+    }
+    for (const [mid, poolTotal] of typelessByMember) {
+      let pool = poolTotal;
+      if (pool <= 0) continue;
+      const sorted = (oblByMember.get(mid) || [])
+        .filter((o) => o.status !== "waived")
+        .sort((a, b) => {
+          const da = a.due_date ? dateKey(a.due_date) : "9999-12-31";
+          const db = b.due_date ? dateKey(b.due_date) : "9999-12-31";
+          return da < db ? -1 : da > db ? 1 : 0;
+        });
+      for (const o of sorted) {
+        const already = allocated.get(o.id) || 0;
+        const gap = Math.max(0, num(o.amount) - already);
+        const give = Math.max(0, Math.min(pool, gap));
+        if (give > 0) allocated.set(o.id, already + give);
+        pool -= give;
+        if (pool <= 0) break;
+      }
+    }
+  }
+
+  const out = new Map<string, ObligationComputed>();
+  for (const o of obligations) out.set(o.id, computeObligation(o, allocated, today));
+  return out;
+}
+
 export interface MoneyFigures {
   /** Σ obligation.amount, excluding waived. */
   expected: number;

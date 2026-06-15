@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
+import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 
 /** One reconciled payment row for the "Recent payments" list (confirmed only). */
 export interface RecentPaymentRow {
@@ -54,6 +55,7 @@ type ObligationRow = {
   status: string | null;
   due_date: string | null;
   membership_id: string | null;
+  contribution_type_id: string | null;
   membership: Record<string, unknown> | null;
   contribution_type: { id: string; name: string | null; name_fr?: string | null } | null;
 };
@@ -63,6 +65,8 @@ type PaymentRow = {
   amount: number | string | null;
   status: string | null;
   recorded_at: string | null;
+  contribution_type_id: string | null;
+  membership_id: string | null;
   membership: Record<string, unknown> | null;
   contribution_type: { id: string; name: string | null; name_fr?: string | null } | null;
 };
@@ -117,14 +121,14 @@ export function useMoneyOverview() {
         supabase
           .from("contribution_obligations")
           .select(
-            "id, amount, amount_paid, status, due_date, membership_id, contribution_type:contribution_types(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))"
+            "id, amount, amount_paid, status, due_date, membership_id, contribution_type_id, contribution_type:contribution_types(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))"
           )
           .eq("group_id", groupId)
           .order("due_date", { ascending: true }),
         supabase
           .from("payments")
           .select(
-            "id, amount, status, recorded_at, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)"
+            "id, amount, status, recorded_at, contribution_type_id, membership_id, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)"
           )
           .eq("group_id", groupId)
           .is("relief_plan_id", null)
@@ -157,32 +161,41 @@ export function useMoneyOverview() {
       const owingMembers = new Set<string>();
       const nextDueCandidates: NextDueRow[] = [];
 
+      // Build 12: open/overdue/owing/remaining are derived from CONFIRMED payments
+      // (computeObligationStates allocates each member's confirmed dues total across
+      // their obligations oldest-due-first, per contribution type), NEVER the
+      // polluted obligation.amount_paid / status. `waived` stays read from status
+      // (admin-set). Collected (below) was already confirmed-only.
+      const obligationStates = computeObligationStates(
+        obligations as unknown as MoneyObligation[],
+        payments as unknown as MoneyPayment[],
+        { today: todayKey },
+      );
+
       for (const o of obligations) {
-        const status = o.status || "pending";
-        if (status === "waived") continue;
+        if ((o.status || "") === "waived") continue;
 
         const amount = Number(o.amount) || 0;
         totalExpected += amount;
 
-        const paid = Number(o.amount_paid) || 0;
-        const remaining = amount - paid;
-        const isOpen = status !== "paid" && remaining > 0;
+        const c = obligationStates.get(o.id);
+        const remaining = c ? c.remaining : amount;
+        const isOpen = c ? c.isOpen : remaining > 0;
         const memberKey = o.membership_id || o.id;
 
         if (isOpen) {
           owingMembers.add(memberKey);
         }
 
-        // Derived overdue: past due, not paid/waived, money still remaining.
-        // Date-only string compare ("2026-06-13" < todayKey) avoids the
-        // timezone boundary that would flag a today-due item as overdue.
+        // Derived overdue: past due, confirmed remaining > 0 (computeObligation
+        // uses the same date-only string compare to avoid the tz boundary).
         const dueKey = o.due_date ? String(o.due_date).slice(0, 10) : null;
-        if (isOpen && dueKey && dueKey < todayKey) {
+        if (c?.isOverdue) {
           overdueAmount += remaining;
           overdueMembers.add(memberKey);
         }
 
-        // Next-due candidates: upcoming unpaid obligations (due today or later).
+        // Next-due candidates: upcoming still-open obligations (due today or later).
         if (isOpen && dueKey && dueKey >= todayKey) {
           nextDueCandidates.push({
             id: o.id,

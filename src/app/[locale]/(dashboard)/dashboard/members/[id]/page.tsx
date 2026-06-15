@@ -48,6 +48,7 @@ import {
   isPendingPayment,
   isRejectedPayment,
   computeMoneyFigures,
+  computeObligationStates,
   type MoneyObligation,
   type MoneyPayment,
 } from "@/lib/money";
@@ -660,17 +661,34 @@ export default function MemberDetailPage() {
   const complianceScore = hostingTotal > 0 ? Math.round((timesHosted / hostingTotal) * 100) : 100;
   const nextHosting = hostingAssignments.find((h: Record<string, unknown>) => h.status === "upcoming") as Record<string, unknown> | undefined;
 
-  // Year-over-year mini matrix
+  // Year-over-year mini matrix — paid/partial/unpaid is derived from CONFIRMED
+  // payments (Build 12 computeObligationStates), NEVER the polluted obl.status
+  // (a pending/rejected pay-now would otherwise show a green "paid" check here).
   const currentYear = new Date().getFullYear();
   const years = [currentYear - 2, currentYear - 1, currentYear];
+  const yoyStates = computeObligationStates(
+    obligations as unknown as MoneyObligation[],
+    payments as unknown as MoneyPayment[],
+  );
   const oblsByTypeAndYear = new Map<string, Map<number, { status: string }>>();
   for (const obl of obligations as Array<Record<string, unknown>>) {
     const ct = obl.contribution_type as Record<string, unknown> | null;
     const typeName = (ct?.name as string) || "Other";
     const dueYear = new Date(obl.due_date as string).getFullYear();
     if (!years.includes(dueYear)) continue;
+    const c = yoyStates.get(obl.id as string);
+    const computedStatus =
+      (obl.status as string) === "waived"
+        ? "waived"
+        : !c
+          ? "unpaid"
+          : c.isPaid
+            ? "paid"
+            : c.confirmedPaid > 0
+              ? "partial"
+              : "unpaid";
     if (!oblsByTypeAndYear.has(typeName)) oblsByTypeAndYear.set(typeName, new Map());
-    oblsByTypeAndYear.get(typeName)!.set(dueYear, { status: obl.status as string });
+    oblsByTypeAndYear.get(typeName)!.set(dueYear, { status: computedStatus });
   }
 
   // ─── Loading / Error states ──────────────────────────────────────────────

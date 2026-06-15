@@ -46,15 +46,20 @@ test("collected counts CONFIRMED dues payments only (pending/rejected never infl
 });
 
 test("expected excludes waived obligations", () => {
-  assert.match(hook, /if \(status === "waived"\) continue;/);
+  assert.match(hook, /\(o\.status \|\| ""\) === "waived"\) continue;/);
   assert.match(hook, /totalExpected \+= amount/);
 });
 
-test("overdue is DERIVED (past due, open, remaining > 0) — not a stored status", () => {
-  assert.match(hook, /dueKey < todayKey/);
-  assert.match(hook, /isOpen/);
-  // remaining drives the open check
-  assert.match(hook, /remaining > 0/);
+test("overdue/owing is DERIVED from CONFIRMED payments (Build 12), not amount_paid/status", () => {
+  // Per-obligation open/overdue/remaining now come from the money engine's
+  // confirmed-only computeObligationStates — the actual date/remaining math is
+  // covered in test-money.mjs; here we assert the hook routes through it and no
+  // longer reads the polluted amount_paid column for the per-obligation figure.
+  assert.match(hook, /computeObligationStates\(/);
+  assert.match(hook, /const c = obligationStates\.get\(o\.id\)/);
+  assert.match(hook, /c\?\.isOverdue/);
+  assert.match(hook, /c \? c\.isOpen/);
+  assert.ok(!/const paid = Number\(o\.amount_paid\)/.test(hook), "no polluted amount_paid read");
 });
 
 test("pending confirmation is surfaced as count + amount from payments.status", () => {
@@ -139,8 +144,10 @@ test("overview surfaces a retryable error instead of an endless skeleton when th
 });
 
 test("overdue derivation compares calendar dates (no diaspora timezone false-overdue)", () => {
-  assert.match(hook, /dueKey < todayKey/);
+  // The next-due bucket still uses the date-only string compare; the overdue
+  // boundary now lives in computeObligation (date-only), fed today=todayKey.
   assert.match(hook, /dueKey >= todayKey/);
+  assert.match(hook, /computeObligationStates\([\s\S]*?\{ today: todayKey \}/);
   assert.ok(!/dueMs|todayMs/.test(hook), "must not compare raw timestamps for the date boundary");
 });
 

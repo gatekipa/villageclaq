@@ -216,5 +216,6 @@ test("no send/receipt/reminder dispatch introduced in B11-touched perf files", (
 test("Build 11 ships NO new migration", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
   // 00105/00106/00107 are prior create-not-apply migrations; B11 adds none.
-  assert.ok(!migs.some((f) => /^0010[89]/.test(f) || /^001[1-9]\d/.test(f)), "no new >=00108 migration file");
+  // 00108 is Build 15's create-not-apply privacy migration; Build 11 added none.
+  assert.ok(!migs.some((f) => /^0010[9]/.test(f) || /^001[1-9]\d/.test(f)), "no migration newer than 00108");
 });

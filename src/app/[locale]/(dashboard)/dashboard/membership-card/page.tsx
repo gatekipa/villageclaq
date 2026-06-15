@@ -16,6 +16,8 @@ import { QRCodeSVG } from "qrcode.react";
 // off the first-paint critical path on low-end phones / slow links.
 import { DashboardSkeleton, EmptyState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
+import { usePermissions } from "@/lib/hooks/use-permissions";
+import { AccessDenied } from "@/components/ui/permission-gate";
 
 function getInitials(name: string | null): string {
   if (!name) return "?";
@@ -64,13 +66,22 @@ export default function MembershipCardPage() {
   const searchParams = useSearchParams();
   const targetMemberId = searchParams.get("memberId");
   const { user, currentMembership, currentGroup, loading } = useGroup();
-  const { data: targetMember, isLoading: targetLoading } = useTargetMember(targetMemberId);
+  const { hasPermission, isLoading: permsLoading } = usePermissions();
+
+  // Build 15: viewing ANOTHER member's card (?memberId=) is an admin/officer
+  // action. A plain member must not fetch or export a peer's card — only their
+  // own. Gate the target fetch on members.manage so an unauthorized viewer never
+  // triggers the query, and block the page below if they deep-link a peer.
+  const isOwnCard = !targetMemberId || targetMemberId === currentMembership?.id;
+  const canViewOther = hasPermission("members.manage");
+  const allowTargetFetch = !!targetMemberId && !isOwnCard && canViewOther;
+  const { data: targetMember, isLoading: targetLoading } = useTargetMember(allowTargetFetch ? targetMemberId : null);
 
   const [side, setSide] = useState<"front" | "back">("front");
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
 
-  const isLoading = loading || (!!targetMemberId && targetLoading);
+  const isLoading = loading || permsLoading || (allowTargetFetch && targetLoading);
 
   if (isLoading) {
     return (
@@ -96,10 +107,25 @@ export default function MembershipCardPage() {
     );
   }
 
+  // Block unauthorized peer-card deep-links (?memberId of someone else without
+  // members.manage). Evaluated AFTER the loading guard so a self-view is never
+  // blocked and an admin is never falsely denied mid-load.
+  if (targetMemberId && !isOwnCard && !canViewOther) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        <AccessDenied />
+      </div>
+    );
+  }
+
   // Determine whose card to show:
-  // - If ?memberId is set (admin viewing another member), use target member data
+  // - If ?memberId is set (authorized admin/officer viewing another member), use target member data
   // - Otherwise, show the current user's own card
-  const isViewingOther = !!targetMemberId && !!targetMember;
+  const isViewingOther = allowTargetFetch && !!targetMember;
   const membership = isViewingOther ? targetMember : currentMembership;
   const profile = isViewingOther
     ? (targetMember.profile as Record<string, unknown> | undefined)

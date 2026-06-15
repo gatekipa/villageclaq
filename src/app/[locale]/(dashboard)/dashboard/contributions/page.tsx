@@ -65,6 +65,7 @@ import {
   standingExclusionQueryKeys,
 } from "@/lib/standing-exclusion";
 import { describeDueDay, ordinalDay } from "@/lib/due-date-preview";
+import { computeObligationDueDate, todayISO } from "@/lib/contribution-schedule";
 
 
 // Frequency labels resolved via t() inside the component
@@ -118,6 +119,8 @@ export default function ContributionsPage() {
   const [formCurrency, setFormCurrency] = useState(currentGroup?.currency || "XAF");
   const [formFrequency, setFormFrequency] = useState("monthly");
   const [formDueDay, setFormDueDay] = useState("");
+  // Build 10: one-time contributions get a TRUE calendar due date via start_date.
+  const [formStartDate, setFormStartDate] = useState("");
   const [formEnrollAll, setFormEnrollAll] = useState(true);
   const [formIsFlexible, setFormIsFlexible] = useState(false);
   // WS3: "Counts toward good standing" — managed via the existing per-type
@@ -130,15 +133,27 @@ export default function ContributionsPage() {
   const locale = useLocale();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
 
-  // WS2: human-readable due-date preview over the existing due_day (display-only;
-  // mirrors the obligation trigger's LEAST(due_day,28) clamp).
-  function duePreviewNode(dueDayStr: string, frequency: string) {
-    if (frequency === "one_time") {
-      return <p className="text-xs text-muted-foreground">{t("contributions.oneTimeDueDateNote")}</p>;
+  // Due-date preview over the existing due_day / start_date (display-only;
+  // mirrors the obligation trigger's LEAST(due_day,28) clamp). Build 10: one-time
+  // shows the exact calendar date from start_date.
+  function duePreviewNode(dueDayStr: string, frequency: string, startDateStr?: string) {
+    const preview = describeDueDay({ dueDay: dueDayStr ? Number(dueDayStr) : null, frequency, startDate: startDateStr || null });
+    if (preview.kind === "one_time") {
+      const date = formatDateWithGroupFormat(preview.dueISO, groupDateFormat, locale);
+      return (
+        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+          {preview.daysUntil >= 0
+            ? t("contributions.duePreviewOneTime", { date, days: preview.daysUntil })
+            : t("contributions.duePreviewOneTimePast", { date })}
+        </p>
+      );
     }
-    const preview = describeDueDay({ dueDay: dueDayStr ? Number(dueDayStr) : null, frequency });
     if (preview.kind === "none") {
-      return <p className="text-xs text-muted-foreground">{t("contributions.dueDayHelp")}</p>;
+      return (
+        <p className="text-xs text-muted-foreground">
+          {frequency === "one_time" ? t("contributions.oneTimeDueDatePrompt") : t("contributions.dueDayHelp")}
+        </p>
+      );
     }
     const ord = ordinalDay(preview.clampedDay, locale);
     if (preview.period === "month" && preview.nextDueISO) {
@@ -160,8 +175,11 @@ export default function ContributionsPage() {
   }
 
   // Human due-date label for a contribution type card (string form).
-  function cardDueLabel(dueDay: number | null | undefined, frequency: string): string {
-    const dd = describeDueDay({ dueDay, frequency });
+  function cardDueLabel(dueDay: number | null | undefined, frequency: string, startDate?: string | null): string {
+    const dd = describeDueDay({ dueDay, frequency, startDate: startDate || null });
+    if (dd.kind === "one_time") {
+      return t("contributions.cardDueOneTime", { date: formatDateWithGroupFormat(dd.dueISO, groupDateFormat, locale) });
+    }
     if (dd.kind === "none") {
       return frequency === "one_time" ? t("contributions.dueDateFlexible") : t("contributions.noDueDate");
     }
@@ -180,6 +198,7 @@ export default function ContributionsPage() {
     setFormCurrency(currentGroup?.currency || "XAF");
     setFormFrequency("monthly");
     setFormDueDay("");
+    setFormStartDate("");
     setFormEnrollAll(true);
     setFormIsFlexible(false);
     setFormCountsTowardStanding(true);
@@ -196,6 +215,12 @@ export default function ContributionsPage() {
       setFormError(t("contributions.amountMustBePositive"));
       return;
     }
+    // Build 10: one-time contributions require an explicit calendar due date, so
+    // no obligation is ever born with an accidental today-date that looks overdue.
+    if (formFrequency === "one_time" && !formStartDate) {
+      setFormError(t("contributions.oneTimeDueDateRequired"));
+      return;
+    }
     try {
       const created = await createMutation.mutateAsync({
         name: formName,
@@ -204,7 +229,10 @@ export default function ContributionsPage() {
         amount: formIsFlexible ? (amt || 0) : amt,
         currency: formCurrency,
         frequency: formFrequency,
-        due_day: formDueDay ? Number(formDueDay) : undefined,
+        due_day: formFrequency === "one_time" ? undefined : (formDueDay ? Number(formDueDay) : undefined),
+        // One-time exact calendar due date lives in start_date (the trigger uses
+        // it as the obligation due_date). No new column.
+        start_date: formFrequency === "one_time" && formStartDate ? formStartDate : undefined,
         enroll_all_members: formEnrollAll,
         is_flexible: formIsFlexible,
       });
@@ -212,8 +240,10 @@ export default function ContributionsPage() {
       // already counts). Only when the admin turned it OFF do we add this type
       // to the group's standing exclusion list — via the SAME helper the
       // Settings → Standing tab uses (one source of truth, no new schema).
+      // Build 10: flexible (variable-amount) types are auto-excluded from
+      // standing — a member can't be "behind" on an amount they choose.
       const newId = (created as { id?: string } | null)?.id;
-      if (newId && groupId && !formCountsTowardStanding) {
+      if (newId && groupId && (!formCountsTowardStanding || formIsFlexible)) {
         try {
           const supabase = createClient();
           await setContributionStandingExclusion(supabase, groupId, newId, true);
@@ -238,6 +268,7 @@ export default function ContributionsPage() {
     setFormCurrency((type.currency as string) || currentGroup?.currency || "XAF");
     setFormFrequency((type.frequency as string) || "monthly");
     setFormDueDay(type.due_day ? String(type.due_day) : "");
+    setFormStartDate(type.start_date ? String(type.start_date).slice(0, 10) : "");
     setFormIsFlexible(!!type.is_flexible);
     // Seed the standing toggle from the current group setting (single source of
     // truth): counts toward standing iff this type id is NOT excluded.
@@ -254,6 +285,10 @@ export default function ContributionsPage() {
       setFormError(t("contributions.amountMustBePositive"));
       return;
     }
+    if (formFrequency === "one_time" && !formStartDate) {
+      setFormError(t("contributions.oneTimeDueDateRequired"));
+      return;
+    }
     setEditSaving(true);
     try {
       const supabase = createClient();
@@ -266,7 +301,11 @@ export default function ContributionsPage() {
           amount: Number(formAmount),
           currency: formCurrency,
           frequency: formFrequency,
-          due_day: formDueDay ? Number(formDueDay) : null,
+          due_day: formFrequency === "one_time" ? null : (formDueDay ? Number(formDueDay) : null),
+          // One-time exact due date in start_date. NOTE: editing the schedule
+          // does NOT regenerate existing obligations (the trigger is INSERT-only);
+          // existing obligations keep their due dates (editScheduleNote).
+          start_date: formFrequency === "one_time" && formStartDate ? formStartDate : null,
           is_flexible: formIsFlexible,
         })
         .eq("id", editTypeId);
@@ -276,7 +315,10 @@ export default function ContributionsPage() {
       // shared exclusion writer (same setting the Settings → Standing tab uses).
       if (groupId) {
         try {
-          await setContributionStandingExclusion(supabase, groupId, editTypeId, !formCountsTowardStanding);
+          // Flexible (variable-amount) types are always excluded from standing —
+          // mirror the create path so toggling is_flexible on during an edit also
+          // excludes the type (a member can't be "behind" on an amount they choose).
+          await setContributionStandingExclusion(supabase, groupId, editTypeId, !formCountsTowardStanding || formIsFlexible);
           await Promise.all(standingExclusionQueryKeys(groupId).map((k) => queryClient.invalidateQueries({ queryKey: k })));
         } catch (err) {
           console.warn("[Contributions] standing exclusion write failed:", err instanceof Error ? err.message : err);
@@ -350,18 +392,29 @@ export default function ContributionsPage() {
     setEnrollSuccessCount(null);
     try {
       const supabase = createClient();
-      const currentYear = new Date().getFullYear();
+
+      // Build 10: compute the obligation due date from the type's real schedule
+      // (start_date / due_day / frequency) via the shared engine — identical to
+      // what the DB trigger generates — instead of the old Dec-31 hardcode.
+      const type = (contributionTypes || []).find((ct: Record<string, unknown>) => ct.id === typeId);
+      const sched = computeObligationDueDate({
+        frequency: (type?.frequency as string) || "monthly",
+        dueDay: (type?.due_day as number | null) ?? null,
+        startDate: (type?.start_date as string | null) ?? null,
+      });
 
       const { data: members } = await supabase
         .from("memberships")
         .select("id")
         .eq("group_id", groupId);
 
+      // Dedupe by the computed due_date (matches the UNIQUE(type,member,due_date)
+      // constraint) — the old period_label=year key was wrong for recurring types.
       const { data: existing } = await supabase
         .from("contribution_obligations")
         .select("membership_id")
         .eq("contribution_type_id", typeId)
-        .eq("period_label", String(currentYear));
+        .eq("due_date", sched.dueISO);
 
       const existingIds = new Set((existing || []).map((e) => e.membership_id));
       const missing = (members || []).filter((m) => !existingIds.has(m.id));
@@ -374,9 +427,9 @@ export default function ContributionsPage() {
           amount,
           amount_paid: 0,
           currency,
-          due_date: new Date(`${currentYear}-12-31`).toISOString(),
+          due_date: sched.dueISO,
           status: "pending" as const,
-          period_label: String(currentYear),
+          period_label: sched.periodLabel,
         }));
         const { error: insertErr } = await supabase
           .from("contribution_obligations")
@@ -567,10 +620,24 @@ export default function ContributionsPage() {
                       value={formDueDay}
                       onChange={(e) => setFormDueDay(e.target.value)}
                     />
-                    {duePreviewNode(formDueDay, formFrequency)}
+                    {duePreviewNode(formDueDay, formFrequency, formStartDate)}
                   </div>
                 )}
-                {formFrequency === "one_time" && duePreviewNode(formDueDay, formFrequency)}
+                {/* Build 10: one-time contributions get a real calendar due date. */}
+                {formFrequency === "one_time" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="dueDate">{t("contributions.dueDateLabel")}</Label>
+                    <Input
+                      id="dueDate"
+                      type="date"
+                      min={todayISO()}
+                      value={formStartDate}
+                      onChange={(e) => setFormStartDate(e.target.value)}
+                      required
+                    />
+                    {duePreviewNode(formDueDay, formFrequency, formStartDate)}
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -792,7 +859,7 @@ export default function ContributionsPage() {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {cardDueLabel(type.due_day as number | null, (type.frequency as string) || "monthly")}
+                    {cardDueLabel(type.due_day as number | null, (type.frequency as string) || "monthly", type.start_date as string | null)}
                   </span>
                   <Link
                     href={`/dashboard/contributions/${type.id}/report`}
@@ -854,10 +921,17 @@ export default function ContributionsPage() {
               <div className="space-y-2">
                 <Label htmlFor="edit-dueDay">{t("contributions.dueDay")}</Label>
                 <Input id="edit-dueDay" type="number" min="1" max="31" value={formDueDay} onChange={(e) => setFormDueDay(e.target.value)} />
-                {duePreviewNode(formDueDay, formFrequency)}
+                {duePreviewNode(formDueDay, formFrequency, formStartDate)}
               </div>
             )}
-            {formFrequency === "one_time" && duePreviewNode(formDueDay, formFrequency)}
+            {formFrequency === "one_time" && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-dueDate">{t("contributions.dueDateLabel")}</Label>
+                <Input id="edit-dueDate" type="date" min={todayISO()} value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} required />
+                {duePreviewNode(formDueDay, formFrequency, formStartDate)}
+                <p className="text-xs text-amber-700 dark:text-amber-400">{t("contributions.editScheduleNote")}</p>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"

@@ -63,11 +63,21 @@ test("quarterly/annual: day-of-month label only, no fabricated date", () => {
   assert.equal(a.nextDueISO, null);
 });
 
-test("one-time and missing due day return 'none' (no fabricated date)", () => {
+test("one-time WITHOUT start_date returns 'none' (no fabricated date)", () => {
   assert.equal(describeDueDay({ dueDay: 5, frequency: "one_time", now: NOW }).kind, "none");
   assert.equal(describeDueDay({ dueDay: null, frequency: "monthly", now: NOW }).kind, "none");
   assert.equal(describeDueDay({ dueDay: undefined, frequency: "monthly", now: NOW }).kind, "none");
   assert.equal(describeDueDay({ dueDay: NaN, frequency: "monthly", now: NOW }).kind, "none");
+});
+
+test("one-time WITH start_date returns the exact calendar date (Build 10)", () => {
+  const future = describeDueDay({ dueDay: null, frequency: "one_time", startDate: "2026-07-15", now: NOW });
+  assert.equal(future.kind, "one_time");
+  assert.equal(future.dueISO, "2026-07-15");
+  assert.equal(future.daysUntil, 31);
+  const past = describeDueDay({ dueDay: null, frequency: "one_time", startDate: "2026-06-01", now: NOW });
+  assert.equal(past.kind, "one_time");
+  assert.equal(past.daysUntil, -13, "past one-time date reports negative days");
 });
 
 test("ordinalDay: English suffixes + French", () => {

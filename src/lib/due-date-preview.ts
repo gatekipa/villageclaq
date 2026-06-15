@@ -1,19 +1,50 @@
 /**
- * Human due-date preview for contribution types (Build 9, WS2).
+ * Human due-date PREVIEW for contribution types (Build 9, extended Build 10).
  *
- * PURE + display-only. This computes a friendly description of a contribution
- * type's due day WITHOUT changing any schema or obligation-generation behavior.
- * It mirrors the obligation trigger's `LEAST(due_day, 28)` clamp (migration
- * 00002) so the preview can never disagree with the dates the system actually
- * generates. `due_day` (1-31) remains the single stored mechanism.
+ * PURE + display-only. Describes a contribution type's schedule for the form/card
+ * without changing any schema or obligation-generation behavior. The day-of-month
+ * clamp is shared with the schedule engine (src/lib/contribution-schedule.ts) so
+ * the preview never disagrees with generated obligations.
  *
- * Monthly types get a precise next-due date + days-until. Quarterly/annual get a
- * day-of-month label only (the period anchoring isn't knowable client-side, so
- * we do not fabricate an exact date). One-time / no-due-day types return `none`.
+ * Build 10: one-time contributions now have a TRUE calendar due date via the
+ * existing `start_date` column — when provided, the preview shows that exact
+ * date (kind "one_time"). Recurring monthly types keep the forward-looking
+ * "next occurrence" preview. Quarterly/annual show a day-of-month label.
  */
+
+// Self-contained (no module imports) so it stays directly unit-testable. The
+// day clamp is intentionally identical to contribution-schedule.ts's clampDueDay;
+// scripts/test-contribution-schedule.mjs pins the two equal so they never drift.
+
+/** The obligation trigger clamps day 29-31 to 28 (month-end safe). Mirror it. */
+export function clampDueDay(dueDay: number): number {
+  return Math.min(28, Math.max(1, Math.round(dueDay)));
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Local YYYY-MM-DD for `now` (timezone-safe). */
+function todayISO(now: Date): string {
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** Whole days from aISO to bISO (b - a), timezone-safe via UTC. */
+function daysBetweenISO(aISO: string, bISO: string): number {
+  const [ay, am, ad] = aISO.slice(0, 10).split("-").map((x) => parseInt(x, 10));
+  const [by, bm, bd] = bISO.slice(0, 10).split("-").map((x) => parseInt(x, 10));
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000);
+}
 
 export type DueDatePreview =
   | { kind: "none" }
+  | {
+      /** One-time contribution with an exact calendar due date (start_date). */
+      kind: "one_time";
+      dueISO: string;
+      daysUntil: number;
+    }
   | {
       kind: "recurring";
       /** day-of-month after the LEAST(day,28) clamp the trigger applies */
@@ -25,19 +56,27 @@ export type DueDatePreview =
       daysUntil: number | null;
     };
 
-/** The obligation trigger clamps day 29-31 to 28 (month-end safe). Mirror it. */
-export function clampDueDay(dueDay: number): number {
-  return Math.min(28, Math.max(1, Math.round(dueDay)));
-}
-
 export function describeDueDay(opts: {
   dueDay: number | null | undefined;
   frequency: string;
+  /** YYYY-MM-DD — one-time exact due date (start_date). */
+  startDate?: string | null;
   now?: Date;
 }): DueDatePreview {
-  const { dueDay, frequency } = opts;
+  const { dueDay, frequency, startDate } = opts;
   const now = opts.now ?? new Date();
-  if (dueDay == null || Number.isNaN(Number(dueDay)) || frequency === "one_time") {
+
+  // One-time: the exact calendar date (start_date) IS the due date. No date set
+  // yet → "none" (the form prompts for it; it is required on submit).
+  if (frequency === "one_time") {
+    if (startDate) {
+      const dueISO = startDate.slice(0, 10);
+      return { kind: "one_time", dueISO, daysUntil: daysBetweenISO(todayISO(now), dueISO) };
+    }
+    return { kind: "none" };
+  }
+
+  if (dueDay == null || Number.isNaN(Number(dueDay))) {
     return { kind: "none" };
   }
   const clampedDay = clampDueDay(Number(dueDay));
@@ -47,7 +86,8 @@ export function describeDueDay(opts: {
     return { kind: "recurring", clampedDay, period, nextDueISO: null, daysUntil: null };
   }
 
-  // Monthly: this month's clamped day if still upcoming, else next month's.
+  // Monthly preview: forward-looking next occurrence (this month's clamped day if
+  // still upcoming, else next month's). This is a recurring-schedule hint.
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let next = new Date(now.getFullYear(), now.getMonth(), clampedDay);
   if (next.getTime() < today.getTime()) {

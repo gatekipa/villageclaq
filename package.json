@@ -45,7 +45,9 @@
     "test:product-build8": "node --test scripts/test-product-build8.mjs",
     "test:due-date-preview": "node --test scripts/test-due-date-preview.mjs",
     "test:standing-exclusion": "node --test scripts/test-standing-exclusion.mjs",
-    "test:product-build9-money": "node --test scripts/test-product-build9-money.mjs"
+    "test:product-build9-money": "node --test scripts/test-product-build9-money.mjs",
+    "test:contribution-schedule": "node --test scripts/test-contribution-schedule.mjs",
+    "test:product-build10": "node --test scripts/test-product-build10.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

@@ -317,3 +317,17 @@ and meant to be reviewed before any rollout.
 ## No migration
 All changes are read-path / in-memory engine reroutes. **No new migration; no DB mutation;
 no send, receipt, or reminder fired; no provider/template/Stripe config touched.**
+
+## Follow-up — candidate-ceiling proxy pre-filter (separate PR)
+The first confirmed-basis `?dryRun=true` preview surfaced `ceilingHit: true`: there were 548
+past-due non-waived obligations against the `CANDIDATE_CEILING` of 500, **488 of them proxy
+obligations** (89%). Proxies are never reminded (no account/contact — dropped by the
+`realObligations` filter), so they were burning the candidate budget and starving real
+members sorted after the proxy backlog (6 of 60 real obligations fell beyond the cut). Fix:
+exclude proxy memberships in the candidate query itself, on BOTH branches —
+`.not("membership.user_id", "is", null).not("membership.is_proxy", "is", true)` — before the
+ceiling. Verified read-only against production: the pool drops 548 → 60 (all real members),
+so `ceilingHit` becomes false and the dry-run covers the full real-member population. The
+post-fetch `realObligations` JS filter is retained as defense-in-depth (identical semantics,
+so real-member behavior is unchanged). This also speeds the legacy live cron. No migration,
+no send, no flag change.

@@ -44,13 +44,22 @@ test("payment-reminders: candidate query is ordered, ceiling-limited, warned, an
 
   assert.match(source, /const CANDIDATE_CEILING = 500;/);
 
-  // Ordering + limit sit ON the candidate query (after the status/due_date
+  // Ordering + limit sit ON the candidate query (after the status/proxy/due_date
   // filters) — order by due_date then id for a deterministic, stable cut.
+  // The proxy pre-filter sits between the status and due_date filters so proxies
+  // are excluded BEFORE the ceiling (see dedicated proxy-filter test below).
   assert.match(
     source,
-    /\.in\("status", \["pending", "partial", "overdue"\]\)\s*\.lt\("due_date", now\.toISOString\(\)\.split\("T"\)\[0\]\)\s*\.order\("due_date", \{ ascending: true \}\)\s*\.order\("id", \{ ascending: true \}\)\s*\.limit\(CANDIDATE_CEILING\);/,
+    /\.in\("status", \["pending", "partial", "overdue"\]\)[\s\S]*?\.lt\("due_date", now\.toISOString\(\)\.split\("T"\)\[0\]\)\s*\.order\("due_date", \{ ascending: true \}\)\s*\.order\("id", \{ ascending: true \}\)\s*\.limit\(CANDIDATE_CEILING\);/,
     "candidate query must chain order(due_date), order(id), limit(CANDIDATE_CEILING)",
   );
+
+  // Proxy memberships are excluded BEFORE the candidate ceiling, on BOTH the
+  // legacy and confirmed branches, so the 500-row budget is spent on real
+  // members only (proxies are never reminded). Matches the realObligations
+  // filter; user_id NOT NULL AND is_proxy IS NOT TRUE.
+  const proxyFilter = /\.not\("membership\.user_id", "is", null\)\s*\.not\("membership\.is_proxy", "is", true\)/g;
+  assert.equal((source.match(proxyFilter) || []).length, 2, "proxy pre-filter must be on BOTH candidate-query branches");
 
   // Audited: masked one-liner warn + response flag. The warn carries no
   // phone numbers, emails, or raw ids — only the ceiling number.

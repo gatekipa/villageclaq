@@ -66,11 +66,12 @@ export async function GET(request: Request) {
 
   try {
     // ── Query overdue obligations with member + group + type data ──
-    // Two distinct queries so the LEGACY default path is byte-for-byte
-    // unchanged (status filter + select), while the CONFIRMED basis selects
-    // ALL past-due non-waived obligations plus the membership/type ids and
-    // is_flexible the money engine needs to decide remindability from
-    // CONFIRMED payments. Ordering + ceiling are identical on both.
+    // Two distinct queries so the LEGACY default path keeps its status filter +
+    // select, while the CONFIRMED basis selects ALL past-due non-waived
+    // obligations plus the membership/type ids and is_flexible the money engine
+    // needs to decide remindability from CONFIRMED payments. Ordering + ceiling
+    // are identical on both, and BOTH exclude proxy memberships before the cap
+    // (proxies are never reminded, so they must not consume the candidate ceiling).
     const candidateQuery = useConfirmed
       ? supabase
           .from("contribution_obligations")
@@ -104,6 +105,14 @@ export async function GET(request: Request) {
         )
       `)
           .neq("status", "waived")
+          // Exclude proxy obligations BEFORE the candidate ceiling. Proxies are
+          // never reminded (no account/contact — filtered out below), so fetching
+          // them only burns the 500-row budget and starves real members whose
+          // obligations sort after the proxy backlog. This mirrors the
+          // realObligations filter exactly (user_id NOT NULL AND is_proxy IS NOT
+          // TRUE); that JS filter is kept as defense-in-depth.
+          .not("membership.user_id", "is", null)
+          .not("membership.is_proxy", "is", true)
           .lt("due_date", now.toISOString().split("T")[0])
           .order("due_date", { ascending: true })
           .order("id", { ascending: true })
@@ -137,6 +146,10 @@ export async function GET(request: Request) {
         )
       `)
           .in("status", ["pending", "partial", "overdue"])
+          // Same proxy pre-filter as the confirmed branch — keep the ceiling for
+          // real members only (defense-in-depth realObligations filter retained).
+          .not("membership.user_id", "is", null)
+          .not("membership.is_proxy", "is", true)
           .lt("due_date", now.toISOString().split("T")[0])
           .order("due_date", { ascending: true })
           .order("id", { ascending: true })

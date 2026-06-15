@@ -348,10 +348,12 @@ export default function FinancesPage() {
       for (const [key, totalPaid] of paymentMap.entries()) {
         const [membershipId, contributionTypeId] = key.split("__");
 
-        // Find matching obligation(s)
+        // Find matching obligation(s). Build 13: amount_paid is no longer read
+        // here — newStatus is derived from `totalPaid`, the CONFIRMED-only sum
+        // (paymentMap above), so the polluted column is neither read nor trusted.
         const { data: obligations } = await supabase
           .from("contribution_obligations")
-          .select("id, amount, amount_paid")
+          .select("id, amount")
           .eq("membership_id", membershipId)
           .eq("contribution_type_id", contributionTypeId)
           .eq("group_id", groupId)

@@ -1,6 +1,7 @@
 "use client";
 
 import { formatAmount } from "@/lib/currencies";
+import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -196,16 +197,31 @@ export default function TransfersPage() {
         .maybeSingle();
       const membershipId = (memRow as { id?: string } | null)?.id;
       if (!membershipId) return 0;
-      const { data: obligations } = await supabase
-        .from("contribution_obligations")
-        .select("amount, amount_paid")
-        .eq("membership_id", membershipId)
-        .in("status", ["pending", "partial", "overdue"]);
-      return (obligations || []).reduce(
-        (sum: number, o: { amount: number; amount_paid: number }) =>
-          sum + (Number(o.amount) - Number(o.amount_paid || 0)),
-        0,
+      // Build 13: the pre-transfer "outstanding" warning is derived from CONFIRMED
+      // payments (the same money-engine basis as the unpaid list / statement /
+      // matrix), NEVER the polluted amount_paid / status columns. Fetch the
+      // member's obligations + confirmed dues payments and sum the confirmed-open
+      // remaining.
+      const [oblRes, payRes] = await Promise.all([
+        supabase
+          .from("contribution_obligations")
+          .select("id, amount, status, due_date, contribution_type_id, membership_id")
+          .eq("membership_id", membershipId),
+        supabase
+          .from("payments")
+          .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+          .eq("membership_id", membershipId)
+          .is("relief_plan_id", null),
+      ]);
+      const memberObligations = (oblRes.data || []) as unknown as MoneyObligation[];
+      const states = computeObligationStates(
+        memberObligations,
+        (payRes.data || []) as unknown as MoneyPayment[],
       );
+      return memberObligations.reduce((sum: number, o) => {
+        const c = states.get(o.id);
+        return sum + (c && c.isOpen ? c.remaining : 0);
+      }, 0);
     },
     enabled: !!groupId && !!createMemberId && showCreateDialog,
   });

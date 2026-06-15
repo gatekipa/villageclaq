@@ -2642,6 +2642,7 @@
     "submitForConfirmation": "Soumettre pour confirmation",
     "fileTooLarge": "Le fichier doit être inférieur à 5 Mo",
     "submitError": "Échec de la soumission du paiement",
+    "nothingDue": "Rien n'est dû pour cette cotisation.",
     "successMessage": "Votre paiement a été soumis !",
     "successDetail": "Le trésorier examinera et confirmera votre paiement sous peu.",
     "done": "Terminé",

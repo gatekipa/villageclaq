@@ -2600,6 +2600,7 @@
     "submitForConfirmation": "Submit for Confirmation",
     "fileTooLarge": "File must be under 5MB",
     "submitError": "Failed to submit payment",
+    "nothingDue": "Nothing is due on this contribution.",
     "successMessage": "Your payment has been submitted!",
     "successDetail": "The treasurer will review and confirm your payment shortly.",
     "done": "Done",

@@ -32,8 +32,17 @@ import { formatAmount } from "@/lib/currencies";
 
 interface Obligation {
   id: string;
+  /** The obligation's full nominal amount — used only as a defensive upper bound. */
   amount: number;
-  amount_paid: number;
+  /**
+   * Build 13: the CONFIRMED-only remaining the member should pay, computed by the
+   * CALLER via the money engine (computeObligation(o, confirmedByObl, today).remaining).
+   * This replaces the old `amount_paid` prop, whose name invited a caller to pass the
+   * polluted contribution_obligations.amount_paid column. The dialog records this value
+   * as payments.amount (immutable), so it must be correct BY CONSTRUCTION — the dialog
+   * no longer derives the amount from amount_paid itself.
+   */
+  amountDue: number;
   currency: string;
   contribution_type_id: string;
   contribution_type?: { name?: string; name_fr?: string };
@@ -72,7 +81,11 @@ export function PayNowDialog({
   const { groupId, currentGroup, user } = useGroup();
   const queryClient = useQueryClient();
   const currency = currentGroup?.currency || obligation.currency || "XAF";
-  const amountDue = obligation.amount - (obligation.amount_paid || 0);
+  // Build 13: the confirmed-only amount to pay is computed by the caller (money
+  // engine) and passed in directly — the dialog never derives it from the polluted
+  // amount_paid column. Clamp defensively to [0, obligation.amount] so the recorded
+  // payments.amount can never be negative or exceed the obligation.
+  const amountDue = Math.max(0, Math.min(obligation.amountDue || 0, obligation.amount));
 
   // Steps: "choose" → "details" → "confirm" → "success"
   const [step, setStep] = useState<"choose" | "details" | "confirm" | "success">("choose");
@@ -140,6 +153,15 @@ export function PayNowDialog({
 
   async function handleSubmit() {
     if (!groupId || !user || !selectedMethod) return;
+    // Build 13: never record a zero/negative payment. On the confirmed basis a
+    // member who owes nothing (already covered, or a waived obligation that should
+    // never reach here) has amountDue <= 0. The caller only opens this dialog for
+    // open obligations, so this is defense-in-depth — a waived/paid obligation
+    // can never be charged.
+    if (!(amountDue > 0)) {
+      setSubmitError(t("nothingDue"));
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
 

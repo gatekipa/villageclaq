@@ -5,6 +5,7 @@ import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { producePaymentReminderNotification } from "@/lib/payment-reminder-producer";
 import type { PaymentReminderProducerResult } from "@/lib/payment-reminder-producer";
 import { formatAmount } from "@/lib/currencies";
+import { computeReminderDecisions, type MoneyObligation, type MoneyPayment, type ReminderDecision } from "@/lib/money";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import type { EnabledChannels } from "@/lib/notification-prefs";
 import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
@@ -46,16 +47,70 @@ export async function GET(request: Request) {
   let smsSent = 0;
   let smsSkipped = 0;
   let whatsappQueued = 0;
+  let wouldWhatsapp = 0; // dry-run: previews that WOULD queue (nothing inserted)
   let whatsappSkipped = 0;
   let whatsappFailed = 0;
   let ceilingHit = false;
   const errors: string[] = [];
 
+  // Build 14: confirmed-only reminder basis + dry-run preview. Default OFF — this
+  // code changes NOTHING about who/what gets reminded until an operator sets the
+  // env flag AFTER reviewing a ?dryRun=true preview. dryRun always previews the
+  // confirmed basis (the proposed behavior) and SENDS/QUEUES nothing.
+  const dryRun = new URL(request.url).searchParams.get("dryRun") === "true";
+  const useConfirmed = process.env.PAYMENT_REMINDER_CONFIRMED_BASIS === "true" || dryRun;
+  let wouldEmail = 0;
+  let wouldSms = 0;
+  let confirmedSuppressed = 0; // candidates the engine deems NOT eligible (vs legacy)
+  let confirmedNewlyEligible = 0; // candidates eligible under confirmed but not legacy
+
   try {
     // ── Query overdue obligations with member + group + type data ──
-    const { data: obligations, error: queryErr } = await supabase
-      .from("contribution_obligations")
-      .select(`
+    // Two distinct queries so the LEGACY default path is byte-for-byte
+    // unchanged (status filter + select), while the CONFIRMED basis selects
+    // ALL past-due non-waived obligations plus the membership/type ids and
+    // is_flexible the money engine needs to decide remindability from
+    // CONFIRMED payments. Ordering + ceiling are identical on both.
+    const candidateQuery = useConfirmed
+      ? supabase
+          .from("contribution_obligations")
+          .select(`
+        id,
+        amount,
+        amount_paid,
+        currency,
+        due_date,
+        status,
+        membership_id,
+        contribution_type_id,
+        membership:memberships!inner(
+          id,
+          user_id,
+          display_name,
+          is_proxy,
+          group_id,
+          profiles!memberships_user_id_fkey(
+            full_name,
+            preferred_locale
+          )
+        ),
+        contribution_type:contribution_types!inner(
+          name,
+          name_fr,
+          is_flexible
+        ),
+        group:groups!inner(
+          name
+        )
+      `)
+          .neq("status", "waived")
+          .lt("due_date", now.toISOString().split("T")[0])
+          .order("due_date", { ascending: true })
+          .order("id", { ascending: true })
+          .limit(CANDIDATE_CEILING)
+      : supabase
+          .from("contribution_obligations")
+          .select(`
         id,
         amount,
         amount_paid,
@@ -81,11 +136,12 @@ export async function GET(request: Request) {
           name
         )
       `)
-      .in("status", ["pending", "partial", "overdue"])
-      .lt("due_date", now.toISOString().split("T")[0])
-      .order("due_date", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(CANDIDATE_CEILING);
+          .in("status", ["pending", "partial", "overdue"])
+          .lt("due_date", now.toISOString().split("T")[0])
+          .order("due_date", { ascending: true })
+          .order("id", { ascending: true })
+          .limit(CANDIDATE_CEILING);
+    const { data: obligations, error: queryErr } = await candidateQuery;
 
     if (queryErr) {
       return NextResponse.json(
@@ -114,6 +170,74 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, sent: 0, failed: 0, ceilingHit, message: "No overdue obligations for real members" });
     }
 
+    // ── Build 14: confirmed-only decisions (when on the confirmed basis) ──
+    // Decide remindability + amount from CONFIRMED payments via the money engine —
+    // never amount_paid / status. Fetch every candidate member's confirmed dues
+    // payments + each group's standing-excluded set once; track the eligibility
+    // delta vs the legacy (polluted) selection for the dry-run preview.
+    let reminderDecisions: Map<string, ReminderDecision> | null = null;
+    let eligibleObligationIds: Set<string> | null = null;
+    if (useConfirmed) {
+      const membershipIds = Array.from(new Set(realObligations.map((o: Record<string, unknown>) => o.membership_id as string).filter(Boolean)));
+      const candidateGroupIds = Array.from(new Set(realObligations.map((o: Record<string, unknown>) => {
+        const m = (Array.isArray(o.membership) ? (o.membership as Record<string, unknown>[])[0] : o.membership) as Record<string, unknown> | null;
+        return m?.group_id as string | undefined;
+      }).filter(Boolean))) as string[];
+
+      const [paysRes, groupsRes] = await Promise.all([
+        supabase
+          .from("payments")
+          .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id")
+          .in("membership_id", membershipIds)
+          // membership_id already implies one group; group_id is defense-in-depth.
+          .in("group_id", candidateGroupIds)
+          .is("relief_plan_id", null),
+        supabase.from("groups").select("id, settings").in("id", candidateGroupIds),
+      ]);
+      // Fail loud, not silent: an empty confirmed dataset would make every member
+      // look fully-owing and over-remind (or skew the dry-run delta). Surface the
+      // error instead of proceeding on partial data (CLAUDE.md rule 11).
+      if (paysRes.error || groupsRes.error) {
+        console.warn(
+          "[Cron:PaymentReminders] confirmed-basis data fetch failed — aborting run (no sends):",
+          paysRes.error?.message || groupsRes.error?.message,
+        );
+        return NextResponse.json(
+          { success: false, error: "confirmed-basis data fetch failed", confirmedBasis: useConfirmed, dryRun },
+          { status: 500 },
+        );
+      }
+      const payments = (paysRes.data || []) as unknown as MoneyPayment[];
+
+      const flexibleTypeIds = new Set<string>();
+      for (const o of realObligations as Record<string, unknown>[]) {
+        const ct = (Array.isArray(o.contribution_type) ? (o.contribution_type as Record<string, unknown>[])[0] : o.contribution_type) as Record<string, unknown> | null;
+        if (ct?.is_flexible && o.contribution_type_id) flexibleTypeIds.add(o.contribution_type_id as string);
+      }
+      const excludedTypeIds = new Set<string>();
+      for (const g of ((groupsRes.data || []) as Array<{ settings?: Record<string, unknown> }>)) {
+        const rules = g.settings?.standing_rules as Record<string, unknown> | undefined;
+        for (const id of ((rules?.excluded_contribution_type_ids as string[] | undefined) || [])) excludedTypeIds.add(id);
+      }
+
+      reminderDecisions = computeReminderDecisions(
+        realObligations as unknown as MoneyObligation[],
+        payments,
+        { flexibleTypeIds, excludedTypeIds },
+      );
+      eligibleObligationIds = new Set<string>();
+      for (const o of realObligations as Record<string, unknown>[]) {
+        const oid = o.id as string;
+        const confirmedEligible = !!reminderDecisions.get(oid)?.eligible;
+        // Legacy eligibility (polluted) — only for the dry-run delta counters.
+        const legacyEligible = ["pending", "partial", "overdue"].includes((o.status as string) || "")
+          && (Number(o.amount) - Number(o.amount_paid || 0)) > 0;
+        if (confirmedEligible) eligibleObligationIds.add(oid);
+        if (legacyEligible && !confirmedEligible) confirmedSuppressed++;
+        if (confirmedEligible && !legacyEligible) confirmedNewlyEligible++;
+      }
+    }
+
     // ── Group by user_id → one email per member with all their overdue items ──
     const byUser = new Map<string, {
       userId: string;
@@ -129,6 +253,9 @@ export async function GET(request: Request) {
     }>();
 
     for (const o of realObligations) {
+      // Build 14: on the confirmed basis, only email/SMS members with a confirmed
+      // OPEN, non-flexible obligation (waived/paid/pending-masked/flexible dropped).
+      if (useConfirmed && eligibleObligationIds && !eligibleObligationIds.has(o.id as string)) continue;
       const membership = (Array.isArray(o.membership) ? o.membership[0] : o.membership) as Record<string, unknown>;
       const userId = membership.user_id as string;
       const profiles = membership.profiles as Record<string, unknown> | Array<Record<string, unknown>> | null;
@@ -142,7 +269,10 @@ export async function GET(request: Request) {
       const group = (Array.isArray(o.group) ? o.group[0] : o.group) as Record<string, unknown>;
       const typeName = (preferredLocale === "fr" ? (ct.name_fr as string) : null) || (ct.name as string);
       const currency = (o.currency as string) || "XAF";
-      const amountDue = Number(o.amount) - Number(o.amount_paid || 0);
+      // Build 14: confirmed remaining when on the confirmed basis; else legacy.
+      const amountDue = useConfirmed && reminderDecisions
+        ? (reminderDecisions.get(o.id as string)?.remaining ?? 0)
+        : (Number(o.amount) - Number(o.amount_paid || 0));
       const dueDate = o.due_date as string;
       const daysOverdue = Math.max(0, Math.floor((now.getTime() - new Date(dueDate).getTime()) / (1000 * 60 * 60 * 24)));
 
@@ -239,7 +369,7 @@ export async function GET(request: Request) {
     for (let i = 0; i < realObligations.length; i += WHATSAPP_BATCH_SIZE) {
       const batch = realObligations
         .slice(i, i + WHATSAPP_BATCH_SIZE)
-        .map((o) => producePaymentReminderNotification(supabase, o.id as string, { reminderDate }));
+        .map((o) => producePaymentReminderNotification(supabase, o.id as string, { reminderDate, confirmedBasis: useConfirmed, dryRun }));
       whatsappResults.push(...(await Promise.allSettled(batch)));
     }
 
@@ -270,32 +400,40 @@ export async function GET(request: Request) {
           paymentsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/my-payments`,
         };
 
-        // Email (only if channel enabled)
+        // Email (only if channel enabled). Build 14: dry-run counts, never sends.
         if (email && channels.email) {
-          emailPromises.push(
-            sendEmail({
-              to: email,
-              template: "payment-reminder",
-              data: templateData,
-              locale: memberData.locale,
-            }).then((result) => ({
-              userId,
-              success: result.success,
-              error: result.error,
-            }))
-          );
+          if (dryRun) {
+            wouldEmail++;
+          } else {
+            emailPromises.push(
+              sendEmail({
+                to: email,
+                template: "payment-reminder",
+                data: templateData,
+                locale: memberData.locale,
+              }).then((result) => ({
+                userId,
+                success: result.success,
+                error: result.error,
+              }))
+            );
+          }
         }
 
-        // SMS (only if channel enabled)
+        // SMS (only if channel enabled). Build 14: dry-run counts, never sends.
         if (phoneInfo && channels.sms) {
-          smsPromises.push(
-            sendSmsNotification({
-              to: phoneInfo.phone,
-              template: "payment-reminder",
-              data: templateData,
-              locale: (phoneInfo.locale || memberData.locale) as "en" | "fr",
-            })
-          );
+          if (dryRun) {
+            wouldSms++;
+          } else {
+            smsPromises.push(
+              sendSmsNotification({
+                to: phoneInfo.phone,
+                template: "payment-reminder",
+                data: templateData,
+                locale: (phoneInfo.locale || memberData.locale) as "en" | "fr",
+              })
+            );
+          }
         }
 
         // WhatsApp is handled by the queue-backed producer above — no
@@ -325,7 +463,11 @@ export async function GET(request: Request) {
     }
 
     for (const r of whatsappResults) {
-      if (r.status === "fulfilled" && r.value.status === "queued") {
+      if (r.status === "fulfilled" && r.value.status === "queued" && r.value.dryRun) {
+        // Dry-run preview: the producer returned before the insert (whatsappQueued
+        // false) — count it as "would queue", never as an actual queued row.
+        wouldWhatsapp++;
+      } else if (r.status === "fulfilled" && r.value.status === "queued") {
         whatsappQueued++;
       } else if (r.status === "fulfilled" && r.value.status === "skipped") {
         whatsappSkipped++;
@@ -344,6 +486,19 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      // Build 14: when dryRun, NOTHING was sent or queued — sent/smsSent and
+      // whatsappQueued stay 0; wouldEmail/wouldSms/wouldWhatsapp report the
+      // confirmed-only reminder set, and the delta quantifies how the confirmed
+      // basis differs from legacy so an operator can sign off before flipping
+      // PAYMENT_REMINDER_CONFIRMED_BASIS on.
+      dryRun,
+      confirmedBasis: useConfirmed,
+      wouldEmail,
+      wouldSms,
+      wouldWhatsapp,
+      eligibilityDelta: useConfirmed
+        ? { nowSuppressed: confirmedSuppressed, newlyEligible: confirmedNewlyEligible }
+        : undefined,
       sent,
       failed,
       smsSent,

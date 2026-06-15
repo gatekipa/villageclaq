@@ -570,3 +570,82 @@ export function buildObjectReport(
 
   return { rows, totals };
 }
+
+// ── Confirmed-only reminder eligibility + amount (Build 14) ─────────────────
+// Payment/contribution REMINDERS must use the SAME confirmed basis as the unpaid
+// list, matrix, per-object report, and Pay-Now — never the polluted amount_paid
+// column or trigger-driven status. These helpers are the single source of
+// "should we remind this obligation, and for how much", so a reminder can never
+// disagree with what a member sees they owe. Pure: they only COMPUTE — never
+// send, queue, or mutate. Callers gate the live flip behind a flag + dry-run.
+
+export type ReminderSuppressedReason = "flexible_or_excluded";
+
+export interface ReminderDecision {
+  obligationId: string;
+  /** Confirmed-only: open (not waived, not fully covered by confirmed payments). */
+  isOpen: boolean;
+  /** Confirmed-only remaining the reminder should show — matches Pay-Now/unpaid/matrix. */
+  remaining: number;
+  isWaived: boolean;
+  /** Set when a flexible/excluded contribution type means we suppress the reminder. */
+  suppressed: ReminderSuppressedReason | null;
+  /**
+   * The send decision: remind iff confirmed-open AND not suppressed. Waived and
+   * fully-confirmed-paid obligations are never eligible (computeObligation marks
+   * them not-open); flexible/optional + standing-excluded types are suppressed.
+   */
+  eligible: boolean;
+}
+
+export interface ReminderDecisionOptions {
+  today?: string;
+  /** contribution_type_ids that are flexible (variable-amount) — suppress reminders. */
+  flexibleTypeIds?: Set<string>;
+  /** contribution_type_ids excluded from standing (groups.settings.standing_rules) — suppress. */
+  excludedTypeIds?: Set<string>;
+}
+
+/**
+ * Per-obligation confirmed-only reminder decisions. Routes through
+ * computeObligationStates (confirmed payments allocated oldest-due first, per
+ * type), then layers reminder-policy suppression for flexible / standing-excluded
+ * types. Pending/rejected payments never count; waived obligations are never open.
+ */
+export function computeReminderDecisions(
+  obligations: MoneyObligation[],
+  payments: MoneyPayment[],
+  opts: ReminderDecisionOptions = {},
+): Map<string, ReminderDecision> {
+  const states = computeObligationStates(obligations, payments, { today: opts.today });
+  const flexible = opts.flexibleTypeIds || new Set<string>();
+  const excluded = opts.excludedTypeIds || new Set<string>();
+
+  const out = new Map<string, ReminderDecision>();
+  for (const o of obligations) {
+    const c = states.get(o.id);
+    const isOpen = !!c && c.isOpen;
+    const isWaived = !!c && c.isWaived;
+    const remaining = c ? c.remaining : 0;
+    const typeId = o.contribution_type_id || "";
+    const suppressed: ReminderSuppressedReason | null =
+      typeId && (flexible.has(typeId) || excluded.has(typeId)) ? "flexible_or_excluded" : null;
+    const eligible = isOpen && !suppressed;
+    out.set(o.id, { obligationId: o.id, isOpen, remaining, isWaived, suppressed, eligible });
+  }
+  return out;
+}
+
+/**
+ * Single-obligation convenience for the WhatsApp producer (one obligation at a
+ * time): pass the member's same-type obligations + confirmed payments (oldest-due
+ * allocation needs the siblings) and read the decision for the target obligation.
+ */
+export function computeReminderDecisionFor(
+  obligationId: string,
+  obligations: MoneyObligation[],
+  payments: MoneyPayment[],
+  opts: ReminderDecisionOptions = {},
+): ReminderDecision | null {
+  return computeReminderDecisions(obligations, payments, opts).get(obligationId) || null;
+}

@@ -4,6 +4,10 @@ import { createRequire } from "node:module";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
+// The producer imports @/lib/money (Build 14 confirmed-only reminder decisions).
+// money.ts is a pure module (no @/ imports), so it loads directly here and is
+// handed to the producer's require shim as the REAL engine — not a stub.
+import * as moneyEngine from "../src/lib/money.ts";
 
 const sourcePath = new URL("../src/lib/payment-reminder-producer.ts", import.meta.url);
 const cronPath = new URL("../src/app/api/cron/payment-reminders/route.ts", import.meta.url);
@@ -81,6 +85,9 @@ function loadProducer() {
     }
     if (id === "@/lib/whatsapp-templates") {
       return { WA_TEMPLATES: { PAYMENT_REMINDER: "villageclaq_payment_reminder_v2" } };
+    }
+    if (id === "@/lib/money") {
+      return moneyEngine;
     }
     return require(id);
   };

@@ -224,3 +224,96 @@ get reminded — a send-behavior change this build's hard rules forbid ("no rece
 behavior should change unless only copy is clarified"). The correct fix is a coherent
 confirmed-open remindability + amount pass (gate AND amount together) with send-decision
 testing — its own focused build. Left untouched here so Build 13 changes zero send behavior.
+
+# Send-Aware Reminder Producer Accuracy (Build 14)
+
+This is the "own focused build" Build 13 deferred. The reminder paths
+(`payment-reminder-producer.ts` WhatsApp queue + `cron/payment-reminders/route.ts`
+email/SMS) computed BOTH the message amount AND the send decision from the polluted
+columns: `amount - amount_paid` for the amount, `REMINDABLE_STATUSES.has(status)` +
+`amountDue > 0` for whether to send. Both are wrong on the same basis Build 12/13 fixed:
+a pending/rejected pay-now over-credits `amount_paid` (member reminded of LESS than owed,
+or skipped entirely), and `status` can read `paid`/`partial` from an unconfirmed payment.
+
+Because amount and eligibility are **coupled**, fixing the amount necessarily changes WHO
+gets reminded. The hard rules forbid changing send behavior in this build, so the
+confirmed-only path ships **dormant behind two gates** — zero live change on deploy.
+
+## The confirmed reminder decision — `money.ts`
+New pure helpers next to the Build-4 engine (no `@/` imports → directly unit-testable):
+`computeReminderDecisions(obligations, payments, {today, flexibleTypeIds, excludedTypeIds})`
+→ `Map<obligationId, ReminderDecision>` and the single-id `computeReminderDecisionFor`.
+Each `ReminderDecision` = `{ obligationId, isOpen, remaining, isWaived, suppressed, eligible }`.
+It runs `computeObligationStates` (the SAME confirmed, oldest-due-first allocation as the
+unpaid list / matrix / report / Pay Now), then:
+- `remaining` = confirmed remaining (pending/rejected never reduce it; confirmed does).
+- `isOpen` false (waived, or confirmed-covered) → `eligible: false` (never remind).
+- type in `flexibleTypeIds` or `excludedTypeIds` → `suppressed: "flexible_or_excluded"`,
+  `eligible: false` (optional/standing-excluded contributions are never auto-reminded).
+- `eligible` = `isOpen && !suppressed`. The reminder amount is `remaining` — identical to
+  what Pay Now would record, so reminder ↔ Pay Now ↔ unpaid list reconcile to the cent.
+
+## Two gates — default OFF, no live change
+1. **`confirmedBasis` (producer) / `PAYMENT_REMINDER_CONFIRMED_BASIS=true` (cron)** — env
+   flag, default OFF. When OFF the legacy path is byte-for-byte unchanged (still
+   `amount - amount_paid`, still `REMINDABLE_STATUSES`). When ON, eligibility + amount route
+   through the engine: the producer fetches **all** the member's in-group obligations (every
+   type) + confirmed dues payments (`membership_id` + `group_id`, `relief_plan_id IS NULL`) +
+   the type's `is_flexible` + the group's `settings.standing_rules.excluded_contribution_type_ids`,
+   and skips with an HONEST reason (`obligation_settled_confirmed` / `flexible_or_excluded`)
+   instead of the polluted `obligation_settled`. It fetches the member's FULL obligation set
+   (not just the target type) so the engine's typeless-payment pool spreads oldest-due-first
+   across all types — the same basis the cron and the unpaid list use; a single-type fetch
+   would re-credit a general payment to each type and under-state the remaining.
+2. **`dryRun` (`?dryRun=true`)** — forces the confirmed basis AND turns the run into a
+   preview: the producer does its read-only day-bucket SELECT but returns
+   `{ dryRun: true, whatsappQueued: false, confirmedRemaining }` **before the insert** (no
+   queue row); the cron counts `wouldEmail`/`wouldSms`/`wouldWhatsapp` **instead of** pushing
+   real sends (the dry-run WhatsApp previews are tallied as `wouldWhatsapp`, never as
+   `whatsappQueued`, which stays 0). The response reports the eligibility delta
+   `{ nowSuppressed, newlyEligible }` — how many members the confirmed basis would DROP
+   (over-credited / waived / flexible) vs ADD (status said done but they still owe) — so the
+   operator sees the blast radius before flipping the flag. **No WhatsApp/email/SMS is sent
+   and no row is queued in a dry run.** If the confirmed-basis data fetch (payments/groups)
+   errors, the cron aborts the run with a 500 and sends nothing rather than proceeding on an
+   empty (over-reminding) dataset.
+
+## Eligibility delta — expected direction
+Under confirmed-only, the reminder set SHRINKS for members whose `amount_paid`/`status` was
+inflated by an unconfirmed payment (`nowSuppressed`) and GROWS for members marked
+`paid`/`partial` by a rejected payment who actually still owe (`newlyEligible`). This is a
+**reporting** output of the dry run, not a send. The numbers are surfaced in the cron JSON
+and meant to be reviewed before any rollout.
+
+## Queue safety (unchanged)
+- Day-bucket idempotency (migration 00090, one reminder per obligation per day) preserved —
+  the existence SELECT still blocks same-day re-enqueue, including of previously-failed rows.
+- The drain worker (`cron/drain-notification-queue`) still fetches **only** `status='queued'`
+  and never re-fetches `failed` — Build 14 adds no retry of old failed reminder rows.
+- Dry run performs only the read-only existence SELECT and never inserts; all tests are
+  100% mock and assert `inserts.length === 0` on every dry-run / suppressed case.
+
+## Rollout (operator follow-up — NOT in this PR)
+1. Deploy with both gates OFF (current behavior, no change).
+2. Hit `cron/payment-reminders?dryRun=true`, review `eligibilityDelta` +
+   `wouldEmail`/`wouldSms` against the unpaid list / matrix for a known group.
+3. If unsafe **queued** reminder rows are found (none today — `queue_queued = 0`), HOLD: do
+   not delete the rows (evidence); block the drain or null the row's send target and
+   investigate. Do not retry.
+4. Only after the dry-run preview is signed off, set `PAYMENT_REMINDER_CONFIRMED_BASIS=true`
+   to make confirmed-only the live basis.
+
+## Tests
+- `test-reminder-basis.mjs` (9) — the decision math: pending/rejected don't suppress or
+  reduce; confirmed suppresses/reduces; waived → not eligible; flexible/excluded →
+  suppressed; oldest-due reconciliation; per-type isolation.
+- `test-product-build14.mjs` (15) — producer integration on the confirmed basis (pending
+  still queues, confirmed-covered → `obligation_settled_confirmed`, waived/flexible/excluded
+  → skip), dry-run inserts NOTHING (`inserts.length === 0`), legacy default still queues,
+  plus static guardrails: gates flag-gated + default unchanged, drain queued-only, P0 guard
+  intact, Build-8 producer dormant, no new migration.
+- `test-payment-reminder-producer.mjs` (13) — re-run confirms the legacy path is unchanged.
+
+## No migration
+All changes are read-path / in-memory engine reroutes. **No new migration; no DB mutation;
+no send, receipt, or reminder fired; no provider/template/Stripe config touched.**

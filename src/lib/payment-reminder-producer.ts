@@ -5,6 +5,12 @@ import { getMemberName } from "@/lib/get-member-name";
 import { maskPhoneNumber } from "@/lib/mask-phone";
 import { getEnabledChannels, type EnabledChannels } from "@/lib/notification-prefs";
 import { WA_TEMPLATES } from "@/lib/whatsapp-templates";
+import {
+  computeReminderDecisionFor,
+  type ReminderDecision,
+  type MoneyObligation,
+  type MoneyPayment,
+} from "@/lib/money";
 
 type Locale = "en" | "fr";
 
@@ -60,6 +66,10 @@ export type PaymentReminderProducerResult = {
   obligationId: string;
   reminderDate: string;
   whatsappQueued?: boolean;
+  /** Build 14: true when dryRun computed the decision but did NOT enqueue. */
+  dryRun?: boolean;
+  /** Build 14: confirmed-only remaining (when confirmedBasis), for previews. */
+  confirmedRemaining?: number;
 };
 
 export type PaymentReminderProducerOptions = {
@@ -75,6 +85,19 @@ export type PaymentReminderProducerOptions = {
     notificationType: "payment_reminders",
     groupId?: string,
   ) => Promise<EnabledChannels>;
+  /**
+   * Build 14: when true, decide remindability + amount from CONFIRMED payments
+   * (the money engine) instead of the polluted amount_paid / obligation.status.
+   * Default false → byte-for-byte the legacy behavior, so deploying this code
+   * changes NOTHING until an operator flips the flag after a dry-run preview.
+   */
+  confirmedBasis?: boolean;
+  /**
+   * Build 14: compute the full decision (gates + confirmed amount) but DO NOT
+   * insert the queue row — for preview/validation. No send, no mutation. The
+   * day-bucket existence SELECT still runs read-only so previews see prior rows.
+   */
+  dryRun?: boolean;
 };
 
 function shortId(id: string | null | undefined): string {
@@ -132,6 +155,78 @@ async function maybeSingle<T>(
 }
 
 /**
+ * Build 14: confirmed-only reminder decision for one obligation. Fetches the
+ * member's same-type obligations (oldest-due allocation context), their CONFIRMED
+ * dues payments, the type's is_flexible flag, and the group's standing-excluded
+ * type set, then routes through the money engine (computeReminderDecisionFor).
+ * Reads NO polluted amount_paid / status for the decision. Returns "error" on a
+ * transient lookup failure so the caller surfaces it instead of silently skipping.
+ */
+async function computeConfirmedReminderDecision(
+  supabase: SupabaseClient,
+  obligation: ObligationRow,
+  logger: Logger,
+): Promise<ReminderDecision | "error"> {
+  const typeId = obligation.contribution_type_id;
+  const [oblsRes, paysRes, typeRes, groupRes] = await Promise.all([
+    // ALL of the member's in-group obligations (every type) — NOT just this
+    // type. The money engine's Phase-2 typeless-payment pool spreads a general
+    // payment oldest-due-first across the member's obligations of ANY type, so
+    // it must see the full set; a single-type fetch would re-credit the whole
+    // pool to each type independently and under-state the remaining. This
+    // matches the cron's batch call and the canonical unpaid-list / Pay-Now basis.
+    supabase
+      .from("contribution_obligations")
+      .select("id, amount, status, due_date, membership_id, contribution_type_id")
+      .eq("membership_id", obligation.membership_id)
+      .eq("group_id", obligation.group_id),
+    // membership_id already implies a single group (memberships are
+    // UNIQUE(user,group)); group_id is added as defense-in-depth to match the
+    // canonical useMemberPayments fetch.
+    supabase
+      .from("payments")
+      .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id")
+      .eq("membership_id", obligation.membership_id)
+      .eq("group_id", obligation.group_id)
+      .is("relief_plan_id", null),
+    typeId
+      ? supabase.from("contribution_types").select("id, is_flexible").eq("id", typeId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    supabase.from("groups").select("settings").eq("id", obligation.group_id).maybeSingle(),
+  ]);
+
+  if (oblsRes.error || paysRes.error || typeRes.error || groupRes.error) {
+    logger.warn("[PaymentReminderProducer] confirmed-basis lookup failed", {
+      obligationId: shortId(obligation.id),
+      oblErr: oblsRes.error?.message,
+      payErr: paysRes.error?.message,
+      typeErr: typeRes.error?.message,
+      groupErr: groupRes.error?.message,
+    });
+    return "error";
+  }
+
+  const flexibleTypeIds = new Set<string>();
+  if (typeId && (typeRes.data as { is_flexible?: boolean } | null)?.is_flexible) {
+    flexibleTypeIds.add(typeId);
+  }
+  const settings = (groupRes.data as { settings?: Record<string, unknown> } | null)?.settings;
+  const standingRules = settings?.standing_rules as Record<string, unknown> | undefined;
+  const excludedTypeIds = new Set<string>(
+    (standingRules?.excluded_contribution_type_ids as string[] | undefined) || [],
+  );
+
+  return (
+    computeReminderDecisionFor(
+      obligation.id,
+      (oblsRes.data || []) as unknown as MoneyObligation[],
+      (paysRes.data || []) as unknown as MoneyPayment[],
+      { flexibleTypeIds, excludedTypeIds },
+    ) || { obligationId: obligation.id, isOpen: false, remaining: 0, isWaived: false, suppressed: null, eligible: false }
+  );
+}
+
+/**
  * Queue a WhatsApp payment reminder for one overdue obligation.
  *
  * WhatsApp-only producer: the recipient is the obligated member only.
@@ -185,17 +280,41 @@ export async function producePaymentReminderNotification(
     return { status: "skipped", reason: "obligation_not_found", obligationId, reminderDate };
   }
 
-  if (!obligation.status || !REMINDABLE_STATUSES.has(obligation.status)) {
+  const confirmedBasis = options.confirmedBasis === true;
+
+  // Legacy status gate (POLLUTED) — only on the legacy basis. The confirmed basis
+  // decides remindability from confirmed payments below (status is trigger-driven).
+  if (!confirmedBasis && (!obligation.status || !REMINDABLE_STATUSES.has(obligation.status))) {
     return { status: "skipped", reason: "obligation_not_remindable", obligationId, reminderDate };
   }
 
+  // Due-date gate (Build 10) — applies to BOTH bases (reminders are for past-due).
   if (!obligation.due_date || obligation.due_date >= reminderDate) {
     return { status: "skipped", reason: "obligation_not_due", obligationId, reminderDate };
   }
 
-  const amountDue = Number(obligation.amount) - Number(obligation.amount_paid || 0);
-  if (!(amountDue > 0)) {
-    return { status: "skipped", reason: "obligation_settled", obligationId, reminderDate };
+  let amountDue: number;
+  if (confirmedBasis) {
+    // Build 14: confirmed-only remindability + amount. Pending/rejected never
+    // reduce or suppress; waived + flexible/excluded types never remind; the
+    // amount matches Pay-Now/unpaid/matrix. Reads NO amount_paid/status.
+    const decision = await computeConfirmedReminderDecision(supabase, obligation, logger);
+    if (decision === "error") {
+      return { status: "error", reason: "confirmed_basis_lookup_failed", obligationId, reminderDate };
+    }
+    if (!decision.eligible) {
+      const reason = decision.suppressed === "flexible_or_excluded"
+        ? "flexible_or_excluded"
+        : "obligation_settled_confirmed";
+      return { status: "skipped", reason, obligationId, reminderDate, confirmedRemaining: decision.remaining };
+    }
+    amountDue = decision.remaining;
+  } else {
+    // Legacy (default) basis — UNCHANGED behavior.
+    amountDue = Number(obligation.amount) - Number(obligation.amount_paid || 0);
+    if (!(amountDue > 0)) {
+      return { status: "skipped", reason: "obligation_settled", obligationId, reminderDate };
+    }
   }
 
   const { data: membership, error: membershipError } = await maybeSingle<MembershipRow>(
@@ -330,6 +449,27 @@ export async function producePaymentReminderNotification(
       obligationId,
       reminderDate,
       template: WA_TEMPLATES.PAYMENT_REMINDER,
+    };
+  }
+
+  // Build 14: dry-run preview — the obligation WOULD be reminded, but we insert
+  // nothing (no queue row, no send, no mutation). The existence check above ran
+  // read-only so the preview still respects day-bucket idempotency.
+  if (options.dryRun) {
+    logger.log("[PaymentReminderProducer] DRY RUN — would queue WhatsApp reminder (no insert)", {
+      obligationId: shortId(obligationId),
+      userId: shortId(userId),
+      amount,
+      reminderDate,
+    });
+    return {
+      status: "queued",
+      obligationId,
+      reminderDate,
+      template: WA_TEMPLATES.PAYMENT_REMINDER,
+      whatsappQueued: false,
+      dryRun: true,
+      confirmedRemaining: confirmedBasis ? amountDue : undefined,
     };
   }
 

@@ -986,9 +986,15 @@ export default function MyPaymentsPage() {
           obligation={{
             id: payNowObligation.id as string,
             amount: Number(payNowObligation.amount),
-            // Confirmed-basis paid (not the polluted amount_paid column) so the
-            // dialog's prefilled "amount due" matches the corrected statement.
-            amount_paid: confirmedByObl.get(payNowObligation.id as string) || 0,
+            // Build 13: pass the CONFIRMED-only remaining directly (the same
+            // computeObligation().remaining basis used by this page's statement,
+            // the unpaid list, and the matrix) so the dialog records the correct
+            // amount by construction — never the polluted amount_paid column.
+            amountDue: computeObligation(
+              payNowObligation as unknown as MoneyObligation,
+              confirmedByObl,
+              today,
+            ).remaining,
             currency,
             contribution_type_id: (payNowObligation.contribution_type as Record<string, unknown>)?.id as string || "",
             contribution_type: payNowObligation.contribution_type as { name?: string; name_fr?: string } | undefined,

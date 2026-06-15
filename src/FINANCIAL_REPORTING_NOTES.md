@@ -174,3 +174,53 @@ rejected, cross-type non-coverage, oldest-due allocation, overdue, waived, build
 reconciliation). `test-product-build12.mjs` (15) asserts every surface routes through the
 engine and no longer reads `amount_paid`/status for paid-unpaid, plus P0 guard / Build-8
 dormancy / no-migration / no-send guards.
+
+---
+
+# Payment-Action Amount Accuracy (Build 13)
+
+Build 12 made the confirmed-only basis cover every DISPLAY surface. Build 13 finishes
+the payment story: every place that PRE-FILLS or RECORDS an actionable amount (amount
+due / pay-now / remaining) must use the same confirmed basis, so the app never asks a
+member to pay — or records — the wrong amount. **No migration, no DB mutation, no
+write-path change, no send-behavior change.**
+
+## A1 — PayNowDialog amountDue (the only RECORDED amount) — correct by construction
+`pay-now-dialog.tsx` computed `amountDue = obligation.amount - (obligation.amount_paid
+|| 0)` and used it as the displayed banner AND the inserted `payments.amount` (immutable)
+AND the admin/member notification amount. The single caller (my-payments) already passed
+a confirmed-basis `amount_paid`, so production was correct **by convention** — one refactor
+from a polluted-column bug. Fix: the dialog now takes a confirmed `amountDue` prop directly
+(the `amount_paid` prop is gone), clamped to `[0, obligation.amount]`, with a submit guard
+that blocks a zero/negative (waived/paid) payment. The caller (my-payments) passes
+`computeObligation(o, confirmedByObl, today).remaining` — the exact basis the unpaid list,
+statement, and matrix use, so the recorded amount reconciles everywhere. Added i18n
+`payNow.nothingDue` (EN/FR).
+
+## A4 — Enterprise transfers pre-transfer warning — confirmed-only display
+The pre-transfer "outstanding" warning summed the polluted `amount - amount_paid`. Now it
+fetches the member's obligations + confirmed dues payments and sums `computeObligationStates`
+confirmed-open `remaining` (same Build-12 reroute pattern). Display-only; never moves money.
+
+## A5 — Finances sync — dropped the unused polluted read
+The amount_paid heal-sync selected `id, amount, amount_paid` but derived `newStatus` from
+the CONFIRMED `totalPaid`; `amount_paid` was read and never used. Select trimmed to
+`id, amount`. The confirmed-only writeback (the intended remediation of the polluted column)
+is unchanged.
+
+## Already correct / out of scope (NO change)
+- Record page (single + bulk): prefills `contribution_type.amount` (nominal), records the
+  user-entered amount — never reads amount_paid. P0 bulk-receipt guard intact.
+- my-payments, member-detail, per-object report, unpaid list, dues matrix: confirmed-only
+  (Build 12). Loans (`loan_schedule.amount_paid`): different domain/column.
+
+## Deferred WITH reason — reminder producer amounts (A2/A3, SEND paths)
+`payment-reminder-producer.ts` and `cron/payment-reminders/route.ts` compute the reminder
+MESSAGE amount as `amount - amount_paid` (polluted → members can be reminded of a LOWER
+amount than they owe). This is real, but correcting it is **coupled to the send DECISION**:
+the producer gates remindability on the polluted `obligation.status` (REMINDABLE_STATUSES)
+and skips when `amountDue <= 0`. Recomputing the amount confirmed-only changes WHICH members
+get reminded — a send-behavior change this build's hard rules forbid ("no receipt/send
+behavior should change unless only copy is clarified"). The correct fix is a coherent
+confirmed-open remindability + amount pass (gate AND amount together) with send-decision
+testing — its own focused build. Left untouched here so Build 13 changes zero send behavior.

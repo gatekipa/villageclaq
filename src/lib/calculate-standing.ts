@@ -7,6 +7,7 @@ import {
   type StandingFactorKey,
   type StandingRules,
 } from "@/lib/standing-rules";
+import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 
 /**
  * One line item in a member's standing breakdown.
@@ -151,37 +152,54 @@ export async function calculateStanding(
 
   // Factor: Dues
   if (rules.factors.dues) {
+    // Build 12: a member is "behind on dues" based on CONFIRMED payments, NEVER
+    // the polluted obligation.amount_paid / status columns (a pending or rejected
+    // pay-now over-credits amount_paid and flips status, which would wrongly
+    // CLEAR a member who hasn't actually paid, or wrongly SUSPEND one whose
+    // payment was rejected). `id` + `membership_id` are selected so the engine
+    // allocates each member's confirmed total to the right obligations.
     const { data: obligations } = await supabase
       .from("contribution_obligations")
-      .select("amount, amount_paid, status, due_date, contribution_type_id")
+      .select("id, amount, status, due_date, contribution_type_id, membership_id")
       .eq("membership_id", membershipId)
       .eq("group_id", groupId);
+
+    const { data: duesPayments } = await supabase
+      .from("payments")
+      .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+      .eq("membership_id", membershipId)
+      .eq("group_id", groupId)
+      .is("relief_plan_id", null);
 
     const excluded = new Set(rules.excludedContributionTypeIds);
     const relevant = (obligations || []).filter(
       (o) => !excluded.has(o.contribution_type_id as string),
     );
 
-    // Overdue = unpaid AND due_date + grace days < today.
+    // Confirmed-only per-obligation state. Payments to excluded/flexible types
+    // never cover a relevant obligation (computeObligationStates partitions by
+    // type, and `relevant` already drops excluded types), so a flexible
+    // contribution cannot mark a member behind.
+    const states = computeObligationStates(
+      relevant as unknown as MoneyObligation[],
+      (duesPayments || []) as unknown as MoneyPayment[],
+    );
+
+    // Overdue = confirmed-open (remaining > 0) AND due_date + grace days < today.
     const overdueObls = relevant.filter((o) => {
-      if (
-        o.status !== "pending" &&
-        o.status !== "partial" &&
-        o.status !== "overdue"
-      ) {
-        return false;
-      }
+      const c = states.get(o.id as string);
+      if (!c || !c.isOpen) return false;
       const dueWithGrace = new Date(o.due_date as string);
       dueWithGrace.setDate(dueWithGrace.getDate() + rules.overdueGraceDays);
       return dueWithGrace < now;
     });
 
     const totalOutstanding = relevant
-      .filter((o) => o.status !== "paid" && o.status !== "waived")
-      .reduce(
-        (sum, o) => sum + (Number(o.amount) - Number(o.amount_paid)),
-        0,
-      );
+      .filter((o) => (o.status as string) !== "waived")
+      .reduce((sum, o) => {
+        const c = states.get(o.id as string);
+        return sum + (c ? c.remaining : 0);
+      }, 0);
 
     const duesPassed = overdueObls.length === 0;
     reasons.push({

@@ -10,6 +10,7 @@ import {
   confirmedPaidByMember,
   allocateConfirmedToObligations,
   computeObligation,
+  computeObligationStates,
   computeMoneyFigures,
   buildObjectReport,
 } from "../src/lib/money.ts";
@@ -227,4 +228,129 @@ test("group rollup matches per-object sums (no contradictory totals)", () => {
   assert.equal(figures.collected, totals.totalCollected);
   assert.equal(figures.expected, totals.totalExpected);
   assert.equal(figures.outstanding, totals.totalOutstanding);
+});
+
+// ── computeObligationStates (Build 12 canonical confirmed-only chain) ────────
+// Every paid/unpaid/owing/overdue DISPLAY surface routes through this. It must
+// (a) ignore amount_paid/status pollution, (b) NOT let a payment to one type
+// cover another type's obligation, (c) allocate oldest-due-first within a type.
+
+const B12_TODAY = "2026-06-13";
+
+test("computeObligationStates: a CONFIRMED payment marks the obligation paid", () => {
+  const obls = [{ id: "o1", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" }];
+  const pays = [{ id: "p1", amount: 1000, status: "confirmed", membership_id: "m1", contribution_type_id: "t1" }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("o1").isPaid, true);
+  assert.equal(s.get("o1").remaining, 0);
+  assert.equal(s.get("o1").isOpen, false);
+});
+
+test("computeObligationStates: a PENDING payment does NOT mark paid (even if status='partial')", () => {
+  const obls = [{ id: "o1", amount: 1000, status: "partial", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" }];
+  const pays = [{ id: "p1", amount: 1000, status: "pending_confirmation", membership_id: "m1", contribution_type_id: "t1" }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("o1").confirmedPaid, 0);
+  assert.equal(s.get("o1").isOpen, true);
+  assert.equal(s.get("o1").remaining, 1000);
+});
+
+test("computeObligationStates: a REJECTED payment does NOT mark paid (even if status='paid')", () => {
+  const obls = [{ id: "o1", amount: 1000, status: "paid", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" }];
+  const pays = [{ id: "p1", amount: 1000, status: "rejected", membership_id: "m1", contribution_type_id: "t1" }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("o1").confirmedPaid, 0);
+  assert.equal(s.get("o1").isOpen, true);
+});
+
+test("computeObligationStates: a payment to type A NEVER covers a type B obligation", () => {
+  const obls = [
+    { id: "oA", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "tA" },
+    { id: "oB", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "tB" },
+  ];
+  const pays = [{ id: "p1", amount: 1000, status: "confirmed", membership_id: "m1", contribution_type_id: "tA" }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("oA").isPaid, true);
+  assert.equal(s.get("oB").isOpen, true);
+  assert.equal(s.get("oB").confirmedPaid, 0);
+});
+
+test("computeObligationStates: confirmed total allocates oldest-due first within a type", () => {
+  const obls = [
+    { id: "oOld", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" },
+    { id: "oNew", amount: 1000, status: "pending", due_date: "2026-06-01", membership_id: "m1", contribution_type_id: "t1" },
+  ];
+  const pays = [{ id: "p1", amount: 1000, status: "confirmed", membership_id: "m1", contribution_type_id: "t1" }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("oOld").isPaid, true);
+  assert.equal(s.get("oNew").isOpen, true);
+});
+
+test("computeObligationStates: overdue = confirmed-open AND past due_date", () => {
+  const obls = [
+    { id: "oPast", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" },
+    { id: "oFuture", amount: 1000, status: "pending", due_date: "2026-12-01", membership_id: "m2", contribution_type_id: "t1" },
+  ];
+  const s = computeObligationStates(obls, [], { today: B12_TODAY });
+  assert.equal(s.get("oPast").isOverdue, true);
+  assert.equal(s.get("oFuture").isOverdue, false);
+});
+
+test("computeObligationStates: a paid-up overdue obligation is NOT overdue", () => {
+  const obls = [{ id: "o1", amount: 1000, status: "overdue", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" }];
+  const pays = [{ id: "p1", amount: 1000, status: "confirmed", membership_id: "m1", contribution_type_id: "t1" }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("o1").isOverdue, false);
+  assert.equal(s.get("o1").isPaid, true);
+});
+
+test("computeObligationStates: waived obligation flagged, owes nothing (status='waived' is trusted)", () => {
+  const obls = [{ id: "o1", amount: 1000, status: "waived", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" }];
+  const s = computeObligationStates(obls, [], { today: B12_TODAY });
+  assert.equal(s.get("o1").isWaived, true);
+  assert.equal(s.get("o1").isOpen, false);
+  assert.equal(s.get("o1").isOverdue, false);
+});
+
+test("computeObligationStates: per-type slice reconciles with buildObjectReport remaining", () => {
+  const obls = [
+    { id: "o1", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" },
+    { id: "o2", amount: 1000, status: "pending", due_date: "2026-02-01", membership_id: "m2", contribution_type_id: "t1" },
+  ];
+  const pays = [{ id: "p1", amount: 600, status: "confirmed", membership_id: "m1", contribution_type_id: "t1" }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  const remViaStates = s.get("o1").remaining + s.get("o2").remaining;
+  const { totals } = buildObjectReport(obls, pays, { today: B12_TODAY });
+  assert.equal(remViaStates, totals.totalOutstanding);
+});
+
+test("computeObligationStates: a TYPELESS confirmed payment covers the member's oldest open obligation (any type)", () => {
+  const obls = [
+    { id: "oA", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "tA" },
+    { id: "oB", amount: 1000, status: "pending", due_date: "2026-06-01", membership_id: "m1", contribution_type_id: "tB" },
+  ];
+  const pays = [{ id: "p1", amount: 1000, status: "confirmed", membership_id: "m1", contribution_type_id: null }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("oA").isPaid, true, "typeless general payment covers the oldest open obligation");
+  assert.equal(s.get("oB").isOpen, true);
+  assert.equal(s.get("oA").remaining + s.get("oB").remaining, 1000, "reconciles with the flat confirmed sum");
+});
+
+test("computeObligationStates: typeless pool never double-credits an already type-covered obligation", () => {
+  const obls = [{ id: "oA", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "tA" }];
+  const pays = [
+    { id: "p1", amount: 1000, status: "confirmed", membership_id: "m1", contribution_type_id: "tA" },
+    { id: "p2", amount: 500, status: "confirmed", membership_id: "m1", contribution_type_id: null },
+  ];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("oA").confirmedPaid, 1000, "capped at the obligation amount, no double-credit from the typeless pool");
+  assert.equal(s.get("oA").isPaid, true);
+});
+
+test("computeObligationStates: a PENDING typeless payment does NOT cover anything", () => {
+  const obls = [{ id: "oA", amount: 1000, status: "pending", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "tA" }];
+  const pays = [{ id: "p1", amount: 1000, status: "pending_confirmation", membership_id: "m1", contribution_type_id: null }];
+  const s = computeObligationStates(obls, pays, { today: B12_TODAY });
+  assert.equal(s.get("oA").isOpen, true);
+  assert.equal(s.get("oA").confirmedPaid, 0);
 });

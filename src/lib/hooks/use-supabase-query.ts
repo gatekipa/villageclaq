@@ -237,6 +237,37 @@ export function usePayments(limit = 50) {
   });
 }
 
+/**
+ * useGroupDuesPayments — the UNCAPPED confirmed-only payment basis (Build 12).
+ *
+ * Lean money-engine fields for EVERY dues payment in the group (relief excluded),
+ * with NO row limit — aggregate paid/unpaid/owing/overdue surfaces must never
+ * undercount confirmed money (usePayments defaults to 50 rows, which would
+ * re-pollute the math). Feed this + the group's obligations into
+ * computeObligationStates() from @/lib/money. Keyed ["payments", groupId,
+ * "all-dues"] so useRecordPayment's existing ["payments", groupId] invalidation
+ * (prefix match) refreshes it on every recorded payment — no write-path change.
+ */
+export function useGroupDuesPayments() {
+  const { groupId } = useGroup();
+  return useQuery({
+    queryKey: ["payments", groupId, "all-dues"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      if (!groupId) return [];
+      const { data, error } = await supabase
+        .from("payments")
+        .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+        .eq("group_id", groupId)
+        .is("relief_plan_id", null) // dues only — relief never covers dues obligations
+        .order("recorded_at", { ascending: false });
+      if (error) { console.warn("[GroupDuesPayments] query failed:", error.message); return []; }
+      return data || [];
+    },
+    enabled: !!groupId,
+  });
+}
+
 /** Shape returned by useRecordPayment for cascade/duplicate info */
 export interface PaymentCascadeResult {
   payment: Record<string, unknown>;

@@ -35,13 +35,14 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
-import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections } from "@/lib/hooks/use-supabase-query";
+import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import {
   computeMoneyFigures,
+  computeObligationStates,
   isPendingPayment,
   isRejectedPayment,
   num,
@@ -245,6 +246,13 @@ function ReportDetailContent() {
   // Fetch data based on report type
   const { data: members, isLoading: membersLoading, error: membersError } = useMembers();
   const { data: payments, isLoading: paymentsLoading } = usePayments(500);
+  // Build 12: the UNCAPPED confirmed-only dues-payment basis. ALL money math
+  // (Financial Summary + who-hasn't-paid + AR-aging + YoY) uses this so the
+  // figures reconcile and never under-count collected on a group with >500
+  // payments. The capped usePayments(500) feed above is kept only for surfaces
+  // that need the membership/type JOINs: the on-screen ledger (Report 3) +
+  // engagement counts.
+  const { data: duesPaymentsAll } = useGroupDuesPayments();
   const { data: obligations, isLoading: obligationsLoading } = useObligations();
   const { data: events, isLoading: eventsLoading } = useEvents();
   const { data: allAttendances, isLoading: attendanceLoading } = useAllEventAttendances();
@@ -389,15 +397,23 @@ function ReportDetailContent() {
   const eventList = events || [];
   const attendanceList = allAttendances || [];
 
-  // Report 1: Who Hasn't Paid - compute from obligations
+  // Build 12: confirmed-only per-obligation state for the dues reports below
+  // (who-hasn't-paid, AR aging, YoY) — open/remaining/confirmedPaid derived from
+  // CONFIRMED payments, NEVER the polluted obligation.amount_paid / status.
+  const reportObligationStates = computeObligationStates(
+    obligationList as unknown as MoneyObligation[],
+    (duesPaymentsAll || []) as unknown as MoneyPayment[],
+  );
+
+  // Report 1: Who Hasn't Paid — confirmed-open obligations only.
   type UnpaidRow = { name: string; amount: number; days: number; items: number };
   const unpaidMap: Record<string, UnpaidRow> = {};
   obligationList
-    .filter((o: Record<string, unknown>) => (o.status as string) !== "paid")
+    .filter((o: Record<string, unknown>) => reportObligationStates.get(o.id as string)?.isOpen)
     .forEach((o: Record<string, unknown>) => {
       const membership = o.membership as Record<string, unknown>;
       const name = getMemberName(membership);
-      const amount = Number(o.amount || 0) - Number(o.amount_paid || 0);
+      const amount = reportObligationStates.get(o.id as string)?.remaining || 0;
       const dueDate = new Date(o.due_date as string);
       const days = Math.max(0, Math.floor((Date.now() - dueDate.getTime()) / 86400000));
       if (!unpaidMap[name]) unpaidMap[name] = { name, amount: 0, days: 0, items: 0 };
@@ -415,7 +431,10 @@ function ReportDetailContent() {
   // obligation.amount including waived" logic that over-stated collection.
   const moneyFigures = computeMoneyFigures(
     obligationList as unknown as MoneyObligation[],
-    paymentList as unknown as MoneyPayment[],
+    // Build 12: UNCAPPED dues basis (not the capped usePayments(500) feed) so the
+    // Financial Summary reconciles with who-hasn't-paid / AR / YoY and never
+    // under-counts collected on a group with >500 payments.
+    (duesPaymentsAll || []) as unknown as MoneyPayment[],
   );
   const totalCollected = moneyFigures.collected;
   const totalExpected = moneyFigures.expected;
@@ -447,10 +466,10 @@ function ReportDetailContent() {
     "91-120": { count: 0, amount: 0 },
     "120+": { count: 0, amount: 0 },
   };
-  obligationList.filter((o: Record<string, unknown>) => (o.status as string) !== "paid").forEach((o: Record<string, unknown>) => {
+  obligationList.filter((o: Record<string, unknown>) => reportObligationStates.get(o.id as string)?.isOpen).forEach((o: Record<string, unknown>) => {
     const days = Math.floor((Date.now() - new Date(o.due_date as string).getTime()) / 86400000);
     if (days < 1) return; // not yet overdue
-    const amount = Number(o.amount || 0) - Number(o.amount_paid || 0);
+    const amount = reportObligationStates.get(o.id as string)?.remaining || 0;
     if (amount <= 0) return;
     const bucket = days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : days <= 120 ? "91-120" : "120+";
     arBuckets[bucket].count += 1;
@@ -1069,7 +1088,8 @@ function ReportDetailContent() {
     matrixYears.add(year);
     if (!matrixByMember[name]) matrixByMember[name] = {};
     if (!matrixByMember[name][year]) matrixByMember[name][year] = { paid: 0, due: 0 };
-    matrixByMember[name][year].paid += Number(ob.amount_paid || 0);
+    // Build 12: confirmed-only paid (not the polluted amount_paid column).
+    matrixByMember[name][year].paid += reportObligationStates.get(ob.id as string)?.confirmedPaid || 0;
     matrixByMember[name][year].due += Number(ob.amount || 0);
   });
   const sortedMatrixYears = Array.from(matrixYears).sort();

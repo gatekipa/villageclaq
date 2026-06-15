@@ -21,6 +21,7 @@ import {
 } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 import { formatAmount as formatAmt } from "@/lib/currencies";
 import { useMemberStanding } from "@/lib/hooks/use-member-standing";
 import { StandingBadge } from "@/components/standing-badge";
@@ -137,6 +138,36 @@ export default function MyDashboardPage() {
 
   const { data: unreadCount } = useUnreadNotificationCount();
 
+  // Build 12: the member's CONFIRMED dues payments — used to derive truly-unpaid
+  // obligations from confirmed money, never the polluted amount_paid / status.
+  // Keyed under ["member-payments", ...] so useRecordPayment's existing
+  // ["member-payments"] invalidation (prefix match) refreshes it.
+  const { data: myDuesPayments } = useQuery({
+    queryKey: ["member-payments", currentMembership?.id, "dues-confirmed"],
+    enabled: !!currentMembership?.id,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      if (!currentMembership?.id) return [];
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("payments")
+        .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+        .eq("membership_id", currentMembership.id)
+        .is("relief_plan_id", null);
+      if (error) return [];
+      return data || [];
+    },
+  });
+
+  const obligationStates = useMemo(
+    () =>
+      computeObligationStates(
+        (pendingObligations || []) as unknown as MoneyObligation[],
+        (myDuesPayments || []) as unknown as MoneyPayment[],
+      ),
+    [pendingObligations, myDuesPayments],
+  );
+
   // My Savings participation
   const { data: mySavings = [] } = useQuery({
     queryKey: ["my-savings", currentMembership?.id],
@@ -153,16 +184,15 @@ export default function MyDashboardPage() {
     enabled: !!currentMembership?.id,
   });
 
-  // Filter to only unpaid obligations (pending, partial, overdue)
+  // Filter to only truly-unpaid obligations (confirmed remaining > 0).
   const unpaidObligations = useMemo(() => {
     if (!pendingObligations) return [];
     return pendingObligations.filter((o: Record<string, unknown>) => {
-      const status = o.status as string;
-      if (status === "paid" || status === "waived") return false;
-      const outstanding = Number(o.amount) - Number(o.amount_paid || 0);
-      return outstanding > 0;
+      if ((o.status as string) === "waived") return false;
+      const c = obligationStates.get(o.id as string);
+      return !!c && c.isOpen;
     });
-  }, [pendingObligations]);
+  }, [pendingObligations, obligationStates]);
 
   const upcomingEvents = useMemo(() => {
     if (!events) return [];
@@ -393,8 +423,8 @@ export default function MyDashboardPage() {
                 const urgency = getUrgency(obl.due_date as string);
                 const ct = obl.contribution_type as Record<string, unknown> | null;
                 const label = ct?.name as string || "";
-                const amount =
-                  Number(obl.amount) - Number(obl.amount_paid || 0);
+                const c = obligationStates.get(obl.id as string);
+                const amount = c ? c.remaining : Number(obl.amount);
                 return (
                   <div
                     key={obl.id as string}

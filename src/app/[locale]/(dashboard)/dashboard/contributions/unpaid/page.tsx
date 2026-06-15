@@ -26,7 +26,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { ContributionsSubNav } from "@/components/contributions/sub-nav";
-import { useObligations } from "@/lib/hooks/use-supabase-query";
+import { useObligations, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
+import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { exportCSV } from "@/lib/export";
@@ -73,25 +74,34 @@ export default function UnpaidReportPage() {
   const [showRemindersConfirm, setShowRemindersConfirm] = useState(false);
   const [remindersError, setRemindersError] = useState<string | null>(null);
 
-  // Fetch ALL non-paid obligations (pending, partial, overdue)
-  const { data: allObligations, isLoading, isError, refetch } = useObligations();
+  // Fetch ALL obligations + the UNCAPPED confirmed-payment basis. Whether a
+  // member is unpaid/owing/overdue is derived from CONFIRMED payments (Build 12
+  // via computeObligationStates), NEVER the polluted obligation.amount_paid /
+  // status: a pending or rejected pay-now over-credits amount_paid and flips
+  // status to partial/paid, which previously wrongly dropped a member off this
+  // list or understated what they owe. `waived` is still read from status
+  // (admin-set, trigger-independent).
+  const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: refetchObl } = useObligations();
+  const { data: duesPayments, isLoading: payLoading, isError: payError, refetch: refetchPay } = useGroupDuesPayments();
+  const isLoading = oblLoading || payLoading;
+  const isError = oblError || payError;
+  const refetch = () => { refetchObl(); refetchPay(); };
 
-  // Group obligations by membership — only include truly unpaid ones
+  // Group obligations by membership — only include truly OPEN ones (confirmed
+  // remaining > 0), with outstanding/paid derived from confirmed payments.
   const unpaidMembers = useMemo<UnpaidMember[]>(() => {
     if (!allObligations || allObligations.length === 0) return [];
 
+    const states = computeObligationStates(
+      allObligations as unknown as MoneyObligation[],
+      (duesPayments || []) as unknown as MoneyPayment[],
+    );
     const memberMap = new Map<string, UnpaidMember>();
 
     for (const obl of allObligations) {
-      // Skip paid and waived obligations
-      const status = obl.status as string;
-      if (status === "paid" || status === "waived") continue;
-
-      // Double-check mathematically: only include if there's a real outstanding balance
-      const amountDue = Number(obl.amount) || 0;
-      const amountPaid = Number(obl.amount_paid) || 0;
-      const outstanding = amountDue - amountPaid;
-      if (outstanding <= 0 || amountDue <= 0) continue;
+      if ((obl.status as string) === "waived") continue; // admin-set, safe
+      const c = states.get(obl.id as string);
+      if (!c || !c.isOpen) continue; // only obligations with confirmed remaining > 0
 
       const membership = obl.membership as { id: string; user_id: string; standing?: string; profiles: { id: string; full_name: string; avatar_url: string | null } | { id: string; full_name: string; avatar_url: string | null }[] };
       const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
@@ -110,20 +120,20 @@ export default function UnpaidReportPage() {
       }
 
       const member = memberMap.get(membershipId)!;
-      member.totalOutstanding += outstanding;
+      member.totalOutstanding += c.remaining;
 
       const contributionType = obl.contribution_type as { id: string; name: string; name_fr?: string } | null;
       member.obligations.push({
         type: contributionType?.name || t("contributions.contribution"),
         period: obl.period_label || obl.due_date?.slice(0, 7) || "",
-        amount: amountDue,
-        amountPaid: amountPaid,
+        amount: c.expected,
+        amountPaid: c.confirmedPaid,
         dueDate: obl.due_date || "",
       });
     }
 
     return Array.from(memberMap.values());
-  }, [allObligations]);
+  }, [allObligations, duesPayments]);
 
   const sorted = useMemo(() => {
     return [...unpaidMembers].sort((a, b) =>

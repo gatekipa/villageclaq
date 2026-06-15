@@ -80,11 +80,12 @@ test("Build 9 ships NO migration (no 00108)", () => {
 
 test("contribution type form shows a human due-date preview over the existing due_day", () => {
   assert.ok(/describeDueDay/.test(types) && /cardDueLabel/.test(types), "type card + form use the human due-date helpers");
-  assert.ok(/oneTimeDueDateNote/.test(types), "one-time types get an honest note, not a fabricated date");
+  // Build 10 superseded Build 9's static one-time note with a real calendar
+  // date picker; the form now prompts for / shows an exact one-time due date.
+  assert.ok(/dueDateLabel|oneTimeDueDatePrompt/.test(types), "one-time types get a calendar due date (Build 10)");
   const due = read(DUE);
-  // preview mirrors the trigger clamp and never fabricates a date for one-time
+  // preview mirrors the trigger clamp
   assert.ok(/Math\.min\(28/.test(due), "clamp mirrors LEAST(due_day,28)");
-  assert.ok(/frequency === "one_time"[\s\S]{0,40}return \{ kind: "none" \}/.test(due), "one-time -> no fabricated date");
 });
 
 // ── WS4: perf without breaking confirmed-only accounting ────────────────────

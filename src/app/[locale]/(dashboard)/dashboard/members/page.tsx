@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { normalizeSearch } from "@/lib/utils";
+import { computeObligationDueDate } from "@/lib/contribution-schedule";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
@@ -149,37 +150,50 @@ async function resilientRpc<T>(
  */
 async function autoEnrollMember(supabase: ReturnType<typeof createClient>, groupId: string, membershipId: string) {
   try {
-    const currentYear = new Date().getFullYear();
     const { data: types } = await supabase
       .from("contribution_types")
-      .select("id, amount, currency")
+      .select("id, amount, currency, frequency, due_day, start_date")
       .eq("group_id", groupId)
       .eq("is_active", true);
 
     if (!types || types.length === 0) return;
 
-    // Check which types this member already has obligations for
+    // Existing obligations for this member, keyed by (type, due_date) — matches
+    // the UNIQUE(type,member,due_date) constraint so we never duplicate.
     const { data: existing } = await supabase
       .from("contribution_obligations")
-      .select("contribution_type_id")
-      .eq("membership_id", membershipId)
-      .eq("period_label", String(currentYear));
+      .select("contribution_type_id, due_date")
+      .eq("membership_id", membershipId);
+    const existingKeys = new Set(
+      (existing || []).map((e) => `${e.contribution_type_id}|${String(e.due_date).slice(0, 10)}`),
+    );
 
-    const existingTypeIds = new Set((existing || []).map((e) => e.contribution_type_id));
-    const missing = types.filter((t) => !existingTypeIds.has(t.id));
-
-    if (missing.length > 0) {
-      const obligations = missing.map((ct) => ({
+    // Build 10: compute each obligation's real due date from the type's schedule
+    // (start_date / due_day / frequency) via the shared engine — matching the DB
+    // trigger — instead of the old Dec-31 hardcode.
+    const obligations = types
+      .map((ct) => {
+        const sched = computeObligationDueDate({
+          frequency: (ct.frequency as string) || "monthly",
+          dueDay: (ct.due_day as number | null) ?? null,
+          startDate: (ct.start_date as string | null) ?? null,
+        });
+        return { ct, sched };
+      })
+      .filter(({ ct, sched }) => !existingKeys.has(`${ct.id}|${sched.dueISO}`))
+      .map(({ ct, sched }) => ({
         group_id: groupId,
         membership_id: membershipId,
         contribution_type_id: ct.id,
         amount: ct.amount || 0,
         amount_paid: 0,
         currency: ct.currency || "XAF",
-        due_date: new Date(`${currentYear}-12-31`).toISOString(),
+        due_date: sched.dueISO,
         status: "pending" as const,
-        period_label: String(currentYear),
+        period_label: sched.periodLabel,
       }));
+
+    if (obligations.length > 0) {
       await supabase.from("contribution_obligations").insert(obligations);
     }
   } catch (err) {

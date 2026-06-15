@@ -7,7 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Activity, Users, Info, Calendar, CreditCard, Heart, ClipboardList } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer } from "recharts";
+import dynamic from "next/dynamic";
+
+// WS4 (B11): lazy-load recharts so it stays off the admin analytics first-paint bundle.
+const FeatureBarChart = dynamic(() => import("@/components/charts/feature-bar-chart"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[300px]" />,
+});
 
 export default function UsageAnalyticsPage() {
   const t = useTranslations("admin");
@@ -71,15 +77,7 @@ export default function UsageAnalyticsPage() {
         <CardHeader><CardTitle className="text-sm">{t("featureUsage")} (30d)</CardTitle></CardHeader>
         <CardContent>
           {loading ? <Skeleton className="h-[300px]" /> : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={featureData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
-                <RTooltip />
-                <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <FeatureBarChart data={featureData} />
           )}
         </CardContent>
       </Card>

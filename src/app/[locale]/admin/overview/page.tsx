@@ -7,7 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Layers, Users, Calendar, TrendingUp, AlertCircle } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import dynamic from "next/dynamic";
+
+// WS4 (B11): lazy-load recharts so it stays off the admin overview first-paint bundle.
+const GrowthLineChart = dynamic(() => import("@/components/charts/growth-line-chart"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[250px]" />,
+});
 
 export default function PlatformOverviewPage() {
   const locale = useLocale();
@@ -113,17 +119,13 @@ export default function PlatformOverviewPage() {
         <Card>
           <CardHeader><CardTitle className="text-sm">{t("groupGrowth")}</CardTitle></CardHeader>
           <CardContent>{loading ? <Skeleton className="h-[250px]" /> : (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={growthData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Line type="monotone" dataKey="groups" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} /></LineChart>
-            </ResponsiveContainer>
+            <GrowthLineChart data={growthData} lines={[{ dataKey: "groups", stroke: "#10b981" }]} />
           )}</CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-sm">{t("userGrowth")}</CardTitle></CardHeader>
           <CardContent>{loading ? <Skeleton className="h-[250px]" /> : (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={growthData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} /></LineChart>
-            </ResponsiveContainer>
+            <GrowthLineChart data={growthData} lines={[{ dataKey: "users", stroke: "#3b82f6" }]} />
           )}</CardContent>
         </Card>
       </div>
@@ -131,12 +133,14 @@ export default function PlatformOverviewPage() {
       <Card>
         <CardHeader><CardTitle className="text-sm">{t("engagementIndex")}</CardTitle></CardHeader>
         <CardContent>{loading ? <Skeleton className="h-[250px]" /> : (
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={growthData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Legend />
-              <Line type="monotone" dataKey="events" name={t("eventsCreated")} stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="contributions" name={t("contributionsCreated")} stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <GrowthLineChart
+            data={growthData}
+            showLegend
+            lines={[
+              { dataKey: "events", name: t("eventsCreated"), stroke: "#8b5cf6" },
+              { dataKey: "contributions", name: t("contributionsCreated"), stroke: "#f59e0b" },
+            ]}
+          />
         )}</CardContent>
       </Card>
 

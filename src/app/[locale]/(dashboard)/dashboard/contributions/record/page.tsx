@@ -5,7 +5,7 @@ import { formatDateWithGroupFormat } from "@/lib/format";
 import { notifyFromClient } from "@/lib/notify-client";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,18 +187,27 @@ export default function RecordPaymentPage() {
   const isLoading = membersLoading || typesLoading;
   const isError = membersError || typesError;
 
-  const memberList = (members || []).map((m: Record<string, unknown>) => {
-    const profile = m.profile as { full_name?: string; avatar_url?: string } | undefined;
-    return {
-      membershipId: m.id as string,
-      name: getMemberName(m),
-      avatarUrl: profile?.avatar_url || null,
-    };
-  });
-
-  const filteredMembers = memberList.filter((m) =>
-    m.name.toLowerCase().includes(memberSearch.toLowerCase())
+  // WS4/WS5 (B11): memoize the mapped member list + the search-filtered view so
+  // getMemberName + toLowerCase don't re-run for every member on each keystroke
+  // (the autocomplete previously re-mapped/filtered the whole list per character,
+  // which is expensive on low-end phones with large rosters).
+  const memberList = useMemo(
+    () =>
+      (members || []).map((m: Record<string, unknown>) => {
+        const profile = m.profile as { full_name?: string; avatar_url?: string } | undefined;
+        return {
+          membershipId: m.id as string,
+          name: getMemberName(m),
+          avatarUrl: profile?.avatar_url || null,
+        };
+      }),
+    [members]
   );
+
+  const filteredMembers = useMemo(() => {
+    const q = memberSearch.toLowerCase();
+    return memberList.filter((m) => m.name.toLowerCase().includes(q));
+  }, [memberList, memberSearch]);
 
   const types = contributionTypes || [];
   const selectedType = types.find((ct: Record<string, unknown>) => ct.id === selectedTypeId);
@@ -465,9 +474,13 @@ export default function RecordPaymentPage() {
     }
   }, [bulkType]);
 
-  const bulkFilteredMembers = memberList.filter((m) =>
-    m.name.toLowerCase().includes(bulkSearch.toLowerCase())
-  );
+  // WS4/WS5 (B11): memoized to match its sibling filteredMembers — avoids the
+  // per-render O(n) lowercase+filter (it ran on every keystroke in the single-
+  // record search even while the bulk dialog was closed).
+  const bulkFilteredMembers = useMemo(() => {
+    const q = bulkSearch.toLowerCase();
+    return memberList.filter((m) => m.name.toLowerCase().includes(q));
+  }, [memberList, bulkSearch]);
 
   function toggleBulkMember(id: string) {
     setBulkSelected((prev) => {

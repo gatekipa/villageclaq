@@ -26,17 +26,15 @@ import {
   Landmark,
   Banknote,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
+
+// WS4 (B11): lazy-load the recharts monthly-trend chart so recharts (~74KB gzip)
+// stays off the finances first-paint critical path on low-bandwidth links.
+const MonthlyTrendChart = dynamic(() => import("@/components/charts/monthly-trend-chart"), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse rounded-md bg-muted" />,
+});
 import { useGroup } from "@/lib/group-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
@@ -132,12 +130,6 @@ function useLoanStats(groupId: string | null) {
     },
     enabled: !!groupId,
   });
-}
-
-function formatCompact(amount: number) {
-  if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
-  if (amount >= 1000) return `${(amount / 1000).toFixed(0)}K`;
-  return amount.toString();
 }
 
 export default function FinancesPage() {
@@ -528,34 +520,7 @@ export default function FinancesPage() {
           </CardHeader>
           <CardContent>
             <div className="h-[220px] sm:h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyTrend} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="month" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis
-                    className="text-xs"
-                    tick={{ fill: "hsl(var(--muted-foreground))" }}
-                    tickFormatter={(v) => formatCompact(v)}
-                  />
-                  <Tooltip
-                    formatter={(value) => [formatAmount(Number(value), currency), t("finances.collected")]}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--popover-foreground))",
-                    }}
-                  />
-                  <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                    {monthlyTrend.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={index === monthlyTrend.length - 1 ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.3)"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <MonthlyTrendChart data={monthlyTrend} currency={currency} collectedLabel={t("finances.collected")} />
             </div>
           </CardContent>
         </Card>

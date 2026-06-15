@@ -50,6 +50,10 @@ export function useMembers() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["members", groupId],
+    // WS3 (B11): reuse roster across tab switches on low-bandwidth links.
+    // useRecordPayment + member mutations invalidate ["members", groupId], so
+    // standing-badge writes still refetch immediately; only idle remounts cache.
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -80,8 +84,13 @@ export function useMembers() {
 }
 
 export function useMember(membershipId: string | null) {
+  const { groupId } = useGroup();
   return useQuery({
-    queryKey: ["member", membershipId],
+    // groupId included to make cross-group cache isolation foolproof (membershipId
+    // is already a globally-unique PK; this is belt-and-suspenders). Prefix-matched
+    // invalidations like ["member", id] from useRecordPayment still apply. WS3 (B11).
+    queryKey: ["member", membershipId, groupId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!membershipId) return null;
       const { data, error } = await supabase
@@ -546,6 +555,7 @@ export function useEvents() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["events", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateEvent
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -622,6 +632,7 @@ export function useCreateEvent() {
 export function useEventRsvps(eventId: string | null) {
   return useQuery({
     queryKey: ["event-rsvps", eventId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11)
     queryFn: async () => {
       if (!eventId) return [];
       const { data, error } = await supabase
@@ -640,6 +651,7 @@ export function useEventRsvps(eventId: string | null) {
 export function useEventAttendance(eventId: string | null) {
   return useQuery({
     queryKey: ["event-attendance", eventId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useBulkCreateAttendance
     queryFn: async () => {
       if (!eventId) return [];
       const { data, error } = await supabase
@@ -693,6 +705,7 @@ export function useAllEventAttendances() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["all-event-attendances", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useBulkCreateAttendance
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -712,6 +725,7 @@ export function useHostingRosters() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["hosting-rosters", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateHostingRoster
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -775,6 +789,7 @@ export function useMeetingMinutes() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["meeting-minutes", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateMeetingMinutes
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -824,6 +839,7 @@ export function useReliefPlans() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["relief-plans", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateReliefPlan
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -841,6 +857,7 @@ export function useReliefClaims() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["relief-claims", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11)
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -909,6 +926,7 @@ export function useSavingsCycles() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["savings-cycles", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateSavingsCycle
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -950,6 +968,7 @@ export function useElections() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["elections", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11): invalidated by useCreateElection
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -970,6 +989,7 @@ export function useDocuments() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["documents", groupId],
+    staleTime: 10 * 60 * 1000, // WS3 (B11): stable admin-managed config
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -990,11 +1010,15 @@ export function useAnnouncements() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["announcements", groupId],
+    staleTime: 3 * 60 * 1000, // WS3 (B11)
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
         .from("announcements")
-        .select("*")
+        // WS3 (B11): narrowed from select(*) — drops created_by/updated_at. Keeps
+        // every field the announcements page renders/edits (title/content/channels/
+        // audience + sent_at/scheduled_at status derivation).
+        .select("id, group_id, title, title_fr, content, content_fr, channels, audience, sent_at, scheduled_at, created_at")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false });
       if (error) { console.warn("[Query] failed:", error.message); return []; }
@@ -1031,6 +1055,7 @@ export function useJoinCodes() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["join-codes", groupId],
+    staleTime: 10 * 60 * 1000, // WS3 (B11): stable admin-managed config
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -1052,11 +1077,15 @@ export function useNotifications(limit = 20) {
   const { user } = useGroup();
   return useQuery({
     queryKey: ["notifications", user?.id, limit],
+    staleTime: 30 * 1000, // WS3 (B11): notifications stay near-real-time
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
         .from("notifications")
-        .select("*")
+        // WS3 (B11): narrowed from select(*) — drops user_id/group_id/read_at that
+        // no consumer renders. Keeps the fields the bell + notifications page read:
+        // id, type (icon), title, body, is_read, created_at, data (deep-link).
+        .select("id, type, title, body, is_read, created_at, data")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -1074,6 +1103,7 @@ export function useUnreadNotificationCount() {
   const { user } = useGroup();
   return useQuery({
     queryKey: ["unread-notifications", user?.id],
+    staleTime: 30 * 1000, // WS3 (B11): unread badge stays near-real-time
     queryFn: async () => {
       if (!user) return 0;
       const { count, error } = await supabase
@@ -1097,11 +1127,14 @@ export function useFamilyMembers() {
   const { currentMembership } = useGroup();
   return useQuery({
     queryKey: ["family-members", currentMembership?.id],
+    staleTime: 10 * 60 * 1000, // WS3 (B11): rarely-changing personal registry
     queryFn: async () => {
       if (!currentMembership) return [];
       const { data, error } = await supabase
         .from("family_members")
-        .select("*")
+        // WS3 (B11): narrowed from select(*) — drops created_at/updated_at. Keeps
+        // every field the my-family cards render.
+        .select("id, membership_id, name, relationship, date_of_birth, notes")
         .eq("membership_id", currentMembership.id)
         .order("created_at", { ascending: true });
       if (error) { console.warn("[Query] failed:", error.message); return []; }
@@ -1117,6 +1150,7 @@ export function useGroupSettings() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["group-settings", groupId],
+    staleTime: 10 * 60 * 1000, // WS3 (B11): stable group config; settings pages refetch on save
     queryFn: async () => {
       if (!groupId) return null;
       const { data, error } = await supabase
@@ -1135,6 +1169,7 @@ export function useGroupPositions() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["group-positions", groupId],
+    staleTime: 10 * 60 * 1000, // WS3 (B11): stable officer config
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -1155,6 +1190,7 @@ export function useActivityFeed(limit = 30) {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["activity-feed", groupId, limit],
+    staleTime: 3 * 60 * 1000, // WS3 (B11): invalidated by feed mutations
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -1199,6 +1235,7 @@ export function useLoans() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["loans", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11)
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -1219,6 +1256,7 @@ export function useProjects() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["projects", groupId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11)
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase
@@ -1238,6 +1276,7 @@ export function useProjects() {
 export function useBadges() {
   return useQuery({
     queryKey: ["badges"],
+    staleTime: 30 * 60 * 1000, // WS3 (B11): global, near-static catalogue
     queryFn: async () => {
       const { data, error } = await supabase.from("badges").select("*").order("name");
       if (error) { console.warn("[Query] failed:", error.message); return []; }
@@ -1249,6 +1288,7 @@ export function useBadges() {
 export function useMemberBadges(membershipId?: string | null) {
   return useQuery({
     queryKey: ["member-badges", membershipId],
+    staleTime: 10 * 60 * 1000, // WS3 (B11)
     queryFn: async () => {
       if (!membershipId) return [];
       const { data, error } = await supabase
@@ -1268,6 +1308,7 @@ export function useMemberBadges(membershipId?: string | null) {
 export function useEventPhotos(eventId?: string | null) {
   return useQuery({
     queryKey: ["event-photos", eventId],
+    staleTime: 5 * 60 * 1000, // WS3 (B11)
     queryFn: async () => {
       if (!eventId) return [];
       const { data, error } = await supabase
@@ -1288,6 +1329,7 @@ export function usePaymentReminderRules() {
   const { groupId } = useGroup();
   return useQuery({
     queryKey: ["reminder-rules", groupId],
+    staleTime: 10 * 60 * 1000, // WS3 (B11): stable admin config
     queryFn: async () => {
       if (!groupId) return [];
       const { data, error } = await supabase.from("payment_reminder_rules").select("*").eq("group_id", groupId).order("days_after_due");

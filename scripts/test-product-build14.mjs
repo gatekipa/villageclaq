@@ -272,6 +272,20 @@ test("cron: confirmed basis + dry-run gated; default selection/amount unchanged"
   assert.ok(/\n\s*wouldWhatsapp,/.test(s), "wouldWhatsapp surfaced in the response");
 });
 
+test("cron: proxy memberships are excluded BEFORE the candidate ceiling (both branches); JS filter retained", () => {
+  const s = read(CRON);
+  // DB-level proxy pre-filter frees the 500-row ceiling for real members — on
+  // BOTH the legacy and confirmed candidate-query branches.
+  const proxyFilter = s.match(/\.not\("membership\.user_id", "is", null\)\s*\.not\("membership\.is_proxy", "is", true\)/g) || [];
+  assert.equal(proxyFilter.length, 2, "proxy pre-filter must be on both candidate-query branches");
+  // The filter sits before the row cap on each branch.
+  assert.ok(/\.not\("membership\.is_proxy", "is", true\)[\s\S]*?\.limit\(CANDIDATE_CEILING\)/.test(s), "proxy filter precedes the ceiling");
+  // Real-member behavior is unchanged: the post-fetch realObligations filter is
+  // retained as defense-in-depth (DB filter is a pure optimization, same semantics).
+  assert.ok(/const realObligations = obligations\.filter/.test(s), "realObligations JS filter retained");
+  assert.ok(/m\.user_id && !m\.is_proxy/.test(s), "JS filter still requires a real, non-proxy membership");
+});
+
 test("drain cron retries ONLY queued rows — old failed reminder rows are never retried", () => {
   const d = read(DRAIN);
   assert.ok(/\.eq\("status", "queued"\)/.test(d), "drain selects only status='queued'");

@@ -11,7 +11,9 @@ import { Download, Share2, Calendar, Shield, Loader2, MessageCircle } from "luci
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
-import html2canvas from "html2canvas";
+// WS4 (B11): html2canvas (~80KB) is loaded lazily inside the Download/Share
+// handlers, not at module load — most members never click those, so it stays
+// off the first-paint critical path on low-end phones / slow links.
 import { DashboardSkeleton, EmptyState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 
@@ -131,6 +133,7 @@ export default function MembershipCardPage() {
     if (!card) return;
     setDownloading(true);
     try {
+      const html2canvas = (await import("html2canvas")).default; // WS4 (B11): lazy
       const canvas = await html2canvas(card, { scale: 3, backgroundColor: null, useCORS: true });
       const url = canvas.toDataURL("image/png");
       const a = document.createElement("a");
@@ -151,6 +154,7 @@ export default function MembershipCardPage() {
     setSharing(true);
     try {
       if (card && navigator.share) {
+        const html2canvas = (await import("html2canvas")).default; // WS4 (B11): lazy
         const canvas = await html2canvas(card, { scale: 3, backgroundColor: null, useCORS: true });
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
         if (blob) {

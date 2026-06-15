@@ -477,6 +477,10 @@ export default function MemberDetailPage() {
       await refetchStanding();
       await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
       await queryClient.invalidateQueries({ queryKey: ["member-standing-history", membershipId] });
+      // B11: the members LIST reads standing from the ["members", groupId] cache
+      // (now staleTime 5min). Invalidate it so the list badge reflects the recalc
+      // immediately instead of after the stale window.
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
     } finally {
       setRecalculating(false);
     }
@@ -530,6 +534,9 @@ export default function MemberDetailPage() {
       // The card renders the DETAILED query first, so refresh it too or the
       // badge + breakdown keep showing the pre-override value.
       await queryClient.invalidateQueries({ queryKey: ["member-standing-detailed", membershipId, groupId] });
+      // B11: refresh the members LIST standing badge (["members", groupId],
+      // staleTime 5min) so an override shows immediately, not after the window.
+      await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       await refetchStanding();
       await refetchHistory();
       setShowStandingDialog(false);
@@ -1525,6 +1532,9 @@ export default function MemberDetailPage() {
                     });
                   } catch { /* best-effort */ }
                   await queryClient.invalidateQueries({ queryKey: ["member-detail", membershipId] });
+                  // B11: refresh the members LIST role column (["members", groupId],
+                  // staleTime 5min) so the change shows immediately.
+                  await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
                   setShowRoleDialog(false);
                 } catch (err) {
                   showError((err as Error).message || t("common.error"));

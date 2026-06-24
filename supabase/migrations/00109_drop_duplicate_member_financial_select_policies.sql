@@ -1,0 +1,37 @@
+-- ============================================================================
+-- 00109_drop_duplicate_member_financial_select_policies.sql
+-- Build 15 follow-up — ACTIVATE the 00108 privacy RLS hardening.
+--
+-- 00108 tightened payments.rls_pay_select and contribution_obligations.rls_co_select
+-- to public.can_view_member_financial(membership_id, group_id) (own data OR group
+-- owner/admin OR a finance/members position permission). But each table ALSO carried
+-- an older PERMISSIVE group-wide SELECT policy. Because PostgreSQL OR-s permissive
+-- policies, those legacy policies re-granted every group member read access to every
+-- peer's financial rows — neutralising 00108 entirely (verified end-to-end: a plain
+-- member could still read a peer's payments and obligations after 00108).
+--
+-- This migration removes ONLY those two legacy duplicate SELECT policies so the
+-- tightened rls_pay_select / rls_co_select become the effective SELECT rule.
+--
+--   payments                  : "Payments viewable by group members"
+--     USING EXISTS(memberships WHERE group_id = payments.group_id AND user_id = auth.uid())
+--   contribution_obligations  : "Obligations viewable by group members"
+--     USING EXISTS(memberships WHERE group_id = contribution_obligations.group_id AND user_id = auth.uid())
+--
+-- DOES NOT TOUCH: rls_pay_select, rls_co_select, can_view_member_financial,
+--   the platform-staff SELECT policies (is_platform_staff()), any INSERT/UPDATE/DELETE
+--   policy (Pay Now / record / obligation generation continue to work), reminder
+--   cron/producers, notification queue, receipts, Stripe/Meta/WABA config, the P0
+--   bulk-receipt guard, Build-4/10/12/13 accounting, or the Build-8 producer.
+--   No business data is mutated — this drops two SELECT policies only.
+--
+-- POST-APPLY EXPECTATION (RLS, end-to-end under the authenticated role):
+--   plain member  -> own payments/obligations VISIBLE, peer payments/obligations = 0
+--   owner/admin   -> group members' financial rows VISIBLE
+--   finance/members-permissioned officer -> group members' financial rows VISIBLE
+--   admin of another group -> this group's financial rows = 0 (tenant boundary)
+--   exited member -> excluded (can_view_member_financial clause)
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Payments viewable by group members" ON public.payments;
+DROP POLICY IF EXISTS "Obligations viewable by group members" ON public.contribution_obligations;

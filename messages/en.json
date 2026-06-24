@@ -298,204 +298,334 @@
     "passwordsMatch": "Passwords match"
   },
   "landing": {
+    "nav": {
+      "features": "Features",
+      "how": "How it works",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "switchLanguage": "Switch language",
+      "login": "Log in",
+      "getStarted": "Get Started",
+      "dashboard": "Dashboard",
+      "members": "Members",
+      "contributions": "Contributions",
+      "meetings": "Meetings",
+      "reports": "Reports"
+    },
+    "hero": {
+      "badge": "Trusted by 500+ groups across 11 countries",
+      "h1a": "Your community,",
+      "h1b": "organized.",
+      "sub": "The all-in-one platform for village associations, alumni unions, churches and savings groups — across Africa and the diaspora.",
+      "startFree": "Start free",
+      "bookDemo": "Book a demo",
+      "trust1": "Free forever up to 15 members",
+      "trust2": "No card required"
+    },
+    "mock": {
+      "proTrial": "Pro trial",
+      "daysLeft": "18 days left",
+      "upgrade": "Upgrade",
+      "groupMeta": "Alumni union · 247 members · Cameroon",
+      "kpiMembers": "Members",
+      "kpiMembersDelta": "+12 this month",
+      "kpiBalance": "Balance",
+      "kpiBalanceDelta": "+8% vs last",
+      "kpiCollected": "Collected",
+      "kpiOnTrack": "On track",
+      "kpiMeetings": "Meetings",
+      "kpiThisYear": "this year",
+      "collectionTitle": "October dues",
+      "paid": "Paid",
+      "pending": "Pending"
+    },
+    "metrics": {
+      "groupsNum": "500+",
+      "groupsLabel": "Active groups",
+      "membersNum": "10,000+",
+      "membersLabel": "Members managed",
+      "trackedNum": "$2M+",
+      "trackedLabel": "Contributions tracked",
+      "countriesNum": "11",
+      "countriesLabel": "Countries served"
+    },
+    "problem": {
+      "eyebrow": "The status quo",
+      "title": "Sound familiar?",
+      "lead": "Every community group hits the same friction. VillageClaq was built to remove all of it.",
+      "tag": "Replaced by one source of truth",
+      "money": {
+        "title": "Who paid what?",
+        "desc": "Cash payments with no receipts. Year-end reconciliation turns into a shouting match.",
+        "fix": "Every payment recorded digitally, with instant receipts."
+      },
+      "paper": {
+        "title": "The scattered paper trail",
+        "desc": "Minutes on someone's phone. Attendance on a sign-in sheet. Records buried in WhatsApp.",
+        "fix": "Everything in one organized, searchable place."
+      },
+      "hosting": {
+        "title": "Hosting rotation unfairness",
+        "desc": "\"I hosted three times but Emeka only hosted once.\" Disputes that never quite resolve.",
+        "fix": "A transparent rotation system everyone can see."
+      },
+      "officers": {
+        "title": "Officer transitions",
+        "desc": "When the treasurer changes, institutional memory walks out the door with them.",
+        "fix": "Your group's complete history, preserved forever."
+      }
+    },
+    "features": {
+      "eyebrow": "Features",
+      "title": "Everything your group needs",
+      "lead": "Built by Africans, for African community groups. We understand how njangis, tontines, and associations actually work — because we run them too."
+    },
+    "spot1": {
+      "eyebrow": "Contributions & standing",
+      "title": "See exactly where every franc goes",
+      "desc": "Record dues, donations, and savings rotations in seconds. The whole group sees the same numbers — no spreadsheets, no disputes.",
+      "check": {
+        "a": "Know who's paid up and in good standing",
+        "b": "Instant digital receipts for every payment",
+        "c": "Full audit trail your treasurer can trust"
+      },
+      "cardTitle": "October dues",
+      "collected": "94% collected",
+      "of": "of",
+      "reminder": "Auto-reminder sent to 14 members with balances"
+    },
+    "spot2": {
+      "eyebrow": "Meetings, events & elections",
+      "title": "Run your group like an institution",
+      "desc": "From the monthly meeting to the AGM: schedule events, send reminders, take attendance, and hold transparent elections your members trust.",
+      "check": {
+        "a": "Event reminders by app, SMS & WhatsApp",
+        "b": "Attendance and minutes captured in seconds",
+        "c": "Secret-ballot elections, motions & polls"
+      },
+      "agm": "Annual General Meeting · Nov 12",
+      "live": "Live",
+      "election": "Treasurer election",
+      "voted": "142 of 247 members voted · closes in 2 days",
+      "ballot": "Secret ballot · one vote per member"
+    },
+    "feat": {
+      "members": {
+        "title": "Member management",
+        "desc": "Track members, roles, and good standing. Proxy management for elders. One account, unlimited groups."
+      },
+      "minutes": {
+        "title": "Meeting minutes",
+        "desc": "Schedule meetings, record attendance, and capture decisions and action items — all searchable."
+      },
+      "events": {
+        "title": "Events & notifications",
+        "desc": "Announcements, event reminders, and RSVPs. Reach every member by app, email, SMS, or WhatsApp."
+      },
+      "reports": {
+        "title": "Financial reports",
+        "desc": "32 report types, real-time dashboards, and audit trails. See where every franc goes, then export to CSV."
+      },
+      "savings": {
+        "title": "Rotating savings",
+        "desc": "Njangi, ajo, susu, stokvel, chama or sou-sou — track contributions, rotations, and payouts with full transparency."
+      },
+      "elections": {
+        "title": "Elections & voting",
+        "desc": "Run officer elections with anonymous ballots, pass motions, and conduct polls. Fair and auditable."
+      },
+      "cards": {
+        "title": "Digital membership cards",
+        "desc": "QR-coded cards that verify membership instantly. Download, share, and present with pride."
+      },
+      "vault": {
+        "title": "Document vault",
+        "desc": "Store your constitution, statements, and meeting records securely. Version-controlled and always accessible."
+      },
+      "bilingual": {
+        "title": "Bilingual (EN/FR)",
+        "desc": "Full English and French support. Each member picks their language. Perfect for Cameroon and beyond."
+      }
+    },
+    "band": {
+      "eyebrow": "Built for your community",
+      "title": "Whatever your community calls itself",
+      "lead": "From village associations and alumni unions to churches, cooperatives, and savings groups — VillageClaq serves community groups in every corner of Africa, and wherever the diaspora calls home.",
+      "villages": "Village associations",
+      "alumni": "Alumni unions",
+      "churches": "Church groups",
+      "savings": "Savings groups",
+      "coops": "Cooperatives",
+      "hometown": "Hometown unions",
+      "aliases": "And yes — we speak njangi, ajo, susu, stokvel, chama & sou-sou too."
+    },
+    "countries": {
+      "CM": "Cameroon",
+      "NG": "Nigeria",
+      "GH": "Ghana",
+      "KE": "Kenya",
+      "ZA": "South Africa",
+      "UG": "Uganda",
+      "SN": "Senegal",
+      "US": "USA",
+      "GB": "UK",
+      "CA": "Canada",
+      "FR": "France"
+    },
+    "how": {
+      "eyebrow": "Get started",
+      "title": "Up and running in minutes",
+      "lead": "No migration project. No training day. Create a group and start tracking the same afternoon.",
+      "create": {
+        "title": "Create your group",
+        "desc": "Set up in 30 seconds. Choose your group type, currency, and meeting schedule."
+      },
+      "invite": {
+        "title": "Invite members",
+        "desc": "Share a link or send invitations. Members join with a single tap."
+      },
+      "track": {
+        "title": "Start tracking",
+        "desc": "Record contributions, take attendance, capture minutes. Everything in one place."
+      }
+    },
+    "testi": {
+      "eyebrow": "Proof",
+      "title": "Trusted by community leaders across Africa and the diaspora",
+      "featured": {
+        "quote": "\"VillageClaq transformed how our group manages finances. Every contribution is tracked, every meeting documented. Total transparency — and the disputes simply stopped.\"",
+        "group": "Bamenda Alumni Union"
+      },
+      "adebayo": {
+        "quote": "\"We moved from WhatsApp chaos to organized management overnight. Members love the contribution tracking and automated reminders.\"",
+        "initials": "AO",
+        "name": "Adebayo O.",
+        "meta": "Lagos Ajo Cooperative · Nigeria"
+      },
+      "kwame": {
+        "quote": "\"The rotating savings tracker is exactly what we needed. No more spreadsheets, no more arguments about who paid what.\"",
+        "initials": "KA",
+        "name": "Kwame A.",
+        "meta": "Accra Susu Collective · Ghana"
+      },
+      "wanjiku": {
+        "quote": "\"Managing 200+ members across three chamas used to be a nightmare. Now it takes minutes. The reports alone are worth it.\"",
+        "initials": "WM",
+        "name": "Wanjiku M.",
+        "meta": "Nairobi Chama Network · Kenya"
+      },
+      "thabo": {
+        "quote": "\"Our stokvel finally has a proper system. Members check their balances anytime, and our treasurer sleeps better at night.\"",
+        "initials": "TD",
+        "name": "Thabo D.",
+        "meta": "Soweto Stokvel · South Africa"
+      }
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Simple, transparent pricing",
+      "lead": "Start free. Upgrade when your group grows.",
+      "noCut": "We never take a cut of your contributions",
+      "popular": "Most popular",
+      "comingSoon": "Coming soon",
+      "contact": "Contact us",
+      "getStarted": "Get started",
+      "free": {
+        "name": "Free",
+        "price": "$0",
+        "per": "forever",
+        "note": "For a group just getting started.",
+        "f1": "Up to 15 members",
+        "f2": "2 contribution types",
+        "f3": "2 basic reports",
+        "f4": "WhatsApp notifications",
+        "f5": "1 group"
+      },
+      "starter": {
+        "name": "Starter",
+        "price": "$5",
+        "per": "/month",
+        "note": "2,500 FCFA/mo · $49/yr — save 18%",
+        "f1": "Up to 50 members",
+        "f2": "5 contribution types",
+        "f3": "10 reports + CSV export",
+        "f4": "Relief plans & savings circles",
+        "f5": "3 groups"
+      },
+      "pro": {
+        "name": "Pro",
+        "price": "$15",
+        "per": "/month",
+        "note": "7,500 FCFA/mo · $149/yr — save 17%",
+        "f1": "Up to 200 members",
+        "f2": "Unlimited contribution types",
+        "f3": "All 32 reports + AI insights",
+        "f4": "Loans, committees, board packet",
+        "f5": "SMS + unlimited WhatsApp",
+        "f6": "Priority support"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "$40",
+        "per": "/month",
+        "note": "20,000 FCFA/mo · $399/yr — save 17%",
+        "f1": "Unlimited members",
+        "f2": "Everything in Pro",
+        "f3": "Sub-groups & branches",
+        "f4": "Custom branding",
+        "f5": "Dedicated support"
+      }
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Frequently asked questions",
+      "lead": "Everything you need to know before you bring your group on board.",
+      "talk": "Still have questions? Talk to us",
+      "groups": {
+        "q": "What types of groups can use VillageClaq?",
+        "a": "Savings groups (njangi, tontine, chama, stokvel, susu, ajo, sou-sou), alumni unions, hometown and village associations, church groups, cooperatives, and professional associations. If your group collects contributions and holds meetings, it fits."
+      },
+      "french": {
+        "q": "Does it work in French?",
+        "a": "Yes — VillageClaq is fully bilingual. Each member chooses English or French independently, and more languages are on the way."
+      },
+      "smartphones": {
+        "q": "What if members don't have smartphones?",
+        "a": "Officers can manage members by proxy, and SMS notifications plus printable QR membership cards keep everyone included — no smartphone required."
+      },
+      "secure": {
+        "q": "How secure is our financial data?",
+        "a": "Bank-grade encryption, role-based access, and a complete audit trail protect every record. Your data is yours, backed up regularly — and we never take a cut of your contributions."
+      },
+      "free": {
+        "q": "Can we try it free?",
+        "a": "Absolutely. The Free plan is free forever for up to 15 members, with no card required. Upgrade only when your group outgrows it."
+      },
+      "currencies": {
+        "q": "What currencies do you support?",
+        "a": "Multi-currency, including FCFA (XAF/XOF), USD, GBP, EUR, NGN, KES, GHS, ZAR and more. Pick your group's currency at setup."
+      }
+    },
+    "finalCta": {
+      "title": "Ready to organize your community?",
+      "lead": "Join 500+ community groups across 11 countries already using VillageClaq to stay connected and accountable.",
+      "note": "Free forever up to 15 members · No card required · Built with love in Cameroon"
+    },
+    "footer": {
+      "tagline": "Bringing African communities together, one group at a time.",
+      "builtWith": "Built with love in Cameroon, for the world.",
+      "product": "Product",
+      "company": "Company",
+      "legal": "Legal",
+      "about": "About",
+      "contact": "Contact",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "copyright": "© 2026 VillageClaq by LawTekno LLC. All rights reserved.",
+      "langLine": "EN · FR · Multi-currency"
+    },
     "heroTitle": "Your Community,",
-    "heroTitleAccent": "Organized.",
-    "heroSubtitle": "The all-in-one platform for community savings groups, alumni unions, village associations, and church groups across Africa and the diaspora",
-    "trustedBy": "Trusted by community leaders across Africa and the diaspora",
-    "featuresTitle": "Everything your group needs",
-    "featuresSubtitle": "Built by Africans, for African community groups. We understand how njangis, tontines, and associations actually work.",
-    "featureMembership": "Member Management",
-    "featureMembershipDesc": "Track members, roles, and standing. Proxy management for elders. One account, unlimited groups.",
-    "featureContributions": "Contribution Tracking",
-    "featureContributionsDesc": "Record dues, donations, and savings rotations. Auto-reminders for outstanding balances. Full transparency.",
-    "featureMeetings": "Meeting Minutes",
-    "featureMeetingsDesc": "Schedule meetings, record attendance, capture decisions and action items. Searchable history.",
-    "featureComms": "Communication",
-    "featureCommsDesc": "Announcements, notifications, and group messaging. Reach members via app, email, or SMS.",
-    "featureFinance": "Financial Reports",
-    "featureFinanceDesc": "Real-time dashboards, treasurer reports, and audit trails. See exactly where every franc goes.",
-    "featureBilingual": "Bilingual (EN/FR)",
-    "featureBilingualDesc": "Full English and French support. Each member chooses their language. Perfect for Cameroon and beyond.",
-    "savingsFeatureTitle": "Rotating Savings Tracker",
-    "savingsFeatureDesc": "Whether you call it Njangi, Ajo, Susu, Stokvel, Chama, or Sou-sou, we've got you covered. Track contributions, rotations, and collections with full transparency.",
-    "electionsFeatureTitle": "Elections & Voting",
-    "electionsFeatureDesc": "Run officer elections with anonymous ballots, pass motions, and conduct polls. Fair, transparent, and auditable.",
-    "documentFeatureTitle": "Document Vault",
-    "documentFeatureDesc": "Store your constitution, financial statements, and meeting documents securely. Version-controlled and always accessible.",
-    "memberCardFeatureTitle": "Digital Membership Cards",
-    "memberCardFeatureDesc": "QR-coded digital cards that verify membership instantly. Download, share, and present with pride.",
-    "builtForYou": "Built for YOUR Community",
-    "builtForYouDesc": "VillageClaq serves community groups in every corner of Africa and wherever the diaspora calls home.",
-    "howItWorks": "How It Works",
-    "howItWorksSubtitle": "Get your group up and running in minutes",
-    "step1Title": "Create Your Group",
-    "step1Desc": "Set up in 30 seconds. Choose your group type, currency, and meeting schedule.",
-    "step2Title": "Invite Members",
-    "step2Desc": "Share a link or send invitations. Members join with one tap.",
-    "step3Title": "Start Tracking",
-    "step3Desc": "Record contributions, take attendance, capture minutes. Everything in one place.",
-    "statsGroups": "500+ Groups",
-    "statsMembers": "10,000+ Members",
-    "statsTracked": "$2M+ Tracked",
-    "statsCountries": "11 Countries",
-    "pricingTitle": "Simple, transparent pricing",
-    "pricingSubtitle": "Start free. Upgrade when your group grows.",
-    "pricingMonthly": "Monthly",
-    "pricingAnnual": "Annual",
-    "pricingTagline": "We never take a cut of your contributions.",
-    "pricingFree": "Free",
-    "pricingFreePrice": "$0",
-    "pricingFreePeriod": "forever",
-    "pricingFreeFeature1": "Up to 15 members",
-    "pricingFreeFeature2": "2 contribution types",
-    "pricingFreeFeature3": "2 basic reports",
-    "pricingFreeFeature4": "WhatsApp notifications",
-    "pricingFreeFeature5": "5 events/month",
-    "pricingFreeFeature6": "1 group",
-    "pricingStarter": "Starter",
-    "pricingStarterPrice": "$5",
-    "pricingStarterPeriod": "/month",
-    "pricingStarterXaf": "or 2,500 FCFA/month for African groups",
-    "pricingStarterAnnual": "$49/year — save 18%",
-    "pricingStarterFeature1": "Up to 50 members",
-    "pricingStarterFeature2": "5 contribution types",
-    "pricingStarterFeature3": "10 reports + CSV export",
-    "pricingStarterFeature4": "Relief plans & savings circles",
-    "pricingStarterFeature5": "Elections & fines",
-    "pricingStarterFeature6": "3 groups",
-    "pricingPro": "Pro",
-    "pricingProPrice": "$15",
-    "pricingProPeriod": "/month",
-    "pricingProXaf": "or 7,500 FCFA/month for African groups",
-    "pricingProAnnual": "$149/year — save 17%",
-    "pricingProFeature1": "Up to 200 members",
-    "pricingProFeature2": "Unlimited contribution types",
-    "pricingProFeature3": "All 23 reports + AI insights",
-    "pricingProFeature4": "Loans, committees, board packet",
-    "pricingProFeature5": "SMS + unlimited WhatsApp",
-    "pricingProFeature6": "Priority support",
-    "pricingProBadge": "Most Popular",
-    "pricingOrg": "Enterprise",
-    "pricingOrgPrice": "$40",
-    "pricingOrgPeriod": "/month",
-    "pricingOrgXaf": "or 20,000 FCFA/month for African groups",
-    "pricingOrgAnnual": "$399/year — save 17%",
-    "pricingOrgFeature1": "Unlimited members",
-    "pricingOrgFeature2": "Everything in Pro",
-    "pricingOrgFeature3": "Sub-groups & branches",
-    "pricingOrgFeature4": "Custom branding",
-    "pricingOrgFeature5": "Dedicated support",
-    "testimonial1Name": "Cyril N.",
-    "testimonial1Initials": "CN",
-    "testimonial1Location": "Cameroon",
-    "testimonial1Group": "Bamenda Alumni Union",
-    "testimonial1Quote": "VillageClaq transformed how our group manages finances. Every contribution is tracked, every meeting documented. Total transparency.",
-    "testimonial2Name": "Adebayo O.",
-    "testimonial2Initials": "AO",
-    "testimonial2Location": "Nigeria",
-    "testimonial2Group": "Lagos Ajo Cooperative",
-    "testimonial2Quote": "We moved from WhatsApp chaos to organized management overnight. Our members love the contribution tracking and automated reminders.",
-    "testimonial3Name": "Kwame A.",
-    "testimonial3Initials": "KA",
-    "testimonial3Location": "Ghana",
-    "testimonial3Group": "Accra Susu Collective",
-    "testimonial3Quote": "The rotating savings tracker is exactly what we needed. No more spreadsheets, no more arguments about who paid what.",
-    "testimonial4Name": "Wanjiku M.",
-    "testimonial4Initials": "WM",
-    "testimonial4Location": "Kenya",
-    "testimonial4Group": "Nairobi Chama Network",
-    "testimonial4Quote": "Managing 200+ members across three chamas used to be a nightmare. Now it takes minutes. The reports alone are worth it.",
-    "testimonial5Name": "Thabo D.",
-    "testimonial5Initials": "TD",
-    "testimonial5Location": "South Africa",
-    "testimonial5Group": "Soweto Stokvel",
-    "testimonial5Quote": "Our stokvel finally has a proper system. Members check their balances anytime, and our treasurer sleeps better at night.",
-    "ctaTitle": "Ready to organize your community?",
-    "ctaSubtitle": "Join 500+ community groups across 11 countries already using VillageClaq to stay connected and accountable.",
-    "footerTagline": "Bringing African communities together, one group at a time.",
-    "footerBuiltWith": "Built with love in Cameroon for the world",
-    "footerProduct": "Product",
-    "footerCompany": "Company",
-    "footerLegal": "Legal",
-    "footerAbout": "About",
-    "footerBlog": "Blog",
-    "footerCareers": "Careers",
-    "footerPrivacy": "Privacy Policy",
-    "footerTerms": "Terms of Service",
-    "footerRights": "All rights reserved.",
-    "footerCopyright": "VillageClaq by LawTekno LLC",
-    "painPointsTitle": "Sound Familiar?",
-    "painPointsSubtitle": "Every community group faces these problems. VillageClaq solves them all.",
-    "painPoint1Title": "Who Paid What?",
-    "painPoint1Problem": "Cash payments with no receipts. Year-end reconciliation becomes a shouting match.",
-    "painPoint1Solution": "VillageClaq records every payment digitally with instant receipts.",
-    "painPoint2Title": "The Scattered Paper Trail",
-    "painPoint2Problem": "Minutes on someone's phone. Attendance on a sign-in sheet. Contribution records in WhatsApp.",
-    "painPoint2Solution": "VillageClaq puts everything in one place.",
-    "painPoint3Title": "Hosting Rotation Unfairness",
-    "painPoint3Problem": "'I hosted three times but Emeka only hosted once.' Sound familiar?",
-    "painPoint3Solution": "VillageClaq tracks hosting fairly with a transparent rotation system.",
-    "painPoint4Title": "Officer Transitions",
-    "painPoint4Problem": "When the treasurer changes, institutional memory disappears.",
-    "painPoint4Solution": "VillageClaq preserves your group's complete history forever.",
-    "faqTitle": "Frequently Asked Questions",
-    "faqSubtitle": "Everything you need to know about VillageClaq",
-    "faq1Q": "What types of groups can use VillageClaq?",
-    "faq1A": "Njangis, alumni unions, village associations, church groups, family meetings, stokvels, chamas, ajos, susu groups — any community organization.",
-    "faq2Q": "Does it work in French?",
-    "faq2A": "Yes! VillageClaq is fully bilingual in English and French. Every screen, notification, and report is available in both languages.",
-    "faq3Q": "What if members don't have smartphones?",
-    "faq3A": "Admins can add proxy members without email or phone. They are fully tracked in the system with all their payments and attendance.",
-    "faq4Q": "How secure is our financial data?",
-    "faq4A": "We use Supabase with Row Level Security. Each group's data is completely isolated. All connections are encrypted.",
-    "faq5Q": "Can we try it free?",
-    "faq5A": "Yes! The Free plan supports up to 30 members with full basic features. No credit card required.",
-    "faq6Q": "What currencies do you support?",
-    "faq6A": "18 currencies including XAF, XOF, NGN, GHS, KES, ZAR, USD, EUR, GBP, CAD, and more.",
-    "pricingPageTitle": "Simple, Transparent Pricing",
-    "pricingPageSubtitle": "Start free. Upgrade when you're ready. No hidden fees.",
-    "pricingCompare": "Compare Plans",
-    "pricingFeature": "Feature",
-    "pricingIncluded": "Included",
-    "pricingNotIncluded": "Not included",
-    "compMembers": "Member Management",
-    "compMembers15": "Up to 15",
-    "compMembers50": "Up to 50",
-    "compMembers200": "Up to 200",
-    "compMembersUnlimited": "Unlimited",
-    "compDues": "Dues Tracking",
-    "compAttendance": "Attendance Recording",
-    "compReports": "Reports",
-    "compReports2": "2 basic",
-    "compReports10": "10 reports",
-    "compReportsAll": "All 23 + AI",
-    "compReliefSavings": "Relief Plans & Savings",
-    "compElections": "Elections & Voting",
-    "compFines": "Fines Management",
-    "compLoans": "Loans",
-    "compAI": "AI Insights",
-    "compDocVault": "Document Vault",
-    "compDocs3": "3 docs",
-    "compDocs20": "20 docs",
-    "compDocsUnlimited": "Unlimited",
-    "compCsvExport": "CSV Export",
-    "compMultiBranch": "Multi-Branch",
-    "compCustomBranding": "Custom Branding",
-    "compPrioritySupport": "Priority Support",
-    "mockDashboard": "Dashboard",
-    "mockMembers": "Members",
-    "mockContributions": "Contributions",
-    "mockMeetings": "Meetings",
-    "mockReports": "Reports",
-    "mockStatMembers": "Members",
-    "mockStatBalance": "Balance",
-    "mockStatCollected": "Collected",
-    "mockStatMeetings": "Meetings",
-    "mockOnTrack": "On track",
-    "mockThisYear": "This year",
-    "mockRecentContributions": "Recent Contributions",
-    "mockPaid": "Paid",
-    "mockPending": "Pending"
+    "heroTitleAccent": "Organized."
   },
   "dashboard": {
     "welcome": "Welcome, {name}",

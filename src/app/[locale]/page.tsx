@@ -1,461 +1,190 @@
-"use client";
-
-import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/routing";
+import { getTranslations } from "next-intl/server";
+import { Newsreader, Hanken_Grotesk } from "next/font/google";
+import { Link, routing } from "@/i18n/routing";
 import {
-  Users,
-  HandCoins,
-  FileText,
-  MessageSquare,
-  BarChart3,
-  Languages,
-  Check,
-  ArrowRight,
-  Star,
-  RefreshCw,
-  Vote,
-  FolderLock,
-  CreditCard,
-  Globe,
-  Shield,
-  TrendingUp,
-  Heart,
-  AlertTriangle,
-  Home,
-  ChevronDown,
+  Globe, ArrowRight, Check, LayoutGrid, Users, CircleDollarSign, Calendar,
+  LineChart, Search, Bell, Receipt, FileText, Home, Shield, Send, Lock,
+  CalendarCheck, BarChart3, RefreshCw, Vote, IdCard, Columns3, Languages,
+  Star, ChevronDown,
 } from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Logo } from "@/components/brand/logo";
-import { PublicNavbar } from "@/components/layout/public-navbar";
-import { TwemojiFlag } from "@/components/ui/twemoji-flag";
+import "./landing.css";
 
-const features = [
-  { key: "Membership", icon: Users },
-  { key: "Contributions", icon: HandCoins },
-  { key: "Meetings", icon: FileText },
-  { key: "Comms", icon: MessageSquare },
-  { key: "Finance", icon: BarChart3 },
-  { key: "Bilingual", icon: Languages },
-] as const;
+// Bespoke marketing typefaces — exposed as CSS variables and scoped to the
+// landing wrapper (.vc-landing) so they never touch the emerald/slate app.
+const serif = Newsreader({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--vc-serif", display: "swap" });
+const sans = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], variable: "--vc-sans", display: "swap" });
 
-const phase9Features = [
-  { titleKey: "savingsFeatureTitle", descKey: "savingsFeatureDesc", icon: RefreshCw },
-  { titleKey: "electionsFeatureTitle", descKey: "electionsFeatureDesc", icon: Vote },
-  { titleKey: "documentFeatureTitle", descKey: "documentFeatureDesc", icon: FolderLock },
-  { titleKey: "memberCardFeatureTitle", descKey: "memberCardFeatureDesc", icon: CreditCard },
-] as const;
+export default async function LandingPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations("landing");
+  const otherLocale = routing.locales.find((l) => l !== locale) ?? "fr";
 
-const countries = [
-  { code: "CM", flag: "🇨🇲" },
-  { code: "NG", flag: "🇳🇬" },
-  { code: "GH", flag: "🇬🇭" },
-  { code: "KE", flag: "🇰🇪" },
-  { code: "ZA", flag: "🇿🇦" },
-  { code: "UG", flag: "🇺🇬" },
-  { code: "SN", flag: "🇸🇳" },
-  { code: "USA", flag: "🇺🇸" },
-  { code: "UK", flag: "🇬🇧" },
-  { code: "CA", flag: "🇨🇦" },
-  { code: "FR", flag: "🇫🇷" },
-];
-
-const testimonialKeys = ["1", "2", "3", "4", "5"] as const;
-
-const steps = [
-  { num: "1", titleKey: "step1Title", descKey: "step1Desc", icon: Users },
-  { num: "2", titleKey: "step2Title", descKey: "step2Desc", icon: Shield },
-  { num: "3", titleKey: "step3Title", descKey: "step3Desc", icon: TrendingUp },
-] as const;
-
-export default function HomePage() {
-  const t = useTranslations();
+  const problems = [
+    { icon: Receipt, k: "money" },
+    { icon: FileText, k: "paper" },
+    { icon: Home, k: "hosting" },
+    { icon: Shield, k: "officers" },
+  ];
+  const featureCards = [
+    { icon: Users, k: "members" },
+    { icon: CalendarCheck, k: "minutes" },
+    { icon: Bell, k: "events" },
+    { icon: BarChart3, k: "reports" },
+    { icon: RefreshCw, k: "savings" },
+    { icon: Vote, k: "elections" },
+    { icon: IdCard, k: "cards" },
+    { icon: Columns3, k: "vault" },
+    { icon: Languages, k: "bilingual" },
+  ];
+  const countries = ["CM", "NG", "GH", "KE", "ZA", "UG", "SN", "US", "GB", "CA", "FR"];
+  const steps = ["create", "invite", "track"];
+  const testimonials = ["adebayo", "kwame", "wanjiku", "thabo"];
+  const tiers = [
+    { k: "free", featured: false, cta: "outline" },
+    { k: "starter", featured: false, cta: "muted" },
+    { k: "pro", featured: true, cta: "solid" },
+    { k: "enterprise", featured: false, cta: "outline" },
+  ];
+  const tierFeatures: Record<string, number> = { free: 5, starter: 5, pro: 6, enterprise: 5 };
+  const faqs = ["groups", "french", "smartphones", "secure", "free", "currencies"];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* ── Nav ── */}
-      <PublicNavbar heroOverlay />
+    <div className={`vc-landing ${serif.variable} ${sans.variable}`}>
+      {/* ============ NAV ============ */}
+      <header className="vc-nav">
+        <nav className="vc-nav-inner">
+          <a href="#top" className="vc-nav-brand">
+            <img src="/logo-mark.svg" alt="VillageClaq" width={30} height={30} />
+            <span>VillageClaq</span>
+          </a>
+          <div className="vc-nav-links">
+            <a href="#features">{t("nav.features")}</a>
+            <a href="#how">{t("nav.how")}</a>
+            <a href="#pricing">{t("nav.pricing")}</a>
+            <a href="#faq">{t("nav.faq")}</a>
+          </div>
+          <div className="vc-nav-actions">
+            <Link href="/" locale={otherLocale} className="vc-lang" aria-label={t("nav.switchLanguage")}>
+              <Globe size={15} strokeWidth={1.7} />{otherLocale.toUpperCase()}
+            </Link>
+            <Link href="/login" className="vc-login">{t("nav.login")}</Link>
+            <Link href="/signup" className="vc-nav-cta">{t("nav.getStarted")}</Link>
+          </div>
+        </nav>
+      </header>
 
-      {/* ── Hero ── */}
-      <section className="relative -mt-16 overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 dark:from-emerald-950 dark:via-gray-950 dark:to-teal-950 pt-16">
-        {/* Floating decorative shapes */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
-          <div className="absolute right-10 top-10 h-48 w-48 rounded-full bg-teal-400/15 blur-2xl" />
-          <div className="absolute bottom-20 left-1/4 h-64 w-64 rounded-full bg-emerald-300/10 blur-3xl" />
-          <div className="absolute -bottom-10 right-1/3 h-40 w-40 rounded-full bg-teal-300/10 blur-2xl" />
-          <div className="absolute left-1/2 top-1/3 h-32 w-32 -translate-x-1/2 rounded-full bg-white/5 blur-xl" />
-          {/* Grid pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
-        </div>
-
-        <div className="relative mx-auto max-w-7xl px-4 pb-0 pt-20 sm:px-6 sm:pt-28 lg:pt-32">
-          <div className="mx-auto max-w-3xl text-center">
-            <Badge variant="secondary" className="mb-8 border-emerald-400/30 bg-white/10 text-white backdrop-blur-sm">
-              <Globe className="mr-1.5 h-3.5 w-3.5" />
-              {t("landing.trustedBy")}
-            </Badge>
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-7xl">
-              {t("landing.heroTitle")}
-              <br />
-              <span className="bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300 bg-clip-text text-transparent">
-                {t("landing.heroTitleAccent")}
-              </span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-emerald-100/80 sm:text-xl">
-              {t("landing.heroSubtitle")}
-            </p>
-            <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link href="/signup" className="w-full sm:w-auto">
-                <Button
-                  size="lg"
-                  className="w-full bg-white text-emerald-900 shadow-xl shadow-black/20 hover:bg-emerald-50 text-base px-8 py-6 font-semibold"
-                >
-                  {t("common.startFree")}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/login" className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full border-white/20 bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 text-base px-8 py-6"
-                >
-                  {t("auth.login")}
-                </Button>
-              </Link>
+      {/* ============ HERO ============ */}
+      <section id="top" className="vc-hero">
+        <div className="vc-hero-grid-bg" />
+        <div className="vc-hero-glow" />
+        <div className="vc-hero-inner">
+          <div>
+            <span className="vc-hero-badge"><Globe size={14} strokeWidth={1.8} style={{ color: "var(--mint)" }} />{t("hero.badge")}</span>
+            <h1 className="vc-hero-h1">{t("hero.h1a")}<br /><span className="accent">{t("hero.h1b")}</span></h1>
+            <p className="vc-hero-sub">{t("hero.sub")}</p>
+            <div className="vc-hero-actions">
+              <Link href="/signup" className="vc-btn-light">{t("hero.startFree")}<ArrowRight size={17} strokeWidth={2} /></Link>
+              <a href="#how" className="vc-btn-ghost">{t("hero.bookDemo")}</a>
+            </div>
+            <div className="vc-hero-trust">
+              <span><Check size={16} strokeWidth={2.2} style={{ color: "var(--mint)" }} />{t("hero.trust1")}</span>
+              <span><Check size={16} strokeWidth={2.2} style={{ color: "var(--mint)" }} />{t("hero.trust2")}</span>
             </div>
           </div>
 
-          {/* Mock Dashboard Preview */}
-          <div className="mx-auto mt-16 max-w-4xl sm:mt-20">
-            <div className="rounded-t-2xl border border-b-0 border-white/10 bg-white/5 p-2 pb-0 shadow-2xl shadow-black/40 backdrop-blur-md">
-              <div className="rounded-t-xl bg-gray-950/80 overflow-hidden">
-                {/* Title bar */}
-                <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-                  <div className="flex gap-1.5">
-                    <div className="h-3 w-3 rounded-full bg-red-400/80" />
-                    <div className="h-3 w-3 rounded-full bg-yellow-400/80" />
-                    <div className="h-3 w-3 rounded-full bg-green-400/80" />
+          {/* product dashboard mockup (illustrative) */}
+          <div className="vc-glow-wrap">
+            <div className="vc-mock">
+              <aside className="vc-mock-aside">
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px 14px" }}>
+                  <img src="/logo-mark.svg" alt="" width={22} height={22} />
+                  <span style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 15, color: "var(--ink)" }}>VillageClaq</span>
+                </div>
+                <div className="vc-mock-navitem active"><LayoutGrid size={16} strokeWidth={1.8} />{t("nav.dashboard")}</div>
+                <div className="vc-mock-navitem"><Users size={16} strokeWidth={1.7} />{t("nav.members")}</div>
+                <div className="vc-mock-navitem"><CircleDollarSign size={16} strokeWidth={1.7} />{t("nav.contributions")}</div>
+                <div className="vc-mock-navitem"><Calendar size={16} strokeWidth={1.7} />{t("nav.meetings")}</div>
+                <div className="vc-mock-navitem"><LineChart size={16} strokeWidth={1.7} />{t("nav.reports")}</div>
+                <div style={{ marginTop: "auto", background: "linear-gradient(160deg,#0E5C40,#0A3528)", borderRadius: 11, padding: 12, color: "#dff5ec" }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--mint)" }}>{t("mock.proTrial")}</div>
+                  <div style={{ fontSize: 11, color: "rgba(223,245,236,.7)", margin: "3px 0 8px" }}>{t("mock.daysLeft")}</div>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, background: "#fff", color: "var(--green-darker)", textAlign: "center", padding: 6, borderRadius: 7 }}>{t("mock.upgrade")}</div>
+                </div>
+              </aside>
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid #ECEBE4" }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--serif)", fontSize: 16, fontWeight: 600, color: "var(--ink)" }}>Bamenda Alumni Union</div>
+                    <div style={{ fontSize: 11.5, color: "#8A958D" }}>{t("mock.groupMeta")}</div>
                   </div>
-                  <div className="ml-4 flex-1 rounded-md bg-white/5 px-3 py-1 text-xs text-white/40">
-                    app.villageclaq.com/dashboard
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ width: 30, height: 30, borderRadius: "50%", background: "#EDECE4", display: "flex", alignItems: "center", justifyContent: "center" }}><Search size={15} strokeWidth={1.8} style={{ color: "#7A857E" }} /></span>
+                    <span style={{ width: 30, height: 30, borderRadius: "50%", background: "#EDECE4", display: "flex", alignItems: "center", justifyContent: "center" }}><Bell size={15} strokeWidth={1.8} style={{ color: "#7A857E" }} /></span>
+                    <span style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--accent)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>CN</span>
                   </div>
                 </div>
-                <div className="flex">
-                  {/* Sidebar mock */}
-                  <div className="hidden w-48 shrink-0 border-r border-white/5 p-4 sm:block">
-                    <div className="mb-6 flex items-center gap-2">
-                      <img src="/logo-vc-simple.svg" alt="VC" className="h-7 w-7 rounded-lg" />
-                      <div className="h-3 w-20 rounded bg-white/10" />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="rounded-lg bg-emerald-500/20 px-3 py-2 text-xs text-emerald-300 font-medium">{t("landing.mockDashboard")}</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockMembers")}</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockContributions")}</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockMeetings")}</div>
-                      <div className="rounded-lg px-3 py-2 text-xs text-white/30">{t("landing.mockReports")}</div>
-                    </div>
+                <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(108px,1fr))", gap: 10 }}>
+                    <div className="vc-kpi"><div className="vc-kpi-label">{t("mock.kpiMembers")}</div><div className="vc-kpi-val">247</div><div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>{t("mock.kpiMembersDelta")}</div></div>
+                    <div className="vc-kpi"><div className="vc-kpi-label">{t("mock.kpiBalance")}</div><div className="vc-kpi-val">$18.4K</div><div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>{t("mock.kpiBalanceDelta")}</div></div>
+                    <div className="vc-kpi"><div className="vc-kpi-label">{t("mock.kpiCollected")}</div><div className="vc-kpi-val">94%</div><div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600 }}>{t("mock.kpiOnTrack")}</div></div>
+                    <div className="vc-kpi"><div className="vc-kpi-label">{t("mock.kpiMeetings")}</div><div className="vc-kpi-val">12</div><div style={{ fontSize: 11, color: "#9AA49C", fontWeight: 600 }}>{t("mock.kpiThisYear")}</div></div>
                   </div>
-                  {/* Main content mock */}
-                  <div className="flex-1 p-4 sm:p-6">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {[
-                        { labelKey: "landing.mockStatMembers", value: "247", change: "+12%" },
-                        { labelKey: "landing.mockStatBalance", value: "$18.4K", change: "+8%" },
-                        { labelKey: "landing.mockStatCollected", value: "94%", changeKey: "landing.mockOnTrack" },
-                        { labelKey: "landing.mockStatMeetings", value: "12", changeKey: "landing.mockThisYear" },
-                      ].map((s) => (
-                        <div key={s.labelKey} className="rounded-lg border border-white/5 bg-white/5 p-3">
-                          <div className="text-[10px] text-white/40 uppercase tracking-wider">{t(s.labelKey)}</div>
-                          <div className="mt-1 text-lg font-bold text-white">{s.value}</div>
-                          <div className="mt-0.5 text-[10px] text-emerald-400">{s.changeKey ? t(s.changeKey) : s.change}</div>
-                        </div>
-                      ))}
+                  <div style={{ border: "1px solid #ECEBE4", borderRadius: 12, padding: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{t("mock.collectionTitle")}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-strong)" }}>94%</span>
                     </div>
-                    <div className="mt-4 rounded-lg border border-white/5 bg-white/5 overflow-hidden">
-                      <div className="border-b border-white/5 px-4 py-2.5 text-xs font-medium text-white/60">{t("landing.mockRecentContributions")}</div>
-                      <div className="divide-y divide-white/5">
-                        {[
-                          { name: "Aisha M.", amount: "$50", statusKey: "landing.mockPaid" },
-                          { name: "Emeka O.", amount: "$50", statusKey: "landing.mockPaid" },
-                          { name: "Fatou D.", amount: "$50", statusKey: "landing.mockPending" },
-                        ].map((row) => (
-                          <div key={row.name} className="flex items-center justify-between px-4 py-2.5">
-                            <div className="flex items-center gap-2">
-                              <div className="h-5 w-5 rounded-full bg-white/10" />
-                              <span className="text-xs text-white/60">{row.name}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-white/80 font-medium">{row.amount}</span>
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${row.statusKey === "landing.mockPaid" ? "bg-emerald-500/20 text-emerald-300" : "bg-yellow-500/20 text-yellow-300"}`}>
-                                {t(row.statusKey)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                    {[
+                      { n: "Aisha Mballa", i: "AM", paid: true },
+                      { n: "Emeka Okafor", i: "EO", paid: true },
+                      { n: "Fatou Diop", i: "FD", paid: false },
+                    ].map((m) => (
+                      <div key={m.i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "8px 0", borderTop: "1px solid #F0EFE8" }}>
+                        <span style={{ width: 24, height: 24, borderRadius: "50%", background: m.paid ? "#EAF2EE" : "#F6EFDD", color: m.paid ? "var(--accent-strong)" : "#9A6B12", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{m.i}</span>
+                        <span style={{ fontSize: 13, color: "var(--ink)" }}>{m.n}</span>
+                        <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: m.paid ? "#137A52" : "#9A6B12", background: m.paid ? "#E2F3EB" : "#F8EED6", padding: "3px 9px", borderRadius: 20 }}>{m.paid ? t("mock.paid") : t("mock.pending")}</span>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Smooth gradient fade to stats section */}
-        <div className="h-24 bg-gradient-to-b from-transparent to-emerald-50 dark:to-emerald-950/50" />
-      </section>
-
-      {/* ── Stats Bar ── */}
-      <section className="relative bg-emerald-50 dark:bg-emerald-950/50 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-4 sm:gap-8 lg:grid-cols-4">
-            {[
-              { value: "500+", label: t("landing.statsGroups"), icon: Users },
-              { value: "10,000+", label: t("landing.statsMembers"), icon: Globe },
-              { value: "$2M+", label: t("landing.statsTracked"), icon: TrendingUp },
-              { value: "11", label: t("landing.statsCountries"), icon: Globe },
-            ].map((stat) => (
-              <div key={stat.label} className="group text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600/10 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400 transition-colors group-hover:bg-emerald-600 group-hover:text-white dark:group-hover:bg-emerald-500 dark:group-hover:text-white">
-                  <stat.icon className="h-5 w-5" />
-                </div>
-                <div className="text-3xl font-extrabold tracking-tight sm:text-4xl">{stat.value}</div>
-                <div className="mt-1 text-sm font-medium text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Fade out from stats to features */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent to-background" />
-      </section>
-
-      {/* ── Pain Points ── */}
-      <section className="py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.painPointsTitle")}
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              {t("landing.painPointsSubtitle")}
-            </p>
-          </div>
-          <div className="mx-auto mt-16 grid max-w-5xl gap-6 sm:grid-cols-2">
-            {([
-              { num: "1", icon: HandCoins },
-              { num: "2", icon: FileText },
-              { num: "3", icon: Home },
-              { num: "4", icon: Shield },
-            ] as const).map(({ num, icon: Icon }) => (
-              <div key={num} className="group rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                  <Icon className="h-6 w-6" />
-                </div>
-                <h3 className="text-lg font-bold">{t(`landing.painPoint${num}Title`)}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{t(`landing.painPoint${num}Problem`)}</p>
-                <p className="mt-3 flex items-start gap-2 text-sm font-medium text-primary">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0" />
-                  {t(`landing.painPoint${num}Solution`)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Core Features ── */}
-      <section className="py-24 sm:py-32 bg-slate-50 dark:bg-slate-900/50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.featuresTitle")}
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              {t("landing.featuresSubtitle")}
-            </p>
-          </div>
-          <div className="mx-auto mt-20 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ key, icon: Icon }) => (
-              <div
-                key={key}
-                className="group relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30"
-              >
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-lg group-hover:shadow-primary/20">
-                  <Icon className="h-7 w-7" />
-                </div>
-                <h3 className="text-xl font-bold">{t(`landing.feature${key}`)}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  {t(`landing.feature${key}Desc`)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How It Works ── */}
-      <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.howItWorks")}
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              {t("landing.howItWorksSubtitle")}
-            </p>
-          </div>
-          <div className="mx-auto mt-20 max-w-4xl">
-            <div className="relative grid gap-12 sm:grid-cols-3 sm:gap-8">
-              {/* Connecting line */}
-              <div className="absolute left-0 right-0 top-10 hidden h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent sm:block" />
-              {steps.map(({ num, titleKey, descKey }) => (
-                <div key={num} className="relative text-center">
-                  <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center">
-                    <div className="absolute inset-0 rounded-full bg-primary/10" />
-                    <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground shadow-lg shadow-primary/25">
-                      {num}
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold">{t(`landing.${titleKey}`)}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                    {t(`landing.${descKey}`)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Built For Your Community (Pan-African) ── */}
-      <section className="py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <Badge variant="secondary" className="mb-6 text-sm px-4 py-1.5">
-              <Star className="mr-1.5 h-3.5 w-3.5" />
-              {t("landing.builtForYou")}
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.builtForYou")}
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              {t("landing.builtForYouDesc")}
-            </p>
-          </div>
-
-          {/* Country flag pills */}
-          <div className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-2.5">
-            {countries.map((country) => (
-              <div
-                key={country.code}
-                className="flex items-center gap-2.5 rounded-full border bg-card px-4 py-2 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/30"
-              >
-                <TwemojiFlag emoji={country.flag} alt={t(`countries.${country.code}`)} className="h-6 w-6" />
-                <span className="font-medium text-muted-foreground">{t(`countries.${country.code}`)}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Phase 9 feature cards */}
-          <div className="mx-auto mt-14 grid max-w-5xl gap-6 sm:grid-cols-2">
-            {phase9Features.map(({ titleKey, descKey, icon: Icon }) => (
-              <div
-                key={titleKey}
-                className="group relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-primary/30"
-              >
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-lg group-hover:shadow-primary/20">
-                  <Icon className="h-7 w-7" />
-                </div>
-                <h3 className="text-xl font-bold">{t(`landing.${titleKey}`)}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  {t(`landing.${descKey}`)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Testimonials ── */}
-      <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.trustedBy")}
-            </h2>
-          </div>
-
-          {/* Top row: 3 cards */}
-          <div className="mx-auto mt-16 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {testimonialKeys.slice(0, 3).map((n) => (
-              <div
-                key={n}
-                className="group relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="relative">
-                  <div className="flex gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <p className="mt-5 text-base leading-relaxed text-muted-foreground italic">
-                    &ldquo;{t(`landing.testimonial${n}Quote`)}&rdquo;
-                  </p>
-                  <div className="mt-6 flex items-center gap-4 border-t pt-6">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-sm font-bold text-primary">
-                      {t(`landing.testimonial${n}Initials`)}
-                    </div>
-                    <div>
-                      <p className="font-semibold">{t(`landing.testimonial${n}Name`)}</p>
-                      <p className="text-sm text-muted-foreground">{t(`landing.testimonial${n}Group`)}</p>
-                    </div>
-                    <Badge variant="outline" className="ml-auto text-xs">
-                      {t(`landing.testimonial${n}Location`)}
-                    </Badge>
-                  </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
+        </div>
+      </section>
 
-          {/* Bottom row: 2 cards */}
-          <div className="mx-auto mt-6 grid max-w-4xl gap-6 sm:grid-cols-2">
-            {testimonialKeys.slice(3).map((n) => (
-              <div
-                key={n}
-                className="group relative rounded-2xl border bg-card p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="relative">
-                  <div className="flex gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-amber-400 text-amber-400" />
-                    ))}
-                  </div>
-                  <p className="mt-5 text-base leading-relaxed text-muted-foreground italic">
-                    &ldquo;{t(`landing.testimonial${n}Quote`)}&rdquo;
-                  </p>
-                  <div className="mt-6 flex items-center gap-4 border-t pt-6">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-sm font-bold text-primary">
-                      {t(`landing.testimonial${n}Initials`)}
-                    </div>
-                    <div>
-                      <p className="font-semibold">{t(`landing.testimonial${n}Name`)}</p>
-                      <p className="text-sm text-muted-foreground">{t(`landing.testimonial${n}Group`)}</p>
-                    </div>
-                    <Badge variant="outline" className="ml-auto text-xs">
-                      {t(`landing.testimonial${n}Location`)}
-                    </Badge>
-                  </div>
+      {/* ============ METRICS BAND ============ */}
+      <section className="vc-metrics">
+        <div className="vc-metrics-inner">
+          {(["groups", "members", "tracked", "countries"] as const).map((k) => (
+            <div key={k} className="vc-metric">
+              <div className="vc-metric-num">{t(`metrics.${k}Num`)}</div>
+              <div className="vc-metric-label">{t(`metrics.${k}Label`)}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ PROBLEM -> SOLUTION ============ */}
+      <section className="vc-section">
+        <div className="vc-split">
+          <div style={{ flex: "1 1 320px", maxWidth: 420 }}>
+            <div className="vc-eyebrow">{t("problem.eyebrow")}</div>
+            <h2 className="vc-h2">{t("problem.title")}</h2>
+            <p className="vc-lead">{t("problem.lead")}</p>
+            <div style={{ marginTop: 26, display: "inline-flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 600, color: "var(--accent-strong)" }}>
+              <span style={{ width: 34, height: 1, background: "var(--accent)" }} />{t("problem.tag")}
+            </div>
+          </div>
+          <div style={{ flex: "2 1 460px", minWidth: 0 }}>
+            {problems.map(({ icon: Icon, k }) => (
+              <div key={k} className="vc-problem-row">
+                <div className="vc-problem-icon"><Icon size={21} strokeWidth={1.7} /></div>
+                <div>
+                  <h3 className="vc-problem-h3">{t(`problem.${k}.title`)}</h3>
+                  <p className="vc-problem-p">{t(`problem.${k}.desc`)}</p>
+                  <div className="vc-problem-fix"><Check size={17} strokeWidth={2.2} />{t(`problem.${k}.fix`)}</div>
                 </div>
               </div>
             ))}
@@ -463,244 +192,286 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Pricing ── */}
-      <section className="py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.pricingTitle")}
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground sm:text-xl">
-              {t("landing.pricingSubtitle")}
-            </p>
+      {/* ============ FEATURES ============ */}
+      <section id="features" className="vc-section vc-features">
+        <div className="vc-wrap">
+          <div style={{ maxWidth: 680 }}>
+            <div className="vc-eyebrow">{t("features.eyebrow")}</div>
+            <h2 className="vc-h2">{t("features.title")}</h2>
+            <p className="vc-lead">{t("features.lead")}</p>
           </div>
-          <p className="mt-3 text-center text-sm font-medium text-primary">
-            {t("landing.pricingTagline")}
-          </p>
-          <div className="mx-auto mt-20 grid max-w-7xl items-start gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {/* Free */}
-            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
-              <h3 className="text-xl font-bold">{t("landing.pricingFree")}</h3>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingFreePrice")}</span>
-                <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingFreePeriod")}</span>
-              </div>
-              <ul className="mt-8 space-y-3">
-                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
-                  <li key={n} className="flex items-start gap-3 text-sm">
-                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Check className="h-3 w-3 text-primary" />
-                    </div>
-                    {t(`landing.pricingFreeFeature${n}`)}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="mt-10 block">
-                <Button variant="outline" size="lg" className="w-full text-base font-semibold">
-                  {t("common.getStarted")}
-                </Button>
-              </Link>
-            </div>
 
-            {/* Starter */}
-            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
-              <h3 className="text-xl font-bold">{t("landing.pricingStarter")}</h3>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingStarterPrice")}</span>
-                <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingStarterPeriod")}</span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{t("landing.pricingStarterXaf")}</p>
-              <p className="text-xs text-primary font-medium">{t("landing.pricingStarterAnnual")}</p>
-              <ul className="mt-6 space-y-3">
-                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
-                  <li key={n} className="flex items-start gap-3 text-sm">
-                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Check className="h-3 w-3 text-primary" />
-                    </div>
-                    {t(`landing.pricingStarterFeature${n}`)}
-                  </li>
+          {/* spotlight 1 */}
+          <div className="vc-spotlight" style={{ marginTop: 64 }}>
+            <div style={{ flex: "1 1 360px", maxWidth: 480 }}>
+              <div className="vc-eyebrow" style={{ letterSpacing: ".1em" }}>{t("spot1.eyebrow")}</div>
+              <h3 className="vc-h2" style={{ fontSize: "clamp(27px,3vw,36px)", lineHeight: 1.1 }}>{t("spot1.title")}</h3>
+              <p style={{ fontSize: 16, lineHeight: 1.65, color: "var(--ink-soft)", marginTop: 16 }}>{t("spot1.desc")}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 13, marginTop: 22 }}>
+                {["a", "b", "c"].map((i) => (
+                  <div key={i} className="vc-feat-check"><Check size={18} strokeWidth={2.2} style={{ color: "var(--accent)" }} />{t(`spot1.check.${i}`)}</div>
                 ))}
-              </ul>
-              <div className="mt-10 block">
-                <Button variant="outline" size="lg" className="w-full text-base font-semibold" disabled>
-                  {t("tiers.comingSoon")}
-                </Button>
               </div>
             </div>
-
-            {/* Pro (elevated) */}
-            <div className="relative rounded-2xl border-2 border-primary bg-card p-5 sm:p-8 shadow-xl shadow-primary/10 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/15">
-              <Badge className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 text-sm shadow-md">
-                {t("landing.pricingProBadge")}
-              </Badge>
-              <h3 className="text-xl font-bold">{t("landing.pricingPro")}</h3>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingProPrice")}</span>
-                <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingProPeriod")}</span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{t("landing.pricingProXaf")}</p>
-              <p className="text-xs text-primary font-medium">{t("landing.pricingProAnnual")}</p>
-              <ul className="mt-6 space-y-3">
-                {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
-                  <li key={n} className="flex items-start gap-3 text-sm">
-                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Check className="h-3 w-3 text-primary" />
+            <div style={{ flex: "1 1 400px", minWidth: 0 }}>
+              <div style={{ background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 16, padding: 22, boxShadow: "0 26px 50px -34px rgba(10,53,40,.4)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontFamily: "var(--serif)", fontSize: 17, fontWeight: 600, color: "var(--ink)" }}>{t("spot1.cardTitle")}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent-strong)", background: "var(--accent-soft)", padding: "4px 10px", borderRadius: 20 }}>{t("spot1.collected")}</span>
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontFamily: "var(--serif)", fontSize: 32, fontWeight: 600, color: "var(--ink)", letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>$11,750</span>
+                    <span style={{ fontSize: 13, color: "var(--ink-faint)" }}>{t("spot1.of")} $12,500</span>
+                  </div>
+                  <div style={{ height: 8, borderRadius: 20, background: "#E6E4DA", marginTop: 12, overflow: "hidden" }}><div style={{ width: "94%", height: "100%", background: "linear-gradient(90deg,var(--accent),#2BB179)", borderRadius: 20 }} /></div>
+                </div>
+                <div style={{ marginTop: 18 }}>
+                  {[
+                    { n: "Aisha Mballa", i: "AM", amt: "$50", paid: true },
+                    { n: "Emeka Okafor", i: "EO", amt: "$50", paid: true },
+                    { n: "Fatou Diop", i: "FD", amt: "$50", paid: false },
+                  ].map((m) => (
+                    <div key={m.i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 0", borderTop: "1px solid var(--line)" }}>
+                      <span style={{ width: 26, height: 26, borderRadius: "50%", background: m.paid ? "#EAF2EE" : "#F6EFDD", color: m.paid ? "var(--accent-strong)" : "#9A6B12", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{m.i}</span>
+                      <span style={{ fontSize: 14, color: "var(--ink)" }}>{m.n}</span>
+                      <span style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>{m.amt}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: m.paid ? "#137A52" : "#9A6B12", background: m.paid ? "#E2F3EB" : "#F8EED6", padding: "3px 9px", borderRadius: 20 }}>{m.paid ? t("mock.paid") : t("mock.pending")}</span>
                     </div>
-                    {t(`landing.pricingProFeature${n}`)}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-10 block">
-                <Button size="lg" className="w-full text-base font-semibold shadow-md shadow-primary/20" disabled>
-                  {t("tiers.comingSoon")}
-                </Button>
+                  ))}
+                </div>
+                <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--accent-strong)", background: "var(--accent-soft)", padding: "10px 13px", borderRadius: 10 }}><Send size={16} strokeWidth={1.9} />{t("spot1.reminder")}</div>
               </div>
-            </div>
-
-            {/* Enterprise */}
-            <div className="relative rounded-2xl border bg-card p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-lg">
-              <h3 className="text-xl font-bold">{t("landing.pricingOrg")}</h3>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tracking-tight">{t("landing.pricingOrgPrice")}</span>
-                <span className="text-sm font-medium text-muted-foreground">{t("landing.pricingOrgPeriod")}</span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{t("landing.pricingOrgXaf")}</p>
-              <p className="text-xs text-primary font-medium">{t("landing.pricingOrgAnnual")}</p>
-              <ul className="mt-8 space-y-3">
-                {(["1", "2", "3", "4", "5"] as const).map((n) => (
-                  <li key={n} className="flex items-start gap-3 text-sm">
-                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <Check className="h-3 w-3 text-primary" />
-                    </div>
-                    {t(`landing.pricingOrgFeature${n}`)}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/contact" className="mt-10 block">
-                <Button variant="outline" size="lg" className="w-full text-base font-semibold">
-                  {t("common.contactUs")}
-                </Button>
-              </Link>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* ── FAQ ── */}
-      <section className="bg-slate-50 dark:bg-slate-900/50 py-24 sm:py-32">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {t("landing.faqTitle")}
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              {t("landing.faqSubtitle")}
-            </p>
+          {/* spotlight 2 */}
+          <div className="vc-spotlight" style={{ marginTop: 72 }}>
+            <div style={{ flex: "1 1 400px", minWidth: 0, order: 1 }}>
+              <div style={{ background: "linear-gradient(165deg,#0E5C40,#0A3528)", borderRadius: 16, padding: 24, color: "#dff5ec", boxShadow: "0 28px 56px -30px rgba(10,53,40,.65)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, color: "rgba(223,245,236,.7)" }}>{t("spot2.agm")}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: "var(--green-darker)", background: "var(--mint)", padding: "4px 10px", borderRadius: 20 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green-darker)" }} />{t("spot2.live")}</span>
+                </div>
+                <div style={{ marginTop: 14, fontFamily: "var(--serif)", fontSize: 28, fontWeight: 600, letterSpacing: "-.02em", color: "#fff" }}>{t("spot2.election")}</div>
+                <div style={{ fontSize: 13, color: "rgba(223,245,236,.7)", marginTop: 2 }}>{t("spot2.voted")}</div>
+                <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, marginBottom: 7 }}><span style={{ color: "#fff", fontWeight: 600 }}>Ngozi Achu</span><span style={{ color: "var(--mint)", fontWeight: 700 }}>61%</span></div>
+                    <div style={{ height: 9, borderRadius: 20, background: "rgba(255,255,255,.12)", overflow: "hidden" }}><div style={{ width: "61%", height: "100%", background: "var(--mint)", borderRadius: 20 }} /></div>
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, marginBottom: 7 }}><span style={{ color: "#dff5ec" }}>Samuel Tabi</span><span style={{ color: "rgba(223,245,236,.75)", fontWeight: 700 }}>39%</span></div>
+                    <div style={{ height: 9, borderRadius: 20, background: "rgba(255,255,255,.12)", overflow: "hidden" }}><div style={{ width: "39%", height: "100%", background: "rgba(116,236,200,.5)", borderRadius: 20 }} /></div>
+                  </div>
+                </div>
+                <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(223,245,236,.6)", borderTop: "1px solid rgba(255,255,255,.1)", paddingTop: 14 }}><Lock size={14} strokeWidth={1.8} />{t("spot2.ballot")}</div>
+              </div>
+            </div>
+            <div style={{ flex: "1 1 360px", maxWidth: 480, order: 2 }}>
+              <div className="vc-eyebrow" style={{ letterSpacing: ".1em" }}>{t("spot2.eyebrow")}</div>
+              <h3 className="vc-h2" style={{ fontSize: "clamp(27px,3vw,36px)", lineHeight: 1.1 }}>{t("spot2.title")}</h3>
+              <p style={{ fontSize: 16, lineHeight: 1.65, color: "var(--ink-soft)", marginTop: 16 }}>{t("spot2.desc")}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 13, marginTop: 22 }}>
+                {["a", "b", "c"].map((i) => (
+                  <div key={i} className="vc-feat-check"><Check size={18} strokeWidth={2.2} style={{ color: "var(--accent)" }} />{t(`spot2.check.${i}`)}</div>
+                ))}
+              </div>
+            </div>
           </div>
-          <Accordion className="mt-12">
-            {(["1", "2", "3", "4", "5", "6"] as const).map((n) => (
-              <AccordionItem key={n} value={`faq-${n}`}>
-                <AccordionTrigger className="text-left text-base font-medium">
-                  {t(`landing.faq${n}Q`)}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground leading-relaxed">
-                  {t(`landing.faq${n}A`)}
-                </AccordionContent>
-              </AccordionItem>
+
+          {/* feature grid */}
+          <div className="vc-feat-grid">
+            {featureCards.map(({ icon: Icon, k }) => (
+              <div key={k} className="vc-feat-card">
+                <div className="vc-feat-icon"><Icon size={22} strokeWidth={1.7} /></div>
+                <h3>{t(`feat.${k}.title`)}</h3>
+                <p>{t(`feat.${k}.desc`)}</p>
+              </div>
             ))}
-          </Accordion>
-        </div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900 dark:from-emerald-950 dark:via-gray-950 dark:to-teal-950 py-24 sm:py-32">
-        {/* Decorative */}
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-20 top-10 h-64 w-64 rounded-full bg-emerald-400/10 blur-3xl" />
-          <div className="absolute -right-10 bottom-10 h-48 w-48 rounded-full bg-teal-400/10 blur-2xl" />
-          <div className="absolute left-1/2 top-0 h-40 w-96 -translate-x-1/2 rounded-full bg-emerald-300/5 blur-3xl" />
-        </div>
-        <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-            {t("landing.ctaTitle")}
-          </h2>
-          <p className="mt-6 text-lg text-emerald-100/80 sm:text-xl">
-            {t("landing.ctaSubtitle")}
-          </p>
-          <p className="mt-3 text-sm text-emerald-200/50">
-            {t("landing.trustedBy")}
-          </p>
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link href="/signup" className="w-full sm:w-auto">
-              <Button
-                size="lg"
-                className="w-full bg-white text-emerald-900 shadow-xl shadow-black/20 hover:bg-emerald-50 text-base px-10 py-6 font-semibold"
-              >
-                {t("common.startFree")}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/login" className="w-full sm:w-auto">
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full border-white/30 bg-transparent text-white hover:bg-white/10 text-base px-8 py-6 font-medium"
-              >
-                {t("auth.login")}
-              </Button>
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <Link href="/" className="flex items-center gap-2.5">
-                <Logo variant="horizontal" textColor="auto" size="md" />
-              </Link>
-              <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                {t("landing.footerTagline")}
-              </p>
-              <p className="mt-3 flex items-center gap-1 text-sm text-muted-foreground">
-                {t("landing.footerBuiltWith")} <Heart className="inline h-3.5 w-3.5 fill-red-500 text-red-500" />
-              </p>
+      {/* ============ PAN-AFRICAN BAND ============ */}
+      <section className="vc-section vc-band">
+        <div className="vc-band-grid" />
+        <div className="vc-wrap" style={{ position: "relative" }}>
+          <div style={{ maxWidth: 720 }}>
+            <div className="vc-eyebrow" style={{ color: "var(--mint)" }}>{t("band.eyebrow")}</div>
+            <h2 className="vc-h2" style={{ color: "#fff", fontSize: "clamp(34px,4.6vw,52px)" }}>{t("band.title")}</h2>
+            <p className="vc-lead" style={{ color: "rgba(231,242,237,.78)" }}>{t("band.lead")}</p>
+          </div>
+          <div className="vc-band-list">
+            {["villages", "alumni", "churches", "savings", "coops", "hometown"].map((k, i) => (
+              <span key={k} style={{ display: "contents" }}>
+                <span style={{ color: i % 2 === 0 ? "#fff" : "var(--mint)" }}>{t(`band.${k}`)}</span>
+                {i < 5 && <span className="vc-band-dot">●</span>}
+              </span>
+            ))}
+          </div>
+          <p style={{ fontFamily: "var(--sans)", fontSize: 14.5, lineHeight: 1.6, color: "rgba(231,242,237,.6)", marginTop: 20 }}>{t("band.aliases")}</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 46 }}>
+            {countries.map((c) => (
+              <span key={c} className="vc-chip"><b>{c}</b>{t(`countries.${c}`)}</span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ HOW IT WORKS ============ */}
+      <section id="how" className="vc-section">
+        <div className="vc-wrap">
+          <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto" }}>
+            <div className="vc-eyebrow">{t("how.eyebrow")}</div>
+            <h2 className="vc-h2">{t("how.title")}</h2>
+            <p className="vc-lead">{t("how.lead")}</p>
+          </div>
+          <div className="vc-steps">
+            <div className="vc-steps-line" />
+            {steps.map((k, i) => (
+              <div key={k} className="vc-step">
+                <div className={`vc-step-num${i === 2 ? " filled" : ""}`}>{i + 1}</div>
+                <h3>{t(`how.${k}.title`)}</h3>
+                <p>{t(`how.${k}.desc`)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ TESTIMONIALS ============ */}
+      <section className="vc-section vc-testi">
+        <div className="vc-wrap">
+          <div style={{ maxWidth: 660 }}>
+            <div className="vc-eyebrow">{t("testi.eyebrow")}</div>
+            <h2 className="vc-h2">{t("testi.title")}</h2>
+          </div>
+          <div className="vc-testi-feat">
+            <div style={{ flex: "2 1 420px", minWidth: 0 }}>
+              <div className="vc-stars">{Array.from({ length: 5 }).map((_, i) => <Star key={i} size={20} fill="currentColor" stroke="none" />)}</div>
+              <p style={{ fontFamily: "var(--serif)", fontSize: "clamp(22px,2.5vw,28px)", lineHeight: 1.45, letterSpacing: "-.01em", color: "var(--ink)", marginTop: 20 }}>{t("testi.featured.quote")}</p>
             </div>
-            <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">
-                {t("landing.footerProduct")}
-              </h4>
-              <ul className="mt-4 space-y-3 text-sm">
-                <li><span className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">{t("landing.featuresTitle")}</span></li>
-                <li><Link href="/pricing" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.pricingTitle")}</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">
-                {t("landing.footerCompany")}
-              </h4>
-              <ul className="mt-4 space-y-3 text-sm">
-                <li><Link href="/about" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerAbout")}</Link></li>
-                <li><Link href="/contact" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerBlog")}</Link></li>
-                <li><span className="text-muted-foreground transition-colors hover:text-foreground cursor-pointer">{t("landing.footerCareers")}</span></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">
-                {t("landing.footerLegal")}
-              </h4>
-              <ul className="mt-4 space-y-3 text-sm">
-                <li><Link href="/privacy" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerPrivacy")}</Link></li>
-                <li><Link href="/terms" className="text-muted-foreground transition-colors hover:text-foreground">{t("landing.footerTerms")}</Link></li>
-              </ul>
+            <div style={{ flex: "1 1 220px", borderLeft: "1px solid var(--line)", paddingLeft: 28 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+                <span style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--accent-strong)", fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>CN</span>
+                <div><div style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>Cyril N.</div><div style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>{t("testi.featured.group")}</div></div>
+              </div>
+              <span className="vc-chip" style={{ marginTop: 18, color: "var(--ink-soft)", background: "var(--bg)", borderColor: "var(--line)" }}><b style={{ color: "var(--accent-strong)", background: "var(--bg)", border: "1px solid var(--line)" }}>CM</b>{t("countries.CM")}</span>
             </div>
           </div>
-          <div className="mt-16 border-t pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2026 {t("landing.footerCopyright")}</p>
-            <p className="mt-1">{t("landing.footerRights")}</p>
+          <div className="vc-testi-grid">
+            {testimonials.map((k) => (
+              <div key={k} className="vc-testi-card">
+                <div className="vc-stars">{Array.from({ length: 5 }).map((_, i) => <Star key={i} size={15} fill="currentColor" stroke="none" />)}</div>
+                <p>{t(`testi.${k}.quote`)}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+                  <span className="vc-avatar">{t(`testi.${k}.initials`)}</span>
+                  <div style={{ minWidth: 0 }}><div style={{ fontSize: 14.5, fontWeight: 700, color: "var(--ink)" }}>{t(`testi.${k}.name`)}</div><div style={{ fontSize: 12.5, color: "var(--ink-soft)" }}>{t(`testi.${k}.meta`)}</div></div>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      </section>
+
+      {/* ============ PRICING ============ */}
+      <section id="pricing" className="vc-section">
+        <div className="vc-wrap">
+          <div style={{ textAlign: "center", maxWidth: 640, margin: "0 auto" }}>
+            <div className="vc-eyebrow">{t("pricing.eyebrow")}</div>
+            <h2 className="vc-h2">{t("pricing.title")}</h2>
+            <p className="vc-lead">{t("pricing.lead")}</p>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 18, fontSize: 13.5, fontWeight: 600, color: "var(--accent-strong)", background: "var(--accent-soft)", padding: "8px 15px", borderRadius: 100 }}><Check size={16} strokeWidth={2} />{t("pricing.noCut")}</span>
+          </div>
+          <div className="vc-price-grid">
+            {tiers.map(({ k, featured, cta }) => (
+              <div key={k} className={`vc-price${featured ? " featured" : ""}`}>
+                {featured && <span className="vc-price-badge">{t("pricing.popular")}</span>}
+                <div className="vc-price-name">{t(`pricing.${k}.name`)}</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 14 }}>
+                  <span className="vc-price-amt">{t(`pricing.${k}.price`)}</span>
+                  <span style={{ fontSize: 14, color: "var(--ink-faint)" }}>{t(`pricing.${k}.per`)}</span>
+                </div>
+                <div className="vc-price-note">{t(`pricing.${k}.note`)}</div>
+                <div className="vc-price-feats">
+                  {Array.from({ length: tierFeatures[k] }).map((_, i) => (
+                    <div key={i} className="vc-price-feat"><Check size={16} strokeWidth={featured ? 2.4 : 2.2} style={{ color: "var(--accent)" }} />{t(`pricing.${k}.f${i + 1}`)}</div>
+                  ))}
+                </div>
+                {cta === "muted" ? (
+                  <span className="vc-price-btn muted">{t("pricing.comingSoon")}</span>
+                ) : cta === "solid" ? (
+                  <span className="vc-price-btn solid">{t("pricing.comingSoon")}</span>
+                ) : k === "enterprise" ? (
+                  <Link href="/contact" className="vc-price-btn outline">{t("pricing.contact")}</Link>
+                ) : (
+                  <Link href="/signup" className="vc-price-btn outline">{t("pricing.getStarted")}</Link>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ FAQ ============ */}
+      <section id="faq" className="vc-section vc-faq">
+        <div className="vc-wrap" style={{ display: "flex", flexWrap: "wrap", gap: 56 }}>
+          <div style={{ flex: "1 1 300px", maxWidth: 380 }}>
+            <div className="vc-eyebrow">{t("faq.eyebrow")}</div>
+            <h2 className="vc-h2">{t("faq.title")}</h2>
+            <p className="vc-lead" style={{ fontSize: 18 }}>{t("faq.lead")}</p>
+            <Link href="/contact" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 22, fontSize: 14.5, fontWeight: 600, color: "var(--accent-strong)" }}>{t("faq.talk")}<ArrowRight size={16} strokeWidth={2} /></Link>
+          </div>
+          <div style={{ flex: "2 1 460px", minWidth: 0 }}>
+            {faqs.map((k) => (
+              <details key={k}>
+                <summary><span className="vc-q">{t(`faq.${k}.q`)}</span><ChevronDown className="vc-chev" size={20} strokeWidth={2} /></summary>
+                <p>{t(`faq.${k}.a`)}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ FINAL CTA ============ */}
+      <section className="vc-finalcta">
+        <div className="vc-finalcta-grid" />
+        <div style={{ position: "relative", maxWidth: 760, margin: "0 auto", padding: "var(--sp) 28px", textAlign: "center" }}>
+          <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: "clamp(36px,5vw,58px)", lineHeight: 1.04, letterSpacing: "-.025em", color: "#fff" }}>{t("finalCta.title")}</h2>
+          <p style={{ fontFamily: "var(--serif)", fontSize: 20, lineHeight: 1.6, color: "rgba(231,242,237,.82)", margin: "20px auto 0", maxWidth: "48ch" }}>{t("finalCta.lead")}</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 34 }}>
+            <Link href="/signup" className="vc-btn-light">{t("hero.startFree")}<ArrowRight size={17} strokeWidth={2} /></Link>
+            <a href="#how" className="vc-btn-ghost">{t("hero.bookDemo")}</a>
+          </div>
+          <p style={{ fontSize: 13.5, color: "rgba(231,242,237,.6)", marginTop: 22 }}>{t("finalCta.note")}</p>
+        </div>
+      </section>
+
+      {/* ============ FOOTER ============ */}
+      <footer className="vc-footer">
+        <div className="vc-footer-grid">
+          <div>
+            <a href="#top" className="vc-nav-brand"><img src="/logo-mark.svg" alt="" width={28} height={28} /><span style={{ color: "var(--ink)" }}>VillageClaq</span></a>
+            <p style={{ fontSize: 14, color: "var(--ink-soft)", lineHeight: 1.6, marginTop: 16, maxWidth: "30ch" }}>{t("footer.tagline")}</p>
+            <p style={{ fontSize: 13, color: "var(--ink-faint)", marginTop: 14 }}>{t("footer.builtWith")}</p>
+          </div>
+          <div>
+            <div className="vc-footer-col-h">{t("footer.product")}</div>
+            <div className="vc-footer-links"><a href="#features">{t("nav.features")}</a><a href="#how">{t("nav.how")}</a><a href="#pricing">{t("nav.pricing")}</a></div>
+          </div>
+          <div>
+            <div className="vc-footer-col-h">{t("footer.company")}</div>
+            <div className="vc-footer-links"><Link href="/about">{t("footer.about")}</Link><Link href="/contact">{t("footer.contact")}</Link><Link href="/pricing">{t("nav.pricing")}</Link></div>
+          </div>
+          <div>
+            <div className="vc-footer-col-h">{t("footer.legal")}</div>
+            <div className="vc-footer-links"><Link href="/privacy">{t("footer.privacy")}</Link><Link href="/terms">{t("footer.terms")}</Link></div>
+          </div>
+        </div>
+        <div className="vc-footer-bottom">
+          <span>{t("footer.copyright")}</span>
+          <span>{t("footer.langLine")}</span>
         </div>
       </footer>
     </div>

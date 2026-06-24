@@ -298,204 +298,334 @@
     "passwordsMatch": "Les mots de passe correspondent"
   },
   "landing": {
+    "nav": {
+      "features": "Fonctionnalités",
+      "how": "Comment ça marche",
+      "pricing": "Tarifs",
+      "faq": "FAQ",
+      "switchLanguage": "Changer de langue",
+      "login": "Connexion",
+      "getStarted": "Commencer",
+      "dashboard": "Tableau de bord",
+      "members": "Membres",
+      "contributions": "Cotisations",
+      "meetings": "Réunions",
+      "reports": "Rapports"
+    },
+    "hero": {
+      "badge": "Adopté par plus de 500 groupes dans 11 pays",
+      "h1a": "Votre communauté,",
+      "h1b": "organisée.",
+      "sub": "La plateforme tout-en-un pour les associations villageoises, amicales d'anciens, églises et groupes d'épargne — à travers l'Afrique et la diaspora.",
+      "startFree": "Commencer gratuitement",
+      "bookDemo": "Réserver une démo",
+      "trust1": "Gratuit pour toujours jusqu'à 15 membres",
+      "trust2": "Sans carte bancaire"
+    },
+    "mock": {
+      "proTrial": "Essai Pro",
+      "daysLeft": "18 jours restants",
+      "upgrade": "Passer au supérieur",
+      "groupMeta": "Amicale d'anciens · 247 membres · Cameroun",
+      "kpiMembers": "Membres",
+      "kpiMembersDelta": "+12 ce mois",
+      "kpiBalance": "Solde",
+      "kpiBalanceDelta": "+8% vs préc.",
+      "kpiCollected": "Collecté",
+      "kpiOnTrack": "Sur la bonne voie",
+      "kpiMeetings": "Réunions",
+      "kpiThisYear": "cette année",
+      "collectionTitle": "Cotisations d'octobre",
+      "paid": "Payé",
+      "pending": "En attente"
+    },
+    "metrics": {
+      "groupsNum": "500+",
+      "groupsLabel": "Groupes actifs",
+      "membersNum": "10 000+",
+      "membersLabel": "Membres gérés",
+      "trackedNum": "2 M$+",
+      "trackedLabel": "Cotisations suivies",
+      "countriesNum": "11",
+      "countriesLabel": "Pays desservis"
+    },
+    "problem": {
+      "eyebrow": "Le statu quo",
+      "title": "Ça vous parle ?",
+      "lead": "Chaque groupe communautaire rencontre les mêmes frictions. VillageClaq a été conçu pour toutes les éliminer.",
+      "tag": "Remplacé par une source unique de vérité",
+      "money": {
+        "title": "Qui a payé quoi ?",
+        "desc": "Des paiements en espèces sans reçus. La réconciliation de fin d'année tourne à la dispute.",
+        "fix": "Chaque paiement enregistré numériquement, avec reçus instantanés."
+      },
+      "paper": {
+        "title": "La paperasse éparpillée",
+        "desc": "Les procès-verbaux sur le téléphone de quelqu'un. Les présences sur une feuille. Les archives perdues dans WhatsApp.",
+        "fix": "Tout au même endroit, organisé et consultable."
+      },
+      "hosting": {
+        "title": "L'injustice du tour de rôle",
+        "desc": "« J'ai reçu trois fois mais Emeka une seule. » Des litiges qui ne se règlent jamais vraiment.",
+        "fix": "Un système de rotation transparent, visible par tous."
+      },
+      "officers": {
+        "title": "Les passations de bureau",
+        "desc": "Quand le trésorier change, la mémoire de l'institution s'en va avec lui.",
+        "fix": "L'historique complet de votre groupe, préservé pour toujours."
+      }
+    },
+    "features": {
+      "eyebrow": "Fonctionnalités",
+      "title": "Tout ce dont votre groupe a besoin",
+      "lead": "Conçu par des Africains, pour les groupes communautaires africains. Nous savons comment fonctionnent réellement les njangis, tontines et associations — parce que nous en faisons partie aussi."
+    },
+    "spot1": {
+      "eyebrow": "Cotisations & bonne tenue",
+      "title": "Voyez exactement où va chaque franc",
+      "desc": "Enregistrez cotisations, dons et tours d'épargne en quelques secondes. Tout le groupe voit les mêmes chiffres — sans tableurs, sans litiges.",
+      "check": {
+        "a": "Sachez qui est à jour et en règle",
+        "b": "Reçus numériques instantanés pour chaque paiement",
+        "c": "Une piste d'audit complète, fiable pour votre trésorier"
+      },
+      "cardTitle": "Cotisations d'octobre",
+      "collected": "94% collecté",
+      "of": "sur",
+      "reminder": "Rappel automatique envoyé à 14 membres ayant un solde"
+    },
+    "spot2": {
+      "eyebrow": "Réunions, événements & élections",
+      "title": "Gérez votre groupe comme une institution",
+      "desc": "De la réunion mensuelle à l'AG : planifiez des événements, envoyez des rappels, faites l'appel et organisez des élections transparentes auxquelles vos membres se fient.",
+      "check": {
+        "a": "Rappels d'événements par appli, SMS & WhatsApp",
+        "b": "Présences et procès-verbaux saisis en quelques secondes",
+        "c": "Élections à bulletin secret, motions & sondages"
+      },
+      "agm": "Assemblée générale · 12 nov.",
+      "live": "En direct",
+      "election": "Élection du trésorier",
+      "voted": "142 des 247 membres ont voté · clôture dans 2 jours",
+      "ballot": "Bulletin secret · une voix par membre"
+    },
+    "feat": {
+      "members": {
+        "title": "Gestion des membres",
+        "desc": "Suivez membres, rôles et bonne tenue. Gestion par procuration pour les aînés. Un seul compte, groupes illimités."
+      },
+      "minutes": {
+        "title": "Procès-verbaux",
+        "desc": "Planifiez les réunions, faites l'appel et consignez décisions et tâches — le tout consultable."
+      },
+      "events": {
+        "title": "Événements & notifications",
+        "desc": "Annonces, rappels d'événements et RSVP. Touchez chaque membre par appli, e-mail, SMS ou WhatsApp."
+      },
+      "reports": {
+        "title": "Rapports financiers",
+        "desc": "32 types de rapports, tableaux de bord en temps réel et pistes d'audit. Voyez où va chaque franc, puis exportez en CSV."
+      },
+      "savings": {
+        "title": "Épargne rotative",
+        "desc": "Njangi, ajo, susu, stokvel, chama ou sou-sou — suivez cotisations, rotations et versements en toute transparence."
+      },
+      "elections": {
+        "title": "Élections & votes",
+        "desc": "Organisez des élections d'officiers à bulletin anonyme, votez des motions et menez des sondages. Équitable et vérifiable."
+      },
+      "cards": {
+        "title": "Cartes de membre numériques",
+        "desc": "Des cartes à code QR qui vérifient l'adhésion instantanément. Téléchargez, partagez et présentez avec fierté."
+      },
+      "vault": {
+        "title": "Coffre à documents",
+        "desc": "Conservez en sécurité votre constitution, relevés et comptes rendus. Versionnés et toujours accessibles."
+      },
+      "bilingual": {
+        "title": "Bilingue (EN/FR)",
+        "desc": "Prise en charge complète de l'anglais et du français. Chaque membre choisit sa langue. Parfait pour le Cameroun et au-delà."
+      }
+    },
+    "band": {
+      "eyebrow": "Conçu pour votre communauté",
+      "title": "Quel que soit le nom de votre communauté",
+      "lead": "Des associations villageoises et amicales d'anciens aux églises, coopératives et groupes d'épargne — VillageClaq sert les groupes communautaires aux quatre coins de l'Afrique, et partout où vit la diaspora.",
+      "villages": "Associations villageoises",
+      "alumni": "Amicales d'anciens",
+      "churches": "Groupes d'église",
+      "savings": "Groupes d'épargne",
+      "coops": "Coopératives",
+      "hometown": "Unions d'originaires",
+      "aliases": "Et oui — nous parlons aussi njangi, ajo, susu, stokvel, chama & sou-sou."
+    },
+    "countries": {
+      "CM": "Cameroun",
+      "NG": "Nigéria",
+      "GH": "Ghana",
+      "KE": "Kenya",
+      "ZA": "Afrique du Sud",
+      "UG": "Ouganda",
+      "SN": "Sénégal",
+      "US": "États-Unis",
+      "GB": "Royaume-Uni",
+      "CA": "Canada",
+      "FR": "France"
+    },
+    "how": {
+      "eyebrow": "Démarrer",
+      "title": "Opérationnel en quelques minutes",
+      "lead": "Aucun projet de migration. Aucune journée de formation. Créez un groupe et commencez à suivre dès l'après-midi.",
+      "create": {
+        "title": "Créez votre groupe",
+        "desc": "Configuré en 30 secondes. Choisissez le type de groupe, la devise et le calendrier des réunions."
+      },
+      "invite": {
+        "title": "Invitez les membres",
+        "desc": "Partagez un lien ou envoyez des invitations. Les membres rejoignent d'un seul geste."
+      },
+      "track": {
+        "title": "Commencez le suivi",
+        "desc": "Enregistrez les cotisations, faites l'appel, consignez les procès-verbaux. Tout au même endroit."
+      }
+    },
+    "testi": {
+      "eyebrow": "Témoignages",
+      "title": "Adopté par des leaders communautaires en Afrique et dans la diaspora",
+      "featured": {
+        "quote": "« VillageClaq a transformé la gestion des finances de notre groupe. Chaque cotisation est suivie, chaque réunion documentée. Une transparence totale — et les litiges ont tout simplement cessé. »",
+        "group": "Bamenda Alumni Union"
+      },
+      "adebayo": {
+        "quote": "« Nous sommes passés du chaos WhatsApp à une gestion organisée du jour au lendemain. Les membres adorent le suivi des cotisations et les rappels automatiques. »",
+        "initials": "AO",
+        "name": "Adebayo O.",
+        "meta": "Lagos Ajo Cooperative · Nigéria"
+      },
+      "kwame": {
+        "quote": "« Le suivi de l'épargne rotative est exactement ce qu'il nous fallait. Fini les tableurs, fini les disputes sur qui a payé quoi. »",
+        "initials": "KA",
+        "name": "Kwame A.",
+        "meta": "Accra Susu Collective · Ghana"
+      },
+      "wanjiku": {
+        "quote": "« Gérer plus de 200 membres répartis sur trois chamas était un cauchemar. Maintenant cela prend quelques minutes. Les rapports valent à eux seuls l'investissement. »",
+        "initials": "WM",
+        "name": "Wanjiku M.",
+        "meta": "Nairobi Chama Network · Kenya"
+      },
+      "thabo": {
+        "quote": "« Notre stokvel a enfin un vrai système. Les membres consultent leur solde à tout moment, et notre trésorier dort mieux la nuit. »",
+        "initials": "TD",
+        "name": "Thabo D.",
+        "meta": "Soweto Stokvel · Afrique du Sud"
+      }
+    },
+    "pricing": {
+      "eyebrow": "Tarifs",
+      "title": "Une tarification simple et transparente",
+      "lead": "Commencez gratuitement. Évoluez quand votre groupe grandit.",
+      "noCut": "Nous ne prélevons jamais de commission sur vos cotisations",
+      "popular": "Le plus populaire",
+      "comingSoon": "Bientôt disponible",
+      "contact": "Contactez-nous",
+      "getStarted": "Commencer",
+      "free": {
+        "name": "Gratuit",
+        "price": "0 $",
+        "per": "pour toujours",
+        "note": "Pour un groupe qui débute.",
+        "f1": "Jusqu'à 15 membres",
+        "f2": "2 types de cotisation",
+        "f3": "2 rapports de base",
+        "f4": "Notifications WhatsApp",
+        "f5": "1 groupe"
+      },
+      "starter": {
+        "name": "Starter",
+        "price": "5 $",
+        "per": "/mois",
+        "note": "2 500 FCFA/mois · 49 $/an — économisez 18%",
+        "f1": "Jusqu'à 50 membres",
+        "f2": "5 types de cotisation",
+        "f3": "10 rapports + export CSV",
+        "f4": "Plans d'entraide & cercles d'épargne",
+        "f5": "3 groupes"
+      },
+      "pro": {
+        "name": "Pro",
+        "price": "15 $",
+        "per": "/mois",
+        "note": "7 500 FCFA/mois · 149 $/an — économisez 17%",
+        "f1": "Jusqu'à 200 membres",
+        "f2": "Types de cotisation illimités",
+        "f3": "Les 32 rapports + analyses IA",
+        "f4": "Prêts, comités, dossier du bureau",
+        "f5": "SMS + WhatsApp illimité",
+        "f6": "Support prioritaire"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "40 $",
+        "per": "/mois",
+        "note": "20 000 FCFA/mois · 399 $/an — économisez 17%",
+        "f1": "Membres illimités",
+        "f2": "Tout ce qui est dans Pro",
+        "f3": "Sous-groupes & branches",
+        "f4": "Image de marque personnalisée",
+        "f5": "Support dédié"
+      }
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Questions fréquentes",
+      "lead": "Tout ce qu'il faut savoir avant d'intégrer votre groupe.",
+      "talk": "D'autres questions ? Parlons-en",
+      "groups": {
+        "q": "Quels types de groupes peuvent utiliser VillageClaq ?",
+        "a": "Groupes d'épargne (njangi, tontine, chama, stokvel, susu, ajo, sou-sou), amicales d'anciens, unions d'originaires et associations villageoises, groupes d'église, coopératives et associations professionnelles. Si votre groupe collecte des cotisations et tient des réunions, il a sa place."
+      },
+      "french": {
+        "q": "Est-ce que ça marche en français ?",
+        "a": "Oui — VillageClaq est entièrement bilingue. Chaque membre choisit l'anglais ou le français indépendamment, et d'autres langues arrivent."
+      },
+      "smartphones": {
+        "q": "Et si des membres n'ont pas de smartphone ?",
+        "a": "Les officiers peuvent gérer les membres par procuration, et les notifications SMS plus les cartes de membre à code QR imprimables incluent tout le monde — sans smartphone."
+      },
+      "secure": {
+        "q": "Quel est le niveau de sécurité de nos données financières ?",
+        "a": "Un chiffrement de niveau bancaire, des accès basés sur les rôles et une piste d'audit complète protègent chaque enregistrement. Vos données vous appartiennent, sauvegardées régulièrement — et nous ne prélevons jamais de commission sur vos cotisations."
+      },
+      "free": {
+        "q": "Peut-on l'essayer gratuitement ?",
+        "a": "Absolument. Le plan Gratuit l'est pour toujours jusqu'à 15 membres, sans carte bancaire. Évoluez seulement quand votre groupe le dépasse."
+      },
+      "currencies": {
+        "q": "Quelles devises prenez-vous en charge ?",
+        "a": "Multidevise, dont le FCFA (XAF/XOF), USD, GBP, EUR, NGN, KES, GHS, ZAR et plus. Choisissez la devise de votre groupe à la configuration."
+      }
+    },
+    "finalCta": {
+      "title": "Prêt à organiser votre communauté ?",
+      "lead": "Rejoignez plus de 500 groupes communautaires dans 11 pays qui utilisent déjà VillageClaq pour rester connectés et responsables.",
+      "note": "Gratuit pour toujours jusqu'à 15 membres · Sans carte · Conçu avec amour au Cameroun"
+    },
+    "footer": {
+      "tagline": "Rassembler les communautés africaines, un groupe à la fois.",
+      "builtWith": "Conçu avec amour au Cameroun, pour le monde.",
+      "product": "Produit",
+      "company": "Entreprise",
+      "legal": "Légal",
+      "about": "À propos",
+      "contact": "Contact",
+      "privacy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "copyright": "© 2026 VillageClaq par LawTekno LLC. Tous droits réservés.",
+      "langLine": "EN · FR · Multidevise"
+    },
     "heroTitle": "Votre communauté,",
-    "heroTitleAccent": "Organisée.",
-    "heroSubtitle": "La plateforme tout-en-un pour les groupes d'épargne communautaire, les unions d'anciens élèves, les associations de village et les groupes d'église à travers l'Afrique et la diaspora",
-    "trustedBy": "Approuvé par les leaders communautaires à travers l'Afrique et la diaspora",
-    "featuresTitle": "Tout ce dont votre groupe a besoin",
-    "featuresSubtitle": "Conçu par des Africains, pour les groupes communautaires africains. Nous comprenons comment fonctionnent réellement les njangis, tontines et associations.",
-    "featureMembership": "Gestion des membres",
-    "featureMembershipDesc": "Suivez les membres, rôles et statuts. Gestion par procuration pour les aînés. Un compte, groupes illimités.",
-    "featureContributions": "Suivi des cotisations",
-    "featureContributionsDesc": "Enregistrez les cotisations, dons et rotations d'épargne. Rappels automatiques pour les soldes impayés. Transparence totale.",
-    "featureMeetings": "Procès-verbaux",
-    "featureMeetingsDesc": "Planifiez les réunions, enregistrez les présences, capturez les décisions et actions. Historique consultable.",
-    "featureComms": "Communication",
-    "featureCommsDesc": "Annonces, notifications et messagerie de groupe. Atteignez les membres par l'app, e-mail ou SMS.",
-    "featureFinance": "Rapports financiers",
-    "featureFinanceDesc": "Tableaux de bord en temps réel, rapports du trésorier et pistes d'audit. Voyez exactement où va chaque franc.",
-    "featureBilingual": "Bilingue (EN/FR)",
-    "featureBilingualDesc": "Support complet en anglais et français. Chaque membre choisit sa langue. Parfait pour le Cameroun et au-delà.",
-    "savingsFeatureTitle": "Suivi de l'épargne rotative",
-    "savingsFeatureDesc": "Que vous l'appeliez Njangi, Tontine, Ajo, Susu, Stokvel ou Chama, nous sommes là. Suivez les cotisations, rotations et collectes en toute transparence.",
-    "electionsFeatureTitle": "Élections et votes",
-    "electionsFeatureDesc": "Organisez des élections avec bulletins anonymes, adoptez des motions et réalisez des sondages. Équitable, transparent et vérifiable.",
-    "documentFeatureTitle": "Coffre-fort documentaire",
-    "documentFeatureDesc": "Stockez votre constitution, états financiers et documents de réunion en toute sécurité. Versionnés et toujours accessibles.",
-    "memberCardFeatureTitle": "Cartes de membre numériques",
-    "memberCardFeatureDesc": "Cartes numériques avec code QR qui vérifient l'adhésion instantanément. Téléchargez, partagez et présentez avec fierté.",
-    "builtForYou": "Conçu pour VOTRE communauté",
-    "builtForYouDesc": "VillageClaq sert les groupes communautaires dans chaque coin d'Afrique et partout où la diaspora se trouve.",
-    "howItWorks": "Comment ça marche",
-    "howItWorksSubtitle": "Mettez votre groupe en route en quelques minutes",
-    "step1Title": "Créez votre groupe",
-    "step1Desc": "Configuration en 30 secondes. Choisissez votre type de groupe, devise et calendrier de réunions.",
-    "step2Title": "Invitez des membres",
-    "step2Desc": "Partagez un lien ou envoyez des invitations. Les membres rejoignent en un clic.",
-    "step3Title": "Commencez le suivi",
-    "step3Desc": "Enregistrez les cotisations, prenez les présences, capturez les procès-verbaux. Tout en un seul endroit.",
-    "statsGroups": "500+ Groupes",
-    "statsMembers": "10 000+ Membres",
-    "statsTracked": "2M$+ Suivis",
-    "statsCountries": "11 Pays",
-    "pricingTitle": "Tarification simple et transparente",
-    "pricingSubtitle": "Commencez gratuitement. Mettez à niveau quand votre groupe grandit.",
-    "pricingMonthly": "Mensuel",
-    "pricingAnnual": "Annuel",
-    "pricingTagline": "Nous ne prenons jamais une part de vos cotisations.",
-    "pricingFree": "Gratuit",
-    "pricingFreePrice": "0 $",
-    "pricingFreePeriod": "pour toujours",
-    "pricingFreeFeature1": "Jusqu'à 15 membres",
-    "pricingFreeFeature2": "2 types de cotisation",
-    "pricingFreeFeature3": "2 rapports de base",
-    "pricingFreeFeature4": "Notifications WhatsApp",
-    "pricingFreeFeature5": "5 événements/mois",
-    "pricingFreeFeature6": "1 groupe",
-    "pricingStarter": "Starter",
-    "pricingStarterPrice": "5 $",
-    "pricingStarterPeriod": "/mois",
-    "pricingStarterXaf": "ou 2 500 FCFA/mois pour les groupes africains",
-    "pricingStarterAnnual": "49 $/an — économisez 18%",
-    "pricingStarterFeature1": "Jusqu'à 50 membres",
-    "pricingStarterFeature2": "5 types de cotisation",
-    "pricingStarterFeature3": "10 rapports + export CSV",
-    "pricingStarterFeature4": "Plans de secours et tontines",
-    "pricingStarterFeature5": "Élections et amendes",
-    "pricingStarterFeature6": "3 groupes",
-    "pricingPro": "Pro",
-    "pricingProPrice": "15 $",
-    "pricingProPeriod": "/mois",
-    "pricingProXaf": "ou 7 500 FCFA/mois pour les groupes africains",
-    "pricingProAnnual": "149 $/an — économisez 17%",
-    "pricingProFeature1": "Jusqu'à 200 membres",
-    "pricingProFeature2": "Types de cotisation illimités",
-    "pricingProFeature3": "Les 23 rapports + analyses IA",
-    "pricingProFeature4": "Prêts, comités, dossier du conseil",
-    "pricingProFeature5": "SMS + WhatsApp illimité",
-    "pricingProFeature6": "Support prioritaire",
-    "pricingProBadge": "Le plus populaire",
-    "pricingOrg": "Entreprise",
-    "pricingOrgPrice": "40 $",
-    "pricingOrgPeriod": "/mois",
-    "pricingOrgXaf": "ou 20 000 FCFA/mois pour les groupes africains",
-    "pricingOrgAnnual": "399 $/an — économisez 17%",
-    "pricingOrgFeature1": "Membres illimités",
-    "pricingOrgFeature2": "Tout dans Pro",
-    "pricingOrgFeature3": "Sous-groupes et branches",
-    "pricingOrgFeature4": "Image de marque personnalisée",
-    "pricingOrgFeature5": "Support dédié",
-    "testimonial1Name": "Cyril N.",
-    "testimonial1Initials": "CN",
-    "testimonial1Location": "Cameroun",
-    "testimonial1Group": "Union des anciens de Bamenda",
-    "testimonial1Quote": "VillageClaq a transformé la gestion financière de notre groupe. Chaque cotisation est suivie, chaque réunion documentée. Transparence totale.",
-    "testimonial2Name": "Adebayo O.",
-    "testimonial2Initials": "AO",
-    "testimonial2Location": "Nigeria",
-    "testimonial2Group": "Coopérative Ajo de Lagos",
-    "testimonial2Quote": "Nous sommes passés du chaos WhatsApp à une gestion organisée du jour au lendemain. Nos membres adorent le suivi des cotisations et les rappels automatiques.",
-    "testimonial3Name": "Kwame A.",
-    "testimonial3Initials": "KA",
-    "testimonial3Location": "Ghana",
-    "testimonial3Group": "Collectif Susu d'Accra",
-    "testimonial3Quote": "Le suivi de l'épargne rotative est exactement ce dont nous avions besoin. Plus de tableurs, plus de disputes sur qui a payé quoi.",
-    "testimonial4Name": "Wanjiku M.",
-    "testimonial4Initials": "WM",
-    "testimonial4Location": "Kenya",
-    "testimonial4Group": "Réseau Chama de Nairobi",
-    "testimonial4Quote": "Gérer plus de 200 membres dans trois chamas était un cauchemar. Maintenant, ça prend quelques minutes. Les rapports seuls valent le coup.",
-    "testimonial5Name": "Thabo D.",
-    "testimonial5Initials": "TD",
-    "testimonial5Location": "Afrique du Sud",
-    "testimonial5Group": "Stokvel de Soweto",
-    "testimonial5Quote": "Notre stokvel a enfin un vrai système. Les membres vérifient leurs soldes à tout moment, et notre trésorier dort mieux la nuit.",
-    "ctaTitle": "Prêt à organiser votre communauté ?",
-    "ctaSubtitle": "Rejoignez plus de 500 groupes communautaires dans 11 pays qui utilisent déjà VillageClaq pour rester connectés et responsables.",
-    "footerTagline": "Rassembler les communautés africaines, un groupe à la fois.",
-    "footerBuiltWith": "Construit avec amour au Cameroun pour le monde",
-    "footerProduct": "Produit",
-    "footerCompany": "Entreprise",
-    "footerLegal": "Légal",
-    "footerAbout": "À propos",
-    "footerBlog": "Blog",
-    "footerCareers": "Carrières",
-    "footerPrivacy": "Politique de confidentialité",
-    "footerTerms": "Conditions d'utilisation",
-    "footerRights": "Tous droits réservés.",
-    "footerCopyright": "VillageClaq par LawTekno LLC",
-    "painPointsTitle": "Ça vous dit quelque chose ?",
-    "painPointsSubtitle": "Chaque groupe communautaire fait face à ces problèmes. VillageClaq les résout tous.",
-    "painPoint1Title": "Qui a payé quoi ?",
-    "painPoint1Problem": "Paiements en espèces sans reçus. La réconciliation de fin d'année devient une dispute.",
-    "painPoint1Solution": "VillageClaq enregistre chaque paiement numériquement avec des reçus instantanés.",
-    "painPoint2Title": "Les papiers éparpillés",
-    "painPoint2Problem": "Procès-verbaux sur le téléphone de quelqu'un. Présence sur une feuille. Cotisations dans WhatsApp.",
-    "painPoint2Solution": "VillageClaq met tout au même endroit.",
-    "painPoint3Title": "Rotation d'accueil injuste",
-    "painPoint3Problem": "'J'ai accueilli trois fois mais Emeka une seule fois.' Ça vous dit quelque chose ?",
-    "painPoint3Solution": "VillageClaq suit l'accueil équitablement avec un système de rotation transparent.",
-    "painPoint4Title": "Transitions de bureau",
-    "painPoint4Problem": "Quand le trésorier change, la mémoire institutionnelle disparaît.",
-    "painPoint4Solution": "VillageClaq préserve l'historique complet de votre groupe pour toujours.",
-    "faqTitle": "Questions fréquentes",
-    "faqSubtitle": "Tout ce que vous devez savoir sur VillageClaq",
-    "faq1Q": "Quels types de groupes peuvent utiliser VillageClaq ?",
-    "faq1A": "Njangis, unions d'anciens élèves, associations villageoises, groupes religieux, réunions familiales, tontines — toute organisation communautaire.",
-    "faq2Q": "Est-ce que ça marche en français ?",
-    "faq2A": "Oui ! VillageClaq est entièrement bilingue en anglais et en français. Chaque écran, notification et rapport est disponible dans les deux langues.",
-    "faq3Q": "Et si des membres n'ont pas de smartphone ?",
-    "faq3A": "Les administrateurs peuvent ajouter des membres par procuration sans e-mail ni téléphone. Ils sont entièrement suivis dans le système.",
-    "faq4Q": "Nos données financières sont-elles sécurisées ?",
-    "faq4A": "Nous utilisons Supabase avec la sécurité au niveau des lignes. Les données de chaque groupe sont complètement isolées.",
-    "faq5Q": "Peut-on essayer gratuitement ?",
-    "faq5A": "Oui ! Le plan gratuit prend en charge jusqu'à 30 membres. Aucune carte bancaire requise.",
-    "faq6Q": "Quelles devises supportez-vous ?",
-    "faq6A": "18 devises dont XAF, XOF, NGN, GHS, KES, ZAR, USD, EUR, GBP, CAD, et plus.",
-    "pricingPageTitle": "Tarification simple et transparente",
-    "pricingPageSubtitle": "Commencez gratuitement. Passez à la version supérieure quand vous êtes prêt.",
-    "pricingCompare": "Comparer les plans",
-    "pricingFeature": "Fonctionnalité",
-    "pricingIncluded": "Inclus",
-    "pricingNotIncluded": "Non inclus",
-    "compMembers": "Gestion des membres",
-    "compMembers15": "Jusqu'à 15",
-    "compMembers50": "Jusqu'à 50",
-    "compMembers200": "Jusqu'à 200",
-    "compMembersUnlimited": "Illimité",
-    "compDues": "Suivi des cotisations",
-    "compAttendance": "Enregistrement de présence",
-    "compReports": "Rapports",
-    "compReports2": "2 de base",
-    "compReports10": "10 rapports",
-    "compReportsAll": "Les 23 + IA",
-    "compReliefSavings": "Plans de secours et tontines",
-    "compElections": "Élections et votes",
-    "compFines": "Gestion des amendes",
-    "compLoans": "Prêts",
-    "compAI": "Analyses IA",
-    "compDocVault": "Coffre-fort de documents",
-    "compDocs3": "3 docs",
-    "compDocs20": "20 docs",
-    "compDocsUnlimited": "Illimité",
-    "compCsvExport": "Export CSV",
-    "compMultiBranch": "Multi-branches",
-    "compCustomBranding": "Image de marque",
-    "compPrioritySupport": "Support prioritaire",
-    "mockDashboard": "Tableau de bord",
-    "mockMembers": "Membres",
-    "mockContributions": "Cotisations",
-    "mockMeetings": "Réunions",
-    "mockReports": "Rapports",
-    "mockStatMembers": "Membres",
-    "mockStatBalance": "Solde",
-    "mockStatCollected": "Collecté",
-    "mockStatMeetings": "Réunions",
-    "mockOnTrack": "En bonne voie",
-    "mockThisYear": "Cette année",
-    "mockRecentContributions": "Cotisations récentes",
-    "mockPaid": "Payé",
-    "mockPending": "En attente"
+    "heroTitleAccent": "Organisée."
   },
   "dashboard": {
     "welcome": "Bienvenue, {name}",

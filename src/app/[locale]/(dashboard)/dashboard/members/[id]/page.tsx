@@ -39,7 +39,8 @@ import { PhoneInput, getDefaultCountryCode } from "@/components/ui/phone-input";
 import { useMemberStandingDetailed, useRecalculateStanding } from "@/lib/hooks/use-member-standing";
 import { logActivity } from "@/lib/audit-log";
 import { cn } from "@/lib/utils";
-import { PermissionGate } from "@/components/ui/permission-gate";
+import { PermissionGate, RequirePermission } from "@/components/ui/permission-gate";
+import { DashboardSkeleton } from "@/components/ui/page-skeleton";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { formatAmount } from "@/lib/currencies";
 import {
@@ -332,7 +333,33 @@ function useMemberStandingHistory(membershipId: string | null, groupId: string |
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
+// Page-level privacy gate (Build 15). The member-detail page exposes another
+// member's payments, obligations, year-over-year standing, and family — it is an
+// admin/officer surface. A plain member must NOT be able to deep-link into a
+// peer's [id]. Allow only: (a) the member viewing their OWN detail, or (b) a user
+// with a members/finances view permission. We wait for group + permissions to
+// resolve first so a self-viewing member is never flashed Access Denied, and we
+// gate here (not inside the content) so the data hooks in MemberDetailContent
+// never mount — and therefore never fetch — for an unauthorized viewer.
 export default function MemberDetailPage() {
+  const params = useParams();
+  const membershipId = params.id as string;
+  const { currentMembership, loading: groupLoading } = useGroup();
+  const { isLoading: permsLoading } = usePermissions();
+
+  if (groupLoading || permsLoading) return <DashboardSkeleton />;
+
+  if (currentMembership?.id && currentMembership.id === membershipId) {
+    return <MemberDetailContent />;
+  }
+  return (
+    <RequirePermission anyOf={["members.manage", "finances.view", "finances.manage"]}>
+      <MemberDetailContent />
+    </RequirePermission>
+  );
+}
+
+function MemberDetailContent() {
   const t = useTranslations();
   const confirmDialog = useConfirmDialog();
   const ts = useTranslations("standing");

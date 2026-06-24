@@ -73,7 +73,8 @@ test("contribution type form wires standing impact through the existing exclusio
 
 test("Build 9 ships NO migration (no 00108)", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
-  assert.ok(!migs.some((f) => /^00108/.test(f)), "no 00108 migration file created");
+  // 00108 is Build 15's create-not-apply privacy migration; Build 9 added none.
+  assert.ok(!migs.some((f) => /^0010[9]/.test(f) || /^001[1-9]\d/.test(f)), "no migration newer than 00108");
 });
 
 // ── WS2: human due-date preview (display-only over due_day) ──────────────────

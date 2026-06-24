@@ -50,3 +50,5 @@ next-env.d.ts
 
 # Claude Code ephemeral agent worktrees
 .claude/worktrees/
+.design-import/
+.claude/launch.json

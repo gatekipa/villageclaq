@@ -34,7 +34,9 @@
 .vc-landing *::before,
 .vc-landing *::after { box-sizing: border-box; }
 .vc-landing img { display: block; max-width: 100%; }
-.vc-landing a { text-decoration: none; color: inherit; }
+/* :where() keeps this reset at zero specificity for the <a>, so the single-class
+   button/link colour rules below (.vc-btn-ghost, .vc-nav-cta, .vc-login, …) win. */
+.vc-landing :where(a) { text-decoration: none; color: inherit; }
 .vc-landing ::selection { background: #74ecc8; color: #062019; }
 .vc-landing h1, .vc-landing h2, .vc-landing h3, .vc-landing p { margin: 0; }
 
@@ -197,6 +199,10 @@
 @media (max-width: 760px) {
   .vc-landing { --sp: 66px; }
   .vc-nav-links { display: none; }
+  .vc-nav-inner { padding: 0 16px; gap: 12px; }
+  .vc-nav-actions { gap: 10px; }
+  /* keep the brand + language toggle + primary CTA; Log in is one tap inside signup */
+  .vc-login { display: none; }
   .vc-footer-grid { grid-template-columns: 1fr 1fr; }
   .vc-mock-aside { display: none; }
 }

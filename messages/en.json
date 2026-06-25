@@ -6424,5 +6424,14 @@
     "emptyTitle": "No groups yet",
     "emptyDesc": "Once you join or create a group, it will show up here.",
     "untitledGroup": "Untitled group"
+  },
+  "metadata": {
+    "title": "VillageClaq — Community Management for Africa & Diaspora",
+    "description": "The all-in-one platform for community savings groups, alumni unions, village associations, and church groups across Africa and the diaspora. Track contributions, manage meetings, and build transparency.",
+    "ogTitle": "VillageClaq — Community Management for Africa & Diaspora",
+    "ogDescription": "Track contributions, manage meetings, and build transparency for your community group.",
+    "twitterTitle": "VillageClaq — Community Management for Africa & Diaspora",
+    "twitterDescription": "The all-in-one platform for community savings groups across Africa and the diaspora.",
+    "ogImageAlt": "VillageClaq — Community Management Platform"
   }
 }

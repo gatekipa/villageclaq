@@ -6424,5 +6424,14 @@
     "emptyTitle": "Aucun groupe pour le moment",
     "emptyDesc": "Dès que vous rejoignez ou créez un groupe, il apparaîtra ici.",
     "untitledGroup": "Groupe sans nom"
+  },
+  "metadata": {
+    "title": "VillageClaq — Gestion de communauté pour l'Afrique et la diaspora",
+    "description": "La plateforme tout-en-un pour les groupes d'épargne communautaires, amicales d'anciens, associations villageoises et groupes d'église à travers l'Afrique et la diaspora. Suivez les cotisations, gérez les réunions et bâtissez la transparence.",
+    "ogTitle": "VillageClaq — Gestion de communauté pour l'Afrique et la diaspora",
+    "ogDescription": "Suivez les cotisations, gérez les réunions et bâtissez la transparence pour votre groupe communautaire.",
+    "twitterTitle": "VillageClaq — Gestion de communauté pour l'Afrique et la diaspora",
+    "twitterDescription": "La plateforme tout-en-un pour les groupes d'épargne communautaires à travers l'Afrique et la diaspora.",
+    "ogImageAlt": "VillageClaq — Plateforme de gestion de communauté"
   }
 }

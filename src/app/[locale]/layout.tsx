@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { Providers } from "@/lib/providers";
@@ -33,48 +34,62 @@ const jsonLd = JSON.stringify({
   address: { "@type": "PostalAddress", addressCountry: "US" },
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "VillageClaq — Community Management for Africa & Diaspora",
-    template: "%s | VillageClaq",
-  },
-  description:
-    "The all-in-one platform for community savings groups, alumni unions, village associations, and church groups across Africa and the diaspora. Track contributions, manage meetings, and build transparency.",
-  keywords: [
-    "community management", "savings group", "njangi", "tontine", "ajo", "susu",
-    "stokvel", "chama", "rotating savings", "ROSCA", "Africa", "diaspora",
-    "alumni union", "village association", "church group",
-  ],
-  authors: [{ name: "LawTekno LLC" }],
-  creator: "VillageClaq",
-  publisher: "LawTekno LLC",
-  metadataBase: new URL("https://villageclaq.com"),
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    alternateLocale: "fr_FR",
-    url: "https://villageclaq.com",
-    siteName: "VillageClaq",
-    title: "VillageClaq — Community Management for Africa & Diaspora",
-    description: "Track contributions, manage meetings, and build transparency for your community group.",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "VillageClaq — Community Management Platform" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "VillageClaq — Community Management for Africa & Diaspora",
-    description: "The all-in-one platform for community savings groups across Africa and the diaspora.",
-    images: ["/opengraph-image"],
-  },
-  manifest: "/manifest.json",
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  // Fall back to the default locale for unknown segments so social previews
+  // never render an empty title/description.
+  const resolvedLocale = hasLocale(routing.locales, locale) ? locale : routing.defaultLocale;
+  const t = await getTranslations({ locale: resolvedLocale, namespace: "metadata" });
+
+  const ogLocale = resolvedLocale === "fr" ? "fr_FR" : "en_US";
+  const alternateLocale = resolvedLocale === "fr" ? "en_US" : "fr_FR";
+
+  return {
+    title: {
+      default: t("title"),
+      template: "%s | VillageClaq",
+    },
+    description: t("description"),
+    keywords: [
+      "community management", "savings group", "njangi", "tontine", "ajo", "susu",
+      "stokvel", "chama", "rotating savings", "ROSCA", "Africa", "diaspora",
+      "alumni union", "village association", "church group",
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-  },
-};
+    authors: [{ name: "LawTekno LLC" }],
+    creator: "VillageClaq",
+    publisher: "LawTekno LLC",
+    metadataBase: new URL("https://villageclaq.com"),
+    openGraph: {
+      type: "website",
+      locale: ogLocale,
+      alternateLocale,
+      url: `https://villageclaq.com/${resolvedLocale}`,
+      siteName: "VillageClaq",
+      title: t("ogTitle"),
+      description: t("ogDescription"),
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: t("ogImageAlt") }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: t("twitterTitle"),
+      description: t("twitterDescription"),
+      images: ["/opengraph-image"],
+    },
+    manifest: "/manifest.json",
+    icons: {
+      icon: [
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      ],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#10B981",

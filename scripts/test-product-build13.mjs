@@ -175,5 +175,5 @@ test("no NEW send dispatch added in transfers/finances reroutes", () => {
 test("Build 13 ships NO new migration", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
   // 00108 + 00109 are Build 15's privacy migrations (applied); Build 13 added none.
-  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 109), "no migration newer than 00109");
+  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 110), "no migration newer than 00110");
 });

@@ -96,6 +96,18 @@ export function todayKey(now: Date = new Date()): string {
   return dateKey(now);
 }
 
+/**
+ * Add `days` calendar days to a date-only key and return a new YYYY-MM-DD key.
+ * Arithmetic runs in UTC on the date-only value so it never drifts by a
+ * timezone offset (the bug date-key comparison exists to avoid). Used for
+ * grace-day overdue checks that must match the money engine's date semantics.
+ */
+export function addDaysToDateKey(key: string, days: number): string {
+  const d = new Date(`${key.slice(0, 10)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Is a payment a DUES payment (i.e. not a relief contribution)? */
 export function isDuesPayment(p: MoneyPayment): boolean {
   return p.relief_plan_id == null;

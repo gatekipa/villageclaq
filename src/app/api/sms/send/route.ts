@@ -3,9 +3,17 @@ import { createClient } from "@supabase/supabase-js";
 import { sendSmsNotification, type SmsTemplate } from "@/lib/send-sms-notification";
 import { smsRateLimit } from "@/lib/api-rate-limit";
 import { callerCanMessageTarget, isPlatformStaff } from "@/lib/api-recipient-guard";
+import { maskPhoneNumber } from "@/lib/mask-phone";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const RECIPIENT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Mask a recipient for logs — never emit a raw phone number; shorten a UUID. */
+function maskRecipient(v: string): string {
+  return RECIPIENT_UUID.test(v) ? `${v.slice(0, 8)}…` : maskPhoneNumber(v);
+}
 
 /**
  * POST /api/sms/send
@@ -66,7 +74,7 @@ export async function POST(request: Request) {
         }
       }
     }
-    console.log("[SMS DIAG] /api/sms/send — received request", { to, template, locale, dataKeys: Object.keys(data || {}) });
+    console.log("[SMS DIAG] /api/sms/send — received request", { to: maskRecipient(to), template, locale, dataKeys: Object.keys(data || {}) });
 
     if (!to || !template) {
       console.log("[SMS DIAG] /api/sms/send — missing required fields", { to: !!to, template: !!template });
@@ -81,7 +89,7 @@ export async function POST(request: Request) {
     let recipientPhone: string = to;
 
     if (UUID_REGEX.test(to)) {
-      console.log("[SMS DIAG] /api/sms/send — 'to' is UUID, resolving phone from profiles", { userId: to });
+      console.log("[SMS DIAG] /api/sms/send — 'to' is UUID, resolving phone from profiles", { userId: `${to.slice(0, 8)}…` });
       if (!supabaseServiceKey) {
         console.log("[SMS DIAG] /api/sms/send — SUPABASE_SERVICE_ROLE_KEY not configured, returning 500");
         return NextResponse.json(
@@ -98,7 +106,7 @@ export async function POST(request: Request) {
         .single();
 
       if (profileErr || !profile?.phone) {
-        console.log("[SMS DIAG] /api/sms/send — no phone found for UUID", { userId: to, error: profileErr?.message, phone: profile?.phone });
+        console.log("[SMS DIAG] /api/sms/send — no phone found for UUID", { userId: `${to.slice(0, 8)}…`, error: profileErr?.message, phone: maskPhoneNumber(profile?.phone) });
         return NextResponse.json(
           { success: false, error: `No phone number found for user ${to}` },
           { status: 400 }
@@ -106,12 +114,12 @@ export async function POST(request: Request) {
       }
 
       recipientPhone = profile.phone;
-      console.log("[SMS DIAG] /api/sms/send — resolved phone from UUID", { phone: recipientPhone });
+      console.log("[SMS DIAG] /api/sms/send — resolved phone from UUID", { phone: maskPhoneNumber(recipientPhone) });
     } else {
-      console.log("[SMS DIAG] /api/sms/send — 'to' is phone number directly", { phone: recipientPhone });
+      console.log("[SMS DIAG] /api/sms/send — 'to' is phone number directly", { phone: maskPhoneNumber(recipientPhone) });
     }
 
-    console.log("[SMS DIAG] /api/sms/send — calling sendSmsNotification", { to: recipientPhone, template, locale: locale || "en" });
+    console.log("[SMS DIAG] /api/sms/send — calling sendSmsNotification", { to: maskPhoneNumber(recipientPhone), template, locale: locale || "en" });
     const result = await sendSmsNotification({
       to: recipientPhone,
       template: template as SmsTemplate,

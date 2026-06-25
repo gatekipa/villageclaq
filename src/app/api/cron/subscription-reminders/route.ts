@@ -180,6 +180,13 @@ export async function GET(request: Request) {
 
         if (existing && existing.length > 0) continue;
 
+        // Track whether an in-app insert wrote the dedup_key row for this
+        // (group, window). The marker was previously ONLY written inside the
+        // in_app branch, so if every admin disabled in-app no marker existed and
+        // the NEXT run would resend email/SMS. A silent fallback marker (below)
+        // guarantees dedup independently of the in_app preference.
+        let inAppDeduped = false;
+
         for (const admin of admins) {
           const userId = admin.user_id as string;
           const profile = (Array.isArray(admin.profiles)
@@ -228,6 +235,7 @@ export async function GET(request: Request) {
                 data: { link: "/dashboard/settings" },
                 dedup_key: dedupKey,
               });
+              inAppDeduped = true;
             } catch (err) {
               console.warn(
                 `[Cron:SubscriptionReminders] in-app failed for ${shortId(userId)}:`,
@@ -280,6 +288,34 @@ export async function GET(request: Request) {
           // direct provider sends from this cron.
 
           notified++;
+        }
+
+        // Idempotency fallback — independent of channel preferences. If no
+        // in-app insert carried the dedup_key (every admin opted out of in-app,
+        // or those inserts failed), write ONE silent ledger row so the next run
+        // skips this (group, window) and does NOT resend email/SMS. is_read:true
+        // keeps it from badging; `dedup_marker` flags it as a non-user-facing
+        // record. This writes a DB row only — it sends nothing.
+        if (!inAppDeduped && adminUserIds.length > 0) {
+          const markerUserId = adminUserIds[0];
+          const markerLocale = getLocale(localeMap, markerUserId);
+          try {
+            await supabase.from("notifications").insert({
+              user_id: markerUserId,
+              group_id: groupId,
+              type: "system",
+              title: bt(markerLocale, "subscriptionExpiringInAppTitle", { tier, days: daysLeft }),
+              body: bt(markerLocale, "subscriptionExpiringInAppBody", { groupName }),
+              is_read: true,
+              data: { link: "/dashboard/settings", dedup_marker: true },
+              dedup_key: dedupKey,
+            });
+          } catch (err) {
+            console.warn(
+              `[Cron:SubscriptionReminders] dedup-marker insert failed for group ${shortId(groupId)}:`,
+              err instanceof Error ? err.message : err,
+            );
+          }
         }
       } catch (err) {
         failed++;

@@ -200,7 +200,10 @@
   .vc-landing { --sp: 66px; }
   .vc-nav-links { display: none; }
   .vc-nav-inner { padding: 0 16px; gap: 12px; }
-  .vc-nav-actions { gap: 10px; }
+  /* Tighten the action cluster so brand + language toggle + primary CTA never
+     edge-clip on narrow phones (≤360px) or with longer FR copy. */
+  .vc-nav-actions { gap: 8px; }
+  .vc-nav-cta { padding: 9px 14px; }
   /* keep the brand + language toggle + primary CTA; Log in is one tap inside signup */
   .vc-login { display: none; }
   .vc-footer-grid { grid-template-columns: 1fr 1fr; }

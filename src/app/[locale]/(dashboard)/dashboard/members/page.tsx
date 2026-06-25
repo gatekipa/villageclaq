@@ -1526,30 +1526,30 @@ export default function MembersPage() {
           </div>
           {/* Export — available to all members */}
           <Button variant="outline" size="sm" onClick={handleExportMembers} disabled={exporting || !members?.length}>
-            {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin sm:mr-2" /> : <FileDown className="h-4 w-4 sm:mr-2" />}
             <span className="hidden sm:inline">{t("exportMembers")}</span>
           </Button>
           {canManageMembers && (
             <>
               <Button variant="outline" size="sm" onClick={handleRecalculateAll} disabled={recalcAllLoading}>
-                {recalcAllLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                {recalcAllLoading ? <Loader2 className="h-4 w-4 animate-spin sm:mr-2" /> : <RefreshCw className="h-4 w-4 sm:mr-2" />}
                 <span className="hidden sm:inline">{ts("recalculateAll")}</span>
               </Button>
               <Button variant="outline" size="sm" onClick={() => { resetBulkImport(); setBulkDialogOpen(true); }} disabled={memberLimit.atLimit}>
-                <FileUp className="mr-2 h-4 w-4" />
+                <FileUp className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">{t("bulkImport")}</span>
               </Button>
               <Button variant="outline" size="sm" onClick={() => { setBulkInviteEmails(""); setBulkInviteError(null); setBulkInviteResult(null); setBulkInviteOpen(true); }} disabled={memberLimit.atLimit}>
-                <Send className="mr-2 h-4 w-4" />
+                <Send className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">{t("bulkInvite")}</span>
               </Button>
               <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)} disabled={memberLimit.atLimit}>
-                <UserPlus className="mr-2 h-4 w-4" />
+                <UserPlus className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">{t("addProxyMember")}</span>
               </Button>
               <Link href="/dashboard/invitations">
                 <Button size="sm">
-                  <UserPlus className="mr-2 h-4 w-4" />
+                  <UserPlus className="h-4 w-4 sm:mr-2" />
                   <span className="hidden sm:inline">{t("inviteMember")}</span>
                 </Button>
               </Link>

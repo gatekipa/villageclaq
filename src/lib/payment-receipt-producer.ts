@@ -121,7 +121,11 @@ async function resolveRecipientPhone(
       data: { user },
     } = await supabase.auth.admin.getUserById(membership.user_id);
     return user?.phone || null;
-  } catch {
+  } catch (err) {
+    // Fail safe (no phone => receipt SMS/WhatsApp simply skipped downstream),
+    // but log so a systemic auth-admin outage suppressing receipts is visible.
+    // Error message only — never the user id or any phone number. Rule 11.
+    console.warn("[PaymentReceipt] auth phone lookup failed:", err instanceof Error ? err.message : String(err));
     return null;
   }
 }

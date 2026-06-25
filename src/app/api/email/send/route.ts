@@ -109,7 +109,11 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-  } catch {
+  } catch (err) {
+    // Log the failure (error message only — never the recipient email or
+    // payload) so a systemic email-route outage is diagnosable. Rule 11: no
+    // empty catch in notification code.
+    console.warn("[Email] /api/email/send internal error:", err instanceof Error ? err.message : String(err));
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

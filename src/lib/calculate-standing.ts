@@ -7,7 +7,7 @@ import {
   type StandingFactorKey,
   type StandingRules,
 } from "@/lib/standing-rules";
-import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { computeObligationStates, dateKey, todayKey, addDaysToDateKey, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 
 /**
  * One line item in a member's standing breakdown.
@@ -186,12 +186,19 @@ export async function calculateStanding(
     );
 
     // Overdue = confirmed-open (remaining > 0) AND due_date + grace days < today.
+    // Compare on DATE-ONLY keys (YYYY-MM-DD), matching the money engine
+    // (computeObligation: `dueK < today`). due_date is a DATE at UTC midnight, so
+    // a Date-vs-local-`now` comparison marked a same-day obligation overdue a day
+    // early for a diaspora admin in a negative-UTC timezone — the date-key
+    // comparison is timezone-stable. An obligation with no due_date is never
+    // overdue (a flexible/undated obligation can still be open but not behind).
+    const today = todayKey();
     const overdueObls = relevant.filter((o) => {
       const c = states.get(o.id as string);
       if (!c || !c.isOpen) return false;
-      const dueWithGrace = new Date(o.due_date as string);
-      dueWithGrace.setDate(dueWithGrace.getDate() + rules.overdueGraceDays);
-      return dueWithGrace < now;
+      if (!o.due_date) return false;
+      const dueWithGraceKey = addDaysToDateKey(dateKey(o.due_date as string), rules.overdueGraceDays);
+      return dueWithGraceKey < today;
     });
 
     const totalOutstanding = relevant

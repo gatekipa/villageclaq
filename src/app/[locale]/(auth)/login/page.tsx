@@ -83,6 +83,7 @@ export default function LoginPage() {
   }
 
   async function handleEmailLogin(formData: FormData) {
+    if (isLoading) return;
     setError(null);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
@@ -113,7 +114,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-[100dvh]">
       {/* Left branding panel — hidden on mobile */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900">
         <div className="pointer-events-none absolute inset-0">
@@ -158,8 +159,8 @@ export default function LoginPage() {
       </div>
 
       {/* Right form panel */}
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-8">
-        <div className="w-full max-w-md">
+      <div className="flex flex-1 flex-col items-center px-4 py-12 sm:px-8">
+        <div className="w-full max-w-md my-auto">
           {/* Mobile logo */}
           <div className="mb-8 flex flex-col items-center lg:hidden">
             <Link href="/" className="flex items-center gap-2.5 mb-2">
@@ -205,7 +206,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <form action={handleEmailLogin} className="space-y-4">
+            <form action={handleEmailLogin} onSubmit={(e) => { if (isLoading) e.preventDefault(); }} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{t("auth.email")}</Label>
                 <Input id="email" name="email" type="email" required autoComplete="email" disabled={isLoading} className="h-11" />

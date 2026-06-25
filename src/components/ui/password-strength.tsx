@@ -15,20 +15,22 @@ interface Requirement {
   met: boolean;
 }
 
+export function checkPasswordRequirements(password: string) {
+  const reqs = [
+    { key: "minLength", met: password.length >= 8 },
+    { key: "hasNumber", met: /\d/.test(password) },
+    { key: "hasUpper", met: /[A-Z]/.test(password) },
+    { key: "hasLower", met: /[a-z]/.test(password) },
+    { key: "hasSpecial", met: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) },
+  ];
+  const metCount = reqs.filter((r) => r.met).length;
+  const strength = metCount <= 2 ? "weak" : metCount <= 3 ? "medium" : "strong";
+  const allMet = metCount === 5;
+  return { requirements: reqs, metCount, strength, allMet };
+}
+
 export function usePasswordRequirements(password: string) {
-  return useMemo(() => {
-    const reqs = [
-      { key: "minLength", met: password.length >= 8 },
-      { key: "hasNumber", met: /\d/.test(password) },
-      { key: "hasUpper", met: /[A-Z]/.test(password) },
-      { key: "hasLower", met: /[a-z]/.test(password) },
-      { key: "hasSpecial", met: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password) },
-    ];
-    const metCount = reqs.filter((r) => r.met).length;
-    const strength = metCount <= 2 ? "weak" : metCount <= 3 ? "medium" : "strong";
-    const allMet = metCount === 5;
-    return { requirements: reqs, metCount, strength, allMet };
-  }, [password]);
+  return useMemo(() => checkPasswordRequirements(password || ""), [password]);
 }
 
 export function PasswordStrength({ password }: PasswordStrengthProps) {

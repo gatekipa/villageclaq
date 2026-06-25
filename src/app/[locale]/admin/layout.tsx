@@ -345,16 +345,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               session. Polls /api/admin/impersonate/active. */}
           <ImpersonationBanner />
           <header className="flex h-14 items-center justify-between gap-4 border-b px-4 lg:px-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+            <div className="flex min-w-0 items-center gap-4">
+              <Button variant="ghost" size="icon" className="lg:hidden shrink-0" onClick={() => setSidebarOpen(true)}>
                 <Menu className="h-5 w-5" />
               </Button>
-              <h2 className="text-lg font-semibold">{t("title")}</h2>
+              <h2 className="truncate text-lg font-semibold">{t("title")}</h2>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="text-muted-foreground hover:text-foreground"
+              className="shrink-0 text-muted-foreground hover:text-foreground"
               onClick={async () => {
                 const supabase = createClient();
                 await supabase.auth.signOut();

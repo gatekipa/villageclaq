@@ -115,7 +115,7 @@ export function GroupSwitcher() {
           if (open) setSearch("");
         }}
       >
-        <DropdownMenuTrigger className="flex items-center gap-2 max-w-[150px] sm:max-w-[240px] rounded-md border border-input bg-background px-2 sm:px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground focus:outline-none">
+        <DropdownMenuTrigger className="flex min-w-0 items-center gap-2 max-w-[150px] sm:max-w-[240px] rounded-md border border-input bg-background px-2 sm:px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground focus:outline-none">
           {currentGroup.logo_url ? (
             <img
               src={currentGroup.logo_url}

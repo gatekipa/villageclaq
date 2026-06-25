@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAuthClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { canRead, type PlatformRole } from "@/lib/admin-rbac";
+import { validateSelect, isAllowedColumn } from "@/lib/admin-query-config";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -75,7 +76,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Execute all queries using service role client (bypasses ALL RLS)
+    // 2b. SELECT / FILTER / ORDER lockdown. The service-role client below
+    // bypasses ALL RLS, and PostgREST honours relational embeds inside the
+    // `select` string ("*, memberships(*, payments(*))"), which would let a
+    // caller read tables OUTSIDE their role allowlist through an embed. Reject
+    // arbitrary embeds + wildcards (only the frozen known-good admin shapes
+    // pass) and require identifier-only filter/order columns BEFORE any query
+    // runs. Rebuild q.select from the validated/normalised value so the raw
+    // client string is never forwarded. See src/lib/admin-query-config.ts.
+    for (const q of queries) {
+      const validated = validateSelect(q.table, q.select);
+      if (!validated.ok) {
+        return NextResponse.json(
+          { error: validated.code, message: `${q.key}: ${validated.message}` },
+          { status: 400 }
+        );
+      }
+      q.select = validated.select;
+
+      if (q.filters) {
+        for (const f of q.filters) {
+          if (!isAllowedColumn(f.column)) {
+            return NextResponse.json(
+              { error: "FILTER_COLUMN_NOT_ALLOWED", message: `${q.key}: illegal filter column "${f.column}"` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+      if (q.order && !isAllowedColumn(q.order.column)) {
+        return NextResponse.json(
+          { error: "ORDER_COLUMN_NOT_ALLOWED", message: `${q.key}: illegal order column "${q.order.column}"` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 3. Execute all queries using service role client (bypasses ALL RLS).
+    //    q.select is now the validated/normalised value from step 2b.
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const results: Record<string, { data: unknown; error: string | null; count?: number }> =
       {};

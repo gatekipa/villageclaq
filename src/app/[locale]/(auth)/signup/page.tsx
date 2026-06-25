@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, AlertCircle, ArrowLeft, Check, Star } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
-import { PasswordStrength, usePasswordRequirements } from "@/components/ui/password-strength";
+import { PasswordStrength, usePasswordRequirements, checkPasswordRequirements } from "@/components/ui/password-strength";
 
 function GoogleIcon() {
   return (
@@ -94,15 +94,17 @@ export default function SignupPage() {
     const formPassword = formData.get("password") as string;
     const formConfirmPassword = formData.get("confirmPassword") as string;
 
+    const { allMet: formAllMet } = checkPasswordRequirements(formPassword || "");
+
     if (!formEmail || !formPassword || !formConfirmPassword) { setError(t("auth.allFieldsRequired")); return; }
-    if (!allMet) { setError(t("auth.passwordMinLength")); return; }
+    if (!formAllMet) { setError(t("auth.passwordMinLength")); return; }
     if (formPassword !== formConfirmPassword) { setError(t("auth.passwordsMismatch")); return; }
 
     setIsLoading(true);
     try {
       const supabase = createClient();
       const { data, error: signupError } = await supabase.auth.signUp({
-        email, password,
+        email: formEmail, password: formPassword,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}` },
       });
       if (signupError) {
@@ -132,7 +134,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-[100dvh]">
       {/* Left branding panel — hidden on mobile */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-900">
         <div className="pointer-events-none absolute inset-0">
@@ -177,8 +179,8 @@ export default function SignupPage() {
       </div>
 
       {/* Right form panel */}
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-8">
-        <div className="w-full max-w-md">
+      <div className="flex flex-1 flex-col items-center px-4 py-12 sm:px-8">
+        <div className="w-full max-w-md my-auto">
           {/* Mobile logo */}
           <div className="mb-8 flex flex-col items-center lg:hidden">
             <Link href="/" className="flex items-center gap-2.5 mb-2">
@@ -254,7 +256,23 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <form action={handleSignup} className="space-y-4">
+            <form action={handleSignup} onSubmit={(e) => { 
+              const form = e.currentTarget;
+              const fd = new FormData(form);
+              const em = fd.get("email") as string || "";
+              const p = fd.get("password") as string || "";
+              const cp = fd.get("confirmPassword") as string || "";
+
+              if (email !== em) setEmail(em);
+              if (password !== p) setPassword(p);
+              if (confirmPassword !== cp) setConfirmPassword(cp);
+
+              const { allMet: pAllMet } = checkPasswordRequirements(p);
+              const pMatch = p.length > 0 && p === cp;
+              const isValid = em.length > 0 && pAllMet && pMatch && !isLoading;
+
+              if (!isValid) e.preventDefault(); 
+            }} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{t("auth.email")} <span className="text-red-500">*</span></Label>
                 <Input id="email" name="email" type="email" required autoComplete="email" autoFocus disabled={isLoading} className="h-11" value={email} onChange={(e) => setEmail(e.target.value)} />

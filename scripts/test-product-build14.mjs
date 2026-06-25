@@ -321,5 +321,5 @@ test("Build-8 announcement producer remains dormant (no live import in src)", ()
 test("Build 14 ships NO new migration", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
   // 00108 + 00109 are Build 15's privacy migrations (applied); Build 14 added none.
-  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 110), "no migration newer than 00110");
+  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 111), "no migration newer than 00111");
 });

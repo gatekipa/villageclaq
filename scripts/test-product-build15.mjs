@@ -108,11 +108,14 @@ test("migration 00108 exists, is CREATE-NOT-APPLY, scoped to payments + obligati
   assert.ok(!/DROP POLICY IF EXISTS rls_pay_insert/.test(s) && !/DROP POLICY IF EXISTS rls_co_insert/.test(s), "write policies untouched");
 });
 
-test("Build 15 ships exactly ONE new migration (00108) and does not apply it", () => {
+test("Build 15 ships migrations 00108 + 00109 (privacy hardening + RLS activation) and nothing newer", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
-  const newer = migs.filter((f) => /^001(09|[1-9]\d)/.test(f) || /^0010[9]/.test(f));
-  assert.deepEqual(newer, [], "no migration newer than 00108");
+  // 00108 = create-not-apply privacy hardening; 00109 = follow-up that drops the
+  // duplicate group-wide SELECT policies to activate it (PR #43). Both are Build 15.
+  const newer = migs.filter((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 109);
+  assert.deepEqual(newer, [], "no migration newer than 00109");
   assert.ok(migs.includes("00108_member_privacy_hardening.sql"), "00108 present");
+  assert.ok(migs.includes("00109_drop_duplicate_member_financial_select_policies.sql"), "00109 present");
 });
 
 // ── Financial correctness preserved (no amount_paid revert) ─────────────────

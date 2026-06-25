@@ -217,5 +217,5 @@ test("Build 11 ships NO new migration", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
   // 00105/00106/00107 are prior create-not-apply migrations; B11 adds none.
   // 00108 + 00109 are Build 15's privacy migrations (applied); Build 11 added none.
-  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 110), "no migration newer than 00110");
+  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 111), "no migration newer than 00111");
 });

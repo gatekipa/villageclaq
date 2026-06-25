@@ -112,8 +112,8 @@ test("Build 15 ships migrations 00108 + 00109 (privacy hardening + RLS activatio
   const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
   // 00108 = create-not-apply privacy hardening; 00109 = follow-up that drops the
   // duplicate group-wide SELECT policies to activate it (PR #43). Both are Build 15.
-  const newer = migs.filter((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 110);
-  assert.deepEqual(newer, [], "no migration newer than 00110");
+  const newer = migs.filter((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 111);
+  assert.deepEqual(newer, [], "no migration newer than 00111");
   assert.ok(migs.includes("00108_member_privacy_hardening.sql"), "00108 present");
   assert.ok(migs.includes("00109_drop_duplicate_member_financial_select_policies.sql"), "00109 present");
 });

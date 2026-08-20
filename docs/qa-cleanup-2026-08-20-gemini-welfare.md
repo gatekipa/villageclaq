@@ -1,13 +1,19 @@
 # Gemini QA "Welfare" Relief Plan — Cleanup Investigation (2026-08-20)
 
-## Status: HELD FOR APPROVAL — stop condition triggered, no deletions executed
+## Status: EXECUTED 2026-08-20 — plan + 5 enrollments deleted; sent queue rows preserved
 
 Phase 0A of the stop-the-line cleanup identified the Gemini QA artifacts created
-after PR #51, but the database state no longer matches the QA report this task
-was written against. Per the task's own stop conditions ("any queue row is
-sent/delivered/failed instead of queued", "any queue row has a provider message
-ID"), **no rows were deleted**. This document records the exact findings and the
-prepared cleanup transaction awaiting explicit approval.
+after PR #51. The investigation found the database state did **not** match the
+QA report this task was written against: the 5 `notifications_queue` rows had
+already been drained and **sent** with real provider message IDs, tripping the
+task's own stop conditions. The destructive step was therefore held for review
+rather than run blind.
+
+The owner reviewed the findings below and approved a **narrowed** cleanup:
+delete only the Welfare plan and its 5 enrollments; **preserve** the 5 sent
+queue rows and the 13 WhatsApp status events as provider delivery history. That
+narrowed transaction was executed on 2026-08-20 and verified — see
+[Execution record](#execution-record-2026-08-20).
 
 ## What actually happened
 
@@ -77,7 +83,7 @@ the plan or the 5 enrollments.
 3. Likewise `payments` is now 137 (QA snapshot said 124) from normal production
    use — unrelated to the QA artifacts (payments have no reference to the plan).
 
-## Prepared cleanup transaction (NOT EXECUTED — awaiting approval)
+## Cleanup transaction (APPROVED AND EXECUTED 2026-08-20)
 
 Deletes only the plan and its 5 enrollments, by exact ID, with row-count
 guards. The 5 sent queue rows and the webhook status events are retained as
@@ -114,29 +120,52 @@ AND created_by = 'bb01dadf-ba04-49df-9b15-ec917ccf8a41';
 COMMIT;
 ```
 
-Intentionally **not** included (needs separate approval):
+Intentionally **not** included (explicitly not approved):
 - Deleting the 5 sent `notifications_queue` rows (forbidden: sent + provider IDs).
 - Deleting the 13 `whatsapp_message_status_events` webhook rows.
 - Removing the QA "Test User" profile/membership (`bb01dadf-…` /
   `5abd37ab-…`) — recommended follow-up, since it holds an owner role in the
   real MBACUDA group, but it is out of Phase 0A scope.
 
-## Expected counts after approved cleanup (2026-08-20 baseline)
+## Execution record (2026-08-20)
 
-| Metric | Now | After cleanup |
+The transaction ran as a single guarded `DO` block (any failed guard raises and
+rolls the whole block back). Pre-flight guards verified before deleting:
+exactly one plan named "Welfare"; target plan matched name + QA creator; zero
+claim/remittance/payment dependencies; the 5 QA queue rows present as `sent`
+with provider message IDs; and zero rows in `queued` state. Foreign keys were
+checked first — `payments` and `relief_remittances` reference `relief_plans`
+with `NO ACTION` (they block rather than cascade, and none referenced this
+plan), and nothing references `relief_enrollments` at all.
+
+**Rows deleted (6 total):**
+
+| Table | Rows | IDs |
 |---|---|---|
-| relief_plans | 3 | **2** |
-| relief_enrollments | 7 | **2** |
-| relief_remittances | 4 | 4 |
-| notifications_queue total | 1802 | 1802 |
-| queue sent / failed / queued | 1775 / 27 / 0 | 1775 / 27 / 0 |
-| payments | 137 | 137 |
-| notifications | 136 | 136 |
-| announcements / deliveries | 16 / 0 | 16 / 0 |
+| `relief_enrollments` | 5 | `2cd96b2a-…`, `e08aa3b4-…`, `63a7e820-…`, `6ff2253f-…`, `6e5a8de4-…` |
+| `relief_plans` | 1 | `9940bd3a-b0c3-4e27-9427-b74da00e9599` ("Welfare") |
+
+**Verified before → after:**
+
+| Metric | Before | After | Result |
+|---|---|---|---|
+| relief_plans | 3 | **2** | ✅ target |
+| relief_enrollments | 7 | **2** | ✅ target |
+| relief_remittances | 4 | 4 | ✅ untouched |
+| relief_claims | 2 | 2 | ✅ untouched |
+| payments | 137 | 137 | ✅ untouched |
+| notifications | 136 | 136 | ✅ untouched |
+| announcements / deliveries | 16 / 0 | 16 / 0 | ✅ untouched |
+| queue total / sent / failed / queued | 1802 / 1775 / 27 / 0 | 1802 / 1775 / 27 / 0 | ✅ untouched |
+| reminder queued / receipt queued | 0 / 0 | 0 / 0 | ✅ untouched |
+| whatsapp_message_status_events | 2885 | 2885 | ✅ provider history preserved |
+| The 5 QA queue rows | 5 | 5 | ✅ preserved (sent + provider IDs) |
 
 ## Confirmations
 
-- No messages were sent during this investigation (read-only queries only).
-- No queue drain, retries, reminders, or receipts were triggered.
-- No business data was mutated. No migrations applied. No env/provider/payment
-  config changed.
+- No messages were sent — investigation and verification were read-only; the
+  cleanup was DELETE-only against two tables.
+- No queue drain, no retries of failed rows, no reminders or receipts triggered.
+- No real business data touched: the only rows deleted were the 6 approved
+  Gemini QA artifacts.
+- No migrations applied during 0A. No env/provider/payment config changed.

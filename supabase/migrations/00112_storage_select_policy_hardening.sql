@@ -38,6 +38,14 @@
 -- helper only parsed `{category}/{groupId}/…`). Kept as a separate function
 -- so the existing 00078 write policies are not silently retightened in the
 -- same change.
+--
+-- Both branches match the UUID pattern BEFORE casting. The v1 helper casts
+-- the second segment unguarded, so a key like `minutes/not-a-uuid/file.pdf`
+-- raises 22P02 (invalid input syntax for type uuid) instead of returning
+-- NULL — inside a policy predicate that surfaces as a query error rather
+-- than a clean authorization decision. v2 returns NULL for any segment that
+-- is not a well-formed UUID, so such keys fall through to the
+-- authenticated-only branch instead of erroring.
 CREATE OR REPLACE FUNCTION public.storage_path_group_id_v2(p_name text)
 RETURNS uuid
 LANGUAGE sql
@@ -45,8 +53,9 @@ IMMUTABLE
 AS $$
   SELECT CASE
     WHEN (storage.foldername(p_name))[1] IN ('logos', 'relief-claims', 'constitutions', 'minutes', 'dispute-docs')
-      THEN NULLIF((storage.foldername(p_name))[2], '')::uuid
-    WHEN (storage.foldername(p_name))[1] ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+     AND (storage.foldername(p_name))[2] ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+      THEN (storage.foldername(p_name))[2]::uuid
+    WHEN (storage.foldername(p_name))[1] ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
       THEN (storage.foldername(p_name))[1]::uuid
     ELSE NULL
   END;
@@ -55,6 +64,7 @@ $$;
 -- Receipts: drop the open read policies, add group-member-scoped SELECT.
 DROP POLICY IF EXISTS "Anyone can view receipts" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can view receipts" ON storage.objects;
+DROP POLICY IF EXISTS "receipts_select_group" ON storage.objects;
 
 CREATE POLICY "receipts_select_group" ON storage.objects FOR SELECT TO authenticated
   USING (
@@ -68,6 +78,7 @@ CREATE POLICY "receipts_select_group" ON storage.objects FOR SELECT TO authentic
 -- Group documents: same treatment.
 DROP POLICY IF EXISTS "Anyone can view group documents" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can view group documents" ON storage.objects;
+DROP POLICY IF EXISTS "gdocs_select_group" ON storage.objects;
 
 CREATE POLICY "gdocs_select_group" ON storage.objects FOR SELECT TO authenticated
   USING (

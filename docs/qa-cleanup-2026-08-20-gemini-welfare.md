@@ -33,8 +33,15 @@ sent. In reality the queue drain cron picked them up ~4 minutes later
 All 5 rows have `status = 'sent'`, `sent_at = 2026-06-25 19:15 UTC`, and real
 provider message IDs (`wamid.…`). 13 rows in
 `whatsapp_message_status_events` record the delivery/read receipts for these
-message IDs. Four real people received (and read) a
-"villageclaq_plan_enrollment_confirmed" WhatsApp message about the QA plan.
+message IDs.
+
+Counted precisely: the 5 messages went to **4 distinct phone numbers** (one
+number, `+1301***5857`, received two — one for Jude Anyere's membership and one
+for the Cyril Ndikum proxy, which is registered to the same contact number).
+**4 messages were read**, across **3 distinct numbers**; the 5th (the QA test
+number) failed undeliverable. So real recipients did see a
+"villageclaq_plan_enrollment_confirmed" WhatsApp about the QA plan — but the
+count of people is 3 numbers that read, not "four people".
 
 There are currently **0 queued rows** in `notifications_queue` — nothing is
 pending, so there is no send risk from leaving the artifacts in place.
@@ -85,9 +92,16 @@ the plan or the 5 enrollments.
 
 ## Cleanup transaction (APPROVED AND EXECUTED 2026-08-20)
 
-Deletes only the plan and its 5 enrollments, by exact ID, with row-count
-guards. The 5 sent queue rows and the webhook status events are retained as
-delivery history.
+Deletes only the plan and its 5 enrollments, by exact ID. The 5 sent queue rows
+and the webhook status events are retained as delivery history.
+
+> **The block below is illustrative — it shows the intended scope only, and is
+> NOT what ran.** It has no executable guards, and because
+> `relief_enrollments.plan_id` is `ON DELETE CASCADE`, deleting the plan alone
+> would silently remove enrollments without a row-count check. What actually
+> executed was the guarded `DO` block described under
+> [Execution record](#execution-record-2026-08-20), which raises and rolls back
+> on any unexpected row count. Re-run that, not this.
 
 ```sql
 BEGIN;
@@ -163,9 +177,16 @@ plan), and nothing references `relief_enrollments` at all.
 
 ## Confirmations
 
-- No messages were sent — investigation and verification were read-only; the
-  cleanup was DELETE-only against two tables.
-- No queue drain, no retries of failed rows, no reminders or receipts triggered.
-- No real business data touched: the only rows deleted were the 6 approved
-  Gemini QA artifacts.
+Scoped precisely, so the June sends are not confused with this cleanup:
+
+- **The cleanup sent nothing.** Investigation and verification were read-only;
+  the cleanup itself was DELETE-only against two tables. The 5 WhatsApp
+  messages recorded above were sent by the drain cron on **2026-06-25**,
+  months before this work, and are preserved as history — not re-sent.
+- No queue drain was run, no failed rows retried, no reminders or receipts
+  triggered.
+- **Exactly 6 rows were deleted** — the 5 QA `relief_enrollments` and the 1 QA
+  `relief_plans` row listed above. No `notifications_queue` row, no
+  `whatsapp_message_status_events` row, no payment, remittance, claim, audit
+  log, or any other production row was deleted or modified.
 - No migrations applied during 0A. No env/provider/payment config changed.

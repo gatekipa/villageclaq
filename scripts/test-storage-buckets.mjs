@@ -139,6 +139,34 @@ test("00112 SELECT-policy hardening drops the open read policies and scopes read
   }
 });
 
+test("00112 is re-runnable: every CREATE POLICY has a matching DROP POLICY IF EXISTS", () => {
+  const sql = read("supabase/migrations/00112_storage_select_policy_hardening.sql");
+  for (const [, name] of sql.matchAll(/CREATE POLICY "([^"]+)"/g)) {
+    assert.ok(
+      sql.includes(`DROP POLICY IF EXISTS "${name}"`),
+      `${name} must be dropped-if-exists before creation so the dashboard block can be re-run`,
+    );
+  }
+});
+
+test("storage_path_group_id_v2 pattern-matches before casting to uuid", () => {
+  const sql = read("supabase/migrations/00112_storage_select_policy_hardening.sql");
+  const fnStart = sql.indexOf("CREATE OR REPLACE FUNCTION public.storage_path_group_id_v2");
+  const fnBody = sql.slice(fnStart, sql.indexOf("$$;", fnStart));
+  // An unguarded `[2]::uuid` raises 22P02 on a key like minutes/not-a-uuid/x.pdf,
+  // which inside a policy predicate becomes a query error instead of a denial.
+  // Every ::uuid cast must sit in a branch that first matched the UUID pattern.
+  const casts = [...fnBody.matchAll(/\(storage\.foldername\(p_name\)\)\[(\d)\]::uuid/g)].map((m) => m[1]);
+  assert.ok(casts.length >= 2, "both path shapes cast a segment");
+  for (const idx of casts) {
+    const guard = new RegExp(
+      `\\(storage\\.foldername\\(p_name\\)\\)\\[${idx}\\] ~ '\\^\\[0-9a-fA-F\\]\\{8\\}`,
+    );
+    assert.match(fnBody, guard, `segment [${idx}] is UUID-pattern guarded before casting`);
+  }
+  assert.ok(!/NULLIF\([^)]*\)::uuid/.test(fnBody), "no unguarded NULLIF(...)::uuid cast remains");
+});
+
 // ── No secrets or raw PII in storage logging ────────────────────────────────
 
 test("storage helper logs bucket + object key only — no signed URLs, tokens, or phone numbers", () => {

@@ -139,31 +139,52 @@ test("00112 SELECT-policy hardening drops the open read policies and scopes read
   }
 });
 
-test("00112 is re-runnable: every CREATE POLICY has a matching DROP POLICY IF EXISTS", () => {
+test("00112 is re-runnable: each CREATE POLICY is preceded by its own DROP POLICY IF EXISTS", () => {
   const sql = read("supabase/migrations/00112_storage_select_policy_hardening.sql");
-  for (const [, name] of sql.matchAll(/CREATE POLICY "([^"]+)"/g)) {
+  const creates = [...sql.matchAll(/CREATE POLICY "([^"]+)"/g)];
+  assert.ok(creates.length >= 2, "sanity: the block creates the read policies");
+  for (const match of creates) {
+    const name = match[1];
+    const dropIdx = sql.indexOf(`DROP POLICY IF EXISTS "${name}"`);
+    assert.notEqual(dropIdx, -1, `${name} must have a DROP POLICY IF EXISTS`);
+    // Ordering matters: a drop placed *after* the create still leaves the
+    // second paste of this dashboard block failing on "already exists".
     assert.ok(
-      sql.includes(`DROP POLICY IF EXISTS "${name}"`),
-      `${name} must be dropped-if-exists before creation so the dashboard block can be re-run`,
+      dropIdx < match.index,
+      `DROP POLICY IF EXISTS "${name}" must come before its CREATE POLICY`,
     );
   }
 });
 
-test("storage_path_group_id_v2 pattern-matches before casting to uuid", () => {
+test("storage_path_group_id_v2 guards each uuid cast inside its own WHEN branch", () => {
   const sql = read("supabase/migrations/00112_storage_select_policy_hardening.sql");
   const fnStart = sql.indexOf("CREATE OR REPLACE FUNCTION public.storage_path_group_id_v2");
   const fnBody = sql.slice(fnStart, sql.indexOf("$$;", fnStart));
-  // An unguarded `[2]::uuid` raises 22P02 on a key like minutes/not-a-uuid/x.pdf,
-  // which inside a policy predicate becomes a query error instead of a denial.
-  // Every ::uuid cast must sit in a branch that first matched the UUID pattern.
-  const casts = [...fnBody.matchAll(/\(storage\.foldername\(p_name\)\)\[(\d)\]::uuid/g)].map((m) => m[1]);
-  assert.ok(casts.length >= 2, "both path shapes cast a segment");
-  for (const idx of casts) {
+
+  // An unguarded `[n]::uuid` raises 22P02 on a key like minutes/not-a-uuid/x.pdf,
+  // which inside a policy predicate becomes a query error instead of a clean
+  // denial. Checking that a guard and a cast both exist *somewhere* is too weak
+  // — they must pair up within the same WHEN … THEN branch, so split on WHEN
+  // and assert per branch.
+  const branches = fnBody.split(/\bWHEN\b/).slice(1);
+  const castingBranches = branches.filter((b) => b.includes("::uuid"));
+  assert.equal(castingBranches.length, 2, "exactly the two path shapes cast a segment");
+
+  const castedSegments = new Set();
+  for (const branch of castingBranches) {
+    const cast = branch.match(/\(storage\.foldername\(p_name\)\)\[(\d)\]::uuid/);
+    assert.ok(cast, "branch casts a path segment");
+    const idx = cast[1];
+    castedSegments.add(idx);
     const guard = new RegExp(
-      `\\(storage\\.foldername\\(p_name\\)\\)\\[${idx}\\] ~ '\\^\\[0-9a-fA-F\\]\\{8\\}`,
+      `\\(storage\\.foldername\\(p_name\\)\\)\\[${idx}\\]\\s*~\\s*'\\^\\[0-9a-fA-F\\]\\{8\\}`,
     );
-    assert.match(fnBody, guard, `segment [${idx}] is UUID-pattern guarded before casting`);
+    assert.match(guard.test(branch) ? branch : "", guard,
+      `segment [${idx}] must be UUID-pattern guarded in the SAME branch that casts it`);
+    // And the guard must precede the cast within that branch.
+    assert.ok(branch.search(guard) < branch.indexOf("::uuid"), `guard precedes the cast for segment [${idx}]`);
   }
+  assert.deepEqual([...castedSegments].sort(), ["1", "2"], "both the bare and prefixed path shapes are handled");
   assert.ok(!/NULLIF\([^)]*\)::uuid/.test(fnBody), "no unguarded NULLIF(...)::uuid cast remains");
 });
 

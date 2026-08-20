@@ -63,10 +63,10 @@ test("one-time contributions get a real calendar date via start_date (no migrati
 
 // ── No migration in this build ──────────────────────────────────────────────
 
-test("Build 10 ships NO migration (nothing newer than 00111)", () => {
+test("Build 10 ships NO migration (nothing newer than 00112)", () => {
   const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
   // 00108 + 00109 are Build 15's privacy migrations (applied); Build 10 added none.
-  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 111), "no migration newer than 00111");
+  assert.ok(!migs.some((f) => /^\d{5}_/.test(f) && Number(f.slice(0, 5)) > 112), "no migration newer than 00112");
 });
 
 // ── Flexible auto-excluded from standing ────────────────────────────────────

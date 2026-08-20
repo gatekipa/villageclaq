@@ -144,9 +144,10 @@ supabase/
 ```
 
 ## Supabase Storage Buckets
-- **receipts**: public, 5MB max file size, RLS policies enabled
-- **avatars**: public, 2MB max file size, RLS policies enabled
-- **group-documents**: public, 10MB max file size, RLS policies enabled
+- **receipts**: PRIVATE (since 00083), 5MB max, image/pdf only — access via `createSignedUrl` only (`signedUrlFor()` from `@/lib/storage-urls.ts`). Never `getPublicUrl`.
+- **avatars**: public, 2MB max, images only — profile avatars + group logos (`group-logos/{groupId}/…`); `getPublicUrl` is correct here.
+- **group-documents**: PRIVATE (since 00083), 10MB max — access via `createSignedUrl` only.
+- Read policies: see `supabase/migrations/00112_storage_select_policy_hardening.sql` (dashboard-only) + `docs/storage-bucket-audit-2026-08-20.md`. Static guardrails: `npm run test:storage-buckets`.
 
 ## Database Conventions
 - All tables use UUID primary keys

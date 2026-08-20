@@ -239,6 +239,28 @@ function ReportDetailContent() {
   const [aiCollapsed, setAiCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
   const aiAutoFetched = useRef(false);
+  // AI-insights fetch state read through refs so fetchAiInsights can keep []
+  // deps (dependency-array safety rules) while being declared BEFORE the
+  // loading/error early returns below — hooks after a conditional return
+  // crashed Report 16/20 with "Rendered more hooks than during previous
+  // render" when the skeleton flipped to content.
+  const aiBusyRef = useRef(false);
+  const aiUnavailableRef = useRef(false);
+  const aiFetchCtxRef = useRef({
+    reportKey: "",
+    locale: "en",
+    currency: "XAF",
+    members: 0,
+    payments: 0,
+    obligations: 0,
+    totalCollected: 0,
+    totalExpected: 0,
+    collectionRate: 0,
+  });
+
+  // Placeholder report IDs — only reports with no backing data model
+  const placeholderReports: string[] = [];
+  const isPlaceholder = placeholderReports.includes(reportId);
 
   const reportName = t(`reports.${reportKey}.name`);
   const reportDesc = t(`reports.${reportKey}.desc`);
@@ -387,6 +409,66 @@ function ReportDetailContent() {
     isFederatedReliefReport ? fedReliefLoading :
     false;
 
+  // ── Lazy AI fetch — doesn't block page load ──
+  // Declared before the early returns (hook-order safety). All dynamic report
+  // figures are read through aiFetchCtxRef, assigned each content render after
+  // the money figures are computed, so deps stay [].
+  const fetchAiInsights = useCallback(async () => {
+    if (aiBusyRef.current || aiUnavailableRef.current) return;
+    aiBusyRef.current = true;
+    setAiLoading(true);
+    try {
+      const ctx = aiFetchCtxRef.current;
+      const res = await fetch("/api/ai-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reportType: ctx.reportKey,
+          reportData: {
+            members: ctx.members,
+            payments: ctx.payments,
+            obligations: ctx.obligations,
+            currency: ctx.currency,
+            totalCollected: ctx.totalCollected,
+            totalExpected: ctx.totalExpected,
+            collectionRate: ctx.collectionRate,
+          },
+          locale: ctx.locale,
+        }),
+      });
+      if (res.status === 503 || res.status === 429) {
+        // AI unavailable or rate limited — hide section silently
+        aiUnavailableRef.current = true;
+        setAiUnavailable(true);
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok || data.error === "unavailable") {
+        aiUnavailableRef.current = true;
+        setAiUnavailable(true);
+        return;
+      }
+      setAiInsights(data.insights || null);
+    } catch {
+      // Network error — hide AI section silently
+      aiUnavailableRef.current = true;
+      setAiUnavailable(true);
+    } finally {
+      aiBusyRef.current = false;
+      setAiLoading(false);
+    }
+  }, []);
+
+  // Auto-fetch AI insights on first load (lazy — after data loads). The
+  // !isLoading gate guarantees a full content render (which assigns
+  // aiFetchCtxRef) has committed before the fetch reads the ctx.
+  useEffect(() => {
+    if (!isLoading && !aiAutoFetched.current && !aiInsights && !aiUnavailable && !isPlaceholder) {
+      aiAutoFetched.current = true;
+      fetchAiInsights();
+    }
+  }, [isLoading, aiInsights, aiUnavailable, isPlaceholder, fetchAiInsights]);
+
   if (isLoading) return <ListSkeleton rows={5} />;
   if (membersError) return <ErrorState message={membersError.message} />;
 
@@ -440,6 +522,19 @@ function ReportDetailContent() {
   const totalExpected = moneyFigures.expected;
   const totalOutstanding = moneyFigures.outstanding;
   const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  // Latest-value ref for the AI-insights fetch declared above the early
+  // returns (routerRef pattern) — keep in sync with the figures it reports.
+  aiFetchCtxRef.current = {
+    reportKey,
+    locale,
+    currency,
+    members: members?.length || 0,
+    payments: payments?.length || 0,
+    obligations: obligations?.length || 0,
+    totalCollected,
+    totalExpected,
+    collectionRate,
+  };
   // Pending (member-submitted, awaiting admin confirm/reject) — shown SEPARATELY
   // from collected so the headline never folds unconfirmed money into revenue.
   const pendingMoney = moneyFigures.pending;
@@ -999,10 +1094,6 @@ function ReportDetailContent() {
     });
   }
 
-  // Placeholder report IDs — only reports with no backing data model
-  const placeholderReports: string[] = [];
-  const isPlaceholder = placeholderReports.includes(reportId);
-
   // Report 5: Savings Cycles
   const savingsCycleData = (savingsCycles || []).map((c: Record<string, unknown>) => ({
     name: (c.name as string) || "Untitled",
@@ -1181,55 +1272,6 @@ function ReportDetailContent() {
   const fedBranchCount = new Set(fedSummaryRows.map(r => r.collecting_group_id).filter(Boolean)).size;
   const fedTotalCollected = fedRows.reduce((s, r) => s + r.collected, 0);
   const fedTotalRemitted = fedSummaryRows.reduce((s, r) => s + Number((r as Record<string, unknown>).total_remitted || 0), 0);
-
-  // ── Lazy AI fetch — doesn't block page load ──
-  const fetchAiInsights = useCallback(async () => {
-    if (aiLoading || aiUnavailable) return;
-    setAiLoading(true);
-    try {
-      const res = await fetch("/api/ai-insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportType: reportKey,
-          reportData: {
-            members: members?.length || 0,
-            payments: payments?.length || 0,
-            obligations: obligations?.length || 0,
-            currency,
-            totalCollected,
-            totalExpected,
-            collectionRate,
-          },
-          locale,
-        }),
-      });
-      if (res.status === 503 || res.status === 429) {
-        // AI unavailable or rate limited — hide section silently
-        setAiUnavailable(true);
-        return;
-      }
-      const data = await res.json();
-      if (!res.ok || data.error === "unavailable") {
-        setAiUnavailable(true);
-        return;
-      }
-      setAiInsights(data.insights || null);
-    } catch {
-      // Network error — hide AI section silently
-      setAiUnavailable(true);
-    } finally {
-      setAiLoading(false);
-    }
-  }, [aiLoading, aiUnavailable, reportKey, members?.length, payments?.length, obligations?.length, currency, totalCollected, totalExpected, collectionRate, locale]);
-
-  // Auto-fetch AI insights on first load (lazy — after data loads)
-  useEffect(() => {
-    if (!isLoading && !aiAutoFetched.current && !aiInsights && !aiUnavailable && !isPlaceholder) {
-      aiAutoFetched.current = true;
-      fetchAiInsights();
-    }
-  }, [isLoading, aiInsights, aiUnavailable, isPlaceholder, fetchAiInsights]);
 
   // ── WhatsApp share ──
   function handleShareWhatsApp() {

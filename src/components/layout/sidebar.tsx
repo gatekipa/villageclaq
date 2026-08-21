@@ -16,6 +16,7 @@ import {
   X,
   BarChart3,
   ClipboardCheck,
+  Inbox,
   Home,
   BookOpen,
   Heart,
@@ -81,6 +82,11 @@ const adminSections: NavSection[] = [
       { key: "launchCenter", href: "/dashboard/launch", icon: Rocket, permission: "settings.manage" },
       { key: "feed", href: "/dashboard/feed", icon: Activity },
       { key: "myGroups", href: "/dashboard/my-groups", icon: LayoutGrid },
+      // Phase 1A review surface for proposed agent actions. Read-only: the
+      // page cannot approve, reject, send, or execute anything. Gated on the
+      // same permission set as the page so nav and access agree.
+      { key: "executionInbox", href: "/dashboard/execution-inbox", icon: Inbox,
+        anyPermission: ["finances.view", "finances.manage", "settings.manage"] },
     ],
   },
   {
@@ -247,6 +253,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (hasAnyPermission("contributions.manage", "finances.view", "finances.manage", "finances.record")) {
       positionItems.push({ key: "contributions", href: "/dashboard/contributions", icon: HandCoins });
       positionItems.push({ key: "finances", href: "/dashboard/finances", icon: CreditCard });
+    }
+    if (hasAnyPermission("finances.view", "finances.manage", "settings.manage")) {
+      // Read-only proposal review; same gate as the page.
+      positionItems.push({ key: "executionInbox", href: "/dashboard/execution-inbox", icon: Inbox });
     }
     if (hasAnyPermission("members.manage", "members.invite")) {
       positionItems.push({ key: "members", href: "/dashboard/members", icon: Users });

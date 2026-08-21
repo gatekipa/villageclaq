@@ -265,7 +265,10 @@ AS $$
 DECLARE
   v_intent public.action_intents;
 BEGIN
-  SELECT * INTO v_intent FROM action_intents WHERE id = p_intent_id;
+  -- FOR UPDATE: without the row lock, two concurrent decisions could both
+  -- read status='pending' and both proceed. The UPDATE below is also
+  -- guarded on status so a lost race fails loudly rather than silently.
+  SELECT * INTO v_intent FROM action_intents WHERE id = p_intent_id FOR UPDATE;
   IF v_intent.id IS NULL THEN
     RAISE EXCEPTION 'action intent not found';
   END IF;
@@ -289,8 +292,12 @@ BEGIN
            WHEN p_note IS NULL THEN trigger_context
            ELSE trigger_context || jsonb_build_object('approvalNote', p_note)
          END
-   WHERE id = p_intent_id
+   WHERE id = p_intent_id AND status = 'pending'
    RETURNING * INTO v_intent;
+
+  IF v_intent.id IS NULL THEN
+    RAISE EXCEPTION 'intent was decided concurrently; no row updated';
+  END IF;
 
   -- Approval marks intent only. Nothing is dispatched here, by design.
   RETURN v_intent;
@@ -306,7 +313,10 @@ AS $$
 DECLARE
   v_intent public.action_intents;
 BEGIN
-  SELECT * INTO v_intent FROM action_intents WHERE id = p_intent_id;
+  -- FOR UPDATE: without the row lock, two concurrent decisions could both
+  -- read status='pending' and both proceed. The UPDATE below is also
+  -- guarded on status so a lost race fails loudly rather than silently.
+  SELECT * INTO v_intent FROM action_intents WHERE id = p_intent_id FOR UPDATE;
   IF v_intent.id IS NULL THEN
     RAISE EXCEPTION 'action intent not found';
   END IF;
@@ -330,8 +340,12 @@ BEGIN
            WHEN p_note IS NULL THEN trigger_context
            ELSE trigger_context || jsonb_build_object('rejectionNote', p_note)
          END
-   WHERE id = p_intent_id
+   WHERE id = p_intent_id AND status = 'pending'
    RETURNING * INTO v_intent;
+
+  IF v_intent.id IS NULL THEN
+    RAISE EXCEPTION 'intent was decided concurrently; no row updated';
+  END IF;
 
   RETURN v_intent;
 END;

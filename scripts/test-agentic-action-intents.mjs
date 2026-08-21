@@ -186,6 +186,15 @@ test("approve/reject RPCs re-check permissions server-side", () => {
   }
 });
 
+test("decision RPCs lock the row and guard the UPDATE against a concurrent decision", () => {
+  for (const fn of ["approve_action_intent", "reject_action_intent"]) {
+    const m = MIG_SQL.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${fn}[\\s\\S]+?\\$\\$;`));
+    assert.match(m[0], /WHERE id = p_intent_id FOR UPDATE;/, `${fn} locks the row before validating status`);
+    assert.match(m[0], /WHERE id = p_intent_id AND status = 'pending'/, `${fn} guards the UPDATE on status`);
+    assert.match(m[0], /decided concurrently/, `${fn} fails loudly if it loses the race`);
+  }
+});
+
 test("no RPC can set status='executed' — execution is not expressible in Phase 1A", () => {
   const rpcs = MIG_SQL.match(/CREATE OR REPLACE FUNCTION public\.(approve|reject)_action_intent[\s\S]+?\$\$;/g) || [];
   assert.equal(rpcs.length, 2, "exactly the two decision RPCs");
@@ -209,14 +218,33 @@ test("decision RPCs are not granted to authenticated in Phase 1A", () => {
 test("inbox page exists, is permission-gated, and matches its sidebar gate", () => {
   assert.ok(exists(PAGE), "page present");
   assert.match(PAGE_CODE, /<RequirePermission anyOf=\{INBOX_PERMISSIONS\}>/, "page is gated");
-  assert.match(PAGE_CODE, /const INBOX_PERMISSIONS = \["finances\.view", "finances\.manage", "settings\.manage"\]/);
+  assert.match(PAGE_CODE, /const INBOX_PERMISSIONS = \["finances\.view", "finances\.manage"\]/);
   const sidebar = read(SIDEBAR);
   assert.match(sidebar, /key: "executionInbox", href: "\/dashboard\/execution-inbox"/, "nav entry exists");
   assert.match(
     sidebar,
-    /anyPermission: \["finances\.view", "finances\.manage", "settings\.manage"\]/,
+    /anyPermission: \["finances\.view", "finances\.manage"\]/,
     "nav gate equals page gate — no dead ends, no over-exposure",
   );
+  assert.match(
+    sidebar,
+    /hasAnyPermission\("finances\.view", "finances\.manage"\)/,
+    "position-scoped nav uses the same gate",
+  );
+});
+
+test("page/nav gate grants nothing the RLS read policy cannot honour", () => {
+  // A permission that opens the page but not the rows is a dead end: the user
+  // lands on "no proposals" instead of an honest access answer.
+  const gate = PAGE_CODE.match(/const INBOX_PERMISSIONS = \[([^\]]+)\]/)[1];
+  const granted = [...gate.matchAll(/"([a-z.]+)"/g)].map((m) => m[1]);
+  const policy = MIG_SQL.match(/CREATE POLICY "rls_ai_select"[\s\S]+?;/)[0];
+  for (const perm of granted) {
+    assert.ok(
+      policy.includes(`'${perm}'`),
+      `${perm} opens the page but has no branch in the RLS read policy`,
+    );
+  }
 });
 
 test("inbox page contains NO mutation path of any kind", () => {
@@ -236,6 +264,18 @@ test("approve/reject controls are rendered disabled and wired to nothing", () =>
     assert.ok(!/onClick/.test(b[0]), `${b[1]} button has no handler`);
   }
   assert.match(PAGE_CODE, /decisionsDisabled/, "the disabled state is explained to the user");
+});
+
+test("confidence is rendered with locale-aware percent formatting", () => {
+  assert.match(PAGE_CODE, /new Intl\.NumberFormat\(locale, \{ style: "percent"/, "uses Intl percent style");
+  assert.ok(!/Math\.round\(intent\.confidence_score \* 100\)/.test(PAGE_CODE), "no hardcoded % literal");
+});
+
+test("the keyboard-navigable list exposes listbox/option semantics", () => {
+  assert.match(PAGE_CODE, /role="listbox"/, "container is a listbox");
+  assert.match(PAGE_CODE, /aria-activedescendant=/, "active option is announced");
+  assert.match(PAGE_CODE, /role="option"/, "rows are options");
+  assert.match(PAGE_CODE, /id=\{`action-intent-\$\{intent\.id\}`\}/, "rows carry stable ids");
 });
 
 test("inbox degrades gracefully when the ledger table is absent (create-not-apply)", () => {
@@ -300,8 +340,14 @@ test("executionInbox namespace exists in both locales with identical keys", () =
   );
   assert.equal(typeof en.nav.executionInbox, "string");
   assert.equal(typeof fr.nav.executionInbox, "string");
+  // "Action" and "Source" are the same word in French; everything else must
+  // actually be translated, so a copy-pasted English string fails here.
+  const SAME_IN_FRENCH = new Set(["colAction", "colSource"]);
   for (const [k, v] of Object.entries(fr.executionInbox)) {
-    assert.ok(typeof v === "string" && v.length > 0, `fr.executionInbox.${k} is translated`);
+    assert.ok(typeof v === "string" && v.length > 0, `fr.executionInbox.${k} is non-empty`);
+    if (!SAME_IN_FRENCH.has(k)) {
+      assert.notEqual(v, en.executionInbox[k], `fr.executionInbox.${k} is untranslated English`);
+    }
   }
 });
 

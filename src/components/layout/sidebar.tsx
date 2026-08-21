@@ -86,7 +86,7 @@ const adminSections: NavSection[] = [
       // page cannot approve, reject, send, or execute anything. Gated on the
       // same permission set as the page so nav and access agree.
       { key: "executionInbox", href: "/dashboard/execution-inbox", icon: Inbox,
-        anyPermission: ["finances.view", "finances.manage", "settings.manage"] },
+        anyPermission: ["finances.view", "finances.manage"] },
     ],
   },
   {
@@ -254,7 +254,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       positionItems.push({ key: "contributions", href: "/dashboard/contributions", icon: HandCoins });
       positionItems.push({ key: "finances", href: "/dashboard/finances", icon: CreditCard });
     }
-    if (hasAnyPermission("finances.view", "finances.manage", "settings.manage")) {
+    if (hasAnyPermission("finances.view", "finances.manage")) {
       // Read-only proposal review; same gate as the page.
       positionItems.push({ key: "executionInbox", href: "/dashboard/execution-inbox", icon: Inbox });
     }

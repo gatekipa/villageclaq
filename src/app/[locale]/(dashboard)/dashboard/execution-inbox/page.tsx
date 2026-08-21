@@ -39,8 +39,16 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { getMemberName } from "@/lib/get-member-name";
 import { formatDateWithGroupFormat } from "@/lib/format";
 
-/** Permission set for both this page and its sidebar entry — keep them equal. */
-const INBOX_PERMISSIONS = ["finances.view", "finances.manage", "settings.manage"];
+/**
+ * Permission set for both this page and its sidebar entry — keep them equal,
+ * AND keep them aligned with the RLS read policy in migration 00113. RLS grants
+ * reads to group admins/owners and to finances.view / finances.manage only, so
+ * settings.manage is deliberately NOT here: a settings officer would pass the
+ * gate and then read zero rows, which reads as "no proposals" rather than
+ * "not for you". Owners/admins still reach the page via the owner/admin bypass
+ * in usePermissions.
+ */
+const INBOX_PERMISSIONS = ["finances.view", "finances.manage"];
 
 /** Postgres undefined_table — the ledger migration has not been applied here. */
 const UNDEFINED_TABLE = "42P01";
@@ -144,6 +152,12 @@ function ExecutionInboxContent() {
   const fd = (value: string | null | undefined) =>
     value ? formatDateWithGroupFormat(value, groupDateFormat, locale) : "—";
 
+  // fr-FR renders "75 %" (narrow no-break space), en-US "75%" — let Intl decide.
+  const percentFmt = useMemo(
+    () => new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }),
+    [locale],
+  );
+
   const intents = useMemo(() => data?.intents ?? [], [data]);
 
   const memberNameById = useMemo(() => {
@@ -223,8 +237,10 @@ function ExecutionInboxContent() {
               ref={listRef}
               tabIndex={0}
               onKeyDown={onListKeyDown}
-              className="max-h-[32rem] overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              role="listbox"
               aria-label={t("listHeading")}
+              aria-activedescendant={selectedId ? `action-intent-${selectedId}` : undefined}
+              className="max-h-[32rem] overflow-y-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Table>
                 <TableHeader>
@@ -241,6 +257,8 @@ function ExecutionInboxContent() {
                   {intents.map((intent) => (
                     <TableRow
                       key={intent.id}
+                      id={`action-intent-${intent.id}`}
+                      role="option"
                       onClick={() => setSelectedId(intent.id)}
                       aria-selected={intent.id === selectedId}
                       className={`cursor-pointer ${
@@ -274,7 +292,7 @@ function ExecutionInboxContent() {
                       <TableCell className="text-right tabular-nums">
                         {intent.confidence_score === null
                           ? t("noConfidence")
-                          : `${Math.round(intent.confidence_score * 100)}%`}
+                          : percentFmt.format(intent.confidence_score)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {fd(intent.created_at)}

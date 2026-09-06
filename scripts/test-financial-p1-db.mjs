@@ -22,7 +22,8 @@ function asyncSql(query) {
 }
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 const group=id(1), group2=id(2), officer=id(101), member=id(102), peer=id(103), outsider=id(104);
-const mid=id(11), peerMid=id(12), otherMid=id(13), type=id(21), type2=id(22), otherType=id(23), oid=id(31), oid2=id(32);
+const pendingOfficer=id(105), suspendedOfficer=id(106), archivedOfficer=id(107), exitedOfficer=id(108);
+const mid=id(11), peerMid=id(12), otherMid=id(13), lifecycleTarget=id(14), type=id(21), type2=id(22), otherType=id(23), oid=id(31), oid2=id(32);
 const val = (amount, extras={}) => ({membership_id:mid,contribution_type_id:type,amount,currency:"USD",payment_method:"cash",...extras});
 const literal = value => "'" + JSON.stringify(value).replaceAll("'","''") + "'::jsonb";
 function query(key,action,values={},payment=null,version=null,reason=null,gid=group) {
@@ -69,19 +70,39 @@ before(() => {
   const adminEnd=adminSource.indexOf("$$ LANGUAGE sql SECURITY DEFINER STABLE;",adminStart);
   sql(adminSource.slice(adminStart,adminEnd+"$$ LANGUAGE sql SECURITY DEFINER STABLE;".length));
   sql("CREATE TRIGGER prevent_membership_self_escalation BEFORE UPDATE ON memberships FOR EACH ROW EXECUTE FUNCTION prevent_membership_self_escalation();");
-  sql(`INSERT INTO profiles VALUES('${officer}'),('${member}'),('${peer}'),('${outsider}');
+  sql(`INSERT INTO profiles VALUES('${officer}'),('${member}'),('${peer}'),('${outsider}'),
+      ('${pendingOfficer}'),('${suspendedOfficer}'),('${archivedOfficer}'),('${exitedOfficer}');
     INSERT INTO groups VALUES('${group}','USD','{}'),('${group2}','XAF','{}');
     INSERT INTO memberships(id,group_id,user_id,role) VALUES('${id(10)}','${group}','${officer}','owner'),
     ('${mid}','${group}','${member}','member'),('${peerMid}','${group}','${peer}','member'),('${otherMid}','${group2}','${outsider}','owner');
+    INSERT INTO memberships(id,group_id,user_id,role,membership_status) VALUES
+      ('${id(15)}','${group}','${pendingOfficer}','owner','pending_approval'),
+      ('${id(16)}','${group}','${suspendedOfficer}','owner','suspended'),
+      ('${id(17)}','${group}','${archivedOfficer}','owner','archived'),
+      ('${id(18)}','${group}','${exitedOfficer}','owner','exited');
+    INSERT INTO memberships(id,group_id,role) VALUES('${lifecycleTarget}','${group}','member');
     INSERT INTO contribution_types(id,group_id,name,amount,currency) VALUES('${type}','${group}','Dues',100,'USD'),('${type2}','${group}','Purpose',100,'USD'),('${otherType}','${group2}','Dues',100,'XAF');
     INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date) VALUES
     ('${oid}','${group}','${mid}','${type}',100,'USD',CURRENT_DATE-10),
     ('${id(33)}','${group}','${peerMid}','${type}',100,'USD',CURRENT_DATE-10),
     ('${id(34)}','${group2}','${otherMid}','${otherType}',100,'XAF',CURRENT_DATE-10);
     GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;`);
-  sql(`ALTER TABLE payments ENABLE ROW LEVEL SECURITY; ALTER TABLE contribution_obligations ENABLE ROW LEVEL SECURITY;
+  sql(`ALTER TABLE payments ENABLE ROW LEVEL SECURITY; ALTER TABLE contribution_types ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE contribution_obligations ENABLE ROW LEVEL SECURITY;
     CREATE POLICY baseline_payment_read ON payments FOR SELECT TO authenticated USING(can_view_member_financial(membership_id,group_id));
+    CREATE POLICY baseline_type_read ON contribution_types FOR SELECT TO authenticated
+      USING(EXISTS(SELECT 1 FROM memberships m WHERE m.group_id=contribution_types.group_id AND m.user_id=auth.uid()));
+    CREATE POLICY baseline_type_insert ON contribution_types FOR INSERT TO authenticated
+      WITH CHECK(EXISTS(SELECT 1 FROM memberships m WHERE m.group_id=contribution_types.group_id AND m.user_id=auth.uid() AND m.role IN('owner','admin')));
+    CREATE POLICY baseline_type_update ON contribution_types FOR UPDATE TO authenticated
+      USING(EXISTS(SELECT 1 FROM memberships m WHERE m.group_id=contribution_types.group_id AND m.user_id=auth.uid() AND m.role IN('owner','admin')));
+    CREATE POLICY baseline_type_delete ON contribution_types FOR DELETE TO authenticated
+      USING(EXISTS(SELECT 1 FROM memberships m WHERE m.group_id=contribution_types.group_id AND m.user_id=auth.uid() AND m.role IN('owner','admin')));
     CREATE POLICY baseline_obligation_read ON contribution_obligations FOR SELECT TO authenticated USING(can_view_member_financial(membership_id,group_id));
+    CREATE POLICY baseline_obligation_insert ON contribution_obligations FOR INSERT TO authenticated
+      WITH CHECK(is_group_admin(group_id) OR has_group_permission(group_id,'contributions.manage') OR has_group_permission(group_id,'finances.record'));
+    CREATE POLICY baseline_obligation_update ON contribution_obligations FOR UPDATE TO authenticated
+      USING(is_group_admin(group_id) OR has_group_permission(group_id,'contributions.manage') OR has_group_permission(group_id,'finances.record'));
     CREATE POLICY baseline_payment_insert ON payments FOR INSERT TO authenticated WITH CHECK(true);
     CREATE POLICY baseline_payment_update ON payments FOR UPDATE TO authenticated USING(true) WITH CHECK(true);
     CREATE POLICY baseline_payment_delete ON payments FOR DELETE TO authenticated USING(true);`);
@@ -93,6 +114,45 @@ test("migration backfill reconciles existing assessments without inventing payme
   assert.equal(count("payments"),0);
   assert.equal(count("financial_private.reconciliations"),0);
   assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"suspended");
+});
+test("active authorized officer can mutate contribution types and obligations",()=>{
+  const lifecycleType=id(601), lifecycleObligation=id(602);
+  sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency)
+    VALUES('${lifecycleType}','${group}','Lifecycle test',25,'USD')`,officer);
+  assert.equal(sql(`WITH changed AS(UPDATE contribution_types SET amount=30 WHERE id='${lifecycleType}' RETURNING 1) SELECT count(*) FROM changed`,officer),"1");
+  sql(`INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date)
+    VALUES('${lifecycleObligation}','${group}','${lifecycleTarget}','${lifecycleType}',30,'USD',CURRENT_DATE+10)`,officer);
+  assert.equal(sql(`WITH changed AS(UPDATE contribution_obligations SET amount=35 WHERE id='${lifecycleObligation}' RETURNING 1) SELECT count(*) FROM changed`,officer),"1");
+  sql(`DELETE FROM contribution_obligations WHERE id='${lifecycleObligation}'`);
+  assert.equal(sql(`WITH gone AS(DELETE FROM contribution_types WHERE id='${lifecycleType}' RETURNING 1) SELECT count(*) FROM gone`,officer),"1");
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${lifecycleTarget}'`),"good");
+});
+test("inactive, ordinary and cross-group actors cannot mutate financial definitions or trigger reconciliation",()=>{
+  const deniedActors=[
+    ["pending",pendingOfficer],
+    ["suspended",suspendedOfficer],
+    ["archived",archivedOfficer],
+    ["exited",exitedOfficer],
+    ["ordinary",peer],
+    ["cross-group",outsider],
+  ];
+  const snapshot=()=>JSON.parse(sql(`SELECT jsonb_build_object(
+    'types',(SELECT count(*) FROM contribution_types),
+    'obligations',(SELECT count(*) FROM contribution_obligations),
+    'amountPaid',(SELECT amount_paid FROM contribution_obligations WHERE id='${oid}'),
+    'standing',(SELECT standing FROM memberships WHERE id='${mid}'),
+    'applications',(SELECT count(*) FROM payment_obligation_applications))`));
+  deniedActors.forEach(([label,actor],index)=>{
+    const before=snapshot(), deniedType=id(610+index), deniedObligation=id(620+index);
+    assert.throws(()=>sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency)
+      VALUES('${deniedType}','${group}','Denied ${label}',10,'USD')`,actor),/row-level security policy/);
+    assert.equal(sql(`WITH changed AS(UPDATE contribution_types SET amount=amount+1 WHERE id='${type}' RETURNING 1) SELECT count(*) FROM changed`,actor),"0");
+    assert.equal(sql(`WITH gone AS(DELETE FROM contribution_types WHERE id='${type2}' RETURNING 1) SELECT count(*) FROM gone`,actor),"0");
+    assert.throws(()=>sql(`INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date)
+      VALUES('${deniedObligation}','${group}','${mid}','${type}',10,'USD',CURRENT_DATE-1)`,actor),/row-level security policy/);
+    assert.equal(sql(`WITH changed AS(UPDATE contribution_obligations SET amount=amount+1 WHERE id='${oid}' RETURNING 1) SELECT count(*) FROM changed`,actor),"0");
+    assert.deepEqual(snapshot(),before,`${label} denial must not change financial state`);
+  });
 });
 test("record 40 atomically updates applications, balance, standing and evidence",()=>{
   first=command(201,"record",val(40)); assert.equal(first.appliedTo.length,1);

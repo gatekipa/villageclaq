@@ -531,10 +531,33 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT EXISTS (SELECT 1 FROM public.memberships WHERE group_id=gid
     AND user_id=auth.uid() AND membership_status='active');
 $$;
+-- Existing permissive write policies continue to decide which active officers
+-- have each financial permission. These restrictive overlays add the lifecycle
+-- requirement that older role/permission helpers omit, so inactive roles cannot
+-- reach reconciliation triggers.
+CREATE FUNCTION public.is_active_financial_writer(gid uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT EXISTS (SELECT 1 FROM public.memberships WHERE group_id=gid
+    AND user_id=auth.uid() AND membership_status='active');
+$$;
 CREATE POLICY financial_payment_active_reader ON public.payments AS RESTRICTIVE FOR SELECT TO authenticated
   USING (public.is_active_financial_reader(group_id));
 CREATE POLICY financial_obligation_active_reader ON public.contribution_obligations AS RESTRICTIVE FOR SELECT TO authenticated
   USING (public.is_active_financial_reader(group_id));
+CREATE POLICY financial_type_active_writer_insert ON public.contribution_types AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (public.is_active_financial_writer(group_id));
+CREATE POLICY financial_type_active_writer_update ON public.contribution_types AS RESTRICTIVE FOR UPDATE TO authenticated
+  USING (public.is_active_financial_writer(group_id))
+  WITH CHECK (public.is_active_financial_writer(group_id));
+CREATE POLICY financial_type_active_writer_delete ON public.contribution_types AS RESTRICTIVE FOR DELETE TO authenticated
+  USING (public.is_active_financial_writer(group_id));
+CREATE POLICY financial_obligation_active_writer_insert ON public.contribution_obligations AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (public.is_active_financial_writer(group_id));
+CREATE POLICY financial_obligation_active_writer_update ON public.contribution_obligations AS RESTRICTIVE FOR UPDATE TO authenticated
+  USING (public.is_active_financial_writer(group_id))
+  WITH CHECK (public.is_active_financial_writer(group_id));
+CREATE POLICY financial_obligation_active_writer_delete ON public.contribution_obligations AS RESTRICTIVE FOR DELETE TO authenticated
+  USING (public.is_active_financial_writer(group_id));
 CREATE POLICY financial_receipt_read ON storage.objects AS RESTRICTIVE FOR SELECT TO authenticated, anon
   USING (bucket_id <> 'receipts' OR public.can_access_payment_receipt(name,owner_id,false));
 CREATE POLICY financial_receipt_insert ON storage.objects AS RESTRICTIVE FOR INSERT TO authenticated, anon
@@ -558,10 +581,12 @@ REVOKE ALL ON FUNCTION public.apply_payment_command(uuid,uuid,text,jsonb,uuid,in
 REVOKE ALL ON FUNCTION public.payment_command_history(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.can_access_payment_receipt(text,text,boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.is_active_financial_reader(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.is_active_financial_writer(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.apply_payment_command(uuid,uuid,text,jsonb,uuid,integer,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.payment_command_history(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.can_access_payment_receipt(text,text,boolean) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.is_active_financial_reader(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_active_financial_writer(uuid) TO authenticated;
 
 -- Rebuild DERIVED applications/balances/standing only. No payment amounts, statuses,
 -- assessments, notifications or storage objects are created by this backfill.

@@ -238,17 +238,27 @@ must be inventoried privately; denied access is not permission to publish them.
 
 ## Exact Database Change
 
-Created:
-supabase/migrations/20260906140229_financial_payment_integrity.sql
+Created as a staged, unapplied sequence:
 
-Applied: ONLY to a disposable Postgres 17.11 container labeled
+- `supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql`
+- `supabase/migrations/20260906140229_financial_payment_integrity.sql`
+
+Applied: ONLY to a disposable PostgreSQL 15 container labeled
 villageclaq.test=p1-isolated, network=none, no published ports or host bind
 mounts. No production migration and no broad migration runner was used.
 The fixture imports explicit current schema/function definitions needed by the
 tests; it is not a claim that the entire historical Supabase stack was replayed.
 
-| Statement group / functions | Why required |
+| Phase / statement group | Why required |
 |---|---|
+| Phase A: financial_ledger_epochs | Dated, non-overlapping native-currency ledger scopes with one active epoch per group |
+| Phase A: nullable row epoch keys + bridge triggers | Old application inserts remain compatible while clean rows gain explicit scope |
+| Phase A: durable conflict inventory + live conflict view | Surface non-PII legacy ambiguity without allowing an inventory edit to hide current bad links |
+| Phase A: deterministic clean backfill | Scope only provably single-currency, internally consistent history; mixed history stays unresolved |
+| Human reconciliation between phases | Approve an evidenced epoch assignment or correction for every conflict; no automatic conversion, deletion, relabeling or reassignment |
+| Application cutover between phases | New application code reads/writes explicit epochs while Phase A remains backward compatible |
+| Phase B: current-conflict and approval gates | Abort before authoritative reconciliation if a live conflict or unapproved inventory item remains |
+| Phase B: NOT NULL + composite foreign keys | Enforce group, native currency and epoch agreement for types, obligations, payments and applications |
 | BEGIN / COMMIT | Installation/backfill succeeds or rolls back as one unit |
 | private schema + revokes | Keep command evidence and internal mutation functions out of API access |
 | payments.financial_version | Reject stale corrections instead of silently overwriting another edit |
@@ -265,7 +275,7 @@ tests; it is not a claim that the entire historical Supabase stack was replayed.
 | reconcile_relief | Preserve separate relief semantics and reverse invalid current effects |
 | four DROP TRIGGER statements + payment_changed | Replace overlapping old payment triggers, not add competing balance writers |
 | obligation_guard / obligation_changed | Keep assessment edits/waivers and derived state consistent |
-| currency_guard + two triggers | Block mismatched new units and silent historical currency changes |
+| currency_guard + controlled transition function | Preserve historical units and close/open dated epochs atomically; direct currency rewrites fail |
 | apply_payment_command | Authenticated atomic record/submit/transition/correction boundary |
 | payment_command_history | Read-only scoped correction evidence |
 | can_access_payment_receipt | Linked financial ownership for current/legacy evidence |
@@ -275,14 +285,25 @@ tests; it is not a claim that the entire historical Supabase stack was replayed.
 | explicit function revokes/grants | Only the intended authenticated command/history/read predicates are exposed |
 | final DO backfill | Rebuild derived application/obligation/relief/standing state; no new payments, assessments or communications |
 
-Before production application, independently verify live function/policy/schema
+Later rollout order is strict: (1) re-run read-only production preflight and
+backup/recovery checks; (2) apply Phase A only; (3) resolve every inventoried
+legacy conflict through separately approved financial decisions; (4) deploy the
+epoch-aware application cutover; (5) prove old-client traffic has drained; and
+(6) apply Phase B in a controlled maintenance window. Phase B must never be
+included in the Phase A apply command or a broad migration runner. A failed
+Phase A transaction rolls back cleanly; after Phase A commits, recovery is
+forward through evidenced conflict resolution, not destructive epoch removal.
+The transition helper is an immediate cutover command: it rejects future-dated
+activation rather than changing `groups.currency` before the effective moment.
+The future Clean Start, Opening Position and Full Historical Migration workflows
+are not implemented here; dated epochs and provenance fields merely keep those
+paths possible without rewriting native-currency history.
+
+Before either production phase, independently verify live function/policy/schema
 compatibility, legacy currency/member/type identity, private receipt bucket,
 receipt-path inventory, existing signed-link TTL and backup/rollback procedure.
-Backfill takes member/financial locks; plan a controlled maintenance window.
-Coordinate frontend and database rollout: old clients fail direct writes after
-migration, and new clients fail closed if the command RPC is absent. Do not
-add an unsafe direct-write fallback. Nothing here authorizes applying migration,
-deploying, changing production storage or contacting a member.
+Nothing here authorizes applying either migration, deploying, changing
+production storage or contacting a member.
 
 ## Test Evidence
 

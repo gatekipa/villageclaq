@@ -1,8 +1,90 @@
--- P1 payment boundary. CREATE/TEST ONLY: apply separately after review, never via a broad runner.
+-- Financial P1 RECONCILE / ENFORCE phase. CREATE/TEST ONLY: apply separately
+-- after the epoch expansion, human legacy resolution, and application cutover.
 -- Existing payments/obligations/application rows remain the accounting records.
 BEGIN;
 
-CREATE SCHEMA IF NOT EXISTS financial_private;
+DO $$ BEGIN
+  IF to_regclass('public.financial_ledger_epochs') IS NULL
+    OR to_regclass('financial_private.ledger_epoch_conflicts') IS NULL
+  THEN RAISE EXCEPTION 'FINANCIAL_LEDGER_EPOCH_EXPAND_REQUIRED'; END IF;
+END $$;
+
+SELECT financial_private.refresh_ledger_epoch_conflicts();
+DO $$
+DECLARE detail text;
+BEGIN
+  IF EXISTS (SELECT 1 FROM financial_private.current_ledger_epoch_conflicts) THEN
+    SELECT jsonb_agg(x) #>> '{}' INTO detail FROM (
+      SELECT group_id,record_type,record_id,record_currency,expected_currency,linked_currency,conflict_category
+      FROM financial_private.current_ledger_epoch_conflicts ORDER BY group_id,record_type,record_id LIMIT 50
+    ) x;
+    RAISE EXCEPTION 'FINANCIAL_LEGACY_RESOLUTION_REQUIRED' USING DETAIL=detail;
+  END IF;
+  IF EXISTS (SELECT 1 FROM financial_private.ledger_epoch_conflicts WHERE resolution_status<>'approved') THEN
+    RAISE EXCEPTION 'FINANCIAL_LEGACY_APPROVAL_REQUIRED';
+  END IF;
+END $$;
+
+-- Phase A bridge rows must now all have an explicit scope. The replacement
+-- trigger becomes strict before NOT NULL and composite FKs are installed.
+CREATE OR REPLACE FUNCTION financial_private.assign_epoch_if_unambiguous() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  -- Attribute-changing updates are rejected by the table-specific immutable
+  -- guards below. Do not mask that evidence with an assignment error here.
+  IF TG_OP='UPDATE' AND (NEW.group_id,NEW.currency,NEW.ledger_epoch_id)
+    IS DISTINCT FROM (OLD.group_id,OLD.currency,OLD.ledger_epoch_id) THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.ledger_epoch_id IS NULL THEN
+    SELECT e.id INTO NEW.ledger_epoch_id FROM public.financial_ledger_epochs e
+    WHERE e.group_id=NEW.group_id AND e.currency=NEW.currency AND e.effective_to IS NULL;
+  END IF;
+  IF NEW.ledger_epoch_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.financial_ledger_epochs e
+    WHERE e.id=NEW.ledger_epoch_id AND e.group_id=NEW.group_id AND e.currency=NEW.currency)
+  THEN RAISE EXCEPTION 'ACTIVE_LEDGER_EPOCH_REQUIRED'; END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE OR REPLACE FUNCTION financial_private.assign_application_epoch_if_unambiguous() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NEW.ledger_epoch_id IS NULL THEN
+    SELECT p.ledger_epoch_id INTO NEW.ledger_epoch_id
+    FROM public.payments p JOIN public.contribution_obligations o
+      ON o.id=NEW.obligation_id AND o.ledger_epoch_id=p.ledger_epoch_id
+    WHERE p.id=NEW.payment_id;
+  END IF;
+  IF NEW.ledger_epoch_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.payments p JOIN public.contribution_obligations o
+      ON o.id=NEW.obligation_id AND o.ledger_epoch_id=p.ledger_epoch_id
+    WHERE p.id=NEW.payment_id AND p.ledger_epoch_id=NEW.ledger_epoch_id)
+  THEN RAISE EXCEPTION 'APPLICATION_LEDGER_EPOCH_MISMATCH'; END IF;
+  RETURN NEW;
+END;
+$$;
+
+ALTER TABLE public.contribution_types ALTER COLUMN ledger_epoch_id SET NOT NULL;
+ALTER TABLE public.contribution_obligations ALTER COLUMN ledger_epoch_id SET NOT NULL;
+ALTER TABLE public.payments ALTER COLUMN ledger_epoch_id SET NOT NULL;
+ALTER TABLE public.payment_obligation_applications ALTER COLUMN ledger_epoch_id SET NOT NULL;
+ALTER TABLE public.contribution_types ADD CONSTRAINT contribution_types_epoch_scope
+  FOREIGN KEY(ledger_epoch_id,group_id,currency)
+  REFERENCES public.financial_ledger_epochs(id,group_id,currency) ON DELETE RESTRICT;
+ALTER TABLE public.contribution_obligations ADD CONSTRAINT contribution_obligations_epoch_scope
+  FOREIGN KEY(ledger_epoch_id,group_id,currency)
+  REFERENCES public.financial_ledger_epochs(id,group_id,currency) ON DELETE RESTRICT;
+ALTER TABLE public.payments ADD CONSTRAINT payments_epoch_scope
+  FOREIGN KEY(ledger_epoch_id,group_id,currency)
+  REFERENCES public.financial_ledger_epochs(id,group_id,currency) ON DELETE RESTRICT;
+ALTER TABLE public.payments ADD CONSTRAINT payments_id_epoch UNIQUE(id,ledger_epoch_id);
+ALTER TABLE public.contribution_obligations ADD CONSTRAINT obligations_id_epoch UNIQUE(id,ledger_epoch_id);
+ALTER TABLE public.payment_obligation_applications ADD CONSTRAINT payment_applications_payment_epoch
+  FOREIGN KEY(payment_id,ledger_epoch_id) REFERENCES public.payments(id,ledger_epoch_id) ON DELETE CASCADE;
+ALTER TABLE public.payment_obligation_applications ADD CONSTRAINT payment_applications_obligation_epoch
+  FOREIGN KEY(obligation_id,ledger_epoch_id) REFERENCES public.contribution_obligations(id,ledger_epoch_id) ON DELETE CASCADE;
+
 REVOKE ALL ON SCHEMA financial_private FROM PUBLIC, anon, authenticated;
 ALTER TABLE public.payments ADD COLUMN financial_version integer NOT NULL DEFAULT 1;
 
@@ -133,23 +215,30 @@ BEGIN
 END;
 $$;
 
--- One currency per group's dues ledger, no FX or silent historical conversion.
+-- One group/member/epoch scope per allocation. Closed historical currencies
+-- remain native and can never be covered by another epoch's money.
 CREATE FUNCTION financial_private.assert_member_scope(gid uuid, mid uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE code text;
 BEGIN
-  SELECT currency INTO code FROM public.groups WHERE id = gid;
-  IF NOT EXISTS (SELECT 1 FROM public.memberships WHERE id = mid AND group_id = gid)
+  IF EXISTS (SELECT 1 FROM financial_private.ledger_epoch_conflicts
+      WHERE group_id=gid AND resolution_status<>'approved')
+    OR EXISTS (SELECT 1 FROM financial_private.current_ledger_epoch_conflicts WHERE group_id=gid)
+    OR NOT EXISTS (SELECT 1 FROM public.memberships WHERE id = mid AND group_id = gid)
     OR EXISTS (SELECT 1 FROM public.contribution_obligations o
-      JOIN public.contribution_types t ON t.id = o.contribution_type_id
-      WHERE o.membership_id = mid AND (o.group_id <> gid OR t.group_id <> gid OR o.currency <> code OR t.currency <> code))
+      JOIN public.contribution_types t ON t.id=o.contribution_type_id
+      JOIN public.financial_ledger_epochs e ON e.id=o.ledger_epoch_id
+      WHERE o.membership_id=mid AND (o.group_id<>gid OR e.group_id<>gid OR o.currency<>e.currency
+        OR t.group_id<>gid OR t.currency<>o.currency OR t.ledger_epoch_id<>o.ledger_epoch_id))
     OR EXISTS (SELECT 1 FROM public.payments p WHERE p.membership_id = mid AND p.relief_plan_id IS NULL
-      AND (p.group_id <> gid OR p.currency <> code
+      AND (p.group_id<>gid OR NOT EXISTS (SELECT 1 FROM public.financial_ledger_epochs e
+          WHERE e.id=p.ledger_epoch_id AND e.group_id=gid AND e.currency=p.currency)
         OR (p.contribution_type_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contribution_types t
-          WHERE t.id = p.contribution_type_id AND t.group_id = gid AND t.currency = code))
+          WHERE t.id=p.contribution_type_id AND t.group_id=gid AND t.currency=p.currency
+            AND t.ledger_epoch_id=p.ledger_epoch_id))
         OR (p.obligation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contribution_obligations o
-          WHERE o.id = p.obligation_id AND o.group_id = gid AND o.membership_id = mid
-            AND (p.contribution_type_id IS NULL OR o.contribution_type_id = p.contribution_type_id)))))
+          WHERE o.id=p.obligation_id AND o.group_id=gid AND o.membership_id=mid
+            AND o.currency=p.currency AND o.ledger_epoch_id=p.ledger_epoch_id
+            AND (p.contribution_type_id IS NULL OR o.contribution_type_id=p.contribution_type_id)))))
   THEN RAISE EXCEPTION 'FINANCIAL_SCOPE_REQUIRES_REVIEW'; END IF;
 END;
 $$;
@@ -158,32 +247,40 @@ $$;
 -- Applications are rebuilt in the SAME transaction and capped at each assessment.
 CREATE FUNCTION financial_private.reconcile_member(gid uuid, mid uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET timezone = 'UTC' AS $$
-DECLARE pay_row record; obligation_row record; remaining numeric; applied numeric; paid numeric; old_standing text; new_standing text;
+DECLARE epoch_row record; pay_row record; obligation_row record; remaining numeric; applied numeric; paid numeric; old_standing text; new_standing text;
 BEGIN
   PERFORM 1 FROM public.memberships WHERE id = mid AND group_id = gid FOR UPDATE;
   PERFORM financial_private.assert_member_scope(gid, mid);
   INSERT INTO financial_private.reconciliations VALUES(txid_current(),mid);
-  DELETE FROM public.payment_obligation_applications a USING public.payments p
-    WHERE a.payment_id = p.id AND p.group_id = gid AND p.membership_id = mid AND p.relief_plan_id IS NULL;
-  FOR pay_row IN SELECT p.*, COALESCE(p.contribution_type_id, linked.contribution_type_id) AS allocation_type
-    FROM public.payments p LEFT JOIN public.contribution_obligations linked ON linked.id = p.obligation_id
-    WHERE p.group_id = gid AND p.membership_id = mid AND p.relief_plan_id IS NULL
-      AND COALESCE(NULLIF(p.status, ''), 'confirmed') = 'confirmed'
-    ORDER BY (COALESCE(p.contribution_type_id, linked.contribution_type_id) IS NULL), p.recorded_at, p.id
+  FOR epoch_row IN
+    SELECT ledger_epoch_id FROM public.contribution_obligations WHERE group_id=gid AND membership_id=mid
+    UNION SELECT ledger_epoch_id FROM public.payments WHERE group_id=gid AND membership_id=mid AND relief_plan_id IS NULL
   LOOP
-    remaining := pay_row.amount;
-    FOR obligation_row IN SELECT * FROM public.contribution_obligations
-      WHERE group_id = gid AND membership_id = mid AND status <> 'waived'
-        AND (pay_row.allocation_type IS NULL OR contribution_type_id = pay_row.allocation_type)
-      ORDER BY due_date NULLS LAST, id
+    DELETE FROM public.payment_obligation_applications a USING public.payments p
+      WHERE a.payment_id=p.id AND p.group_id=gid AND p.membership_id=mid
+        AND p.ledger_epoch_id=epoch_row.ledger_epoch_id AND p.relief_plan_id IS NULL;
+    FOR pay_row IN SELECT p.*,COALESCE(p.contribution_type_id,linked.contribution_type_id) allocation_type
+      FROM public.payments p LEFT JOIN public.contribution_obligations linked ON linked.id=p.obligation_id
+      WHERE p.group_id=gid AND p.membership_id=mid AND p.ledger_epoch_id=epoch_row.ledger_epoch_id
+        AND p.relief_plan_id IS NULL AND COALESCE(NULLIF(p.status,''),'confirmed')='confirmed'
+      ORDER BY (COALESCE(p.contribution_type_id,linked.contribution_type_id) IS NULL),p.recorded_at,p.id
     LOOP
-      SELECT COALESCE(sum(amount_applied), 0) INTO paid FROM public.payment_obligation_applications WHERE obligation_id = obligation_row.id;
-      applied := LEAST(remaining, GREATEST(0, obligation_row.amount - paid));
-      IF applied > 0 THEN
-        INSERT INTO public.payment_obligation_applications(payment_id, obligation_id, amount_applied) VALUES (pay_row.id, obligation_row.id, applied);
-        remaining := remaining - applied;
-      END IF;
-      EXIT WHEN remaining <= 0;
+      remaining := pay_row.amount;
+      FOR obligation_row IN SELECT * FROM public.contribution_obligations
+        WHERE group_id=gid AND membership_id=mid AND ledger_epoch_id=epoch_row.ledger_epoch_id
+          AND status<>'waived' AND (pay_row.allocation_type IS NULL OR contribution_type_id=pay_row.allocation_type)
+        ORDER BY due_date NULLS LAST,id
+      LOOP
+        SELECT COALESCE(sum(amount_applied),0) INTO paid FROM public.payment_obligation_applications
+          WHERE obligation_id=obligation_row.id;
+        applied := LEAST(remaining,GREATEST(0,obligation_row.amount-paid));
+        IF applied>0 THEN
+          INSERT INTO public.payment_obligation_applications(payment_id,obligation_id,ledger_epoch_id,amount_applied)
+            VALUES(pay_row.id,obligation_row.id,epoch_row.ledger_epoch_id,applied);
+          remaining := remaining-applied;
+        END IF;
+        EXIT WHEN remaining<=0;
+      END LOOP;
     END LOOP;
   END LOOP;
   UPDATE public.contribution_obligations o SET amount_paid = x.paid,
@@ -217,8 +314,10 @@ BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'PAYMENT_HISTORY_IMMUTABLE_USE_VOID';
   END IF;
-  IF TG_OP = 'UPDATE' AND (NEW.group_id, NEW.membership_id, NEW.relief_plan_id, NEW.contribution_type_id, NEW.obligation_id)
-    IS DISTINCT FROM (OLD.group_id, OLD.membership_id, OLD.relief_plan_id, OLD.contribution_type_id, OLD.obligation_id)
+  IF TG_OP = 'UPDATE' AND (NEW.group_id,NEW.membership_id,NEW.relief_plan_id,NEW.contribution_type_id,
+      NEW.obligation_id,NEW.currency,NEW.ledger_epoch_id)
+    IS DISTINCT FROM (OLD.group_id,OLD.membership_id,OLD.relief_plan_id,OLD.contribution_type_id,
+      OLD.obligation_id,OLD.currency,OLD.ledger_epoch_id)
   THEN RAISE EXCEPTION 'PAYMENT_ATTRIBUTION_IMMUTABLE'; END IF;
   row_id := NEW.id;
   IF NOT EXISTS (SELECT 1 FROM financial_private.payment_commands c
@@ -235,20 +334,27 @@ FOR EACH ROW EXECUTE FUNCTION financial_private.guard_payment();
 -- Replace linked-only/independent-standing payment triggers with one atomic reconciliation.
 -- Preserve the existing relief period/required-amount policy, including admin suspension.
 -- Run on corrections/rejections too, before standing; never allocate relief funds to dues.
-CREATE FUNCTION financial_private.reconcile_relief(gid uuid, mid uuid, plan uuid) RETURNS void
+CREATE FUNCTION financial_private.reconcile_relief(gid uuid, mid uuid, plan uuid, epoch uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET timezone = 'UTC' AS $$
-DECLARE enrollment record; frequency text; required numeric; period_start timestamptz; total numeric; next_status text; code text;
+DECLARE enrollment record; frequency text; required numeric; period_start timestamptz; total numeric; next_status text; code text; is_active_epoch boolean;
 BEGIN
-  SELECT g.currency,r.contribution_frequency::text,r.contribution_amount INTO code,frequency,required
-    FROM public.relief_plans r JOIN public.groups g ON g.id=r.group_id WHERE r.id=plan AND r.group_id=gid;
+  SELECT e.currency,r.contribution_frequency::text,r.contribution_amount,(e.effective_to IS NULL)
+    INTO code,frequency,required,is_active_epoch
+    FROM public.relief_plans r JOIN public.financial_ledger_epochs e ON e.group_id=r.group_id
+    WHERE r.id=plan AND r.group_id=gid AND e.id=epoch;
   IF NOT FOUND THEN RAISE EXCEPTION 'FINANCIAL_SCOPE_REQUIRES_REVIEW'; END IF;
+  -- A correction to a closed historical epoch remains auditable but cannot
+  -- overwrite the current enrollment's active-period contribution state.
+  IF NOT is_active_epoch THEN RETURN; END IF;
   IF required IS NULL OR required <= 0 THEN RETURN; END IF;
-  IF EXISTS (SELECT 1 FROM public.payments WHERE relief_plan_id=plan AND membership_id=mid AND (group_id<>gid OR currency<>code))
+  IF EXISTS (SELECT 1 FROM public.payments WHERE relief_plan_id=plan AND membership_id=mid
+    AND ledger_epoch_id=epoch AND (group_id<>gid OR currency<>code))
     THEN RAISE EXCEPTION 'FINANCIAL_SCOPE_REQUIRES_REVIEW'; END IF;
   period_start := CASE WHEN frequency='per_event' THEN NULL WHEN frequency='annual'
     THEN date_trunc('year',CURRENT_DATE) WHEN frequency='quarterly' THEN date_trunc('quarter',CURRENT_DATE)
     ELSE date_trunc('month',CURRENT_DATE) END;
-  SELECT COALESCE(sum(amount),0) INTO total FROM public.payments WHERE group_id=gid AND membership_id=mid AND relief_plan_id=plan
+  SELECT COALESCE(sum(amount),0) INTO total FROM public.payments
+    WHERE group_id=gid AND membership_id=mid AND relief_plan_id=plan AND ledger_epoch_id=epoch
     AND COALESCE(NULLIF(status,''),'confirmed')='confirmed' AND (period_start IS NULL OR created_at>=period_start);
   next_status := CASE WHEN total>=required THEN 'up_to_date' ELSE 'behind' END;
   FOR enrollment IN SELECT id,contribution_status FROM public.relief_enrollments
@@ -272,7 +378,7 @@ CREATE FUNCTION financial_private.payment_changed() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
   IF NEW.relief_plan_id IS NOT NULL THEN
-    PERFORM financial_private.reconcile_relief(NEW.group_id, NEW.membership_id, NEW.relief_plan_id);
+    PERFORM financial_private.reconcile_relief(NEW.group_id,NEW.membership_id,NEW.relief_plan_id,NEW.ledger_epoch_id);
   END IF;
   PERFORM financial_private.reconcile_member(NEW.group_id, NEW.membership_id);
   RETURN NEW;
@@ -284,7 +390,6 @@ FOR EACH ROW EXECUTE FUNCTION financial_private.payment_changed();
 -- Assessment edits/waivers must converge too. Derived balance/status writes recurse once.
 CREATE FUNCTION financial_private.obligation_guard() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE code text;
 BEGIN
   IF TG_OP = 'DELETE' THEN
     IF EXISTS (SELECT 1 FROM public.payments WHERE membership_id = OLD.membership_id AND group_id = OLD.group_id)
@@ -292,12 +397,15 @@ BEGIN
     RETURN OLD;
   END IF;
   PERFORM 1 FROM public.memberships WHERE id = NEW.membership_id AND group_id = NEW.group_id FOR UPDATE;
-  SELECT currency INTO code FROM public.groups WHERE id = NEW.group_id;
-  IF NOT FOUND OR NOT EXISTS (SELECT 1 FROM public.memberships WHERE id = NEW.membership_id AND group_id = NEW.group_id)
-    OR NOT EXISTS (SELECT 1 FROM public.contribution_types WHERE id = NEW.contribution_type_id AND group_id = NEW.group_id AND currency = code)
-    OR NEW.currency <> code THEN RAISE EXCEPTION 'FINANCIAL_SCOPE_REQUIRES_REVIEW'; END IF;
-  IF TG_OP = 'UPDATE' AND (NEW.group_id, NEW.membership_id, NEW.contribution_type_id) IS DISTINCT FROM
-    (OLD.group_id, OLD.membership_id, OLD.contribution_type_id)
+  IF NOT FOUND OR NOT EXISTS (SELECT 1 FROM public.memberships WHERE id=NEW.membership_id AND group_id=NEW.group_id)
+    OR NOT EXISTS (SELECT 1 FROM public.financial_ledger_epochs e
+      WHERE e.id=NEW.ledger_epoch_id AND e.group_id=NEW.group_id AND e.currency=NEW.currency)
+    OR NOT EXISTS (SELECT 1 FROM public.contribution_types t
+      WHERE t.id=NEW.contribution_type_id AND t.group_id=NEW.group_id
+        AND t.currency=NEW.currency AND t.ledger_epoch_id=NEW.ledger_epoch_id)
+    THEN RAISE EXCEPTION 'FINANCIAL_SCOPE_REQUIRES_REVIEW'; END IF;
+  IF TG_OP = 'UPDATE' AND (NEW.group_id,NEW.membership_id,NEW.contribution_type_id,NEW.currency,NEW.ledger_epoch_id)
+    IS DISTINCT FROM (OLD.group_id,OLD.membership_id,OLD.contribution_type_id,OLD.currency,OLD.ledger_epoch_id)
     THEN RAISE EXCEPTION 'ASSESSMENT_ATTRIBUTION_IMMUTABLE'; END IF;
   IF NOT EXISTS (SELECT 1 FROM financial_private.reconciliations WHERE transaction_id = txid_current() AND membership_id = NEW.membership_id) THEN
     IF TG_OP = 'INSERT' THEN NEW.amount_paid := 0; NEW.status := CASE WHEN NEW.status = 'waived' THEN 'waived' ELSE 'pending' END::public.obligation_status;
@@ -326,20 +434,25 @@ $$;
 CREATE TRIGGER financial_obligation_changed AFTER INSERT OR UPDATE OR DELETE ON public.contribution_obligations
 FOR EACH ROW EXECUTE FUNCTION financial_private.obligation_changed();
 
--- New currencies must agree; existing history prevents silently changing a group's unit.
+-- Epoch/currency attribution is immutable. groups.currency may change only as
+-- the final step of the private, atomic close/open transition below.
 CREATE FUNCTION financial_private.currency_guard() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
   IF TG_TABLE_NAME = 'groups' THEN
-    IF NEW.currency IS DISTINCT FROM OLD.currency AND (
-      EXISTS (SELECT 1 FROM public.payments WHERE group_id = OLD.id) OR
-      EXISTS (SELECT 1 FROM public.contribution_types WHERE group_id = OLD.id))
-    THEN RAISE EXCEPTION 'CURRENCY_HISTORY_IMMUTABLE'; END IF;
+    IF NEW.currency IS DISTINCT FROM OLD.currency AND NOT EXISTS (
+      SELECT 1 FROM financial_private.epoch_transitions x
+      JOIN public.financial_ledger_epochs e ON e.group_id=x.group_id
+        AND e.currency=NEW.currency AND e.effective_to IS NULL
+      WHERE x.transaction_id=txid_current() AND x.group_id=OLD.id)
+    THEN RAISE EXCEPTION 'CURRENCY_TRANSITION_COMMAND_REQUIRED'; END IF;
   ELSE
-    IF TG_OP = 'UPDATE' AND NEW.group_id IS DISTINCT FROM OLD.group_id THEN
+    IF TG_OP = 'UPDATE' AND (NEW.group_id,NEW.currency,NEW.ledger_epoch_id)
+      IS DISTINCT FROM (OLD.group_id,OLD.currency,OLD.ledger_epoch_id) THEN
       RAISE EXCEPTION 'ASSESSMENT_ATTRIBUTION_IMMUTABLE';
     END IF;
-    PERFORM 1 FROM public.groups WHERE id = NEW.group_id AND currency = NEW.currency FOR SHARE;
+    PERFORM 1 FROM public.financial_ledger_epochs
+      WHERE id=NEW.ledger_epoch_id AND group_id=NEW.group_id AND currency=NEW.currency FOR SHARE;
     IF NOT FOUND THEN RAISE EXCEPTION 'CURRENCY_MISMATCH'; END IF;
   END IF;
   RETURN NEW;
@@ -347,8 +460,42 @@ END;
 $$;
 CREATE TRIGGER financial_group_currency BEFORE UPDATE OF currency ON public.groups
 FOR EACH ROW EXECUTE FUNCTION financial_private.currency_guard();
-CREATE TRIGGER financial_type_currency BEFORE INSERT OR UPDATE OF currency, group_id ON public.contribution_types
+CREATE TRIGGER financial_type_currency BEFORE INSERT OR UPDATE OF currency,group_id,ledger_epoch_id ON public.contribution_types
 FOR EACH ROW EXECUTE FUNCTION financial_private.currency_guard();
+
+CREATE FUNCTION financial_private.transition_ledger_epoch(
+  gid uuid,new_currency text,transition_at timestamptz,reason text,approver uuid
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE current_epoch public.financial_ledger_epochs; next_epoch uuid;
+BEGIN
+  IF length(trim(COALESCE(new_currency,'')))<3 OR length(trim(COALESCE(reason,'')))<3
+    OR transition_at IS NULL OR transition_at>clock_timestamp() OR approver IS NULL
+  THEN RAISE EXCEPTION 'INVALID_LEDGER_TRANSITION'; END IF;
+  PERFORM 1 FROM public.groups WHERE id=gid FOR UPDATE;
+  IF NOT FOUND OR EXISTS (SELECT 1 FROM financial_private.ledger_epoch_conflicts
+      WHERE group_id=gid AND resolution_status<>'approved')
+    OR EXISTS (SELECT 1 FROM financial_private.current_ledger_epoch_conflicts WHERE group_id=gid)
+  THEN RAISE EXCEPTION 'FINANCIAL_LEGACY_RESOLUTION_REQUIRED'; END IF;
+  SELECT * INTO current_epoch FROM public.financial_ledger_epochs
+    WHERE group_id=gid AND effective_to IS NULL FOR UPDATE;
+  IF NOT FOUND OR transition_at<=current_epoch.effective_from OR new_currency=current_epoch.currency
+    THEN RAISE EXCEPTION 'INVALID_LEDGER_TRANSITION'; END IF;
+  INSERT INTO financial_private.epoch_transitions VALUES(txid_current(),gid);
+  UPDATE public.financial_ledger_epochs SET effective_to=transition_at WHERE id=current_epoch.id;
+  INSERT INTO public.financial_ledger_epochs(group_id,currency,effective_from,source_kind,
+    source_reference,approval_note,created_by,approved_by,approved_at)
+  VALUES(gid,new_currency,transition_at,'currency_transition',current_epoch.id::text,
+    reason,approver,approver,now()) RETURNING id INTO next_epoch;
+  UPDATE public.groups SET currency=new_currency WHERE id=gid;
+  INSERT INTO public.group_audit_logs(group_id,actor_id,action,entity_type,entity_id,details)
+  VALUES(gid,approver,'financial.ledger_currency_transition','financial_ledger_epoch',next_epoch,
+    jsonb_build_object('previousEpochId',current_epoch.id,'newEpochId',next_epoch,
+      'previousCurrency',current_epoch.currency,'newCurrency',new_currency,
+      'effectiveFrom',transition_at,'reason',reason));
+  DELETE FROM financial_private.epoch_transitions WHERE transaction_id=txid_current() AND group_id=gid;
+  RETURN next_epoch;
+END;
+$$;
 
 CREATE FUNCTION public.apply_payment_command(
   p_group_id uuid, p_request_id uuid, p_action text, p_values jsonb,
@@ -356,7 +503,7 @@ CREATE FUNCTION public.apply_payment_command(
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' SET timezone = 'UTC' AS $$
 DECLARE
   actor uuid := auth.uid(); mid uuid; code text; manager boolean; req jsonb; prior financial_private.payment_commands;
-  before_row public.payments; after_row public.payments; pid uuid; typ uuid; obl uuid; plan uuid; receipt text;
+  before_row public.payments; after_row public.payments; pid uuid; typ uuid; obl uuid; plan uuid; epoch uuid; receipt text;
   command_result jsonb; amount_value numeric; payment_day date; target_status text; member_status text;
 BEGIN
   IF actor IS NULL OR p_request_id IS NULL OR p_group_id IS NULL OR p_values IS NULL OR jsonb_typeof(p_values) <> 'object'
@@ -365,14 +512,20 @@ BEGIN
   IF p_values - ARRAY['membership_id','contribution_type_id','obligation_id','relief_plan_id','amount','currency','payment_method',
     'reference_number','receipt_url','notes','payment_date'] <> '{}'::jsonb
     THEN RAISE EXCEPTION 'UNSUPPORTED_PAYMENT_FIELD'; END IF;
-  SELECT currency INTO code FROM public.groups WHERE id = p_group_id FOR SHARE;
+  PERFORM 1 FROM public.groups WHERE id=p_group_id FOR SHARE;
   IF NOT FOUND THEN RAISE EXCEPTION 'PAYMENT_NOT_AUTHORIZED'; END IF;
   manager := financial_private.can_manage(p_group_id);
   IF p_action IN ('record', 'submit') THEN
     IF p_payment_id IS NOT NULL OR p_expected_version IS NOT NULL THEN RAISE EXCEPTION 'INVALID_PAYMENT_COMMAND'; END IF;
+    SELECT e.id,e.currency INTO epoch,code
+      FROM public.financial_ledger_epochs e JOIN public.groups g ON g.id=e.group_id
+      WHERE e.group_id=p_group_id AND e.effective_to IS NULL AND e.currency=g.currency
+      FOR SHARE OF e,g;
+    IF NOT FOUND THEN RAISE EXCEPTION 'FINANCIAL_LEGACY_RESOLUTION_REQUIRED'; END IF;
     mid := (p_values->>'membership_id')::uuid;
   ELSE
-    SELECT membership_id INTO mid FROM public.payments WHERE id = p_payment_id AND group_id = p_group_id;
+    SELECT membership_id,ledger_epoch_id,currency INTO mid,epoch,code
+      FROM public.payments WHERE id=p_payment_id AND group_id=p_group_id;
   END IF;
   SELECT membership_status::text INTO member_status FROM public.memberships WHERE id = mid AND group_id = p_group_id FOR UPDATE;
   IF NOT FOUND OR (NOT manager AND NOT (p_action = 'submit' AND member_status = 'active'
@@ -429,25 +582,28 @@ BEGIN
     IF obl IS NOT NULL THEN
       SELECT contribution_type_id INTO typ FROM public.contribution_obligations
         WHERE id = obl AND group_id = p_group_id AND membership_id = mid
+          AND ledger_epoch_id=epoch AND currency=code
           AND (typ IS NULL OR contribution_type_id = typ);
       IF NOT FOUND THEN RAISE EXCEPTION 'PAYMENT_ATTRIBUTION_INVALID'; END IF;
     END IF;
-    IF typ IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contribution_types WHERE id = typ AND group_id = p_group_id AND currency = code)
+    IF typ IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contribution_types
+      WHERE id=typ AND group_id=p_group_id AND currency=code AND ledger_epoch_id=epoch)
       THEN RAISE EXCEPTION 'PAYMENT_ATTRIBUTION_INVALID'; END IF;
     -- Preserve the officer's existing first typed-payment assessment, but never
     -- recreate a satisfied/waived assessment or invent a second year's liability.
     IF p_action = 'record' AND plan IS NULL AND typ IS NOT NULL AND NOT EXISTS (
-      SELECT 1 FROM public.contribution_obligations WHERE group_id = p_group_id AND membership_id = mid AND contribution_type_id = typ)
+      SELECT 1 FROM public.contribution_obligations WHERE group_id=p_group_id AND membership_id=mid
+        AND contribution_type_id=typ AND ledger_epoch_id=epoch)
     THEN
-      INSERT INTO public.contribution_obligations(group_id,membership_id,contribution_type_id,amount,currency,due_date,period_label)
-      SELECT p_group_id,mid,typ,COALESCE(NULLIF(amount,0),amount_value),code,
+      INSERT INTO public.contribution_obligations(group_id,membership_id,contribution_type_id,ledger_epoch_id,amount,currency,due_date,period_label)
+      SELECT p_group_id,mid,typ,epoch,COALESCE(NULLIF(amount,0),amount_value),code,
         make_date(EXTRACT(YEAR FROM CURRENT_DATE)::int,12,31),EXTRACT(YEAR FROM CURRENT_DATE)::text
       FROM public.contribution_types WHERE id = typ;
     END IF;
     target_status := CASE WHEN p_action = 'submit' THEN 'pending_confirmation' ELSE 'confirmed' END;
-    INSERT INTO public.payments(id,group_id,membership_id,contribution_type_id,obligation_id,relief_plan_id,amount,currency,payment_method,
+    INSERT INTO public.payments(id,group_id,membership_id,contribution_type_id,obligation_id,relief_plan_id,ledger_epoch_id,amount,currency,payment_method,
       reference_number,receipt_url,notes,recorded_by,payment_date,recorded_at,status)
-    VALUES(pid,p_group_id,mid,typ,obl,plan,amount_value,code,(p_values->>'payment_method')::public.payment_method,
+    VALUES(pid,p_group_id,mid,typ,obl,plan,epoch,amount_value,code,(p_values->>'payment_method')::public.payment_method,
       p_values->>'reference_number',NULLIF(receipt,''),p_values->>'notes',actor,payment_day,
       payment_day::timestamptz,target_status) RETURNING * INTO after_row;
   ELSE
@@ -599,9 +755,11 @@ BEGIN
        OR EXISTS (SELECT 1 FROM public.payments p WHERE p.membership_id=m.id)
     ORDER BY m.group_id,m.id
   LOOP
-    FOR plan_row IN SELECT DISTINCT relief_plan_id FROM public.payments WHERE membership_id=member_row.id AND relief_plan_id IS NOT NULL
+    FOR plan_row IN SELECT DISTINCT relief_plan_id,ledger_epoch_id FROM public.payments
+      WHERE membership_id=member_row.id AND relief_plan_id IS NOT NULL
     LOOP
-      PERFORM financial_private.reconcile_relief(member_row.group_id,member_row.id,plan_row.relief_plan_id);
+      PERFORM financial_private.reconcile_relief(member_row.group_id,member_row.id,
+        plan_row.relief_plan_id,plan_row.ledger_epoch_id);
     END LOOP;
     PERFORM financial_private.reconcile_member(member_row.group_id,member_row.id);
   END LOOP;

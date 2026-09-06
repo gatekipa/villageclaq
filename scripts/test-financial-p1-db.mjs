@@ -5,6 +5,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { computeMoneyFigures, computeObligationStates, allocatePaymentApplications } from "../src/lib/money.ts";
 
 const container = "villageclaq-p1-isolated";
+const epochMigration = "supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql";
 const migration = "supabase/migrations/20260906140229_financial_payment_integrity.sql";
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 function sql(query, actor) {
@@ -21,7 +22,8 @@ function asyncSql(query) {
   });
 }
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
-const group=id(1), group2=id(2), officer=id(101), member=id(102), peer=id(103), outsider=id(104);
+const group=id(1), group2=id(2), group3=id(3), group4=id(4);
+const officer=id(101), member=id(102), peer=id(103), outsider=id(104);
 const pendingOfficer=id(105), suspendedOfficer=id(106), archivedOfficer=id(107), exitedOfficer=id(108);
 const mid=id(11), peerMid=id(12), otherMid=id(13), lifecycleTarget=id(14), type=id(21), type2=id(22), otherType=id(23), oid=id(31), oid2=id(32);
 const val = (amount, extras={}) => ({membership_id:mid,contribution_type_id:type,amount,currency:"USD",payment_method:"cash",...extras});
@@ -32,7 +34,10 @@ function query(key,action,values={},payment=null,version=null,reason=null,gid=gr
 function command(key,action,values={},payment=null,version=null,reason=null,actor=officer,gid=group) {
   return JSON.parse(sql(query(key,action,values,payment,version,reason,gid),actor));
 }
-function count(table) {return Number(sql(`SELECT count(*) FROM ${table}`));}
+function count(table) {
+  const scope=table==="payments"?` WHERE group_id='${group}'`:"";
+  return Number(sql(`SELECT count(*) FROM ${table}${scope}`));
+}
 function reconcile(expectedPaid,expectedDue,standing) {
   const obls=JSON.parse(sql(`SELECT jsonb_agg(o) FROM contribution_obligations o WHERE membership_id='${mid}'`));
   const pays=JSON.parse(sql(`SELECT COALESCE(jsonb_agg(p),'[]') FROM payments p WHERE membership_id='${mid}'`));
@@ -72,7 +77,8 @@ before(() => {
   sql("CREATE TRIGGER prevent_membership_self_escalation BEFORE UPDATE ON memberships FOR EACH ROW EXECUTE FUNCTION prevent_membership_self_escalation();");
   sql(`INSERT INTO profiles VALUES('${officer}'),('${member}'),('${peer}'),('${outsider}'),
       ('${pendingOfficer}'),('${suspendedOfficer}'),('${archivedOfficer}'),('${exitedOfficer}');
-    INSERT INTO groups VALUES('${group}','USD','{}'),('${group2}','XAF','{}');
+    INSERT INTO groups VALUES('${group}','USD','{}'),('${group2}','XAF','{}'),
+      ('${group3}','EUR','{}'),('${group4}','NGN','{}');
     INSERT INTO memberships(id,group_id,user_id,role) VALUES('${id(10)}','${group}','${officer}','owner'),
     ('${mid}','${group}','${member}','member'),('${peerMid}','${group}','${peer}','member'),('${otherMid}','${group2}','${outsider}','owner');
     INSERT INTO memberships(id,group_id,user_id,role,membership_status) VALUES
@@ -81,11 +87,32 @@ before(() => {
       ('${id(17)}','${group}','${archivedOfficer}','owner','archived'),
       ('${id(18)}','${group}','${exitedOfficer}','owner','exited');
     INSERT INTO memberships(id,group_id,role) VALUES('${lifecycleTarget}','${group}','member');
-    INSERT INTO contribution_types(id,group_id,name,amount,currency) VALUES('${type}','${group}','Dues',100,'USD'),('${type2}','${group}','Purpose',100,'USD'),('${otherType}','${group2}','Dues',100,'XAF');
+    INSERT INTO memberships(id,group_id,role)
+      SELECT ('00000000-0000-4000-8001-'||lpad(n::text,12,'0'))::uuid,'${group3}','member'
+      FROM generate_series(1,105) n;
+    INSERT INTO contribution_types(id,group_id,name,amount,currency) VALUES
+      ('${type}','${group}','Dues',100,'USD'),('${type2}','${group}','Purpose',100,'USD'),
+      ('${otherType}','${group2}','Dues',100,'XAF'),('${id(24)}','${group3}','Scale dues',100,'EUR'),
+      ('${id(25)}','${group4}','Branch dues',100,'NGN');
     INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date) VALUES
     ('${oid}','${group}','${mid}','${type}',100,'USD',CURRENT_DATE-10),
     ('${id(33)}','${group}','${peerMid}','${type}',100,'USD',CURRENT_DATE-10),
     ('${id(34)}','${group2}','${otherMid}','${otherType}',100,'XAF',CURRENT_DATE-10);
+    INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date)
+      SELECT ('00000000-0000-4000-8002-'||lpad(n::text,12,'0'))::uuid,'${group3}',
+        ('00000000-0000-4000-8001-'||lpad((((n-1)%105)+1)::text,12,'0'))::uuid,
+        '${id(24)}',100,'EUR',CURRENT_DATE-30-((n-1)/105)::int
+      FROM generate_series(1,457) n;
+    INSERT INTO payments(id,group_id,membership_id,amount,currency,payment_method,status,payment_date,recorded_by)
+      SELECT ('00000000-0000-4000-8003-'||lpad(n::text,12,'0'))::uuid,'${group3}',
+        ('00000000-0000-4000-8001-'||lpad(n::text,12,'0'))::uuid,
+        10+n,'EUR','cash','confirmed',CURRENT_DATE-5,'${officer}'
+      FROM generate_series(1,7) n;
+    INSERT INTO payments(id,group_id,membership_id,contribution_type_id,amount,currency,payment_method,status,payment_date,recorded_by)
+      SELECT ('00000000-0000-4000-8004-'||lpad(n::text,12,'0'))::uuid,'${group3}',
+        ('00000000-0000-4000-8001-'||lpad((((n-1)/2)+1)::text,12,'0'))::uuid,
+        '${id(24)}',20+((n-1)/2),'EUR','cash','confirmed',CURRENT_DATE-4,'${officer}'
+      FROM generate_series(1,26) n;
     GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;`);
   sql(`ALTER TABLE payments ENABLE ROW LEVEL SECURITY; ALTER TABLE contribution_types ENABLE ROW LEVEL SECURITY;
     ALTER TABLE contribution_obligations ENABLE ROW LEVEL SECURITY;
@@ -106,6 +133,39 @@ before(() => {
     CREATE POLICY baseline_payment_insert ON payments FOR INSERT TO authenticated WITH CHECK(true);
     CREATE POLICY baseline_payment_update ON payments FOR UPDATE TO authenticated USING(true) WITH CHECK(true);
     CREATE POLICY baseline_payment_delete ON payments FOR DELETE TO authenticated USING(true);`);
+  sql(read(epochMigration));
+  assert.equal(sql(`SELECT count(*) FROM financial_ledger_epochs WHERE effective_to IS NULL`),"4");
+  assert.equal(sql(`SELECT count(*) FROM contribution_types WHERE ledger_epoch_id IS NULL`),"0");
+
+  // Production-shaped USD/XAF ambiguity is inventoried and blocks Phase B.
+  // The synthetic rows are removed, rather than normalized, then explicitly
+  // approved as fixture-only resolution so the rest of the suite can proceed.
+  const legacyMixedType=id(90);
+  sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency)
+    VALUES('${legacyMixedType}','${group}','Synthetic legacy mismatch',10,'XAF');
+    INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date)
+      SELECT ('00000000-0000-4000-9001-'||lpad(n::text,12,'0'))::uuid,'${group}','${mid}',
+        '${legacyMixedType}',10,'XAF',CURRENT_DATE-100-n FROM generate_series(1,10) n;
+    INSERT INTO payments(id,group_id,membership_id,contribution_type_id,obligation_id,amount,currency,payment_method,status,payment_date,recorded_by)
+      SELECT ('00000000-0000-4000-9002-'||lpad(n::text,12,'0'))::uuid,'${group}','${mid}',
+        CASE WHEN n<=2 THEN '${type}'::uuid ELSE '${legacyMixedType}'::uuid END,
+        ('00000000-0000-4000-9001-'||lpad(n::text,12,'0'))::uuid,
+        10,'XAF','cash','confirmed',CURRENT_DATE-100,'${officer}' FROM generate_series(1,10) n;
+    SELECT financial_private.refresh_ledger_epoch_conflicts();`);
+  assert.equal(sql(`SELECT count(*) FROM financial_private.current_ledger_epoch_conflicts WHERE group_id='${group}'`),"21");
+  assert.equal(sql(`SELECT count(*) FROM financial_private.current_ledger_epoch_conflicts
+    WHERE record_type='payment' AND conflict_category='PAYMENT_TYPE_SCOPE_MISMATCH'`),"2");
+  assert.equal(sql(`SELECT count(*) FROM payments WHERE id::text LIKE '00000000-0000-4000-9002-%'
+    AND currency='XAF' AND ledger_epoch_id IS NULL`),"10");
+  assert.throws(()=>sql(read(migration)),/FINANCIAL_LEGACY_RESOLUTION_REQUIRED/);
+  sql(`DELETE FROM payments WHERE id::text LIKE '00000000-0000-4000-9002-%';
+    DELETE FROM contribution_obligations WHERE id::text LIKE '00000000-0000-4000-9001-%';
+    DELETE FROM contribution_types WHERE id='${legacyMixedType}';
+    SELECT financial_private.refresh_ledger_epoch_conflicts();
+    UPDATE financial_private.ledger_epoch_conflicts
+    SET resolution_status='approved',resolution_note='Synthetic legacy fixture removed',
+      resolved_by='${officer}',resolved_at=now()
+    WHERE group_id='${group}' AND resolution_status='unresolved';`);
   sql(read(migration));
 });
 
@@ -113,6 +173,18 @@ let first, second;
 test("migration backfill reconciles existing assessments without inventing payments",()=>{
   assert.equal(count("payments"),0);
   assert.equal(count("financial_private.reconciliations"),0);
+  assert.equal(sql(`SELECT count(*) FROM financial_private.ledger_epoch_conflicts
+    WHERE resolution_status='approved' AND resolution_note='Synthetic legacy fixture removed'`),"21");
+  assert.equal(sql(`SELECT count(*) FROM contribution_types WHERE ledger_epoch_id IS NULL`),"0");
+  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE ledger_epoch_id IS NULL`),"0");
+  assert.equal(sql(`SELECT count(*) FROM memberships`),"114");
+  assert.equal(sql(`SELECT count(*) FROM contribution_obligations`),"460");
+  assert.equal(sql(`SELECT count(*) FROM payments WHERE contribution_type_id IS NULL AND obligation_id IS NULL`),"7");
+  assert.equal(sql(`SELECT count(*) FROM (SELECT membership_id,amount,payment_date FROM payments
+    WHERE id::text LIKE '00000000-0000-4000-8004-%'
+    GROUP BY membership_id,amount,payment_date HAVING count(*)=2) clusters`),"13");
+  assert.equal(sql(`SELECT string_agg(currency,',' ORDER BY currency) FROM financial_ledger_epochs
+    WHERE effective_to IS NULL`),"EUR,NGN,USD,XAF");
   assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"suspended");
 });
 test("active authorized officer can mutate contribution types and obligations",()=>{
@@ -236,8 +308,8 @@ test("failure after payment INSERT rolls back payment, application, command and 
   sql("DROP TRIGGER zz_p1_fail ON payments; DROP FUNCTION p1_fail();");
 });
 test("currency changes cannot rewrite existing ledger units",()=>{
-  assert.throws(()=>sql(`UPDATE groups SET currency='XAF' WHERE id='${group}'`),/CURRENCY_HISTORY_IMMUTABLE/);
-  assert.throws(()=>sql(`UPDATE contribution_types SET currency='XAF' WHERE id='${type}'`),/CURRENCY_MISMATCH/);
+  assert.throws(()=>sql(`UPDATE groups SET currency='XAF' WHERE id='${group}'`),/CURRENCY_TRANSITION_COMMAND_REQUIRED/);
+  assert.throws(()=>sql(`UPDATE contribution_types SET currency='XAF' WHERE id='${type}'`),/ASSESSMENT_ATTRIBUTION_IMMUTABLE/);
 });
 test("assessment waiver/unwaiver recomputes applications and standing",()=>{
   sql(`UPDATE contribution_obligations SET status='waived' WHERE id='${oid2}'`);
@@ -379,6 +451,7 @@ test("exited member and exited officer cannot access or issue commands",()=>{
 test("private command records and helpers are not executable/readable by API roles",()=>{
   assert.throws(()=>sql("SELECT * FROM financial_private.payment_commands",member),/permission denied/);
   assert.throws(()=>sql(`SELECT financial_private.reconcile_member('${group}','${mid}')`,member),/permission denied/);
+  assert.throws(()=>sql(`SELECT financial_private.transition_ledger_epoch('${group}','EUR',now(),'forged','${member}')`,member),/permission denied/);
 });
 
 test("removing an assessment without payment history also reconciles standing",()=>{
@@ -401,4 +474,44 @@ test("finance-position officer can settle their own debt without weakening self-
     assert.throws(()=>sql(`UPDATE memberships SET ${edit} WHERE id='${peerMid}'`,peer),/requires_admin/);
   }
   assert.throws(()=>sql(`SET villageclaq.payment_command='${id(230)}'; UPDATE memberships SET standing='banned' WHERE id='${peerMid}'`,peer),/standing_change_requires_admin/);
+});
+
+test("dated currency transition preserves XAF history and isolates later USD payments and credit",()=>{
+  const historical=command(240,"record",{
+    membership_id:otherMid,contribution_type_id:otherType,amount:40,currency:"XAF",payment_method:"cash"
+  },null,null,null,outsider,group2);
+  const oldEpoch=historical.payment.ledger_epoch_id;
+  assert.throws(()=>sql(`SELECT financial_private.transition_ledger_epoch(
+    '${group2}','USD',clock_timestamp()+interval '1 day','Premature transition','${outsider}')`),/INVALID_LEDGER_TRANSITION/);
+  const transitionAt=sql("SELECT clock_timestamp()");
+  const newEpoch=sql(`SELECT financial_private.transition_ledger_epoch(
+    '${group2}','USD','${transitionAt}','Approved synthetic ledger transition','${outsider}')`);
+  assert.notEqual(newEpoch,oldEpoch);
+  assert.equal(sql(`SELECT currency||':'||(effective_to IS NOT NULL)::text
+    FROM financial_ledger_epochs WHERE id='${oldEpoch}'`),"XAF:true");
+  assert.equal(sql(`SELECT currency FROM financial_ledger_epochs WHERE id='${newEpoch}' AND effective_to IS NULL`),"USD");
+  assert.equal(sql(`SELECT currency FROM payments WHERE id='${historical.payment.id}'`),"XAF");
+
+  const usdType=id(701);
+  sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency)
+    VALUES('${usdType}','${group2}','Post-transition dues',40,'USD')`,outsider);
+  const current=command(241,"record",{
+    membership_id:otherMid,contribution_type_id:usdType,amount:40,currency:"USD",payment_method:"cash"
+  },null,null,null,outsider,group2);
+  const credit=command(242,"record",{
+    membership_id:otherMid,contribution_type_id:null,amount:10,currency:"USD",payment_method:"cash"
+  },null,null,null,outsider,group2);
+  assert.equal(current.payment.ledger_epoch_id,newEpoch);
+  assert.equal(credit.payment.ledger_epoch_id,newEpoch);
+  assert.deepEqual(credit.appliedTo,[]);
+  assert.equal(sql(`SELECT amount_paid FROM contribution_obligations WHERE id='${id(34)}'`),"40.00");
+  assert.equal(sql(`SELECT count(*) FROM payment_obligation_applications a
+    JOIN contribution_obligations o ON o.id=a.obligation_id
+    WHERE a.payment_id IN ('${current.payment.id}','${credit.payment.id}') AND o.ledger_epoch_id='${oldEpoch}'`),"0");
+  assert.equal(sql(`SELECT count(*) FROM financial_private.current_ledger_epoch_conflicts WHERE group_id='${group2}'`),"0");
+  assert.throws(()=>command(243,"record",{
+    membership_id:otherMid,contribution_type_id:null,amount:1,currency:"XAF",payment_method:"cash"
+  },null,null,null,outsider,group2),/CURRENCY_MISMATCH/);
+  assert.throws(()=>sql(`UPDATE financial_ledger_epochs SET effective_to=effective_to+interval '1 day'
+    WHERE id='${oldEpoch}'`),/LEDGER_EPOCH_IMMUTABLE/);
 });

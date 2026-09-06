@@ -10,7 +10,8 @@ GRANT USAGE ON SCHEMA auth TO authenticated,anon;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE membership_standing AS ENUM ('good','warning','suspended','banned');
 CREATE TABLE profiles(id uuid PRIMARY KEY);
-CREATE TABLE groups(id uuid PRIMARY KEY, currency text NOT NULL, settings jsonb NOT NULL DEFAULT '{}');
+CREATE TABLE groups(id uuid PRIMARY KEY, currency text NOT NULL, settings jsonb NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE memberships(id uuid PRIMARY KEY,group_id uuid NOT NULL REFERENCES groups(id),user_id uuid REFERENCES profiles(id),
   role text NOT NULL DEFAULT 'member',membership_status text NOT NULL DEFAULT 'active',is_proxy boolean NOT NULL DEFAULT false,
   standing membership_standing NOT NULL DEFAULT 'good',updated_at timestamptz DEFAULT now());

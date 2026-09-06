@@ -146,3 +146,27 @@ test("unknown legacy URLs never reach the signing endpoint",async()=>{
   const client={storage:{from:()=>{throw new Error("Unexpected signing attempt");}}};
   assert.equal(await signedUrlFor(client,"receipts","https://fixture.invalid/unknown"),null);
 });
+
+test("ledger epoch migrations remain staged, fail closed and epoch-scope allocation",()=>{
+  const expand=read("supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql");
+  const enforce=read("supabase/migrations/20260906140229_financial_payment_integrity.sql");
+  for(const token of [
+    "CREATE TABLE public.financial_ledger_epochs",
+    "EXCLUDE USING gist",
+    "current_ledger_epoch_conflicts",
+    "UNSCOPED_MIXED_CURRENCY_HISTORY",
+    "PAYMENT_TYPE_SCOPE_MISMATCH",
+    "PAYMENT_OBLIGATION_SCOPE_MISMATCH",
+    "assign_epoch_if_unambiguous",
+  ]) assert.ok(expand.includes(token),`expand migration must retain ${token}`);
+  assert.ok(enforce.indexOf("FINANCIAL_LEGACY_RESOLUTION_REQUIRED")
+    < enforce.indexOf("ALTER COLUMN ledger_epoch_id SET NOT NULL"));
+  for(const token of [
+    "transition_ledger_epoch",
+    "p.ledger_epoch_id=epoch_row.ledger_epoch_id",
+    "p.ledger_epoch_id=epoch",
+    "CURRENCY_TRANSITION_COMMAND_REQUIRED",
+  ]) assert.ok(enforce.includes(token),`enforce migration must retain ${token}`);
+  assert.match(expand,/CREATE\/TEST ONLY|must not run/i);
+  assert.match(enforce,/apply separately/i);
+});

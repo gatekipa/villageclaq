@@ -63,7 +63,11 @@ export function formatDateWithGroupFormat(
   groupDateFormat = "DD/MM/YYYY",
   locale = "en",
 ): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+  // Database DATE values are calendar dates, not UTC instants. Keep timestamps
+  // timezone-aware, but never shift a date-only assessment to the previous day.
+  const d = typeof date === "string"
+    ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T00:00:00` : date)
+    : date;
   if (isNaN(d.getTime())) return String(date);
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");

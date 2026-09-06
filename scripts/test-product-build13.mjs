@@ -122,11 +122,11 @@ test("record page still prefills the contribution type's nominal amount (no poll
 
 // ── Finances sync: dropped the unused polluted amount_paid read ─────────────
 
-test("finances sync no longer reads amount_paid (newStatus derives from confirmed totalPaid)", () => {
+test("finances refresh only invalidates derived reports, never rewrites financial records", () => {
   const f = read(FINANCES);
   assert.ok(!/\.select\("id, amount, amount_paid"\)/.test(f), "the obligation select dropped amount_paid");
-  assert.ok(/\.select\("id, amount"\)/.test(f), "selects only id, amount");
-  assert.ok(/update\(\{ amount_paid: totalPaid, status: newStatus \}\)/.test(f), "the confirmed-only writeback is unchanged");
+  assert.ok(/await invalidateFinancialQueries\(queryClient, groupId\)/.test(f), "refresh awaits derived-report invalidation");
+  assert.ok(!/\.update\(|\.insert\(|\.delete\(/.test(f), "financial overview has no database mutation");
 });
 
 // ── P0 bulk-receipt guard intact ─────────────────────────────────────────────

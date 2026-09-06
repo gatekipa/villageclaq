@@ -22,7 +22,8 @@
  *   - Pending    = payments with status='pending_confirmation' (shown SEPARATELY).
  *   - Expected   = Σ obligation.amount, EXCLUDING waived.
  *   - Waived     = not owed, not collected.
- *   - Outstanding= max(0, expected − collected).
+ *   - Outstanding= sum of confirmed remaining balances, per member/type.
+ *     Unallocated credit never cancels another member/type's debt.
  *   - Overdue    = past due, not paid/waived, with confirmed remaining > 0.
  *   - Per-obligation "paid" is derived from that obligation's CONFIRMED
  *     payments — NOT from the amount_paid column — so figures are correct both
@@ -40,13 +41,30 @@ export function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Match the NUMERIC(12,2) ledger, avoiding fractional-cent balance residue. */
+export function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/** Inclusive ledger-date filtering. Never filter obligations by payment dates. */
+export function matchesLedgerFilters(
+  row: { recordedAt: string; paymentMethod: string; contributionTypeId: string },
+  filters: { from?: string; to?: string; method?: string; contributionTypeId?: string },
+) {
+  const date = row.recordedAt.slice(0, 10);
+  if (filters.from && filters.to && filters.from > filters.to) return false;
+  return (!filters.from || date >= filters.from) && (!filters.to || (!!date && date <= filters.to))
+    && (!filters.method || row.paymentMethod === filters.method)
+    && (!filters.contributionTypeId || row.contributionTypeId === filters.contributionTypeId);
+}
+
 /**
  * A payment counts as collected money only when CONFIRMED. The column default
  * is 'confirmed', so a null/empty status is treated as confirmed; everything
- * that is explicitly 'pending_confirmation' or 'rejected' is excluded.
+ * else, including unknown or future statuses, is excluded until defined.
  */
 export function isConfirmedPayment(status: PaymentStatusish): boolean {
-  return status !== "pending_confirmation" && status !== "rejected";
+  return status == null || status === "" || status === "confirmed";
 }
 
 /** Member-submitted money awaiting an admin confirm/reject decision. */
@@ -61,6 +79,8 @@ export function isRejectedPayment(status: PaymentStatusish): boolean {
 // ── Minimal row shapes (subset of the DB columns the reports actually read) ──
 
 export interface MoneyPayment {
+  group_id?: string | null;
+  currency?: string | null;
   id?: string | null;
   amount: number | string | null;
   status?: PaymentStatusish;
@@ -72,6 +92,8 @@ export interface MoneyPayment {
 }
 
 export interface MoneyObligation {
+  group_id?: string | null;
+  currency?: string | null;
   id: string;
   amount: number | string | null;
   amount_paid?: number | string | null; // present but NEVER trusted for "paid"
@@ -93,7 +115,8 @@ export function dateKey(d: string | Date): string {
 }
 
 export function todayKey(now: Date = new Date()): string {
-  return dateKey(now);
+  // Financial due-date cutoff matches the database's UTC calendar day.
+  return now.toISOString().slice(0, 10);
 }
 
 /**
@@ -160,7 +183,7 @@ export function allocateConfirmedToObligations(
     const sorted = [...obls].sort((a, b) => {
       const da = a.due_date ? dateKey(a.due_date) : "9999-12-31";
       const db = b.due_date ? dateKey(b.due_date) : "9999-12-31";
-      return da < db ? -1 : da > db ? 1 : 0;
+      return da < db ? -1 : da > db ? 1 : a.id.localeCompare(b.id);
     });
     for (const o of sorted) {
       if (o.status === "waived") continue;
@@ -196,7 +219,12 @@ export function confirmedPaidByMember(payments: MoneyPayment[]): Map<string, num
  * an obligation_id (the common case) are still counted. Relief payments and
  * payments with no contribution_type_id are skipped.
  */
-export function confirmedPaidByType(payments: MoneyPayment[]): Map<string, number> {
+export function confirmedPaidByType(payments: MoneyPayment[], obligations?: MoneyObligation[]): Map<string, number> {
+  if (obligations) {
+    const types = new Set([...obligations.map((o) => o.contribution_type_id), ...payments.map((p) => p.contribution_type_id)].filter(Boolean));
+    return new Map([...types].map((type) => [type!, roundMoney(paymentsForContribution(obligations, payments, type!)
+      .filter((p) => isConfirmedPayment(p.status)).reduce((sum, p) => sum + num(p.amount), 0))]));
+  }
   const map = new Map<string, number>();
   for (const p of payments) {
     if (!isDuesPayment(p)) continue;
@@ -228,8 +256,8 @@ export function computeObligation(
 ): ObligationComputed {
   const isWaived = o.status === "waived";
   const expected = num(o.amount);
-  const confirmedPaid = confirmedByObl.get(o.id) || 0;
-  const remaining = Math.max(0, expected - confirmedPaid);
+  const confirmedPaid = roundMoney(confirmedByObl.get(o.id) || 0);
+  const remaining = isWaived ? 0 : Math.max(0, roundMoney(expected - confirmedPaid));
   const isPaid = !isWaived && expected > 0 && confirmedPaid >= expected;
   const isOpen = !isWaived && !isPaid && remaining > 0;
   const dueK = o.due_date ? dateKey(o.due_date) : null;
@@ -251,8 +279,9 @@ export function computeObligation(
  * exactly, so a per-type slice of this map reconciles with that report's rows.
  *
  * Pass a CONSISTENT scope: whole-group (all dues obligations + all dues payments)
- * OR a single type's obligations + payments — either is correct because the
- * partition is internal. Pending/rejected payments never count; waived
+ * OR a single type's obligations + typed payments. General untyped payments
+ * require the whole member's scope before taking a type slice, or they can be
+ * assigned twice by independent reports. Pending/rejected never count; waived
  * obligations are still computed (computeObligation marks isWaived) so callers
  * can read state.isWaived rather than the (also-trigger-driven) status column.
  * A confirmed payment with NO contribution_type_id (a general dues payment — the
@@ -267,67 +296,9 @@ export function computeObligationStates(
 ): Map<string, ObligationComputed> {
   const today = opts.today || todayKey();
 
-  // Partition obligations by contribution type.
-  const oblByType = new Map<string, MoneyObligation[]>();
-  for (const o of obligations) {
-    const k = o.contribution_type_id || "__none__";
-    if (!oblByType.has(k)) oblByType.set(k, []);
-    oblByType.get(k)!.push(o);
-  }
-
-  // Partition CONFIRMED dues payments: TYPED payments cover only their type's
-  // obligations; TYPELESS payments (no contribution_type_id) go into a per-member
-  // pool that can cover ANY of the member's obligations (Phase 2 below).
-  const payByType = new Map<string, MoneyPayment[]>();
-  const typelessByMember = new Map<string, number>();
-  for (const p of payments) {
-    if (!isDuesPayment(p)) continue; // relief never covers dues
-    if (p.contribution_type_id) {
-      const k = p.contribution_type_id;
-      if (!payByType.has(k)) payByType.set(k, []);
-      payByType.get(k)!.push(p);
-    } else if (isConfirmedPayment(p.status) && p.membership_id) {
-      typelessByMember.set(p.membership_id, (typelessByMember.get(p.membership_id) || 0) + num(p.amount));
-    }
-  }
-
-  // Phase 1: allocate each type's confirmed payments to that type's obligations.
   const allocated = new Map<string, number>();
-  for (const [typeKey, obls] of oblByType) {
-    const typePayments = payByType.get(typeKey) || [];
-    const a = allocateConfirmedToObligations(obls, confirmedPaidByMember(typePayments));
-    for (const [oid, v] of a) allocated.set(oid, v);
-  }
-
-  // Phase 2: spread each member's TYPELESS confirmed pool across their remaining
-  // open obligations (any type, oldest-due first, capped at each obligation's
-  // gap), so a general payment reduces what the member owes instead of stranding.
-  if (typelessByMember.size > 0) {
-    const oblByMember = new Map<string, MoneyObligation[]>();
-    for (const o of obligations) {
-      const mid = o.membership_id || o.id;
-      if (!oblByMember.has(mid)) oblByMember.set(mid, []);
-      oblByMember.get(mid)!.push(o);
-    }
-    for (const [mid, poolTotal] of typelessByMember) {
-      let pool = poolTotal;
-      if (pool <= 0) continue;
-      const sorted = (oblByMember.get(mid) || [])
-        .filter((o) => o.status !== "waived")
-        .sort((a, b) => {
-          const da = a.due_date ? dateKey(a.due_date) : "9999-12-31";
-          const db = b.due_date ? dateKey(b.due_date) : "9999-12-31";
-          return da < db ? -1 : da > db ? 1 : 0;
-        });
-      for (const o of sorted) {
-        const already = allocated.get(o.id) || 0;
-        const gap = Math.max(0, num(o.amount) - already);
-        const give = Math.max(0, Math.min(pool, gap));
-        if (give > 0) allocated.set(o.id, already + give);
-        pool -= give;
-        if (pool <= 0) break;
-      }
-    }
+  for (const a of allocatePaymentApplications(obligations, payments)) {
+    allocated.set(a.obligationId, roundMoney((allocated.get(a.obligationId) || 0) + a.amount));
   }
 
   const out = new Map<string, ObligationComputed>();
@@ -335,13 +306,97 @@ export function computeObligationStates(
   return out;
 }
 
+export interface PaymentApplication {
+  paymentIndex: number;
+  obligationId: string;
+  amount: number;
+}
+
+/** A group ledger has one currency. Legacy mixed inputs fail closed, never sum. */
+export function assertFinancialScope(
+  obligations: MoneyObligation[], payments: MoneyPayment[], expectedCurrency?: string,
+): void {
+  const rows = [...obligations, ...payments.filter(isDuesPayment)];
+  const currencies = new Set(rows.map((r) => r.currency).filter(Boolean));
+  const groups = new Set(rows.map((r) => r.group_id).filter(Boolean));
+  if (expectedCurrency) currencies.add(expectedCurrency);
+  if (currencies.size > 1 || groups.size > 1) throw new Error("FINANCIAL_SCOPE_REQUIRES_REVIEW");
+}
+
+/** Payment-to-assessment evidence; SQL reconcile_member implements this same order. */
+export function allocatePaymentApplications(
+  obligations: MoneyObligation[], payments: MoneyPayment[],
+): PaymentApplication[] {
+  assertFinancialScope(obligations, payments);
+  const byId = new Map(obligations.map((o) => [o.id, o]));
+  const sortedObligations = [...obligations].sort((a, b) =>
+    (a.due_date || "9999").localeCompare(b.due_date || "9999") || a.id.localeCompare(b.id));
+  const byMember = new Map<string, MoneyObligation[]>();
+  for (const o of sortedObligations) {
+    const key = o.membership_id || o.id;
+    if (!byMember.has(key)) byMember.set(key, []);
+    byMember.get(key)!.push(o);
+  }
+  const normalized = payments.map((p, index) => {
+    const linked = p.obligation_id ? byId.get(p.obligation_id) : undefined;
+    const invalid = !!linked && (
+      (p.membership_id && linked.membership_id && p.membership_id !== linked.membership_id) ||
+      (p.contribution_type_id && linked.contribution_type_id && p.contribution_type_id !== linked.contribution_type_id));
+    return { p, index, invalid, member: p.membership_id || linked?.membership_id || linked?.id,
+      type: p.contribution_type_id || linked?.contribution_type_id };
+  }).filter(({ p, invalid }) => !invalid && isDuesPayment(p) && isConfirmedPayment(p.status))
+    .sort((a, b) => Number(!a.type) - Number(!b.type) ||
+      (a.p.recorded_at || "").localeCompare(b.p.recorded_at || "") ||
+      (a.p.id || String(a.index)).localeCompare(b.p.id || String(b.index)));
+  const applications: PaymentApplication[] = [];
+  const paid = new Map<string, number>();
+  for (const { p, index, member, type } of normalized) {
+    let remaining = roundMoney(num(p.amount));
+    for (const o of byMember.get(member || "") || []) {
+      if (o.status === "waived" || (type && o.contribution_type_id !== type)) continue;
+      const applied = roundMoney(Math.max(0, Math.min(remaining, num(o.amount) - (paid.get(o.id) || 0))));
+      if (applied > 0) {
+        applications.push({ paymentIndex: index, obligationId: o.id, amount: applied });
+        paid.set(o.id, roundMoney((paid.get(o.id) || 0) + applied));
+        remaining = roundMoney(remaining - applied);
+      }
+      if (remaining <= 0) break;
+    }
+  }
+  return applications;
+}
+
+/** Slice AFTER whole-member allocation. General credit stays at group/member level. */
+export function paymentsForContribution(
+  obligations: MoneyObligation[], payments: MoneyPayment[], typeId: string,
+): MoneyPayment[] {
+  const byId = new Map(obligations.map((o) => [o.id, o]));
+  const applications = allocatePaymentApplications(obligations, payments);
+  const generalAmounts = new Map<number, number>();
+  for (const a of applications) {
+    if (byId.get(a.obligationId)?.contribution_type_id !== typeId) continue;
+    generalAmounts.set(a.paymentIndex, roundMoney((generalAmounts.get(a.paymentIndex) || 0) + a.amount));
+  }
+  return payments.flatMap<MoneyPayment>((p, index) => {
+    if (!isDuesPayment(p)) return [];
+    const linked = p.obligation_id ? byId.get(p.obligation_id) : undefined;
+    const type = p.contribution_type_id || linked?.contribution_type_id;
+    if (type) return type === typeId ? [{ ...p, contribution_type_id: typeId,
+      membership_id: p.membership_id || linked?.membership_id }] : [];
+    const amount = generalAmounts.get(index) || 0;
+    return amount > 0 ? [{ ...p, amount, contribution_type_id: typeId }] : [];
+  });
+}
+
 export interface MoneyFigures {
   /** Σ obligation.amount, excluding waived. */
   expected: number;
   /** Σ confirmed dues payments (relief excluded). */
   collected: number;
-  /** max(0, expected − collected). */
+  /** Sum of open balances; another member/type's credit cannot offset debt. */
   outstanding: number;
+  /** Confirmed money not allocated to non-waived obligations. */
+  unallocatedCredit: number;
   /** Σ amounts of obligations explicitly waived. */
   waivedTotal: number;
   pending: { count: number; amount: number };
@@ -353,7 +408,7 @@ export interface MoneyFigures {
 /**
  * Canonical group figure set from a group's obligations + dues payments.
  * `collected` sums ALL confirmed dues payments (obligation-linked or not);
- * per-object/per-member views use confirmedPaidByObligation for their drill-down.
+ * balances use the same per-member/type allocation as the drill-downs.
  */
 export function computeMoneyFigures(
   obligations: MoneyObligation[],
@@ -361,11 +416,12 @@ export function computeMoneyFigures(
   opts: { today?: string } = {},
 ): MoneyFigures {
   const today = opts.today || todayKey();
-  const confirmedByObl = confirmedPaidByObligation(payments);
+  const states = computeObligationStates(obligations, payments, { today });
 
   let expected = 0;
   let waivedTotal = 0;
   let overdueAmount = 0;
+  let outstanding = 0;
   const overdueMembers = new Set<string>();
   const owingMembers = new Set<string>();
 
@@ -374,8 +430,9 @@ export function computeMoneyFigures(
       waivedTotal += num(o.amount);
       continue;
     }
-    const c = computeObligation(o, confirmedByObl, today);
+    const c = states.get(o.id)!;
     expected += c.expected;
+    outstanding += c.remaining;
     const memberKey = o.membership_id || o.id;
     if (c.isOpen) owingMembers.add(memberKey);
     if (c.isOverdue) {
@@ -394,17 +451,18 @@ export function computeMoneyFigures(
       pendingAmount += num(p.amount);
       continue;
     }
-    if (isRejectedPayment(p.status)) continue;
+    if (!isConfirmedPayment(p.status)) continue;
     collected += num(p.amount);
   }
 
   return {
-    expected,
-    collected,
-    outstanding: Math.max(0, expected - collected),
-    waivedTotal,
-    pending: { count: pendingCount, amount: pendingAmount },
-    overdue: { amount: overdueAmount, memberCount: overdueMembers.size },
+    expected: roundMoney(expected),
+    collected: roundMoney(collected),
+    outstanding: roundMoney(outstanding),
+    unallocatedCredit: Math.max(0, roundMoney(collected - (expected - outstanding))),
+    waivedTotal: roundMoney(waivedTotal),
+    pending: { count: pendingCount, amount: roundMoney(pendingAmount) },
+    overdue: { amount: roundMoney(overdueAmount), memberCount: overdueMembers.size },
     membersOwing: owingMembers.size,
   };
 }
@@ -464,10 +522,16 @@ export interface ObjectReportTotals {
 export function buildObjectReport(
   obligations: MoneyObligation[],
   payments: MoneyPayment[],
-  opts: { today?: string } = {},
+  opts: { today?: string; contributionTypeId?: string } = {},
 ): { rows: MemberParticipation[]; totals: ObjectReportTotals } {
   const today = opts.today || todayKey();
 
+  const states = computeObligationStates(obligations, payments, { today });
+  if (opts.contributionTypeId) {
+    payments = paymentsForContribution(obligations, payments, opts.contributionTypeId);
+    obligations = obligations.filter((o) => o.contribution_type_id === opts.contributionTypeId);
+  }
+  const obligationsById = new Map(obligations.map((o) => [o.id, o]));
   // Obligations grouped by member.
   const oblByMember = new Map<string, MoneyObligation[]>();
   for (const o of obligations) {
@@ -481,7 +545,9 @@ export function buildObjectReport(
   const pendingByMember = new Map<string, number>();
   const lastConfirmedByMember = new Map<string, string | null>();
   for (const p of payments) {
-    const mid = p.membership_id;
+    if (!isDuesPayment(p)) continue;
+    const linked = p.obligation_id ? obligationsById.get(p.obligation_id) : undefined;
+    const mid = p.membership_id || linked?.membership_id || linked?.id;
     if (!mid) continue;
     if (isPendingPayment(p.status)) {
       pendingByMember.set(mid, (pendingByMember.get(mid) || 0) + num(p.amount));
@@ -521,28 +587,21 @@ export function buildObjectReport(
     const nonWaived = obls.filter((o) => o.status !== "waived");
     const allWaived = obls.length > 0 && nonWaived.length === 0;
 
-    const expected = nonWaived.reduce((s, o) => s + num(o.amount), 0);
-    const confirmedPaid = confirmedByMember.get(mid) || 0;
-    const pendingAmount = pendingByMember.get(mid) || 0;
-    const remaining = Math.max(0, expected - confirmedPaid);
+    const expected = roundMoney(nonWaived.reduce((s, o) => s + num(o.amount), 0));
+    const confirmedPaid = roundMoney(confirmedByMember.get(mid) || 0);
+    const pendingAmount = roundMoney(pendingByMember.get(mid) || 0);
+    const remaining = roundMoney(nonWaived.reduce((sum, o) => sum + (states.get(o.id)?.remaining || 0), 0));
     const lastConfirmedPaymentAt = lastConfirmedByMember.get(mid) || null;
 
-    // Overdue: still owes (confirmed remaining > 0) AND has a past-due,
-    // non-waived obligation.
-    let isOverdue = false;
-    if (remaining > 0) {
-      for (const o of nonWaived) {
-        const dk = o.due_date ? dateKey(o.due_date) : null;
-        if (dk && dk < today) {
-          isOverdue = true;
-          break;
-        }
-      }
-    }
+    const overdueAmount = nonWaived.reduce((sum, o) => {
+      const state = states.get(o.id);
+      return sum + (state?.isOverdue ? state.remaining : 0);
+    }, 0);
+    const isOverdue = overdueAmount > 0;
 
     let status: ParticipationStatus;
     if (allWaived) status = "waived";
-    else if (expected > 0 && confirmedPaid >= expected) status = "contributed";
+    else if (expected > 0 && remaining === 0) status = "contributed";
     else if (confirmedPaid > 0) status = "partial";
     else if (pendingAmount > 0) status = "pending";
     else status = "not_contributed";
@@ -572,7 +631,7 @@ export function buildObjectReport(
     }
     totals.totalExpected += expected;
     totals.totalOutstanding += remaining;
-    if (isOverdue) totals.totalOverdue += remaining;
+    totals.totalOverdue += overdueAmount;
 
     if (status === "contributed") totals.contributedMembers += 1;
     else if (status === "partial") totals.partialMembers += 1;
@@ -580,6 +639,7 @@ export function buildObjectReport(
     else totals.notContributedMembers += 1;
   }
 
+  for (const key of Object.keys(totals) as (keyof ObjectReportTotals)[]) totals[key] = roundMoney(totals[key]);
   return { rows, totals };
 }
 

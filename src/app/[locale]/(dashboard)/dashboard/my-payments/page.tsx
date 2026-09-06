@@ -21,8 +21,7 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { useObligations, usePayments } from "@/lib/hooks/use-supabase-query";
 import {
-  allocateConfirmedToObligations,
-  confirmedPaidByMember,
+  computeObligationStates,
   computeObligation,
   isPendingPayment,
   isConfirmedPayment,
@@ -128,14 +127,14 @@ export default function MyPaymentsPage() {
     isLoading: oblLoading,
     error: oblError,
     refetch: refetchObl,
-  } = useObligations({ membershipId: currentMembership?.id });
+  } = useObligations({ membershipId: currentMembership?.id ?? null });
 
   const {
     data: allPayments,
     isLoading: paymentsLoading,
     error: paymentsError,
     refetch: refetchPayments,
-  } = usePayments();
+  } = usePayments("all", currentMembership?.id ?? null);
 
   // Filter payments for current membership
   const myPayments = useMemo(() => {
@@ -148,42 +147,14 @@ export default function MyPaymentsPage() {
     );
   }, [allPayments, currentMembership]);
 
-  // The member's COMPLETE dues-payment ledger (membership-scoped, uncapped).
-  // usePayments() above is a capped group feed (latest 50) used only for the
-  // recent-history display; the balance math must see ALL of this member's
-  // confirmed payments or it would over-state what they still owe.
-  const { data: myPaymentsFull } = useQuery({
-    queryKey: ["my-payments-full", currentMembership?.id],
-    enabled: !!currentMembership?.id,
-    queryFn: async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("payments")
-        .select("id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
-        .eq("membership_id", currentMembership!.id)
-        .is("relief_plan_id", null)
-        .order("recorded_at", { ascending: false });
-      if (error) {
-        console.warn("[MyPayments] full ledger query failed:", error.message);
-        return [];
-      }
-      return data || [];
-    },
-  });
-
-  // Confirmed-paid map keyed by obligation_id. Most dues payments carry no
-  // obligation_id, so we take the member's confirmed TOTAL (from the COMPLETE
-  // ledger above) and allocate it across their obligations oldest-first — never
-  // the polluted amount_paid column, and never obligation-keyed sums that would
-  // miss obligation-less payments and show a paid-up member as owing everything.
-  const confirmedByObl = useMemo(
-    () =>
-      allocateConfirmedToObligations(
-        (obligations || []) as unknown as MoneyObligation[],
-        confirmedPaidByMember((myPaymentsFull || []) as unknown as MoneyPayment[]),
-      ),
-    [obligations, myPaymentsFull]
-  );
+  const myPaymentsFull = allPayments;
+  // Member and officer views use identical per-contribution FIFO allocation.
+  const confirmedByObl = useMemo(() => new Map(
+    [...computeObligationStates(
+      (obligations || []) as unknown as MoneyObligation[],
+      (myPaymentsFull || []) as unknown as MoneyPayment[],
+    )].map(([id, state]) => [id, state.confirmedPaid]),
+  ), [obligations, myPaymentsFull]);
 
   const today = todayKey();
 

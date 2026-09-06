@@ -151,7 +151,7 @@ export default function MyDashboardPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("payments")
-        .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+        .select("group_id, currency, id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
         .eq("membership_id", currentMembership.id)
         .is("relief_plan_id", null);
       if (error) return [];

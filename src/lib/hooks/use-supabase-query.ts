@@ -3,14 +3,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
-import { computeMoneyFigures } from "@/lib/money";
+import { computeMoneyFigures, assertFinancialScope } from "@/lib/money";
+import { readAllPages } from "@/lib/read-all-pages";
+import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
+import { applyPaymentCommand, paymentRequestId, acknowledgePaymentRequest } from "@/lib/payment-command";
 
 const supabase = createClient();
 
 // ─── Dashboard Stats ───────────────────────────────────────────────────────
 
 export function useDashboardStats() {
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
   return useQuery({
     queryKey: ["dashboard-stats", groupId],
     // WS4 (Build 9): cut refetch churn on tab switch / remount for low-bandwidth
@@ -23,14 +26,16 @@ export function useDashboardStats() {
       const [membersRes, eventsRes, obligationsRes, paymentsRes] = await Promise.all([
         supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId),
         supabase.from("events").select("id", { count: "exact", head: true }).eq("group_id", groupId).gte("starts_at", new Date().toISOString()),
-        supabase.from("contribution_obligations").select("id, amount, amount_paid, status, due_date, membership_id").eq("group_id", groupId),
+        readAllPages((from, to) => supabase.from("contribution_obligations").select("group_id, currency, id, amount, status, due_date, membership_id, contribution_type_id").eq("group_id", groupId).order("id").range(from, to)),
         // Pull status + obligation link so collected is CONFIRMED-only (never
         // pending/rejected) and outstanding excludes waived — via money.ts, the
         // single accounting basis shared with the reports and overview.
-        supabase.from("payments").select("amount, status, obligation_id, relief_plan_id").eq("group_id", groupId).is("relief_plan_id", null),
+        readAllPages((from, to) => supabase.from("payments").select("group_id, currency, id, amount, status, obligation_id, relief_plan_id, membership_id, contribution_type_id").eq("group_id", groupId).is("relief_plan_id", null).order("id").range(from, to)),
       ]);
 
-      const figures = computeMoneyFigures(obligationsRes.data || [], paymentsRes.data || []);
+      if (membersRes.error || eventsRes.error) throw new Error("Dashboard records could not be loaded.");
+      assertFinancialScope(obligationsRes, paymentsRes, currentGroup?.currency);
+      const figures = computeMoneyFigures(obligationsRes, paymentsRes);
 
       return {
         totalMembers: membersRes.count || 0,
@@ -176,7 +181,8 @@ export function useCreateContributionType() {
       } catch { /* best-effort */ }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await invalidateFinancialQueries(queryClient, groupId);
       queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
       queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
@@ -186,8 +192,8 @@ export function useCreateContributionType() {
 
 // ─── Obligations ───────────────────────────────────────────────────────────
 
-export function useObligations(filters?: { status?: string; membershipId?: string }) {
-  const { groupId } = useGroup();
+export function useObligations(filters?: { status?: string; membershipId?: string | null }) {
+  const { groupId, currentGroup } = useGroup();
   // IMPORTANT: Serialize filter values as primitives in queryKey.
   // Passing the raw `filters` object creates a new reference on every render
   // when callers pass inline objects like { membershipId: x }, causing
@@ -199,41 +205,48 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
     staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on payment/type changes
     queryFn: async () => {
       if (!groupId) return [];
+      const rows = await readAllPages((from, to) => {
       let q = supabase
         .from("contribution_obligations")
-        .select("*, contribution_type:contribution_types!inner(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
+        .select("*, contribution_type:contribution_types(id, name, name_fr), membership:memberships(id, user_id, display_name, is_proxy, standing, profiles!memberships_user_id_fkey(id, full_name, avatar_url))")
         .eq("group_id", groupId)
-        .order("due_date", { ascending: false });
+        .order("due_date", { ascending: false }).order("id");
       if (filters?.status) q = q.eq("status", filters.status);
       if (filters?.membershipId) q = q.eq("membership_id", filters.membershipId);
-      const { data, error } = await q;
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
-      return data || [];
+      return q.range(from, to);
+      });
+      assertFinancialScope(rows, [], currentGroup?.currency);
+      return rows;
     },
-    enabled: !!groupId,
+    enabled: !!groupId && filters?.membershipId !== null,
   });
 }
 
 // ─── Payments ──────────────────────────────────────────────────────────────
 
-export function usePayments(limit = 50) {
+export function usePayments(limit: number | "all" = 50, membershipId?: string | null) {
   const { groupId } = useGroup();
   return useQuery({
-    queryKey: ["payments", groupId, limit],
+    queryKey: ["payments", groupId, limit, membershipId],
     staleTime: 5 * 60 * 1000, // WS4: reuse cache on tab switch; invalidated on record/confirm
     queryFn: async () => {
       if (!groupId) return [];
-      const { data, error } = await supabase
+      const read = (from: number, to: number) => {
+      let query = supabase
         .from("payments")
-        .select("*, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
+        .select("*, membership:memberships(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)")
         .eq("group_id", groupId)
         .is("relief_plan_id", null) // Exclude relief payments from dues views
-        .order("recorded_at", { ascending: false })
-        .limit(limit);
-      if (error) { console.warn("[Query] failed:", error.message); return []; }
+        .order("recorded_at", { ascending: false }).order("id");
+      if (membershipId) query = query.eq("membership_id", membershipId);
+      return query.range(from, to);
+      };
+      if (limit === "all") return readAllPages(read);
+      const { data, error } = await read(0, limit - 1);
+      if (error) throw new Error("Financial records could not be loaded.");
       return data || [];
     },
-    enabled: !!groupId,
+    enabled: !!groupId && membershipId !== null,
   });
 }
 
@@ -249,20 +262,20 @@ export function usePayments(limit = 50) {
  * (prefix match) refreshes it on every recorded payment — no write-path change.
  */
 export function useGroupDuesPayments() {
-  const { groupId } = useGroup();
+  const { groupId, currentGroup } = useGroup();
   return useQuery({
     queryKey: ["payments", groupId, "all-dues"],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!groupId) return [];
-      const { data, error } = await supabase
+      const rows = await readAllPages((from, to) => supabase
         .from("payments")
-        .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+        .select("group_id, currency, id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
         .eq("group_id", groupId)
-        .is("relief_plan_id", null) // dues only — relief never covers dues obligations
-        .order("recorded_at", { ascending: false });
-      if (error) { console.warn("[GroupDuesPayments] query failed:", error.message); return []; }
-      return data || [];
+        .is("relief_plan_id", null)
+        .order("recorded_at", { ascending: false }).order("id").range(from, to));
+      assertFinancialScope([], rows, currentGroup?.currency);
+      return rows;
     },
     enabled: !!groupId,
   });
@@ -343,7 +356,7 @@ export function useRecordPayment() {
           values.membership_id,
           values.contribution_type_id,
           values.amount,
-          today,
+          values.payment_date || today,
         );
         if (dup) {
           // Throw a special error the UI can catch to show the duplicate dialog
@@ -353,213 +366,19 @@ export function useRecordPayment() {
         }
       }
 
-      // ─── Step 1: Insert payment record ─────────────────────────────────
-      // IMPORTANT: Do NOT pass obligation_id to avoid double-update from DB trigger
-      const insertPayload: Record<string, unknown> = {
-        membership_id: values.membership_id,
-        contribution_type_id: values.contribution_type_id || null,
-        amount: values.amount,
-        currency: values.currency,
-        payment_method: values.payment_method,
-        reference_number: values.reference_number || null,
-        receipt_url: values.receipt_url || null,
-        notes: values.notes || null,
-        group_id: groupId,
-        recorded_by: user.id,
-        ...(values.payment_date ? { payment_date: values.payment_date, recorded_at: `${values.payment_date}T${new Date().toISOString().split("T")[1]}` } : {}),
-        ...(values.relief_plan_id ? { relief_plan_id: values.relief_plan_id } : {}),
-      };
-
-      const { data, error } = await supabase.from("payments").insert(insertPayload).select().single();
-      if (error) throw error;
-
-      // ─── Step 2: Cascade payment across obligations ────────────────────
-      const appliedTo: PaymentCascadeResult["appliedTo"] = [];
-      let remaining = values.amount;
-
-      // Find the first obligation (FIFO by due_date) for this member + type
-      let oblId = values.obligation_id;
-      if (!oblId && values.contribution_type_id && values.membership_id) {
-        const { data: matchedObl } = await supabase
-          .from("contribution_obligations")
-          .select("id")
-          .eq("membership_id", values.membership_id)
-          .eq("contribution_type_id", values.contribution_type_id)
-          .eq("group_id", groupId)
-          .in("status", ["pending", "partial", "overdue"])
-          .order("due_date", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        if (matchedObl) oblId = matchedObl.id;
-      }
-
-      if (oblId) {
-        // Apply to the first obligation
-        const { data: obl } = await supabase
-          .from("contribution_obligations")
-          .select("amount, amount_paid, contribution_type:contribution_types(name)")
-          .eq("id", oblId)
-          .single();
-
-        if (obl) {
-          const amountDue = Number(obl.amount);
-          const currentPaid = Number(obl.amount_paid);
-          const gap = Math.max(0, amountDue - currentPaid);
-          const applied = Math.min(remaining, gap > 0 ? gap : remaining);
-
-          // If gap is 0 (already paid), the full payment is excess
-          if (gap > 0) {
-            const newPaid = currentPaid + applied;
-            const newStatus = newPaid >= amountDue ? "paid" : "partial";
-            // CAS: include current amount_paid in WHERE to detect concurrent updates
-            const { data: casData } = await supabase.from("contribution_obligations").update({ amount_paid: newPaid, status: newStatus }).eq("id", oblId).eq("amount_paid", currentPaid).select("id");
-            if (!casData || casData.length === 0) throw new Error("CONCURRENT_PAYMENT_CONFLICT");
-            const typeName = ((Array.isArray(obl.contribution_type) ? obl.contribution_type[0] : obl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
-            appliedTo.push({ obligationId: oblId, typeName, amountApplied: applied });
-            remaining -= applied;
-          }
-        }
-
-        // ─── Cascade: apply remainder to next unpaid obligations ─────────
-        // Loop while there's remaining money and more unpaid obligations exist
-        while (remaining > 0) {
-          // Find the NEXT unpaid obligation for this member in this group
-          // (any contribution type — cascades across all dues)
-          const alreadyAppliedIds = appliedTo.map((a) => a.obligationId);
-          let nextQuery = supabase
-            .from("contribution_obligations")
-            .select("id, amount, amount_paid, contribution_type:contribution_types(name)")
-            .eq("membership_id", values.membership_id)
-            .eq("group_id", groupId)
-            .in("status", ["pending", "partial", "overdue"])
-            .order("due_date", { ascending: true })
-            .order("created_at", { ascending: true })
-            .limit(1);
-
-          // Exclude already-applied obligations
-          if (alreadyAppliedIds.length > 0) {
-            // Use .not('id', 'in', ...) to skip obligations we already touched
-            nextQuery = nextQuery.not("id", "in", `(${alreadyAppliedIds.join(",")})`);
-          }
-
-          const { data: nextObl } = await nextQuery.maybeSingle();
-          if (!nextObl) break; // No more unpaid obligations — remainder becomes credit
-
-          const nextDue = Number(nextObl.amount);
-          const nextCurrentPaid = Number(nextObl.amount_paid);
-          const nextGap = Math.max(0, nextDue - nextCurrentPaid);
-          if (nextGap <= 0) break; // Shouldn't happen (status filter), but safety
-
-          const nextApplied = Math.min(remaining, nextGap);
-          const nextNewPaid = nextCurrentPaid + nextApplied;
-          const nextStatus = nextNewPaid >= nextDue ? "paid" : "partial";
-
-          // CAS: include current amount_paid in WHERE to detect concurrent updates
-          const { data: nextCasData } = await supabase.from("contribution_obligations").update({
-            amount_paid: nextNewPaid,
-            status: nextStatus,
-          }).eq("id", nextObl.id).eq("amount_paid", nextCurrentPaid).select("id");
-          if (!nextCasData || nextCasData.length === 0) throw new Error("CONCURRENT_PAYMENT_CONFLICT");
-
-          const nextTypeName = ((Array.isArray(nextObl.contribution_type) ? nextObl.contribution_type[0] : nextObl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
-          appliedTo.push({ obligationId: nextObl.id as string, typeName: nextTypeName, amountApplied: nextApplied });
-          remaining -= nextApplied;
-        }
-      } else if (values.contribution_type_id && values.membership_id) {
-        // No obligation exists — create one and mark it paid/partial
-        const { data: contribType } = await supabase
-          .from("contribution_types")
-          .select("amount, currency, name")
-          .eq("id", values.contribution_type_id)
-          .single();
-
-        const amountDue = Number(contribType?.amount) || values.amount;
-        const amountPaid = values.amount;
-        const currentYear = new Date().getFullYear();
-
-        await supabase.from("contribution_obligations").insert({
-          group_id: groupId,
-          membership_id: values.membership_id,
-          contribution_type_id: values.contribution_type_id,
-          amount: amountDue,
-          amount_paid: Math.min(amountPaid, amountDue),
-          currency: contribType?.currency || values.currency || "XAF",
-          status: amountPaid >= amountDue ? "paid" : "partial",
-          period_label: String(currentYear),
-          due_date: new Date(currentYear, 11, 31).toISOString(),
-        });
-
-        const appliedAmount = Math.min(amountPaid, amountDue);
-        appliedTo.push({
-          obligationId: "new",
-          typeName: (contribType?.name as string) || "",
-          amountApplied: appliedAmount,
-        });
-        remaining = Math.max(0, amountPaid - amountDue);
-
-        // If the new obligation was overpaid, cascade the remainder
-        if (remaining > 0) {
-          // Find next unpaid obligations for this member
-          const { data: nextObls } = await supabase
-            .from("contribution_obligations")
-            .select("id, amount, amount_paid, contribution_type:contribution_types(name)")
-            .eq("membership_id", values.membership_id)
-            .eq("group_id", groupId)
-            .in("status", ["pending", "partial", "overdue"])
-            .order("due_date", { ascending: true })
-            .order("created_at", { ascending: true })
-            .limit(10);
-
-          for (const nextObl of (nextObls || [])) {
-            if (remaining <= 0) break;
-            const nextDue = Number(nextObl.amount);
-            const nextPaid = Number(nextObl.amount_paid);
-            const nextGap = Math.max(0, nextDue - nextPaid);
-            if (nextGap <= 0) continue;
-
-            const nextApplied = Math.min(remaining, nextGap);
-            // CAS: include current amount_paid in WHERE to detect concurrent updates
-            const { data: casData3 } = await supabase.from("contribution_obligations").update({
-              amount_paid: nextPaid + nextApplied,
-              status: (nextPaid + nextApplied) >= nextDue ? "paid" : "partial",
-            }).eq("id", nextObl.id).eq("amount_paid", nextPaid).select("id");
-            if (!casData3 || casData3.length === 0) throw new Error("CONCURRENT_PAYMENT_CONFLICT");
-
-            const nextTypeName = ((Array.isArray(nextObl.contribution_type) ? nextObl.contribution_type[0] : nextObl.contribution_type) as Record<string, unknown> | null)?.name as string || "";
-            appliedTo.push({ obligationId: nextObl.id as string, typeName: nextTypeName, amountApplied: nextApplied });
-            remaining -= nextApplied;
-          }
-        }
-      }
-
-      // ─── Step 3: Standing DB writeback ─────────────────────────────────
-      // Recalculate standing for the affected member and persist to DB
-      try {
-        const { calculateStanding } = await import("@/lib/calculate-standing");
-        await calculateStanding(values.membership_id, groupId, {
-          updateDb: true,
-          currency: values.currency,
-        });
-      } catch {
-        // Non-critical — standing will recalculate on next view
-      }
-
-      // ─── Step 4: Audit log ──────────────────────────────────────────
-      try {
-        const { logActivity } = await import("@/lib/audit-log");
-        await logActivity(supabase, {
-          groupId,
-          action: "payment.recorded",
-          entityType: "payment",
-          entityId: data.id as string,
-          description: `Payment of ${values.amount} ${values.currency || "XAF"} recorded`,
-          metadata: { amount: values.amount, currency: values.currency, membership_id: values.membership_id },
-        });
-      } catch { /* best-effort */ }
-
-      return { payment: data as Record<string, unknown>, appliedTo, creditRemaining: remaining };
+      const payload = { ...values };
+      delete payload.skipDuplicateCheck;
+      // The command commits payment, applications, balances, standing and audit
+      // together. There is no direct-write fallback if the migration is absent.
+      const scope = `record:${groupId}:${user.id}:${values.membership_id}`;
+      const result = await applyPaymentCommand(supabase, {
+        groupId, requestId: paymentRequestId(scope), action: "record", values: payload,
+      });
+      return result;
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
+      await invalidateFinancialQueries(queryClient, groupId, variables.membership_id);
+      acknowledgePaymentRequest(`record:${groupId}:${user?.id}:${variables.membership_id}`);
       // Invalidate ALL financial queries so every page shows fresh data
       queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
       queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });

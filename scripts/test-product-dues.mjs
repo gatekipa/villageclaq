@@ -112,7 +112,9 @@ test("record page and pay-now dialog store the bare object path, never a signed 
     );
   }
   // Write side stores the upload path itself.
-  assert.ok(read(PAY_NOW).includes("receiptUrl = path"), "pay-now stores the object path");
+  assert.ok(read(PAY_NOW).includes("receiptUrl = await uploadPaymentEvidence"), "pay-now stores the immutable upload-helper path");
+  const evidence = read("src/lib/payment-evidence.ts");
+  assert.ok(evidence.includes("return path") && !evidence.includes("createSignedUrl"), "helper returns a bare object path");
   assert.ok(read(PAGES.record).includes("setReceiptUrl(path)"), "record page stores the object path");
   // The old "pending:<filename>" sentinel (which leaked into the DB and the
   // ✓-success button label) is gone.
@@ -178,9 +180,9 @@ test("pay-now dialog never puts raw error messages into UI state", () => {
   assert.ok(source.includes('setSubmitError(t("uploadFailed"))'), "upload failure uses payNow.uploadFailed");
   assert.ok(source.includes('setSubmitError(t("submitError"))'), "submit failure uses payNow.submitError");
   assert.ok(
-    source.includes('console.warn("[PayNow] receipt upload failed:"') &&
-      source.includes('console.warn("[PayNow] submit failed:"'),
-    "raw errors must still be logged for diagnostics",
+    source.includes('console.warn("[PayNow] receipt upload failed")') &&
+      source.includes('console.warn("[PayNow] submit failed")'),
+    "safe failure events remain observable without raw private errors",
   );
 });
 
@@ -235,11 +237,11 @@ test("matrix legend includes the waived swatch and the cell config renders waive
   assert.ok(/waived:\s*\{\s*icon:\s*Check/.test(source), "waived cells must render (legend has a real counterpart)");
 });
 
-test("types page uses cascade-warning delete copy and surfaces delete errors", () => {
+test("types preserve financial history with close/reopen, never cascade deletion", () => {
   const source = read(PAGES.types);
-  assert.ok(source.includes('t("contributions.deleteTypeConfirmCascade")'));
-  assert.ok(source.includes('setDeleteError(t("contributions.deleteTypeFailed"))'));
-  assert.ok(/\{deleteError\}/.test(source), "delete error must render in the dialog");
+  assert.doesNotMatch(source, /\.delete\(/);
+  assert.match(source, /update\(\{ is_active: false \}\)/);
+  assert.match(source, /update\(\{ is_active: true \}\)/);
 });
 
 test("types page empty-state CTA gates on contributions.manage and Enroll All reports a count", () => {

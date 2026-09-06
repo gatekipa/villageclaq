@@ -42,9 +42,11 @@ import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { MoneyOverview } from "@/components/finances/money-overview";
+import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
 import {
   confirmedPaidByType,
-  confirmedPaidByMember,
+  computeMoneyFigures,
+  computeObligationStates,
   isConfirmedPayment,
   num,
   type MoneyObligation,
@@ -142,7 +144,7 @@ export default function FinancesPage() {
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
-  const { data: allPayments, isLoading: payLoading, isError: payError } = usePayments(5000);
+  const { data: allPayments, isLoading: payLoading, isError: payError, refetch: payRefetch } = usePayments("all");
   const { data: contributionTypes } = useContributionTypes();
   const { data: fineStats } = useFineStats(groupId || null);
   const { data: loanStats } = useLoanStats(groupId || null);
@@ -155,28 +157,12 @@ export default function FinancesPage() {
     const obligations = allObligations || [];
     const payments = allPayments || [];
 
-    // Expected excludes waived obligations (forgiven money is not owed).
-    const totalDueExclWaived = obligations.reduce(
-      (sum, o) => (((o as Record<string, unknown>).status as string) === "waived" ? sum : sum + Number(o.amount)),
-      0,
-    );
-    // Collected = CONFIRMED dues payments only. payments.status defaults to
-    // 'confirmed'; treat null/empty as confirmed to match the column default,
-    // but exclude pending-confirmation and rejected so unconfirmed member
-    // submissions never inflate the collected figure (matches MoneyOverview).
-    const isConfirmed = (s: unknown) => {
-      const status = (s as string) || "confirmed";
-      return status !== "pending_confirmation" && status !== "rejected";
-    };
-    const totalCollected = payments.reduce(
-      (sum, p) => (isConfirmed((p as Record<string, unknown>).status) ? sum + Number(p.amount) : sum),
-      0,
-    );
-    // Outstanding and collection rate use the SAME confirmed-only /
-    // waived-excluded basis as the Collection overview above, so the two
-    // figures on this screen never disagree.
-    const totalOutstanding = Math.max(0, totalDueExclWaived - totalCollected);
-    const collectionRate = totalDueExclWaived > 0 ? Math.round((totalCollected / totalDueExclWaived) * 100) : 0;
+    const figures = computeMoneyFigures(obligations, payments);
+    const totalCollected = figures.collected;
+    const totalOutstanding = figures.outstanding;
+    const collectionRate = figures.expected > 0
+      ? Math.round(((figures.expected - figures.outstanding) / figures.expected) * 100) : 0;
+    const isConfirmed = (status: unknown) => isConfirmedPayment(status as string | null);
 
     // This month's payments
     const now = new Date();
@@ -220,7 +206,7 @@ export default function FinancesPage() {
 
     for (const p of payments) {
       const status = ((p as Record<string, unknown>).status as string) || "confirmed";
-      if (status === "pending_confirmation" || status === "rejected") continue;
+      if (!isConfirmedPayment(status)) continue;
       const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
       if (monthMap.has(pMonth)) {
         monthMap.set(pMonth, (monthMap.get(pMonth) || 0) + Number(p.amount));
@@ -228,7 +214,7 @@ export default function FinancesPage() {
     }
 
     return months.map((m) => ({ month: m.label, amount: monthMap.get(m.key) || 0 }));
-  }, [allPayments]);
+  }, [allPayments, locale]);
 
   // Top members who owe: outstanding is computed PER MEMBER from CONFIRMED
   // payments (member expected − member confirmed). Per-member (not per-obligation)
@@ -237,23 +223,21 @@ export default function FinancesPage() {
   const topOverdue = useMemo(() => {
     const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
     const payments = (allPayments || []) as unknown as MoneyPayment[];
-    const confirmedByMember = confirmedPaidByMember(payments);
-    // Aggregate each member's non-waived expected + obligation count + name.
-    const memberAgg = new Map<string, { name: string; expected: number; obligations: number }>();
+    const states = computeObligationStates(obligations, payments);
+    const memberAgg = new Map<string, { name: string; amount: number; obligations: number }>();
     for (const obl of obligations) {
-      if (obl.status === "waived") continue;
-      const membership = obl.membership as { id: string };
-      const mid = membership.id;
-      if (!memberAgg.has(mid)) {
-        memberAgg.set(mid, { name: getMemberName(obl.membership as Record<string, unknown>), expected: 0, obligations: 0 });
-      }
-      const e = memberAgg.get(mid)!;
-      e.expected += num(obl.amount);
-      e.obligations++;
+      const state = states.get(obl.id);
+      if (!state?.isOverdue) continue;
+      const mid = obl.membership_id || obl.id;
+      if (!memberAgg.has(mid)) memberAgg.set(mid, {
+        name: getMemberName(obl.membership as Record<string, unknown>), amount: 0, obligations: 0,
+      });
+      const entry = memberAgg.get(mid)!;
+      entry.amount += state.remaining;
+      entry.obligations++;
     }
-
     return Array.from(memberAgg.entries())
-      .map(([id, e]) => ({ id, name: e.name, amount: Math.max(0, e.expected - (confirmedByMember.get(id) || 0)), obligations: e.obligations }))
+      .map(([id, entry]) => ({ id, ...entry }))
       .filter((m) => m.amount > 0)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
@@ -266,8 +250,8 @@ export default function FinancesPage() {
   const collectionByType = useMemo(() => {
     const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
     const payments = (allPayments || []) as unknown as MoneyPayment[];
-    const collectedByType = confirmedPaidByType(payments);
-    const typeMap = new Map<string, { name: string; collected: number; target: number }>();
+    const collectedByType = confirmedPaidByType(payments, obligations);
+    const typeMap = new Map<string, { id: string; name: string; collected: number; target: number }>();
 
     for (const obl of obligations) {
       const isWaived = obl.status === "waived";
@@ -275,6 +259,7 @@ export default function FinancesPage() {
       const typeId = ct?.id || "unknown";
       if (!typeMap.has(typeId)) {
         typeMap.set(typeId, {
+          id: typeId,
           name: ct?.name || t("common.unknown"),
           collected: collectedByType.get(typeId) || 0,
           target: 0,
@@ -294,12 +279,10 @@ export default function FinancesPage() {
   // Recent payments (top 5)
   const recentPayments = useMemo(() => {
     const payments = allPayments || [];
-    return payments.slice(0, 5).map((p) => {
-      const membership = p.membership as { id: string; profiles: { full_name: string } | { full_name: string }[] };
-      const profile = Array.isArray(membership.profiles) ? membership.profiles[0] : membership.profiles;
+    return payments.filter((p) => isConfirmedPayment(p.status)).slice(0, 5).map((p) => {
       const ct = p.contribution_type as { id: string; name: string; name_fr?: string } | null;
       const date = (p.recorded_at || p.created_at || "").slice(0, 10);
-      const shortDate = date ? new Date(date).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" }) : "";
+      const shortDate = date ? new Date(`${date}T00:00:00`).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric" }) : "";
       return {
         id: p.id,
         name: getMemberName(p.membership as Record<string, unknown>),
@@ -320,68 +303,7 @@ export default function FinancesPage() {
     setSyncing(true);
     setSyncResult(null);
     try {
-      const supabase = createClient();
-      // Get all dues payments for this group (exclude relief payments)
-      const { data: payments } = await supabase
-        .from("payments")
-        .select("id, membership_id, contribution_type_id, amount, status, group_id, recorded_at")
-        .eq("group_id", groupId)
-        .is("relief_plan_id", null);
-
-      if (!payments || payments.length === 0) {
-        setSyncResult(t("finances.noPaymentsToSync"));
-        return;
-      }
-
-      // Group payments by member + contribution type. Only CONFIRMED payments
-      // may be persisted into amount_paid — never pending_confirmation/rejected,
-      // so unconfirmed member submissions never inflate the stored paid figure.
-      const paymentMap = new Map<string, number>();
-      for (const p of payments) {
-        if (!p.contribution_type_id) continue;
-        if (!isConfirmedPayment(p.status)) continue;
-        const key = `${p.membership_id}__${p.contribution_type_id}`;
-        paymentMap.set(key, (paymentMap.get(key) || 0) + num(p.amount));
-      }
-
-      let updated = 0;
-      for (const [key, totalPaid] of paymentMap.entries()) {
-        const [membershipId, contributionTypeId] = key.split("__");
-
-        // Find matching obligation(s). Build 13: amount_paid is no longer read
-        // here — newStatus is derived from `totalPaid`, the CONFIRMED-only sum
-        // (paymentMap above), so the polluted column is neither read nor trusted.
-        const { data: obligations } = await supabase
-          .from("contribution_obligations")
-          .select("id, amount")
-          .eq("membership_id", membershipId)
-          .eq("contribution_type_id", contributionTypeId)
-          .eq("group_id", groupId)
-          .order("due_date", { ascending: false })
-          .limit(1);
-
-        if (obligations && obligations.length > 0) {
-          const ob = obligations[0];
-          const amountDue = Number(ob.amount) || 0;
-          let newStatus: string = "pending";
-          if (totalPaid >= amountDue && amountDue > 0) newStatus = "paid";
-          else if (totalPaid > 0) newStatus = "partial";
-
-          await supabase
-            .from("contribution_obligations")
-            .update({ amount_paid: totalPaid, status: newStatus })
-            .eq("id", ob.id);
-          updated++;
-        }
-        // Small delay to not overwhelm Supabase
-        await new Promise((r) => setTimeout(r, 30));
-      }
-
-      setSyncResult(t("contributions.syncSuccess", { updated, total: payments.length }));
-      queryClient.invalidateQueries({ queryKey: ["obligations"] });
-      queryClient.invalidateQueries({ queryKey: ["matrix-data"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["aggregated-feed"] });
+      await invalidateFinancialQueries(queryClient, groupId);
     } catch (err) {
       setSyncResult(t("contributions.syncError", { message: (err as Error).message }));
     } finally {
@@ -400,7 +322,7 @@ export default function FinancesPage() {
 
   if (isLoading) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><DashboardSkeleton /></RequirePermission>;
 
-  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => oblRefetch()} /></RequirePermission>;
+  if (isError) return <RequirePermission anyOf={["finances.manage", "finances.view"]}><ErrorState message={t("common.error")} onRetry={() => { void oblRefetch(); void payRefetch(); }} /></RequirePermission>;
 
   return (
     <RequirePermission anyOf={["finances.manage", "finances.view"]}><div className="space-y-6">
@@ -431,7 +353,7 @@ export default function FinancesPage() {
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={handleSyncPayments} disabled={syncing}>
             {syncing ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
-            {t("finances.syncPayments")}
+            {t("common.refresh")}
           </Button>
           {syncResult && <span className="text-xs text-muted-foreground">{syncResult}</span>}
         </div>
@@ -554,7 +476,7 @@ export default function FinancesPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-sm font-medium">{member.name}</p>
+                      <Link href={`/dashboard/members/${member.id}`} className="block truncate text-sm font-medium hover:underline">{member.name}</Link>
                       <p className="text-[10px] text-muted-foreground">
                         {member.obligations} {t("finances.items")}
                       </p>
@@ -583,9 +505,9 @@ export default function FinancesPage() {
             ) : (
               <div className="space-y-4">
                 {collectionByType.map((type) => (
-                  <div key={type.name} className="space-y-2">
+                  <div key={type.id} className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium">{type.name}</span>
+                      <Link href={`/dashboard/contributions/${type.id}/report`} className="min-w-0 break-words font-medium hover:underline">{type.name}</Link>
                       <span className="text-muted-foreground">{type.rate}%</span>
                     </div>
                     <Progress value={type.rate} />

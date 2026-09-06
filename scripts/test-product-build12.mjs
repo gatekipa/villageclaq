@@ -31,8 +31,8 @@ const RECORD = "src/app/[locale]/(dashboard)/dashboard/contributions/record/page
 test("money.ts computeObligationStates exists and partitions by contribution type", () => {
   const m = read(MONEY);
   assert.ok(/export function computeObligationStates/.test(m), "helper exported");
-  assert.ok(/contribution_type_id \|\| "__none__"/.test(m), "partitions obligations + payments by type");
-  assert.ok(/allocateConfirmedToObligations\(obls, confirmedPaidByMember\(typePayments\)\)/.test(m), "allocates confirmed-by-member within each type");
+  assert.ok(m.includes("type && o.contribution_type_id !== type"), "typed money cannot cover another type");
+  assert.ok(m.includes("allocatePaymentApplications(obligations, payments)"), "states consume shared deterministic applications");
 });
 
 // ── The uncapped confirmed-payment basis hook ───────────────────────────────
@@ -80,7 +80,8 @@ test("useMoneyOverview: overdue/owing/nextDue derived from confirmed payments", 
   const s = read(MONEY_OVERVIEW);
   assert.ok(/computeObligationStates/.test(s), "routes through engine");
   assert.ok(!/const paid = Number\(o\.amount_paid\) \|\| 0/.test(s), "no longer reads polluted amount_paid");
-  assert.ok(/c\?\.isOverdue/.test(s), "overdue from computed state");
+  assert.ok(/overdue: figures\.overdue/.test(s), "overdue comes from canonical figures");
+  assert.ok(/states\.get\(o.id\)\?\.isOpen/.test(s), "next due excludes satisfied obligations");
 });
 
 test("member detail YoY status: derived from confirmed payments", () => {
@@ -99,7 +100,7 @@ test("my-dashboard unpaid obligations: confirmed-only", () => {
 
 test("reports who-hasn't-paid / AR-aging / YoY: confirmed-only via uncapped basis", () => {
   const s = read(REPORTS);
-  assert.ok(/useGroupDuesPayments/.test(s) && /reportObligationStates/.test(s), "uses uncapped confirmed basis");
+  assert.ok(/usePayments\("all"\)/.test(s) && /reportObligationStates/.test(s), "uses complete confirmed basis shared with the ledger");
   assert.ok(!/\.filter\(\(o: Record<string, unknown>\) => \(o\.status as string\) !== "paid"\)/.test(s), "report filters no longer on polluted status");
   assert.ok(!/matrixByMember\[name\]\[year\]\.paid \+= Number\(ob\.amount_paid \|\| 0\)/.test(s), "YoY paid no longer from amount_paid");
 });
@@ -118,9 +119,13 @@ test("P0 bulk-record receipt guard remains intact", () => {
   assert.ok(/disabled=\{bulkSubmitting \|\| \(bulkSendReceipts && !bulkReconfirm\)\}/.test(r), "reconfirm gate intact");
 });
 
-test("record-payment cascade still WRITES amount_paid (column maintained, not display-read)", () => {
+test("record-payment maintains amount_paid atomically, never via browser cascade", () => {
   const h = read(HOOKS);
-  assert.ok(/amount_paid: newPaid/.test(h), "the write cascade is untouched — Build 12 only changed DISPLAY reads");
+  assert.ok(h.includes("await applyPaymentCommand("), "awaits database transaction");
+  assert.ok(!h.includes("amount_paid: newPaid"), "no partial browser balance writes");
+  const migration = read("supabase/migrations/20260906140229_financial_payment_integrity.sql");
+  assert.ok(migration.includes("UPDATE public.contribution_obligations o SET amount_paid = x.paid"));
+  assert.ok(migration.includes("financial_payment_changed AFTER INSERT OR UPDATE"));
 });
 
 test("Build-8 announcement producer remains dormant (no live import in src)", () => {

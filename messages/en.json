@@ -1,4 +1,18 @@
 {
+  "financialLedger": {
+    "allTime": "All-time contributions",
+    "from": "From",
+    "to": "To",
+    "method": "Payment method",
+    "contribution": "Contribution",
+    "all": "All",
+    "reset": "Reset filters",
+    "confirmed": "Confirmed",
+    "pending": "Pending confirmation",
+    "rejected": "Rejected",
+    "unallocatedCredit": "Unallocated credit",
+    "invalidPeriod": "The end date must be on or after the start date."
+  },
   "common": {
     "appName": "VillageClaq",
     "loading": "Loading...",
@@ -1415,6 +1429,9 @@
     "paymentDateFuture": "Payment date cannot be in the future",
     "editPayment": "Edit Payment",
     "deletePayment": "Delete Payment",
+    "voidPayment": "Void payment",
+    "voidPaymentConfirm": "Void this payment of {amount} from {member}? Its accounting effect will be reversed and its history retained.",
+    "correctionReason": "Reason for correction or void",
     "deletePaymentConfirm": "Delete this payment of {amount} from {member}? The obligation will revert to its previous status.",
     "paymentEdited": "Payment updated successfully",
     "paymentDeleted": "Payment deleted successfully",
@@ -3146,8 +3163,8 @@
       "desc": "Outstanding balances sorted by amount owed"
     },
     "report2": {
-      "name": "Annual Financial Summary",
-      "desc": "Total collected vs expected, by type and month with YoY comparison"
+      "name": "Financial Summary",
+      "desc": "All-time contributions: confirmed collections, expected amounts and assessment coverage"
     },
     "report3": {
       "name": "Contribution Ledger",

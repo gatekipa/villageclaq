@@ -52,8 +52,10 @@ import {
 } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { exportCSV } from "@/lib/export";
-import { isConfirmedPayment, isPendingPayment, isRejectedPayment, num } from "@/lib/money";
+import { isConfirmedPayment, isPendingPayment, isRejectedPayment, num, roundMoney, matchesLedgerFilters } from "@/lib/money";
 import { useQueryClient } from "@tanstack/react-query";
+import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
+import { applyPaymentCommand, paymentRequestId } from "@/lib/payment-command";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useSearchParam } from "@/lib/hooks/use-stable-search-params";
@@ -95,7 +97,7 @@ export default function PaymentHistoryPage() {
   const { currentGroup, groupId } = useGroup();
   const groupDateFormat = ((currentGroup?.settings as Record<string, unknown>)?.date_format as string) || "DD/MM/YYYY";
   const queryClient = useQueryClient();
-  const { data: payments, isLoading, isError, refetch } = usePayments(100);
+  const { data: payments, isLoading, isError, refetch } = usePayments("all");
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("finances.manage");
   const confirmDialog = useConfirmDialog();
@@ -156,6 +158,7 @@ export default function PaymentHistoryPage() {
   const [editNotes, setEditNotes] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState("");
 
   // Delete payment state
   const [deletePayment, setDeletePayment] = useState<typeof normalizedPayments[0] | null>(null);
@@ -179,6 +182,11 @@ export default function PaymentHistoryPage() {
   const [sortField, setSortField] = useState<string>("recorded_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const perPage = 10;
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [methodFilter, setMethodFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const invalidPeriod = !!(fromDate && toDate && fromDate > toDate);
 
   function handleSort(field: string) {
     if (sortField === field) {
@@ -194,12 +202,11 @@ export default function PaymentHistoryPage() {
   const normalizedPayments = useMemo(() => {
     return (payments || []).map((p: Record<string, unknown>) => {
       const membership = p.membership as Record<string, unknown> | undefined;
-      const profile = membership?.profiles as { full_name?: string; avatar_url?: string } | undefined
-        ?? (membership as Record<string, unknown> | undefined)?.profile as { full_name?: string; avatar_url?: string } | undefined;
       const contributionType = p.contribution_type as { id?: string; name?: string; name_fr?: string } | undefined;
 
       return {
         id: p.id as string,
+        version: Number(p.financial_version || 1),
         memberName: getMemberName(membership as Record<string, unknown>),
         membershipId: (membership?.id as string) || "",
         contributionTypeName: contributionType?.name || "-",
@@ -209,6 +216,7 @@ export default function PaymentHistoryPage() {
         currency: (p.currency as string) || currency,
         paymentMethod: (p.payment_method as string) || "cash",
         referenceNumber: p.reference_number as string | undefined,
+        notes: p.notes as string | undefined,
         receiptUrl: p.receipt_url as string | undefined,
         recordedAt: (p.recorded_at as string) || (p.created_at as string) || "",
         status: (p.status as string) || "confirmed",
@@ -224,12 +232,14 @@ export default function PaymentHistoryPage() {
   );
 
   const filtered = useMemo(() => {
-    let rows = normalizedPayments;
+    let rows = normalizedPayments.filter((p) => matchesLedgerFilters(p, {
+      from: fromDate, to: toDate, method: methodFilter, contributionTypeId: typeFilter,
+    }));
     if (statusFilter !== "all") {
       rows = rows.filter((p) =>
         statusFilter === "confirmed"
           ? // Legacy/default rows store no status; treat them as confirmed.
-            p.status === "confirmed" || (p.status !== "pending_confirmation" && p.status !== "rejected")
+            isConfirmedPayment(p.status)
           : p.status === statusFilter
       );
     }
@@ -241,7 +251,7 @@ export default function PaymentHistoryPage() {
         (p.referenceNumber && normalizeSearch(p.referenceNumber).includes(q)) ||
         normalizeSearch(p.contributionTypeName).includes(q)
     );
-  }, [normalizedPayments, search, statusFilter]);
+  }, [normalizedPayments, search, statusFilter, fromDate, toDate, methodFilter, typeFilter]);
 
   const sortedPayments = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -249,6 +259,9 @@ export default function PaymentHistoryPage() {
       switch (sortField) {
         case "recorded_at":
           cmp = a.recordedAt.localeCompare(b.recordedAt);
+          break;
+        case "status":
+          cmp = a.status.localeCompare(b.status);
           break;
         case "amount":
           cmp = a.amount - b.amount;
@@ -266,9 +279,15 @@ export default function PaymentHistoryPage() {
     });
   }, [filtered, sortField, sortDir]);
 
-  const totalPages = Math.ceil(sortedPayments.length / perPage);
-  const paginated = sortedPayments.slice((page - 1) * perPage, page * perPage);
-  const totalAmount = sortedPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalPages = Math.max(1, Math.ceil(sortedPayments.length / perPage));
+  const visiblePage = Math.min(page, totalPages);
+  const paginated = sortedPayments.slice((visiblePage - 1) * perPage, visiblePage * perPage);
+  const totalsByCurrency = [...new Set(sortedPayments.map((p) => p.currency))].map((code) => ({
+    currency: code,
+    confirmed: roundMoney(sortedPayments.filter((p) => p.currency === code && isConfirmedPayment(p.status)).reduce((s, p) => s + p.amount, 0)),
+    pending: roundMoney(sortedPayments.filter((p) => p.currency === code && isPendingPayment(p.status)).reduce((s, p) => s + p.amount, 0)),
+    rejected: roundMoney(sortedPayments.filter((p) => p.currency === code && isRejectedPayment(p.status)).reduce((s, p) => s + p.amount, 0)),
+  }));
 
   // Localized status label so pending/rejected rows in the CSV are never
   // silently read as collected. Mirrors money.ts's confirmed/pending/rejected
@@ -283,7 +302,7 @@ export default function PaymentHistoryPage() {
     // Export the currently-filtered rows via the shared exportCSV() helper,
     // which escapes commas/quotes/newlines and adds an Excel BOM. Keys are the
     // English column names; headerLabels carries the localized header row.
-    const rows = filtered.map((p) => ({
+    const rows = sortedPayments.map((p) => ({
       Date: formatDateWithGroupFormat(p.recordedAt, groupDateFormat, locale),
       Member: p.memberName,
       Type: p.contributionTypeName,
@@ -311,12 +330,10 @@ export default function PaymentHistoryPage() {
     setConfirmingId(payment.id);
     try {
       const supabase = createClient();
-      // Update payment status to confirmed
-      const { error: updateErr } = await supabase
-        .from("payments")
-        .update({ status: "confirmed" })
-        .eq("id", payment.id);
-      if (updateErr) throw updateErr;
+      await applyPaymentCommand(supabase, {
+        groupId: groupId!, requestId: paymentRequestId(`confirm:${groupId}:${payment.id}:${payment.version}`),
+        action: "confirm", paymentId: payment.id, expectedVersion: payment.version,
+      });
 
       // Produce the receipt notifications server-side (queue-backed WhatsApp,
       // exactly-once per payment) now that the payment is confirmed. This is
@@ -350,40 +367,9 @@ export default function PaymentHistoryPage() {
         console.warn("[Notify] receipt production request failed:", err);
       }
 
-      // Recalculate obligation if linked — sum ALL confirmed payments (consistent with edit/delete)
-      if (payment.obligationId) {
-        const { data: allPayments } = await supabase
-          .from("payments")
-          .select("amount")
-          .eq("obligation_id", payment.obligationId)
-          .eq("status", "confirmed");
+      // Balances and persisted standing already committed with the payment.
 
-        if (allPayments) {
-          const totalPaid = allPayments.reduce((s, p) => s + Number(p.amount), 0);
-          const { data: obl } = await supabase
-            .from("contribution_obligations")
-            .select("amount")
-            .eq("id", payment.obligationId)
-            .single();
-          if (obl) {
-            const newStatus = totalPaid >= Number(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
-            await supabase
-              .from("contribution_obligations")
-              .update({ amount_paid: totalPaid, status: newStatus })
-              .eq("id", payment.obligationId);
-          }
-        }
-      }
-
-      // Recalculate standing for the affected member
-      if (payment.membershipId && groupId) {
-        try {
-          const { calculateStanding } = await import("@/lib/calculate-standing");
-          await calculateStanding(payment.membershipId, groupId, { updateDb: true, currency });
-        } catch { /* non-critical */ }
-      }
-
-      invalidateFinancialCaches(payment.membershipId);
+      await invalidateFinancialCaches(payment.membershipId);
     } catch (err) {
       console.warn("Confirm payment failed:", (err as Error).message);
       setActionError(t("contributions.confirmFailed"));
@@ -432,54 +418,13 @@ export default function PaymentHistoryPage() {
     setRejectingId(paymentId);
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from("payments")
-        .update({ status: "rejected" })
-        .eq("id", paymentId);
-      if (error) throw error;
+      await applyPaymentCommand(supabase, {
+        groupId: groupId!, requestId: paymentRequestId(`reject:${groupId}:${payment.id}:${payment.version}`),
+        action: "reject", paymentId: payment.id, expectedVersion: payment.version,
+        reason: "Officer rejected pending payment",
+      });
 
-      // Self-heal the linked obligation. A pending pay-now over-credits
-      // amount_paid via a DB trigger that never reverses on reject, so unless
-      // we recompute here the obligation stays permanently over-credited.
-      // Mirror handleConfirmPayment: recompute amount_paid = Σ CONFIRMED
-      // payments for this obligation and re-derive its status. (We use
-      // money.ts's isConfirmedPayment over a status-bearing fetch so legacy
-      // null/'' rows still count as confirmed, matching the column default.)
-      if (payment.obligationId) {
-        const { data: allPayments } = await supabase
-          .from("payments")
-          .select("amount, status")
-          .eq("obligation_id", payment.obligationId);
-
-        if (allPayments) {
-          const totalPaid = allPayments
-            .filter((p) => isConfirmedPayment(p.status as string | null))
-            .reduce((s, p) => s + num(p.amount), 0);
-          const { data: obl } = await supabase
-            .from("contribution_obligations")
-            .select("amount")
-            .eq("id", payment.obligationId)
-            .single();
-          if (obl) {
-            const newStatus = totalPaid >= num(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
-            await supabase
-              .from("contribution_obligations")
-              .update({ amount_paid: totalPaid, status: newStatus })
-              .eq("id", payment.obligationId);
-          }
-        }
-      }
-
-      // Recalculate standing for the affected member — a reversed credit can
-      // flip a member back into arrears.
-      if (payment.membershipId && groupId) {
-        try {
-          const { calculateStanding } = await import("@/lib/calculate-standing");
-          await calculateStanding(payment.membershipId, groupId, { updateDb: true, currency });
-        } catch { /* non-critical */ }
-      }
-
-      invalidateFinancialCaches(payment.membershipId);
+      await invalidateFinancialCaches(payment.membershipId);
     } catch (err) {
       console.warn("Reject payment failed:", (err as Error).message);
       setActionError(t("contributions.rejectFailed"));
@@ -489,16 +434,18 @@ export default function PaymentHistoryPage() {
   }
 
   function openEditDialog(payment: typeof normalizedPayments[0]) {
+    setCorrectionReason("");
     setEditPayment(payment);
     setEditAmount(payment.amount.toString());
     setEditMethod(payment.paymentMethod);
     setEditReference(payment.referenceNumber || "");
-    setEditNotes("");
+    setEditNotes(payment.notes || "");
     setEditDate(payment.recordedAt ? payment.recordedAt.slice(0, 10) : "");
     setEditSaving(false);
   }
 
-  function invalidateFinancialCaches(membershipId?: string) {
+  async function invalidateFinancialCaches(membershipId?: string) {
+    await invalidateFinancialQueries(queryClient, groupId, membershipId);
     queryClient.invalidateQueries({ queryKey: ["payments", groupId] });
     queryClient.invalidateQueries({ queryKey: ["obligations", groupId] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-stats", groupId] });
@@ -519,56 +466,16 @@ export default function PaymentHistoryPage() {
       const newAmount = Number(editAmount);
       if (isNaN(newAmount) || newAmount <= 0) return;
 
-      const { error: updateErr } = await supabase
-        .from("payments")
-        .update({
-          amount: newAmount,
-          payment_method: editMethod,
-          reference_number: editReference || null,
-          notes: editNotes || null,
-          recorded_at: editDate ? new Date(editDate).toISOString() : undefined,
-        })
-        .eq("id", editPayment.id);
-      if (updateErr) throw updateErr;
+      await applyPaymentCommand(supabase, {
+        groupId: groupId!, requestId: paymentRequestId(`correct:${groupId}:${editPayment.id}:${editPayment.version}`),
+        action: "correct", paymentId: editPayment.id, expectedVersion: editPayment.version,
+        reason: correctionReason.trim(),
+        values: { amount: newAmount, payment_method: editMethod,
+          reference_number: editReference || null, notes: editNotes || null,
+          ...(editDate ? { payment_date: editDate } : {}) },
+      });
 
-      // Recalculate obligation if linked
-      if (editPayment.obligationId) {
-        // Get all confirmed payments for this obligation (excluding the one we just edited, then add back the new amount)
-        const { data: allPayments } = await supabase
-          .from("payments")
-          .select("amount")
-          .eq("obligation_id", editPayment.obligationId)
-          .eq("status", "confirmed");
-
-        if (allPayments) {
-          // Sum all payments (the updated amount is already in DB)
-          const totalPaid = allPayments.reduce((s, p) => s + Number(p.amount), 0);
-
-          const { data: obl } = await supabase
-            .from("contribution_obligations")
-            .select("amount")
-            .eq("id", editPayment.obligationId)
-            .single();
-
-          if (obl) {
-            const newStatus = totalPaid >= Number(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
-            await supabase
-              .from("contribution_obligations")
-              .update({ amount_paid: totalPaid, status: newStatus })
-              .eq("id", editPayment.obligationId);
-          }
-        }
-      }
-
-      // Recalculate standing for the affected member
-      if (editPayment.membershipId && groupId) {
-        try {
-          const { calculateStanding } = await import("@/lib/calculate-standing");
-          await calculateStanding(editPayment.membershipId, groupId, { updateDb: true, currency });
-        } catch { /* non-critical */ }
-      }
-
-      invalidateFinancialCaches(editPayment.membershipId);
+      await invalidateFinancialCaches(editPayment.membershipId);
       setEditPayment(null);
     } catch (err) {
       console.warn("Edit payment failed:", (err as Error).message);
@@ -585,60 +492,13 @@ export default function PaymentHistoryPage() {
     try {
       const supabase = createClient();
 
-      // Read the payment's obligation_id and amount before deleting
-      const paymentAmount = deletePayment.amount;
-      const obligationId = deletePayment.obligationId;
+      await applyPaymentCommand(supabase, {
+        groupId: groupId!, requestId: paymentRequestId(`void:${groupId}:${deletePayment.id}:${deletePayment.version}`),
+        action: "void", paymentId: deletePayment.id, expectedVersion: deletePayment.version,
+        reason: correctionReason.trim(),
+      });
 
-      // Delete the payment
-      const { error } = await supabase
-        .from("payments")
-        .delete()
-        .eq("id", deletePayment.id);
-      if (error) throw error;
-
-      // Recalculate obligation if linked
-      if (obligationId) {
-        const { data: remainingPayments } = await supabase
-          .from("payments")
-          .select("amount")
-          .eq("obligation_id", obligationId)
-          .eq("status", "confirmed");
-
-        const totalPaid = (remainingPayments || []).reduce((s, p) => s + Number(p.amount), 0);
-
-        const { data: obl } = await supabase
-          .from("contribution_obligations")
-          .select("amount")
-          .eq("id", obligationId)
-          .single();
-
-        if (obl) {
-          const newStatus = totalPaid >= Number(obl.amount) ? "paid" : totalPaid > 0 ? "partial" : "pending";
-          await supabase
-            .from("contribution_obligations")
-            .update({ amount_paid: totalPaid, status: newStatus })
-            .eq("id", obligationId);
-        }
-      }
-
-      // Best-effort audit log
-      try {
-        await supabase.from("activity_feed").insert({
-          group_id: groupId,
-          action: "payment_deleted",
-          details: { payment_id: deletePayment.id, amount: paymentAmount, member: deletePayment.memberName },
-        });
-      } catch { /* best effort */ }
-
-      // Recalculate standing for the affected member
-      if (deletePayment.membershipId && groupId) {
-        try {
-          const { calculateStanding } = await import("@/lib/calculate-standing");
-          await calculateStanding(deletePayment.membershipId, groupId, { updateDb: true, currency });
-        } catch { /* non-critical */ }
-      }
-
-      invalidateFinancialCaches(deletePayment.membershipId);
+      await invalidateFinancialCaches(deletePayment.membershipId);
       setDeletePayment(null);
     } catch (err) {
       console.warn("Delete payment failed:", (err as Error).message);
@@ -716,6 +576,27 @@ export default function PaymentHistoryPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 items-end gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+        <div><Label htmlFor="ledger-from">{t("financialLedger.from")}</Label>
+          <Input id="ledger-from" type="date" value={fromDate} max={toDate || undefined} onChange={(e) => { setFromDate(e.target.value); setPage(1); }} /></div>
+        <div><Label htmlFor="ledger-to">{t("financialLedger.to")}</Label>
+          <Input id="ledger-to" type="date" value={toDate} min={fromDate || undefined} aria-invalid={invalidPeriod} onChange={(e) => { setToDate(e.target.value); setPage(1); }} /></div>
+        <div><Label htmlFor="ledger-type">{t("financialLedger.contribution")}</Label>
+          <select id="ledger-type" value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} className="h-9 w-full min-w-0 rounded-md border bg-background px-2 text-sm">
+            <option value="">{t("financialLedger.all")}</option>
+            {[...new Map(normalizedPayments.map((p) => [p.contributionTypeId, p.contributionTypeName])).entries()].filter(([id]) => id).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select></div>
+        <div><Label htmlFor="ledger-method">{t("financialLedger.method")}</Label>
+          <select id="ledger-method" value={methodFilter} onChange={(e) => { setMethodFilter(e.target.value); setPage(1); }} className="h-9 w-full min-w-0 rounded-md border bg-background px-2 text-sm">
+            <option value="">{t("financialLedger.all")}</option>
+            {Object.entries(methodLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select></div>
+        <Button variant="ghost" size="icon" title={t("financialLedger.reset")} aria-label={t("financialLedger.reset")} onClick={() => {
+          setFromDate(""); setToDate(""); setMethodFilter(""); setTypeFilter(""); setSearch(""); setStatusFilter("all"); setPage(1);
+        }}><X className="size-4" /></Button>
+      </div>
+      {invalidPeriod && <p role="alert" className="text-sm text-destructive">{t("financialLedger.invalidPeriod")}</p>}
+
       {/* Status filter pills */}
       <div
         className="flex flex-wrap gap-2"
@@ -764,16 +645,14 @@ export default function PaymentHistoryPage() {
         })}
       </div>
 
-      {/* Summary Stats */}
-      <div className="flex flex-wrap gap-4">
-        <div className="rounded-lg bg-primary/10 px-4 py-2">
-          <span className="text-xs text-muted-foreground">{t("contributions.totalFiltered")}</span>
-          <p className="text-lg font-bold text-primary">{formatAmount(totalAmount, currency)}</p>
-        </div>
-        <div className="rounded-lg bg-muted px-4 py-2">
-          <span className="text-xs text-muted-foreground">{t("contributions.paymentsCount")}</span>
-          <p className="text-lg font-bold">{sortedPayments.length}</p>
-        </div>
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-3 border-y py-3" aria-live="polite">
+        <p className="text-sm text-muted-foreground">{t("contributions.paymentsCount")}: <strong className="text-foreground tabular-nums">{sortedPayments.length}</strong></p>
+        {totalsByCurrency.map((totals) => <dl key={totals.currency} className="flex flex-wrap gap-x-6 gap-y-2">
+          {(["confirmed", "pending", "rejected"] as const).map((status) => <div key={status}>
+            <dt className="text-xs text-muted-foreground">{t(`financialLedger.${status}`)}</dt>
+            <dd className="text-sm font-semibold tabular-nums">{formatAmount(totals[status], totals.currency)}</dd>
+          </div>)}
+        </dl>)}
       </div>
 
       {/* Payment Table */}
@@ -800,8 +679,10 @@ export default function PaymentHistoryPage() {
                         {t("contributions.date")} {sortField === "recorded_at" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                       </button>
                     </th>
-                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground">
-                      {t("contributions.member")}
+                    <th aria-sort={sortField === "member" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground">
+                      <button className="flex min-h-8 items-center gap-1 hover:text-foreground" onClick={() => handleSort("member")}>
+                        {t("contributions.member")} <ArrowUpDown className="h-3 w-3" />
+                      </button>
                     </th>
                     <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground hidden sm:table-cell">
                       {t("contributions.contributionType")}
@@ -811,11 +692,15 @@ export default function PaymentHistoryPage() {
                         {t("contributions.amount")} {sortField === "amount" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                       </button>
                     </th>
-                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground hidden md:table-cell">
-                      {t("contributions.method")}
+                    <th aria-sort={sortField === "method" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground hidden md:table-cell">
+                      <button className="flex min-h-8 items-center gap-1 hover:text-foreground" onClick={() => handleSort("method")}>
+                        {t("contributions.method")} <ArrowUpDown className="h-3 w-3" />
+                      </button>
                     </th>
-                    <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground">
-                      {t("contributions.statusHeader")}
+                    <th aria-sort={sortField === "status" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} className="whitespace-nowrap px-3 py-3 sm:px-4 text-left font-medium text-muted-foreground">
+                      <button className="flex min-h-8 items-center gap-1 hover:text-foreground" onClick={() => handleSort("status")}>
+                        {t("contributions.statusHeader")} <ArrowUpDown className="h-3 w-3" />
+                      </button>
                     </th>
                     {canManage && (
                       <th className="whitespace-nowrap px-3 py-3 sm:px-4 text-right font-medium text-muted-foreground">
@@ -825,7 +710,7 @@ export default function PaymentHistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginated.length === 0 && (search.trim() || statusFilter !== "all") && (
+                  {paginated.length === 0 && (
                     <tr><td colSpan={canManage ? 7 : 6} className="px-4 py-8 text-center text-muted-foreground">
                       {search.trim() ? tc("noSearchResults") : t("contributions.noPaymentsForFilter")}
                     </td></tr>
@@ -930,11 +815,11 @@ export default function PaymentHistoryPage() {
                           <Badge className="bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20 text-[10px]">
                             {t("contributions.rejected")}
                           </Badge>
-                        ) : (
+                        ) : isConfirmedPayment(payment.status) ? (
                           <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
                             {t("contributions.confirmed")}
                           </Badge>
-                        )}
+                        ) : <Badge variant="secondary">{payment.status}</Badge>}
                       </td>
                       {canManage && (
                         <td className="whitespace-nowrap px-3 py-3 sm:px-4 text-right">
@@ -949,13 +834,13 @@ export default function PaymentHistoryPage() {
                                   {t("contributions.viewProof")}
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => openEditDialog(payment)}>
+                              <DropdownMenuItem disabled={payment.status === "rejected"} onClick={() => openEditDialog(payment)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 {t("contributions.editPayment")}
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDeletePayment(payment)} className="text-destructive">
+                              <DropdownMenuItem disabled={payment.status === "rejected"} onClick={() => { setCorrectionReason(""); setDeletePayment(payment); }} className="text-destructive">
                                 <Trash2 className="mr-2 h-4 w-4" />
-                                {t("contributions.deletePayment")}
+                                {t("contributions.voidPayment")}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -972,8 +857,8 @@ export default function PaymentHistoryPage() {
               <div className="flex items-center justify-between border-t px-3 py-3 sm:px-4">
                 <p className="text-xs text-muted-foreground">
                   {t("contributions.showing", {
-                    from: (page - 1) * perPage + 1,
-                    to: Math.min(page * perPage, sortedPayments.length),
+                    from: (visiblePage - 1) * perPage + 1,
+                    to: Math.min(visiblePage * perPage, sortedPayments.length),
                     total: sortedPayments.length,
                   })}
                 </p>
@@ -982,20 +867,20 @@ export default function PaymentHistoryPage() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    disabled={page === 1}
-                    onClick={() => setPage(page - 1)}
+                    disabled={visiblePage === 1}
+                    onClick={() => setPage(visiblePage - 1)}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="px-2 text-sm">
-                    {page} / {totalPages}
+                    {visiblePage} / {totalPages}
                   </span>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    disabled={page === totalPages}
-                    onClick={() => setPage(page + 1)}
+                    disabled={visiblePage === totalPages}
+                    onClick={() => setPage(visiblePage + 1)}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -1063,11 +948,15 @@ export default function PaymentHistoryPage() {
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="payment-correction-reason">{t("contributions.correctionReason")}</Label>
+            <Input id="payment-correction-reason" value={correctionReason} onChange={(e) => setCorrectionReason(e.target.value)} />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditPayment(null)} disabled={editSaving}>
               {tc("cancel")}
             </Button>
-            <Button onClick={handleEditPayment} disabled={editSaving || !editAmount || Number(editAmount) <= 0}>
+            <Button onClick={handleEditPayment} disabled={editSaving || correctionReason.trim().length < 3 || !editAmount || Number(editAmount) <= 0}>
               {editSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {tc("save")}
             </Button>
@@ -1079,21 +968,25 @@ export default function PaymentHistoryPage() {
       <Dialog open={!!deletePayment} onOpenChange={(open) => { if (!open) setDeletePayment(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("contributions.deletePayment")}</DialogTitle>
+            <DialogTitle>{t("contributions.voidPayment")}</DialogTitle>
             <DialogDescription>
-              {deletePayment && t("contributions.deletePaymentConfirm", {
+              {deletePayment && t("contributions.voidPaymentConfirm", {
                 amount: formatAmount(deletePayment.amount, deletePayment.currency),
                 member: deletePayment.memberName,
               })}
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="payment-void-reason">{t("contributions.correctionReason")}</Label>
+            <Input id="payment-void-reason" value={correctionReason} onChange={(e) => setCorrectionReason(e.target.value)} />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletePayment(null)} disabled={deleteSaving}>
               {tc("cancel")}
             </Button>
-            <Button variant="destructive" onClick={handleDeletePayment} disabled={deleteSaving}>
+            <Button variant="destructive" onClick={handleDeletePayment} disabled={deleteSaving || correctionReason.trim().length < 3}>
               {deleteSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {tc("delete")}
+              {t("contributions.voidPayment")}
             </Button>
           </DialogFooter>
         </DialogContent>

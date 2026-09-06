@@ -1,12 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { useMemo } from "react";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
-import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { computeMoneyFigures, computeObligationStates, isConfirmedPayment, todayKey } from "@/lib/money";
+import { useObligations, usePayments } from "@/lib/hooks/use-supabase-query";
 
-/** One reconciled payment row for the "Recent payments" list (confirmed only). */
 export interface RecentPaymentRow {
   id: string;
   name: string;
@@ -15,8 +14,6 @@ export interface RecentPaymentRow {
   amount: number;
   recordedAt: string | null;
 }
-
-/** One upcoming unpaid obligation row for the "Next due" list. */
 export interface NextDueRow {
   id: string;
   name: string;
@@ -26,239 +23,65 @@ export interface NextDueRow {
   remaining: number;
   dueDate: string | null;
 }
-
 export interface MoneyOverview {
-  /** Σ obligation.amount, excluding waived. */
   totalExpected: number;
-  /** Σ confirmed dues payments only (relief excluded). */
   totalCollected: number;
-  /** expected − collected, clamped at 0. */
   outstanding: number;
-  /** Derived overdue: due_date < today, not paid/waived, remaining > 0. */
+  unallocatedCredit?: number;
   overdue: { amount: number; memberCount: number };
-  /** Member-submitted money awaiting admin confirm/reject. */
   pendingConfirmation: { count: number; amount: number };
-  /** Distinct members with any outstanding (non-paid/non-waived, remaining > 0). */
   membersOwing: number;
-  /** Up to 6 most recent confirmed dues payments. */
   recentPayments: RecentPaymentRow[];
-  /** Up to 5 upcoming unpaid obligations, soonest due first. */
   nextDue: NextDueRow[];
-  /** Group currency for formatAmount. */
   currency: string;
 }
 
-type ObligationRow = {
-  id: string;
-  amount: number | string | null;
-  amount_paid: number | string | null;
-  status: string | null;
-  due_date: string | null;
-  membership_id: string | null;
-  contribution_type_id: string | null;
-  membership: Record<string, unknown> | null;
-  contribution_type: { id: string; name: string | null; name_fr?: string | null } | null;
-};
-
-type PaymentRow = {
-  id: string;
-  amount: number | string | null;
-  status: string | null;
-  recorded_at: string | null;
-  contribution_type_id: string | null;
-  membership_id: string | null;
-  membership: Record<string, unknown> | null;
-  contribution_type: { id: string; name: string | null; name_fr?: string | null } | null;
-};
-
-/**
- * useMoneyOverview — single reconciled money figure set for the admin
- * "Collection overview" command center.
- *
- * Figures follow the authoritative data model:
- * - totalExpected = Σ obligation.amount, EXCLUDING status='waived'.
- * - totalCollected = Σ payments.amount WHERE relief_plan_id IS NULL AND
- *   status='confirmed' (confirmed-only — pending/rejected never inflate it).
- * - outstanding = max(0, expected − collected).
- * - overdue is DERIVED (no trigger sets it): due_date < today, status NOT IN
- *   (paid, waived), and (amount − amount_paid) > 0.
- * - pendingConfirmation = payments with status='pending_confirmation'
- *   (member-submitted money awaiting admin confirm/reject).
- *
- * THROWS on any query error (never coerces to 0 — a false money figure is
- * worse than an error surface).
- */
+/** Shares complete, authorized query caches with the ledger and financial dashboard. */
 export function useMoneyOverview() {
-  const { groupId, currentGroup } = useGroup();
-  // Extract the currency primitive so the queryFn never closes over an object
-  // that changes identity (rule 9).
+  const { currentGroup } = useGroup();
   const currency = currentGroup?.currency || "XAF";
-
-  return useQuery<MoneyOverview>({
-    queryKey: ["money-overview", groupId],
-    enabled: !!groupId,
-    staleTime: 60_000,
-    queryFn: async () => {
-      // Create the client inside the queryFn (never at module level) so the
-      // request always uses the caller's current session in this multi-tenant app.
-      const supabase = createClient();
-      if (!groupId) {
-        // enabled guards this, but keep the type contract honest.
-        return {
-          totalExpected: 0,
-          totalCollected: 0,
-          outstanding: 0,
-          overdue: { amount: 0, memberCount: 0 },
-          pendingConfirmation: { count: 0, amount: 0 },
-          membersOwing: 0,
-          recentPayments: [],
-          nextDue: [],
-          currency,
-        };
-      }
-
-      const [oblRes, payRes] = await Promise.all([
-        supabase
-          .from("contribution_obligations")
-          .select(
-            "id, amount, amount_paid, status, due_date, membership_id, contribution_type_id, contribution_type:contribution_types(id, name, name_fr), membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url))"
-          )
-          .eq("group_id", groupId)
-          .order("due_date", { ascending: true }),
-        supabase
-          .from("payments")
-          .select(
-            "id, amount, status, recorded_at, contribution_type_id, membership_id, membership:memberships!inner(id, user_id, display_name, is_proxy, profiles!memberships_user_id_fkey(id, full_name, avatar_url)), contribution_type:contribution_types(id, name, name_fr)"
-          )
-          .eq("group_id", groupId)
-          .is("relief_plan_id", null)
-          .order("recorded_at", { ascending: false }),
-      ]);
-
-      if (oblRes.error) {
-        console.warn("[MoneyOverview] obligations query failed:", oblRes.error.message);
-        throw oblRes.error;
-      }
-      if (payRes.error) {
-        console.warn("[MoneyOverview] payments query failed:", payRes.error.message);
-        throw payRes.error;
-      }
-
-      const obligations = (oblRes.data || []) as unknown as ObligationRow[];
-      const payments = (payRes.data || []) as unknown as PaymentRow[];
-
-      // ── Expected: Σ amount, excluding waived ──────────────────────────────
-      let totalExpected = 0;
-      // ── Overdue (derived) + members owing ─────────────────────────────────
-      // Compare on the calendar DATE, not a timestamp: due_date is a DATE
-      // (UTC midnight), so a same-day obligation must not read as overdue for
-      // an admin in a negative-UTC (diaspora) timezone. today = local YYYY-MM-DD.
-      const now = new Date();
-      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-
-      let overdueAmount = 0;
-      const overdueMembers = new Set<string>();
-      const owingMembers = new Set<string>();
-      const nextDueCandidates: NextDueRow[] = [];
-
-      // Build 12: open/overdue/owing/remaining are derived from CONFIRMED payments
-      // (computeObligationStates allocates each member's confirmed dues total across
-      // their obligations oldest-due-first, per contribution type), NEVER the
-      // polluted obligation.amount_paid / status. `waived` stays read from status
-      // (admin-set). Collected (below) was already confirmed-only.
-      const obligationStates = computeObligationStates(
-        obligations as unknown as MoneyObligation[],
-        payments as unknown as MoneyPayment[],
-        { today: todayKey },
-      );
-
-      for (const o of obligations) {
-        if ((o.status || "") === "waived") continue;
-
-        const amount = Number(o.amount) || 0;
-        totalExpected += amount;
-
-        const c = obligationStates.get(o.id);
-        const remaining = c ? c.remaining : amount;
-        const isOpen = c ? c.isOpen : remaining > 0;
-        const memberKey = o.membership_id || o.id;
-
-        if (isOpen) {
-          owingMembers.add(memberKey);
-        }
-
-        // Derived overdue: past due, confirmed remaining > 0 (computeObligation
-        // uses the same date-only string compare to avoid the tz boundary).
-        const dueKey = o.due_date ? String(o.due_date).slice(0, 10) : null;
-        if (c?.isOverdue) {
-          overdueAmount += remaining;
-          overdueMembers.add(memberKey);
-        }
-
-        // Next-due candidates: upcoming still-open obligations (due today or later).
-        if (isOpen && dueKey && dueKey >= todayKey) {
-          nextDueCandidates.push({
-            id: o.id,
-            name: getMemberName(o.membership as Record<string, unknown>),
-            typeName: o.contribution_type?.name ?? null,
-            typeNameFr: o.contribution_type?.name_fr ?? null,
-            amount,
-            remaining,
-            dueDate: o.due_date,
-          });
-        }
-      }
-
-      // ── Collected: confirmed dues payments only ───────────────────────────
-      // payments.status defaults to 'confirmed'; treat null/empty as confirmed
-      // to match the column default, but exclude pending/rejected.
-      let totalCollected = 0;
-      let pendingCount = 0;
-      let pendingAmount = 0;
-      const recentPayments: RecentPaymentRow[] = [];
-
-      for (const p of payments) {
-        const status = p.status || "confirmed";
-        const amount = Number(p.amount) || 0;
-
-        if (status === "pending_confirmation") {
-          pendingCount += 1;
-          pendingAmount += amount;
-          continue;
-        }
-        if (status === "rejected") continue;
-
-        // Confirmed (or default) dues payment.
-        totalCollected += amount;
-        if (recentPayments.length < 6) {
-          recentPayments.push({
-            id: p.id,
-            name: getMemberName(p.membership as Record<string, unknown>),
-            typeName: p.contribution_type?.name ?? null,
-            typeNameFr: p.contribution_type?.name_fr ?? null,
-            amount,
-            recordedAt: p.recorded_at,
-          });
-        }
-      }
-
-      const outstanding = Math.max(0, totalExpected - totalCollected);
-
-      // Obligations are ordered by due_date asc, so the first 5 upcoming
-      // candidates are already the soonest due.
-      const nextDue = nextDueCandidates.slice(0, 5);
-
-      return {
-        totalExpected,
-        totalCollected,
-        outstanding,
-        overdue: { amount: overdueAmount, memberCount: overdueMembers.size },
-        pendingConfirmation: { count: pendingCount, amount: pendingAmount },
-        membersOwing: owingMembers.size,
-        recentPayments,
-        nextDue,
-        currency,
-      };
-    },
-  });
+  const obligations = useObligations();
+  const payments = usePayments("all");
+  const today = todayKey();
+  const data = useMemo<MoneyOverview | undefined>(() => {
+    if (!obligations.data || !payments.data) return undefined;
+    const figures = computeMoneyFigures(obligations.data, payments.data, { today });
+    const states = computeObligationStates(obligations.data, payments.data, { today });
+    return {
+      totalExpected: figures.expected,
+      totalCollected: figures.collected,
+      outstanding: figures.outstanding,
+      unallocatedCredit: figures.unallocatedCredit,
+      overdue: figures.overdue,
+      pendingConfirmation: figures.pending,
+      membersOwing: figures.membersOwing,
+      recentPayments: payments.data.filter((p) => isConfirmedPayment(p.status)).slice(0, 6).map((p) => ({
+        id: p.id,
+        name: getMemberName(p.membership),
+        typeName: p.contribution_type?.name ?? null,
+        typeNameFr: p.contribution_type?.name_fr ?? null,
+        amount: Number(p.amount),
+        recordedAt: p.recorded_at,
+      })),
+      nextDue: obligations.data
+        .filter((o) => states.get(o.id)?.isOpen && o.due_date && o.due_date.slice(0, 10) >= today)
+        .sort((a, b) => a.due_date.localeCompare(b.due_date) || a.id.localeCompare(b.id))
+        .slice(0, 5).map((o) => ({
+          id: o.id,
+          name: getMemberName(o.membership),
+          typeName: o.contribution_type?.name ?? null,
+          typeNameFr: o.contribution_type?.name_fr ?? null,
+          amount: Number(o.amount),
+          remaining: states.get(o.id)!.remaining,
+          dueDate: o.due_date,
+        })),
+      currency,
+    };
+  }, [obligations.data, payments.data, currency, today]);
+  return {
+    data,
+    isLoading: obligations.isLoading || payments.isLoading,
+    isError: obligations.isError || payments.isError,
+    refetch: () => Promise.all([obligations.refetch(), payments.refetch()]),
+  };
 }

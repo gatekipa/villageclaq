@@ -93,7 +93,8 @@ test("contribution type form shows a human due-date preview over the existing du
 
 test("perf staleTime added without dropping the confirmed-only money basis", () => {
   // useDashboardStats still selects status + relief_plan_id (Build-4 basis) AND has staleTime
-  assert.ok(/select\("amount, status, obligation_id, relief_plan_id"\)/.test(hooks), "dashboard stats keep status + relief_plan_id");
+  assert.ok(/select\("group_id, currency, id, amount, status, obligation_id, relief_plan_id, membership_id, contribution_type_id"\)/.test(hooks), "dashboard stats retain currency, status, relief exclusion and allocation identity");
+  assert.ok(/readAllPages/.test(hooks), "financial reads paginate beyond backend row caps");
   assert.ok(/\.is\("relief_plan_id", null\)/.test(hooks), "dues views still exclude relief payments");
   assert.ok(/computeMoneyFigures/.test(hooks), "still uses the confirmed-only money engine");
   // staleTime present on the contribution/payment read hooks

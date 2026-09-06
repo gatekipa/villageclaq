@@ -24,7 +24,6 @@ import {
   Calendar,
   MoreVertical,
   Edit,
-  Trash2,
   Lock,
   Unlock,
   Loader2,
@@ -42,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
+import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGroup } from "@/lib/group-context";
 import {
@@ -109,8 +109,6 @@ export default function ContributionsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formNameFr, setFormNameFr] = useState("");
@@ -310,7 +308,7 @@ export default function ContributionsPage() {
         })
         .eq("id", editTypeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await invalidateFinancialQueries(queryClient, groupId);
       // WS3: reconcile this type's standing impact with the toggle, via the
       // shared exclusion writer (same setting the Settings → Standing tab uses).
       if (groupId) {
@@ -347,8 +345,7 @@ export default function ContributionsPage() {
         .update({ is_active: false })
         .eq("id", typeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await invalidateFinancialQueries(queryClient, groupId);
     } finally {
       setTogglingId(null);
       setShowCloseConfirm(null);
@@ -365,8 +362,7 @@ export default function ContributionsPage() {
         .update({ is_active: true })
         .eq("id", typeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await invalidateFinancialQueries(queryClient, groupId);
     } finally {
       setTogglingId(null);
       setShowReopenConfirm(null);
@@ -376,7 +372,6 @@ export default function ContributionsPage() {
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollError, setEnrollError] = useState<string | null>(null);
   const [enrollSuccessCount, setEnrollSuccessCount] = useState<number | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   // Read-only confirm step for "Enroll All": holds the type the admin is about
   // to enroll so we can show the member-count preview before running it.
   const [enrollConfirmType, setEnrollConfirmType] = useState<{
@@ -436,6 +431,7 @@ export default function ContributionsPage() {
           .insert(obligations);
         if (insertErr) throw insertErr;
       }
+      await invalidateFinancialQueries(queryClient, groupId);
       setEnrollSuccessCount(missing.length);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
@@ -451,27 +447,6 @@ export default function ContributionsPage() {
     }
   }
 
-  async function handleDelete(typeId: string) {
-    setDeletingId(typeId);
-    setDeleteError(null);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from("contribution_types").delete().eq("id", typeId);
-      if (error) throw error;
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] }),
-      ]);
-      setShowDeleteConfirm(null);
-    } catch (err) {
-      console.warn("[Contributions] delete type failed:", err instanceof Error ? err.message : err);
-      setDeleteError(t("contributions.deleteTypeFailed"));
-    } finally {
-      setDeletingId(null);
-    }
-  }
 
   if (isLoading) {
     return (
@@ -828,10 +803,6 @@ export default function ContributionsPage() {
                         {enrollingId === type.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         {t("standing.enrollAll")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowDeleteConfirm(type.id)} className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        {t("common.delete")}
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -971,21 +942,6 @@ export default function ContributionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) { setShowDeleteConfirm(null); setDeleteError(null); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogTitle>{t("common.confirmDeleteTitle")}</DialogTitle>
-          <DialogDescription>{t("contributions.deleteTypeConfirmCascade")}</DialogDescription>
-          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
-            <Button variant="destructive" disabled={!!deletingId} onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}>
-              {deletingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {t("common.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Close Period Confirmation Dialog */}
       <Dialog open={!!showCloseConfirm} onOpenChange={(open) => { if (!open) setShowCloseConfirm(null); }}>

@@ -35,7 +35,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
-import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
+import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
@@ -267,15 +267,15 @@ function ReportDetailContent() {
 
   // Fetch data based on report type
   const { data: members, isLoading: membersLoading, error: membersError } = useMembers();
-  const { data: payments, isLoading: paymentsLoading } = usePayments(500);
+  const { data: payments, isLoading: paymentsLoading, error: paymentsError } = usePayments("all");
   // Build 12: the UNCAPPED confirmed-only dues-payment basis. ALL money math
   // (Financial Summary + who-hasn't-paid + AR-aging + YoY) uses this so the
   // figures reconcile and never under-count collected on a group with >500
   // payments. The capped usePayments(500) feed above is kept only for surfaces
   // that need the membership/type JOINs: the on-screen ledger (Report 3) +
   // engagement counts.
-  const { data: duesPaymentsAll } = useGroupDuesPayments();
-  const { data: obligations, isLoading: obligationsLoading } = useObligations();
+  const duesPaymentsAll = payments;
+  const { data: obligations, isLoading: obligationsLoading, error: obligationsError } = useObligations();
   const { data: events, isLoading: eventsLoading } = useEvents();
   const { data: allAttendances, isLoading: attendanceLoading } = useAllEventAttendances();
   const { data: reliefPlans } = useReliefPlans();
@@ -471,6 +471,7 @@ function ReportDetailContent() {
 
   if (isLoading) return <ListSkeleton rows={5} />;
   if (membersError) return <ErrorState message={membersError.message} />;
+  if (paymentsError || obligationsError) return <ErrorState message={t("common.error")} />;
 
   // Compute report data from real queries
   const memberList = members || [];
@@ -498,17 +499,18 @@ function ReportDetailContent() {
       const amount = reportObligationStates.get(o.id as string)?.remaining || 0;
       const dueDate = new Date(o.due_date as string);
       const days = Math.max(0, Math.floor((Date.now() - dueDate.getTime()) / 86400000));
-      if (!unpaidMap[name]) unpaidMap[name] = { name, amount: 0, days: 0, items: 0 };
-      unpaidMap[name].amount += amount;
-      unpaidMap[name].days = Math.max(unpaidMap[name].days, days);
-      unpaidMap[name].items += 1;
+      const memberId = String(o.membership_id || o.id);
+      if (!unpaidMap[memberId]) unpaidMap[memberId] = { name, amount: 0, days: 0, items: 0 };
+      unpaidMap[memberId].amount += amount;
+      unpaidMap[memberId].days = Math.max(unpaidMap[memberId].days, days);
+      unpaidMap[memberId].items += 1;
     });
-  const whoHasntPaid: UnpaidRow[] = Object.values(unpaidMap).sort((a, b) => b.days - a.days).slice(0, 20);
+  const whoHasntPaid: UnpaidRow[] = Object.values(unpaidMap).sort((a, b) => b.amount - a.amount || b.days - a.days || a.name.localeCompare(b.name));
 
   // Report 2: Financial Summary (Reports 16/17/20 reuse these figures).
   // Canonical money.ts accounting: collected = Σ CONFIRMED dues payments only
   // (pending_confirmation and rejected never count); expected EXCLUDES waived
-  // obligations; outstanding = max(0, expected − collected). This replaces the
+  // obligations; outstanding sums each obligation's remaining allocation. This replaces the
   // old "sum every payment.amount with no status filter" / "sum every
   // obligation.amount including waived" logic that over-stated collection.
   const moneyFigures = computeMoneyFigures(
@@ -521,7 +523,7 @@ function ReportDetailContent() {
   const totalCollected = moneyFigures.collected;
   const totalExpected = moneyFigures.expected;
   const totalOutstanding = moneyFigures.outstanding;
-  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const collectionRate = totalExpected > 0 ? Math.round(((totalExpected - totalOutstanding) / totalExpected) * 100) : 0;
   // Latest-value ref for the AI-insights fetch declared above the early
   // returns (routerRef pattern) — keep in sync with the figures it reports.
   aiFetchCtxRef.current = {
@@ -1481,9 +1483,9 @@ function ReportDetailContent() {
                       <p className="text-xs text-muted-foreground">{row.items} {t("contributions.outstandingItems")}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant={row.days > 60 ? "destructive" : row.days > 30 ? "secondary" : "outline"}>
+                      {row.days > 0 && <Badge variant={row.days > 60 ? "destructive" : row.days > 30 ? "secondary" : "outline"}>
                         {t("reports.daysOverdue", { days: row.days })}
-                      </Badge>
+                      </Badge>}
                       <span className="font-bold text-destructive">{formatAmount(row.amount, currency)}</span>
                       <Button size="sm" variant="outline"><Send className="mr-1 h-3 w-3" />{t("reports.sendReminder")}</Button>
                     </div>

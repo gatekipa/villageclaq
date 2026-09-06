@@ -77,7 +77,7 @@ test("multi-tenant: group-scoped query keys + switchGroup still resets the cache
   for (const [name, key] of [
     ["useMembers", '["members", groupId]'],
     ["useObligations", '["obligations", groupId,'],
-    ["usePayments", '["payments", groupId, limit]'],
+    ["usePayments", '["payments", groupId, limit,'],
     ["useEvents", '["events", groupId]'],
   ]) {
     assert.ok(hookBody(name).includes(`queryKey: ${key}`), `${name} key is group-scoped`);
@@ -93,9 +93,9 @@ test("financial correctness: money-basis queries stay UNCAPPED after optimizatio
   const stats = hookBody("useDashboardStats");
   assert.ok(!/\.limit\(/.test(stats), "useDashboardStats money fetch uncapped");
   assert.ok(/computeMoneyFigures\(/.test(stats), "dashboard-stats still uses confirmed-only money.ts");
-  // The finances page sums the payments feed for its headline totals, so its
-  // usePayments call MUST stay at 5000 (capping it would under-report collected).
-  assert.ok(/usePayments\(5000\)/.test(read(FINANCES)), "finances usePayments stays at 5000 (no money under-report)");
+  // Complete paginated records replace the former 5,000-row ceiling.
+  assert.ok(/usePayments\("all"\)/.test(read(FINANCES)), "finances uses the complete ledger");
+  assert.ok(/readAllPages/.test(hookBody("usePayments")), "all-payment reads paginate");
 });
 
 // ── WS3: select-narrowing kept every consumed field ─────────────────────────

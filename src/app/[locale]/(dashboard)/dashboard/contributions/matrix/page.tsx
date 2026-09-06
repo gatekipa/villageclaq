@@ -22,6 +22,7 @@ import { useGroup } from "@/lib/group-context";
 import { useContributionTypes, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
 import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
+import { readAllPages } from "@/lib/read-all-pages";
 import { exportCSV } from "@/lib/export";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
@@ -46,25 +47,22 @@ function useMatrixData(contributionTypeId: string | null) {
       const supabase = createClient();
 
       // Fetch all obligations for this group + contribution type
-      let oblQuery = supabase
+      const obligations = await readAllPages((from, to) => {
+      const oblQuery = supabase
         .from("contribution_obligations")
-        .select("id, membership_id, amount, amount_paid, status, due_date, period_label, contribution_type_id")
+        .select("group_id, currency, id, membership_id, amount, amount_paid, status, due_date, period_label, contribution_type_id")
         .eq("group_id", groupId);
-      if (contributionTypeId) {
-        oblQuery = oblQuery.eq("contribution_type_id", contributionTypeId);
-      }
-      const { data: obligations, error: oblError } = await oblQuery.order("due_date", { ascending: true });
-      if (oblError) throw oblError;
+      return oblQuery.order("due_date", { ascending: true }).order("id").range(from, to);
+      });
 
       // Fetch all members with profiles and joined_at
-      const { data: members, error: memError } = await supabase
+      const members = await readAllPages((from, to) => supabase
         .from("memberships")
         // WS2 (B11): privacy_settings dropped — the matrix maps rows to MemberRow
         // (id/name/joinedAt/cells) via getMemberName and never reads it.
         .select("id, user_id, display_name, is_proxy, joined_at, standing, profiles!memberships_user_id_fkey(id, full_name, display_name, avatar_url)")
         .eq("group_id", groupId)
-        .order("joined_at", { ascending: true });
-      if (memError) throw memError;
+        .order("joined_at", { ascending: true }).order("id").range(from, to));
 
       return {
         obligations: obligations || [],
@@ -103,10 +101,13 @@ export default function DuesMatrixPage() {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
 
   const { data: contributionTypes } = useContributionTypes();
-  const { data: matrixData, isLoading, isError, refetch } = useMatrixData(selectedTypeId);
+  const { data: matrixData, isLoading: matrixLoading, isError: matrixError, refetch: refetchMatrix } = useMatrixData(selectedTypeId);
   // Confirmed-payment basis (Build 12) — cell paid/partial/unpaid is derived from
   // CONFIRMED payments, never the polluted obligation.amount_paid / status.
-  const { data: duesPayments } = useGroupDuesPayments();
+  const { data: duesPayments, isLoading: paymentsLoading, isError: paymentsError, refetch: refetchPayments } = useGroupDuesPayments();
+  const isLoading = matrixLoading || paymentsLoading;
+  const isError = matrixError || paymentsError;
+  const refetch = () => Promise.all([refetchMatrix(), refetchPayments()]);
 
   // Auto-select first contribution type when loaded
   const activeTypeId = selectedTypeId || (contributionTypes && contributionTypes.length > 0 ? contributionTypes[0].id : null);
@@ -139,7 +140,6 @@ export default function DuesMatrixPage() {
     // Build member rows
     const memberMap = new Map<string, MemberRow>();
     for (const member of matrixData.members) {
-      const profile = member.profile;
       memberMap.set(member.id, {
         id: member.id,
         name: getMemberName(member),
@@ -164,7 +164,7 @@ export default function DuesMatrixPage() {
     // the over-credit trigger on pending pay-now, never reversed on reject). Only
     // `waived` (admin-set) is still read from status.
     const states = computeObligationStates(
-      obligations as unknown as MoneyObligation[],
+      matrixData.obligations as unknown as MoneyObligation[],
       (duesPayments || []) as unknown as MoneyPayment[],
     );
 

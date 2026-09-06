@@ -37,45 +37,37 @@ const fr = JSON.parse(read("messages/fr.json"));
 // ---------------------------------------------------------------------------
 
 test("collected counts CONFIRMED dues payments only (pending/rejected never inflate)", () => {
-  assert.match(hook, /status === "pending_confirmation"/);
-  assert.match(hook, /status === "rejected"/);
-  // collected accumulates only after the pending/rejected continues.
-  assert.match(hook, /totalCollected \+= amount/);
-  // relief excluded at the query level.
-  assert.match(hook, /\.is\("relief_plan_id", null\)/);
+  assert.match(hook, /computeMoneyFigures\(/);
+  assert.match(hook, /totalCollected: figures.collected/);
+  assert.match(read("src/lib/hooks/use-supabase-query.ts"), /\.is\("relief_plan_id", null\)/);
 });
 
 test("expected excludes waived obligations", () => {
-  assert.match(hook, /\(o\.status \|\| ""\) === "waived"\) continue;/);
-  assert.match(hook, /totalExpected \+= amount/);
+  assert.match(hook, /totalExpected: figures.expected/);
+  assert.match(read("src/lib/money.ts"), /o.status === "waived"/);
 });
 
 test("overdue/owing is DERIVED from CONFIRMED payments (Build 12), not amount_paid/status", () => {
-  // Per-obligation open/overdue/remaining now come from the money engine's
-  // confirmed-only computeObligationStates — the actual date/remaining math is
-  // covered in test-money.mjs; here we assert the hook routes through it and no
-  // longer reads the polluted amount_paid column for the per-obligation figure.
   assert.match(hook, /computeObligationStates\(/);
-  assert.match(hook, /const c = obligationStates\.get\(o\.id\)/);
-  assert.match(hook, /c\?\.isOverdue/);
-  assert.match(hook, /c \? c\.isOpen/);
-  assert.ok(!/const paid = Number\(o\.amount_paid\)/.test(hook), "no polluted amount_paid read");
+  assert.match(hook, /overdue: figures.overdue/);
+  assert.match(hook, /membersOwing: figures.membersOwing/);
+  assert.doesNotMatch(hook, /amount_paid/);
 });
 
 test("pending confirmation is surfaced as count + amount from payments.status", () => {
-  assert.match(hook, /pendingConfirmation: \{ count: pendingCount, amount: pendingAmount \}/);
+  assert.match(hook, /pendingConfirmation: figures.pending/);
 });
 
 test("hook THROWS on query error (never coerces a false money figure to 0)", () => {
-  assert.match(hook, /throw oblRes\.error/);
-  assert.match(hook, /throw payRes\.error/);
-  assert.match(hook, /console\.warn\("\[MoneyOverview\]/);
+  assert.match(hook, /isError: obligations.isError \|\| payments.isError/);
+  assert.match(read("src/lib/read-all-pages.ts"), /if \(error\) throw new Error/);
+  assert.doesNotMatch(hook, /console.warn/);
 });
 
 test("names via getMemberName; currency primitive extracted for dep safety", () => {
   assert.match(hook, /getMemberName\(/);
   assert.match(hook, /const currency = currentGroup\?\.currency/);
-  assert.match(hook, /queryKey: \["money-overview", groupId\]/);
+  assert.match(hook, /usePayments\("all"\)/);
 });
 
 test("the money hook introduces NO send/notify path (read-only aggregation)", () => {
@@ -118,37 +110,32 @@ test("overview has an empty-state path to set up dues when nothing is expected",
 test("finances page mounts the MoneyOverview and reconciles collected to confirmed-only", () => {
   assert.match(finances, /<MoneyOverview/);
   assert.match(finances, /from "@\/components\/finances\/money-overview"/);
-  // the existing collected sum is now confirmed-only
-  assert.match(finances, /pending_confirmation/);
-  assert.match(finances, /isConfirmed/);
+  // Both totals and monthly chart use the shared conservative status predicate.
+  assert.match(finances, /computeMoneyFigures\(obligations, payments\)/);
+  assert.match(finances, /if \(!isConfirmedPayment\(status\)\) continue/);
 });
 
 test("legacy finances Outstanding/Collection-rate agree with the overview (confirmed-only, waived-excluded)", () => {
-  // Same basis as MoneyOverview: expected excludes waived, collected is
-  // confirmed-only, outstanding clamps at 0 — so the two cards never diverge.
-  assert.match(finances, /totalDueExclWaived/);
-  assert.match(finances, /totalOutstanding = Math\.max\(0, totalDueExclWaived - totalCollected\)/);
-  assert.match(finances, /collectionRate = totalDueExclWaived > 0 \? Math\.round\(\(totalCollected \/ totalDueExclWaived\)/);
+  assert.match(finances, /computeMoneyFigures\(obligations, payments\)/);
+  assert.match(finances, /totalOutstanding = figures.outstanding/);
+  assert.match(finances, /figures.expected - figures.outstanding/);
 });
 
 test("overview carries name_fr so French admins see localized type names", () => {
   assert.match(hook, /typeNameFr: o\.contribution_type\?\.name_fr/);
   assert.match(hook, /typeNameFr: p\.contribution_type\?\.name_fr/);
-  assert.match(overview, /typeLabel\(/);
-  assert.match(overview, /locale === "fr" && fr \? fr : en/);
+  assert.match(overview, /locale === "fr" \? row.typeNameFr \|\| row.typeName/);
 });
 
 test("overview surfaces a retryable error instead of an endless skeleton when the query fails", () => {
-  assert.match(overview, /hookResult\.isError/);
-  assert.match(overview, /<ErrorState onRetry=\{\(\) => hookResult\.refetch\(\)\}/);
+  assert.match(overview, /query.isError/);
+  assert.match(overview, /<ErrorState onRetry=\{\(\) => query.refetch\(\)\}/);
 });
 
 test("overdue derivation compares calendar dates (no diaspora timezone false-overdue)", () => {
-  // The next-due bucket still uses the date-only string compare; the overdue
-  // boundary now lives in computeObligation (date-only), fed today=todayKey.
-  assert.match(hook, /dueKey >= todayKey/);
-  assert.match(hook, /computeObligationStates\([\s\S]*?\{ today: todayKey \}/);
-  assert.ok(!/dueMs|todayMs/.test(hook), "must not compare raw timestamps for the date boundary");
+  assert.match(hook, /o.due_date.slice\(0, 10\) >= today/);
+  assert.match(hook, /computeObligationStates\(obligations.data, payments.data, \{ today \}\)/);
+  assert.doesNotMatch(hook, /dueMs|todayMs/);
 });
 
 // ---------------------------------------------------------------------------

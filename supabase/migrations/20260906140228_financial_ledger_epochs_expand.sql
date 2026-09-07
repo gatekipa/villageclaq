@@ -297,5 +297,404 @@ CREATE TRIGGER financial_00_application_epoch_bridge BEFORE INSERT OR UPDATE OF 
 ON public.payment_obligation_applications FOR EACH ROW
 EXECUTE FUNCTION financial_private.assign_application_epoch_if_unambiguous();
 
+-- Member-transfer RPC hardening belongs in Phase A. The epoch table is now
+-- available, and installing these replacements in the same transaction closes
+-- the old/direct-client gap before the epoch-aware application is cut over.
+-- Phase B is deliberately not a prerequisite for this authorization boundary.
+--
+-- A transfer moves membership, never money. Source financial rows remain on
+-- the exited source membership. Only the standing enum may be carried, and
+-- only when both groups' current authoritative ledger epochs use the same
+-- currency. Cross-currency transfers must explicitly request a fresh standing.
+CREATE OR REPLACE FUNCTION public.request_member_transfer(
+  p_member_id uuid,
+  p_source_group_id uuid,
+  p_dest_group_id uuid,
+  p_reason text DEFAULT NULL,
+  p_carry_over_standing boolean DEFAULT true
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_caller uuid := auth.uid();
+  v_transfer_id uuid;
+  v_source_organization_id uuid;
+  v_dest_organization_id uuid;
+  v_dest_active boolean;
+  v_source_group_currency text;
+  v_dest_group_currency text;
+  v_source_epoch_currency text;
+  v_dest_epoch_currency text;
+  v_carry_over boolean := COALESCE(p_carry_over_standing, true);
+  v_is_source_admin boolean;
+  v_is_platform_staff boolean;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'auth_required');
+  END IF;
+
+  IF p_source_group_id = p_dest_group_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'same_group');
+  END IF;
+
+  -- Serialize duplicate requests for the same member and route, including
+  -- direct clients racing before either insert commits.
+  PERFORM pg_advisory_xact_lock(hashtextextended(
+    'member-transfer-request:' || p_member_id::text || ':' ||
+    p_source_group_id::text || ':' || p_dest_group_id::text, 0));
+
+  -- Lock mutable authorization and tenant context before evaluating it.
+  PERFORM 1
+  FROM public.groups g
+  WHERE g.id IN (p_source_group_id, p_dest_group_id)
+  ORDER BY g.id
+  FOR SHARE;
+
+  PERFORM 1
+  FROM public.memberships m
+  WHERE m.user_id = v_caller
+    AND m.group_id = p_source_group_id
+  ORDER BY m.id
+  FOR SHARE;
+
+  PERFORM 1
+  FROM public.platform_staff ps
+  WHERE ps.user_id = v_caller
+  FOR SHARE;
+
+  PERFORM 1
+  FROM public.memberships m
+  WHERE m.user_id = p_member_id
+    AND m.group_id = p_source_group_id
+    AND m.membership_status = 'active'
+  FOR SHARE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'source_membership_missing');
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.memberships m
+    WHERE m.user_id = v_caller
+      AND m.group_id = p_source_group_id
+      AND m.role IN ('owner', 'admin')
+      AND m.membership_status = 'active'
+  ) INTO v_is_source_admin;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.platform_staff ps
+    WHERE ps.user_id = v_caller
+      AND ps.is_active = true
+  ) INTO v_is_platform_staff;
+
+  IF NOT (v_caller = p_member_id OR v_is_source_admin OR v_is_platform_staff) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_authorized');
+  END IF;
+
+  SELECT g.organization_id, g.currency
+    INTO v_source_organization_id, v_source_group_currency
+  FROM public.groups g
+  WHERE g.id = p_source_group_id;
+
+  SELECT g.organization_id, g.is_active, g.currency
+    INTO v_dest_organization_id, v_dest_active, v_dest_group_currency
+  FROM public.groups g
+  WHERE g.id = p_dest_group_id;
+
+  IF v_source_organization_id IS NULL
+     OR v_dest_organization_id IS DISTINCT FROM v_source_organization_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'groups_not_related');
+  END IF;
+
+  IF v_dest_active IS NOT TRUE THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'dest_group_inactive');
+  END IF;
+
+  -- Lock both active epochs in deterministic order. A concurrent epoch
+  -- transition must finish before this request decides compatibility.
+  PERFORM 1
+  FROM public.financial_ledger_epochs e
+  WHERE e.group_id IN (p_source_group_id, p_dest_group_id)
+    AND e.effective_to IS NULL
+  ORDER BY e.group_id
+  FOR SHARE;
+
+  SELECT upper(trim(e.currency)) INTO v_source_epoch_currency
+  FROM public.financial_ledger_epochs e
+  WHERE e.group_id = p_source_group_id
+    AND e.effective_to IS NULL;
+
+  SELECT upper(trim(e.currency)) INTO v_dest_epoch_currency
+  FROM public.financial_ledger_epochs e
+  WHERE e.group_id = p_dest_group_id
+    AND e.effective_to IS NULL;
+
+  IF v_source_epoch_currency IS NULL OR v_dest_epoch_currency IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'active_ledger_epoch_missing');
+  END IF;
+
+  IF v_source_epoch_currency IS DISTINCT FROM upper(trim(v_source_group_currency))
+     OR v_dest_epoch_currency IS DISTINCT FROM upper(trim(v_dest_group_currency)) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'active_ledger_epoch_mismatch');
+  END IF;
+
+  IF v_carry_over
+     AND v_source_epoch_currency IS DISTINCT FROM v_dest_epoch_currency THEN
+    RETURN jsonb_build_object(
+      'ok', false,
+      'error', 'cross_currency_standing_not_allowed'
+    );
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.member_transfers mt
+    WHERE mt.member_id = p_member_id
+      AND mt.source_group_id = p_source_group_id
+      AND mt.dest_group_id = p_dest_group_id
+      AND mt.status IN ('requested', 'approved')
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'duplicate_open_transfer');
+  END IF;
+
+  INSERT INTO public.member_transfers (
+    member_id, source_group_id, dest_group_id, reason,
+    carry_over_standing, requested_by, status
+  )
+  VALUES (
+    p_member_id, p_source_group_id, p_dest_group_id,
+    NULLIF(btrim(p_reason), ''), v_carry_over, v_caller, 'requested'
+  )
+  RETURNING id INTO v_transfer_id;
+
+  RETURN jsonb_build_object('ok', true, 'transfer_id', v_transfer_id);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.execute_member_transfer(p_transfer_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_caller uuid := auth.uid();
+  v_transfer public.member_transfers;
+  v_source_membership_id uuid;
+  v_new_membership_id uuid;
+  v_display_name text;
+  v_source_standing public.membership_standing;
+  v_dest_standing public.membership_standing;
+  v_source_organization_id uuid;
+  v_dest_organization_id uuid;
+  v_dest_active boolean;
+  v_source_group_currency text;
+  v_dest_group_currency text;
+  v_source_epoch_currency text;
+  v_dest_epoch_currency text;
+  v_is_group_admin boolean;
+  v_is_platform_staff boolean;
+BEGIN
+  IF v_caller IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'auth_required');
+  END IF;
+
+  -- The row lock makes status/version evaluation and completion single-use.
+  SELECT * INTO v_transfer
+  FROM public.member_transfers mt
+  WHERE mt.id = p_transfer_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'transfer_not_found');
+  END IF;
+
+  IF v_transfer.status::text <> 'approved' THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'transfer_not_approved');
+  END IF;
+
+  IF v_transfer.completed_at IS NOT NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_completed');
+  END IF;
+
+  -- Lock current tenant and actor state. Suspended, archived, pending and
+  -- exited officer rows cannot authorize this SECURITY DEFINER function.
+  PERFORM 1
+  FROM public.groups g
+  WHERE g.id IN (v_transfer.source_group_id, v_transfer.dest_group_id)
+  ORDER BY g.id
+  FOR SHARE;
+
+  PERFORM 1
+  FROM public.memberships m
+  WHERE m.user_id = v_caller
+    AND m.group_id IN (v_transfer.source_group_id, v_transfer.dest_group_id)
+  ORDER BY m.id
+  FOR SHARE;
+
+  PERFORM 1
+  FROM public.platform_staff ps
+  WHERE ps.user_id = v_caller
+  FOR SHARE;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.memberships m
+    WHERE m.user_id = v_caller
+      AND m.group_id IN (v_transfer.source_group_id, v_transfer.dest_group_id)
+      AND m.role IN ('owner', 'admin')
+      AND m.membership_status = 'active'
+  ) INTO v_is_group_admin;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.platform_staff ps
+    WHERE ps.user_id = v_caller
+      AND ps.is_active = true
+  ) INTO v_is_platform_staff;
+
+  IF NOT (v_is_group_admin OR v_is_platform_staff) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'not_authorized');
+  END IF;
+
+  SELECT g.organization_id, g.currency
+    INTO v_source_organization_id, v_source_group_currency
+  FROM public.groups g
+  WHERE g.id = v_transfer.source_group_id;
+
+  SELECT g.organization_id, g.is_active, g.currency
+    INTO v_dest_organization_id, v_dest_active, v_dest_group_currency
+  FROM public.groups g
+  WHERE g.id = v_transfer.dest_group_id;
+
+  IF v_source_organization_id IS NULL
+     OR v_dest_organization_id IS DISTINCT FROM v_source_organization_id THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'groups_not_related');
+  END IF;
+
+  IF v_dest_active IS NOT TRUE THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'dest_group_inactive');
+  END IF;
+
+  -- Re-read and lock the live epochs at execution. The request-time result is
+  -- intentionally not persisted as authority: a legitimate currency
+  -- transition between request and execution must change this decision.
+  PERFORM 1
+  FROM public.financial_ledger_epochs e
+  WHERE e.group_id IN (v_transfer.source_group_id, v_transfer.dest_group_id)
+    AND e.effective_to IS NULL
+  ORDER BY e.group_id
+  FOR SHARE;
+
+  SELECT upper(trim(e.currency)) INTO v_source_epoch_currency
+  FROM public.financial_ledger_epochs e
+  WHERE e.group_id = v_transfer.source_group_id
+    AND e.effective_to IS NULL;
+
+  SELECT upper(trim(e.currency)) INTO v_dest_epoch_currency
+  FROM public.financial_ledger_epochs e
+  WHERE e.group_id = v_transfer.dest_group_id
+    AND e.effective_to IS NULL;
+
+  IF v_source_epoch_currency IS NULL OR v_dest_epoch_currency IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'active_ledger_epoch_missing');
+  END IF;
+
+  IF v_source_epoch_currency IS DISTINCT FROM upper(trim(v_source_group_currency))
+     OR v_dest_epoch_currency IS DISTINCT FROM upper(trim(v_dest_group_currency)) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'active_ledger_epoch_mismatch');
+  END IF;
+
+  IF v_transfer.carry_over_standing
+     AND v_source_epoch_currency IS DISTINCT FROM v_dest_epoch_currency THEN
+    RETURN jsonb_build_object(
+      'ok', false,
+      'error', 'cross_currency_standing_not_allowed'
+    );
+  END IF;
+
+  SELECT m.id, m.display_name, m.standing
+    INTO v_source_membership_id, v_display_name, v_source_standing
+  FROM public.memberships m
+  WHERE m.group_id = v_transfer.source_group_id
+    AND m.user_id = v_transfer.member_id
+    AND m.membership_status = 'active'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'source_membership_missing');
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.memberships m
+    WHERE m.group_id = v_transfer.dest_group_id
+      AND m.user_id = v_transfer.member_id
+      AND m.membership_status = 'active'
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'already_in_destination');
+  END IF;
+
+  IF v_transfer.carry_over_standing THEN
+    v_dest_standing := v_source_standing;
+  ELSE
+    v_dest_standing := 'good'::public.membership_standing;
+  END IF;
+
+  -- membership_status is the transfer audit marker. Keep the source standing
+  -- and every source financial row intact; membership_standing has no
+  -- 'transferred' value in the canonical schema.
+  UPDATE public.memberships
+  SET membership_status = 'exited',
+      updated_at = now()
+  WHERE id = v_source_membership_id;
+
+  INSERT INTO public.memberships (
+    user_id, group_id, role, standing, is_proxy, display_name,
+    membership_status, joined_at
+  )
+  VALUES (
+    v_transfer.member_id, v_transfer.dest_group_id, 'member',
+    v_dest_standing, false, v_display_name, 'active', now()
+  )
+  RETURNING id INTO v_new_membership_id;
+
+  UPDATE public.member_transfers
+  SET status = 'completed',
+      completed_at = now(),
+      updated_at = now()
+  WHERE id = p_transfer_id
+    AND status::text = 'approved'
+    AND completed_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'TRANSFER_STATE_CHANGED' USING ERRCODE = '40001';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'new_membership_id', v_new_membership_id,
+    'source_membership_id', v_source_membership_id,
+    'dest_standing', v_dest_standing::text
+  );
+END;
+$$;
+
+-- SECURITY DEFINER RPCs are exposed only to authenticated callers and the
+-- trusted service role. Internal authorization above remains mandatory.
+REVOKE ALL ON FUNCTION public.request_member_transfer(uuid, uuid, uuid, text, boolean)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.request_member_transfer(uuid, uuid, uuid, text, boolean)
+  TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.execute_member_transfer(uuid)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.execute_member_transfer(uuid)
+  TO authenticated, service_role;
+
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA financial_private FROM PUBLIC, anon, authenticated;
 COMMIT;

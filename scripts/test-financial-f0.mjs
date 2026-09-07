@@ -179,6 +179,18 @@ test("cross-currency transfer UI forces fresh destination standing", () => {
   assert.match(transfers, /bucketCurrencyAmounts/);
 });
 
+test("Phase A hardens both member-transfer RPC stages at the authoritative epoch boundary", () => {
+  const sql = read("supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql");
+  assert.match(sql, /CREATE OR REPLACE FUNCTION public\.request_member_transfer[\s\S]*CREATE OR REPLACE FUNCTION public\.execute_member_transfer/);
+  assert.match(sql, /cross_currency_standing_not_allowed/);
+  assert.match(sql, /FROM public\.financial_ledger_epochs e[\s\S]*e\.effective_to IS NULL[\s\S]*FOR SHARE/);
+  assert.match(sql, /FROM public\.member_transfers mt[\s\S]*FOR UPDATE/);
+  assert.match(sql, /m\.membership_status = 'active'/);
+  assert.match(sql, /SET search_path = ''/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.request_member_transfer[\s\S]*FROM PUBLIC, anon/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.execute_member_transfer[\s\S]*FROM PUBLIC, anon/);
+});
+
 test("Phase B enforces epoch-aware writes and blocks old incompatible payment clients", () => {
   const sql = read("supabase/migrations/20260906140229_financial_payment_integrity.sql");
   assert.match(sql, /ALTER COLUMN ledger_epoch_id SET NOT NULL/);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { before } from "node:test";
 import { readFileSync } from "node:fs";
-import { execFileSync, spawn } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { computeMoneyFigures, computeObligationStates, allocatePaymentApplications } from "../src/lib/money.ts";
 
 const container = "villageclaq-p1-isolated";
@@ -15,10 +15,8 @@ function sql(query, actor) {
 }
 function asyncSql(query) {
   return new Promise((resolve,reject) => {
-    const child = spawn("docker",["exec","-i",container,"psql","-X","-U","postgres","-v","ON_ERROR_STOP=1","-Atq"]);
-    let out="",err=""; child.stdout.on("data",d=>out+=d); child.stderr.on("data",d=>err+=d);
-    child.on("error",reject); child.on("exit",code=>code===0?resolve(out.trim()):reject(new Error(err)));
-    child.stdin.end(query);
+    execFile("docker",["exec",container,"psql","-X","-U","postgres","-v","ON_ERROR_STOP=1","-Atq","-c",query],
+      { encoding:"utf8" },(error,out,err)=>error ? reject(new Error(err || error.message)) : resolve(out.trim()));
   });
 }
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
@@ -33,6 +31,16 @@ function query(key,action,values={},payment=null,version=null,reason=null,gid=gr
 }
 function command(key,action,values={},payment=null,version=null,reason=null,actor=officer,gid=group) {
   return JSON.parse(sql(query(key,action,values,payment,version,reason,gid),actor));
+}
+function requestTransfer(memberId,sourceGroupId,destGroupId,carryOver,actorId) {
+  return JSON.parse(sql(`SELECT public.request_member_transfer(
+    '${memberId}','${sourceGroupId}','${destGroupId}',NULL,${carryOver ? "true" : "false"})`,actorId));
+}
+function executeTransfer(transferId,actorId) {
+  return JSON.parse(sql(`SELECT public.execute_member_transfer('${transferId}')`,actorId));
+}
+function approveTransfer(transferId) {
+  sql(`UPDATE member_transfers SET status='approved',approved_by_dest='${transferAdmin}' WHERE id='${transferId}'`);
 }
 function count(table) {
   const scope=table==="payments"?` WHERE group_id='${group}'`:"";
@@ -77,7 +85,7 @@ before(() => {
   sql("CREATE TRIGGER prevent_membership_self_escalation BEFORE UPDATE ON memberships FOR EACH ROW EXECUTE FUNCTION prevent_membership_self_escalation();");
   sql(`INSERT INTO profiles VALUES('${officer}'),('${member}'),('${peer}'),('${outsider}'),
       ('${pendingOfficer}'),('${suspendedOfficer}'),('${archivedOfficer}'),('${exitedOfficer}');
-    INSERT INTO groups VALUES('${group}','USD','{}'),('${group2}','XAF','{}'),
+    INSERT INTO groups(id,currency,settings) VALUES('${group}','USD','{}'),('${group2}','XAF','{}'),
       ('${group3}','EUR','{}'),('${group4}','NGN','{}');
     INSERT INTO memberships(id,group_id,user_id,role) VALUES('${id(10)}','${group}','${officer}','owner'),
     ('${mid}','${group}','${member}','member'),('${peerMid}','${group}','${peer}','member'),('${otherMid}','${group2}','${outsider}','owner');
@@ -514,4 +522,229 @@ test("dated currency transition preserves XAF history and isolates later USD pay
   },null,null,null,outsider,group2),/CURRENCY_MISMATCH/);
   assert.throws(()=>sql(`UPDATE financial_ledger_epochs SET effective_to=effective_to+interval '1 day'
     WHERE id='${oldEpoch}'`),/LEDGER_EPOCH_IMMUTABLE/);
+});
+
+const transferOrg=id(800), unrelatedOrg=id(801);
+const transferUsdSource=id(810), transferUsdDest=id(811), transferEurDest=id(812);
+const transferXafSource=id(813), transferNgnDest=id(814), transferShiftDest=id(815);
+const transferHistoricalSource=id(816), transferUnrelatedDest=id(817);
+const transferAdmin=id(820), transferAdmin2=id(821), transferOrdinary=id(822);
+const transferPending=id(823), transferSuspended=id(824), transferArchived=id(825), transferExited=id(826);
+const transferCrossGroupAdmin=id(827), transferStaff=id(828);
+const transferSameMember=id(830), transferCrossMember=id(831), transferXafMember=id(832);
+const transferEurMember=id(833), transferToctouMember=id(834), transferHistoricalMember=id(835);
+const transferConcurrentMember=id(836), transferInactiveMember=id(837), transferStaffMember=id(838);
+const transferSameMid=id(850), transferCrossMid=id(851), transferXafMid=id(852);
+const transferEurMid=id(853), transferToctouMid=id(854), transferHistoricalMid=id(855);
+const transferConcurrentMid=id(856), transferInactiveMid=id(857), transferStaffMid=id(858);
+let crossTransferId, xafTransferId, eurTransferId;
+
+test("member-transfer fixture has isolated organizations and authoritative active epochs",()=>{
+  sql(`INSERT INTO organizations(id,name) VALUES
+      ('${transferOrg}','Synthetic transfer organization'),
+      ('${unrelatedOrg}','Unrelated synthetic organization');
+    INSERT INTO groups(id,organization_id,currency) VALUES
+      ('${transferUsdSource}','${transferOrg}','USD'),
+      ('${transferUsdDest}','${transferOrg}','USD'),
+      ('${transferEurDest}','${transferOrg}','EUR'),
+      ('${transferXafSource}','${transferOrg}','XAF'),
+      ('${transferNgnDest}','${transferOrg}','NGN'),
+      ('${transferShiftDest}','${transferOrg}','USD'),
+      ('${transferHistoricalSource}','${transferOrg}','XAF'),
+      ('${transferUnrelatedDest}','${unrelatedOrg}','USD');
+    INSERT INTO profiles(id) VALUES
+      ('${transferAdmin}'),('${transferAdmin2}'),('${transferOrdinary}'),
+      ('${transferPending}'),('${transferSuspended}'),('${transferArchived}'),('${transferExited}'),
+      ('${transferCrossGroupAdmin}'),('${transferStaff}'),
+      ('${transferSameMember}'),('${transferCrossMember}'),('${transferXafMember}'),
+      ('${transferEurMember}'),('${transferToctouMember}'),('${transferHistoricalMember}'),
+      ('${transferConcurrentMember}'),('${transferInactiveMember}'),('${transferStaffMember}');
+    INSERT INTO platform_staff(user_id,is_active) VALUES('${transferStaff}',true);
+    INSERT INTO memberships(id,group_id,user_id,role,membership_status) VALUES
+      ('${id(840)}','${transferUsdSource}','${transferAdmin}','owner','active'),
+      ('${id(841)}','${transferUsdSource}','${transferAdmin2}','admin','active'),
+      ('${id(842)}','${transferEurDest}','${transferAdmin}','owner','active'),
+      ('${id(843)}','${transferXafSource}','${transferAdmin}','owner','active'),
+      ('${id(844)}','${transferNgnDest}','${transferAdmin}','owner','active'),
+      ('${id(845)}','${transferHistoricalSource}','${transferAdmin}','owner','active'),
+      ('${id(846)}','${transferUsdSource}','${transferOrdinary}','member','active'),
+      ('${id(847)}','${transferUsdSource}','${transferPending}','owner','pending_approval'),
+      ('${id(848)}','${transferUsdSource}','${transferSuspended}','owner','suspended'),
+      ('${id(849)}','${transferUsdSource}','${transferArchived}','owner','archived'),
+      ('${id(859)}','${transferUsdSource}','${transferExited}','owner','exited'),
+      ('${id(860)}','${transferUnrelatedDest}','${transferCrossGroupAdmin}','owner','active'),
+      ('${transferSameMid}','${transferUsdSource}','${transferSameMember}','member','active'),
+      ('${transferCrossMid}','${transferUsdSource}','${transferCrossMember}','member','active'),
+      ('${transferXafMid}','${transferXafSource}','${transferXafMember}','member','active'),
+      ('${transferEurMid}','${transferEurDest}','${transferEurMember}','member','active'),
+      ('${transferToctouMid}','${transferUsdSource}','${transferToctouMember}','member','active'),
+      ('${transferHistoricalMid}','${transferHistoricalSource}','${transferHistoricalMember}','member','active'),
+      ('${transferConcurrentMid}','${transferUsdSource}','${transferConcurrentMember}','member','active'),
+      ('${transferInactiveMid}','${transferUsdSource}','${transferInactiveMember}','member','active'),
+      ('${transferStaffMid}','${transferUsdSource}','${transferStaffMember}','member','active');
+    INSERT INTO financial_ledger_epochs(group_id,currency,effective_from,source_kind,source_reference,approval_note)
+    SELECT id,currency,clock_timestamp()-interval '30 days','cutover','transfer-f0-test','Synthetic transfer test epoch'
+    FROM groups WHERE id IN (
+      '${transferUsdSource}','${transferUsdDest}','${transferEurDest}','${transferXafSource}',
+      '${transferNgnDest}','${transferShiftDest}','${transferHistoricalSource}','${transferUnrelatedDest}');`);
+  assert.equal(sql(`SELECT count(*) FROM financial_ledger_epochs WHERE group_id IN (
+    '${transferUsdSource}','${transferUsdDest}','${transferEurDest}','${transferXafSource}',
+    '${transferNgnDest}','${transferShiftDest}','${transferHistoricalSource}','${transferUnrelatedDest}')
+    AND effective_to IS NULL`),"8");
+});
+
+test("request RPC blocks incompatible standing carry-over for USD/EUR, XAF/USD and EUR/NGN",()=>{
+  for(const [memberId,source,dest] of [
+    [transferCrossMember,transferUsdSource,transferEurDest],
+    [transferXafMember,transferXafSource,transferUsdDest],
+    [transferEurMember,transferEurDest,transferNgnDest],
+  ]) {
+    assert.deepEqual(requestTransfer(memberId,source,dest,true,transferAdmin),{
+      ok:false,error:"cross_currency_standing_not_allowed",
+    });
+  }
+  const cross=requestTransfer(transferCrossMember,transferUsdSource,transferEurDest,false,transferAdmin);
+  const xaf=requestTransfer(transferXafMember,transferXafSource,transferUsdDest,false,transferAdmin);
+  const eur=requestTransfer(transferEurMember,transferEurDest,transferNgnDest,false,transferAdmin);
+  assert.equal(cross.ok,true); assert.equal(xaf.ok,true); assert.equal(eur.ok,true);
+  crossTransferId=cross.transfer_id; xafTransferId=xaf.transfer_id; eurTransferId=eur.transfer_id;
+  assert.equal(sql(`SELECT bool_and(NOT carry_over_standing) FROM member_transfers
+    WHERE id IN ('${crossTransferId}','${xafTransferId}','${eurTransferId}')`),"t");
+});
+
+test("cross-currency execution creates fresh destination standing and preserves source debt, credit and history",()=>{
+  const typeA=id(870), typeB=id(871), obligationA=id(872), obligationB=id(873);
+  sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency) VALUES
+      ('${typeA}','${transferUsdSource}','Synthetic dues A',100,'USD'),
+      ('${typeB}','${transferUsdSource}','Synthetic dues B',50,'USD');
+    INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date) VALUES
+      ('${obligationA}','${transferUsdSource}','${transferCrossMid}','${typeA}',100,'USD',CURRENT_DATE-30),
+      ('${obligationB}','${transferUsdSource}','${transferCrossMid}','${typeB}',50,'USD',CURRENT_DATE-20);`);
+  const payment=command(874,"record",{
+    membership_id:transferCrossMid,contribution_type_id:typeA,amount:120,currency:"USD",payment_method:"cash"
+  },null,null,null,transferAdmin,transferUsdSource).payment;
+  assert.equal(sql(`SELECT COALESCE(sum(amount_applied),0) FROM payment_obligation_applications
+    WHERE payment_id='${payment.id}'`),"100.00");
+  approveTransfer(crossTransferId);
+  const result=executeTransfer(crossTransferId,transferAdmin);
+  assert.equal(result.ok,true); assert.equal(result.dest_standing,"good");
+  assert.equal(sql(`SELECT standing||':'||membership_status FROM memberships WHERE id='${transferCrossMid}'`),"suspended:exited");
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${result.new_membership_id}'`),"good");
+  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE membership_id='${transferCrossMid}'
+    AND group_id='${transferUsdSource}' AND currency='USD'`),"2");
+  assert.equal(sql(`SELECT count(*) FROM payments WHERE id='${payment.id}' AND membership_id='${transferCrossMid}'
+    AND group_id='${transferUsdSource}' AND currency='USD'`),"1");
+  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE membership_id='${result.new_membership_id}'`),"0");
+  assert.equal(sql(`SELECT count(*) FROM payments WHERE membership_id='${result.new_membership_id}'`),"0");
+});
+
+test("same-currency transfer preserves the authorized standing contract without moving money rows",()=>{
+  sql(`UPDATE memberships SET standing='warning' WHERE id='${transferSameMid}'`);
+  const requested=requestTransfer(transferSameMember,transferUsdSource,transferUsdDest,true,transferAdmin);
+  assert.equal(requested.ok,true); approveTransfer(requested.transfer_id);
+  const result=executeTransfer(requested.transfer_id,transferAdmin);
+  assert.equal(result.ok,true); assert.equal(result.dest_standing,"warning");
+  assert.equal(sql(`SELECT standing||':'||membership_status FROM memberships WHERE id='${transferSameMid}'`),"warning:exited");
+  assert.equal(sql(`SELECT standing||':'||membership_status FROM memberships WHERE id='${result.new_membership_id}'`),"warning:active");
+});
+
+test("historical XAF epoch remains native when current USD standing moves to a USD destination",()=>{
+  const historicalType=id(875), historicalObligation=id(876);
+  sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency)
+      VALUES('${historicalType}','${transferHistoricalSource}','Historical XAF dues',50000,'XAF');
+    INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date)
+      VALUES('${historicalObligation}','${transferHistoricalSource}','${transferHistoricalMid}',
+        '${historicalType}',50000,'XAF',CURRENT_DATE-60);`);
+  const historicalPayment=command(877,"record",{
+    membership_id:transferHistoricalMid,contribution_type_id:historicalType,
+    amount:50000,currency:"XAF",payment_method:"cash"
+  },null,null,null,transferAdmin,transferHistoricalSource).payment;
+  const oldEpoch=historicalPayment.ledger_epoch_id;
+  const transitionAt=sql("SELECT clock_timestamp()");
+  sql(`SELECT financial_private.transition_ledger_epoch('${transferHistoricalSource}','USD',
+    '${transitionAt}','Synthetic transfer epoch transition','${transferAdmin}')`);
+  const requested=requestTransfer(transferHistoricalMember,transferHistoricalSource,transferUsdDest,true,transferAdmin);
+  assert.equal(requested.ok,true); approveTransfer(requested.transfer_id);
+  const result=executeTransfer(requested.transfer_id,transferAdmin);
+  assert.equal(result.ok,true);
+  assert.equal(sql(`SELECT currency||':'||(effective_to IS NOT NULL)::text FROM financial_ledger_epochs
+    WHERE id='${oldEpoch}'`),"XAF:true");
+  assert.equal(sql(`SELECT currency FROM payments WHERE id='${historicalPayment.id}'
+    AND membership_id='${transferHistoricalMid}'`),"XAF");
+  assert.equal(sql(`SELECT count(*) FROM payments WHERE membership_id='${result.new_membership_id}'`),"0");
+});
+
+test("execution revalidates destination epoch after request and fails closed on USD to EUR TOCTOU",()=>{
+  const requested=requestTransfer(transferToctouMember,transferUsdSource,transferShiftDest,true,transferAdmin);
+  assert.equal(requested.ok,true); approveTransfer(requested.transfer_id);
+  const transitionAt=sql("SELECT clock_timestamp()");
+  sql(`SELECT financial_private.transition_ledger_epoch('${transferShiftDest}','EUR',
+    '${transitionAt}','Synthetic TOCTOU transition','${transferAdmin}')`);
+  assert.deepEqual(executeTransfer(requested.transfer_id,transferAdmin),{
+    ok:false,error:"cross_currency_standing_not_allowed",
+  });
+  assert.equal(sql(`SELECT membership_status FROM memberships WHERE id='${transferToctouMid}'`),"active");
+  assert.equal(sql(`SELECT status FROM member_transfers WHERE id='${requested.transfer_id}'`),"approved");
+});
+
+test("inactive officers, ordinary members and cross-group admins cannot request or execute",()=>{
+  const approved=requestTransfer(transferInactiveMember,transferUsdSource,transferUsdDest,false,transferAdmin);
+  assert.equal(approved.ok,true); approveTransfer(approved.transfer_id);
+  for(const actor of [transferOrdinary,transferPending,transferSuspended,transferArchived,transferExited,transferCrossGroupAdmin]) {
+    assert.equal(requestTransfer(transferInactiveMember,transferUsdSource,transferEurDest,false,actor).error,"not_authorized");
+    assert.deepEqual(executeTransfer(approved.transfer_id,actor),{ok:false,error:"not_authorized"});
+  }
+  sql(`UPDATE memberships SET membership_status='exited' WHERE id='${transferInactiveMid}'`);
+  assert.deepEqual(executeTransfer(approved.transfer_id,transferAdmin),{ok:false,error:"source_membership_missing"});
+});
+
+test("unrelated organizations are rejected at request and execution boundaries",()=>{
+  assert.deepEqual(requestTransfer(transferStaffMember,transferUsdSource,transferUnrelatedDest,false,transferAdmin),{
+    ok:false,error:"groups_not_related",
+  });
+  const transferId=id(878);
+  sql(`INSERT INTO member_transfers(id,member_id,source_group_id,dest_group_id,status,requested_by,carry_over_standing)
+    VALUES('${transferId}','${transferStaffMember}','${transferUsdSource}','${transferUnrelatedDest}',
+      'approved','${transferAdmin}',false)`);
+  assert.deepEqual(executeTransfer(transferId,transferAdmin),{ok:false,error:"groups_not_related"});
+});
+
+test("two concurrent admins produce exactly one destination membership and one completion",async()=>{
+  const requested=requestTransfer(transferConcurrentMember,transferUsdSource,transferUsdDest,false,transferAdmin);
+  assert.equal(requested.ok,true); approveTransfer(requested.transfer_id);
+  const invoke=actor=>asyncSql(`SET ROLE authenticated; SET request.jwt.claim.sub='${actor}';
+    SELECT public.execute_member_transfer('${requested.transfer_id}');`);
+  const results=(await Promise.all([invoke(transferAdmin),invoke(transferAdmin2)])).map(JSON.parse);
+  assert.equal(results.filter(result=>result.ok).length,1);
+  assert.equal(results.filter(result=>result.error==="transfer_not_approved").length,1);
+  assert.equal(sql(`SELECT count(*) FROM memberships WHERE group_id='${transferUsdDest}'
+    AND user_id='${transferConcurrentMember}' AND membership_status='active'`),"1");
+  assert.equal(sql(`SELECT count(*) FROM member_transfers WHERE id='${requested.transfer_id}'
+    AND status='completed' AND completed_at IS NOT NULL`),"1");
+});
+
+test("cancelled, rejected, completed and stale-source transfers cannot execute twice or out of state",()=>{
+  const completed=sql(`SELECT id FROM member_transfers WHERE member_id='${transferSameMember}' AND status='completed'`);
+  assert.deepEqual(executeTransfer(completed,transferAdmin),{ok:false,error:"transfer_not_approved"});
+  for(const [offset,status] of [[879,"cancelled"],[880,"rejected"]]) {
+    const transferId=id(offset);
+    sql(`INSERT INTO member_transfers(id,member_id,source_group_id,dest_group_id,status,requested_by,carry_over_standing)
+      VALUES('${transferId}','${transferStaffMember}','${transferUsdSource}','${transferUsdDest}',
+        '${status}','${transferAdmin}',false)`);
+    assert.deepEqual(executeTransfer(transferId,transferAdmin),{ok:false,error:"transfer_not_approved"});
+  }
+});
+
+test("active platform staff remains authorized without weakening RPC grants",()=>{
+  const requested=requestTransfer(transferStaffMember,transferUsdSource,transferUsdDest,false,transferStaffMember);
+  assert.equal(requested.ok,true); approveTransfer(requested.transfer_id);
+  assert.equal(executeTransfer(requested.transfer_id,transferStaff).ok,true);
+  assert.equal(sql(`SELECT has_function_privilege('anon','public.request_member_transfer(uuid,uuid,uuid,text,boolean)','EXECUTE')`),"f");
+  assert.equal(sql(`SELECT has_function_privilege('anon','public.execute_member_transfer(uuid)','EXECUTE')`),"f");
+  assert.equal(sql(`SELECT has_function_privilege('authenticated','public.request_member_transfer(uuid,uuid,uuid,text,boolean)','EXECUTE')`),"t");
+  assert.equal(sql(`SELECT has_function_privilege('authenticated','public.execute_member_transfer(uuid)','EXECUTE')`),"t");
+  assert.equal(sql(`SELECT bool_and(p.prosecdef AND p.proconfig @> ARRAY['search_path=""'])
+    FROM pg_proc p WHERE p.oid IN (
+      'public.request_member_transfer(uuid,uuid,uuid,text,boolean)'::regprocedure,
+      'public.execute_member_transfer(uuid)'::regprocedure)`),"t");
 });

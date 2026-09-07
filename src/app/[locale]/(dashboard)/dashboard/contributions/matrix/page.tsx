@@ -50,7 +50,7 @@ function useMatrixData(contributionTypeId: string | null) {
       const obligations = await readAllPages((from, to) => {
       const oblQuery = supabase
         .from("contribution_obligations")
-        .select("group_id, currency, id, membership_id, amount, amount_paid, status, due_date, period_label, contribution_type_id")
+        .select("group_id, currency, ledger_epoch_id, id, membership_id, amount, amount_paid, status, due_date, period_label, contribution_type_id")
         .eq("group_id", groupId);
       return oblQuery.order("due_date", { ascending: true }).order("id").range(from, to);
       });
@@ -95,8 +95,6 @@ export default function DuesMatrixPage() {
   const t = useTranslations();
   const th = useTranslations("helpTips");
   const locale = useLocale();
-  const { currentGroup } = useGroup();
-  const currency = currentGroup?.currency || "XAF";
   const [view, setView] = useState<"yearly" | "monthly">("yearly");
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
 
@@ -111,6 +109,7 @@ export default function DuesMatrixPage() {
 
   // Auto-select first contribution type when loaded
   const activeTypeId = selectedTypeId || (contributionTypes && contributionTypes.length > 0 ? contributionTypes[0].id : null);
+  const currency = contributionTypes?.find((type) => type.id === activeTypeId)?.currency || "XAF";
 
   // Build the matrix from real data
   const { columns, memberRows } = useMemo(() => {

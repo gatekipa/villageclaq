@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { formatAmount } from "@/lib/currencies";
+import { bucketCurrencyAmounts, formatCurrencyBuckets } from "@/lib/currency-buckets";
+import { isConfirmedPayment } from "@/lib/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
@@ -31,11 +32,11 @@ export default function ReportsHubPage() {
   );
 
   const { results, loading } = useAdminQuery([
-    { key: "paymentsAll", table: "payments", select: "amount" },
+    { key: "paymentsAll", table: "payments", select: "amount, currency, status" },
     {
       key: "paymentsMonth",
       table: "payments",
-      select: "amount",
+      select: "amount, currency, status",
       filters: [{ column: "recorded_at", op: "gte", value: thisMonthStart }],
     },
     { key: "profiles", table: "profiles", select: "id", count: "exact", limit: 1 },
@@ -57,7 +58,7 @@ export default function ReportsHubPage() {
       limit: 1,
       filters: [{ column: "is_active", op: "eq", value: true }],
     },
-    { key: "payouts", table: "relief_payouts", select: "amount" },
+    { key: "payouts", table: "relief_payouts", select: "amount, relief_claims!inner(relief_plans!inner(groups!inner(currency)))" },
     {
       key: "groups",
       table: "groups",
@@ -74,11 +75,24 @@ export default function ReportsHubPage() {
     const attData = (results.attendances?.data ?? []) as Array<Record<string, unknown>>;
     const payoutsData = (results.payouts?.data ?? []) as Array<Record<string, unknown>>;
 
-    const totalRev = paymentsAll.reduce((s, p) => s + Number(p.amount), 0);
-    const monthRev = paymentsMonth.reduce((s, p) => s + Number(p.amount), 0);
+    const confirmedPayments = paymentsAll.filter((payment) => isConfirmedPayment(payment.status as string | null));
+    const confirmedMonth = paymentsMonth.filter((payment) => isConfirmedPayment(payment.status as string | null));
+    const totalRev = bucketCurrencyAmounts(confirmedPayments, (payment) => Number(payment.amount), (payment) => payment.currency as string | null);
+    const monthRev = bucketCurrencyAmounts(confirmedMonth, (payment) => Number(payment.amount), (payment) => payment.currency as string | null);
     const presentCount = attData.filter((a) => a.status === "present" || a.status === "late").length;
     const avgAtt = attData.length > 0 ? Math.round((presentCount / attData.length) * 100) : ("—" as string | number);
-    const disbursed = payoutsData.reduce((s, p) => s + Number(p.amount), 0);
+    const disbursed = bucketCurrencyAmounts(
+      payoutsData,
+      (payout) => Number(payout.amount),
+      (payout) => {
+        const one = (value: unknown): Record<string, unknown> | null =>
+          (Array.isArray(value) ? value[0] : value) as Record<string, unknown> | null;
+        const claim = one(payout.relief_claims);
+        const plan = one(claim?.relief_plans);
+        const group = one(plan?.groups);
+        return group?.currency as string | null;
+      },
+    );
 
     return {
       totalRevenue: totalRev,
@@ -98,8 +112,8 @@ export default function ReportsHubPage() {
       key: "financial", href: "/admin/reports/financial", icon: DollarSign,
       color: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
       descKey: "financialReportsDesc",
-      metric1: { label: t("totalRevenue"), value: formatAmount(metrics.totalRevenue, "XAF") },
-      metric2: { label: t("thisMonth"), value: formatAmount(metrics.revenueThisMonth, "XAF") },
+      metric1: { label: t("totalRevenue"), value: formatCurrencyBuckets(metrics.totalRevenue).join(" · ") },
+      metric2: { label: t("thisMonth"), value: formatCurrencyBuckets(metrics.revenueThisMonth).join(" · ") },
     },
     {
       key: "engagement", href: "/admin/reports/engagement", icon: Activity,
@@ -127,7 +141,7 @@ export default function ReportsHubPage() {
       color: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400",
       descKey: "reliefReportsDesc",
       metric1: { label: t("activePlans"), value: metrics.activePlans },
-      metric2: { label: t("totalDisbursed"), value: formatAmount(metrics.totalDisbursed, "XAF") },
+      metric2: { label: t("totalDisbursed"), value: formatCurrencyBuckets(metrics.totalDisbursed).join(" · ") },
     },
   ];
 
@@ -178,10 +192,10 @@ export default function ReportsHubPage() {
             {[
               { label: t("totalGroups"), value: metrics.activeGroups },
               { label: t("totalUsers"), value: metrics.totalUsers },
-              { label: t("monthlyRevenue"), value: formatAmount(metrics.revenueThisMonth, "XAF") },
+              { label: t("monthlyRevenue"), value: formatCurrencyBuckets(metrics.revenueThisMonth).join(" · ") },
               { label: t("totalEventsR"), value: metrics.totalEvents },
               { label: t("avgAttendanceRate"), value: typeof metrics.avgAttendance === "number" ? `${metrics.avgAttendance}%` : "—" },
-              { label: t("totalDisbursed"), value: formatAmount(metrics.totalDisbursed, "XAF") },
+              { label: t("totalDisbursed"), value: formatCurrencyBuckets(metrics.totalDisbursed).join(" · ") },
             ].map((m, i) => (
               <div key={i} className="text-center">
                 <p className="text-[10px] text-muted-foreground">{m.label}</p>

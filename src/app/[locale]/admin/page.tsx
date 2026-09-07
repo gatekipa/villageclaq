@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
+import { bucketCurrencyAmounts, formatCurrencyBuckets } from "@/lib/currency-buckets";
+import { isConfirmedPayment } from "@/lib/money";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Link } from "@/i18n/routing";
@@ -27,7 +29,6 @@ import {
   Plug,
   AlertTriangle,
   BarChart3,
-  Ticket,
 } from "lucide-react";
 import {
   AreaChart,
@@ -58,6 +59,7 @@ interface PaymentRow {
   recorded_at: string;
   payment_method: string;
   currency: string;
+  status?: string | null;
 }
 
 interface RecentPaymentRow {
@@ -66,6 +68,7 @@ interface RecentPaymentRow {
   currency: string;
   recorded_at: string;
   group_id: string;
+  status?: string | null;
   memberships: {
     display_name: string | null;
     profiles: { full_name: string | null } | null;
@@ -91,36 +94,49 @@ interface PlatformStats {
 
 const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6"];
 
+function TrendBadge({ value }: { value: number | null }) {
+  if (value === null) {
+    return (
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Minus className="h-3 w-3" />
+        {"\u2014"}
+      </span>
+    );
+  }
+  const isUp = value >= 0;
+  return (
+    <span className={`flex items-center gap-1 text-xs ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+      {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      {isUp ? "+" : ""}
+      {value}%
+    </span>
+  );
+}
+
 export default function AdminDashboardPage() {
+  const [renderedAt] = useState(() => Date.now());
   const t = useTranslations("admin");
   const locale = useLocale();
   const dateLocale = getDateLocale(locale);
 
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [stats, setStats] = useState<PlatformStats | null>(null);
-  const [payments30d, setPayments30d] = useState<PaymentRow[]>([]);
-  const [payments6mo, setPayments6mo] = useState<
-    { amount: number; recorded_at: string }[]
-  >([]);
-  const [recentGroups, setRecentGroups] = useState<GroupRow[]>([]);
-  const [recentPayments, setRecentPayments] = useState<RecentPaymentRow[]>([]);
-  const [groups, setGroups] = useState<GroupRow[]>([]);
 
-  const d30 = useMemo(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), []);
-  const d6mo = useMemo(() => new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), []);
+  const d30 = useMemo(() => new Date(renderedAt - 30 * 24 * 60 * 60 * 1000).toISOString(), [renderedAt]);
+  const d6mo = useMemo(() => new Date(renderedAt - 180 * 24 * 60 * 60 * 1000).toISOString(), [renderedAt]);
 
   // Fetch table data via admin API (service role, bypasses RLS)
   const { results: adminResults, loading: adminLoading } = useAdminQuery([
     {
       key: "payments30d",
       table: "payments",
-      select: "id, amount, recorded_at, payment_method, currency",
+      select: "id, amount, recorded_at, payment_method, currency, status",
       filters: [{ column: "recorded_at", op: "gte", value: d30 }],
     },
     {
       key: "payments6mo",
       table: "payments",
-      select: "amount, recorded_at",
+      select: "amount, currency, status, recorded_at",
       filters: [{ column: "recorded_at", op: "gte", value: d6mo }],
     },
     {
@@ -133,7 +149,7 @@ export default function AdminDashboardPage() {
     {
       key: "recentPayments",
       table: "payments",
-      select: "id, amount, currency, recorded_at, group_id, memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name))",
+      select: "id, amount, currency, status, recorded_at, group_id, memberships!inner(display_name, profiles!memberships_user_id_fkey(full_name))",
       order: { column: "recorded_at", ascending: false },
       limit: 10,
     },
@@ -144,6 +160,30 @@ export default function AdminDashboardPage() {
     },
   ]);
 
+  const payments30d = useMemo(
+    () => (adminResults.payments30d?.data as PaymentRow[]) ?? [],
+    [adminResults.payments30d?.data],
+  );
+  const payments6mo = useMemo(() => (adminResults.payments6mo?.data as {
+    amount: number;
+    currency: string;
+    status?: string | null;
+    recorded_at: string;
+  }[]) ?? [], [adminResults.payments6mo?.data]);
+  const recentGroups = useMemo(
+    () => (adminResults.recentGroups?.data as GroupRow[]) ?? [],
+    [adminResults.recentGroups?.data],
+  );
+  const recentPayments = useMemo(
+    () => (adminResults.recentPayments?.data as unknown as RecentPaymentRow[]) ?? [],
+    [adminResults.recentPayments?.data],
+  );
+  const groups = useMemo(
+    () => (adminResults.allGroups?.data as GroupRow[]) ?? [],
+    [adminResults.allGroups?.data],
+  );
+  const loading = statsLoading || adminLoading;
+
   // Fetch platform stats via SECURITY DEFINER RPC (summary cards)
   useEffect(() => {
     async function fetchStats() {
@@ -152,38 +192,22 @@ export default function AdminDashboardPage() {
       if (statsRes.data && !statsRes.data.error) {
         setStats(statsRes.data as unknown as PlatformStats);
       }
-      setLoading(false);
+      setStatsLoading(false);
     }
     fetchStats();
   }, []);
-
-  // Derive table data from admin query results
-  useEffect(() => {
-    if (!adminLoading) {
-      setPayments30d((adminResults.payments30d?.data as PaymentRow[]) ?? []);
-      setPayments6mo(adminResults.payments6mo?.data as { amount: number; recorded_at: string }[] ?? []);
-      setRecentGroups((adminResults.recentGroups?.data as GroupRow[]) ?? []);
-      setRecentPayments((adminResults.recentPayments?.data as unknown as RecentPaymentRow[]) ?? []);
-      setGroups((adminResults.allGroups?.data as GroupRow[]) ?? []);
-    }
-  }, [adminResults, adminLoading]);
 
   // Use RPC stats for summary values (accurate platform-wide counts)
   const activeGroupCount = stats?.active_groups ?? 0;
   const profileCount = stats?.total_users ?? 0;
   const payments30dCount = stats?.payments_30d ?? 0;
-  const revenue30d = stats?.revenue_30d ?? 0;
+  const revenue30d = useMemo(() => bucketCurrencyAmounts(
+    payments30d.filter((payment) => isConfirmedPayment(payment.status)),
+    (payment) => Number(payment.amount),
+    (payment) => payment.currency,
+  ), [payments30d]);
   const pendingCount = stats?.pending_payments ?? 0;
   const activeSubscriptions = stats?.active_subscriptions ?? 0;
-
-  const primaryCurrency = useMemo(() => {
-    if (payments30d.length === 0) return "USD";
-    const freq: Record<string, number> = {};
-    for (const p of payments30d) {
-      freq[p.currency] = (freq[p.currency] || 0) + 1;
-    }
-    return Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
-  }, [payments30d]);
 
   function computeTrend(current: number, previous: number): number | null {
     if (previous === 0) return current > 0 ? 100 : null;
@@ -199,32 +223,31 @@ export default function AdminDashboardPage() {
     payments30dCount,
     stats?.payments_prev_30d ?? 0
   );
-  const revenueTrend = computeTrend(revenue30d, stats?.revenue_prev_30d ?? 0);
-
   // Chart data: Revenue trend (6 months)
   const revenueChartData = useMemo(() => {
-    const months: Record<string, number> = {};
     const now = new Date();
+    const months: { key: string; label: string }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      months[key] = 0;
+      months.push({ key, label: d.toLocaleDateString(dateLocale, { month: "short" }) });
     }
+    const values = new Map<string, Map<string, number>>();
     for (const p of payments6mo) {
+      if (!isConfirmedPayment(p.status)) continue;
       const d = new Date(p.recorded_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (key in months) {
-        months[key] += Number(p.amount) || 0;
-      }
+      if (!months.some((month) => month.key === key)) continue;
+      const currency = String(p.currency || "").toUpperCase();
+      if (!currency) continue;
+      if (!values.has(currency)) values.set(currency, new Map());
+      const bucket = values.get(currency)!;
+      bucket.set(key, (bucket.get(key) || 0) + (Number(p.amount) || 0));
     }
-    return Object.entries(months).map(([key, value]) => {
-      const [y, m] = key.split("-");
-      const d = new Date(Number(y), Number(m) - 1, 1);
-      return {
-        name: d.toLocaleDateString(dateLocale, { month: "short" }),
-        value,
-      };
-    });
+    return [...values.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([currency, amounts]) => ({
+      currency,
+      data: months.map((month) => ({ name: month.label, value: amounts.get(month.key) || 0 })),
+    }));
   }, [payments6mo, dateLocale]);
 
   // Chart data: Transaction status (by payment method)
@@ -249,37 +272,57 @@ export default function AdminDashboardPage() {
   // Risk: payments > 5x average
   const riskCount = useMemo(() => {
     if (payments30d.length === 0) return 0;
-    const avg =
-      payments30d.reduce((s, p) => s + (Number(p.amount) || 0), 0) /
-      payments30d.length;
-    return payments30d.filter((p) => Number(p.amount) > avg * 5).length;
+    const confirmed = payments30d.filter((payment) => isConfirmedPayment(payment.status));
+    const byCurrency = new Map<string, PaymentRow[]>();
+    for (const payment of confirmed) {
+      const currency = String(payment.currency || "").toUpperCase();
+      if (!byCurrency.has(currency)) byCurrency.set(currency, []);
+      byCurrency.get(currency)!.push(payment);
+    }
+    return [...byCurrency.values()].reduce((count, rows) => {
+      const avg = rows.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0) / rows.length;
+      return count + rows.filter((payment) => Number(payment.amount) > avg * 5).length;
+    }, 0);
   }, [payments30d]);
 
   // Top groups by payment
   const topGroupsData = useMemo(() => {
-    const groupTotals: Record<string, { name: string; total: number }> = {};
+    const groupTotals: Record<string, { name: string; currency: string; total: number }> = {};
     const groupNames: Record<string, string> = {};
     for (const g of groups) {
       groupNames[g.id] = g.name;
     }
-    for (const p of recentPayments) {
+    for (const p of recentPayments.filter((payment) => isConfirmedPayment(payment.status))) {
       const gid = p.group_id;
-      if (!groupTotals[gid]) {
-        groupTotals[gid] = {
+      const currency = String(p.currency || "").toUpperCase();
+      const key = `${gid}:${currency}`;
+      if (!groupTotals[key]) {
+        groupTotals[key] = {
           name: groupNames[gid] || t("noGroupName"),
+          currency,
           total: 0,
         };
       }
-      groupTotals[gid].total += Number(p.amount) || 0;
+      groupTotals[key].total += Number(p.amount) || 0;
     }
-    return Object.values(groupTotals)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+    const byCurrency = new Map<string, typeof groupTotals[string][]>();
+    for (const row of Object.values(groupTotals)) {
+      if (!byCurrency.has(row.currency)) byCurrency.set(row.currency, []);
+      byCurrency.get(row.currency)!.push(row);
+    }
+    return [...byCurrency.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([currency, rows]) => ({
+      currency, rows: rows.sort((a, b) => b.total - a.total).slice(0, 5),
+    }));
   }, [recentPayments, groups, t]);
+
+  const recentConfirmedPayments = useMemo(
+    () => recentPayments.filter((payment) => isConfirmedPayment(payment.status)),
+    [recentPayments],
+  );
 
   // Relative time
   function relativeTime(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const diff = renderedAt - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 60)
       return `${mins}m`;
@@ -288,34 +331,6 @@ export default function AdminDashboardPage() {
       return `${hours}h`;
     const days = Math.floor(hours / 24);
     return `${days}d`;
-  }
-
-  function TrendBadge({
-    value,
-  }: {
-    value: number | null;
-  }) {
-    if (value === null)
-      return (
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <Minus className="h-3 w-3" />
-          {"\u2014"}
-        </span>
-      );
-    const isUp = value >= 0;
-    return (
-      <span
-        className={`text-xs flex items-center gap-1 ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
-      >
-        {isUp ? (
-          <TrendingUp className="h-3 w-3" />
-        ) : (
-          <TrendingDown className="h-3 w-3" />
-        )}
-        {isUp ? "+" : ""}
-        {value}%
-      </span>
-    );
   }
 
   function getPayerName(p: RecentPaymentRow): string {
@@ -459,10 +474,10 @@ export default function AdminDashboardPage() {
                 <Skeleton className="mt-2 h-8 w-16" />
               ) : (
                 <>
-                  <p className="mt-1 text-2xl font-bold">
-                    {formatAmount(revenue30d, primaryCurrency)}
-                  </p>
-                  <TrendBadge value={revenueTrend} />
+                  <div className="mt-1 space-y-0.5 text-xl font-bold">
+                    {formatCurrencyBuckets(revenue30d).map((value) => <p key={value}>{value}</p>)}
+                    {revenue30d.length === 0 && <p>—</p>}
+                  </div>
                 </>
               )}
             </CardContent>
@@ -532,15 +547,18 @@ export default function AdminDashboardPage() {
           <CardContent>
             {loading ? (
               <Skeleton className="h-64 w-full" />
-            ) : revenueChartData.every((d) => d.value === 0) ? (
+            ) : revenueChartData.length === 0 || revenueChartData.every((series) => series.data.every((item) => item.value === 0)) ? (
               <div className="flex h-64 items-center justify-center">
                 <p className="text-sm text-muted-foreground">
                   {t("noDataYet")}
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={revenueChartData}>
+              <div className="space-y-5">
+                {revenueChartData.map((series) => <div key={series.currency}>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">{series.currency}</p>
+                  <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={series.data}>
                   <defs>
                     <linearGradient
                       id="emeraldGradient"
@@ -573,7 +591,9 @@ export default function AdminDashboardPage() {
                     strokeWidth={2}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </div>)}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -712,13 +732,13 @@ export default function AdminDashboardPage() {
                   </div>
                 ))}
               </div>
-            ) : recentPayments.length === 0 ? (
+            ) : recentConfirmedPayments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {t("noDataYet")}
               </p>
             ) : (
               <div className="space-y-3">
-                {recentPayments.map((p) => (
+                {recentConfirmedPayments.map((p) => (
                   <div key={p.id} className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
@@ -796,9 +816,12 @@ export default function AdminDashboardPage() {
                 </p>
               </div>
             ) : (
+              <div className="space-y-5">
+                {topGroupsData.map((series) => <div key={series.currency}>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">{series.currency}</p>
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart
-                  data={topGroupsData}
+                  data={series.rows}
                   layout="vertical"
                   margin={{ left: 0, right: 12 }}
                 >
@@ -818,6 +841,8 @@ export default function AdminDashboardPage() {
                   <Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+                </div>)}
+              </div>
             )}
           </CardContent>
         </Card>

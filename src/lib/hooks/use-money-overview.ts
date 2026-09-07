@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useGroup } from "@/lib/group-context";
 import { getMemberName } from "@/lib/get-member-name";
-import { computeMoneyFigures, computeObligationStates, isConfirmedPayment, todayKey } from "@/lib/money";
+import { computeMoneyFiguresByCurrency, computeObligationStates, isConfirmedPayment, todayKey, type CurrencyMoneyFigures } from "@/lib/money";
 import { useObligations, usePayments } from "@/lib/hooks/use-supabase-query";
 
 export interface RecentPaymentRow {
@@ -12,6 +12,7 @@ export interface RecentPaymentRow {
   typeName: string | null;
   typeNameFr: string | null;
   amount: number;
+  currency: string;
   recordedAt: string | null;
 }
 export interface NextDueRow {
@@ -21,6 +22,7 @@ export interface NextDueRow {
   typeNameFr: string | null;
   amount: number;
   remaining: number;
+  currency: string;
   dueDate: string | null;
 }
 export interface MoneyOverview {
@@ -34,6 +36,7 @@ export interface MoneyOverview {
   recentPayments: RecentPaymentRow[];
   nextDue: NextDueRow[];
   currency: string;
+  moneyByCurrency?: CurrencyMoneyFigures[];
 }
 
 /** Shares complete, authorized query caches with the ledger and financial dashboard. */
@@ -45,7 +48,11 @@ export function useMoneyOverview() {
   const today = todayKey();
   const data = useMemo<MoneyOverview | undefined>(() => {
     if (!obligations.data || !payments.data) return undefined;
-    const figures = computeMoneyFigures(obligations.data, payments.data, { today });
+    const moneyByCurrency = computeMoneyFiguresByCurrency(obligations.data, payments.data, { today });
+    const figures = moneyByCurrency.find((bucket) => bucket.currency === currency) || {
+      expected: 0, collected: 0, outstanding: 0, unallocatedCredit: 0,
+      overdue: { amount: 0, memberCount: 0 }, pending: { count: 0, amount: 0 }, membersOwing: 0,
+    };
     const states = computeObligationStates(obligations.data, payments.data, { today });
     return {
       totalExpected: figures.expected,
@@ -61,6 +68,7 @@ export function useMoneyOverview() {
         typeName: p.contribution_type?.name ?? null,
         typeNameFr: p.contribution_type?.name_fr ?? null,
         amount: Number(p.amount),
+        currency: p.currency || currency,
         recordedAt: p.recorded_at,
       })),
       nextDue: obligations.data
@@ -73,9 +81,11 @@ export function useMoneyOverview() {
           typeNameFr: o.contribution_type?.name_fr ?? null,
           amount: Number(o.amount),
           remaining: states.get(o.id)!.remaining,
+          currency: o.currency || currency,
           dueDate: o.due_date,
         })),
       currency,
+      moneyByCurrency,
     };
   }, [obligations.data, payments.data, currency, today]);
   return {

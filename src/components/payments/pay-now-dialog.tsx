@@ -83,7 +83,9 @@ export function PayNowDialog({
   const locale = useLocale();
   const { groupId, currentGroup, user } = useGroup();
   const queryClient = useQueryClient();
-  const currency = currentGroup?.currency || obligation.currency || "XAF";
+  // Historical obligations retain their native epoch currency. The payment RPC
+  // independently rejects writes when that epoch is no longer active.
+  const currency = obligation.currency || currentGroup?.currency || "XAF";
   // Build 13: the confirmed-only amount to pay is computed by the caller (money
   // engine) and passed in directly — the dialog never derives it from the polluted
   // amount_paid column. Clamp defensively to [0, obligation.amount] so the recorded

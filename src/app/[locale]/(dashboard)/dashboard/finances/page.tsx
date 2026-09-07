@@ -27,7 +27,7 @@ import {
   Banknote,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useObligations, usePayments, useContributionTypes } from "@/lib/hooks/use-supabase-query";
+import { useObligations, usePayments } from "@/lib/hooks/use-supabase-query";
 
 // WS4 (B11): lazy-load the recharts monthly-trend chart so recharts (~74KB gzip)
 // stays off the finances first-paint critical path on low-bandwidth links.
@@ -38,20 +38,21 @@ const MonthlyTrendChart = dynamic(() => import("@/components/charts/monthly-tren
 import { useGroup } from "@/lib/group-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { DashboardSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
+import { DashboardSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { getMemberName } from "@/lib/get-member-name";
 import { MoneyOverview } from "@/components/finances/money-overview";
 import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
 import {
   confirmedPaidByType,
-  computeMoneyFigures,
+  computeMoneyFiguresByCurrency,
   computeObligationStates,
   isConfirmedPayment,
   num,
   type MoneyObligation,
   type MoneyPayment,
 } from "@/lib/money";
+import { bucketCurrencyAmounts } from "@/lib/currency-buckets";
 
 
 function useFineStats(groupId: string | null) {
@@ -145,7 +146,6 @@ export default function FinancesPage() {
 
   const { data: allObligations, isLoading: oblLoading, isError: oblError, refetch: oblRefetch } = useObligations();
   const { data: allPayments, isLoading: payLoading, isError: payError, refetch: payRefetch } = usePayments("all");
-  const { data: contributionTypes } = useContributionTypes();
   const { data: fineStats } = useFineStats(groupId || null);
   const { data: loanStats } = useLoanStats(groupId || null);
 
@@ -157,11 +157,7 @@ export default function FinancesPage() {
     const obligations = allObligations || [];
     const payments = allPayments || [];
 
-    const figures = computeMoneyFigures(obligations, payments);
-    const totalCollected = figures.collected;
-    const totalOutstanding = figures.outstanding;
-    const collectionRate = figures.expected > 0
-      ? Math.round(((figures.expected - figures.outstanding) / figures.expected) * 100) : 0;
+    const moneyByCurrency = computeMoneyFiguresByCurrency(obligations, payments);
     const isConfirmed = (status: unknown) => isConfirmedPayment(status as string | null);
 
     // This month's payments
@@ -170,22 +166,27 @@ export default function FinancesPage() {
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}`;
 
-    let collectedThisMonth = 0;
-    let collectedLastMonth = 0;
     let paymentsThisMonth = 0;
+    const thisMonthPayments: typeof payments = [];
+    const lastMonthPayments: typeof payments = [];
 
     for (const p of payments) {
       if (!isConfirmed((p as Record<string, unknown>).status)) continue;
       const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
       if (pMonth === thisMonthKey) {
-        collectedThisMonth += Number(p.amount);
+        thisMonthPayments.push(p);
         paymentsThisMonth++;
       } else if (pMonth === lastMonthKey) {
-        collectedLastMonth += Number(p.amount);
+        lastMonthPayments.push(p);
       }
     }
 
-    return { totalCollected, totalOutstanding, collectionRate, collectedThisMonth, collectedLastMonth, paymentsThisMonth };
+    return {
+      moneyByCurrency,
+      collectedThisMonth: bucketCurrencyAmounts(thisMonthPayments, (p) => Number(p.amount), (p) => p.currency),
+      collectedLastMonth: bucketCurrencyAmounts(lastMonthPayments, (p) => Number(p.amount), (p) => p.currency),
+      paymentsThisMonth,
+    };
   }, [allObligations, allPayments]);
 
   // Monthly trend: group payments by month (last 6 months)
@@ -201,20 +202,24 @@ export default function FinancesPage() {
       });
     }
 
-    const monthMap = new Map<string, number>();
-    for (const m of months) monthMap.set(m.key, 0);
+    const monthCurrencyMap = new Map<string, Map<string, number>>();
 
     for (const p of payments) {
       const status = ((p as Record<string, unknown>).status as string) || "confirmed";
       if (!isConfirmedPayment(status)) continue;
       const pMonth = (p.recorded_at || p.created_at || "").slice(0, 7);
-      if (monthMap.has(pMonth)) {
-        monthMap.set(pMonth, (monthMap.get(pMonth) || 0) + Number(p.amount));
-      }
+      if (!months.some((month) => month.key === pMonth)) continue;
+      const rowCurrency = String(p.currency || currency).toUpperCase();
+      if (!monthCurrencyMap.has(rowCurrency)) monthCurrencyMap.set(rowCurrency, new Map());
+      const bucket = monthCurrencyMap.get(rowCurrency)!;
+      bucket.set(pMonth, (bucket.get(pMonth) || 0) + Number(p.amount));
     }
 
-    return months.map((m) => ({ month: m.label, amount: monthMap.get(m.key) || 0 }));
-  }, [allPayments, locale]);
+    return [...monthCurrencyMap.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([rowCurrency, values]) => ({
+      currency: rowCurrency,
+      data: months.map((m) => ({ month: m.label, amount: values.get(m.key) || 0 })),
+    }));
+  }, [allPayments, locale, currency]);
 
   // Top members who owe: outstanding is computed PER MEMBER from CONFIRMED
   // payments (member expected − member confirmed). Per-member (not per-obligation)
@@ -224,24 +229,25 @@ export default function FinancesPage() {
     const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
     const payments = (allPayments || []) as unknown as MoneyPayment[];
     const states = computeObligationStates(obligations, payments);
-    const memberAgg = new Map<string, { name: string; amount: number; obligations: number }>();
+    const memberAgg = new Map<string, { id: string; name: string; currency: string; amount: number; obligations: number }>();
     for (const obl of obligations) {
       const state = states.get(obl.id);
       if (!state?.isOverdue) continue;
       const mid = obl.membership_id || obl.id;
-      if (!memberAgg.has(mid)) memberAgg.set(mid, {
-        name: getMemberName(obl.membership as Record<string, unknown>), amount: 0, obligations: 0,
+      const rowCurrency = String(obl.currency || currency).toUpperCase();
+      const key = `${mid}:${rowCurrency}`;
+      if (!memberAgg.has(key)) memberAgg.set(key, {
+        id: mid, name: getMemberName(obl.membership as Record<string, unknown>), currency: rowCurrency, amount: 0, obligations: 0,
       });
-      const entry = memberAgg.get(mid)!;
+      const entry = memberAgg.get(key)!;
       entry.amount += state.remaining;
       entry.obligations++;
     }
-    return Array.from(memberAgg.entries())
-      .map(([id, entry]) => ({ id, ...entry }))
+    return Array.from(memberAgg.values())
       .filter((m) => m.amount > 0)
-      .sort((a, b) => b.amount - a.amount)
+      .sort((a, b) => a.currency.localeCompare(b.currency) || b.amount - a.amount)
       .slice(0, 5);
-  }, [allObligations, allPayments]);
+  }, [allObligations, allPayments, currency]);
 
   // Collection by contribution type. Per-type "collected" = Σ CONFIRMED payments
   // carrying that contribution_type_id (most dues payments have no obligation_id,
@@ -251,7 +257,7 @@ export default function FinancesPage() {
     const obligations = (allObligations || []) as unknown as (MoneyObligation & Record<string, unknown>)[];
     const payments = (allPayments || []) as unknown as MoneyPayment[];
     const collectedByType = confirmedPaidByType(payments, obligations);
-    const typeMap = new Map<string, { id: string; name: string; collected: number; target: number }>();
+    const typeMap = new Map<string, { id: string; name: string; currency: string; collected: number; target: number }>();
 
     for (const obl of obligations) {
       const isWaived = obl.status === "waived";
@@ -261,6 +267,7 @@ export default function FinancesPage() {
         typeMap.set(typeId, {
           id: typeId,
           name: ct?.name || t("common.unknown"),
+          currency: String(obl.currency || currency).toUpperCase(),
           collected: collectedByType.get(typeId) || 0,
           target: 0,
         });
@@ -273,8 +280,8 @@ export default function FinancesPage() {
 
     return Array.from(typeMap.values())
       .map((t) => ({ ...t, rate: t.target > 0 ? Math.round((t.collected / t.target) * 100) : 0 }))
-      .sort((a, b) => b.target - a.target);
-  }, [allObligations, allPayments]);
+      .sort((a, b) => a.currency.localeCompare(b.currency) || b.target - a.target);
+  }, [allObligations, allPayments, currency, t]);
 
   // Recent payments (top 5)
   const recentPayments = useMemo(() => {
@@ -288,15 +295,17 @@ export default function FinancesPage() {
         name: getMemberName(p.membership as Record<string, unknown>),
         type: ct?.name || t("contributions.paymentFallback"),
         amount: Number(p.amount),
+        currency: String(p.currency || currency).toUpperCase(),
         method: p.payment_method || "cash",
         date: shortDate,
       };
     });
-  }, [allPayments]);
+  }, [allPayments, currency, locale, t]);
 
-  const monthOverMonthChange = stats.collectedLastMonth > 0
-    ? Math.round(((stats.collectedThisMonth - stats.collectedLastMonth) / stats.collectedLastMonth) * 100)
-    : stats.collectedThisMonth > 0 ? 100 : 0;
+  const monthOverMonthChanges = stats.collectedThisMonth.map((bucket) => {
+    const prior = stats.collectedLastMonth.find((item) => item.currency === bucket.currency)?.amount || 0;
+    return { ...bucket, change: prior > 0 ? Math.round(((bucket.amount - prior) / prior) * 100) : bucket.amount > 0 ? 100 : 0 };
+  });
 
   async function handleSyncPayments() {
     if (!groupId || syncing) return;
@@ -372,19 +381,16 @@ export default function FinancesPage() {
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">
-              {formatAmount(stats.collectedThisMonth, currency)}
-            </div>
-            <div className="mt-1 flex items-center gap-1 text-xs">
-              {monthOverMonthChange >= 0 ? (
-                <TrendingUp className="h-3 w-3 text-emerald-500" />
-              ) : (
-                <TrendingDown className="h-3 w-3 text-red-500" />
-              )}
-              <span className={monthOverMonthChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                {monthOverMonthChange >= 0 ? "+" : ""}{monthOverMonthChange}%
-              </span>
-              <span className="text-muted-foreground">{t("finances.vsLastMonth")}</span>
+            <div className="space-y-2">
+              {monthOverMonthChanges.map((bucket) => <div key={bucket.currency}>
+                <div className="text-xl font-bold text-primary">{formatAmount(bucket.amount, bucket.currency)}</div>
+                <div className="mt-1 flex items-center gap-1 text-xs">
+                  {bucket.change >= 0 ? <TrendingUp className="h-3 w-3 text-emerald-500" /> : <TrendingDown className="h-3 w-3 text-red-500" />}
+                  <span className={bucket.change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>{bucket.change >= 0 ? "+" : ""}{bucket.change}%</span>
+                  <span className="text-muted-foreground">{t("finances.vsLastMonth")}</span>
+                </div>
+              </div>)}
+              {monthOverMonthChanges.length === 0 && <div className="text-2xl font-bold text-primary">{formatAmount(0, currency)}</div>}
             </div>
           </CardContent>
         </Card>
@@ -397,8 +403,8 @@ export default function FinancesPage() {
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">
-              {formatAmount(stats.totalOutstanding, currency)}
+            <div className="space-y-1 text-xl font-bold text-destructive">
+              {stats.moneyByCurrency.map((bucket) => <div key={bucket.currency}>{formatAmount(bucket.outstanding, bucket.currency)}</div>)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {topOverdue.length} {t("finances.membersOverdue")}
@@ -414,9 +420,11 @@ export default function FinancesPage() {
             <BarChart3 className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.collectionRate}%</div>
-            <div className="mt-2">
-              <Progress value={stats.collectionRate} />
+            <div className="space-y-2">
+              {stats.moneyByCurrency.map((bucket) => {
+                const rate = bucket.expected > 0 ? Math.round(((bucket.expected - bucket.outstanding) / bucket.expected) * 100) : 0;
+                return <div key={bucket.currency}><div className="flex justify-between text-sm font-semibold"><span>{bucket.currency}</span><span>{rate}%</span></div><Progress value={rate} /></div>;
+              })}
             </div>
           </CardContent>
         </Card>
@@ -443,8 +451,11 @@ export default function FinancesPage() {
             <CardTitle className="text-base">{t("finances.monthlyTrend")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[220px] sm:h-[280px]">
-              <MonthlyTrendChart data={monthlyTrend} currency={currency} collectedLabel={t("finances.collected")} />
+            <div className="space-y-5">
+              {monthlyTrend.map((series) => <div key={series.currency}>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">{series.currency}</p>
+                <div className="h-[220px] sm:h-[260px]"><MonthlyTrendChart data={series.data} currency={series.currency} collectedLabel={t("finances.collected")} /></div>
+              </div>)}
             </div>
           </CardContent>
         </Card>
@@ -482,7 +493,7 @@ export default function FinancesPage() {
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-destructive">
-                      {formatAmount(member.amount, currency)}
+                      {formatAmount(member.amount, member.currency)}
                     </span>
                   </div>
                 ))}
@@ -512,8 +523,8 @@ export default function FinancesPage() {
                     </div>
                     <Progress value={type.rate} />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{formatAmount(type.collected, currency)} {t("finances.collected")}</span>
-                      <span>{t("finances.target")}: {formatAmount(type.target, currency)}</span>
+                       <span>{formatAmount(type.collected, type.currency)} {t("finances.collected")}</span>
+                       <span>{t("finances.target")}: {formatAmount(type.target, type.currency)}</span>
                     </div>
                   </div>
                 ))}
@@ -551,7 +562,7 @@ export default function FinancesPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-primary">
-                        +{formatAmount(payment.amount, currency)}
+                         +{formatAmount(payment.amount, payment.currency)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">{payment.date}</p>
                     </div>

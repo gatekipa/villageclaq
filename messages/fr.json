@@ -3550,6 +3550,8 @@
     "carryOverStanding": "Conserver le standing de la branche d'origine",
     "carryOverStandingDesc": "Activé : la nouvelle adhésion conserve le standing d'origine (bon / avertissement / suspendu). Désactivé : l'adhésion démarre à Bon.",
     "outstandingObligationsWarning": "Attention : ce membre a {amount} en cotisations impayées dans la branche d'origine. La dette historique reste à la source pour audit ; la nouvelle adhésion démarre à zéro sauf si le standing est reporté.",
+    "crossCurrencyStandingBlocked": "Ce transfert ne peut pas reporter le statut entre des devises différentes. La destination doit recalculer le statut à partir de zéro.",
+    "historicalFinancialSnapshotUnavailable": "Le résumé financier historique est masqué, car l'ancien transfert ne ventile pas les montants par devise.",
     "requestTransferTitle": "Demander un transfert de membre",
     "approveTransferTitle": "Approuver le transfert ?",
     "approveTransferDesc": "Approuver le transfert de {member} de {source} vers {dest} ? L'administrateur de la source exécutera ensuite le transfert.",

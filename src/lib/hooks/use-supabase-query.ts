@@ -3,10 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useGroup } from "@/lib/group-context";
-import { computeMoneyFigures, assertFinancialScope } from "@/lib/money";
+import { computeMoneyFiguresByCurrency, assertFinancialScope } from "@/lib/money";
 import { readAllPages } from "@/lib/read-all-pages";
 import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
-import { applyPaymentCommand, paymentRequestId, acknowledgePaymentRequest } from "@/lib/payment-command";
+import { applyPaymentCommand, paymentRequestId, acknowledgePaymentRequest, resolveActiveLedgerEpoch } from "@/lib/payment-command";
 
 const supabase = createClient();
 
@@ -15,7 +15,7 @@ const supabase = createClient();
 export function useDashboardStats() {
   const { groupId, currentGroup } = useGroup();
   return useQuery({
-    queryKey: ["dashboard-stats", groupId],
+    queryKey: ["dashboard-stats", groupId, currentGroup?.currency],
     // WS4 (Build 9): cut refetch churn on tab switch / remount for low-bandwidth
     // admins. Mutations still invalidate this key, so a write is reflected
     // immediately; only idle re-renders within 5 min reuse the cache.
@@ -26,16 +26,20 @@ export function useDashboardStats() {
       const [membersRes, eventsRes, obligationsRes, paymentsRes] = await Promise.all([
         supabase.from("memberships").select("id", { count: "exact", head: true }).eq("group_id", groupId),
         supabase.from("events").select("id", { count: "exact", head: true }).eq("group_id", groupId).gte("starts_at", new Date().toISOString()),
-        readAllPages((from, to) => supabase.from("contribution_obligations").select("group_id, currency, id, amount, status, due_date, membership_id, contribution_type_id").eq("group_id", groupId).order("id").range(from, to)),
+        readAllPages((from, to) => supabase.from("contribution_obligations").select("group_id, currency, ledger_epoch_id, id, amount, status, due_date, membership_id, contribution_type_id").eq("group_id", groupId).order("id").range(from, to)),
         // Pull status + obligation link so collected is CONFIRMED-only (never
         // pending/rejected) and outstanding excludes waived — via money.ts, the
         // single accounting basis shared with the reports and overview.
-        readAllPages((from, to) => supabase.from("payments").select("group_id, currency, id, amount, status, obligation_id, relief_plan_id, membership_id, contribution_type_id").eq("group_id", groupId).is("relief_plan_id", null).order("id").range(from, to)),
+        readAllPages((from, to) => supabase.from("payments").select("group_id, currency, ledger_epoch_id, id, amount, status, obligation_id, relief_plan_id, membership_id, contribution_type_id").eq("group_id", groupId).is("relief_plan_id", null).order("id").range(from, to)),
       ]);
 
       if (membersRes.error || eventsRes.error) throw new Error("Dashboard records could not be loaded.");
-      assertFinancialScope(obligationsRes, paymentsRes, currentGroup?.currency);
-      const figures = computeMoneyFigures(obligationsRes, paymentsRes);
+      assertFinancialScope(obligationsRes, paymentsRes);
+      const moneyByCurrency = computeMoneyFiguresByCurrency(obligationsRes, paymentsRes);
+      const activeCurrency = (currentGroup?.currency || "XAF").toUpperCase();
+      const figures = moneyByCurrency.find((bucket) => bucket.currency === activeCurrency) || {
+        expected: 0, collected: 0, outstanding: 0,
+      };
 
       return {
         totalMembers: membersRes.count || 0,
@@ -43,6 +47,7 @@ export function useDashboardStats() {
         collectionRate: figures.expected > 0 ? Math.round((figures.collected / figures.expected) * 100) : 0,
         outstanding: figures.outstanding,
         totalCollected: figures.collected,
+        moneyByCurrency,
       };
     },
     enabled: !!groupId,
@@ -161,8 +166,12 @@ export function useCreateContributionType() {
   return useMutation({
     mutationFn: async (values: { name: string; name_fr?: string; description?: string; amount: number; currency: string; frequency: string; due_day?: number; start_date?: string; enroll_all_members: boolean; is_flexible?: boolean }) => {
       if (!groupId || !user) throw new Error("No group/user");
+      const epoch = await resolveActiveLedgerEpoch(supabase, groupId);
+      if (values.currency.toUpperCase() !== epoch.currency) throw new Error("CURRENCY_MISMATCH");
       const { data, error } = await supabase.from("contribution_types").insert({
         ...values,
+        currency: epoch.currency,
+        ledger_epoch_id: epoch.id,
         group_id: groupId,
         created_by: user.id,
       }).select().single();
@@ -193,7 +202,7 @@ export function useCreateContributionType() {
 // ─── Obligations ───────────────────────────────────────────────────────────
 
 export function useObligations(filters?: { status?: string; membershipId?: string | null }) {
-  const { groupId, currentGroup } = useGroup();
+  const { groupId } = useGroup();
   // IMPORTANT: Serialize filter values as primitives in queryKey.
   // Passing the raw `filters` object creates a new reference on every render
   // when callers pass inline objects like { membershipId: x }, causing
@@ -215,7 +224,7 @@ export function useObligations(filters?: { status?: string; membershipId?: strin
       if (filters?.membershipId) q = q.eq("membership_id", filters.membershipId);
       return q.range(from, to);
       });
-      assertFinancialScope(rows, [], currentGroup?.currency);
+      assertFinancialScope(rows, []);
       return rows;
     },
     enabled: !!groupId && filters?.membershipId !== null,
@@ -262,7 +271,7 @@ export function usePayments(limit: number | "all" = 50, membershipId?: string | 
  * (prefix match) refreshes it on every recorded payment — no write-path change.
  */
 export function useGroupDuesPayments() {
-  const { groupId, currentGroup } = useGroup();
+  const { groupId } = useGroup();
   return useQuery({
     queryKey: ["payments", groupId, "all-dues"],
     staleTime: 5 * 60 * 1000,
@@ -270,11 +279,11 @@ export function useGroupDuesPayments() {
       if (!groupId) return [];
       const rows = await readAllPages((from, to) => supabase
         .from("payments")
-        .select("group_id, currency, id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+        .select("group_id, currency, ledger_epoch_id, id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
         .eq("group_id", groupId)
         .is("relief_plan_id", null)
         .order("recorded_at", { ascending: false }).order("id").range(from, to));
-      assertFinancialScope([], rows, currentGroup?.currency);
+      assertFinancialScope([], rows);
       return rows;
     },
     enabled: !!groupId,

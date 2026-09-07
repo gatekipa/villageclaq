@@ -71,6 +71,7 @@ function readShownMilestones(storageKey: string): string[] {
 }
 
 export default function DashboardPage() {
+  const [renderedAt] = useState(() => Date.now());
   const locale = useLocale();
   const t = useTranslations();
   const router = useRouter();
@@ -207,18 +208,19 @@ export default function DashboardPage() {
 
   // ─── Invite CTA: dismissible card for small groups (admin only) ─────
   const [inviteDismissed, setInviteDismissed] = useState(false);
+  const currentGroupId = currentGroup?.id;
   useEffect(() => {
-    if (currentGroup?.id) {
-      const key = `vc_invite_cta_dismissed_${currentGroup.id}`;
-      if (localStorage.getItem(key) === "1") setInviteDismissed(true);
-    }
-  }, [currentGroup?.id]);
+    if (!currentGroupId) return;
+    const dismissed = localStorage.getItem(`vc_invite_cta_dismissed_${currentGroupId}`) === "1";
+    const timeout = window.setTimeout(() => setInviteDismissed(dismissed), 0);
+    return () => window.clearTimeout(timeout);
+  }, [currentGroupId]);
   const dismissInviteCta = useCallback(() => {
-    if (currentGroup?.id) {
-      localStorage.setItem(`vc_invite_cta_dismissed_${currentGroup.id}`, "1");
+    if (currentGroupId) {
+      localStorage.setItem(`vc_invite_cta_dismissed_${currentGroupId}`, "1");
     }
     setInviteDismissed(true);
-  }, [currentGroup?.id]);
+  }, [currentGroupId]);
   const showInviteCta = isAdmin && !inviteDismissed && (rosterCount ?? stats?.totalMembers ?? 0) < 5;
 
   // ─── Milestone detection ──────────────────────────────────────────────
@@ -233,32 +235,37 @@ export default function DashboardPage() {
     const collectionRate = stats.collectionRate ?? 0;
     const groupName = currentGroup.name;
 
+    let nextMilestone: { key: string; title: string; desc: string } | null = null;
+
     // Check milestones in priority order (highest first)
     const memberMilestones = [100, 50, 25, 10];
     for (const threshold of memberMilestones) {
       const mk = `members_${threshold}`;
       if (memberCount >= threshold && !shown.includes(mk)) {
-        setMilestone({
+        nextMilestone = {
           key: mk,
           title: t("dashboard.milestoneMemberCount", { count: threshold }),
           desc: t("dashboard.milestoneMemberDesc", { group: groupName, count: threshold }),
-        });
-        return;
+        };
+        break;
       }
     }
 
     // 100% collection
-    if (collectionRate === 100 && memberCount > 1) {
+    if (!nextMilestone && collectionRate === 100 && memberCount > 1) {
       const monthKey = `collection_100_${new Date().toISOString().slice(0, 7)}`;
       if (!shown.includes(monthKey)) {
-        setMilestone({
+        nextMilestone = {
           key: monthKey,
           title: t("dashboard.milestoneCollectionRate"),
           desc: t("dashboard.milestoneCollectionDesc", { group: groupName }),
-        });
-        return;
+        };
       }
     }
+
+    if (!nextMilestone) return;
+    const timeout = window.setTimeout(() => setMilestone(nextMilestone), 0);
+    return () => window.clearTimeout(timeout);
   }, [stats, currentGroup, t]);
 
   const dismissMilestone = useCallback(() => {
@@ -709,7 +716,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-base font-semibold text-primary">
-                        +{formatCurrency(payment.amount as number)}
+                        +{formatAmount(payment.amount as number, (payment.currency as string) || groupCurrency)}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {formatDateWithGroupFormat(payment.recorded_at as string, groupDateFormat, locale)}
@@ -762,7 +769,7 @@ export default function DashboardPage() {
                   const actorName = member ? getMemberName(member as Record<string, unknown>) : t("dashboard.system");
 
                   // Relative time
-                  const diffMs = Date.now() - new Date(entry.created_at as string).getTime();
+                  const diffMs = renderedAt - new Date(entry.created_at as string).getTime();
                   const diffMins = Math.floor(diffMs / 60000);
                   const diffHours = Math.floor(diffMins / 60);
                   const diffDays = Math.floor(diffHours / 24);

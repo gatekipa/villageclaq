@@ -83,12 +83,14 @@ test("multiple members/types reconcile independently", () => {
   const perType = ["t1", "t2"].map((type) => computeMoneyFigures(obls.filter(o => o.contribution_type_id === type), pays.filter(p => p.contribution_type_id === type), { today }));
   assert.equal(perType.reduce((s, r) => s + r.outstanding, 0), figures.outstanding);
 });
-test("legacy linked payment attribution and mismatched member protection", () => {
+test("legacy linked payment attribution works and mismatched member fails closed", () => {
   const obls = [obligation()];
   const legacy = { amount: 100, obligation_id: "o1", status: "confirmed" };
   reconcile(obls, [legacy], { collected: 100, outstanding: 0 });
-  const state = computeObligationStates(obls, [{ ...legacy, membership_id: "someone-else" }], { today }).get("o1");
-  assert.equal(state.remaining, 100);
+  assert.throws(
+    () => computeObligationStates(obls, [{ ...legacy, membership_id: "someone-else" }], { today }),
+    /PAYMENT_ATTRIBUTION_INVALID/,
+  );
 });
 test("same-date allocation is deterministic regardless of query order", () => {
   const obls = [obligation("b"), obligation("a")];

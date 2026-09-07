@@ -66,6 +66,7 @@ import {
 } from "@/lib/standing-exclusion";
 import { describeDueDay, ordinalDay } from "@/lib/due-date-preview";
 import { computeObligationDueDate, todayISO } from "@/lib/contribution-schedule";
+import { resolveActiveLedgerEpoch } from "@/lib/payment-command";
 
 
 // Frequency labels resolved via t() inside the component
@@ -297,7 +298,6 @@ export default function ContributionsPage() {
           name_fr: formNameFr || null,
           description: formDescription || null,
           amount: Number(formAmount),
-          currency: formCurrency,
           frequency: formFrequency,
           due_day: formFrequency === "one_time" ? null : (formDueDay ? Number(formDueDay) : null),
           // One-time exact due date in start_date. NOTE: editing the schedule
@@ -380,18 +380,22 @@ export default function ContributionsPage() {
     currency: string;
   } | null>(null);
 
-  async function handleEnrollAll(typeId: string, amount: number, currency: string) {
+  async function handleEnrollAll(typeId: string, amount: number) {
     if (!groupId) return;
     setEnrollingId(typeId);
     setEnrollError(null);
     setEnrollSuccessCount(null);
     try {
       const supabase = createClient();
+      const epoch = await resolveActiveLedgerEpoch(supabase, groupId);
 
       // Build 10: compute the obligation due date from the type's real schedule
       // (start_date / due_day / frequency) via the shared engine — identical to
       // what the DB trigger generates — instead of the old Dec-31 hardcode.
       const type = (contributionTypes || []).find((ct: Record<string, unknown>) => ct.id === typeId);
+      if (!type || type.ledger_epoch_id !== epoch.id || String(type.currency).toUpperCase() !== epoch.currency) {
+        throw new Error("ACTIVE_LEDGER_EPOCH_REQUIRED");
+      }
       const sched = computeObligationDueDate({
         frequency: (type?.frequency as string) || "monthly",
         dueDay: (type?.due_day as number | null) ?? null,
@@ -421,7 +425,8 @@ export default function ContributionsPage() {
           contribution_type_id: typeId,
           amount,
           amount_paid: 0,
-          currency,
+          currency: epoch.currency,
+          ledger_epoch_id: epoch.id,
           due_date: sched.dueISO,
           status: "pending" as const,
           period_label: sched.periodLabel,
@@ -558,7 +563,7 @@ export default function ContributionsPage() {
                     <select
                       id="currency"
                       value={formCurrency}
-                      onChange={(e) => setFormCurrency(e.target.value)}
+                      disabled
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
                     >
                       {CURRENCIES.map((c) => (
@@ -872,7 +877,7 @@ export default function ContributionsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-currency">{t("contributions.currency")}</Label>
-                <select id="edit-currency" value={formCurrency} onChange={(e) => setFormCurrency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
+                <select id="edit-currency" value={formCurrency} disabled className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
                   ))}
@@ -995,7 +1000,7 @@ export default function ContributionsPage() {
               onClick={async () => {
                 if (!enrollConfirmType) return;
                 const target = enrollConfirmType;
-                await handleEnrollAll(target.id, target.amount, target.currency);
+                await handleEnrollAll(target.id, target.amount);
                 setEnrollConfirmType(null);
               }}
             >

@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
+import { bucketCurrencyAmounts, formatCurrencyBuckets, type CurrencyAmountBucket } from "@/lib/currency-buckets";
+import { isConfirmedPayment } from "@/lib/money";
 import { useAdminQuery } from "@/lib/hooks/use-admin-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +18,7 @@ import {
 
 interface MonthlyRow {
   period: string;
+  currency: string;
   count: number;
   total: number;
   avg: number;
@@ -23,6 +26,7 @@ interface MonthlyRow {
 
 interface ChartPoint {
   month: string;
+  currency: string;
   revenue: number;
 }
 
@@ -65,40 +69,53 @@ export default function FinancialReportsPage() {
     {
       key: "allPayments",
       table: "payments",
-      select: "amount, currency, recorded_at, payment_method",
+      select: "amount, currency, status, recorded_at, payment_method",
       filters: [{ column: "recorded_at", op: "gte", value: cutoff }],
     },
     {
       key: "monthPayments",
       table: "payments",
-      select: "amount",
+      select: "amount, currency, status",
       filters: [{ column: "recorded_at", op: "gte", value: thisMonthStart }],
     },
   ]);
 
   const { totalRevenue, revenueThisMonth, avgTransaction, chartData, tableData } = useMemo(() => {
-    const payments = (results.allPayments?.data ?? []) as Array<Record<string, unknown>>;
-    const monthPays = (results.monthPayments?.data ?? []) as Array<Record<string, unknown>>;
+    const payments = ((results.allPayments?.data ?? []) as Array<Record<string, unknown>>)
+      .filter((payment) => isConfirmedPayment(payment.status as string | null));
+    const monthPays = ((results.monthPayments?.data ?? []) as Array<Record<string, unknown>>)
+      .filter((payment) => isConfirmedPayment(payment.status as string | null));
 
-    const total = payments.reduce((s, p) => s + Number(p.amount), 0);
-    const monthTotal = monthPays.reduce((s, p) => s + Number(p.amount), 0);
-    const avg = payments.length > 0 ? total / payments.length : 0;
+    const total = bucketCurrencyAmounts(payments, (payment) => Number(payment.amount), (payment) => payment.currency as string | null);
+    const monthTotal = bucketCurrencyAmounts(monthPays, (payment) => Number(payment.amount), (payment) => payment.currency as string | null);
+    const counts = new Map<string, number>();
+    for (const payment of payments) {
+      const code = String(payment.currency || "").toUpperCase();
+      if (code) counts.set(code, (counts.get(code) || 0) + 1);
+    }
+    const avg: CurrencyAmountBucket[] = total.map((bucket) => ({
+      currency: bucket.currency,
+      amount: counts.get(bucket.currency) ? bucket.amount / counts.get(bucket.currency)! : 0,
+    }));
 
     // Group by month for chart and table
-    const monthMap = new Map<string, { count: number; total: number }>();
+    const monthMap = new Map<string, { period: string; currency: string; count: number; total: number }>();
     const cutoffDate = getCutoffDate(timeRange);
     const now = new Date();
     const d = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), 1);
     while (d <= now) {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      monthMap.set(key, { count: 0, total: 0 });
+      for (const currency of [...counts.keys()].sort()) {
+        monthMap.set(`${key}:${currency}`, { period: key, currency, count: 0, total: 0 });
+      }
       d.setMonth(d.getMonth() + 1);
     }
 
     for (const p of payments) {
       const dt = new Date(p.recorded_at as string);
       const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-      const bucket = monthMap.get(key);
+      const currency = String(p.currency || "").toUpperCase();
+      const bucket = monthMap.get(`${key}:${currency}`);
       if (bucket) {
         bucket.count += 1;
         bucket.total += Number(p.amount);
@@ -108,13 +125,14 @@ export default function FinancialReportsPage() {
     const chart: ChartPoint[] = [];
     const table: MonthlyRow[] = [];
 
-    for (const [key, val] of monthMap.entries()) {
-      const [y, m] = key.split("-");
+    for (const val of monthMap.values()) {
+      const [y, m] = val.period.split("-");
       const dt = new Date(Number(y), Number(m) - 1, 1);
       const label = dt.toLocaleDateString(dateLocale, { month: "short", year: "numeric" });
-      chart.push({ month: label, revenue: val.total });
+      chart.push({ month: `${label} · ${val.currency}`, currency: val.currency, revenue: val.total });
       table.push({
         period: label,
+        currency: val.currency,
         count: val.count,
         total: val.total,
         avg: val.count > 0 ? val.total / val.count : 0,
@@ -173,7 +191,7 @@ export default function FinancialReportsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t("totalRevenue")}</p>
-                    <p className="text-2xl font-bold">{formatAmount(totalRevenue, "XAF")}</p>
+                    <div className="space-y-0.5">{formatCurrencyBuckets(totalRevenue).map((value) => <p key={value} className="text-xl font-bold">{value}</p>)}</div>
                   </div>
                 </div>
               </CardContent>
@@ -186,7 +204,7 @@ export default function FinancialReportsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t("revenueThisMonth")}</p>
-                    <p className="text-2xl font-bold">{formatAmount(revenueThisMonth, "XAF")}</p>
+                    <div className="space-y-0.5">{formatCurrencyBuckets(revenueThisMonth).map((value) => <p key={value} className="text-xl font-bold">{value}</p>)}</div>
                   </div>
                 </div>
               </CardContent>
@@ -199,7 +217,7 @@ export default function FinancialReportsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t("revenueByType")}</p>
-                    <p className="text-2xl font-bold">{formatAmount(totalRevenue, "XAF")}</p>
+                    <div className="space-y-0.5">{formatCurrencyBuckets(totalRevenue).map((value) => <p key={value} className="text-xl font-bold">{value}</p>)}</div>
                   </div>
                 </div>
               </CardContent>
@@ -212,7 +230,7 @@ export default function FinancialReportsPage() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t("avgTransaction")}</p>
-                    <p className="text-2xl font-bold">{formatAmount(avgTransaction, "XAF")}</p>
+                    <div className="space-y-0.5">{formatCurrencyBuckets(avgTransaction).map((value) => <p key={value} className="text-xl font-bold">{value}</p>)}</div>
                   </div>
                 </div>
               </CardContent>
@@ -238,7 +256,7 @@ export default function FinancialReportsPage() {
                 <XAxis dataKey="month" className="text-xs" tick={{ fontSize: 12 }} />
                 <YAxis className="text-xs" tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(value) => [formatAmount(Number(value), "XAF"), t("monthlyRevenue")]}
+                  formatter={(value, _name, item) => [formatAmount(Number(value), String((item.payload as ChartPoint).currency)), t("monthlyRevenue")]}
                   contentStyle={{ borderRadius: 8 }}
                 />
                 <Area
@@ -273,6 +291,7 @@ export default function FinancialReportsPage() {
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="pb-3 font-medium">{t("period")}</th>
+                    <th className="pb-3 font-medium">Currency</th>
                     <th className="pb-3 font-medium text-right">{t("txnCount")}</th>
                     <th className="pb-3 font-medium text-right">{t("totalRevenue")}</th>
                     <th className="pb-3 font-medium text-right">{t("avgTxn")}</th>
@@ -280,11 +299,12 @@ export default function FinancialReportsPage() {
                 </thead>
                 <tbody>
                   {tableData.map((row) => (
-                    <tr key={row.period} className="border-b last:border-0">
+                    <tr key={`${row.period}:${row.currency}`} className="border-b last:border-0">
                       <td className="py-3">{row.period}</td>
+                      <td className="py-3">{row.currency}</td>
                       <td className="py-3 text-right">{row.count}</td>
-                      <td className="py-3 text-right">{formatAmount(row.total, "XAF")}</td>
-                      <td className="py-3 text-right">{formatAmount(row.avg, "XAF")}</td>
+                      <td className="py-3 text-right">{formatAmount(row.total, row.currency)}</td>
+                      <td className="py-3 text-right">{formatAmount(row.avg, row.currency)}</td>
                     </tr>
                   ))}
                 </tbody>

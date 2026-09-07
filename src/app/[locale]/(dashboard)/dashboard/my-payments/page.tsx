@@ -33,6 +33,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { PayNowDialog } from "@/components/payments/pay-now-dialog";
+import { bucketCurrencyAmounts, formatCurrencyBuckets, type CurrencyAmountBucket } from "@/lib/currency-buckets";
 import {
   Wallet,
   AlertCircle,
@@ -91,6 +92,8 @@ export default function MyPaymentsPage() {
   const [search, setSearch] = useState("");
 
   const currency = currentGroup?.currency || "XAF";
+  const formatBuckets = (buckets: CurrencyAmountBucket[]) =>
+    formatCurrencyBuckets(buckets).join(" · ") || formatAmount(0, currency);
 
   // Pay Now dialog state
   const [payNowObligation, setPayNowObligation] = useState<Record<string, unknown> | null>(null);
@@ -179,14 +182,14 @@ export default function MyPaymentsPage() {
   // "Paid This Year" must count CONFIRMED money only. Member-submitted
   // payments awaiting review (pending_confirmation) and rejected ones are
   // NOT yet credited — including them inflates the figure.
-  const totalPaidThisYear = useMemo(() => {
+  const paidThisYearBuckets = useMemo(() => {
     const year = new Date().getFullYear().toString();
-    return (myPaymentsFull || [])
+    const rows = (myPaymentsFull || [])
       .filter((p: Record<string, unknown>) => {
         if (!isConfirmedPayment(p.status as string)) return false;
         return (p.recorded_at as string)?.startsWith(year);
-      })
-      .reduce((sum: number, p: Record<string, unknown>) => sum + num(p.amount), 0);
+      });
+    return bucketCurrencyAmounts(rows, (p) => num(p.amount), (p) => p.currency as string | null);
   }, [myPaymentsFull]);
 
   // Member-submitted payments still awaiting confirmation. This money is NOT
@@ -197,21 +200,20 @@ export default function MyPaymentsPage() {
     const rows = (myPaymentsFull || []).filter((p: Record<string, unknown>) =>
       isPendingPayment(p.status as string)
     );
-    const total = rows.reduce(
-      (sum: number, p: Record<string, unknown>) => sum + num(p.amount),
-      0
-    );
-    return { count: rows.length, total };
+    const buckets = bucketCurrencyAmounts(rows, (p) => num(p.amount), (p) => p.currency as string | null);
+    return { count: rows.length, buckets };
   }, [myPaymentsFull]);
 
   // Total owed = Σ confirmed-basis remaining across open obligations. Derives
   // from confirmed payments via money.ts, NOT the polluted amount_paid column.
-  const totalOutstanding = useMemo(() => {
-    return outstanding.reduce((sum: number, o: Record<string, unknown>) => {
-      const c = computeObligation(o as unknown as MoneyObligation, confirmedByObl, today);
-      return sum + c.remaining;
-    }, 0);
+  const outstandingBuckets = useMemo(() => {
+    return bucketCurrencyAmounts(
+      outstanding,
+      (o) => computeObligation(o as unknown as MoneyObligation, confirmedByObl, today).remaining,
+      (o) => o.currency as string | null,
+    );
   }, [outstanding, confirmedByObl, today]);
+  const hasOutstanding = outstandingBuckets.some((bucket) => bucket.amount > 0);
 
   // Whether the member has ANY obligations at all — distinguishes
   // "all caught up" (has dues, all settled) from "no dues set up yet".
@@ -254,17 +256,19 @@ export default function MyPaymentsPage() {
     expected: number;
     confirmedPaid: number;
     remaining: number;
+    currency: string;
   };
   const outstandingGroups = useMemo<OutstandingGroup[]>(() => {
     const map = new Map<string, OutstandingGroup>();
     for (const o of filteredOutstanding) {
       const ct = o.contribution_type as Record<string, unknown> | null;
       const name = (ct?.name as string) || "";
-      const key = ((ct?.id as string) || name || (o.id as string)) as string;
+      const rowCurrency = ((o.currency as string) || currency).toUpperCase();
+      const key = `${((ct?.id as string) || name || (o.id as string)) as string}:${rowCurrency}`;
       const c = computeObligation(o as unknown as MoneyObligation, confirmedByObl, today);
       let g = map.get(key);
       if (!g) {
-        g = { key, name, items: [], expected: 0, confirmedPaid: 0, remaining: 0 };
+        g = { key, name, items: [], expected: 0, confirmedPaid: 0, remaining: 0, currency: rowCurrency };
         map.set(key, g);
       }
       g.items.push(o);
@@ -285,7 +289,7 @@ export default function MyPaymentsPage() {
     }
     groups.sort((a, b) => a.name.localeCompare(b.name));
     return groups;
-  }, [filteredOutstanding, confirmedByObl, today]);
+  }, [filteredOutstanding, confirmedByObl, today, currency]);
 
   // Waived statement rows (excused) — confirmed-basis expected per object.
   const waivedRows = useMemo(() => {
@@ -295,11 +299,12 @@ export default function MyPaymentsPage() {
         id: o.id as string,
         name: (ct?.name as string) || "",
         amount: num(o.amount),
+        currency: (o.currency as string) || currency,
       };
     });
-  }, [waivedObligations]);
-  const waivedTotal = useMemo(
-    () => waivedRows.reduce((sum, r) => sum + r.amount, 0),
+  }, [waivedObligations, currency]);
+  const waivedBuckets = useMemo(
+    () => bucketCurrencyAmounts(waivedRows, (row) => row.amount, (row) => row.currency),
     [waivedRows]
   );
 
@@ -452,7 +457,7 @@ export default function MyPaymentsPage() {
       </div>
 
       {/* Balance Hero — single clear statement of what's owed right now */}
-      {totalOutstanding > 0 ? (
+      {hasOutstanding ? (
         <Card className="border-red-500/40 bg-red-500/5 dark:bg-red-500/10">
           <CardContent className="py-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -461,7 +466,7 @@ export default function MyPaymentsPage() {
                   {t("youOweNow")}
                 </p>
                 <p className="text-4xl font-bold tracking-tight text-red-700 dark:text-red-400">
-                  {formatAmount(totalOutstanding, currency)}
+                  {formatBuckets(outstandingBuckets)}
                 </p>
                 {nextDue?.due_date ? (
                   <p className="flex items-center gap-1.5 pt-1 text-sm text-muted-foreground">
@@ -537,7 +542,7 @@ export default function MyPaymentsPage() {
             <span>
               {t("pendingConfirmationNotice", {
                 count: pendingConfirmation.count,
-                amount: formatAmount(pendingConfirmation.total, currency),
+                amount: formatBuckets(pendingConfirmation.buckets),
               })}
             </span>
           </p>
@@ -557,7 +562,7 @@ export default function MyPaymentsPage() {
                   {t("totalPaidThisYear")}
                 </p>
                 <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                  {formatAmount(totalPaidThisYear, currency)}
+                  {formatBuckets(paidThisYearBuckets)}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {t("confirmedOnlyNote")}
@@ -577,7 +582,7 @@ export default function MyPaymentsPage() {
                   {t("totalOutstanding")}
                 </p>
                 <p className="text-2xl font-bold text-red-700 dark:text-red-400">
-                  {formatAmount(totalOutstanding, currency)}
+                  {formatBuckets(outstandingBuckets)}
                 </p>
               </div>
             </div>
@@ -586,7 +591,7 @@ export default function MyPaymentsPage() {
       </div>
 
       {/* Hint when no self-service methods configured */}
-      {!hasSelfServiceMethods && totalOutstanding > 0 && (
+      {!hasSelfServiceMethods && hasOutstanding && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-900/20">
           <p className="text-sm text-amber-800 dark:text-amber-300">
             <Info className="mr-1.5 inline-block h-4 w-4 -mt-0.5" />
@@ -656,19 +661,20 @@ export default function MyPaymentsPage() {
                   <p className="font-semibold">{group.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {t("objectSubtotal", {
-                      paid: formatAmount(group.confirmedPaid, currency),
-                      total: formatAmount(group.expected, currency),
+                       paid: formatAmount(group.confirmedPaid, group.currency),
+                       total: formatAmount(group.expected, group.currency),
                     })}
                     {" · "}
                     <span className="font-medium text-foreground">
                       {t("objectRemaining", {
-                        amount: formatAmount(group.remaining, currency),
+                         amount: formatAmount(group.remaining, group.currency),
                       })}
                     </span>
                   </p>
                 </div>
 
                 {group.items.map((item: Record<string, unknown>) => {
+                  const itemCurrency = (item.currency as string) || group.currency;
                   const dueDate = (item.due_date as string) || "";
                   // Confirmed basis: paid + remaining derive from this member's
                   // CONFIRMED payments via money.ts, NOT amount_paid.
@@ -714,8 +720,8 @@ export default function MyPaymentsPage() {
                               {isPartial && (
                                 <p className="text-xs text-muted-foreground">
                                   {t("partiallyPaidProgress", {
-                                    paid: formatAmount(confirmedPaid, currency),
-                                    total: formatAmount(total, currency),
+                                    paid: formatAmount(confirmedPaid, itemCurrency),
+                                    total: formatAmount(total, itemCurrency),
                                   })}
                                 </p>
                               )}
@@ -736,7 +742,7 @@ export default function MyPaymentsPage() {
                           </div>
                           <div className="text-right shrink-0 space-y-2">
                             <p className="text-xl font-bold">
-                              {formatAmount(remaining, currency)}
+                              {formatAmount(remaining, itemCurrency)}
                             </p>
                             {hasSelfServiceMethods && (
                               <Button
@@ -774,7 +780,7 @@ export default function MyPaymentsPage() {
                     <span className="min-w-0 truncate">{r.name}</span>
                     <span className="inline-flex shrink-0 items-center gap-2">
                       <span className="text-muted-foreground line-through">
-                        {formatAmount(r.amount, currency)}
+                        {formatAmount(r.amount, r.currency)}
                       </span>
                       <span className="inline-flex items-center rounded-full border border-border bg-background/60 px-2 py-0.5 text-[11px] font-medium">
                         {t("excused")}
@@ -786,7 +792,7 @@ export default function MyPaymentsPage() {
               {waivedRows.length > 1 && (
                 <p className="mt-2 text-[11px] text-muted-foreground">
                   {t("waivedTotalNote", {
-                    amount: formatAmount(waivedTotal, currency),
+                    amount: formatBuckets(waivedBuckets),
                   })}
                 </p>
               )}
@@ -834,6 +840,7 @@ export default function MyPaymentsPage() {
             </Card>
           ) : (
             filteredHistory.map((item: Record<string, unknown>) => {
+              const itemCurrency = (item.currency as string) || currency;
               const ct = item.contribution_type as Record<string, unknown> | null;
               const name = (ct?.name as string) || "";
               const method = (item.payment_method as string) || "cash";
@@ -861,7 +868,7 @@ export default function MyPaymentsPage() {
                           </p>
                         </div>
                         <p className="text-sm font-bold shrink-0">
-                          {formatAmount(Number(item.amount), currency)}
+                          {formatAmount(Number(item.amount), itemCurrency)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -905,7 +912,7 @@ export default function MyPaymentsPage() {
                         {name}
                       </span>
                       <span className="col-span-2 text-sm font-semibold text-right">
-                        {formatAmount(Number(item.amount), currency)}
+                        {formatAmount(Number(item.amount), itemCurrency)}
                       </span>
                       <span className="col-span-2 text-sm inline-flex items-center gap-1.5">
                         {methodIcon(method)}

@@ -1,7 +1,7 @@
 "use client";
 
-import { formatAmount } from "@/lib/currencies";
 import { computeObligationStates, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { bucketCurrencyAmounts, formatCurrencyBuckets } from "@/lib/currency-buckets";
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -186,7 +186,7 @@ export default function TransfersPage() {
   const { data: pendingObligations } = useQuery({
     queryKey: ["transfer-obligations-precheck", groupId, createMemberId],
     queryFn: async () => {
-      if (!groupId || !createMemberId) return 0;
+      if (!groupId || !createMemberId) return [];
       const supabase = createClient();
       const { data: memRow } = await supabase
         .from("memberships")
@@ -196,7 +196,7 @@ export default function TransfersPage() {
         .eq("membership_status", "active")
         .maybeSingle();
       const membershipId = (memRow as { id?: string } | null)?.id;
-      if (!membershipId) return 0;
+      if (!membershipId) return [];
       // Build 13: the pre-transfer "outstanding" warning is derived from CONFIRMED
       // payments (the same money-engine basis as the unpaid list / statement /
       // matrix), NEVER the polluted amount_paid / status columns. Fetch the
@@ -205,11 +205,11 @@ export default function TransfersPage() {
       const [oblRes, payRes] = await Promise.all([
         supabase
           .from("contribution_obligations")
-          .select("group_id, currency, id, amount, status, due_date, contribution_type_id, membership_id")
+          .select("group_id, currency, ledger_epoch_id, id, amount, status, due_date, contribution_type_id, membership_id")
           .eq("membership_id", membershipId),
         supabase
           .from("payments")
-          .select("group_id, currency, id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+          .select("group_id, currency, ledger_epoch_id, id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
           .eq("membership_id", membershipId)
           .is("relief_plan_id", null),
       ]);
@@ -218,10 +218,11 @@ export default function TransfersPage() {
         memberObligations,
         (payRes.data || []) as unknown as MoneyPayment[],
       );
-      return memberObligations.reduce((sum: number, o) => {
-        const c = states.get(o.id);
-        return sum + (c && c.isOpen ? c.remaining : 0);
-      }, 0);
+      return bucketCurrencyAmounts(
+        memberObligations.filter((o) => states.get(o.id)?.isOpen),
+        (o) => states.get(o.id)?.remaining || 0,
+        (o) => o.currency,
+      );
     },
     enabled: !!groupId && !!createMemberId && showCreateDialog,
   });
@@ -290,6 +291,9 @@ export default function TransfersPage() {
     .map((b) => ({ id: b.id as string, name: b.name as string, currency: (b.currency as string) || "XAF" }));
 
   const currency = currentGroup?.currency || "XAF";
+  const selectedDestCurrency = destBranchOptions.find((branch) => branch.id === createDestId)?.currency || "";
+  const isCrossCurrencyTransfer = !!selectedDestCurrency
+    && selectedDestCurrency.toUpperCase() !== currency.toUpperCase();
 
   // ── Refresh helper used after every successful RPC ────────────────────────
   const refreshList = async () => {
@@ -309,7 +313,9 @@ export default function TransfersPage() {
         p_source_group_id: groupId,
         p_dest_group_id: createDestId,
         p_reason: createReason.trim() || null,
-        p_carry_over_standing: createCarryOver,
+        // Monetary standing never crosses unlike native ledgers. The destination
+        // recomputes from its own obligations; no FX conversion is implied.
+        p_carry_over_standing: isCrossCurrencyTransfer ? false : createCarryOver,
       });
       const env = (data || {}) as RpcEnvelope;
       if (err || !env.ok) {
@@ -375,6 +381,12 @@ export default function TransfersPage() {
     setActionLoading(true);
     setActionError("");
     try {
+      const sourceCurrency = String((transfer.source_group as Record<string, unknown> | null)?.currency || "").toUpperCase();
+      const destCurrency = String((transfer.dest_group as Record<string, unknown> | null)?.currency || "").toUpperCase();
+      if (sourceCurrency && destCurrency && sourceCurrency !== destCurrency && transfer.carry_over_standing === true) {
+        setActionError(t("crossCurrencyStandingBlocked"));
+        return;
+      }
       const supabase = createClient();
       const { data, error: err } = await supabase.rpc("execute_member_transfer", {
         p_transfer_id: transfer.id as string,
@@ -747,9 +759,9 @@ export default function TransfersPage() {
   };
 
   // Popular currency for obligations warning — use the source (current) group's currency.
-  const obligationsAmount = Number(pendingObligations || 0);
+  const obligationsAmount = formatCurrencyBuckets(pendingObligations || []).join(" · ");
   const showObligationsWarning =
-    !!createMemberId && obligationsAmount > 0 && showCreateDialog;
+    !!createMemberId && (pendingObligations || []).some((bucket) => bucket.amount > 0) && showCreateDialog;
 
   const selectedStandingRaw = (memberOptions.find((o) => o.id === createMemberId)?.standing) || "";
 
@@ -881,7 +893,6 @@ export default function TransfersPage() {
               {(() => {
                 const summary = selectedTransfer.transfer_summary_json as Record<string, unknown> | null;
                 if (!summary || Object.keys(summary).length === 0) return null;
-                const sourceCurrency = ((selectedTransfer.source_group as Record<string, unknown>)?.currency as string) || currency;
                 return (
                   <Card className="bg-muted/50"><CardContent className="pt-4 space-y-1 text-sm">
                     <h4 className="font-semibold mb-2">{t("standingSnapshot")}</h4>
@@ -891,11 +902,8 @@ export default function TransfersPage() {
                         <span className="font-medium">{String(summary.years_of_membership)}</span>
                       </div>
                     )}
-                    {summary.total_contributions != null && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t("totalContributions")}</span>
-                        <span className="font-medium">{formatAmount(Number(summary.total_contributions), sourceCurrency)}</span>
-                      </div>
+                    {(summary.total_contributions != null || summary.outstanding_obligations != null) && (
+                      <p className="text-xs text-amber-700 dark:text-amber-300">{t("historicalFinancialSnapshotUnavailable")}</p>
                     )}
                     {summary.attendance_rate != null && (
                       <div className="flex justify-between">
@@ -907,12 +915,6 @@ export default function TransfersPage() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">{t("standingAtTransfer")}</span>
                         <span className="font-medium">{String(summary.standing_at_transfer)}</span>
-                      </div>
-                    )}
-                    {summary.outstanding_obligations != null && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t("outstandingObligations")}</span>
-                        <span className="font-medium">{formatAmount(Number(summary.outstanding_obligations), sourceCurrency)}</span>
                       </div>
                     )}
                   </CardContent></Card>
@@ -955,7 +957,12 @@ export default function TransfersPage() {
             </div>
             <div className="space-y-2">
               <Label>{t("destBranch")}</Label>
-              <Select value={createDestId} onValueChange={(v) => setCreateDestId(v ?? "")}>
+              <Select value={createDestId} onValueChange={(v) => {
+                const nextId = v ?? "";
+                setCreateDestId(nextId);
+                const nextCurrency = destBranchOptions.find((branch) => branch.id === nextId)?.currency;
+                if (nextCurrency && nextCurrency.toUpperCase() !== currency.toUpperCase()) setCreateCarryOver(false);
+              }}>
                 <SelectTrigger><SelectValue placeholder={tc("select")} /></SelectTrigger>
                 <SelectContent>
                   {destBranchOptions.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
@@ -971,13 +978,13 @@ export default function TransfersPage() {
                 <Label className="text-sm font-medium">{t("carryOverStanding")}</Label>
                 <p className="text-xs text-muted-foreground">{t("carryOverStandingDesc")}</p>
               </div>
-              <Switch checked={createCarryOver} onCheckedChange={(v: boolean) => setCreateCarryOver(v)} />
+              <Switch checked={createCarryOver} disabled={isCrossCurrencyTransfer} onCheckedChange={(v: boolean) => setCreateCarryOver(v)} />
             </div>
             {showObligationsWarning && (
               <div className="flex items-start gap-2 rounded-lg border border-amber-500/50 bg-amber-50 p-3 text-sm dark:bg-amber-900/10">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
                 <p className="text-amber-800 dark:text-amber-200">
-                  {t("outstandingObligationsWarning", { amount: formatAmount(obligationsAmount, currency) })}
+                  {t("outstandingObligationsWarning", { amount: obligationsAmount })}
                 </p>
               </div>
             )}

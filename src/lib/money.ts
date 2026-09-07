@@ -81,6 +81,7 @@ export function isRejectedPayment(status: PaymentStatusish): boolean {
 export interface MoneyPayment {
   group_id?: string | null;
   currency?: string | null;
+  ledger_epoch_id?: string | null;
   id?: string | null;
   amount: number | string | null;
   status?: PaymentStatusish;
@@ -94,6 +95,7 @@ export interface MoneyPayment {
 export interface MoneyObligation {
   group_id?: string | null;
   currency?: string | null;
+  ledger_epoch_id?: string | null;
   id: string;
   amount: number | string | null;
   amount_paid?: number | string | null; // present but NEVER trusted for "paid"
@@ -312,15 +314,42 @@ export interface PaymentApplication {
   amount: number;
 }
 
-/** A group ledger has one currency. Legacy mixed inputs fail closed, never sum. */
+type FinancialScopeRow = Pick<MoneyPayment, "group_id" | "currency" | "ledger_epoch_id">;
+
+function financialScopeKey(row: FinancialScopeRow): string {
+  if (row.ledger_epoch_id) return `epoch:${row.ledger_epoch_id}`;
+  return `legacy:${row.group_id || "unknown"}:${row.currency || "unknown"}`;
+}
+
+/** Epoch-scoped history may span currencies; unresolved legacy mixtures fail closed. */
 export function assertFinancialScope(
   obligations: MoneyObligation[], payments: MoneyPayment[], expectedCurrency?: string,
 ): void {
   const rows = [...obligations, ...payments.filter(isDuesPayment)];
-  const currencies = new Set(rows.map((r) => r.currency).filter(Boolean));
+  const currencies = new Set(rows.map((r) => r.currency?.toUpperCase()).filter(Boolean));
   const groups = new Set(rows.map((r) => r.group_id).filter(Boolean));
-  if (expectedCurrency) currencies.add(expectedCurrency);
-  if (currencies.size > 1 || groups.size > 1) throw new Error("FINANCIAL_SCOPE_REQUIRES_REVIEW");
+  const scoped = rows.filter((r) => !!r.ledger_epoch_id);
+  const unscoped = rows.filter((r) => !r.ledger_epoch_id);
+
+  if (groups.size > 1) throw new Error("FINANCIAL_SCOPE_REQUIRES_REVIEW");
+  if (scoped.length > 0 && unscoped.length > 0) {
+    throw new Error("FINANCIAL_LEGACY_RESOLUTION_REQUIRED");
+  }
+  if (scoped.length === 0) {
+    if (expectedCurrency) currencies.add(expectedCurrency.toUpperCase());
+    if (currencies.size > 1) throw new Error("FINANCIAL_SCOPE_REQUIRES_REVIEW");
+    return;
+  }
+
+  const epochScopes = new Map<string, string>();
+  for (const row of scoped) {
+    if (!row.currency) throw new Error("FINANCIAL_CURRENCY_REQUIRED");
+    if (!row.group_id) throw new Error("FINANCIAL_SCOPE_REQUIRES_REVIEW");
+    const signature = `${row.group_id}:${row.currency.toUpperCase()}`;
+    const prior = epochScopes.get(row.ledger_epoch_id!);
+    if (prior && prior !== signature) throw new Error("FINANCIAL_SCOPE_REQUIRES_REVIEW");
+    epochScopes.set(row.ledger_epoch_id!, signature);
+  }
 }
 
 /** Payment-to-assessment evidence; SQL reconcile_member implements this same order. */
@@ -333,7 +362,7 @@ export function allocatePaymentApplications(
     (a.due_date || "9999").localeCompare(b.due_date || "9999") || a.id.localeCompare(b.id));
   const byMember = new Map<string, MoneyObligation[]>();
   for (const o of sortedObligations) {
-    const key = o.membership_id || o.id;
+    const key = `${financialScopeKey(o)}:${o.membership_id || o.id}`;
     if (!byMember.has(key)) byMember.set(key, []);
     byMember.get(key)!.push(o);
   }
@@ -341,18 +370,22 @@ export function allocatePaymentApplications(
     const linked = p.obligation_id ? byId.get(p.obligation_id) : undefined;
     const invalid = !!linked && (
       (p.membership_id && linked.membership_id && p.membership_id !== linked.membership_id) ||
-      (p.contribution_type_id && linked.contribution_type_id && p.contribution_type_id !== linked.contribution_type_id));
+      (p.contribution_type_id && linked.contribution_type_id && p.contribution_type_id !== linked.contribution_type_id) ||
+      financialScopeKey(p) !== financialScopeKey(linked));
     return { p, index, invalid, member: p.membership_id || linked?.membership_id || linked?.id,
-      type: p.contribution_type_id || linked?.contribution_type_id };
-  }).filter(({ p, invalid }) => !invalid && isDuesPayment(p) && isConfirmedPayment(p.status))
+      type: p.contribution_type_id || linked?.contribution_type_id,
+      scope: financialScopeKey(p) };
+  });
+  if (normalized.some(({ invalid }) => invalid)) throw new Error("PAYMENT_ATTRIBUTION_INVALID");
+  const allocatable = normalized.filter(({ p }) => isDuesPayment(p) && isConfirmedPayment(p.status))
     .sort((a, b) => Number(!a.type) - Number(!b.type) ||
       (a.p.recorded_at || "").localeCompare(b.p.recorded_at || "") ||
       (a.p.id || String(a.index)).localeCompare(b.p.id || String(b.index)));
   const applications: PaymentApplication[] = [];
   const paid = new Map<string, number>();
-  for (const { p, index, member, type } of normalized) {
+  for (const { p, index, member, type, scope } of allocatable) {
     let remaining = roundMoney(num(p.amount));
-    for (const o of byMember.get(member || "") || []) {
+    for (const o of byMember.get(`${scope}:${member || ""}`) || []) {
       if (o.status === "waived" || (type && o.contribution_type_id !== type)) continue;
       const applied = roundMoney(Math.max(0, Math.min(remaining, num(o.amount) - (paid.get(o.id) || 0))));
       if (applied > 0) {
@@ -405,12 +438,29 @@ export interface MoneyFigures {
   membersOwing: number;
 }
 
+export interface CurrencyMoneyFigures extends MoneyFigures {
+  currency: string;
+}
+
+function emptyMoneyFigures(): MoneyFigures {
+  return {
+    expected: 0,
+    collected: 0,
+    outstanding: 0,
+    unallocatedCredit: 0,
+    waivedTotal: 0,
+    pending: { count: 0, amount: 0 },
+    overdue: { amount: 0, memberCount: 0 },
+    membersOwing: 0,
+  };
+}
+
 /**
  * Canonical group figure set from a group's obligations + dues payments.
  * `collected` sums ALL confirmed dues payments (obligation-linked or not);
  * balances use the same per-member/type allocation as the drill-downs.
  */
-export function computeMoneyFigures(
+function computeMoneyFiguresForScope(
   obligations: MoneyObligation[],
   payments: MoneyPayment[],
   opts: { today?: string } = {},
@@ -465,6 +515,51 @@ export function computeMoneyFigures(
     overdue: { amount: roundMoney(overdueAmount), memberCount: overdueMembers.size },
     membersOwing: owingMembers.size,
   };
+}
+
+/** Native-currency figures for historical ledgers that span currency epochs. */
+export function computeMoneyFiguresByCurrency(
+  obligations: MoneyObligation[],
+  payments: MoneyPayment[],
+  opts: { today?: string } = {},
+): CurrencyMoneyFigures[] {
+  assertFinancialScope(obligations, payments);
+  const currencies = new Set<string>();
+  for (const row of [...obligations, ...payments.filter(isDuesPayment)]) {
+    if (row.currency) currencies.add(row.currency.toUpperCase());
+  }
+  return [...currencies].sort().map((currency) => ({
+    currency,
+    ...computeMoneyFiguresForScope(
+      obligations.filter((o) => o.currency?.toUpperCase() === currency),
+      payments.filter((p) => !isDuesPayment(p) || p.currency?.toUpperCase() === currency),
+      opts,
+    ),
+  }));
+}
+
+/** Single-currency compatibility API. Multi-currency callers must use buckets. */
+export function computeMoneyFigures(
+  obligations: MoneyObligation[],
+  payments: MoneyPayment[],
+  opts: { today?: string } = {},
+): MoneyFigures {
+  const buckets = computeMoneyFiguresByCurrency(obligations, payments, opts);
+  if (buckets.length > 1) throw new Error("FINANCIAL_CURRENCY_BUCKET_REQUIRED");
+  if (buckets.length === 1) {
+    const bucket = buckets[0];
+    return {
+      expected: bucket.expected,
+      collected: bucket.collected,
+      outstanding: bucket.outstanding,
+      unallocatedCredit: bucket.unallocatedCredit,
+      waivedTotal: bucket.waivedTotal,
+      pending: bucket.pending,
+      overdue: bucket.overdue,
+      membersOwing: bucket.membersOwing,
+    };
+  }
+  return computeMoneyFiguresForScope(obligations, payments, opts) || emptyMoneyFigures();
 }
 
 // ── Per-object (single contribution type) report participation ───────────────

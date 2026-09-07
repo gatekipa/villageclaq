@@ -50,7 +50,7 @@ function useObjectReport(typeId: string | null) {
 
       const { data: type, error: typeErr } = await supabase
         .from("contribution_types")
-        .select("id, name, name_fr, description, amount, currency, frequency, due_day, is_active")
+        .select("id, name, name_fr, description, amount, currency, ledger_epoch_id, frequency, due_day, is_active")
         .eq("id", typeId!)
         .eq("group_id", groupId!)
         .single();
@@ -58,13 +58,13 @@ function useObjectReport(typeId: string | null) {
 
       const obligations = await readAllPages((from, to) => supabase
         .from("contribution_obligations")
-        .select("group_id, currency, id, membership_id, contribution_type_id, amount, amount_paid, status, due_date, period_label")
+        .select("group_id, currency, ledger_epoch_id, id, membership_id, contribution_type_id, amount, amount_paid, status, due_date, period_label")
         .eq("group_id", groupId!)
         .order("due_date").order("id").range(from, to));
       // Read a complete group-scoped ledger before selecting the type and its
       // legacy obligation links. No unbounded IN URL or capped export.
       const allPayments = await readAllPages((from, to) => supabase.from("payments")
-        .select("group_id, currency, id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
+        .select("group_id, currency, ledger_epoch_id, id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
         .eq("group_id", groupId!).is("relief_plan_id", null).order("id").range(from, to));
       const payments = allPayments;
       assertFinancialScope(obligations, payments, type.currency);

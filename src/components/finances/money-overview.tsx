@@ -34,16 +34,33 @@ export function MoneyOverviewContent({ data, dateFormat = "DD/MM/YYYY" }: {
   const t = useTranslations("finances.overview");
   const ledger = useTranslations("financialLedger");
   const locale = useLocale();
-  const rate = data.totalExpected > 0
-    ? Math.round(((data.totalExpected - data.outstanding) / data.totalExpected) * 100) : 0;
-  const fmt = (value: number) => formatAmount(value, data.currency);
+  const moneyByCurrency = data.moneyByCurrency?.length ? data.moneyByCurrency : [{
+    currency: data.currency,
+    expected: data.totalExpected,
+    collected: data.totalCollected,
+    outstanding: data.outstanding,
+    unallocatedCredit: data.unallocatedCredit || 0,
+    waivedTotal: 0,
+    pending: data.pendingConfirmation,
+    overdue: data.overdue,
+    membersOwing: data.membersOwing,
+  }];
+  const valueLines = (select: (bucket: (typeof moneyByCurrency)[number]) => number) =>
+    moneyByCurrency.filter((bucket) => select(bucket) !== 0 || moneyByCurrency.length === 1)
+      .map((bucket) => formatAmount(select(bucket), bucket.currency));
+  const rateLines = moneyByCurrency.map((bucket) => ({
+    currency: bucket.currency,
+    rate: bucket.expected > 0
+      ? Math.round(((bucket.expected - bucket.outstanding) / bucket.expected) * 100)
+      : 0,
+  }));
   const date = (value: string | null) => value ? formatDateWithGroupFormat(value, dateFormat, locale) : "";
   const metrics = [
-    { label: t("expected"), amount: data.totalExpected, href: "/dashboard/contributions", tone: "" },
-    { label: t("collected"), amount: data.totalCollected, href: "/dashboard/contributions/history?status=confirmed", tone: "text-emerald-700 dark:text-emerald-400" },
-    { label: t("outstanding"), amount: data.outstanding, href: "/dashboard/contributions/unpaid", tone: "text-amber-700 dark:text-amber-400" },
-    { label: t("overdue"), amount: data.overdue.amount, href: "/dashboard/contributions/unpaid", tone: "text-red-700 dark:text-red-400" },
-    { label: t("pendingConfirmation.title"), amount: data.pendingConfirmation.amount, href: "/dashboard/contributions/history?status=pending_confirmation", tone: "text-blue-700 dark:text-blue-400" },
+    { label: t("expected"), amounts: valueLines((bucket) => bucket.expected), href: "/dashboard/contributions", tone: "" },
+    { label: t("collected"), amounts: valueLines((bucket) => bucket.collected), href: "/dashboard/contributions/history?status=confirmed", tone: "text-emerald-700 dark:text-emerald-400" },
+    { label: t("outstanding"), amounts: valueLines((bucket) => bucket.outstanding), href: "/dashboard/contributions/unpaid", tone: "text-amber-700 dark:text-amber-400" },
+    { label: t("overdue"), amounts: valueLines((bucket) => bucket.overdue.amount), href: "/dashboard/contributions/unpaid", tone: "text-red-700 dark:text-red-400" },
+    { label: t("pendingConfirmation.title"), amounts: valueLines((bucket) => bucket.pending.amount), href: "/dashboard/contributions/history?status=pending_confirmation", tone: "text-blue-700 dark:text-blue-400" },
   ];
   return <section aria-labelledby="money-overview-heading" className="border-y py-5">
     <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -66,19 +83,21 @@ export function MoneyOverviewContent({ data, dateFormat = "DD/MM/YYYY" }: {
         <dt className="mb-1 text-sm text-muted-foreground">{metric.label}</dt>
         <dd>
           <Link href={metric.href} className={`block break-words text-xl font-semibold tabular-nums hover:underline focus-visible:outline-2 ${metric.tone}`}>
-            {fmt(metric.amount)}
+            {metric.amounts.map((amount) => <span key={amount} className="block">{amount}</span>)}
           </Link>
         </dd>
       </div>)}
     </dl>
-    <div className="mt-5 max-w-lg space-y-2">
-      <div className="flex justify-between gap-4 text-xs">
-        <span>{t("collectionRate")}</span><span className="tabular-nums">{rate}%</span>
-      </div>
-      <Progress value={rate} aria-label={t("collectionRate")} className="h-1.5" />
+    <div className="mt-5 grid max-w-2xl gap-3 sm:grid-cols-2">
+      {rateLines.map(({ currency, rate }) => <div key={currency} className="space-y-2">
+        <div className="flex justify-between gap-4 text-xs">
+          <span>{t("collectionRate")} ({currency})</span><span className="tabular-nums">{rate}%</span>
+        </div>
+        <Progress value={rate} aria-label={`${t("collectionRate")} ${currency}`} className="h-1.5" />
+      </div>)}
     </div>
-    {!!data.unallocatedCredit && <p className="mt-3 text-sm text-muted-foreground">
-      {ledger("unallocatedCredit")}: <span className="font-medium tabular-nums">{fmt(data.unallocatedCredit)}</span>
+    {moneyByCurrency.some((bucket) => bucket.unallocatedCredit > 0) && <p className="mt-3 text-sm text-muted-foreground">
+      {ledger("unallocatedCredit")}: <span className="font-medium tabular-nums">{valueLines((bucket) => bucket.unallocatedCredit).join(" · ")}</span>
     </p>}
     <div className="mt-6 grid gap-6 lg:grid-cols-2">
       <section className="min-w-0">
@@ -90,7 +109,7 @@ export function MoneyOverviewContent({ data, dateFormat = "DD/MM/YYYY" }: {
           <ul className="divide-y">{data.recentPayments.map((row) => <li key={row.id} className="grid grid-cols-[minmax(0,1fr)_minmax(6rem,auto)] gap-3 py-3">
             <div className="min-w-0"><p className="break-words text-sm font-medium">{row.name}</p>
               <p className="break-words text-xs text-muted-foreground">{locale === "fr" ? row.typeNameFr || row.typeName : row.typeName}</p></div>
-            <div className="text-right"><p className="break-words text-sm font-semibold tabular-nums">{fmt(row.amount)}</p><p className="text-xs text-muted-foreground">{date(row.recordedAt)}</p></div>
+            <div className="text-right"><p className="break-words text-sm font-semibold tabular-nums">{formatAmount(row.amount, row.currency)}</p><p className="text-xs text-muted-foreground">{date(row.recordedAt)}</p></div>
           </li>)}</ul>}
       </section>
       <section className="min-w-0">
@@ -102,7 +121,7 @@ export function MoneyOverviewContent({ data, dateFormat = "DD/MM/YYYY" }: {
           <ul className="divide-y">{data.nextDue.map((row) => <li key={row.id} className="grid grid-cols-[minmax(0,1fr)_minmax(6rem,auto)] gap-3 py-3">
             <div className="min-w-0"><p className="break-words text-sm font-medium">{row.name}</p>
               <p className="break-words text-xs text-muted-foreground">{locale === "fr" ? row.typeNameFr || row.typeName : row.typeName}</p></div>
-            <div className="text-right"><p className="break-words text-sm font-semibold tabular-nums">{fmt(row.remaining)}</p><p className="text-xs text-muted-foreground">{date(row.dueDate)}</p></div>
+            <div className="text-right"><p className="break-words text-sm font-semibold tabular-nums">{formatAmount(row.remaining, row.currency)}</p><p className="text-xs text-muted-foreground">{date(row.dueDate)}</p></div>
           </li>)}</ul>}
       </section>
     </div>

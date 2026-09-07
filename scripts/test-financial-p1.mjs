@@ -13,6 +13,12 @@ const o=(id,type,member="m1",amount=100,due="2026-01-01")=>({
 const p=(id,amount,type=null,member="m1")=>({
   id,group_id:"g1",currency:"USD",contribution_type_id:type,membership_id:member,amount,status:"confirmed",recorded_at:"2026-02-01",
 });
+const withActiveEpoch=(client,groupId="g1",currency="USD")=>({
+  ...client,
+  from:()=>({select:()=>({eq:()=>({is:()=>({limit:async()=>({data:[{
+    id:"epoch-active",group_id:groupId,currency,effective_from:"2026-01-01",
+  }],error:null})})})})}),
+});
 const obls=[o("o1","t1"),o("o2","t2","m1",100,"2026-01-02")];
 const pays=[p("p1",80,"t1"),p("p2",50)];
 test("type reports allocate general funds once before slicing",()=>{
@@ -82,18 +88,18 @@ test("different actor/group/member scopes do not share request identities",()=>{
 });
 test("RPC arguments contain explicit identity, version and correction reason only",async()=>{
   let call;
-  const client={rpc:async(name,args)=>{call={name,args};return {data:{payment:{id:"p"},appliedTo:[],creditRemaining:0,replayed:false},error:null};}};
+  const client=withActiveEpoch({rpc:async(name,args)=>{call={name,args};return {data:{payment:{id:"p"},appliedTo:[],creditRemaining:0,replayed:false},error:null};}});
   await applyPaymentCommand(client,{groupId:"g1",requestId:"key",action:"correct",paymentId:"p",expectedVersion:2,reason:"Wrong amount",values:{amount:40}});
   assert.equal(call.name,"apply_payment_command"); assert.equal(call.args.p_expected_version,2);
   assert.equal(call.args.p_reason,"Wrong amount"); assert.deepEqual(call.args.p_values,{amount:40});
 });
 test("database errors do not expose raw private diagnostics",async()=>{
-  const client={rpc:async()=>({error:{message:"Private database diagnostic"},data:null})};
+  const client=withActiveEpoch({rpc:async()=>({error:{message:"Private database diagnostic"},data:null})},"g");
   await assert.rejects(()=>applyPaymentCommand(client,{groupId:"g",requestId:"k",action:"record"}),/^Error: PAYMENT_COMMAND_FAILED$/);
 });
 test("uncertain RPC failure does not clear the request key",async()=>{
   const key=paymentRequestId("timeout");
-  const client={rpc:async()=>{throw new Error("Connection unavailable");}};
+  const client=withActiveEpoch({rpc:async()=>{throw new Error("Connection unavailable");}},"g");
   await assert.rejects(()=>applyPaymentCommand(client,{groupId:"g",requestId:key,action:"record"}));
   assert.equal(paymentRequestId("timeout"),key);
 });

@@ -37,7 +37,7 @@ const fr = JSON.parse(read("messages/fr.json"));
 // ---------------------------------------------------------------------------
 
 test("collected counts CONFIRMED dues payments only (pending/rejected never inflate)", () => {
-  assert.match(hook, /computeMoneyFigures\(/);
+  assert.match(hook, /computeMoneyFiguresByCurrency\(/);
   assert.match(hook, /totalCollected: figures.collected/);
   assert.match(read("src/lib/hooks/use-supabase-query.ts"), /\.is\("relief_plan_id", null\)/);
 });
@@ -111,14 +111,14 @@ test("finances page mounts the MoneyOverview and reconciles collected to confirm
   assert.match(finances, /<MoneyOverview/);
   assert.match(finances, /from "@\/components\/finances\/money-overview"/);
   // Both totals and monthly chart use the shared conservative status predicate.
-  assert.match(finances, /computeMoneyFigures\(obligations, payments\)/);
+  assert.match(finances, /computeMoneyFiguresByCurrency\(obligations, payments\)/);
   assert.match(finances, /if \(!isConfirmedPayment\(status\)\) continue/);
 });
 
-test("legacy finances Outstanding/Collection-rate agree with the overview (confirmed-only, waived-excluded)", () => {
-  assert.match(finances, /computeMoneyFigures\(obligations, payments\)/);
-  assert.match(finances, /totalOutstanding = figures.outstanding/);
-  assert.match(finances, /figures.expected - figures.outstanding/);
+test("finances outstanding and collection rates remain confirmed-only and currency-bucketed", () => {
+  assert.match(finances, /computeMoneyFiguresByCurrency\(obligations, payments\)/);
+  assert.match(finances, /stats\.moneyByCurrency\.map/);
+  assert.match(finances, /bucket\.expected > 0 \? Math\.round\(\(\(bucket\.expected - bucket\.outstanding\) \/ bucket\.expected\) \* 100\) : 0/);
 });
 
 test("overview carries name_fr so French admins see localized type names", () => {

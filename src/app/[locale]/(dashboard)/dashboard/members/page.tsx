@@ -95,6 +95,7 @@ import { logActivity } from "@/lib/audit-log";
 import { useSubscription } from "@/lib/hooks/use-subscription";
 import { LimitPrompt } from "@/components/ui/upgrade-prompt";
 import { RefreshCw } from "lucide-react";
+import { resolveActiveLedgerEpoch } from "@/lib/payment-command";
 
 /**
  * Detect network-level fetch errors (e.g. "TypeError: Failed to fetch").
@@ -150,10 +151,12 @@ async function resilientRpc<T>(
  */
 async function autoEnrollMember(supabase: ReturnType<typeof createClient>, groupId: string, membershipId: string) {
   try {
+    const epoch = await resolveActiveLedgerEpoch(supabase, groupId);
     const { data: types } = await supabase
       .from("contribution_types")
-      .select("id, amount, currency, frequency, due_day, start_date")
+      .select("id, amount, currency, ledger_epoch_id, frequency, due_day, start_date")
       .eq("group_id", groupId)
+      .eq("ledger_epoch_id", epoch.id)
       .eq("is_active", true);
 
     if (!types || types.length === 0) return;
@@ -187,7 +190,8 @@ async function autoEnrollMember(supabase: ReturnType<typeof createClient>, group
         contribution_type_id: ct.id,
         amount: ct.amount || 0,
         amount_paid: 0,
-        currency: ct.currency || "XAF",
+        currency: epoch.currency,
+        ledger_epoch_id: epoch.id,
         due_date: sched.dueISO,
         status: "pending" as const,
         period_label: sched.periodLabel,

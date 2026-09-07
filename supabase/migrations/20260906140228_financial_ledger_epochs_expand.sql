@@ -83,6 +83,57 @@ REVOKE ALL ON financial_private.ledger_epoch_conflicts FROM PUBLIC, anon, authen
 CREATE INDEX ledger_epoch_conflicts_open
   ON financial_private.ledger_epoch_conflicts(group_id, resolution_status);
 
+-- Founder-approved legacy pollution remains as immutable historical evidence.
+-- This private registry contains identifiers and financial state only: no
+-- member contact data, receipt paths, provider payloads or free-form PII.
+CREATE TABLE financial_private.legacy_financial_neutralizations (
+  batch_id uuid NOT NULL,
+  group_id uuid NOT NULL REFERENCES public.groups(id) ON DELETE RESTRICT,
+  record_type text NOT NULL CHECK (record_type IN ('contribution_type','obligation','payment')),
+  record_id uuid NOT NULL,
+  record_currency text NOT NULL CHECK (length(trim(record_currency)) BETWEEN 3 AND 8),
+  founder_decision text NOT NULL CHECK (founder_decision = 'C'),
+  reason text NOT NULL CHECK (length(trim(reason)) >= 3),
+  prior_state jsonb NOT NULL,
+  resulting_state jsonb NOT NULL,
+  authorized_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  applied_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  applied_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(record_type,record_id),
+  CONSTRAINT legacy_financial_neutralization_batch_record
+    UNIQUE(batch_id,record_type,record_id)
+);
+ALTER TABLE financial_private.legacy_financial_neutralizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_private.legacy_financial_neutralizations FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON financial_private.legacy_financial_neutralizations FROM PUBLIC, anon, authenticated, service_role;
+CREATE INDEX legacy_financial_neutralizations_group_batch
+  ON financial_private.legacy_financial_neutralizations(group_id,batch_id);
+
+CREATE FUNCTION financial_private.guard_legacy_financial_neutralization() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  RAISE EXCEPTION 'LEGACY_FINANCIAL_NEUTRALIZATION_IMMUTABLE';
+END;
+$$;
+CREATE TRIGGER legacy_financial_neutralization_immutable
+BEFORE UPDATE OR DELETE ON financial_private.legacy_financial_neutralizations
+FOR EACH ROW EXECUTE FUNCTION financial_private.guard_legacy_financial_neutralization();
+
+-- The one batch audit entry created by the controlled package is immutable.
+CREATE FUNCTION financial_private.guard_legacy_financial_audit() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF OLD.action='financial.legacy_pollution_neutralized' THEN
+    RAISE EXCEPTION 'LEGACY_FINANCIAL_AUDIT_IMMUTABLE';
+  END IF;
+  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+CREATE TRIGGER legacy_financial_audit_immutable
+BEFORE UPDATE OR DELETE ON public.group_audit_logs
+FOR EACH ROW EXECUTE FUNCTION financial_private.guard_legacy_financial_audit();
+
 -- A private transaction proof permits the controlled transition helper to
 -- close one epoch, open the next, and update groups.currency atomically.
 CREATE TABLE financial_private.epoch_transitions (
@@ -128,10 +179,25 @@ FOR EACH ROW EXECUTE FUNCTION financial_private.guard_ledger_epoch();
 -- This view is the non-PII, live truth used by both migration phases. A human
 -- cannot clear a conflict merely by editing the inventory table.
 CREATE VIEW financial_private.current_ledger_epoch_conflicts AS
-WITH row_currency AS (
-  SELECT group_id,currency FROM public.contribution_types
-  UNION ALL SELECT group_id,currency FROM public.contribution_obligations
-  UNION ALL SELECT group_id,currency FROM public.payments
+WITH authoritative_types AS (
+  SELECT t.* FROM public.contribution_types t
+  WHERE NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
+    WHERE n.record_type='contribution_type' AND n.record_id=t.id
+      AND n.group_id=t.group_id AND n.record_currency=t.currency AND t.is_active=false)
+), authoritative_obligations AS (
+  SELECT o.* FROM public.contribution_obligations o
+  WHERE NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
+    WHERE n.record_type='obligation' AND n.record_id=o.id
+      AND n.group_id=o.group_id AND n.record_currency=o.currency AND o.status='waived')
+), authoritative_payments AS (
+  SELECT p.* FROM public.payments p
+  WHERE NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
+    WHERE n.record_type='payment' AND n.record_id=p.id
+      AND n.group_id=p.group_id AND n.record_currency=p.currency AND p.status='rejected')
+), row_currency AS (
+  SELECT group_id,currency FROM authoritative_types
+  UNION ALL SELECT group_id,currency FROM authoritative_obligations
+  UNION ALL SELECT group_id,currency FROM authoritative_payments
 ), mixed_group AS (
   SELECT group_id FROM row_currency GROUP BY group_id HAVING count(DISTINCT currency) > 1
 ), type_scope AS (
@@ -143,7 +209,7 @@ WITH row_currency AS (
       WHEN t.ledger_epoch_id IS NOT NULL AND (e.id IS NULL OR e.group_id<>t.group_id OR e.currency<>t.currency)
         THEN 'EPOCH_SCOPE_MISMATCH'
     END conflict_category
-  FROM public.contribution_types t JOIN public.groups g ON g.id=t.group_id
+  FROM authoritative_types t JOIN public.groups g ON g.id=t.group_id
   LEFT JOIN public.financial_ledger_epochs e ON e.id=t.ledger_epoch_id
   LEFT JOIN mixed_group mg ON mg.group_id=t.group_id
 ), obligation_scope AS (
@@ -158,7 +224,7 @@ WITH row_currency AS (
       WHEN o.ledger_epoch_id IS NOT NULL AND (e.id IS NULL OR e.group_id<>o.group_id OR e.currency<>o.currency)
         THEN 'EPOCH_SCOPE_MISMATCH'
     END conflict_category
-  FROM public.contribution_obligations o JOIN public.groups g ON g.id=o.group_id
+  FROM authoritative_obligations o JOIN public.groups g ON g.id=o.group_id
   LEFT JOIN public.contribution_types t ON t.id=o.contribution_type_id
   LEFT JOIN public.financial_ledger_epochs e ON e.id=o.ledger_epoch_id
   LEFT JOIN mixed_group mg ON mg.group_id=o.group_id
@@ -167,7 +233,7 @@ WITH row_currency AS (
     t.currency type_currency,t.group_id type_group,t.ledger_epoch_id type_epoch,
     o.currency obligation_currency,o.group_id obligation_group,o.membership_id obligation_member,
     o.contribution_type_id obligation_type,o.ledger_epoch_id obligation_epoch,mg.group_id mixed_group_id
-  FROM public.payments p JOIN public.groups g ON g.id=p.group_id
+  FROM authoritative_payments p JOIN public.groups g ON g.id=p.group_id
   LEFT JOIN public.financial_ledger_epochs e ON e.id=p.ledger_epoch_id
   LEFT JOIN public.contribution_types t ON t.id=p.contribution_type_id
   LEFT JOIN public.contribution_obligations o ON o.id=p.obligation_id
@@ -197,7 +263,7 @@ WITH row_currency AS (
     pe.currency expected_currency,min(o.currency::text) linked_currency,
     'APPLICATION_EPOCH_MISMATCH'::text conflict_category
   FROM public.payment_obligation_applications a
-  JOIN public.payments p ON p.id=a.payment_id
+  JOIN authoritative_payments p ON p.id=a.payment_id
   JOIN public.contribution_obligations o ON o.id=a.obligation_id
   LEFT JOIN public.financial_ledger_epochs pe ON pe.id=p.ledger_epoch_id
   GROUP BY p.group_id,a.payment_id,p.currency,pe.currency

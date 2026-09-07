@@ -12,7 +12,7 @@ CREATE TYPE membership_standing AS ENUM ('good','warning','suspended','banned');
 CREATE TYPE transfer_status AS ENUM ('requested','source_approved','dest_approved','approved','completed','rejected','cancelled');
 CREATE TABLE profiles(id uuid PRIMARY KEY);
 CREATE TABLE organizations(id uuid PRIMARY KEY,name text NOT NULL DEFAULT 'Synthetic organization');
-CREATE TABLE groups(id uuid PRIMARY KEY, organization_id uuid REFERENCES organizations(id),
+CREATE TABLE groups(id uuid PRIMARY KEY, organization_id uuid REFERENCES organizations(id),name text NOT NULL DEFAULT 'Synthetic group',
   currency text NOT NULL, is_active boolean NOT NULL DEFAULT true,
   settings jsonb NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE memberships(id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),group_id uuid NOT NULL REFERENCES groups(id),user_id uuid REFERENCES profiles(id),

@@ -325,7 +325,13 @@ function financialScopeKey(row: FinancialScopeRow): string {
 export function assertFinancialScope(
   obligations: MoneyObligation[], payments: MoneyPayment[], expectedCurrency?: string,
 ): void {
-  const rows = [...obligations, ...payments.filter(isDuesPayment)];
+  // Waived obligations and rejected payments are terminal evidence, not an
+  // authoritative ledger scope. They remain available to history views but
+  // cannot make an otherwise valid current scope appear mixed or usable.
+  const rows = [
+    ...obligations.filter((o) => o.status !== "waived"),
+    ...payments.filter((p) => isDuesPayment(p) && !isRejectedPayment(p.status)),
+  ];
   const currencies = new Set(rows.map((r) => r.currency?.toUpperCase()).filter(Boolean));
   const groups = new Set(rows.map((r) => r.group_id).filter(Boolean));
   const scoped = rows.filter((r) => !!r.ledger_epoch_id);
@@ -525,7 +531,10 @@ export function computeMoneyFiguresByCurrency(
 ): CurrencyMoneyFigures[] {
   assertFinancialScope(obligations, payments);
   const currencies = new Set<string>();
-  for (const row of [...obligations, ...payments.filter(isDuesPayment)]) {
+  for (const row of [
+    ...obligations.filter((o) => o.status !== "waived"),
+    ...payments.filter((p) => isDuesPayment(p) && !isRejectedPayment(p.status)),
+  ]) {
     if (row.currency) currencies.add(row.currency.toUpperCase());
   }
   return [...currencies].sort().map((currency) => ({

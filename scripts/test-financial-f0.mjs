@@ -193,7 +193,9 @@ test("Phase A hardens both member-transfer RPC stages at the authoritative epoch
 
 test("Phase B enforces epoch-aware writes and blocks old incompatible payment clients", () => {
   const sql = read("supabase/migrations/20260906140229_financial_payment_integrity.sql");
-  assert.match(sql, /ALTER COLUMN ledger_epoch_id SET NOT NULL/);
+  assert.match(sql, /UNSCOPED_AUTHORITATIVE_FINANCIAL_ROW/);
+  assert.match(sql, /legacy_financial_neutralizations/);
+  assert.match(sql, /guard_neutralized_legacy_evidence/);
   assert.match(sql, /ledger_epoch_id=epoch AND currency=code/);
   assert.match(sql, /PAYMENT_ATTRIBUTION_INVALID/);
   assert.match(sql, /FINANCIAL_LEGACY_RESOLUTION_REQUIRED/);

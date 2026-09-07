@@ -166,7 +166,9 @@ test("ledger epoch migrations remain staged, fail closed and epoch-scope allocat
     "assign_epoch_if_unambiguous",
   ]) assert.ok(expand.includes(token),`expand migration must retain ${token}`);
   assert.ok(enforce.indexOf("FINANCIAL_LEGACY_RESOLUTION_REQUIRED")
-    < enforce.indexOf("ALTER COLUMN ledger_epoch_id SET NOT NULL"));
+    < enforce.indexOf("UNSCOPED_AUTHORITATIVE_FINANCIAL_ROW"));
+  assert.ok(enforce.indexOf("UNSCOPED_AUTHORITATIVE_FINANCIAL_ROW")
+    < enforce.indexOf("ADD CONSTRAINT contribution_types_epoch_scope"));
   for(const token of [
     "transition_ledger_epoch",
     "p.ledger_epoch_id=epoch_row.ledger_epoch_id",

@@ -22,8 +22,10 @@
 | Not based on | F0 product branch `codex/financial-reporting-consistency` |
 | Not merge-to | `main` |
 | Not F0 production | This freeze does not ship product or apply migrations |
+| Security P1 pins | §21.1 — **P1-A through P1-G mandatory before F2 PASS** |
+| Security requal artifact (P1-H) | This **named** file on the docs branch at the **exact commit SHA** of the signed F2 freeze (see git history of this path). Future Security requals cite that SHA; they do not requalify from memory or a renamed copy. |
 
-**Freeze rule.** The decisions in this document are Chief-frozen. Implementers must encode them. They must not reopen them in F3 tickets, reviews, or alternative designs.
+**Freeze rule.** The decisions in this document are Chief-frozen. Implementers must encode them. They must not reopen them in F3 tickets, reviews, or alternative designs. Security P1 pins constrain the implementation boundary; they do not reopen ledger model B, cash-basis A, object model, taxonomy, or F3 scope.
 
 **PRD alignment.** This design implements PRD layers A–E and PRD non-negotiable principles (record once / report everywhere; contributions as subledger; native currency immutable; ledger currency epochs; cutover as first-class; reports reconcile; authorization at the authoritative boundary; append-only posted meaning). No PRD contradiction was found. The PRD file is not modified.
 
@@ -185,6 +187,7 @@ Internal control accounts (income, expense, opening position, receivable, liabil
 |---|---|
 | Creating a dues obligation | Does **not** create organization income. |
 | Confirmed collection | Creates organization income **and** cash/account movement. Obligation/AR lives in the dues subledger. |
+| Recognition gate (P1-C) | Only server-enumerated confirmed statuses/effects may emit cash-basis SoA income. `pending` / `rejected` / `voided` / relief-misapplied never do. |
 | Statement of Activity | Reads **ledger postings** only. |
 | Member statements / AR / aging / who-hasn't-paid | Read the **dues subledger** (and source links). |
 | Double counting | Forbidden. The same economic cash collection must not appear as income in SoA from both a subledger total and a ledger posting. |
@@ -278,7 +281,8 @@ Retries, crons, webhooks, and client double-submits must not double-post.
 
 | Mechanism | Freeze |
 |---|---|
-| Source uniqueness | Unique `(group_id, source_type, source_id)` or equivalent. |
+| Source uniqueness | Unique group-scoped source identity. Security pin **P1-B** names the natural key: `(source_module, source_record_id, effect_kind, ledger_epoch)` (plus `group_id` as ledger scope). Equivalent to Chief `(group_id, source_type, source_id)` when `source_type`/`source_id` encode module+record and `effect_kind` distinguishes multiple effects on one source row. |
+| Transaction lock | P1-B: take a transaction lock on that natural key so concurrent retries cannot double-post. |
 | Client retries | `request_id` (or equivalent idempotency key) on the posting command. |
 | Repeat delivery | Second insert of the same source key returns the existing event; it does not create a second event. |
 | Correction | A reversal/replacement is a **new** event with its own id, linked to the original. It does not reuse the original `source_id` as a second primary post. |
@@ -404,6 +408,7 @@ Opening Position dates must not make inherited balances appear as if they became
 | Auto subledger events | Post **directly** to `POSTED`. No draft unless a later product decision requires review. |
 | F3 approvals | **No separate `finances.approve`** unless a later gate proves it is needed. |
 | F3 permissions | `finances.view` + `finances.manage` are sufficient. Reverse via `finances.manage`. |
+| Draft → Posted (P1-G) | If F3 implements `DRAFT`, **who may post is server-gated**. Clients must not `UPDATE` posted rows. Transition is an RPC, not a row edit. |
 | Optional later | `finances.reverse` as a distinct permission; approval thresholds; pending-approval state from the PRD. Not F3-required. |
 
 Small organizations post directly. The PRD's `Draft → Pending Approval → Posted → Corrected/Reversed` remains a future-compatible superset. F3 implements `DRAFT? → POSTED → CORRECTED/REVERSED` and must not preclude later approval.
@@ -427,6 +432,8 @@ The original event remains visible as `CORRECTED` or `REVERSED`. Projections exc
 
 A reversal is itself a Financial Event with deterministic opposite postings. It uses a new id. It does not violate source idempotency of the original (§9).
 
+**P1-D MVP:** `finances.manage` may correct/reverse **only** through that linked-audit path. No silent rewrite of posted rows. A distinct high-trust cutover/opening privilege may be added later (F7); it is **not** F3 and is **not** implied by `finances.manage` today.
+
 ---
 
 ## 17. Opening Position
@@ -441,7 +448,7 @@ Opening Position exists so organizations can start VillageClaq **without fake pa
 - Opening liabilities (including Njangi-style member-held savings if in scope)
 - Fund beginning positions
 
-Opening arrears are **not** confirmed collections. They must not create SoA income and must not appear as payments in the contribution ledger.
+Opening arrears are **not** confirmed collections. They **may** create AR / obligation **position** (P1-E). They must **not** appear as confirmed-collection income on SoA, must not appear as payments in the contribution ledger, and must not enter the confirmed-dues projection that standing consumes.
 
 ### 17.2 Modes (from the PRD; F2 does not shrink them)
 
@@ -455,7 +462,7 @@ Opening arrears are **not** confirmed collections. They must not create SoA inco
 
 `staging → validation → approval → posting`
 
-F3 may accept **manual Opening / Adjustment events** as a foundation. Full cutover upload, CSV/PDF importers, activation lock, and batch provenance are F7/F8 — not F3.
+F3 may accept **manual Opening / Adjustment events** as a foundation. Full cutover upload, CSV/PDF importers, activation lock, and batch provenance are F7/F8 — not F3. A later high-trust cutover/opening privilege (P1-D) may gate F7 activation; it is out of F3 MVP.
 
 Opening records retain source, approver (when approved), cutover date, group, epoch, currency, and provenance. Opening balances must not appear as if they became due in the first VillageClaq reporting period.
 
@@ -507,7 +514,7 @@ Every later report still needs a Report Coverage Matrix row (PRD §13.1). F6 own
 | Loan principal repayment | Yes | Cash up | **No** (not income) | No | Receivable down |
 | Loan interest | Yes | Yes | Income | No | |
 | Opening cash | Yes | Opening, not period in/out | **No** as period activity | No | |
-| Opening arrears | No org cash | No | **No** | Subledger AR / standing input | Not a payment |
+| Opening arrears | No org cash | No | **No** | AR/obligation position only; **not** confirmed-dues | Not a payment; standing does not treat this as collection (P1-E) |
 | Correction / reversal | Inverse of original | Inverse of original | Inverse of original | Inverse if original touched them | Linked, not destructive |
 
 ---
@@ -527,7 +534,7 @@ Standing continues to use `calculateStanding()` / `useMemberStanding()` and the 
 | Standing treating Opening arrears as payments | Opening arrears are inherited position, not collections. |
 | Standing treating donations, expenses, transfers, loans as dues | Wrong source module. |
 
-F3 does not change standing. F4 must wire confirmed collection events so the canonical dues projection and standing stay aligned.
+F3 does not change standing. F4 must wire confirmed collection events so the canonical dues projection and standing stay aligned. P1-E: opening arrears never enter that confirmed-dues projection.
 
 ---
 
@@ -540,14 +547,16 @@ F3 does not change standing. F4 must wire confirmed collection events so the can
 | Owner | manage (bypass remains as today for owner/admin where product already bypasses) | Full configure + post + reverse |
 | Treasurer / finance officer | `finances.manage` | Record Money In/Out/Transfer; reverse with audit |
 | Admin | view or manage per existing position_permissions | No new role invented |
-| Ordinary member | Limited: own statement / own obligations — not group ledger mutate | `finances.view` is not “see everyone’s books” unless granted |
-| Auditor | Read-only `finances.view` | No mutate |
+| Ordinary member | **No `finances.view` required** for own statement (P1-F) | Own statement / own obligations only; cannot read peers; cannot mutate group ledger |
+| Auditor | Read-only `finances.view` | Group finance read; no mutate |
 | HQ / parent | Parent view of currency buckets | No cross-ledger mutate |
 
 | Decision | Freeze |
 |---|---|
 | F3 sufficient pair | `finances.view` + `finances.manage` |
-| Reverse | Covered by `finances.manage` with audit. Optional `finances.reverse` later — **not required** for F3. |
+| `finances.view` meaning (P1-F) | **Group finance** (officer/auditor/HQ as granted). It is not the member self-read permission. |
+| Member self-read (P1-F) | A member may read **their own** statement without `finances.view`. They **cannot** read peers. |
+| Reverse | Covered by `finances.manage` with mandatory linked audit (P1-D). Optional `finances.reverse` later — **not required** for F3. |
 | Approve | Not required for F3. |
 | Inactive membership | Fails financial mutation even if a historical role remains (PRD §2.7 / §18). |
 | Authorization locus | Authoritative server boundary. Hidden UI is not security. |
@@ -570,6 +579,78 @@ Use existing `usePermissions()` / `<PermissionGate>` / `<RequirePermission>` pat
 | F0 test-tenant classification | **Migration gate only.** **NOT** a runtime financial-integrity bypass. Production request paths never skip balance, currency, idempotency, or RLS because a tenant is marked internal/test. |
 
 Daybreak Blue reviews schema, RLS, and SECURITY DEFINER before F3 lands. Views that project balances must use `security_invoker` (or equivalent) so they do not bypass RLS.
+
+These notes remain in force. **P1-A through P1-G below are mandatory before F2 PASS.** They pin the security boundary; they do not reopen Chief architectural decisions.
+
+### 21.1 Security Design Pins (P1-A–H) — mandatory before F2 PASS
+
+F2 does not PASS until this section is present on this named artifact. Implementers encode these pins. They do not substitute a weaker client-side check.
+
+| Pin | Title | Frozen security contract |
+|---|---|---|
+| **P1-A** | Posting authority | `financial_events`, `postings`, and `account_balances` (or any derived balance materialization) are **not client-writable**. Only **SECURITY DEFINER** RPCs with `search_path = ''` may create or reverse posted financial truth. RLS is **deny-by-default** for `authenticated` writes on those objects. Direct `INSERT`/`UPDATE`/`DELETE` from the browser client, anon key, or ordinary authenticated role is forbidden. |
+| **P1-B** | Idempotency key | Unique **natural key** `(source_module, source_record_id, effect_kind, ledger_epoch)` (group-scoped) **plus a transaction lock** so retries, crons, and webhooks cannot double-post. `request_id` still covers client-retry of a manual command. A second call with the same natural key returns the existing event. |
+| **P1-C** | Recognition gate | The **server** enumerates which payment statuses / effect kinds may emit **cash-basis SoA income**. `pending`, `rejected`, `voided`, and **relief-misapplied** **never** post SoA income. Obligation creation, opening arrears, and non-confirmed collection states never post SoA income. The allow-list lives in the posting RPC, not in the UI. |
+| **P1-D** | Correction privilege | **MVP freeze:** `finances.manage` may correct/reverse **with mandatory linked audit** (actor, reason, timestamps, linkage). **No silent rewrite** of posted rows. A distinct **high-trust cutover/opening** privilege may be introduced later (F7 activation). It is **not** F3 and is **not** granted by `finances.manage` today. Optional `finances.reverse` remains later-only. |
+| **P1-E** | Opening vs standing / SoA | Opening arrears **may** create AR / obligation **position**. They must **not** appear as confirmed-collection income on SoA or as payments. Standing consumes **one canonical confirmed-dues projection** only (same contract as `money.ts` / applications). Opening arrears are not that projection. |
+| **P1-F** | Member self-read | `finances.view` means **group finance**. Members may read **their own** statement **without** `finances.view`. Members **cannot** read peers. Group cashbook / SoA / all-member registers require `finances.view` (or owner/admin bypass as already productized). |
+| **P1-G** | Draft → Posted | If F3 implements `DRAFT`, **who may post is server-gated** (manage RPC). There is **no client `UPDATE` of posted rows**. Status transitions that create or reverse posted meaning go through the same P1-A RPCs. |
+| **P1-H** | Named artifact SHA | This file — `docs/VILLAGECLAQ_F2_CANONICAL_FINANCIAL_DOMAIN_DESIGN.md` — must exist on the docs branch (`docs/f2-financial-domain-design-20260908` / `docs/financial-operating-system-prd` lineage) at the **exact signed commit SHA** used for F2 Security requals. Do not requalify from a rename, a copy, or an unsigned amendment. |
+
+#### P1-A — posting authority (detail)
+
+| Object (conceptual name) | `authenticated` RLS writes | Who may mutate posted meaning |
+|---|---|---|
+| `financial_events` | Deny by default | SECURITY DEFINER create/reverse RPCs only (`search_path = ''`) |
+| `postings` | Deny by default | Same RPCs only; never a standalone client insert |
+| `account_balances` | Deny by default | Not a write API. Balance is derived from postings. If a projection table exists, only the RPC / invoker-safe job that rebuilds from postings may write it. Officers never edit a total. |
+
+RPC rules (design, not DDL):
+
+- `SECURITY DEFINER` + `search_path = ''` (no object-resolution hijack).
+- Not placed in an exposed schema as a bypass.
+- Still enforce group scope, active membership, `finances.manage` (or later cutover privilege), currency/epoch, P1-B lock, and P1-C recognition inside the function.
+- F0 internal test-tenant classification remains a **migration gate only** — not a runtime skip of P1-A.
+
+#### P1-B — natural key and lock (detail)
+
+Example collision space (illustrative, not DDL):
+
+`UNIQUE (group_id, source_module, source_record_id, effect_kind, ledger_epoch)`  
++ `SELECT … FOR UPDATE` (or equivalent advisory/row lock) on that key inside the posting transaction.
+
+`effect_kind` is why one source row may legally produce at most one event **per economic effect** (confirmed collection vs reversal of that collection) without colliding incorrectly and without allowing two confirmed-collection posts.
+
+#### P1-C — recognition allow-list (detail)
+
+Server allow-list (minimum deny set; F4 expands the positive confirmed-collection set):
+
+| Status / effect | May emit cash-basis SoA income? |
+|---|---|
+| Confirmed / posted collection (enumerated server-side) | Yes — one event, once |
+| `pending` | **Never** |
+| `rejected` | **Never** |
+| `voided` | **Never** |
+| Relief-misapplied | **Never** |
+| Obligation created / opening arrears | **Never** |
+| Transfer / loan principal / opening cash | Not SoA income (already Chief-frozen) |
+
+#### P1-D — privilege split (explicit)
+
+| Action | F3 MVP privilege | Later (not F3) |
+|---|---|---|
+| Manual Money In/Out/Transfer | `finances.manage` via P1-A RPC | — |
+| Correct / reverse posted event | `finances.manage` + mandatory linked audit | Optional dedicated `finances.reverse` |
+| Cutover / opening activation | Not F3; if exposed as foundation opening events, still manage + audit and P1-E | High-trust cutover/opening privilege at F7 |
+
+#### P1-F — read matrix (explicit)
+
+| Reader | Own member statement | Peer statements | Group SoA / cashbook / all accounts |
+|---|---|---|---|
+| Ordinary member | Yes, **without** `finances.view` | **No** | **No** |
+| Officer with `finances.view` | Yes | Yes (group) | Yes |
+| Officer with `finances.manage` | Yes | Yes (group) | Yes + mutate via RPC |
+| Auditor (`finances.view` only) | Yes | Yes (group) | Yes; no mutate |
 
 ---
 
@@ -667,17 +748,17 @@ A ticket may name a **primary** owner and a **review** owner. Security-sensitive
 
 | ID | Objective | Domains | DB impact | Security risk | UX | Deps | Acceptance | Owner |
 |---|---|---|---|---|---|---|---|---|
-| **F3-T01** | Persist canonical Financial Event + Posting tables/enums (status, ux_class, source link, dates, epoch/currency). | Ledger schema | High — new tables, FKs, unique source key | High — tenant isolation; append-only posted meaning | None (no user jargon) | F2 freeze | Schema matches §§3–4, §8–9, §14–16; RLS enabled; no product UI | **DAYBREAK BLUE** |
-| **F3-T02** | Account primitives: kinds, single currency, lifecycle, group scope, currency immutable after open. | Accounts | Medium — accounts table + constraints | Medium — cross-group account use | Account list / create / archive (no balance editing) | F3-T01 | Cannot edit authoritative totals; cannot change currency in place; balance derived or zero until postings exist | **DAYBREAK BLUE** (schema/RLS) + **ASTRA** (lifecycle rules) |
+| **F3-T01** | Persist canonical Financial Event + Posting tables/enums (status, ux_class, source link, dates, epoch/currency). | Ledger schema | High — new tables, FKs, unique source key | High — tenant isolation; append-only posted meaning; **P1-A** deny-by-default writes | None (no user jargon) | F2 freeze | Schema matches §§3–4, §8–9, §14–16, §21.1; RLS deny-by-default writes; no product UI | **DAYBREAK BLUE** |
+| **F3-T02** | Account primitives: kinds, single currency, lifecycle, group scope, currency immutable after open. | Accounts | Medium — accounts table + constraints | Medium — cross-group account use; balances not client-writable (P1-A) | Account list / create / archive (no balance editing) | F3-T01 | Cannot edit authoritative totals; cannot change currency in place; balance derived or zero until postings exist | **DAYBREAK BLUE** (schema/RLS) + **ASTRA** (lifecycle rules) |
 | **F3-T03** | Fund + category primitives: default unrestricted/general; flat categories; system defaults + org-custom; archiveable. | Funds, categories | Medium | Medium — group-scoped config | Simple settings lists | F3-T01 | Money events can default fund; category separate from account/fund/project | **GROKBOT BUILDER** after T01 constraints exist; **DAYBREAK BLUE** reviews RLS |
-| **F3-T04** | Server posting command: create balanced postings per currency; enforce one event = one currency; reject unbalanced or cross-account-currency writes. | Posting engine | Low–medium — RPC or server action | High — this is the authoritative write boundary | None | F3-T01, T02, T03 | Deterministic postings; failure leaves no half-event; UI cannot bypass | **ASTRA** |
-| **F3-T05** | Source idempotency: unique `(group_id, source_type, source_id)`; `request_id` for client retries; cron/webhook safe. | Idempotency | Medium — unique indexes | High — double-post = money integrity incident | Retry of submit does not duplicate | F3-T01, T04 | Second call returns existing event; no second postings | **DAYBREAK BLUE** (constraint) + **ASTRA** (command behavior) |
-| **F3-T06** | Correction / reversal foundation: no destructive edit/delete of POSTED; linked reversal + optional replacement; actor, reason, timestamps. | Corrections | Medium — linkage columns | High — history tampering | Correct/reverse dialog with required reason | F3-T04 | Original remains; projections net correctly; audit fields present | **ASTRA** |
+| **F3-T04** | Server posting command: SECURITY DEFINER RPC (`search_path=''`) creates balanced postings; P1-C recognition gate; one event = one currency. | Posting engine | Low–medium — RPC | High — this is the **only** write path (P1-A) | None | F3-T01, T02, T03 | Deterministic postings; failure leaves no half-event; UI cannot INSERT events/postings; pending/voided never income | **ASTRA** + **DAYBREAK BLUE** (RPC/RLS) |
+| **F3-T05** | Source idempotency: P1-B natural key `(source_module, source_record_id, effect_kind, ledger_epoch)` + tx lock; `request_id` for client retries. | Idempotency | Medium — unique indexes | High — double-post = money integrity incident | Retry of submit does not duplicate | F3-T01, T04 | Concurrent retries return one event; no second postings | **DAYBREAK BLUE** (constraint/lock) + **ASTRA** (command behavior) |
+| **F3-T06** | Correction / reversal foundation: P1-D — `finances.manage` + mandatory linked audit; no silent rewrite; no client UPDATE of posted rows (P1-G). | Corrections | Medium — linkage columns | High — history tampering | Correct/reverse dialog with required reason | F3-T04 | Original remains; projections net correctly; audit fields present; RPC-only | **ASTRA** |
 | **F3-T07** | Manual Money In / Money Out / Transfer UX. Same-currency transfer only. No debit/credit copy. Fund defaultable. | Manual finance UX | Low — uses posting command | Medium — must call server command only | Mobile-first record flow; i18n `t()` | F3-T04, T05, T03 | Transfer excluded from SoA-lite; cross-currency transfer rejected; strings through next-intl | **ASTRA** |
-| **F3-T08** | Foundational projections: derived account balances, cashbook/register, SoA-lite from postings + `occurred_at`. | Projections | Low — views or query layer | Medium — views must not bypass RLS | Balances + SoA-lite + register | F3-T04, T07 | Invariants in §18.1 hold; exports match UI if export is included; no `amount_paid` truth | **ASTRA** |
-| **F3-T09** | Wire `finances.view` / `finances.manage`; inactive membership cannot mutate; auditor read-only; reverse via manage. | Permissions | Low | High — authz | PermissionGate on record/reverse | F3-T07 | Hidden button ≠ allowed write; owner/admin bypass unchanged | **GROKBOT BUILDER** + **DAYBREAK BLUE** review |
+| **F3-T08** | Foundational projections: derived account balances, cashbook/register, SoA-lite from postings + `occurred_at`. | Projections | Low — views or query layer | Medium — views must not bypass RLS; balances not client-writable | Balances + SoA-lite + register; member own-statement without `finances.view` (P1-F) | F3-T04, T07 | Invariants in §18.1 hold; exports match UI if export is included; no `amount_paid` truth; peers hidden from members | **ASTRA** |
+| **F3-T09** | Wire `finances.view` (group finance) / `finances.manage`; P1-F member self-read; inactive membership cannot mutate; reverse via manage + audit (P1-D). | Permissions | Low | High — authz | PermissionGate on record/reverse | F3-T07 | Hidden button ≠ allowed write; member without view sees only self; owner/admin bypass unchanged | **GROKBOT BUILDER** + **DAYBREAK BLUE** review |
 | **F3-T10** | Currency / epoch enforcement tests: native buckets, no silent FX, no incompatible netting, parent buckets only. | Multi-currency | Low — check constraints / tests | High — silent FX is a doctrine break | Errors in user language, not FX UI | F3-T04, T08 | Branch A USD and Branch B XAF never net; one event one currency | **ASTRA** (tests/domain) + **DAYBREAK BLUE** (constraints) |
-| **F3-T11** | Opening / Adjustment event foundation (manual). Opening cash and documented non-payment opening lines. Not full F7 pipeline. | Opening Position | Low–medium | Medium — fake payment risk | Opening-adjustment entry, clearly labeled | F3-T04, T06 | Opening cash is not period income; opening arrears (if exposed) are not payments | **ASTRA** |
+| **F3-T11** | Opening / Adjustment event foundation (manual). Opening cash and documented non-payment opening lines. Not full F7 pipeline. | Opening Position | Low–medium | Medium — fake payment risk (P1-E) | Opening-adjustment entry, clearly labeled | F3-T04, T06 | Opening cash is not period income; opening arrears may create AR position but are not confirmed-collection income or standing payments | **ASTRA** |
 | **F3-T12** | Isolated-environment invariant proof: north-star subset for two currencies without F4/F5 wholesale migration. Tiny bridge OK. | QA / fixtures | None beyond test fixtures | Medium if fixtures leak | None required | F3-T08–T11 | §27 cash, transfer, opening, and bucket checks pass on fixtures | **GROKBOT BUILDER** under Astra fixtures; Chief QA later |
 
 Tickets F3-T01 through F3-T12 are the F3 cut. They are not F4 dues integration, not F5 module rewrites, and not F6 report catalog completion.
@@ -743,12 +824,13 @@ These figures are the design proof, not a shipped report.
 
 | This document freezes | This document does not do |
 |---|---|
-| Objects, ledger model B, cash-basis A, taxonomy, classifications, invariants, idempotency, accounts/funds/categories, multi-currency, dates, status, correction, opening modes, report invariants, standing consumption, permissions MVP, security notes, F3 cut, ticket routing | Application code |
+| Objects, ledger model B, cash-basis A, taxonomy, classifications, invariants, idempotency, accounts/funds/categories, multi-currency, dates, status, correction, opening modes, report invariants, standing consumption, permissions MVP, security notes, **Security P1-A–H**, F3 cut, ticket routing | Application code |
 | Alignment with PRD layers A–E | SQL migrations |
 | Audited PRODUCT SHA + PRD SHA | F3 implementation |
 | Design-only PR onto the PRD branch | Merge to `main` or F0 production work |
+| Named artifact + exact SHA for Security requals (P1-H) | Requalifying from a copy, rename, or unsigned amendment |
 
-**Next authorized gate:** F3 Core Ledger Foundation, ticketed in §26, after Daybreak Blue security/database review of the schema approach — still a later PR, not this one.
+**Next authorized gate:** F3 Core Ledger Foundation, ticketed in §26, after Daybreak Blue security/database review of the schema approach — still a later PR, not this one. F2 PASS requires §21.1 P1-A–G present on this named file.
 
 ---
 

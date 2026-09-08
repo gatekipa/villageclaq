@@ -1,0 +1,110 @@
+[
+  {
+    "name": "USD restricted donation",
+    "input": {
+      "action": "money_in",
+      "group_id": "00000000-0000-4000-8000-000000000001",
+      "request_id": "00000000-0000-4000-8000-000000000601",
+      "occurred_at": "2026-09-08T12:00:00.000000Z",
+      "amount": "500.00",
+      "currency": "USD",
+      "account_id": "00000000-0000-4000-8000-000000000101",
+      "fund_id": "00000000-0000-4000-8000-000000000202",
+      "category_id": "00000000-0000-4000-8000-000000000301"
+    },
+    "payload": {
+      "contract_version": "f3-posting-v1",
+      "group_id": "00000000-0000-4000-8000-000000000001",
+      "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+      "event_class": "money_in",
+      "effect_kind": "manual_income",
+      "currency": "USD",
+      "amount": "500.00",
+      "occurred_at": "2026-09-08T12:00:00.000000Z",
+      "source_module": "manual_finance",
+      "source_record_id": "00000000-0000-4000-8000-000000000601",
+      "request_id": "00000000-0000-4000-8000-000000000601",
+      "account_id": "00000000-0000-4000-8000-000000000101",
+      "destination_account_id": null,
+      "fund_id": "00000000-0000-4000-8000-000000000202",
+      "category_id": "00000000-0000-4000-8000-000000000301",
+      "member_id": null,
+      "project_id": null,
+      "opening_provenance_id": null
+    },
+    "canonical_bytes": "{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"amount\":\"500.00\",\"category_id\":\"00000000-0000-4000-8000-000000000301\",\"contract_version\":\"f3-posting-v1\",\"currency\":\"USD\",\"destination_account_id\":null,\"effect_kind\":\"manual_income\",\"event_class\":\"money_in\",\"fund_id\":\"00000000-0000-4000-8000-000000000202\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-09-08T12:00:00.000000Z\",\"opening_provenance_id\":null,\"project_id\":null,\"request_id\":\"00000000-0000-4000-8000-000000000601\",\"source_module\":\"manual_finance\",\"source_record_id\":\"00000000-0000-4000-8000-000000000601\"}",
+    "sha256": "73cc95d1bc4dd4cb58db46b8f86f886dadca45dc1270a7ebac6233f1a738837d"
+  },
+  {
+    "name": "XAF income",
+    "input": {
+      "action": "money_in",
+      "group_id": "00000000-0000-4000-8000-000000000003",
+      "request_id": "00000000-0000-4000-8000-000000000601",
+      "occurred_at": "2026-09-08T12:00:00.000000Z",
+      "amount": "500",
+      "currency": "XAF",
+      "account_id": "00000000-0000-4000-8000-000000000104",
+      "fund_id": "00000000-0000-4000-8000-000000000204",
+      "category_id": "00000000-0000-4000-8000-000000000304"
+    },
+    "payload": {
+      "contract_version": "f3-posting-v1",
+      "group_id": "00000000-0000-4000-8000-000000000003",
+      "ledger_epoch_id": "00000000-0000-4000-8000-000000000023",
+      "event_class": "money_in",
+      "effect_kind": "manual_income",
+      "currency": "XAF",
+      "amount": "500",
+      "occurred_at": "2026-09-08T12:00:00.000000Z",
+      "source_module": "manual_finance",
+      "source_record_id": "00000000-0000-4000-8000-000000000601",
+      "request_id": "00000000-0000-4000-8000-000000000601",
+      "account_id": "00000000-0000-4000-8000-000000000104",
+      "destination_account_id": null,
+      "fund_id": "00000000-0000-4000-8000-000000000204",
+      "category_id": "00000000-0000-4000-8000-000000000304",
+      "member_id": null,
+      "project_id": null,
+      "opening_provenance_id": null
+    },
+    "canonical_bytes": "{\"account_id\":\"00000000-0000-4000-8000-000000000104\",\"amount\":\"500\",\"category_id\":\"00000000-0000-4000-8000-000000000304\",\"contract_version\":\"f3-posting-v1\",\"currency\":\"XAF\",\"destination_account_id\":null,\"effect_kind\":\"manual_income\",\"event_class\":\"money_in\",\"fund_id\":\"00000000-0000-4000-8000-000000000204\",\"group_id\":\"00000000-0000-4000-8000-000000000003\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000023\",\"member_id\":null,\"occurred_at\":\"2026-09-08T12:00:00.000000Z\",\"opening_provenance_id\":null,\"project_id\":null,\"request_id\":\"00000000-0000-4000-8000-000000000601\",\"source_module\":\"manual_finance\",\"source_record_id\":\"00000000-0000-4000-8000-000000000601\"}",
+    "sha256": "3d6cedeedc5182ef17431c5a682f089b73c894dece38bf2f828613e572c85d63"
+  },
+  {
+    "name": "private opening",
+    "input": {
+      "action": "opening",
+      "group_id": "00000000-0000-4000-8000-000000000001",
+      "request_id": null,
+      "occurred_at": "2026-09-08T12:00:00.000000Z",
+      "amount": "10000.00",
+      "currency": "USD",
+      "account_id": "00000000-0000-4000-8000-000000000101",
+      "fund_id": "00000000-0000-4000-8000-000000000201",
+      "category_id": null
+    },
+    "payload": {
+      "contract_version": "f3-posting-v1",
+      "group_id": "00000000-0000-4000-8000-000000000001",
+      "ledger_epoch_id": "00000000-0000-4000-8000-000000000021",
+      "event_class": "opening_adjustment",
+      "effect_kind": "opening_custody",
+      "currency": "USD",
+      "amount": "10000.00",
+      "occurred_at": "2026-09-08T12:00:00.000000Z",
+      "source_module": "opening_finance",
+      "source_record_id": "00000000-0000-4000-8000-000000000701",
+      "request_id": null,
+      "account_id": "00000000-0000-4000-8000-000000000101",
+      "destination_account_id": null,
+      "fund_id": "00000000-0000-4000-8000-000000000201",
+      "category_id": null,
+      "member_id": null,
+      "project_id": null,
+      "opening_provenance_id": "00000000-0000-4000-8000-000000000801"
+    },
+    "canonical_bytes": "{\"account_id\":\"00000000-0000-4000-8000-000000000101\",\"amount\":\"10000.00\",\"category_id\":null,\"contract_version\":\"f3-posting-v1\",\"currency\":\"USD\",\"destination_account_id\":null,\"effect_kind\":\"opening_custody\",\"event_class\":\"opening_adjustment\",\"fund_id\":\"00000000-0000-4000-8000-000000000201\",\"group_id\":\"00000000-0000-4000-8000-000000000001\",\"ledger_epoch_id\":\"00000000-0000-4000-8000-000000000021\",\"member_id\":null,\"occurred_at\":\"2026-09-08T12:00:00.000000Z\",\"opening_provenance_id\":\"00000000-0000-4000-8000-000000000801\",\"project_id\":null,\"request_id\":null,\"source_module\":\"opening_finance\",\"source_record_id\":\"00000000-0000-4000-8000-000000000701\"}",
+    "sha256": "34207e10a4b4c25661bd56301571b84df3c348552a7a57d075e4b93a83f3595f"
+  }
+]

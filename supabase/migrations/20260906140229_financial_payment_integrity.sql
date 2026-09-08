@@ -9,80 +9,30 @@ DO $$ BEGIN
   THEN RAISE EXCEPTION 'FINANCIAL_LEDGER_EPOCH_EXPAND_REQUIRED'; END IF;
 END $$;
 
--- A mixed group skipped by Phase A becomes safe only after exact terminal
--- evidence is registered and no live conflict remains. Create its legitimate
--- current-currency epoch; never create an epoch for the neutralized currency.
-INSERT INTO public.financial_ledger_epochs(
-  group_id,currency,effective_from,source_kind,source_reference,approval_note,
-  created_by,approved_by,approved_at)
-SELECT g.id,g.currency,COALESCE(first_record.created_at,g.created_at,now()),
-  'legacy_resolution',batch.batch_id::text,
-  'Founder-approved legacy pollution neutralization; current-currency rows only',
-  batch.actor_id,batch.actor_id,now()
-FROM public.groups g
-JOIN LATERAL (
-  SELECT min(n.batch_id::text)::uuid batch_id,min(n.applied_by::text)::uuid actor_id
-  FROM financial_private.legacy_financial_neutralizations n WHERE n.group_id=g.id
-) batch ON batch.batch_id IS NOT NULL
-LEFT JOIN LATERAL (
-  SELECT min(x.created_at) created_at FROM (
-    SELECT t.created_at FROM public.contribution_types t
-    WHERE t.group_id=g.id AND t.currency=g.currency
-      AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-        WHERE n.record_type='contribution_type' AND n.record_id=t.id)
-    UNION ALL
-    SELECT o.created_at FROM public.contribution_obligations o
-    WHERE o.group_id=g.id AND o.currency=g.currency
-      AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-        WHERE n.record_type='obligation' AND n.record_id=o.id)
-    UNION ALL
-    SELECT p.created_at FROM public.payments p
-    WHERE p.group_id=g.id AND p.currency=g.currency
-      AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-        WHERE n.record_type='payment' AND n.record_id=p.id)
-  ) x
-) first_record ON true
-WHERE NOT EXISTS (SELECT 1 FROM public.financial_ledger_epochs e
-  WHERE e.group_id=g.id AND e.effective_to IS NULL)
-  AND NOT EXISTS (SELECT 1 FROM financial_private.current_ledger_epoch_conflicts c
-    WHERE c.group_id=g.id);
-
-UPDATE public.contribution_types t SET ledger_epoch_id=e.id
-FROM public.financial_ledger_epochs e
-WHERE t.ledger_epoch_id IS NULL AND e.group_id=t.group_id AND e.currency=t.currency
-  AND e.effective_to IS NULL
-  AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-    WHERE n.record_type='contribution_type' AND n.record_id=t.id);
-UPDATE public.contribution_obligations o SET ledger_epoch_id=e.id
-FROM public.financial_ledger_epochs e
-WHERE o.ledger_epoch_id IS NULL AND e.group_id=o.group_id AND e.currency=o.currency
-  AND e.effective_to IS NULL
-  AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-    WHERE n.record_type='obligation' AND n.record_id=o.id);
-UPDATE public.payments p SET ledger_epoch_id=e.id
-FROM public.financial_ledger_epochs e
-WHERE p.ledger_epoch_id IS NULL AND e.group_id=p.group_id AND e.currency=p.currency
-  AND e.effective_to IS NULL
-  AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-    WHERE n.record_type='payment' AND n.record_id=p.id);
-UPDATE public.payment_obligation_applications a SET ledger_epoch_id=p.ledger_epoch_id
-FROM public.payments p,public.contribution_obligations o
-WHERE a.payment_id=p.id AND a.obligation_id=o.id
-  AND p.ledger_epoch_id=o.ledger_epoch_id AND p.ledger_epoch_id IS NOT NULL
-  AND a.ledger_epoch_id IS NULL;
-
+-- Freeze trusted classification for the whole enforcement transaction. A
+-- concurrent designation change cannot race the release gate.
+LOCK TABLE financial_private.internal_financial_tenants IN SHARE MODE;
 SELECT financial_private.refresh_ledger_epoch_conflicts();
 DO $$
 DECLARE detail text;
 BEGIN
-  IF EXISTS (SELECT 1 FROM financial_private.current_ledger_epoch_conflicts) THEN
+  IF EXISTS (SELECT 1 FROM financial_private.classified_ledger_epoch_conflicts
+    WHERE migration_classification='customer_blocking') THEN
     SELECT jsonb_agg(x) #>> '{}' INTO detail FROM (
       SELECT group_id,record_type,record_id,record_currency,expected_currency,linked_currency,conflict_category
-      FROM financial_private.current_ledger_epoch_conflicts ORDER BY group_id,record_type,record_id LIMIT 50
+      FROM financial_private.classified_ledger_epoch_conflicts
+      WHERE migration_classification='customer_blocking'
+      ORDER BY group_id,record_type,record_id LIMIT 50
     ) x;
     RAISE EXCEPTION 'FINANCIAL_LEGACY_RESOLUTION_REQUIRED' USING DETAIL=detail;
   END IF;
-  IF EXISTS (SELECT 1 FROM financial_private.ledger_epoch_conflicts WHERE resolution_status<>'approved') THEN
+  IF EXISTS (
+    SELECT 1 FROM financial_private.ledger_epoch_conflicts c
+    JOIN public.groups g ON g.id=c.group_id
+    LEFT JOIN financial_private.internal_financial_tenants i
+      ON i.organization_id=g.organization_id
+    WHERE c.resolution_status<>'approved' AND i.organization_id IS NULL
+  ) THEN
     RAISE EXCEPTION 'FINANCIAL_LEGACY_APPROVAL_REQUIRED';
   END IF;
 END $$;
@@ -128,31 +78,26 @@ BEGIN
 END;
 $$;
 
--- Null epoch scope is permitted only for immutable, founder-approved evidence
--- that is already financially terminal. Every authoritative or future row is
--- still forced through the strict assignment triggers above.
+-- Existing unscoped rows are permitted only inside independently classified
+-- internal organizations. New and changed rows still hit the strict triggers.
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM public.contribution_types t WHERE t.ledger_epoch_id IS NULL
-    AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-      WHERE n.record_type='contribution_type' AND n.record_id=t.id
-        AND n.group_id=t.group_id AND n.record_currency=t.currency AND t.is_active=false))
+    AND NOT EXISTS (SELECT 1 FROM public.groups g
+      JOIN financial_private.internal_financial_tenants i ON i.organization_id=g.organization_id
+      WHERE g.id=t.group_id))
   OR EXISTS (SELECT 1 FROM public.contribution_obligations o WHERE o.ledger_epoch_id IS NULL
-    AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-      WHERE n.record_type='obligation' AND n.record_id=o.id
-        AND n.group_id=o.group_id AND n.record_currency=o.currency AND o.status='waived'))
+    AND NOT EXISTS (SELECT 1 FROM public.groups g
+      JOIN financial_private.internal_financial_tenants i ON i.organization_id=g.organization_id
+      WHERE g.id=o.group_id))
   OR EXISTS (SELECT 1 FROM public.payments p WHERE p.ledger_epoch_id IS NULL
-    AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-      WHERE n.record_type='payment' AND n.record_id=p.id
-        AND n.group_id=p.group_id AND n.record_currency=p.currency AND p.status='rejected'))
+    AND NOT EXISTS (SELECT 1 FROM public.groups g
+      JOIN financial_private.internal_financial_tenants i ON i.organization_id=g.organization_id
+      WHERE g.id=p.group_id))
   OR EXISTS (SELECT 1 FROM public.payment_obligation_applications a
     JOIN public.payments p ON p.id=a.payment_id
-    JOIN public.contribution_obligations o ON o.id=a.obligation_id
-    WHERE a.ledger_epoch_id IS NULL AND NOT (
-      p.status='rejected' AND o.status='waived'
-      AND EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-        WHERE n.record_type='payment' AND n.record_id=p.id)
-      AND EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-        WHERE n.record_type='obligation' AND n.record_id=o.id)))
+    JOIN public.groups g ON g.id=p.group_id
+    LEFT JOIN financial_private.internal_financial_tenants i ON i.organization_id=g.organization_id
+    WHERE a.ledger_epoch_id IS NULL AND i.organization_id IS NULL)
   THEN RAISE EXCEPTION 'UNSCOPED_AUTHORITATIVE_FINANCIAL_ROW'; END IF;
 END $$;
 ALTER TABLE public.contribution_types ADD CONSTRAINT contribution_types_epoch_scope
@@ -199,32 +144,6 @@ CREATE TABLE financial_private.reconciliations (
   PRIMARY KEY(transaction_id,membership_id)
 );
 REVOKE ALL ON financial_private.reconciliations FROM PUBLIC, anon, authenticated;
-
--- Once Phase B is installed, registered public rows are immutable evidence.
-CREATE FUNCTION financial_private.guard_neutralized_legacy_evidence() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE kind text;
-BEGIN
-  kind := CASE TG_TABLE_NAME
-    WHEN 'contribution_types' THEN 'contribution_type'
-    WHEN 'contribution_obligations' THEN 'obligation'
-    WHEN 'payments' THEN 'payment'
-  END;
-  IF EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-    WHERE n.record_type=kind AND n.record_id=OLD.id)
-  THEN RAISE EXCEPTION 'NEUTRALIZED_LEGACY_EVIDENCE_IMMUTABLE'; END IF;
-  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
-END;
-$$;
-CREATE TRIGGER financial_neutralized_type_evidence
-BEFORE UPDATE OR DELETE ON public.contribution_types
-FOR EACH ROW EXECUTE FUNCTION financial_private.guard_neutralized_legacy_evidence();
-CREATE TRIGGER financial_neutralized_obligation_evidence
-BEFORE UPDATE OR DELETE ON public.contribution_obligations
-FOR EACH ROW EXECUTE FUNCTION financial_private.guard_neutralized_legacy_evidence();
-CREATE TRIGGER financial_neutralized_payment_evidence
-BEFORE UPDATE OR DELETE ON public.payments
-FOR EACH ROW EXECUTE FUNCTION financial_private.guard_neutralized_legacy_evidence();
 
 -- Require active membership before consulting the existing officer permission policy.
 CREATE FUNCTION financial_private.can_manage(gid uuid) RETURNS boolean
@@ -340,12 +259,8 @@ BEGIN
       JOIN public.contribution_types t ON t.id=o.contribution_type_id
       JOIN public.financial_ledger_epochs e ON e.id=o.ledger_epoch_id
       WHERE o.membership_id=mid AND (o.group_id<>gid OR e.group_id<>gid OR o.currency<>e.currency
-        OR t.group_id<>gid OR t.currency<>o.currency OR t.ledger_epoch_id<>o.ledger_epoch_id)
-        AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-          WHERE n.record_type='obligation' AND n.record_id=o.id AND o.status='waived'))
+        OR t.group_id<>gid OR t.currency<>o.currency OR t.ledger_epoch_id<>o.ledger_epoch_id))
     OR EXISTS (SELECT 1 FROM public.payments p WHERE p.membership_id = mid AND p.relief_plan_id IS NULL
-      AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-        WHERE n.record_type='payment' AND n.record_id=p.id AND p.status='rejected')
       AND (p.group_id<>gid OR NOT EXISTS (SELECT 1 FROM public.financial_ledger_epochs e
           WHERE e.id=p.ledger_epoch_id AND e.group_id=gid AND e.currency=p.currency)
         OR (p.contribution_type_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.contribution_types t
@@ -371,12 +286,8 @@ BEGIN
   FOR epoch_row IN
     SELECT o.ledger_epoch_id FROM public.contribution_obligations o
       WHERE o.group_id=gid AND o.membership_id=mid
-        AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-          WHERE n.record_type='obligation' AND n.record_id=o.id AND o.status='waived')
     UNION SELECT p.ledger_epoch_id FROM public.payments p
       WHERE p.group_id=gid AND p.membership_id=mid AND p.relief_plan_id IS NULL
-        AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-          WHERE n.record_type='payment' AND n.record_id=p.id AND p.status='rejected')
   LOOP
     DELETE FROM public.payment_obligation_applications a USING public.payments p
       WHERE a.payment_id=p.id AND p.group_id=gid AND p.membership_id=mid
@@ -413,8 +324,6 @@ BEGIN
     FROM (SELECT ob.id, COALESCE(sum(a.amount_applied), 0) AS paid
       FROM public.contribution_obligations ob LEFT JOIN public.payment_obligation_applications a ON a.obligation_id = ob.id
       WHERE ob.group_id = gid AND ob.membership_id = mid
-        AND NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-          WHERE n.record_type='obligation' AND n.record_id=ob.id AND ob.status='waived')
       GROUP BY ob.id) x
     WHERE o.id = x.id;
   -- Preserve the existing standing policy, but do not swallow failures/evidence writes.
@@ -871,13 +780,19 @@ GRANT EXECUTE ON FUNCTION public.is_active_financial_writer(uuid) TO authenticat
 
 -- Rebuild DERIVED applications/balances/standing only. No payment amounts, statuses,
 -- assessments, notifications or storage objects are created by this backfill.
--- Any legacy mixed-currency/identity conflict aborts the entire migration for review.
+-- Customer legacy mixed-currency/identity conflicts abort the entire migration.
+-- Internal tenants retain their untouched inventory and are not reconciled by
+-- this one-time release operation; normal post-cutover writes remain strict.
 DO $$
 DECLARE member_row record; plan_row record;
 BEGIN
   FOR member_row IN SELECT DISTINCT m.group_id,m.id FROM public.memberships m
-    WHERE EXISTS (SELECT 1 FROM public.contribution_obligations o WHERE o.membership_id=m.id)
-       OR EXISTS (SELECT 1 FROM public.payments p WHERE p.membership_id=m.id)
+    JOIN public.groups g ON g.id=m.group_id
+    LEFT JOIN financial_private.internal_financial_tenants i
+      ON i.organization_id=g.organization_id
+    WHERE i.organization_id IS NULL AND (
+      EXISTS (SELECT 1 FROM public.contribution_obligations o WHERE o.membership_id=m.id)
+      OR EXISTS (SELECT 1 FROM public.payments p WHERE p.membership_id=m.id))
     ORDER BY m.group_id,m.id
   LOOP
     FOR plan_row IN SELECT DISTINCT relief_plan_id,ledger_epoch_id FROM public.payments

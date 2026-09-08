@@ -194,9 +194,25 @@ test("Phase A hardens both member-transfer RPC stages at the authoritative epoch
 test("Phase B enforces epoch-aware writes and blocks old incompatible payment clients", () => {
   const sql = read("supabase/migrations/20260906140229_financial_payment_integrity.sql");
   assert.match(sql, /UNSCOPED_AUTHORITATIVE_FINANCIAL_ROW/);
-  assert.match(sql, /legacy_financial_neutralizations/);
-  assert.match(sql, /guard_neutralized_legacy_evidence/);
+  assert.match(sql, /classified_ledger_epoch_conflicts/);
+  assert.match(sql, /migration_classification='customer_blocking'/);
+  assert.match(sql, /LOCK TABLE financial_private\.internal_financial_tenants IN SHARE MODE/);
+  assert.doesNotMatch(sql, /legacy_financial_neutralizations|founder_decision|METACU/);
   assert.match(sql, /ledger_epoch_id=epoch AND currency=code/);
   assert.match(sql, /PAYMENT_ATTRIBUTION_INVALID/);
   assert.match(sql, /FINANCIAL_LEGACY_RESOLUTION_REQUIRED/);
+});
+
+test("internal tenant designation is private, audited and platform-super-admin only", () => {
+  const sql = read("supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql");
+  assert.match(sql, /CREATE TABLE financial_private\.internal_financial_tenants/);
+  assert.match(sql, /REFERENCES public\.organizations\(id\) ON DELETE RESTRICT/);
+  assert.match(sql, /ps\.is_active=true AND ps\.role::text='super_admin'/);
+  assert.match(sql, /PLATFORM_SUPER_ADMIN_REQUIRED/);
+  assert.match(sql, /ORGANIZATION_NOT_FOUND/);
+  assert.match(sql, /financial\.internal_tenant\.designate/);
+  assert.match(sql, /financial\.internal_tenant\.remove/);
+  assert.match(sql, /REVOKE ALL ON financial_private\.internal_financial_tenants FROM PUBLIC, anon, authenticated, service_role/);
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.set_internal_financial_tenant[\s\S]*FROM PUBLIC, anon/);
+  assert.doesNotMatch(sql, /legacy_financial_neutralizations|founder_decision|METACU/);
 });

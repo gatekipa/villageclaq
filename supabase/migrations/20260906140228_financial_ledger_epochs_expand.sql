@@ -83,56 +83,75 @@ REVOKE ALL ON financial_private.ledger_epoch_conflicts FROM PUBLIC, anon, authen
 CREATE INDEX ledger_epoch_conflicts_open
   ON financial_private.ledger_epoch_conflicts(group_id, resolution_status);
 
--- Founder-approved legacy pollution remains as immutable historical evidence.
--- This private registry contains identifiers and financial state only: no
--- member contact data, receipt paths, provider payloads or free-form PII.
-CREATE TABLE financial_private.legacy_financial_neutralizations (
-  batch_id uuid NOT NULL,
-  group_id uuid NOT NULL REFERENCES public.groups(id) ON DELETE RESTRICT,
-  record_type text NOT NULL CHECK (record_type IN ('contribution_type','obligation','payment')),
-  record_id uuid NOT NULL,
-  record_currency text NOT NULL CHECK (length(trim(record_currency)) BETWEEN 3 AND 8),
-  founder_decision text NOT NULL CHECK (founder_decision = 'C'),
-  reason text NOT NULL CHECK (length(trim(reason)) >= 3),
-  prior_state jsonb NOT NULL,
-  resulting_state jsonb NOT NULL,
-  authorized_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
-  applied_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
-  applied_at timestamptz NOT NULL,
+-- Internal test/QA/demo classification is private platform metadata, never a
+-- customer-editable organization attribute. It affects only migration release
+-- classification; ordinary financial validation remains strict for every row.
+CREATE TABLE financial_private.internal_financial_tenants (
+  organization_id uuid PRIMARY KEY REFERENCES public.organizations(id) ON DELETE RESTRICT,
+  tenant_kind text NOT NULL CHECK (tenant_kind IN ('test','qa','demo')),
+  reason text NOT NULL CHECK (length(trim(reason)) >= 8),
   created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY(record_type,record_id),
-  CONSTRAINT legacy_financial_neutralization_batch_record
-    UNIQUE(batch_id,record_type,record_id)
+  created_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT
 );
-ALTER TABLE financial_private.legacy_financial_neutralizations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE financial_private.legacy_financial_neutralizations FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON financial_private.legacy_financial_neutralizations FROM PUBLIC, anon, authenticated, service_role;
-CREATE INDEX legacy_financial_neutralizations_group_batch
-  ON financial_private.legacy_financial_neutralizations(group_id,batch_id);
+ALTER TABLE financial_private.internal_financial_tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE financial_private.internal_financial_tenants FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON financial_private.internal_financial_tenants FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE FUNCTION financial_private.guard_legacy_financial_neutralization() RETURNS trigger
+-- Audited operational path. Only an active platform super-admin may add or
+-- remove a designation; organization owners/admins have no usable bypass.
+CREATE FUNCTION public.set_internal_financial_tenant(
+  p_organization_id uuid,
+  p_designated boolean,
+  p_tenant_kind text,
+  p_reason text
+) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  actor uuid := auth.uid();
+  staff_id uuid;
+  prior_kind text;
 BEGIN
-  RAISE EXCEPTION 'LEGACY_FINANCIAL_NEUTRALIZATION_IMMUTABLE';
-END;
-$$;
-CREATE TRIGGER legacy_financial_neutralization_immutable
-BEFORE UPDATE OR DELETE ON financial_private.legacy_financial_neutralizations
-FOR EACH ROW EXECUTE FUNCTION financial_private.guard_legacy_financial_neutralization();
-
--- The one batch audit entry created by the controlled package is immutable.
-CREATE FUNCTION financial_private.guard_legacy_financial_audit() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-BEGIN
-  IF OLD.action='financial.legacy_pollution_neutralized' THEN
-    RAISE EXCEPTION 'LEGACY_FINANCIAL_AUDIT_IMMUTABLE';
+  SELECT ps.id INTO staff_id
+  FROM public.platform_staff ps
+  WHERE ps.user_id=actor AND ps.is_active=true AND ps.role::text='super_admin';
+  IF staff_id IS NULL THEN
+    RAISE EXCEPTION 'PLATFORM_SUPER_ADMIN_REQUIRED' USING ERRCODE='42501';
   END IF;
-  RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;
+  IF p_designated IS NULL THEN RAISE EXCEPTION 'INVALID_DESIGNATION_STATE'; END IF;
+  IF p_organization_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.organizations o WHERE o.id=p_organization_id FOR SHARE
+  ) THEN RAISE EXCEPTION 'ORGANIZATION_NOT_FOUND'; END IF;
+  IF p_reason IS NULL OR length(trim(p_reason)) < 8 THEN
+    RAISE EXCEPTION 'INTERNAL_TENANT_REASON_REQUIRED';
+  END IF;
+
+  IF p_designated THEN
+    IF p_tenant_kind IS NULL OR p_tenant_kind NOT IN ('test','qa','demo') THEN
+      RAISE EXCEPTION 'INVALID_INTERNAL_TENANT_KIND';
+    END IF;
+    INSERT INTO financial_private.internal_financial_tenants(
+      organization_id,tenant_kind,reason,created_by)
+    VALUES(p_organization_id,p_tenant_kind,trim(p_reason),actor)
+    ON CONFLICT(organization_id) DO UPDATE SET
+      tenant_kind=EXCLUDED.tenant_kind,reason=EXCLUDED.reason,
+      created_at=now(),created_by=EXCLUDED.created_by;
+  ELSE
+    DELETE FROM financial_private.internal_financial_tenants
+    WHERE organization_id=p_organization_id RETURNING tenant_kind INTO prior_kind;
+    IF prior_kind IS NULL THEN RAISE EXCEPTION 'INTERNAL_TENANT_DESIGNATION_NOT_FOUND'; END IF;
+  END IF;
+
+  INSERT INTO public.platform_audit_logs(staff_id,action,target_type,target_id,details)
+  VALUES(staff_id,
+    CASE WHEN p_designated THEN 'financial.internal_tenant.designate'
+         ELSE 'financial.internal_tenant.remove' END,
+    'organization',p_organization_id,
+    jsonb_build_object('tenant_kind',CASE WHEN p_designated THEN p_tenant_kind ELSE prior_kind END,
+      'reason',trim(p_reason)));
 END;
 $$;
-CREATE TRIGGER legacy_financial_audit_immutable
-BEFORE UPDATE OR DELETE ON public.group_audit_logs
-FOR EACH ROW EXECUTE FUNCTION financial_private.guard_legacy_financial_audit();
+REVOKE ALL ON FUNCTION public.set_internal_financial_tenant(uuid,boolean,text,text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_internal_financial_tenant(uuid,boolean,text,text) TO authenticated;
 
 -- A private transaction proof permits the controlled transition helper to
 -- close one epoch, open the next, and update groups.currency atomically.
@@ -181,19 +200,10 @@ FOR EACH ROW EXECUTE FUNCTION financial_private.guard_ledger_epoch();
 CREATE VIEW financial_private.current_ledger_epoch_conflicts AS
 WITH authoritative_types AS (
   SELECT t.* FROM public.contribution_types t
-  WHERE NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-    WHERE n.record_type='contribution_type' AND n.record_id=t.id
-      AND n.group_id=t.group_id AND n.record_currency=t.currency AND t.is_active=false)
 ), authoritative_obligations AS (
   SELECT o.* FROM public.contribution_obligations o
-  WHERE NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-    WHERE n.record_type='obligation' AND n.record_id=o.id
-      AND n.group_id=o.group_id AND n.record_currency=o.currency AND o.status='waived')
 ), authoritative_payments AS (
   SELECT p.* FROM public.payments p
-  WHERE NOT EXISTS (SELECT 1 FROM financial_private.legacy_financial_neutralizations n
-    WHERE n.record_type='payment' AND n.record_id=p.id
-      AND n.group_id=p.group_id AND n.record_currency=p.currency AND p.status='rejected')
 ), row_currency AS (
   SELECT group_id,currency FROM authoritative_types
   UNION ALL SELECT group_id,currency FROM authoritative_obligations
@@ -275,6 +285,19 @@ UNION ALL SELECT * FROM obligation_scope WHERE conflict_category IS NOT NULL
 UNION ALL SELECT * FROM payment_scope WHERE conflict_category IS NOT NULL
 UNION ALL SELECT * FROM application_scope WHERE conflict_category IS NOT NULL;
 REVOKE ALL ON financial_private.current_ledger_epoch_conflicts FROM PUBLIC, anon, authenticated;
+
+-- Classification stays dynamic so removing a trusted designation immediately
+-- makes the same unresolved evidence customer-blocking again. Names, status,
+-- currencies, and data shape are deliberately ignored.
+CREATE VIEW financial_private.classified_ledger_epoch_conflicts AS
+SELECT c.*,
+  CASE WHEN i.organization_id IS NULL THEN 'customer_blocking'
+       ELSE 'internal_nonblocking' END AS migration_classification
+FROM financial_private.current_ledger_epoch_conflicts c
+JOIN public.groups g ON g.id=c.group_id
+LEFT JOIN financial_private.internal_financial_tenants i
+  ON i.organization_id=g.organization_id;
+REVOKE ALL ON financial_private.classified_ledger_epoch_conflicts FROM PUBLIC, anon, authenticated;
 
 CREATE FUNCTION financial_private.refresh_ledger_epoch_conflicts() RETURNS integer
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$

@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import test, { before } from "node:test";
 import { readFileSync } from "node:fs";
 import { execFile, execFileSync } from "node:child_process";
-import { computeMoneyFigures, computeMoneyFiguresByCurrency, computeObligationStates, allocatePaymentApplications } from "../src/lib/money.ts";
+import { computeMoneyFigures, computeObligationStates, allocatePaymentApplications } from "../src/lib/money.ts";
 
 const container = "villageclaq-p1-isolated";
 const epochMigration = "supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql";
 const migration = "supabase/migrations/20260906140229_financial_payment_integrity.sql";
-const legacyRemediation = "scripts/legacy-xaf-remediation.sql";
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 function sql(query, actor) {
   const auth = actor ? `SET ROLE authenticated; SET request.jwt.claim.sub='${actor}';` : "";
@@ -20,25 +19,15 @@ function asyncSql(query) {
       { encoding:"utf8" },(error,out,err)=>error ? reject(new Error(err || error.message)) : resolve(out.trim()));
   });
 }
-function sqlFile(path, variables={}) {
-  const args=["exec","-i",container,"psql","-X","-U","postgres","-v","ON_ERROR_STOP=1","-Atq"];
-  for(const [key,value] of Object.entries(variables)) args.push("-v",`${key}=${value}`);
-  return execFileSync("docker",args,{input:read(path),encoding:"utf8",stdio:["pipe","pipe","pipe"]}).trim();
-}
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 const group=id(1), group2=id(2), group3=id(3), group4=id(4);
 const officer=id(101), member=id(102), peer=id(103), outsider=id(104);
 const pendingOfficer=id(105), suspendedOfficer=id(106), archivedOfficer=id(107), exitedOfficer=id(108);
 const mid=id(11), peerMid=id(12), otherMid=id(13), lifecycleTarget=id(14), type=id(21), type2=id(22), otherType=id(23), oid=id(31), oid2=id(32);
-const remediationGroup="eaf89185-3dc0-4d92-8d4d-97bc976a211e", remediationActor=id(950), remediationInactive=id(960);
-const remediationType="f97536f4-c7a6-459b-b684-569ee12e30fb", remediationUsdType="eea68b29-fdbd-4b18-b37a-090385dc36fd";
-const remediationMemberships=[
-  "02c1afca-7aea-4277-9aad-68bddc8a9ff5","3c4ad458-80d7-4694-9276-04d7fd91a64b",
-  "3cb38ffd-3e13-402e-b86c-c7653760c3ad","4ac03283-2f55-41b0-8ca3-6b6bd5478c5a",
-  "5ff9caa8-963d-4360-b107-7ae4ae748ee2","681e8cb1-0565-4e4b-8770-7b67107d5daf",
-  "6fe4ea45-277a-4f58-a339-1ffb43dc19b8","7c101044-5bf5-47a6-9556-a87ee9a0e2bf",
-  "9e5c9514-ad04-42d4-945b-bb1861d29d6a",
-];
+const internalOrg=id(940), customerConflictOrg=id(941);
+const internalGroup=id(942), customerConflictGroup=id(943);
+const platformSuper=id(944), inactivePlatformSuper=id(945), internalMember=id(946), customerConflictMember=id(947);
+const internalTypeUsd=id(948), internalTypeXaf=id(949), customerTypeUsd=id(950), customerTypeXaf=id(951);
 const val = (amount, extras={}) => ({membership_id:mid,contribution_type_id:type,amount,currency:"USD",payment_method:"cash",...extras});
 const literal = value => "'" + JSON.stringify(value).replaceAll("'","''") + "'::jsonb";
 function query(key,action,values={},payment=null,version=null,reason=null,gid=group) {
@@ -71,12 +60,6 @@ function reconcile(expectedPaid,expectedDue,standing) {
   assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),standing);
   assert.equal(sql(`SELECT compute_member_standing('${mid}')`),standing);
 }
-function moneyRowsForGroup(groupId) {
-  return JSON.parse(sql(`SELECT jsonb_build_object(
-    'obligations',COALESCE((SELECT jsonb_agg(o) FROM contribution_obligations o WHERE o.group_id='${groupId}'),'[]'),
-    'payments',COALESCE((SELECT jsonb_agg(p) FROM payments p WHERE p.group_id='${groupId}'),'[]'))`));
-}
-let remediationBefore,remediationAfter,remediationUsdFingerprint;
 before(() => {
   const info=JSON.parse(execFileSync("docker",["inspect",container],{encoding:"utf8"}))[0];
   assert.equal(info.Config.Labels["villageclaq.test"],"p1-isolated");
@@ -163,170 +146,112 @@ before(() => {
     CREATE POLICY baseline_payment_update ON payments FOR UPDATE TO authenticated USING(true) WITH CHECK(true);
     CREATE POLICY baseline_payment_delete ON payments FOR DELETE TO authenticated USING(true);`);
 
-  // Exact production-shaped remediation fixture plus legitimate USD history.
-  sql(`INSERT INTO profiles(id) VALUES
-      ('${remediationActor}'),('${remediationInactive}'),('${id(951)}'),('${id(952)}'),('${id(953)}'),
-      ('${id(954)}'),('${id(955)}'),('${id(956)}'),('${id(957)}'),('${id(958)}'),('${id(959)}');
-    INSERT INTO groups(id,name,currency,settings)
-      VALUES('${remediationGroup}','METACU Edit','USD','{}');
-    INSERT INTO memberships(id,group_id,user_id,role,standing,membership_status) VALUES
-      ('${id(969)}','${remediationGroup}','${remediationActor}','owner','good','active'),
-      ('${id(968)}','${remediationGroup}','${remediationInactive}','owner','good','suspended'),
-      ('${remediationMemberships[0]}','${remediationGroup}','${id(951)}','member','suspended','active'),
-      ('${remediationMemberships[1]}','${remediationGroup}','${id(952)}','member','suspended','active'),
-      ('${remediationMemberships[2]}','${remediationGroup}','${id(953)}','member','suspended','active'),
-      ('${remediationMemberships[3]}','${remediationGroup}','${id(954)}','member','suspended','active'),
-      ('${remediationMemberships[4]}','${remediationGroup}','${id(955)}','member','suspended','active'),
-      ('${remediationMemberships[5]}','${remediationGroup}','${id(956)}','member','suspended','active'),
-      ('${remediationMemberships[6]}','${remediationGroup}','${id(957)}','member','suspended','active'),
-      ('${remediationMemberships[7]}','${remediationGroup}','${id(958)}','member','good','active'),
-      ('${remediationMemberships[8]}','${remediationGroup}','${id(959)}','member','suspended','active');
-    INSERT INTO contribution_types(id,group_id,name,amount,currency,is_active) VALUES
-      ('${remediationUsdType}','${remediationGroup}','USD Monthly Njangi',1000,'USD',true),
-      ('${remediationType}','${remediationGroup}','Test Quarterly',100000,'XAF',true);
-    INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date,status) VALUES
-      ('${id(970)}','${remediationGroup}','${remediationMemberships[0]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(971)}','${remediationGroup}','${remediationMemberships[1]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(972)}','${remediationGroup}','${remediationMemberships[2]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(973)}','${remediationGroup}','${remediationMemberships[3]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(974)}','${remediationGroup}','${remediationMemberships[4]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(975)}','${remediationGroup}','${remediationMemberships[5]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(976)}','${remediationGroup}','${remediationMemberships[6]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(977)}','${remediationGroup}','${remediationMemberships[8]}','${remediationUsdType}',1000,'USD','2026-04-01','pending'),
-      ('${id(978)}','${remediationGroup}','${remediationMemberships[7]}','${remediationUsdType}',1000,'USD','2026-12-31','pending'),
-      ('059b6642-f273-4f97-af58-97920e149c49','${remediationGroup}','${remediationMemberships[0]}','${remediationType}',100000,'XAF','2026-12-30','pending'),
-      ('11293571-15bf-4fb9-aa94-e2d558f3c689','${remediationGroup}','${remediationMemberships[5]}','${remediationType}',100000,'XAF','2026-04-06','pending'),
-      ('1a153ab0-dbea-4aad-b246-7b255c488b78','${remediationGroup}','${remediationMemberships[3]}','${remediationType}',100000,'XAF','2026-04-06','pending'),
-      ('1decd7de-bf02-43dc-8cb1-1028097f4318','${remediationGroup}','${remediationMemberships[2]}','${remediationType}',100000,'XAF','2026-04-06','pending'),
-      ('4a7da745-a044-4f3e-a042-6ce015fc512a','${remediationGroup}','${remediationMemberships[8]}','${remediationType}',100000,'XAF','2026-04-06','pending'),
-      ('831a136e-44d7-4f1e-93d5-1ee113daa341','${remediationGroup}','${remediationMemberships[4]}','${remediationType}',100000,'XAF','2026-04-06','pending'),
-      ('b0b46a63-c1d5-45ee-bbfc-03746808a90e','${remediationGroup}','${remediationMemberships[1]}','${remediationType}',100000,'XAF','2026-04-06','pending'),
-      ('d7c2bb42-768b-47c4-a505-e82972b39e03','${remediationGroup}','${remediationMemberships[7]}','${remediationType}',100000,'XAF','2026-12-31','pending'),
-      ('dc71a552-3254-43b2-a32c-462d7d06f9ac','${remediationGroup}','${remediationMemberships[0]}','${remediationType}',100000,'XAF','2026-04-06','pending'),
-      ('ffa92a83-ef14-4010-ad87-34bddea358ed','${remediationGroup}','${remediationMemberships[6]}','${remediationType}',100000,'XAF','2026-04-06','pending');
-    INSERT INTO payments(id,group_id,membership_id,contribution_type_id,amount,currency,payment_method,status,payment_date,recorded_by,receipt_url) VALUES
-      ('1d2b3d09-4f93-46ee-9cbf-64b9d8b031be','${remediationGroup}','${remediationMemberships[1]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('225923fc-8ceb-4532-89ad-509a8fbb9d80','${remediationGroup}','${remediationMemberships[8]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('9f44a05e-133c-46ed-9ca7-727d34f383b1','${remediationGroup}','${remediationMemberships[6]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('9f78dacd-a8db-4b94-b483-b1b3a0e7d323','${remediationGroup}','${remediationMemberships[2]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('b2f9876f-f64c-422a-b668-e70cec32d183','${remediationGroup}','${remediationMemberships[0]}','${remediationUsdType}',10000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('c0c1dd82-a85e-423b-be51-ad2268dccf30','${remediationGroup}','${remediationMemberships[3]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('c6f1b1a3-fcb3-4498-b2bc-508bc5542b7e','${remediationGroup}','${remediationMemberships[3]}','${remediationUsdType}',10000,'XAF','cash','confirmed','2026-04-06','${remediationActor}','${remediationGroup}/c6f1b1a3/receipt.pdf'),
-      ('ce95e515-200c-4aa5-a6e0-d40ef66d74a6','${remediationGroup}','${remediationMemberships[0]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('eff3a330-654c-4446-a6c3-202e1a7a892c','${remediationGroup}','${remediationMemberships[4]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL),
-      ('fc9b14d1-6953-4cab-903a-d333abdb196c','${remediationGroup}','${remediationMemberships[5]}','${remediationType}',100000,'XAF','cash','confirmed','2026-04-06','${remediationActor}',NULL);
-    INSERT INTO storage.objects(bucket_id,name,owner_id)
-      VALUES('receipts','${remediationGroup}/c6f1b1a3/receipt.pdf','${remediationActor}');`);
+  // Two identical mixed-currency shapes: one trusted internal tenant and one
+  // ordinary customer. Classification, never naming or data shape, controls
+  // only whether the release gate treats the conflict as blocking.
+  sql(`INSERT INTO organizations(id,name) VALUES
+      ('${internalOrg}','Internal fixture organization'),
+      ('${customerConflictOrg}','METACU-shaped customer fixture');
+    INSERT INTO profiles(id) VALUES
+      ('${platformSuper}'),('${inactivePlatformSuper}'),('${internalMember}'),('${customerConflictMember}');
+    INSERT INTO platform_staff(user_id,role,is_active) VALUES
+      ('${platformSuper}','super_admin',true),('${inactivePlatformSuper}','super_admin',false);
+    INSERT INTO groups(id,organization_id,name,currency,settings) VALUES
+      ('${internalGroup}','${internalOrg}','Internal QA fixture','USD','{}'),
+      ('${customerConflictGroup}','${customerConflictOrg}','METACU Edit','USD','{}');
+    INSERT INTO memberships(id,group_id,user_id,role) VALUES
+      ('${id(952)}','${internalGroup}','${internalMember}','owner'),
+      ('${id(953)}','${customerConflictGroup}','${customerConflictMember}','owner');
+    INSERT INTO contribution_types(id,group_id,name,amount,currency) VALUES
+      ('${internalTypeUsd}','${internalGroup}','Current dues',100,'USD'),
+      ('${internalTypeXaf}','${internalGroup}','Historical dues',50000,'XAF'),
+      ('${customerTypeUsd}','${customerConflictGroup}','Current dues',100,'USD'),
+      ('${customerTypeXaf}','${customerConflictGroup}','Historical dues',50000,'XAF');
+    INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,amount,currency,due_date) VALUES
+      ('${id(954)}','${internalGroup}','${id(952)}','${internalTypeUsd}',100,'USD',CURRENT_DATE-10),
+      ('${id(955)}','${internalGroup}','${id(952)}','${internalTypeXaf}',50000,'XAF',CURRENT_DATE-30),
+      ('${id(956)}','${customerConflictGroup}','${id(953)}','${customerTypeUsd}',100,'USD',CURRENT_DATE-10),
+      ('${id(957)}','${customerConflictGroup}','${id(953)}','${customerTypeXaf}',50000,'XAF',CURRENT_DATE-30);`);
   sql(read(epochMigration));
-  assert.equal(sql(`SELECT count(*) FROM financial_ledger_epochs WHERE effective_to IS NULL`),"4");
-  assert.equal(sql(`SELECT count(*) FROM contribution_types WHERE ledger_epoch_id IS NULL`),"2");
-
-  // Exact production-shaped USD/XAF pollution is inventoried and blocks Phase B.
-  assert.equal(sql(`SELECT count(*) FROM financial_private.current_ledger_epoch_conflicts
-    WHERE group_id='${remediationGroup}'`),"31");
-  assert.equal(sql(`SELECT count(*) FROM financial_private.current_ledger_epoch_conflicts
-    WHERE group_id='${remediationGroup}' AND record_type='payment'
-      AND conflict_category='PAYMENT_TYPE_SCOPE_MISMATCH'`),"2");
-  assert.equal(sql(`SELECT count(*) FROM payments WHERE group_id='${remediationGroup}'
-    AND currency='XAF' AND ledger_epoch_id IS NULL`),"10");
-  const beforeRows=moneyRowsForGroup(remediationGroup);
-  remediationBefore=Object.fromEntries(["USD","XAF"].map(currency=>[currency,computeMoneyFigures(
-    beforeRows.obligations.filter(row=>row.currency===currency),
-    beforeRows.payments.filter(row=>row.currency===currency),{today:"2026-09-07"})]));
-  remediationUsdFingerprint=sql(`SELECT md5(jsonb_build_object(
-    'types',(SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id) FROM contribution_types t WHERE t.group_id='${remediationGroup}' AND t.currency='USD'),
-    'obligations',(SELECT jsonb_agg(to_jsonb(o) ORDER BY o.id) FROM contribution_obligations o WHERE o.group_id='${remediationGroup}' AND o.currency='USD'),
-    'payments',(SELECT jsonb_agg(to_jsonb(p) ORDER BY p.id) FROM payments p WHERE p.group_id='${remediationGroup}' AND p.currency='USD'))::text)`);
+  assert.equal(sql(`SELECT count(*) FROM financial_private.classified_ledger_epoch_conflicts
+    WHERE group_id='${internalGroup}' AND migration_classification='customer_blocking'`),"4");
+  assert.equal(sql(`SELECT count(*) FROM financial_private.classified_ledger_epoch_conflicts
+    WHERE group_id='${customerConflictGroup}' AND migration_classification='customer_blocking'`),"4");
   assert.throws(()=>sql(read(migration)),/FINANCIAL_LEGACY_RESOLUTION_REQUIRED/);
-  assert.throws(()=>sqlFile(legacyRemediation,{remediation_actor_id:id(951)}),/ACTIVE_GROUP_ADMIN_REQUIRED/);
-  assert.throws(()=>sqlFile(legacyRemediation,{remediation_actor_id:remediationInactive}),/ACTIVE_GROUP_ADMIN_REQUIRED/);
-  assert.throws(()=>sqlFile(legacyRemediation,{remediation_actor_id:outsider}),/ACTIVE_GROUP_ADMIN_REQUIRED/);
-  sqlFile(legacyRemediation,{remediation_actor_id:remediationActor});
-  assert.equal(sql(`SELECT count(*) FROM financial_private.current_ledger_epoch_conflicts
-    WHERE group_id='${remediationGroup}'`),"0");
-  assert.equal(sql(`SELECT count(*) FROM financial_private.legacy_financial_neutralizations
-    WHERE group_id='${remediationGroup}'`),"21");
-  assert.equal(sql(`SELECT count(*) FROM financial_private.ledger_epoch_conflicts
-    WHERE group_id='${remediationGroup}' AND resolution_status='approved'`),"31");
-  const afterRows=moneyRowsForGroup(remediationGroup);
-  remediationAfter=computeMoneyFiguresByCurrency(afterRows.obligations,afterRows.payments,{today:"2026-09-07"});
-  assert.equal(sql(`SELECT md5(jsonb_build_object(
-    'types',(SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id) FROM contribution_types t WHERE t.group_id='${remediationGroup}' AND t.currency='USD'),
-    'obligations',(SELECT jsonb_agg(to_jsonb(o) ORDER BY o.id) FROM contribution_obligations o WHERE o.group_id='${remediationGroup}' AND o.currency='USD'),
-    'payments',(SELECT jsonb_agg(to_jsonb(p) ORDER BY p.id) FROM payments p WHERE p.group_id='${remediationGroup}' AND p.currency='USD'))::text)`),remediationUsdFingerprint);
-  sqlFile(legacyRemediation,{remediation_actor_id:remediationActor});
-  assert.equal(sql(`SELECT count(*) FROM group_audit_logs
-    WHERE group_id='${remediationGroup}' AND action='financial.legacy_pollution_neutralized'`),"1");
+  sql(`SELECT public.set_internal_financial_tenant(
+    '${internalOrg}',true,'qa','Synthetic internal migration fixture')`,platformSuper);
+  assert.equal(sql(`SELECT count(*) FROM financial_private.classified_ledger_epoch_conflicts
+    WHERE group_id='${internalGroup}' AND migration_classification='internal_nonblocking'`),"4");
+  assert.equal(sql(`SELECT count(*) FROM financial_private.classified_ledger_epoch_conflicts
+    WHERE group_id='${customerConflictGroup}' AND migration_classification='customer_blocking'`),"4");
+  // Resolve only the synthetic customer fixture so Phase B can be exercised.
+  // The internal conflict rows remain untouched and observable.
+  sql(`DELETE FROM contribution_obligations WHERE group_id='${customerConflictGroup}';
+    DELETE FROM contribution_types WHERE group_id='${customerConflictGroup}';
+    UPDATE financial_private.ledger_epoch_conflicts
+      SET resolution_status='approved',resolution_note='Synthetic fixture removed after gate assertion',
+          resolved_by='${platformSuper}',resolved_at=now()
+      WHERE group_id='${customerConflictGroup}';`);
   sql(read(migration));
 });
 
 let first, second;
-test("migration backfill reconciles existing assessments without inventing payments",()=>{
+test("Phase A keeps internal conflicts visible while Phase B excludes only trusted designations",()=>{
+  assert.equal(sql(`SELECT count(*) FROM financial_private.current_ledger_epoch_conflicts
+    WHERE group_id='${internalGroup}'`),"4");
+  assert.equal(sql(`SELECT count(*) FROM financial_private.classified_ledger_epoch_conflicts
+    WHERE group_id='${internalGroup}' AND migration_classification='internal_nonblocking'`),"4");
+  assert.equal(sql(`SELECT count(*) FROM contribution_types
+    WHERE group_id='${internalGroup}' AND ledger_epoch_id IS NULL`),"2");
+  assert.equal(sql(`SELECT count(*) FROM contribution_obligations
+    WHERE group_id='${internalGroup}' AND ledger_epoch_id IS NULL`),"2");
+  assert.equal(sql(`SELECT count(*) FROM financial_ledger_epochs
+    WHERE group_id IN ('${group}','${group2}','${group3}','${group4}')
+      AND effective_to IS NULL`),"4");
+});
+test("customer, cross-tenant, anonymous and inactive actors cannot designate internal tenants",()=>{
+  for(const actor of [officer,outsider,internalMember,customerConflictMember,inactivePlatformSuper]) {
+    assert.throws(()=>sql(`SELECT public.set_internal_financial_tenant(
+      '${customerConflictOrg}',true,'test','Unauthorized designation attempt')`,actor),
+      /PLATFORM_SUPER_ADMIN_REQUIRED/);
+  }
+  assert.equal(sql(`SELECT has_function_privilege('anon',
+    'public.set_internal_financial_tenant(uuid,boolean,text,text)','EXECUTE')`),"f");
+  assert.throws(()=>sql(`SET ROLE anon; SELECT public.set_internal_financial_tenant(
+    '${customerConflictOrg}',true,'test','Anonymous designation attempt')`),/permission denied/);
+  assert.throws(()=>sql(`SELECT count(*) FROM financial_private.internal_financial_tenants`,officer),/permission denied/);
+  assert.throws(()=>sql(`SELECT public.set_internal_financial_tenant(
+    '${id(999999)}',true,'test','Forged organization identifier')`,platformSuper),/ORGANIZATION_NOT_FOUND/);
+  assert.throws(()=>sql(`SELECT public.set_internal_financial_tenant(
+    '${customerConflictOrg}',NULL,'test','Invalid designation state')`,platformSuper),/INVALID_DESIGNATION_STATE/);
+  assert.equal(sql(`SELECT count(*) FROM financial_private.internal_financial_tenants
+    WHERE organization_id='${customerConflictOrg}'`),"0");
+});
+test("removing trusted designation makes identical conflicts blocking again",()=>{
+  sql(`SELECT public.set_internal_financial_tenant(
+    '${internalOrg}',false,NULL,'End synthetic QA designation')`,platformSuper);
+  assert.equal(sql(`SELECT count(*) FROM financial_private.classified_ledger_epoch_conflicts
+    WHERE group_id='${internalGroup}' AND migration_classification='customer_blocking'`),"4");
+  sql(`SELECT public.set_internal_financial_tenant(
+    '${internalOrg}',true,'qa','Restore synthetic QA designation')`,platformSuper);
+  assert.equal(sql(`SELECT count(*) FROM platform_audit_logs
+    WHERE target_id='${internalOrg}' AND action LIKE 'financial.internal_tenant.%'`),"3");
+});
+test("internal classification is not a general accounting bypass",()=>{
+  assert.throws(()=>sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency)
+    VALUES('${id(958)}','${internalGroup}','Post-enforcement row',1,'USD')`,internalMember),
+    /ACTIVE_LEDGER_EPOCH_REQUIRED/);
+});
+test("migration backfill reconciles clean customer assessments without inventing payments",()=>{
   assert.equal(count("payments"),0);
   assert.equal(count("financial_private.reconciliations"),0);
-  assert.equal(sql(`SELECT count(*) FROM financial_private.ledger_epoch_conflicts
-    WHERE group_id='${remediationGroup}' AND resolution_status='approved'`),"31");
-  assert.equal(sql(`SELECT count(*) FROM financial_private.legacy_financial_neutralizations`),"21");
-  assert.equal(sql(`SELECT count(*) FROM contribution_types WHERE ledger_epoch_id IS NULL`),"1");
-  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE ledger_epoch_id IS NULL`),"10");
-  assert.equal(sql(`SELECT count(*) FROM payments WHERE ledger_epoch_id IS NULL`),"10");
-  assert.equal(sql(`SELECT count(*) FROM memberships`),"125");
-  assert.equal(sql(`SELECT count(*) FROM contribution_obligations`),"479");
   assert.equal(sql(`SELECT count(*) FROM payments WHERE contribution_type_id IS NULL AND obligation_id IS NULL`),"7");
   assert.equal(sql(`SELECT count(*) FROM (SELECT membership_id,amount,payment_date FROM payments
     WHERE id::text LIKE '00000000-0000-4000-8004-%'
     GROUP BY membership_id,amount,payment_date HAVING count(*)=2) clusters`),"13");
-  assert.equal(sql(`SELECT string_agg(currency,',' ORDER BY currency) FROM financial_ledger_epochs
-    WHERE effective_to IS NULL`),"EUR,NGN,USD,USD,XAF");
   assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"suspended");
 });
-test("legacy XAF remediation reconciles exact native-currency figures without touching USD",()=>{
-  assert.deepEqual(remediationBefore.XAF,{
-    expected:1000000,collected:820000,outstanding:200000,unallocatedCredit:20000,
-    waivedTotal:0,pending:{count:0,amount:0},overdue:{amount:0,memberCount:0},membersOwing:2,
-  });
-  assert.deepEqual(remediationBefore.USD,{
-    expected:9000,collected:0,outstanding:9000,unallocatedCredit:0,
-    waivedTotal:0,pending:{count:0,amount:0},overdue:{amount:8000,memberCount:8},membersOwing:9,
-  });
-  assert.equal(remediationAfter.some(bucket=>bucket.currency==="XAF"),false);
-  assert.deepEqual(remediationAfter.find(bucket=>bucket.currency==="USD"),{currency:"USD",...remediationBefore.USD});
-  assert.equal(sql(`SELECT count(*) FROM payments WHERE group_id='${remediationGroup}' AND currency='XAF'`),"10");
-  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE group_id='${remediationGroup}' AND currency='XAF'`),"10");
-});
-test("legacy XAF remediation preserves receipt and immutable audit evidence and rebuilds standing",()=>{
-  assert.equal(sql(`SELECT receipt_url FROM payments WHERE id='c6f1b1a3-fcb3-4498-b2bc-508bc5542b7e'`),`${remediationGroup}/c6f1b1a3/receipt.pdf`);
-  assert.equal(sql(`SELECT prior_state->>'hasReceipt' FROM financial_private.legacy_financial_neutralizations
-    WHERE record_type='payment' AND record_id='c6f1b1a3-fcb3-4498-b2bc-508bc5542b7e'`),"true");
-  assert.equal(sql(`SELECT count(*) FROM memberships WHERE id=ANY(ARRAY[${remediationMemberships
-    .slice(0,7).concat(remediationMemberships[8]).map(value=>`'${value}'::uuid`).join(",")}]) AND standing='suspended'`),"8");
-  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${remediationMemberships[7]}'`),"good");
-  assert.throws(()=>sql(`UPDATE group_audit_logs SET details='{}' WHERE group_id='${remediationGroup}'
-    AND action='financial.legacy_pollution_neutralized'`),/LEGACY_FINANCIAL_AUDIT_IMMUTABLE/);
-  assert.throws(()=>sql(`DELETE FROM group_audit_logs WHERE group_id='${remediationGroup}'
-    AND action='financial.legacy_pollution_neutralized'`),/LEGACY_FINANCIAL_AUDIT_IMMUTABLE/);
-});
-test("Phase B scopes legitimate USD and makes neutralized evidence immutable and private",()=>{
-  assert.equal(sql(`SELECT string_agg(DISTINCT currency,',') FROM financial_ledger_epochs WHERE group_id='${remediationGroup}'`),"USD");
-  assert.equal(sql(`SELECT count(*) FROM contribution_types WHERE group_id='${remediationGroup}' AND currency='USD' AND ledger_epoch_id IS NOT NULL`),"1");
-  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE group_id='${remediationGroup}' AND currency='USD' AND ledger_epoch_id IS NOT NULL`),"9");
-  assert.equal(sql(`SELECT count(*) FROM contribution_types WHERE id='${remediationType}' AND ledger_epoch_id IS NULL AND is_active=false`),"1");
-  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE group_id='${remediationGroup}' AND currency='XAF' AND ledger_epoch_id IS NULL AND status='waived'`),"10");
-  assert.equal(sql(`SELECT count(*) FROM payments WHERE group_id='${remediationGroup}' AND currency='XAF' AND ledger_epoch_id IS NULL AND status='rejected'`),"10");
-  for(const actor of [id(951),remediationInactive,outsider]) {
-    assert.throws(()=>sql(`SELECT count(*) FROM financial_private.legacy_financial_neutralizations`,actor),/permission denied/);
-    assert.throws(()=>sql(`INSERT INTO financial_private.legacy_financial_neutralizations(batch_id,group_id,record_type,record_id,original_currency,decision,reason,prior_state,result_state,remediated_by)
-      VALUES('${id(990)}','${remediationGroup}','payment','${id(991)}','XAF','erroneous_production_financial_data','unauthorized','{}','{}','${actor}')`,actor),/permission denied/);
-  }
-  assert.throws(()=>sql(`SET ROLE anon; SELECT count(*) FROM financial_private.legacy_financial_neutralizations`),/permission denied/);
-  assert.throws(()=>sql(`SET ROLE anon; INSERT INTO financial_private.legacy_financial_neutralizations(batch_id,group_id,record_type,record_id,original_currency,decision,reason,prior_state,result_state,remediated_by)
-    VALUES('${id(990)}','${remediationGroup}','payment','${id(991)}','XAF','erroneous_production_financial_data','unauthorized','{}','{}','${id(951)}')`),/permission denied/);
-  assert.throws(()=>sql(`UPDATE financial_private.legacy_financial_neutralizations SET reason='changed'`),/LEGACY_FINANCIAL_NEUTRALIZATION_IMMUTABLE/);
-  assert.throws(()=>sql(`UPDATE contribution_types SET is_active=true WHERE id='${remediationType}'`),/NEUTRALIZED_LEGACY_EVIDENCE_IMMUTABLE|ACTIVE_LEDGER_EPOCH_REQUIRED/);
-  assert.throws(()=>sql(`UPDATE payments SET status='confirmed' WHERE id='1d2b3d09-4f93-46ee-9cbf-64b9d8b031be'`),/NEUTRALIZED_LEGACY_EVIDENCE_IMMUTABLE/);
-  assert.throws(()=>sql(`DELETE FROM contribution_obligations WHERE id='059b6642-f273-4f97-af58-97920e149c49'`),/NEUTRALIZED_LEGACY_EVIDENCE_IMMUTABLE/);
-  assert.equal(sql(`SELECT count(*) FROM contribution_obligations WHERE group_id='${group2}' AND currency='XAF'`),"1");
-});
+
 test("active authorized officer can mutate contribution types and obligations",()=>{
   const lifecycleType=id(601), lifecycleObligation=id(602);
   sql(`INSERT INTO contribution_types(id,group_id,name,amount,currency)

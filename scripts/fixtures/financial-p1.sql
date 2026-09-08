@@ -20,7 +20,21 @@ CREATE TABLE memberships(id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),group_id
   standing membership_standing NOT NULL DEFAULT 'good',display_name text,joined_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz DEFAULT now(),UNIQUE(user_id,group_id));
 ALTER TABLE memberships ADD COLUMN proxy_manager_id uuid;
-CREATE TABLE platform_staff(user_id uuid PRIMARY KEY REFERENCES profiles(id),is_active boolean NOT NULL DEFAULT true);
+CREATE TABLE platform_staff(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid UNIQUE NOT NULL REFERENCES profiles(id),
+  role text NOT NULL DEFAULT 'support',
+  is_active boolean NOT NULL DEFAULT true
+);
+CREATE TABLE platform_audit_logs(
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  staff_id uuid NOT NULL REFERENCES platform_staff(id),
+  action text NOT NULL,
+  target_type text,
+  target_id uuid,
+  details jsonb DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE member_transfers(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),member_id uuid NOT NULL REFERENCES profiles(id),
   source_group_id uuid NOT NULL REFERENCES groups(id),dest_group_id uuid NOT NULL REFERENCES groups(id),

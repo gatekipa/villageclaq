@@ -226,8 +226,10 @@ CREATE TABLE public.financial_postings (
     OR (control_class <> 'custody' AND account_id IS NULL)
   ),
   CONSTRAINT financial_postings_category_shape CHECK (
-    (control_class = 'income' AND category_id IS NOT NULL AND category_class = 'income')
-    OR (control_class = 'expense' AND category_id IS NOT NULL AND category_class = 'expense')
+    (control_class = 'income' AND category_id IS NOT NULL
+      AND category_class IS NOT NULL AND category_class = 'income')
+    OR (control_class = 'expense' AND category_id IS NOT NULL
+      AND category_class IS NOT NULL AND category_class = 'expense')
     OR (control_class NOT IN ('income', 'expense')
       AND category_id IS NULL AND category_class IS NULL)
   ),

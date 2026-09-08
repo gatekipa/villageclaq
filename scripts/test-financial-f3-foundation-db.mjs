@@ -6,8 +6,8 @@ import { readFileSync } from "node:fs";
 const image = "postgres:17-alpine";
 const container = `villageclaq-f3-foundation-${process.pid}-${Date.now()}`;
 const migrationPath = new URL(
-  "./supabase/migrations/00114_f3_core_ledger_foundation.sql",
-  new URL("file:///C:/Users/nanye/Documents/villageclaq/"),
+  "../supabase/migrations/20260908154824_f3_core_ledger_foundation.sql",
+  import.meta.url,
 );
 const migration = () => readFileSync(migrationPath, "utf8");
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -585,6 +585,90 @@ test("income and expense postings require matching category classes", () => {
     ${postingInsert({ postingId: id(972), eventId, amount: -10, control: "income",
       accountId: null, categoryId: expenseA, categoryClass: "expense" })}COMMIT;`);
   assert.match(error, /financial_postings_category_shape/);
+});
+
+test("category A: income rejects an expense category with NULL category_class", () => {
+  const eventId = id(1020);
+  const error = sqlFailure(`BEGIN;${eventInsert({ eventId, source: "category-null-class" })}
+    ${postingInsert({ postingId: id(1021), eventId, amount: 10 })}
+    ${postingInsert({ postingId: id(1022), eventId, amount: -10, control: "income",
+      accountId: null, categoryId: expenseA, categoryClass: null })}COMMIT;`);
+  assert.match(error, /financial_postings_category_shape/);
+});
+
+test("category B: income rejects an expense category through the composite FK", () => {
+  const eventId = id(1030);
+  const error = sqlFailure(`BEGIN;${eventInsert({ eventId, source: "category-class-fk" })}
+    ${postingInsert({ postingId: id(1031), eventId, amount: 10 })}
+    ${postingInsert({ postingId: id(1032), eventId, amount: -10, control: "income",
+      accountId: null, categoryId: expenseA, categoryClass: "income" })}COMMIT;`);
+  assert.match(error, /financial_postings_category_scope/);
+});
+
+test("category C: income rejects another group's income category", () => {
+  const eventId = id(1040);
+  const error = sqlFailure(`BEGIN;${eventInsert({ eventId, source: "category-group-fk" })}
+    ${postingInsert({ postingId: id(1041), eventId, amount: 10 })}
+    ${postingInsert({ postingId: id(1042), eventId, amount: -10, control: "income",
+      accountId: null, categoryId: incomeB, categoryClass: "income" })}COMMIT;`);
+  assert.match(error, /financial_postings_category_scope/);
+});
+
+test("category D: income rejects a nonexistent category", () => {
+  const eventId = id(1050);
+  const error = sqlFailure(`BEGIN;${eventInsert({ eventId, source: "category-missing-fk" })}
+    ${postingInsert({ postingId: id(1051), eventId, amount: 10 })}
+    ${postingInsert({ postingId: id(1052), eventId, amount: -10, control: "income",
+      accountId: null, categoryId: id(9999), categoryClass: "income" })}COMMIT;`);
+  assert.match(error, /financial_postings_category_scope/);
+});
+
+test("category E: expense rejects an income category through the composite FK", () => {
+  const eventId = id(1060);
+  const error = sqlFailure(`BEGIN;${eventInsert({ eventId, source: "expense-category-fk" })}
+    ${postingInsert({ postingId: id(1061), eventId, amount: 10 })}
+    ${postingInsert({ postingId: id(1062), eventId, amount: -10, control: "expense",
+      accountId: null, categoryId: incomeA, categoryClass: "expense" })}COMMIT;`);
+  assert.match(error, /financial_postings_category_scope/);
+});
+
+test("category F: income requires category_id", () => {
+  const eventId = id(1070);
+  const error = sqlFailure(`BEGIN;${eventInsert({ eventId, source: "income-category-required" })}
+    ${postingInsert({ postingId: id(1071), eventId, amount: 10 })}
+    ${postingInsert({ postingId: id(1072), eventId, amount: -10, control: "income",
+      accountId: null, categoryId: null, categoryClass: "income" })}COMMIT;`);
+  assert.match(error, /financial_postings_category_shape/);
+});
+
+test("category G: expense requires category_id", () => {
+  const eventId = id(1080);
+  const error = sqlFailure(`BEGIN;${eventInsert({ eventId, source: "expense-category-required" })}
+    ${postingInsert({ postingId: id(1081), eventId, amount: 10 })}
+    ${postingInsert({ postingId: id(1082), eventId, amount: -10, control: "expense",
+      accountId: null, categoryId: null, categoryClass: "expense" })}COMMIT;`);
+  assert.match(error, /financial_postings_category_shape/);
+});
+
+test("category H: non-category controls require NULL category dimensions", () => {
+  const cases = [
+    { control: "custody", accountId: accountA },
+    { control: "receivable", accountId: null },
+    { control: "liability", accountId: null },
+    { control: "opening_position", accountId: null },
+  ];
+  for (const [index, item] of cases.entries()) {
+    const eventId = id(1100 + index * 3);
+    const postingBase = 1101 + index * 3;
+    sql(`BEGIN;${eventInsert({ eventId, source: `category-null-${item.control}` })}
+      ${postingInsert({ postingId: id(postingBase), eventId, amount: 10,
+        control: item.control, accountId: item.accountId,
+        categoryId: null, categoryClass: null })}
+      ${postingInsert({ postingId: id(postingBase + 1), eventId, amount: -10,
+        control: item.control, accountId: item.accountId,
+        categoryId: null, categoryClass: null })}COMMIT;`);
+    assert.equal(sql(`SELECT count(*) FROM financial_postings WHERE event_id='${eventId}'`), "2");
+  }
 });
 
 test("posting event date and scope are structurally shared", () => {

@@ -14,6 +14,16 @@ function sql(query, actor) {
   return execFileSync("docker", ["exec","-i",container,"psql","-X","-U","postgres","-v","ON_ERROR_STOP=1","-Atq"],
     { input: auth + query, encoding:"utf8", stdio:["pipe","pipe","pipe"] }).trim();
 }
+function sqlFailure(query, actor) {
+  const auth = actor ? `SET ROLE authenticated; SET request.jwt.claim.sub='${actor}';` : "";
+  try {
+    execFileSync("docker", ["exec","-i",container,"psql","-X","-U","postgres","-v","ON_ERROR_STOP=1","-v","VERBOSITY=verbose","-Atq"],
+      { input: auth + query, encoding:"utf8", stdio:["pipe","pipe","pipe"] });
+  } catch (error) {
+    return String(error.stderr || error.message);
+  }
+  assert.fail("expected SQL statement to fail");
+}
 function asyncSql(query) {
   return new Promise((resolve,reject) => {
     execFile("docker",["exec",container,"psql","-X","-U","postgres","-v","ON_ERROR_STOP=1","-Atq","-c",query],
@@ -24,6 +34,7 @@ const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,"0")}`;
 const group=id(1), group2=id(2), group3=id(3), group4=id(4);
 const officer=id(101), member=id(102), peer=id(103), outsider=id(104);
 const pendingOfficer=id(105), suspendedOfficer=id(106), archivedOfficer=id(107), exitedOfficer=id(108);
+const standingManager=id(109), triggerMember=id(110), standingManagerMid=id(19), triggerMid=id(20), standingPosition=id(111);
 const mid=id(11), peerMid=id(12), otherMid=id(13), lifecycleTarget=id(14), type=id(21), type2=id(22), otherType=id(23), oid=id(31), oid2=id(32);
 const internalOrg=id(940), customerConflictOrg=id(941);
 const internalGroup=id(942), customerConflictGroup=id(943);
@@ -72,14 +83,16 @@ before(() => {
   const money=read("supabase/migrations/00002_money_tables.sql");
   // Explicit schema definitions only, not a historical migration runner.
   sql(money.slice(money.indexOf("CREATE TYPE contribution_frequency"),money.indexOf("CREATE TRIGGER update_contribution_types")));
-  sql("ALTER TYPE payment_method ADD VALUE 'other'; ALTER TABLE payments ADD COLUMN status text NOT NULL DEFAULT 'confirmed' CHECK(status IN ('confirmed','pending_confirmation','rejected')), ADD COLUMN payment_date date DEFAULT CURRENT_DATE, ADD COLUMN relief_plan_id uuid; CREATE TABLE payment_obligation_applications(payment_id uuid REFERENCES payments(id) ON DELETE CASCADE,obligation_id uuid REFERENCES contribution_obligations(id) ON DELETE CASCADE,amount_applied numeric,applied_at timestamptz DEFAULT now(),PRIMARY KEY(payment_id,obligation_id));");
+  sql("ALTER TYPE payment_method ADD VALUE 'other'; ALTER TABLE groups ADD COLUMN updated_at timestamptz DEFAULT now(); ALTER TABLE payments ADD COLUMN status text NOT NULL DEFAULT 'confirmed' CHECK(status IN ('confirmed','pending_confirmation','rejected')), ADD COLUMN payment_date date DEFAULT CURRENT_DATE, ADD COLUMN relief_plan_id uuid; CREATE TABLE payment_obligation_applications(payment_id uuid REFERENCES payments(id) ON DELETE CASCADE,obligation_id uuid REFERENCES contribution_obligations(id) ON DELETE CASCADE,amount_applied numeric,applied_at timestamptz DEFAULT now(),PRIMARY KEY(payment_id,obligation_id));");
   for(const [path,name] of [
     ["supabase/migrations/00072_meeting_minutes_rls_fixes.sql","has_group_permission"],
     ["supabase/migrations/00102_tenant_isolation_hardening.sql","is_group_admin_or_owner"],
     ["supabase/migrations/00108_member_privacy_hardening.sql","can_view_member_financial"],
     ["supabase/migrations/00098_membership_status_lifecycle.sql","prevent_membership_self_escalation"],
     ["supabase/migrations/00101_standing_factors_and_history.sql","compute_member_standing"],
-    ["supabase/migrations/00101_standing_factors_and_history.sql","recalculate_membership_standing"]]) {
+    ["supabase/migrations/00101_standing_factors_and_history.sql","recalculate_membership_standing"],
+    ["supabase/migrations/00101_standing_factors_and_history.sql","apply_standing_rules"],
+    ["supabase/migrations/00079_standing_recalc_triggers.sql","trg_recalc_standing_from_hosting"]]) {
     const source=read(path),start=source.indexOf("CREATE OR REPLACE FUNCTION public."+name+"(");
     assert.ok(start>=0); sql(source.slice(start,source.indexOf("$$;",start)+3));
   }
@@ -89,16 +102,20 @@ before(() => {
   sql(adminSource.slice(adminStart,adminEnd+"$$ LANGUAGE sql SECURITY DEFINER STABLE;".length));
   sql("CREATE TRIGGER prevent_membership_self_escalation BEFORE UPDATE ON memberships FOR EACH ROW EXECUTE FUNCTION prevent_membership_self_escalation();");
   sql(`INSERT INTO profiles VALUES('${officer}'),('${member}'),('${peer}'),('${outsider}'),
-      ('${pendingOfficer}'),('${suspendedOfficer}'),('${archivedOfficer}'),('${exitedOfficer}');
+      ('${pendingOfficer}'),('${suspendedOfficer}'),('${archivedOfficer}'),('${exitedOfficer}'),
+      ('${standingManager}'),('${triggerMember}');
     INSERT INTO groups(id,currency,settings) VALUES('${group}','USD','{}'),('${group2}','XAF','{}'),
       ('${group3}','EUR','{}'),('${group4}','NGN','{}');
     INSERT INTO memberships(id,group_id,user_id,role) VALUES('${id(10)}','${group}','${officer}','owner'),
-    ('${mid}','${group}','${member}','member'),('${peerMid}','${group}','${peer}','member'),('${otherMid}','${group2}','${outsider}','owner');
+    ('${mid}','${group}','${member}','member'),('${peerMid}','${group}','${peer}','member'),('${otherMid}','${group2}','${outsider}','owner'),
+    ('${standingManagerMid}','${group}','${standingManager}','member'),('${triggerMid}','${group}','${triggerMember}','member');
     INSERT INTO memberships(id,group_id,user_id,role,membership_status) VALUES
       ('${id(15)}','${group}','${pendingOfficer}','owner','pending_approval'),
       ('${id(16)}','${group}','${suspendedOfficer}','owner','suspended'),
       ('${id(17)}','${group}','${archivedOfficer}','owner','archived'),
       ('${id(18)}','${group}','${exitedOfficer}','owner','exited');
+    INSERT INTO position_assignments(membership_id,position_id) VALUES('${standingManagerMid}','${standingPosition}');
+    INSERT INTO position_permissions(position_id,permission) VALUES('${standingPosition}','finances.manage');
     INSERT INTO memberships(id,group_id,role) VALUES('${lifecycleTarget}','${group}','member');
     INSERT INTO memberships(id,group_id,role)
       SELECT ('00000000-0000-4000-8001-'||lpad(n::text,12,'0'))::uuid,'${group3}','member'
@@ -126,7 +143,8 @@ before(() => {
         ('00000000-0000-4000-8001-'||lpad((((n-1)/2)+1)::text,12,'0'))::uuid,
         '${id(24)}',20+((n-1)/2),'EUR','cash','confirmed',CURRENT_DATE-4,'${officer}'
       FROM generate_series(1,26) n;
-    GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;`);
+    GRANT USAGE ON SCHEMA public TO service_role;
+    GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated,service_role;`);
   sql(`ALTER TABLE payments ENABLE ROW LEVEL SECURITY; ALTER TABLE contribution_types ENABLE ROW LEVEL SECURITY;
     ALTER TABLE contribution_obligations ENABLE ROW LEVEL SECURITY;
     CREATE POLICY baseline_payment_read ON payments FOR SELECT TO authenticated USING(can_view_member_financial(membership_id,group_id));
@@ -195,6 +213,9 @@ before(() => {
       WHERE group_id='${customerConflictGroup}';`);
   sql(read(migration));
   sql(read(standingMigration));
+  sql(`CREATE TRIGGER recalc_standing_on_hosting
+    AFTER INSERT OR UPDATE OF status ON hosting_assignments
+    FOR EACH ROW EXECUTE FUNCTION trg_recalc_standing_from_hosting()`);
 });
 
 let first, second;
@@ -978,17 +999,86 @@ test("standing triggers converge confirmed, rejected, corrected, voided and waiv
   assert.doesNotMatch(read(standingMigration),/notifications|notification_queue|standing_change_producer/);
 });
 
-test("standing RPC surface rejects anonymous, cross-group and inactive callers",()=>{
+test("ordinary same-group standing preview is read-only and custom rules are not persisted",()=>{
+  const target=parityMid(1), actor=parityUser(13);
+  const customRules={...parityRules([]),factors:{...parityRules([]).factors,dues:false}};
+  const snapshot=()=>JSON.parse(sql(`SELECT jsonb_build_object(
+    'standing',(SELECT standing FROM memberships WHERE id='${target}'),
+    'settings',(SELECT settings FROM groups WHERE id='${parityGroup}'),
+    'audits',(SELECT count(*) FROM group_audit_logs WHERE entity_id='${target}'))`));
+  const before=snapshot();
+  assert.equal(sql(`SELECT public.compute_member_standing('${target}',${literal(customRules)})`,actor),"good");
+  assert.deepEqual(snapshot(),before);
+
+  const source=read(standingMigration), start=source.indexOf("CREATE OR REPLACE FUNCTION public.compute_member_standing(");
+  const computeBlock=source.slice(start,source.indexOf("$$;",start)+3);
+  assert.doesNotMatch(computeBlock,/\b(?:INSERT|UPDATE|DELETE)\b/i);
+  assert.doesNotMatch(computeBlock,/notifications|notification_queue|standing_change_producer/i);
+});
+
+test("direct standing recalc denies ordinary, self, cross-group, anonymous and inactive callers with no side effects",()=>{
   assert.equal(sql(`SELECT has_function_privilege('anon',
     'public.compute_member_standing(uuid,jsonb)','EXECUTE')`),"f");
   assert.equal(sql(`SELECT has_function_privilege('anon',
     'public.recalculate_membership_standing(uuid)','EXECUTE')`),"f");
-  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(1)}')`,outsider),/permission denied/);
-  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(19)}')`,outsider),/permission denied/);
-  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(20)}')`,outsider),/permission denied/);
-  assert.throws(()=>sql(`SELECT public.recalculate_membership_standing('${parityMid(1)}')`,outsider),/permission denied/);
-  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(1)}')`,parityUser(20)),/permission denied/);
-  assert.equal(sql(`SELECT public.compute_member_standing('${parityMid(1)}')`,parityUser(13)),"suspended");
+  const targets=[parityMid(1),mid];
+  const snapshot=()=>JSON.parse(sql(`SELECT jsonb_build_object(
+    'standings',(SELECT jsonb_object_agg(id,standing) FROM memberships WHERE id IN ('${targets[0]}','${targets[1]}')),
+    'audits',(SELECT count(*) FROM group_audit_logs),
+    'settings',(SELECT jsonb_object_agg(id,settings) FROM groups WHERE id IN ('${parityGroup}','${group}')))`));
+  const before=snapshot();
+  const denied=[
+    ["same-group peer",parityUser(13),parityMid(1)],
+    ["self",parityUser(1),parityMid(1)],
+    ["cross-group",outsider,parityMid(1)],
+    ["pending officer",pendingOfficer,mid],
+    ["suspended officer",suspendedOfficer,mid],
+    ["archived officer",archivedOfficer,mid],
+    ["exited officer",exitedOfficer,mid],
+  ];
+  for(const [label,actor,target] of denied) {
+    assert.match(sqlFailure(`SELECT public.recalculate_membership_standing('${target}')`,actor),/42501/,label);
+    assert.deepEqual(snapshot(),before,label);
+  }
+  assert.match(sqlFailure(`SET ROLE anon; SELECT public.recalculate_membership_standing('${parityMid(1)}')`),/42501/);
+  assert.deepEqual(snapshot(),before);
+  assert.doesNotMatch(read(standingMigration),/notifications|notification_queue|standing_change_producer/);
+});
+
+test("active finances manager and active owner can persist standing recalculation",()=>{
+  sql(`UPDATE memberships SET standing='warning' WHERE id='${lifecycleTarget}'`);
+  const managerAudits=Number(sql(`SELECT count(*) FROM group_audit_logs WHERE entity_id='${lifecycleTarget}'`));
+  assert.equal(sql(`SELECT public.compute_member_standing('${lifecycleTarget}')`),"good");
+  sql(`SELECT public.recalculate_membership_standing('${lifecycleTarget}')`,standingManager);
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${lifecycleTarget}'`),"good");
+  assert.equal(Number(sql(`SELECT count(*) FROM group_audit_logs WHERE entity_id='${lifecycleTarget}'`)),managerAudits+1);
+
+  sql(`UPDATE memberships SET standing='good' WHERE id='${parityMid(1)}'`);
+  sql(`SELECT public.recalculate_membership_standing('${parityMid(1)}')`,officer);
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${parityMid(1)}'`),"suspended");
+});
+
+test("authorized apply-rules plus service and trigger recalculation paths remain available",()=>{
+  const applied=JSON.parse(sql(`SELECT public.apply_standing_rules('${group2}',
+    '{"enabled":true,"factors":{"dues":true,"meetingAttendance":false,"eventAttendance":false,"relief":false,"hosting":true,"fines":false,"loans":false,"disputes":false,"customActivity":false}}'::jsonb)`,outsider));
+  assert.equal(applied.rules.enabled,true);
+
+  sql(`UPDATE memberships SET standing='warning' WHERE id='${triggerMid}'`);
+  sql(`SET ROLE service_role; SELECT public.recalculate_membership_standing('${triggerMid}')`);
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${triggerMid}'`),"good");
+
+  sql(`SET ROLE service_role; INSERT INTO hosting_assignments(membership_id,status)
+    VALUES('${triggerMid}','missed'),('${triggerMid}','missed')`);
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${triggerMid}'`),"warning");
+});
+
+test("standing function privilege and search-path posture is explicit",()=>{
+  assert.equal(sql(`SELECT has_function_privilege('authenticated',
+    'public.recalculate_membership_standing(uuid)','EXECUTE')`),"t");
+  assert.equal(sql(`SELECT has_function_privilege('service_role',
+    'public.recalculate_membership_standing(uuid)','EXECUTE')`),"t");
   assert.equal(sql(`SELECT p.prosecdef AND p.provolatile='s' AND p.proconfig @> ARRAY['search_path=""']
     FROM pg_proc p WHERE p.oid='public.compute_member_standing(uuid,jsonb)'::regprocedure`),"t");
+  assert.equal(sql(`SELECT p.prosecdef AND p.proconfig @> ARRAY['search_path=""']
+    FROM pg_proc p WHERE p.oid='public.recalculate_membership_standing(uuid)'::regprocedure`),"t");
 });

@@ -276,9 +276,76 @@ REVOKE ALL ON FUNCTION public.compute_member_standing(uuid, jsonb)
 GRANT EXECUTE ON FUNCTION public.compute_member_standing(uuid, jsonb)
   TO authenticated, service_role;
 
--- The historical recalculation RPC delegates to compute_member_standing, so its
--- direct cross-tenant calls now fail through the membership guard above.  Keep
--- trigger/service execution while removing the inherited anonymous surface.
+-- Persisting a recalculation is a management action, not a standing preview.
+-- Direct authenticated callers must be active in the target tenant and hold
+-- the existing finances.manage permission.  has_group_permission already
+-- implements the platform's owner/admin/position permission contract; the
+-- explicit active-membership predicate prevents stale officer assignments from
+-- authorizing a write.  Trigger dispatchers are trusted consequences of their
+-- source-table authorization and must not re-authorize the initiating JWT.
+-- Internal/service calls have no end-user uid and retain the historical path.
+-- Authorization occurs before compute, membership mutation, and audit insert.
+CREATE OR REPLACE FUNCTION public.recalculate_membership_standing(p_membership_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_new_standing text;
+  v_current_standing text;
+  v_group_id uuid;
+BEGIN
+  SELECT m.standing::text, m.group_id
+    INTO v_current_standing, v_group_id
+  FROM public.memberships m
+  WHERE m.id = p_membership_id;
+
+  IF v_group_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF auth.uid() IS NOT NULL AND pg_trigger_depth() = 0 AND NOT (
+    EXISTS (
+      SELECT 1
+      FROM public.memberships caller
+      WHERE caller.group_id = v_group_id
+        AND caller.user_id = auth.uid()
+        AND caller.membership_status = 'active'
+    )
+    AND public.has_group_permission(v_group_id, 'finances.manage', auth.uid())
+  ) THEN
+    RAISE EXCEPTION 'permission denied' USING ERRCODE = '42501';
+  END IF;
+
+  v_new_standing := public.compute_member_standing(p_membership_id, NULL);
+
+  IF v_current_standing IS DISTINCT FROM v_new_standing THEN
+    UPDATE public.memberships
+       SET standing = v_new_standing::public.membership_standing,
+           updated_at = now()
+     WHERE id = p_membership_id;
+
+    BEGIN
+      INSERT INTO public.group_audit_logs
+        (group_id, actor_id, action, entity_type, entity_id, details)
+      VALUES (
+        v_group_id, NULL, 'member.standing_recalculated', 'membership', p_membership_id,
+        jsonb_build_object(
+          'oldStanding', v_current_standing,
+          'newStanding', v_new_standing,
+          'source', 'system'
+        )
+      );
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+END;
+$$;
+
+-- Keep the authorized admin/service RPC and trusted trigger path while
+-- removing inherited anonymous execution from the write-capable function.
 REVOKE ALL ON FUNCTION public.recalculate_membership_standing(uuid)
   FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.recalculate_membership_standing(uuid)

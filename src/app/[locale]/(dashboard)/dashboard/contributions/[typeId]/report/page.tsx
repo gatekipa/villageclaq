@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Download, Printer, HandCoins } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
+import { readAllPages } from "@/lib/read-all-pages";
 import { getMemberName } from "@/lib/get-member-name";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
@@ -20,6 +21,7 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { RequirePermission } from "@/components/ui/permission-gate";
 import {
   buildObjectReport,
+  assertFinancialScope,
   type MemberParticipation,
   type ParticipationStatus,
   type MoneyObligation,
@@ -48,58 +50,27 @@ function useObjectReport(typeId: string | null) {
 
       const { data: type, error: typeErr } = await supabase
         .from("contribution_types")
-        .select("id, name, name_fr, description, amount, currency, frequency, due_day, is_active")
+        .select("id, name, name_fr, description, amount, currency, ledger_epoch_id, frequency, due_day, is_active")
         .eq("id", typeId!)
         .eq("group_id", groupId!)
         .single();
       if (typeErr) throw typeErr;
 
-      const { data: obligations, error: oblErr } = await supabase
+      const obligations = await readAllPages((from, to) => supabase
         .from("contribution_obligations")
-        .select("id, membership_id, amount, amount_paid, status, due_date, period_label")
+        .select("group_id, currency, ledger_epoch_id, id, membership_id, contribution_type_id, amount, amount_paid, status, due_date, period_label")
         .eq("group_id", groupId!)
-        .eq("contribution_type_id", typeId!)
-        .order("due_date", { ascending: true });
-      if (oblErr) throw oblErr;
-
-      // Payments for this type. Most dues payments carry contribution_type_id +
-      // membership_id but NO obligation_id (the admin record-payment path omits
-      // obligation_id), so fetch by type first; then union the obligation-linked
-      // set (covers a pay-now payment that has obligation_id but no type).
-      // Deduped by id. money.ts attributes them by membership_id.
-      const oblIds = (obligations || []).map((o) => o.id);
-      const paySelect = "id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id";
-      const byType = await supabase
-        .from("payments")
-        .select(paySelect)
-        .eq("group_id", groupId!)
-        .is("relief_plan_id", null)
-        .eq("contribution_type_id", typeId!);
-      if (byType.error) throw byType.error;
-      const payments: Array<Record<string, unknown>> = [...(byType.data || [])];
-      if (oblIds.length > 0) {
-        const byObl = await supabase
-          .from("payments")
-          .select(paySelect)
-          .eq("group_id", groupId!)
-          .in("obligation_id", oblIds);
-        if (byObl.error) throw byObl.error;
-        const seen = new Set(payments.map((p) => p.id as string));
-        for (const p of byObl.data || []) {
-          if (!seen.has(p.id as string)) {
-            payments.push(p);
-            seen.add(p.id as string);
-          }
-        }
-      }
-
-      const { data: members, error: memErr } = await supabase
-        .from("memberships")
-        .select(
-          "id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, display_name, avatar_url)"
-        )
-        .eq("group_id", groupId!);
-      if (memErr) throw memErr;
+        .order("due_date").order("id").range(from, to));
+      // Read a complete group-scoped ledger before selecting the type and its
+      // legacy obligation links. No unbounded IN URL or capped export.
+      const allPayments = await readAllPages((from, to) => supabase.from("payments")
+        .select("group_id, currency, ledger_epoch_id, id, amount, status, obligation_id, contribution_type_id, relief_plan_id, recorded_at, membership_id")
+        .eq("group_id", groupId!).is("relief_plan_id", null).order("id").range(from, to));
+      const payments = allPayments;
+      assertFinancialScope(obligations, payments, type.currency);
+      const members = await readAllPages((from, to) => supabase.from("memberships")
+        .select("id, user_id, display_name, is_proxy, privacy_settings, profiles!memberships_user_id_fkey(id, full_name, display_name, avatar_url)")
+        .eq("group_id", groupId!).order("id").range(from, to));
 
       return {
         type: type as TypeRow,
@@ -144,6 +115,7 @@ export default function ContributionReportPage() {
     return buildObjectReport(
       data.obligations as unknown as MoneyObligation[],
       data.payments as unknown as MoneyPayment[],
+      { contributionTypeId: data.type.id },
     );
   }, [data]);
 
@@ -220,7 +192,7 @@ export default function ContributionReportPage() {
               <ArrowLeft className="h-3 w-3" />
               {t("contributions.types")}
             </Link>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{typeName}</h1>
+            <h1 className="text-xl font-semibold break-words sm:text-2xl">{typeName}</h1>
             <p className="text-muted-foreground">
               {t("contributions.report.subtitle")}
               {data.type.frequency ? ` · ${t(`contributions.freq_${data.type.frequency}`)}` : ""}
@@ -242,26 +214,24 @@ export default function ContributionReportPage() {
         </div>
 
         {/* Participation summary */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="grid grid-cols-3 gap-x-4 gap-y-3 border-y py-4 lg:grid-cols-6">
           <ParticipationStat label={t("contributions.report.expectedMembers")} value={totals.expectedMembers} />
           <ParticipationStat label={t("contributions.report.contributedMembers")} value={totals.contributedMembers} tone="text-emerald-600 dark:text-emerald-400" />
           <ParticipationStat label={t("contributions.report.partialMembers")} value={totals.partialMembers} tone="text-amber-600 dark:text-amber-400" />
           <ParticipationStat label={t("contributions.report.pendingMembers")} value={totals.pendingMembers} tone="text-blue-600 dark:text-blue-400" />
           <ParticipationStat label={t("contributions.report.notContributedMembers")} value={totals.notContributedMembers} tone="text-red-600 dark:text-red-400" />
           <ParticipationStat label={t("contributions.report.waivedMembers")} value={totals.waivedMembers} tone="text-muted-foreground" />
-        </div>
+        </dl>
 
         {/* Money summary */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-b pb-4 sm:grid-cols-3 lg:grid-cols-6">
           {summaryCards.map((c) => (
-            <Card key={c.label}>
-              <CardContent className="p-3">
-                <p className="text-xs text-muted-foreground">{c.label}</p>
-                <p className={`mt-1 text-sm font-semibold ${c.tone}`}>{c.value}</p>
-              </CardContent>
-            </Card>
+            <div key={c.label} className="min-w-0">
+              <dt className="text-xs text-muted-foreground">{c.label}</dt>
+              <dd className={`mt-1 text-base font-semibold tabular-nums break-words ${c.tone}`}>{c.value}</dd>
+            </div>
           ))}
-        </div>
+        </dl>
 
         {/* Pending-money clarity note */}
         {totals.totalPending > 0 && (
@@ -360,11 +330,9 @@ export default function ContributionReportPage() {
 
 function ParticipationStat({ label, value, tone = "" }: { label: string; value: number; tone?: string }) {
   return (
-    <Card>
-      <CardContent className="p-3">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`mt-1 text-lg font-bold ${tone}`}>{value}</p>
-      </CardContent>
-    </Card>
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className={`mt-1 text-lg font-semibold tabular-nums ${tone}`}>{value}</dd>
+    </div>
   );
 }

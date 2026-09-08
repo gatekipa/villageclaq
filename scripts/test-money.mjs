@@ -105,11 +105,11 @@ test("Baby Shower one-time contribution report (canonical end-to-end)", () => {
   // obligation_id — the common record-payment path), m2 partial (confirmed 400),
   // m3 submitted pending, m4 only a rejected payment, m5 waived.
   const obligations = [
-    { id: "o1", amount: 1000, status: "paid", due_date: "2026-05-01", membership_id: "m1" },
-    { id: "o2", amount: 1000, status: "partial", due_date: "2026-05-01", membership_id: "m2" },
-    { id: "o3", amount: 1000, status: "pending", due_date: "2026-05-01", membership_id: "m3" },
-    { id: "o4", amount: 1000, status: "pending", due_date: "2026-05-01", membership_id: "m4" },
-    { id: "o5", amount: 1000, status: "waived", due_date: "2026-05-01", membership_id: "m5" },
+    { id: "o1", amount: 1000, status: "paid", due_date: "2026-05-01", membership_id: "m1", contribution_type_id: "t1" },
+    { id: "o2", amount: 1000, status: "partial", due_date: "2026-05-01", membership_id: "m2", contribution_type_id: "t1" },
+    { id: "o3", amount: 1000, status: "pending", due_date: "2026-05-01", membership_id: "m3", contribution_type_id: "t1" },
+    { id: "o4", amount: 1000, status: "pending", due_date: "2026-05-01", membership_id: "m4", contribution_type_id: "t1" },
+    { id: "o5", amount: 1000, status: "waived", due_date: "2026-05-01", membership_id: "m5", contribution_type_id: "t1" },
   ];
   // Payments attributed by membership_id; m1's confirmed payment has NO
   // obligation_id (proves the critical fix: it must still count as collected).
@@ -153,10 +153,10 @@ test("Baby Shower one-time contribution report (canonical end-to-end)", () => {
 test("per-member aggregation: multiple obligations of one type yield ONE row", () => {
   // m1 has 4 quarterly obligations of the same type; total expected 4000.
   const obligations = [
-    { id: "q1", amount: 1000, status: "paid", due_date: "2026-01-01", membership_id: "m1" },
-    { id: "q2", amount: 1000, status: "paid", due_date: "2026-04-01", membership_id: "m1" },
-    { id: "q3", amount: 1000, status: "pending", due_date: "2026-07-01", membership_id: "m1" },
-    { id: "q4", amount: 1000, status: "pending", due_date: "2026-10-01", membership_id: "m1" },
+    { id: "q1", amount: 1000, status: "paid", due_date: "2026-01-01", membership_id: "m1", contribution_type_id: "t1" },
+    { id: "q2", amount: 1000, status: "paid", due_date: "2026-04-01", membership_id: "m1", contribution_type_id: "t1" },
+    { id: "q3", amount: 1000, status: "pending", due_date: "2026-07-01", membership_id: "m1", contribution_type_id: "t1" },
+    { id: "q4", amount: 1000, status: "pending", due_date: "2026-10-01", membership_id: "m1", contribution_type_id: "t1" },
   ];
   const payments = [
     { amount: 2500, status: "confirmed", membership_id: "m1", contribution_type_id: "t1", obligation_id: null, recorded_at: "2026-02-01" },

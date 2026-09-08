@@ -29,6 +29,9 @@ import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { formatAmount } from "@/lib/currencies";
+import { applyPaymentCommand, paymentRequestId, acknowledgePaymentRequest } from "@/lib/payment-command";
+import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
+import { uploadPaymentEvidence } from "@/lib/payment-evidence";
 
 interface Obligation {
   id: string;
@@ -80,7 +83,9 @@ export function PayNowDialog({
   const locale = useLocale();
   const { groupId, currentGroup, user } = useGroup();
   const queryClient = useQueryClient();
-  const currency = currentGroup?.currency || obligation.currency || "XAF";
+  // Historical obligations retain their native epoch currency. The payment RPC
+  // independently rejects writes when that epoch is no longer active.
+  const currency = obligation.currency || currentGroup?.currency || "XAF";
   // Build 13: the confirmed-only amount to pay is computed by the caller (money
   // engine) and passed in directly — the dialog never derives it from the polluted
   // amount_paid column. Clamp defensively to [0, obligation.amount] so the recorded
@@ -169,6 +174,8 @@ export function PayNowDialog({
       const supabase = createClient();
 
       // Upload receipt if provided
+      const requestScope = `submit:${groupId}:${user.id}:${obligation.id}`;
+      const requestId = paymentRequestId(requestScope);
       let receiptUrl: string | undefined;
       if (receiptFile) {
         if (receiptFile.size > 5 * 1024 * 1024) {
@@ -176,27 +183,18 @@ export function PayNowDialog({
           setSubmitting(false);
           return;
         }
-        const path = `${groupId}/${Date.now()}-${receiptFile.name}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("receipts")
-          .upload(path, receiptFile);
-        if (uploadErr) {
-          // Translated, retryable error — never raw storage text. The
-          // attached file stays selected so the member can simply retry.
-          console.warn("[PayNow] receipt upload failed:", uploadErr.message);
+        try {
+          receiptUrl = await uploadPaymentEvidence(supabase, groupId, requestId, receiptFile);
+        } catch {
+          console.warn("[PayNow] receipt upload failed");
           setSubmitError(t("uploadFailed"));
-          setSubmitting(false);
           return;
         }
-        // receipts bucket is private — store the bare object path.
-        // Receipt viewers sign a fresh URL on demand via signedUrlFor(),
-        // so the stored value never expires.
-        receiptUrl = path;
       }
 
       // Insert payment with pending_confirmation status
-      const { error: paymentError } = await supabase.from("payments").insert({
-        group_id: groupId,
+      await applyPaymentCommand(supabase, {
+        groupId, requestId, action: "submit", values: {
         membership_id: membershipId,
         obligation_id: obligation.id,
         contribution_type_id: obligation.contribution_type_id,
@@ -206,11 +204,8 @@ export function PayNowDialog({
         reference_number: reference.trim() || null,
         receipt_url: receiptUrl || null,
         notes: notes.trim() || null,
-        recorded_by: user.id,
-        status: "pending_confirmation",
+        },
       });
-
-      if (paymentError) throw paymentError;
 
       // Send notification to group admins
       const { data: admins } = await supabase
@@ -291,10 +286,12 @@ export function PayNowDialog({
       queryClient.invalidateQueries({ queryKey: ["member-payments"] });
       queryClient.invalidateQueries({ queryKey: ["member-obligations"] });
 
+      await invalidateFinancialQueries(queryClient, groupId, membershipId);
+      acknowledgePaymentRequest(requestScope);
       setStep("success");
-    } catch (err) {
-      // Translated copy only — log the raw error for diagnostics.
-      console.warn("[PayNow] submit failed:", err instanceof Error ? err.message : err);
+    } catch {
+      // Keep the event observable without printing receipt paths or request details.
+      console.warn("[PayNow] submit failed");
       setSubmitError(t("submitError"));
     } finally {
       setSubmitting(false);

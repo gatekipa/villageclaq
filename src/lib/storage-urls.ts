@@ -39,19 +39,19 @@ export async function signedUrlFor(
   // Legacy rows sometimes store the full public URL. Strip the bucket
   // prefix so we pass a bare object key to createSignedUrl.
   const normalised = normaliseObjectPath(bucket, path);
+  if (!normalised) return null;
   try {
     const { data, error } = await supabase.storage
       .from(bucket)
       .createSignedUrl(normalised, expiresInSeconds);
     if (error) {
-      console.warn(`[storage] createSignedUrl(${bucket}, ${normalised}) failed:`, error.message);
+      console.warn("[storage] private object signing failed");
       return null;
     }
     return data?.signedUrl || null;
-  } catch (err) {
+  } catch {
     console.warn(
-      `[storage] createSignedUrl(${bucket}, ${normalised}) threw:`,
-      err instanceof Error ? err.message : err,
+      "[storage] private object signing failed",
     );
     return null;
   }
@@ -64,15 +64,15 @@ export async function signedUrlFor(
  */
 export function normaliseObjectPath(bucket: string, input: string): string {
   if (!input) return input;
-  const marker = `/object/public/${bucket}/`;
-  const idx = input.indexOf(marker);
-  if (idx >= 0) return input.slice(idx + marker.length);
-  const signedMarker = `/object/sign/${bucket}/`;
-  const signedIdx = input.indexOf(signedMarker);
-  if (signedIdx >= 0) {
-    // Signed URL pattern — strip bucket prefix and any ?token= query string.
-    const rest = input.slice(signedIdx + signedMarker.length);
-    return rest.split("?")[0];
+  if (!/^https?:\/\//.test(input)) return input;
+  try {
+    const url = new URL(input);
+    const markers = ["public", "sign", "authenticated"].map((mode) => `/object/${mode}/${bucket}/`);
+    const marker = markers.find((value) => url.pathname.includes(value));
+    if (!marker) return "";
+    const path = decodeURIComponent(url.pathname.slice(url.pathname.indexOf(marker) + marker.length));
+    return path.split("/").some((part) => part === "." || part === "..") ? "" : path;
+  } catch {
+    return "";
   }
-  return input;
 }

@@ -64,7 +64,7 @@ test("finances dashboard computes per-type collected from confirmed payments by 
   // per-type collected by contribution_type_id; per-member outstanding by membership_id
   // (NOT obligation_id, which most dues payments lack).
   assert.ok(finances.includes("confirmedPaidByType"), "per-type collected by contribution_type_id");
-  assert.ok(finances.includes("confirmedPaidByMember"), "per-member outstanding by membership_id");
+  assert.ok(finances.includes("computeObligationStates"), "per-member overdue uses canonical obligation allocation");
   assert.ok(finances.includes("isConfirmedPayment"), "sync filters to confirmed");
 });
 
@@ -75,10 +75,10 @@ test("members/[id] financial summary uses confirmed basis", () => {
   );
 });
 
-test("my-payments derives remaining from the member's confirmed total (handles obligation-less payments)", () => {
+test("my-payments derives remaining from confirmed member/type allocations", () => {
   assert.ok(
-    myPayments.includes("allocateConfirmedToObligations") && myPayments.includes("confirmedPaidByMember"),
-    "remaining derives from the member's confirmed total, allocated across obligations",
+    myPayments.includes("computeObligationStates") && !myPayments.includes("allocateConfirmedToObligations"),
+    "remaining uses shared type-aware allocation, not a competing all-type payment pool",
   );
 });
 
@@ -87,10 +87,10 @@ test("my-payments derives remaining from the member's confirmed total (handles o
 test("payment reject recomputes obligation amount_paid from confirmed", () => {
   assert.ok(history.includes("handleRejectPayment"), "reject handler present");
   assert.ok(history.includes("isConfirmedPayment"), "reject recomputes from confirmed payments");
-  // reject must write amount_paid (the self-heal), not just flip status
-  const rejectIdx = history.indexOf("handleRejectPayment");
-  const after = history.slice(rejectIdx, rejectIdx + 1600);
-  assert.ok(/amount_paid/.test(after), "reject updates the obligation's amount_paid");
+  const rejectIdx = history.indexOf("async function handleRejectPayment");
+  const after = history.slice(rejectIdx, history.indexOf("function openEditDialog", rejectIdx));
+  assert.ok(after.includes('action: "reject"') && after.includes("await applyPaymentCommand"), "reject uses the atomic correction transaction");
+  assert.ok(!after.includes('.from("contribution_obligations")'), "no second, fallible browser balance write");
 });
 
 test("history CSV export includes a Status column (pending never silently collected)", () => {

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { getDateLocale } from "@/lib/date-utils";
 import { formatAmount } from "@/lib/currencies";
+import { bucketCurrencyAmounts, formatCurrencyBuckets } from "@/lib/currency-buckets";
 import { getMemberName } from "@/lib/get-member-name";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +71,7 @@ export default function TransactionsMonitorPage() {
     );
   }, [payments, search]);
 
-  const totalVolume = payments.reduce((s, p) => s + p.amount, 0);
+  const totalVolume = bucketCurrencyAmounts(payments, (payment) => payment.amount, (payment) => payment.currency);
   const methodBadge: Record<string, string> = {
     cash: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
     mobile_money: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -87,7 +88,7 @@ export default function TransactionsMonitorPage() {
       <div><h1 className="text-3xl font-bold tracking-tight">{t("transactionsMonitor")}</h1><p className="text-muted-foreground">{t("transactionsSubtitle")}</p></div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("totalVolume")}</p>{loading ? <Skeleton className="h-8 w-24" /> : <p className="text-2xl font-bold">{formatAmount(totalVolume, "XAF")}</p>}</CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("totalVolume")}</p>{loading ? <Skeleton className="h-8 w-24" /> : <div className="space-y-0.5">{formatCurrencyBuckets(totalVolume).map((value) => <p key={value} className="text-xl font-bold">{value}</p>)}</div>}</CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("totalTransactions")}</p>{loading ? <Skeleton className="h-8 w-16" /> : <p className="text-2xl font-bold">{payments.length}</p>}</CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("pendingTxns")}</p><p className="text-2xl font-bold text-muted-foreground">—</p></CardContent></Card>
         <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">{t("failedTxns")}</p><p className="text-2xl font-bold">0</p></CardContent></Card>

@@ -35,6 +35,7 @@ import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skele
 import { getMemberName } from "@/lib/get-member-name";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import { SendReviewNotice } from "@/components/send-review-notice";
+import { bucketCurrencyAmounts, formatCurrencyBuckets, type CurrencyAmountBucket } from "@/lib/currency-buckets";
 
 interface UnpaidMember {
   id: string;
@@ -42,13 +43,14 @@ interface UnpaidMember {
   name: string;
   avatarUrl: string | null;
   standing: string;
-  totalOutstanding: number;
+  outstandingByCurrency: Record<string, number>;
   obligations: {
     type: string;
     period: string;
     amount: number;
     amountPaid: number;
     dueDate: string;
+    currency: string;
   }[];
 }
 
@@ -114,13 +116,14 @@ export default function UnpaidReportPage() {
           name: getMemberName(obl.membership as Record<string, unknown>),
           avatarUrl: profile?.avatar_url || null,
           standing: (membership.standing as string) || "good",
-          totalOutstanding: 0,
+          outstandingByCurrency: {},
           obligations: [],
         });
       }
 
       const member = memberMap.get(membershipId)!;
-      member.totalOutstanding += c.remaining;
+      const rowCurrency = String(obl.currency || currency).toUpperCase();
+      member.outstandingByCurrency[rowCurrency] = (member.outstandingByCurrency[rowCurrency] || 0) + c.remaining;
 
       const contributionType = obl.contribution_type as { id: string; name: string; name_fr?: string } | null;
       member.obligations.push({
@@ -129,19 +132,38 @@ export default function UnpaidReportPage() {
         amount: c.expected,
         amountPaid: c.confirmedPaid,
         dueDate: obl.due_date || "",
+        currency: rowCurrency,
       });
     }
 
     return Array.from(memberMap.values());
-  }, [allObligations, duesPayments]);
+  }, [allObligations, duesPayments, currency, t]);
+
+  const memberBuckets = (member: UnpaidMember): CurrencyAmountBucket[] =>
+    Object.entries(member.outstandingByCurrency).sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucketCurrency, amount]) => ({ currency: bucketCurrency, amount }));
+  const memberOutstandingText = (member: UnpaidMember) => formatCurrencyBuckets(memberBuckets(member)).join(" · ");
 
   const sorted = useMemo(() => {
-    return [...unpaidMembers].sort((a, b) =>
-      sortBy === "amount" ? b.totalOutstanding - a.totalOutstanding : a.name.localeCompare(b.name)
-    );
+    const currencies = new Set(unpaidMembers.flatMap((member) => Object.keys(member.outstandingByCurrency)));
+    return [...unpaidMembers].sort((a, b) => {
+      if (sortBy === "amount" && currencies.size === 1) {
+        const code = [...currencies][0];
+        return (b.outstandingByCurrency[code] || 0) - (a.outstandingByCurrency[code] || 0);
+      }
+      return a.name.localeCompare(b.name);
+    });
   }, [unpaidMembers, sortBy]);
 
-  const totalOutstanding = sorted.reduce((sum, m) => sum + m.totalOutstanding, 0);
+  const totalOutstanding = bucketCurrencyAmounts(
+    sorted.flatMap((member) => memberBuckets(member)),
+    (bucket) => bucket.amount,
+    (bucket) => bucket.currency,
+  );
+  const averageOutstanding = totalOutstanding.map((bucket) => {
+    const membersInCurrency = sorted.filter((member) => (member.outstandingByCurrency[bucket.currency] || 0) > 0).length;
+    return { currency: bucket.currency, amount: membersInCurrency ? bucket.amount / membersInCurrency : 0 };
+  });
 
   // Only members with accounts (userId) can receive in-app reminders —
   // proxy members have no account to notify.
@@ -158,7 +180,7 @@ export default function UnpaidReportPage() {
         group_id: groupId!,
         type: "contribution_due" as const,
         title: t("contributions.paymentReminderTitle"),
-        body: t("contributions.paymentReminderBody", { amount: formatAmount(m.totalOutstanding, currency) }),
+        body: t("contributions.paymentReminderBody", { amount: memberOutstandingText(m) }),
         is_read: false,
         data: { link: "/dashboard/my-payments" },
       }));
@@ -185,7 +207,7 @@ export default function UnpaidReportPage() {
         group_id: groupId,
         type: "contribution_due" as const,
         title: t("contributions.paymentReminderTitle"),
-        body: t("contributions.paymentReminderBody", { amount: formatAmount(member.totalOutstanding, currency) }),
+        body: t("contributions.paymentReminderBody", { amount: memberOutstandingText(member) }),
         is_read: false,
         data: { link: "/dashboard/my-payments" },
       });
@@ -200,14 +222,15 @@ export default function UnpaidReportPage() {
   }
 
   function handleExportCSV() {
-    const data = sorted.map((m) => ({
+    const data = sorted.flatMap((m) => memberBuckets(m).map((bucket) => ({
       Member: m.name,
       Standing: m.standing,
-      "Total Outstanding": m.totalOutstanding,
-      Currency: currency,
-      "Outstanding Items": m.obligations.length,
-      Details: m.obligations.map((o) => `${o.type} ${o.period}: ${o.amount - o.amountPaid}`).join("; "),
-    }));
+      "Total Outstanding": bucket.amount,
+      Currency: bucket.currency,
+      "Outstanding Items": m.obligations.filter((obligation) => obligation.currency === bucket.currency).length,
+      Details: m.obligations.filter((obligation) => obligation.currency === bucket.currency)
+        .map((o) => `${o.type} ${o.period}: ${o.amount - o.amountPaid} ${o.currency}`).join("; "),
+    })));
     exportCSV(data, "unpaid_members");
   }
 
@@ -280,7 +303,7 @@ export default function UnpaidReportPage() {
             <Card>
               <CardContent className="py-4">
                 <p className="text-xs text-muted-foreground">{t("contributions.totalOutstanding")}</p>
-                <p className="text-2xl font-bold text-destructive">{formatAmount(totalOutstanding, currency)}</p>
+                <div className="space-y-0.5">{formatCurrencyBuckets(totalOutstanding).map((value) => <p key={value} className="text-xl font-bold text-destructive">{value}</p>)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -293,7 +316,7 @@ export default function UnpaidReportPage() {
               <CardContent className="py-4">
                 <p className="text-xs text-muted-foreground">{t("contributions.avgOutstanding")}</p>
                 <p className="text-2xl font-bold">
-                  {formatAmount(Math.round(totalOutstanding / sorted.length), currency)}
+                  {formatCurrencyBuckets(averageOutstanding).join(" · ")}
                 </p>
               </CardContent>
             </Card>
@@ -344,7 +367,7 @@ export default function UnpaidReportPage() {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-destructive">{formatAmount(member.totalOutstanding, currency)}</p>
+                      <p className="text-lg font-bold text-destructive">{memberOutstandingText(member)}</p>
                     </div>
                   </button>
 
@@ -363,11 +386,11 @@ export default function UnpaidReportPage() {
                             </div>
                             <div className="text-right">
                               <p className="font-semibold text-destructive">
-                                {formatAmount(obl.amount - obl.amountPaid, currency)}
+                                {formatAmount(obl.amount - obl.amountPaid, obl.currency)}
                               </p>
                               {obl.amountPaid > 0 && (
                                 <p className="text-[10px] text-muted-foreground">
-                                  {t("contributions.paidSoFar")}: {formatAmount(obl.amountPaid, currency)}
+                                  {t("contributions.paidSoFar")}: {formatAmount(obl.amountPaid, obl.currency)}
                                 </p>
                               )}
                             </div>

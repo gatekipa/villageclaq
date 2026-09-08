@@ -131,6 +131,8 @@ export default function ReportsHubPage() {
             totalCollected: stats.totalCollected,
             collectionRate: stats.collectionRate,
             outstandingBalance: stats.outstanding,
+            currency: currentGroup?.currency || "XAF",
+            moneyByCurrency: stats.moneyByCurrency,
             upcomingEvents: stats.upcomingEvents,
           },
           locale,
@@ -151,7 +153,7 @@ export default function ReportsHubPage() {
     } finally {
       setAiLoading(false);
     }
-  }, [stats, locale, aiHidden]);
+  }, [stats, locale, aiHidden, currentGroup?.currency]);
 
   useEffect(() => {
     if (stats && !aiInsight && !aiLoading && !aiHidden) {

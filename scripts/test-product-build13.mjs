@@ -109,7 +109,9 @@ test("transfers: pre-transfer outstanding warning is confirmed-only (no amount-a
   const t = read(TRANSFERS);
   assert.ok(/computeObligationStates\(/.test(t), "routes through the engine");
   assert.ok(!/Number\(o\.amount\) - Number\(o\.amount_paid/.test(t), "no polluted amount - amount_paid sum remains");
-  assert.ok(/c && c\.isOpen \? c\.remaining : 0/.test(t), "sums confirmed-open remaining");
+  assert.ok(/memberObligations\.filter\(\(o\) => states\.get\(o\.id\)\?\.isOpen\)/.test(t),
+    "keeps only confirmed-open obligations");
+  assert.ok(/states\.get\(o\.id\)\?\.remaining \|\| 0/.test(t), "sums confirmed-open remaining");
 });
 
 // ── Record page prefill stays honest (contribution_type.amount, not amount_paid) ──
@@ -122,11 +124,11 @@ test("record page still prefills the contribution type's nominal amount (no poll
 
 // ── Finances sync: dropped the unused polluted amount_paid read ─────────────
 
-test("finances sync no longer reads amount_paid (newStatus derives from confirmed totalPaid)", () => {
+test("finances refresh only invalidates derived reports, never rewrites financial records", () => {
   const f = read(FINANCES);
   assert.ok(!/\.select\("id, amount, amount_paid"\)/.test(f), "the obligation select dropped amount_paid");
-  assert.ok(/\.select\("id, amount"\)/.test(f), "selects only id, amount");
-  assert.ok(/update\(\{ amount_paid: totalPaid, status: newStatus \}\)/.test(f), "the confirmed-only writeback is unchanged");
+  assert.ok(/await invalidateFinancialQueries\(queryClient, groupId\)/.test(f), "refresh awaits derived-report invalidation");
+  assert.ok(!/\.update\(|\.insert\(|\.delete\(/.test(f), "financial overview has no database mutation");
 });
 
 // ── P0 bulk-receipt guard intact ─────────────────────────────────────────────

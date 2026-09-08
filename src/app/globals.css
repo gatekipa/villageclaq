@@ -132,7 +132,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
     /* Prevent horizontal overflow at any zoom level (75%-150%) */
     overflow-x: hidden;
     min-width: 0;

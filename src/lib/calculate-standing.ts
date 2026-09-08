@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { readAllPages } from "@/lib/read-all-pages";
 import { formatAmount } from "@/lib/currencies";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { getBilingualTranslator } from "@/lib/bilingual-translator";
@@ -8,6 +9,7 @@ import {
   type StandingRules,
 } from "@/lib/standing-rules";
 import { computeObligationStates, dateKey, todayKey, addDaysToDateKey, type MoneyObligation, type MoneyPayment } from "@/lib/money";
+import { bucketCurrencyAmounts, formatCurrencyBuckets, type CurrencyAmountBucket } from "@/lib/currency-buckets";
 
 /**
  * One line item in a member's standing breakdown.
@@ -28,6 +30,8 @@ export interface StandingReason {
   detail_fr: string;
   /** Machine-readable money amount tied to the reason (e.g. dues outstanding). */
   amount?: number;
+  /** Native-currency amounts when a reason spans historical ledger epochs. */
+  amounts?: CurrencyAmountBucket[];
   /** Machine-readable count tied to the reason (e.g. missed hosting count). */
   count?: number;
   /** In-app route the member can visit to fix this factor. */
@@ -158,30 +162,28 @@ export async function calculateStanding(
     // CLEAR a member who hasn't actually paid, or wrongly SUSPEND one whose
     // payment was rejected). `id` + `membership_id` are selected so the engine
     // allocates each member's confirmed total to the right obligations.
-    const { data: obligations } = await supabase
+    const obligations = await readAllPages((from, to) => supabase
       .from("contribution_obligations")
-      .select("id, amount, status, due_date, contribution_type_id, membership_id")
+      .select("group_id, currency, ledger_epoch_id, id, amount, status, due_date, contribution_type_id, membership_id")
       .eq("membership_id", membershipId)
-      .eq("group_id", groupId);
+      .eq("group_id", groupId).order("id").range(from, to));
 
-    const { data: duesPayments } = await supabase
+    const duesPayments = await readAllPages((from, to) => supabase
       .from("payments")
-      .select("id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
+      .select("group_id, currency, ledger_epoch_id, id, amount, status, obligation_id, contribution_type_id, membership_id, relief_plan_id, recorded_at")
       .eq("membership_id", membershipId)
       .eq("group_id", groupId)
-      .is("relief_plan_id", null);
+      .is("relief_plan_id", null).order("id").range(from, to));
 
     const excluded = new Set(rules.excludedContributionTypeIds);
     const relevant = (obligations || []).filter(
       (o) => !excluded.has(o.contribution_type_id as string),
     );
 
-    // Confirmed-only per-obligation state. Payments to excluded/flexible types
-    // never cover a relevant obligation (computeObligationStates partitions by
-    // type, and `relevant` already drops excluded types), so a flexible
-    // contribution cannot mark a member behind.
+    // Allocate once across ALL dues before applying standing exclusions.
+    // Removing excluded assessments first would spend their general funds twice.
     const states = computeObligationStates(
-      relevant as unknown as MoneyObligation[],
+      obligations as unknown as MoneyObligation[],
       (duesPayments || []) as unknown as MoneyPayment[],
     );
 
@@ -201,12 +203,18 @@ export async function calculateStanding(
       return dueWithGraceKey < today;
     });
 
-    const totalOutstanding = relevant
+    const outstandingRows = relevant
       .filter((o) => (o.status as string) !== "waived")
-      .reduce((sum, o) => {
+      .map((o) => {
         const c = states.get(o.id as string);
-        return sum + (c ? c.remaining : 0);
-      }, 0);
+        return { currency: (o.currency as string) || currency, amount: c ? c.remaining : 0 };
+      });
+    const outstandingByCurrency = bucketCurrencyAmounts(
+      outstandingRows,
+      (row) => row.amount,
+      (row) => row.currency,
+    );
+    const outstandingText = formatCurrencyBuckets(outstandingByCurrency).join(" · ");
 
     const duesPassed = overdueObls.length === 0;
     reasons.push({
@@ -217,11 +225,12 @@ export async function calculateStanding(
       label_fr: "Cotisations",
       detail_en: duesPassed
         ? "Dues paid in full"
-        : `Dues: ${formatAmount(totalOutstanding, currency)} outstanding`,
+        : `Dues: ${outstandingText} outstanding`,
       detail_fr: duesPassed
         ? "Cotisations payées en totalité"
-        : `Cotisations: ${formatAmount(totalOutstanding, currency)} impayées`,
-      amount: duesPassed ? undefined : totalOutstanding,
+        : `Cotisations: ${outstandingText} impayées`,
+      amount: !duesPassed && outstandingByCurrency.length === 1 ? outstandingByCurrency[0].amount : undefined,
+      amounts: duesPassed ? undefined : outstandingByCurrency,
       count: duesPassed ? undefined : overdueObls.length,
       fixHref: FIX_HREFS.dues,
     });

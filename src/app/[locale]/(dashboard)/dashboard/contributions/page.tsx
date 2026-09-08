@@ -24,7 +24,6 @@ import {
   Calendar,
   MoreVertical,
   Edit,
-  Trash2,
   Lock,
   Unlock,
   Loader2,
@@ -42,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { createClient } from "@/lib/supabase/client";
+import { invalidateFinancialQueries } from "@/lib/financial-query-keys";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGroup } from "@/lib/group-context";
 import {
@@ -66,6 +66,7 @@ import {
 } from "@/lib/standing-exclusion";
 import { describeDueDay, ordinalDay } from "@/lib/due-date-preview";
 import { computeObligationDueDate, todayISO } from "@/lib/contribution-schedule";
+import { resolveActiveLedgerEpoch } from "@/lib/payment-command";
 
 
 // Frequency labels resolved via t() inside the component
@@ -109,8 +110,6 @@ export default function ContributionsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formNameFr, setFormNameFr] = useState("");
@@ -299,7 +298,6 @@ export default function ContributionsPage() {
           name_fr: formNameFr || null,
           description: formDescription || null,
           amount: Number(formAmount),
-          currency: formCurrency,
           frequency: formFrequency,
           due_day: formFrequency === "one_time" ? null : (formDueDay ? Number(formDueDay) : null),
           // One-time exact due date in start_date. NOTE: editing the schedule
@@ -310,7 +308,7 @@ export default function ContributionsPage() {
         })
         .eq("id", editTypeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await invalidateFinancialQueries(queryClient, groupId);
       // WS3: reconcile this type's standing impact with the toggle, via the
       // shared exclusion writer (same setting the Settings → Standing tab uses).
       if (groupId) {
@@ -347,8 +345,7 @@ export default function ContributionsPage() {
         .update({ is_active: false })
         .eq("id", typeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await invalidateFinancialQueries(queryClient, groupId);
     } finally {
       setTogglingId(null);
       setShowCloseConfirm(null);
@@ -365,8 +362,7 @@ export default function ContributionsPage() {
         .update({ is_active: true })
         .eq("id", typeId);
       if (error) throw error;
-      await queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] });
-      await queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] });
+      await invalidateFinancialQueries(queryClient, groupId);
     } finally {
       setTogglingId(null);
       setShowReopenConfirm(null);
@@ -376,7 +372,6 @@ export default function ContributionsPage() {
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [enrollError, setEnrollError] = useState<string | null>(null);
   const [enrollSuccessCount, setEnrollSuccessCount] = useState<number | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   // Read-only confirm step for "Enroll All": holds the type the admin is about
   // to enroll so we can show the member-count preview before running it.
   const [enrollConfirmType, setEnrollConfirmType] = useState<{
@@ -385,18 +380,22 @@ export default function ContributionsPage() {
     currency: string;
   } | null>(null);
 
-  async function handleEnrollAll(typeId: string, amount: number, currency: string) {
+  async function handleEnrollAll(typeId: string, amount: number) {
     if (!groupId) return;
     setEnrollingId(typeId);
     setEnrollError(null);
     setEnrollSuccessCount(null);
     try {
       const supabase = createClient();
+      const epoch = await resolveActiveLedgerEpoch(supabase, groupId);
 
       // Build 10: compute the obligation due date from the type's real schedule
       // (start_date / due_day / frequency) via the shared engine — identical to
       // what the DB trigger generates — instead of the old Dec-31 hardcode.
       const type = (contributionTypes || []).find((ct: Record<string, unknown>) => ct.id === typeId);
+      if (!type || type.ledger_epoch_id !== epoch.id || String(type.currency).toUpperCase() !== epoch.currency) {
+        throw new Error("ACTIVE_LEDGER_EPOCH_REQUIRED");
+      }
       const sched = computeObligationDueDate({
         frequency: (type?.frequency as string) || "monthly",
         dueDay: (type?.due_day as number | null) ?? null,
@@ -426,7 +425,8 @@ export default function ContributionsPage() {
           contribution_type_id: typeId,
           amount,
           amount_paid: 0,
-          currency,
+          currency: epoch.currency,
+          ledger_epoch_id: epoch.id,
           due_date: sched.dueISO,
           status: "pending" as const,
           period_label: sched.periodLabel,
@@ -436,6 +436,7 @@ export default function ContributionsPage() {
           .insert(obligations);
         if (insertErr) throw insertErr;
       }
+      await invalidateFinancialQueries(queryClient, groupId);
       setEnrollSuccessCount(missing.length);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
@@ -451,27 +452,6 @@ export default function ContributionsPage() {
     }
   }
 
-  async function handleDelete(typeId: string) {
-    setDeletingId(typeId);
-    setDeleteError(null);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from("contribution_types").delete().eq("id", typeId);
-      if (error) throw error;
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["contribution-types", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["all-contribution-types", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["obligations", groupId] }),
-        queryClient.invalidateQueries({ queryKey: ["matrix-data", groupId] }),
-      ]);
-      setShowDeleteConfirm(null);
-    } catch (err) {
-      console.warn("[Contributions] delete type failed:", err instanceof Error ? err.message : err);
-      setDeleteError(t("contributions.deleteTypeFailed"));
-    } finally {
-      setDeletingId(null);
-    }
-  }
 
   if (isLoading) {
     return (
@@ -583,7 +563,7 @@ export default function ContributionsPage() {
                     <select
                       id="currency"
                       value={formCurrency}
-                      onChange={(e) => setFormCurrency(e.target.value)}
+                      disabled
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
                     >
                       {CURRENCIES.map((c) => (
@@ -828,10 +808,6 @@ export default function ContributionsPage() {
                         {enrollingId === type.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         {t("standing.enrollAll")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowDeleteConfirm(type.id)} className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        {t("common.delete")}
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -901,7 +877,7 @@ export default function ContributionsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-currency">{t("contributions.currency")}</Label>
-                <select id="edit-currency" value={formCurrency} onChange={(e) => setFormCurrency(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
+                <select id="edit-currency" value={formCurrency} disabled className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30">
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
                   ))}
@@ -971,21 +947,6 @@ export default function ContributionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!showDeleteConfirm} onOpenChange={(open) => { if (!open) { setShowDeleteConfirm(null); setDeleteError(null); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogTitle>{t("common.confirmDeleteTitle")}</DialogTitle>
-          <DialogDescription>{t("contributions.deleteTypeConfirmCascade")}</DialogDescription>
-          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>{t("common.cancel")}</DialogClose>
-            <Button variant="destructive" disabled={!!deletingId} onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm)}>
-              {deletingId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {t("common.delete")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Close Period Confirmation Dialog */}
       <Dialog open={!!showCloseConfirm} onOpenChange={(open) => { if (!open) setShowCloseConfirm(null); }}>
@@ -1039,7 +1000,7 @@ export default function ContributionsPage() {
               onClick={async () => {
                 if (!enrollConfirmType) return;
                 const target = enrollConfirmType;
-                await handleEnrollAll(target.id, target.amount, target.currency);
+                await handleEnrollAll(target.id, target.amount);
                 setEnrollConfirmType(null);
               }}
             >

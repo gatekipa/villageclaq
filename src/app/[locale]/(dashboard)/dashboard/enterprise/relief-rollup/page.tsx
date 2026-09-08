@@ -23,6 +23,7 @@ import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { formatAmount } from "@/lib/currencies";
+import { bucketCurrencyAmounts } from "@/lib/currency-buckets";
 import { CardGridSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 
 interface BranchSummaryRow {
@@ -110,8 +111,16 @@ export default function HqReliefRollupPage() {
 
   // Aggregate stats
   const totalEnrolled = summaryRows.reduce((s, r) => s + (r.enrolled_count || 0), 0);
-  const totalCollected = summaryRows.reduce((s, r) => s + Number(r.collected_this_month || 0), 0);
-  const totalRemitted = summaryRows.reduce((s, r) => s + Number(r.total_remitted || 0), 0);
+  const collectedBuckets = bucketCurrencyAmounts(
+    summaryRows,
+    (row) => Number(row.collected_this_month || 0),
+    (row) => row.branch_currency || currency,
+  );
+  const remittedBuckets = bucketCurrencyAmounts(
+    summaryRows,
+    (row) => Number(row.total_remitted || 0),
+    (row) => row.branch_currency || currency,
+  );
   const branchCount = new Set(summaryRows.map((r) => r.collecting_group_id).filter(Boolean)).size;
 
   return (
@@ -160,7 +169,11 @@ export default function HqReliefRollupPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t("collectedThisMonth")}</p>
-              <p className="text-2xl font-bold">{formatAmount(totalCollected, currency)}</p>
+              <div className="space-y-0.5">
+                {collectedBuckets.map((bucket) => (
+                  <p key={bucket.currency} className="text-xl font-bold tabular-nums">{formatAmount(bucket.amount, bucket.currency)}</p>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -171,7 +184,11 @@ export default function HqReliefRollupPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t("totalRemitted")}</p>
-              <p className="text-2xl font-bold">{formatAmount(totalRemitted, currency)}</p>
+              <div className="space-y-0.5">
+                {remittedBuckets.map((bucket) => (
+                  <p key={bucket.currency} className="text-xl font-bold tabular-nums">{formatAmount(bucket.amount, bucket.currency)}</p>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

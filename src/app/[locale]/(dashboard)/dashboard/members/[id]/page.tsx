@@ -48,11 +48,12 @@ import {
   isConfirmedPayment,
   isPendingPayment,
   isRejectedPayment,
-  computeMoneyFigures,
+  computeMoneyFiguresByCurrency,
   computeObligationStates,
   type MoneyObligation,
   type MoneyPayment,
 } from "@/lib/money";
+import { bucketCurrencyAmounts } from "@/lib/currency-buckets";
 import {
   ArrowLeft,
   Mail,
@@ -664,20 +665,20 @@ function MemberDetailContent() {
 
   // Outstanding on the CONFIRMED basis: recompute remaining per obligation from
   // this member's CONFIRMED payments via the money engine, NEVER from the
-  // polluted contribution_obligations.amount_paid column. computeMoneyFigures
+  // polluted contribution_obligations.amount_paid column. The currency-bucketed
   // also keeps waived obligations out of expected/outstanding.
-  const memberMoneyFigures = computeMoneyFigures(
+  const memberMoneyByCurrency = computeMoneyFiguresByCurrency(
     obligations as MoneyObligation[],
     payments as MoneyPayment[],
   );
-  const totalOutstandingAmount = memberMoneyFigures.outstanding;
+  const hasOutstanding = memberMoneyByCurrency.some((bucket) => bucket.outstanding > 0);
 
   // Total paid = Σ CONFIRMED payments only. Pending and rejected submissions are
   // NOT collected money and must not inflate this figure.
-  const totalPaidAllTime = payments.reduce(
-    (sum: number, p: Record<string, unknown>) =>
-      isConfirmedPayment(p.status as string | null | undefined) ? sum + num(p.amount) : sum,
-    0,
+  const totalPaidByCurrency = bucketCurrencyAmounts(
+    payments.filter((p: Record<string, unknown>) => isConfirmedPayment(p.status as string | null | undefined)),
+    (p) => num(p.amount),
+    (p) => String(p.currency || currency),
   );
   const lastPayment = payments[0] as Record<string, unknown> | undefined;
 
@@ -1085,13 +1086,17 @@ function MemberDetailContent() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-xs text-muted-foreground">{ts("totalPaid")}</p>
-              <p className="text-lg font-bold text-primary">{formatAmount(totalPaidAllTime, currency)}</p>
+              <div className="space-y-1 text-lg font-bold text-primary">
+                {totalPaidByCurrency.map((bucket) => <p key={bucket.currency}>{formatAmount(bucket.amount, bucket.currency)}</p>)}
+                {totalPaidByCurrency.length === 0 && <p>{formatAmount(0, currency)}</p>}
+              </div>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{ts("totalOutstanding")}</p>
-              <p className={`text-lg font-bold ${totalOutstandingAmount > 0 ? "text-destructive" : ""}`}>
-                {formatAmount(totalOutstandingAmount, currency)}
-              </p>
+              <div className={`space-y-1 text-lg font-bold ${hasOutstanding ? "text-destructive" : ""}`}>
+                {memberMoneyByCurrency.map((bucket) => <p key={bucket.currency}>{formatAmount(bucket.outstanding, bucket.currency)}</p>)}
+                {memberMoneyByCurrency.length === 0 && <p>{formatAmount(0, currency)}</p>}
+              </div>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{ts("lastPaymentDate")}</p>

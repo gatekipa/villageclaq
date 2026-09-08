@@ -47,7 +47,7 @@ test("storage audit doc exists and covers all three buckets", () => {
 
 test("receipt upload paths use the receipts bucket", () => {
   for (const rel of [
-    "src/components/payments/pay-now-dialog.tsx",
+    "src/lib/payment-evidence.ts",
     "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx",
     "src/app/[locale]/(dashboard)/dashboard/my-fines/page.tsx",
   ]) {

@@ -4,6 +4,7 @@ import { formatAmount } from "@/lib/currencies";
 import { exportCSV } from "@/lib/export";
 import { exportPDF } from "@/lib/export-pdf";
 import { buildCsvHeaders } from "@/lib/report-csv-headers";
+import { bucketCurrencyAmounts } from "@/lib/currency-buckets";
 
 import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
@@ -35,13 +36,13 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
-import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections, useGroupDuesPayments } from "@/lib/hooks/use-supabase-query";
+import { useMembers, usePayments, useObligations, useEvents, useAllEventAttendances, useReliefPlans, useReliefClaims, useHostingRosters, useMeetingMinutes, useSavingsCycles, useElections } from "@/lib/hooks/use-supabase-query";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { ListSkeleton, ErrorState } from "@/components/ui/page-skeleton";
 import { RequirePermission } from "@/components/ui/permission-gate";
 import {
-  computeMoneyFigures,
+  computeMoneyFiguresByCurrency,
   computeObligationStates,
   isPendingPayment,
   isRejectedPayment,
@@ -256,6 +257,7 @@ function ReportDetailContent() {
     totalCollected: 0,
     totalExpected: 0,
     collectionRate: 0,
+    moneyByCurrency: [] as unknown[],
   });
 
   // Placeholder report IDs — only reports with no backing data model
@@ -267,15 +269,15 @@ function ReportDetailContent() {
 
   // Fetch data based on report type
   const { data: members, isLoading: membersLoading, error: membersError } = useMembers();
-  const { data: payments, isLoading: paymentsLoading } = usePayments(500);
+  const { data: payments, isLoading: paymentsLoading, error: paymentsError } = usePayments("all");
   // Build 12: the UNCAPPED confirmed-only dues-payment basis. ALL money math
   // (Financial Summary + who-hasn't-paid + AR-aging + YoY) uses this so the
   // figures reconcile and never under-count collected on a group with >500
   // payments. The capped usePayments(500) feed above is kept only for surfaces
   // that need the membership/type JOINs: the on-screen ledger (Report 3) +
   // engagement counts.
-  const { data: duesPaymentsAll } = useGroupDuesPayments();
-  const { data: obligations, isLoading: obligationsLoading } = useObligations();
+  const duesPaymentsAll = payments;
+  const { data: obligations, isLoading: obligationsLoading, error: obligationsError } = useObligations();
   const { data: events, isLoading: eventsLoading } = useEvents();
   const { data: allAttendances, isLoading: attendanceLoading } = useAllEventAttendances();
   const { data: reliefPlans } = useReliefPlans();
@@ -432,6 +434,7 @@ function ReportDetailContent() {
             totalCollected: ctx.totalCollected,
             totalExpected: ctx.totalExpected,
             collectionRate: ctx.collectionRate,
+            moneyByCurrency: ctx.moneyByCurrency,
           },
           locale: ctx.locale,
         }),
@@ -471,6 +474,7 @@ function ReportDetailContent() {
 
   if (isLoading) return <ListSkeleton rows={5} />;
   if (membersError) return <ErrorState message={membersError.message} />;
+  if (paymentsError || obligationsError) return <ErrorState message={t("common.error")} />;
 
   // Compute report data from real queries
   const memberList = members || [];
@@ -488,7 +492,7 @@ function ReportDetailContent() {
   );
 
   // Report 1: Who Hasn't Paid — confirmed-open obligations only.
-  type UnpaidRow = { name: string; amount: number; days: number; items: number };
+  type UnpaidRow = { name: string; amount: number; days: number; items: number; currency: string };
   const unpaidMap: Record<string, UnpaidRow> = {};
   obligationList
     .filter((o: Record<string, unknown>) => reportObligationStates.get(o.id as string)?.isOpen)
@@ -498,30 +502,45 @@ function ReportDetailContent() {
       const amount = reportObligationStates.get(o.id as string)?.remaining || 0;
       const dueDate = new Date(o.due_date as string);
       const days = Math.max(0, Math.floor((Date.now() - dueDate.getTime()) / 86400000));
-      if (!unpaidMap[name]) unpaidMap[name] = { name, amount: 0, days: 0, items: 0 };
-      unpaidMap[name].amount += amount;
-      unpaidMap[name].days = Math.max(unpaidMap[name].days, days);
-      unpaidMap[name].items += 1;
+      const rowCurrency = String(o.currency || currency).toUpperCase();
+      const memberCurrencyKey = `${String(o.membership_id || o.id)}:${rowCurrency}`;
+      if (!unpaidMap[memberCurrencyKey]) unpaidMap[memberCurrencyKey] = { name, amount: 0, days: 0, items: 0, currency: rowCurrency };
+      unpaidMap[memberCurrencyKey].amount += amount;
+      unpaidMap[memberCurrencyKey].days = Math.max(unpaidMap[memberCurrencyKey].days, days);
+      unpaidMap[memberCurrencyKey].items += 1;
     });
-  const whoHasntPaid: UnpaidRow[] = Object.values(unpaidMap).sort((a, b) => b.days - a.days).slice(0, 20);
+  const whoHasntPaid: UnpaidRow[] = Object.values(unpaidMap).sort((a, b) => b.amount - a.amount || b.days - a.days || a.name.localeCompare(b.name));
 
   // Report 2: Financial Summary (Reports 16/17/20 reuse these figures).
   // Canonical money.ts accounting: collected = Σ CONFIRMED dues payments only
   // (pending_confirmation and rejected never count); expected EXCLUDES waived
-  // obligations; outstanding = max(0, expected − collected). This replaces the
+  // obligations; outstanding sums each obligation's remaining allocation. This replaces the
   // old "sum every payment.amount with no status filter" / "sum every
   // obligation.amount including waived" logic that over-stated collection.
-  const moneyFigures = computeMoneyFigures(
+  const moneyByCurrency = computeMoneyFiguresByCurrency(
     obligationList as unknown as MoneyObligation[],
     // Build 12: UNCAPPED dues basis (not the capped usePayments(500) feed) so the
     // Financial Summary reconciles with who-hasn't-paid / AR / YoY and never
     // under-counts collected on a group with >500 payments.
     (duesPaymentsAll || []) as unknown as MoneyPayment[],
   );
+  const moneyFigures = moneyByCurrency.find((bucket) => bucket.currency === currency) || {
+    expected: 0, collected: 0, outstanding: 0, unallocatedCredit: 0,
+    waivedTotal: 0, pending: { count: 0, amount: 0 }, overdue: { amount: 0, memberCount: 0 }, membersOwing: 0,
+  };
+  const moneyLines = (select: (bucket: (typeof moneyByCurrency)[number]) => number) =>
+    moneyByCurrency.filter((bucket) => select(bucket) !== 0 || moneyByCurrency.length === 1)
+      .map((bucket) => formatAmount(select(bucket), bucket.currency));
+  const collectionRateByCurrency = moneyByCurrency.map((bucket) => ({
+    currency: bucket.currency,
+    rate: bucket.expected > 0
+      ? Math.round(((bucket.expected - bucket.outstanding) / bucket.expected) * 100)
+      : 0,
+  }));
   const totalCollected = moneyFigures.collected;
   const totalExpected = moneyFigures.expected;
   const totalOutstanding = moneyFigures.outstanding;
-  const collectionRate = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+  const collectionRate = totalExpected > 0 ? Math.round(((totalExpected - totalOutstanding) / totalExpected) * 100) : 0;
   // Latest-value ref for the AI-insights fetch declared above the early
   // returns (routerRef pattern) — keep in sync with the figures it reports.
   aiFetchCtxRef.current = {
@@ -534,10 +553,14 @@ function ReportDetailContent() {
     totalCollected,
     totalExpected,
     collectionRate,
+    moneyByCurrency,
   };
   // Pending (member-submitted, awaiting admin confirm/reject) — shown SEPARATELY
   // from collected so the headline never folds unconfirmed money into revenue.
-  const pendingMoney = moneyFigures.pending;
+  const pendingMoney = {
+    count: moneyByCurrency.reduce((sum, bucket) => sum + bucket.pending.count, 0),
+    byCurrency: moneyByCurrency.map((bucket) => ({ currency: bucket.currency, amount: bucket.pending.amount })),
+  };
 
   // Report 3: Contribution Ledger - all payments (no limit for exports, show 50 on
   // screen). Rejected payments are NOT real money and are excluded entirely;
@@ -554,22 +577,22 @@ function ReportDetailContent() {
   // lumped everything not-yet-due into "0-30", inflating the first
   // bucket. A 91-120 bucket was also missing — older-than-90 balances
   // were all dumped into "120+".
-  const arBuckets: Record<string, { count: number; amount: number }> = {
-    "1-30": { count: 0, amount: 0 },
-    "31-60": { count: 0, amount: 0 },
-    "61-90": { count: 0, amount: 0 },
-    "91-120": { count: 0, amount: 0 },
-    "120+": { count: 0, amount: 0 },
-  };
+  const arBucketMap = new Map<string, { bucket: string; currency: string; count: number; amount: number }>();
   obligationList.filter((o: Record<string, unknown>) => reportObligationStates.get(o.id as string)?.isOpen).forEach((o: Record<string, unknown>) => {
     const days = Math.floor((Date.now() - new Date(o.due_date as string).getTime()) / 86400000);
     if (days < 1) return; // not yet overdue
     const amount = reportObligationStates.get(o.id as string)?.remaining || 0;
     if (amount <= 0) return;
     const bucket = days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : days <= 120 ? "91-120" : "120+";
-    arBuckets[bucket].count += 1;
-    arBuckets[bucket].amount += amount;
+    const rowCurrency = String(o.currency || currency).toUpperCase();
+    const key = `${rowCurrency}:${bucket}`;
+    const current = arBucketMap.get(key) || { bucket, currency: rowCurrency, count: 0, amount: 0 };
+    current.count += 1;
+    current.amount += amount;
+    arBucketMap.set(key, current);
   });
+  const arBuckets = [...arBucketMap.values()].sort((a, b) =>
+    a.currency.localeCompare(b.currency) || a.bucket.localeCompare(b.bucket));
 
   // Report 6: Member Standing
   const standingData = memberList.map((m: Record<string, unknown>) => ({
@@ -753,9 +776,9 @@ function ReportDetailContent() {
     csvOnly?: boolean;
   }> = [
     { csvKey: "Members",        csvValue: boardStats.totalMembers,              pdfValue: boardStats.totalMembers },
-    { csvKey: "Collected",      csvValue: boardStats.totalCollected,            pdfValue: formatAmount(boardStats.totalCollected, currency) },
-    { csvKey: "Expected",       csvValue: boardStats.totalExpected,             pdfValue: formatAmount(boardStats.totalExpected, currency) },
-    { csvKey: "CollectionRate", csvValue: `${boardStats.collectionRate}%`,      pdfValue: `${boardStats.collectionRate}%` },
+    { csvKey: "Collected",      csvValue: moneyLines((bucket) => bucket.collected).join("; "), pdfValue: moneyLines((bucket) => bucket.collected).join("; ") },
+    { csvKey: "Expected",       csvValue: moneyLines((bucket) => bucket.expected).join("; "),  pdfValue: moneyLines((bucket) => bucket.expected).join("; ") },
+    { csvKey: "CollectionRate", csvValue: collectionRateByCurrency.map((item) => `${item.currency} ${item.rate}%`).join("; "), pdfValue: collectionRateByCurrency.map((item) => `${item.currency} ${item.rate}%`).join("; ") },
     { csvKey: "Events",         csvValue: boardStats.totalEvents,               pdfValue: boardStats.totalEvents },
     { csvKey: "AvgAttendance",  csvValue: `${boardStats.avgAttendanceRate}%`,   pdfValue: `${boardStats.avgAttendanceRate}%`, csvOnly: true },
   ];
@@ -830,10 +853,10 @@ function ReportDetailContent() {
     let filename = `report_${reportId}`;
 
     if (reportId === "1") {
-      data = whoHasntPaid.map(r => ({ Name: r.name, Amount: r.amount, DaysOverdue: r.days, Items: r.items }));
+      data = whoHasntPaid.map(r => ({ Name: r.name, Currency: r.currency, Amount: r.amount, DaysOverdue: r.days, Items: r.items }));
       filename = "who_hasnt_paid";
     } else if (reportId === "2") {
-      data = [{ Collected: totalCollected, Expected: totalExpected, CollectionRate: `${collectionRate}%` }];
+      data = moneyByCurrency.map((bucket) => ({ Currency: bucket.currency, Collected: bucket.collected, Expected: bucket.expected, Outstanding: bucket.outstanding, Pending: bucket.pending.amount, CollectionRate: `${bucket.expected > 0 ? Math.round(((bucket.expected - bucket.outstanding) / bucket.expected) * 100) : 0}%` }));
       filename = "financial_summary";
     } else if (reportId === "3") {
       // Rejected payments are already filtered out of ledgerPayments. A Status
@@ -844,11 +867,11 @@ function ReportDetailContent() {
         const status = isPendingPayment(r.status as string | null | undefined)
           ? t("contributions.pendingConfirmation")
           : t("contributions.confirmed");
-        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method, Status: status };
+        return { Name: getMemberName(membership), Currency: r.currency, Amount: r.amount, Date: r.recorded_at, Method: r.payment_method, Status: status };
       });
       filename = "contribution_ledger";
     } else if (reportId === "4") {
-      data = Object.entries(arBuckets).map(([bucket, d]) => ({ Bucket: bucket, Amount: d.amount, Count: d.count }));
+      data = arBuckets.map((bucket) => ({ Bucket: bucket.bucket, Currency: bucket.currency, Amount: bucket.amount, Count: bucket.count }));
       filename = "ar_aging";
     } else if (reportId === "6") {
       // Standing Report CSV — emit the actual enum value, not the
@@ -938,7 +961,7 @@ function ReportDetailContent() {
       data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: fd(r.dueDate), AmountDue: r.amountDue, AmountPaid: r.amountPaid, Overdue: r.overdue, DaysOverdue: r.daysOverdue }));
       filename = "overdue_loans_report";
     } else if (reportId === "24") {
-      data = fedRows.map(r => ({ Plan: r.planName, Branch: r.branch, Enrolled: r.enrolled, FullMembers: r.fullMembers, ReliefOnly: r.reliefOnly, External: r.external, PaidThisMonth: r.paidThisMonth, Collected: r.collected }));
+      data = fedRows.map(r => ({ Plan: r.planName, Branch: r.branch, Currency: r.currency, Enrolled: r.enrolled, FullMembers: r.fullMembers, ReliefOnly: r.reliefOnly, External: r.external, PaidThisMonth: r.paidThisMonth, Collected: r.collected, Remitted: r.remitted }));
       filename = "federated_relief_enrollment";
     }
 
@@ -965,10 +988,10 @@ function ReportDetailContent() {
     let filename = `report_${reportId}`;
 
     if (reportId === "1") {
-      data = whoHasntPaid.map(r => ({ Name: r.name, Amount: r.amount, DaysOverdue: r.days, Items: r.items }));
+      data = whoHasntPaid.map(r => ({ Name: r.name, Currency: r.currency, Amount: formatAmount(r.amount, r.currency), DaysOverdue: r.days, Items: r.items }));
       filename = "who_hasnt_paid";
     } else if (reportId === "2") {
-      data = [{ Collected: totalCollected, Expected: totalExpected, CollectionRate: `${collectionRate}%` }];
+      data = moneyByCurrency.map((bucket) => ({ Currency: bucket.currency, Collected: formatAmount(bucket.collected, bucket.currency), Expected: formatAmount(bucket.expected, bucket.currency), Outstanding: formatAmount(bucket.outstanding, bucket.currency), Pending: formatAmount(bucket.pending.amount, bucket.currency), CollectionRate: `${bucket.expected > 0 ? Math.round(((bucket.expected - bucket.outstanding) / bucket.expected) * 100) : 0}%` }));
       filename = "financial_summary";
     } else if (reportId === "3") {
       // Rejected already excluded; Status marks pending vs confirmed so the
@@ -978,11 +1001,12 @@ function ReportDetailContent() {
         const status = isPendingPayment(r.status as string | null | undefined)
           ? t("contributions.pendingConfirmation")
           : t("contributions.confirmed");
-        return { Name: getMemberName(membership), Amount: r.amount, Date: r.recorded_at, Method: r.payment_method, Status: status };
+        const rowCurrency = String(r.currency || currency);
+        return { Name: getMemberName(membership), Currency: rowCurrency, Amount: formatAmount(Number(r.amount || 0), rowCurrency), Date: r.recorded_at, Method: r.payment_method, Status: status };
       });
       filename = "contribution_ledger";
     } else if (reportId === "4") {
-      data = Object.entries(arBuckets).map(([bucket, d]) => ({ Bucket: bucket, Amount: d.amount, Count: d.count }));
+      data = arBuckets.map((bucket) => ({ Bucket: bucket.bucket, Currency: bucket.currency, Amount: formatAmount(bucket.amount, bucket.currency), Count: bucket.count }));
       filename = "ar_aging";
     } else if (reportId === "5") {
       data = savingsCycleData.map(r => ({ Name: r.name, Status: r.status, Participants: r.participants, Round: `${r.currentRound}/${r.totalRounds}`, Amount: r.amount, Frequency: r.frequency }));
@@ -1067,7 +1091,7 @@ function ReportDetailContent() {
       data = overdueSchedule.map(r => ({ Borrower: r.name, Installment: r.installment, DueDate: fd(r.dueDate), Overdue: formatAmount(r.overdue, currency), DaysOverdue: r.daysOverdue }));
       filename = "overdue_loans_report";
     } else if (reportId === "24") {
-      data = fedRows.map(r => ({ Plan: r.planName, Branch: r.branch, Enrolled: r.enrolled, FullMembers: r.fullMembers, ReliefOnly: r.reliefOnly, External: r.external, PaidThisMonth: r.paidThisMonth, Collected: formatAmount(r.collected, currency) }));
+      data = fedRows.map(r => ({ Plan: r.planName, Branch: r.branch, Currency: r.currency, Enrolled: r.enrolled, FullMembers: r.fullMembers, ReliefOnly: r.reliefOnly, External: r.external, PaidThisMonth: r.paidThisMonth, Collected: formatAmount(r.collected, r.currency), Remitted: formatAmount(r.remitted, r.currency) }));
       filename = "federated_relief_enrollment";
     }
 
@@ -1243,9 +1267,9 @@ function ReportDetailContent() {
     { csvKey: "Members",           label: t("reports.totalMembers"),        csvValue: groupMetrics.totalMembers,                               pdfValue: groupMetrics.totalMembers },
     { csvKey: "ActiveMembers",     label: t("reports.activeMembersLabel"),  csvValue: groupMetrics.activeMembers,                              pdfValue: groupMetrics.activeMembers },
     { csvKey: "GoodStandingPct",   label: t("reports.goodStanding"),        csvValue: `${groupMetrics.goodStandingPct}%`,                      pdfValue: `${groupMetrics.goodStandingPct}%` },
-    { csvKey: "Collected",         label: t("reports.totalCollected"),      csvValue: groupMetrics.totalCollected,                             pdfValue: formatAmount(groupMetrics.totalCollected, currency) },
-    { csvKey: "Outstanding",       label: t("reports.totalOutstanding"),    csvValue: groupMetrics.totalOutstanding,                           pdfValue: formatAmount(groupMetrics.totalOutstanding, currency) },
-    { csvKey: "CollectionRate",    label: t("reports.collectionRate"),      csvValue: `${groupMetrics.collectionRate}%`,                       pdfValue: `${groupMetrics.collectionRate}%` },
+    { csvKey: "Collected",         label: t("reports.totalCollected"),      csvValue: moneyLines((bucket) => bucket.collected).join("; "),      pdfValue: moneyLines((bucket) => bucket.collected).join("; ") },
+    { csvKey: "Outstanding",       label: t("reports.totalOutstanding"),    csvValue: moneyLines((bucket) => bucket.outstanding).join("; "),    pdfValue: moneyLines((bucket) => bucket.outstanding).join("; ") },
+    { csvKey: "CollectionRate",    label: t("reports.collectionRate"),      csvValue: collectionRateByCurrency.map((item) => `${item.currency} ${item.rate}%`).join("; "), pdfValue: collectionRateByCurrency.map((item) => `${item.currency} ${item.rate}%`).join("; ") },
     { csvKey: "AttendanceRate",    label: t("reports.avgAttendance"),       csvValue: `${groupMetrics.avgAttendanceRate}%`,                    pdfValue: `${groupMetrics.avgAttendanceRate}%` },
     { csvKey: "Events",            label: t("reports.eventsHeldLabel"),     csvValue: groupMetrics.totalEvents,                                pdfValue: groupMetrics.totalEvents },
     { csvKey: "HostingCompliance", label: t("reports.hostingCompliance"),   csvValue: `${groupMetrics.hostingCompletionRate}%`,                pdfValue: `${groupMetrics.hostingCompletionRate}%` },
@@ -1255,23 +1279,39 @@ function ReportDetailContent() {
   ];
 
   // Report 24: Federated Relief Enrollment data
-  type FedRow = { planName: string; branch: string; enrolled: number; fullMembers: number; reliefOnly: number; external: number; paidThisMonth: number; collected: number; };
+  type FedRow = { planName: string; branch: string; currency: string; enrolled: number; fullMembers: number; reliefOnly: number; external: number; paidThisMonth: number; collected: number; remitted: number; };
   const fedSummaryRows = (fedReliefData?.summaryRows || []) as Record<string, unknown>[];
   const fedSharedPlans = (fedReliefData?.sharedPlans || []) as { id: string; name: string; name_fr: string }[];
   const fedRows: FedRow[] = fedSummaryRows.map((r) => ({
     planName: (locale === "fr" && (r.plan_name_fr as string)) ? (r.plan_name_fr as string) : (r.plan_name as string) || "",
     branch: (r.branch_name as string) || t("reports.fedHqOnly"),
+    currency: String(r.branch_currency || currency).toUpperCase(),
     enrolled: Number(r.enrolled_count || 0),
     fullMembers: Number(r.full_member_count || 0),
     reliefOnly: Number(r.relief_only_count || 0),
     external: Number(r.external_count || 0),
     paidThisMonth: Number(r.paid_this_month || 0),
     collected: Number(r.collected_this_month || 0),
+    remitted: Number(r.total_remitted || 0),
   }));
   const fedTotalEnrolled = fedRows.reduce((s, r) => s + r.enrolled, 0);
   const fedBranchCount = new Set(fedSummaryRows.map(r => r.collecting_group_id).filter(Boolean)).size;
-  const fedTotalCollected = fedRows.reduce((s, r) => s + r.collected, 0);
-  const fedTotalRemitted = fedSummaryRows.reduce((s, r) => s + Number((r as Record<string, unknown>).total_remitted || 0), 0);
+  const fedTotalCollected = bucketCurrencyAmounts(fedRows, (row) => row.collected, (row) => row.currency);
+  const fedTotalRemitted = bucketCurrencyAmounts(fedRows, (row) => row.remitted, (row) => row.currency);
+  if (reportId === "24") {
+    aiFetchCtxRef.current = {
+      reportKey,
+      locale,
+      currency: "NATIVE_CURRENCY_BUCKETS",
+      members: fedTotalEnrolled,
+      payments: fedRows.reduce((sum, row) => sum + row.paidThisMonth, 0),
+      obligations: 0,
+      totalCollected: 0,
+      totalExpected: 0,
+      collectionRate: 0,
+      moneyByCurrency: fedTotalCollected.map((bucket) => ({ currency: bucket.currency, collected: bucket.amount })),
+    };
+  }
 
   // ── WhatsApp share ──
   function handleShareWhatsApp() {
@@ -1413,13 +1453,13 @@ function ReportDetailContent() {
             </CardContent></Card>
             <Card><CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">{t("reports.totalCollected")}</p>
-              <p className="text-2xl font-bold text-emerald-600">{formatAmount(groupMetrics.totalCollected, currency)}</p>
-              <p className="text-xs text-muted-foreground">{t("reports.collectionRateValue", { rate: groupMetrics.collectionRate })}</p>
+              <div className="space-y-0.5">{moneyLines((bucket) => bucket.collected).map((line) => <p key={line} className="text-xl font-bold text-emerald-600">{line}</p>)}</div>
+              <p className="text-xs text-muted-foreground">{collectionRateByCurrency.map((item) => `${item.currency} ${item.rate}%`).join(" · ")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">{t("reports.outstanding")}</p>
-              <p className="text-2xl font-bold text-red-600">{formatAmount(groupMetrics.totalOutstanding, currency)}</p>
-              <p className="text-xs text-muted-foreground">{t("reports.expectedAmount", { amount: formatAmount(groupMetrics.totalExpected, currency) })}</p>
+              <div className="space-y-0.5">{moneyLines((bucket) => bucket.outstanding).map((line) => <p key={line} className="text-xl font-bold text-red-600">{line}</p>)}</div>
+              <p className="text-xs text-muted-foreground">{t("reports.expectedAmount", { amount: moneyLines((bucket) => bucket.expected).join(" · ") })}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">{t("reports.attendance")}</p>
@@ -1481,10 +1521,10 @@ function ReportDetailContent() {
                       <p className="text-xs text-muted-foreground">{row.items} {t("contributions.outstandingItems")}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant={row.days > 60 ? "destructive" : row.days > 30 ? "secondary" : "outline"}>
+                      {row.days > 0 && <Badge variant={row.days > 60 ? "destructive" : row.days > 30 ? "secondary" : "outline"}>
                         {t("reports.daysOverdue", { days: row.days })}
-                      </Badge>
-                      <span className="font-bold text-destructive">{formatAmount(row.amount, currency)}</span>
+                      </Badge>}
+                      <span className="font-bold text-destructive">{formatAmount(row.amount, row.currency)}</span>
                       <Button size="sm" variant="outline"><Send className="mr-1 h-3 w-3" />{t("reports.sendReminder")}</Button>
                     </div>
                   </div>
@@ -1500,23 +1540,23 @@ function ReportDetailContent() {
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-primary">{formatAmount(totalCollected, currency)}</p>
+              <div className="space-y-1">{moneyLines((bucket) => bucket.collected).map((line) => <p key={line} className="text-xl font-bold text-primary">{line}</p>)}</div>
               <p className="text-xs text-muted-foreground">{t("reports.collected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold">{formatAmount(totalExpected, currency)}</p>
+              <div className="space-y-1">{moneyLines((bucket) => bucket.expected).map((line) => <p key={line} className="text-xl font-bold">{line}</p>)}</div>
               <p className="text-xs text-muted-foreground">{t("reports.expected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{collectionRate}%</p>
+              <div className="space-y-1">{collectionRateByCurrency.map((item) => <p key={item.currency} className="text-xl font-bold text-emerald-600">{item.currency} {item.rate}%</p>)}</div>
               <p className="text-xs text-muted-foreground">{t("reports.collectionRate")}</p>
             </CardContent></Card>
           </div>
           {/* Pending (member-submitted) money shown SEPARATELY — never folded
               into collected. Hidden when there is none. */}
-          {pendingMoney.amount > 0 && (
+          {pendingMoney.byCurrency.some((bucket) => bucket.amount > 0) && (
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-amber-600">{formatAmount(pendingMoney.amount, currency)}</p>
+              <div className="space-y-1">{pendingMoney.byCurrency.filter((bucket) => bucket.amount > 0).map((bucket) => <p key={bucket.currency} className="text-xl font-bold text-amber-600">{formatAmount(bucket.amount, bucket.currency)}</p>)}</div>
               <p className="text-xs text-muted-foreground">{t("reports.pendingConfirmationTotal", { count: pendingMoney.count })}</p>
             </CardContent></Card>
           )}
@@ -1560,7 +1600,7 @@ function ReportDetailContent() {
                           </Badge>
                         )}
                         <p className={`font-semibold text-sm ${isPending ? "text-muted-foreground" : "text-primary"}`}>
-                          {isPending ? "" : "+"}{formatAmount(num(row.amount), currency)}
+                          {isPending ? "" : "+"}{formatAmount(num(row.amount), String(row.currency || currency))}
                         </p>
                       </div>
                     </div>
@@ -1576,12 +1616,12 @@ function ReportDetailContent() {
       {reportId === "4" && (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-4">
-            {Object.entries(arBuckets).map(([bucket, data]) => (
-              <Card key={bucket}>
+            {arBuckets.map((data) => (
+              <Card key={`${data.currency}:${data.bucket}`}>
                 <CardContent className="pt-6 text-center">
-                  <div className={`mx-auto mb-2 h-3 w-full rounded-full ${agingColor(bucket)}`} />
-                  <p className="text-xs font-medium text-muted-foreground">{bucket} days</p>
-                  <p className="text-2xl font-bold">{formatAmount(data.amount, currency)}</p>
+                  <div className={`mx-auto mb-2 h-3 w-full rounded-full ${agingColor(data.bucket)}`} />
+                  <p className="text-xs font-medium text-muted-foreground">{data.bucket} days · {data.currency}</p>
+                  <p className="text-2xl font-bold">{formatAmount(data.amount, data.currency)}</p>
                   <p className="text-xs text-muted-foreground">{data.count} members</p>
                 </CardContent>
               </Card>
@@ -1977,11 +2017,11 @@ function ReportDetailContent() {
               <p className="text-xs text-muted-foreground">{t("members.title")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold">{formatAmount(boardStats.totalCollected, currency)}</p>
+              <div className="space-y-0.5">{moneyLines((bucket) => bucket.collected).map((line) => <p key={line} className="text-xl font-bold">{line}</p>)}</div>
               <p className="text-xs text-muted-foreground">{t("reports.collected")}</p>
             </CardContent></Card>
             <Card><CardContent className="pt-6 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{boardStats.collectionRate}%</p>
+              <div className="space-y-0.5">{collectionRateByCurrency.map((item) => <p key={item.currency} className="text-xl font-bold text-emerald-600">{item.currency} {item.rate}%</p>)}</div>
               <p className="text-xs text-muted-foreground">{t("reports.collectionRate")}</p>
             </CardContent></Card>
           </div>
@@ -2023,9 +2063,9 @@ function ReportDetailContent() {
             </CardContent></Card>
             <Card><CardContent className="pt-6">
               <h3 className="font-semibold mb-2">{t("reports.report2.name")}</h3>
-              <p className="text-lg">{t("reports.collected")}: <strong>{formatAmount(boardStats.totalCollected, currency)}</strong></p>
-              <p className="text-lg">{t("reports.expected")}: <strong>{formatAmount(boardStats.totalExpected, currency)}</strong></p>
-              <p className="text-lg">{t("reports.collectionRate")}: <strong className="text-emerald-600">{boardStats.collectionRate}%</strong></p>
+              <p className="text-lg">{t("reports.collected")}: <strong>{moneyLines((bucket) => bucket.collected).join(" · ")}</strong></p>
+              <p className="text-lg">{t("reports.expected")}: <strong>{moneyLines((bucket) => bucket.expected).join(" · ")}</strong></p>
+              <p className="text-lg">{t("reports.collectionRate")}: <strong className="text-emerald-600">{collectionRateByCurrency.map((item) => `${item.currency} ${item.rate}%`).join(" · ")}</strong></p>
             </CardContent></Card>
             <Card><CardContent className="pt-6">
               <h3 className="font-semibold mb-2">{t("events.title")}</h3>
@@ -2034,10 +2074,10 @@ function ReportDetailContent() {
             </CardContent></Card>
             <Card><CardContent className="pt-6">
               <h3 className="font-semibold mb-2">{t("reports.report4.name")}</h3>
-              {Object.entries(arBuckets).map(([bucket, data]) => (
-                <div key={bucket} className="flex justify-between text-sm">
-                  <span>{bucket} days</span>
-                  <span className="font-medium">{formatAmount(data.amount, currency)} ({data.count})</span>
+              {arBuckets.map((data) => (
+                <div key={`${data.currency}:${data.bucket}`} className="flex justify-between text-sm">
+                  <span>{data.bucket} days · {data.currency}</span>
+                  <span className="font-medium">{formatAmount(data.amount, data.currency)} ({data.count})</span>
                 </div>
               ))}
             </CardContent></Card>
@@ -2374,11 +2414,11 @@ function ReportDetailContent() {
                   <p className="text-xs text-muted-foreground">{t("reports.fedBranchesCollecting")}</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-2xl font-bold text-emerald-600">{formatAmount(fedTotalCollected, currency)}</p>
+                  <div className="space-y-0.5">{fedTotalCollected.map((bucket) => <p key={bucket.currency} className="text-lg font-bold text-emerald-600 tabular-nums">{formatAmount(bucket.amount, bucket.currency)}</p>)}</div>
                   <p className="text-xs text-muted-foreground">{t("reports.fedCollectedThisMonth")}</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-2xl font-bold text-amber-600">{formatAmount(fedTotalRemitted, currency)}</p>
+                  <div className="space-y-0.5">{fedTotalRemitted.map((bucket) => <p key={bucket.currency} className="text-lg font-bold text-amber-600 tabular-nums">{formatAmount(bucket.amount, bucket.currency)}</p>)}</div>
                   <p className="text-xs text-muted-foreground">{t("reports.fedTotalRemitted")}</p>
                 </div>
               </div>
@@ -2426,7 +2466,7 @@ function ReportDetailContent() {
                               ) : "0"}
                             </td>
                             <td className="text-right py-2 px-3">{row.paidThisMonth}</td>
-                            <td className="text-right py-2 px-3 font-semibold">{formatAmount(row.collected, currency)}</td>
+                            <td className="text-right py-2 px-3 font-semibold">{formatAmount(row.collected, row.currency)}</td>
                           </tr>
                         );
                       })}
@@ -2440,7 +2480,7 @@ function ReportDetailContent() {
                         <td className="text-right py-2 px-3">{fedRows.reduce((s, r) => s + r.reliefOnly, 0)}</td>
                         <td className="text-right py-2 px-3">{fedRows.reduce((s, r) => s + r.external, 0)}</td>
                         <td className="text-right py-2 px-3">{fedRows.reduce((s, r) => s + r.paidThisMonth, 0)}</td>
-                        <td className="text-right py-2 px-3">{formatAmount(fedTotalCollected, currency)}</td>
+                        <td className="text-right py-2 px-3"><span className="inline-flex flex-col gap-0.5">{fedTotalCollected.map((bucket) => <span key={bucket.currency}>{formatAmount(bucket.amount, bucket.currency)}</span>)}</span></td>
                       </tr>
                     </tfoot>
                   </table>

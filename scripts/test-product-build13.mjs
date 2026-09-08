@@ -109,7 +109,9 @@ test("transfers: pre-transfer outstanding warning is confirmed-only (no amount-a
   const t = read(TRANSFERS);
   assert.ok(/computeObligationStates\(/.test(t), "routes through the engine");
   assert.ok(!/Number\(o\.amount\) - Number\(o\.amount_paid/.test(t), "no polluted amount - amount_paid sum remains");
-  assert.ok(/c && c\.isOpen \? c\.remaining : 0/.test(t), "sums confirmed-open remaining");
+  assert.ok(/memberObligations\.filter\(\(o\) => states\.get\(o\.id\)\?\.isOpen\)/.test(t),
+    "keeps only confirmed-open obligations");
+  assert.ok(/states\.get\(o\.id\)\?\.remaining \|\| 0/.test(t), "sums confirmed-open remaining");
 });
 
 // ── Record page prefill stays honest (contribution_type.amount, not amount_paid) ──

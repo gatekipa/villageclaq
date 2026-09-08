@@ -7,6 +7,7 @@ import { computeMoneyFigures, computeObligationStates, allocatePaymentApplicatio
 const container = "villageclaq-p1-isolated";
 const epochMigration = "supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql";
 const migration = "supabase/migrations/20260906140229_financial_payment_integrity.sql";
+const standingMigration = "supabase/migrations/20260908043912_standing_confirmed_basis_parity.sql";
 const read = (path) => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 function sql(query, actor) {
   const auth = actor ? `SET ROLE authenticated; SET request.jwt.claim.sub='${actor}';` : "";
@@ -193,6 +194,7 @@ before(() => {
           resolved_by='${platformSuper}',resolved_at=now()
       WHERE group_id='${customerConflictGroup}';`);
   sql(read(migration));
+  sql(read(standingMigration));
 });
 
 let first, second;
@@ -804,4 +806,189 @@ test("active platform staff remains authorized without weakening RPC grants",()=
     FROM pg_proc p WHERE p.oid IN (
       'public.request_member_transfer(uuid,uuid,uuid,text,boolean)'::regprocedure,
       'public.execute_member_transfer(uuid)'::regprocedure)`),"t");
+});
+
+const parityGroup=id(700000), parityGroup2=id(700001);
+const parityEpoch=id(700010), parityOldEpoch=id(700011), parityEpoch2=id(700012);
+const parityType=id(700020), parityType2=id(700021), parityExcludedType=id(700022);
+const parityOldType=id(700023), parityOtherType=id(700024), parityRelief=id(700030);
+const parityMid=n=>id(700100+n), parityUser=n=>id(710000+n), parityObl=n=>id(730000+n);
+const parityRules=excluded=>({
+  enabled:true,
+  overdue_grace_days:0,
+  excluded_contribution_type_ids:excluded,
+  factors:{dues:true,meetingAttendance:false,eventAttendance:false,relief:false,
+    hosting:false,fines:false,loans:false,disputes:false,customActivity:false},
+});
+function parityCommand(key,gid,actorId,action,values={},paymentId=null,version=null,reason=null) {
+  return JSON.parse(sql(query(key,action,values,paymentId,version,reason,gid),actorId));
+}
+function parityObligation(n,mid,typeId=parityType,epochId=parityEpoch,currency="USD",amount=100,gid=parityGroup) {
+  sql(`INSERT INTO contribution_obligations(id,group_id,membership_id,contribution_type_id,
+    ledger_epoch_id,amount,currency,due_date) VALUES('${parityObl(n)}','${gid}','${mid}',
+    '${typeId}','${epochId}',${amount},'${currency}',CURRENT_DATE-30)`);
+  return parityObl(n);
+}
+function parityRecord(key,mid,amount=100,typeId=parityType,extras={},gid=parityGroup,actorId=officer) {
+  const values={membership_id:mid,amount,currency:extras.currency||"USD",payment_method:"cash",
+    ...(typeId?{contribution_type_id:typeId}:{}),...extras};
+  return parityCommand(key,gid,actorId,"record",values);
+}
+function tsParityStanding(mid,excluded=[]) {
+  const member=JSON.parse(sql(`SELECT to_jsonb(m) FROM memberships m WHERE id='${mid}'`));
+  if(member.is_proxy || !["active","pending_approval"].includes(member.membership_status)) return member.standing;
+  const obligations=JSON.parse(sql(`SELECT COALESCE(jsonb_agg(o ORDER BY o.id),'[]')
+    FROM contribution_obligations o WHERE o.group_id='${member.group_id}' AND o.membership_id='${mid}'`));
+  const payments=JSON.parse(sql(`SELECT COALESCE(jsonb_agg(p ORDER BY p.id),'[]')
+    FROM payments p WHERE p.group_id='${member.group_id}' AND p.membership_id='${mid}'
+      AND p.relief_plan_id IS NULL`));
+  const states=computeObligationStates(obligations,payments,{today:sql("SELECT CURRENT_DATE")});
+  const excludedSet=new Set(excluded);
+  const duesFail=obligations.some(o=>!excludedSet.has(o.contribution_type_id)
+    && states.get(o.id)?.isOverdue);
+  return duesFail?"suspended":"good";
+}
+function sqlParityStanding(mid,excluded=[]) {
+  return sql(`SELECT public.compute_member_standing('${mid}',${literal(parityRules(excluded))})`);
+}
+
+test("18-case TypeScript to SQL golden standing matrix uses confirmed-basis attribution",()=>{
+  sql(`INSERT INTO groups(id,currency,settings) VALUES
+      ('${parityGroup}','USD','{}'),('${parityGroup2}','USD','{}');
+    INSERT INTO profiles(id)
+      SELECT ('00000000-0000-4000-8000-'||lpad((710000+n)::text,12,'0'))::uuid
+      FROM generate_series(1,21) n;
+    INSERT INTO memberships(id,group_id,user_id,role) VALUES
+      ('${id(700090)}','${parityGroup}','${officer}','owner'),
+      ('${id(700091)}','${parityGroup2}','${outsider}','owner');
+    INSERT INTO memberships(id,group_id,user_id,role)
+      SELECT ('00000000-0000-4000-8000-'||lpad((700100+n)::text,12,'0'))::uuid,
+        '${parityGroup}',('00000000-0000-4000-8000-'||lpad((710000+n)::text,12,'0'))::uuid,'member'
+      FROM generate_series(1,18) n WHERE n <> 16;
+    INSERT INTO memberships(id,group_id,user_id,role)
+      VALUES('${parityMid(16)}','${parityGroup2}','${parityUser(15)}','member');
+    INSERT INTO memberships(id,group_id,user_id,role,standing,is_proxy)
+      VALUES('${parityMid(19)}','${parityGroup}',NULL,'member','warning',true);
+    INSERT INTO memberships(id,group_id,user_id,role,standing,membership_status)
+      VALUES('${parityMid(20)}','${parityGroup}','${parityUser(20)}','member','banned','exited');
+    INSERT INTO memberships(id,group_id,user_id,role)
+      VALUES('${parityMid(21)}','${parityGroup}','${parityUser(21)}','member');
+    INSERT INTO financial_ledger_epochs(id,group_id,currency,effective_from,effective_to,source_kind,approval_note)
+      VALUES('${parityOldEpoch}','${parityGroup}','XAF','2025-01-01','2026-01-01','cutover','Synthetic old epoch'),
+        ('${parityEpoch}','${parityGroup}','USD','2026-01-01',NULL,'cutover','Synthetic active epoch'),
+        ('${parityEpoch2}','${parityGroup2}','USD','2026-01-01',NULL,'cutover','Synthetic active epoch');
+    INSERT INTO contribution_types(id,group_id,name,amount,currency,ledger_epoch_id) VALUES
+      ('${parityType}','${parityGroup}','Parity dues A',100,'USD','${parityEpoch}'),
+      ('${parityType2}','${parityGroup}','Parity dues B',100,'USD','${parityEpoch}'),
+      ('${parityExcludedType}','${parityGroup}','Excluded parity dues',100,'USD','${parityEpoch}'),
+      ('${parityOldType}','${parityGroup}','Historical parity dues',1000,'XAF','${parityOldEpoch}'),
+      ('${parityOtherType}','${parityGroup2}','Other group dues',100,'USD','${parityEpoch2}');
+    INSERT INTO relief_plans(id,group_id,is_active,contribution_frequency,contribution_amount)
+      VALUES('${parityRelief}','${parityGroup}',true,'monthly',100)`);
+
+  parityObligation(1,parityMid(1));
+  parityObligation(2,parityMid(2)); parityRecord(720002,parityMid(2));
+  parityObligation(3,parityMid(3));
+  parityCommand(720003,parityGroup,officer,"submit",{membership_id:parityMid(3),contribution_type_id:parityType,
+    amount:100,currency:"USD",payment_method:"cash"});
+  parityObligation(4,parityMid(4));
+  const rejected=parityCommand(720004,parityGroup,officer,"submit",{membership_id:parityMid(4),
+    contribution_type_id:parityType,amount:100,currency:"USD",payment_method:"cash"});
+  parityCommand(720005,parityGroup,officer,"reject",{},rejected.payment.id,rejected.payment.financial_version,"Synthetic rejection");
+  parityObligation(5,parityMid(5));
+  parityObligation(6,parityMid(6)); parityRecord(720006,parityMid(6),40);
+  parityObligation(7,parityMid(7)); parityRecord(720007,parityMid(7));
+  const waived=parityObligation(8,parityMid(8)); sql(`UPDATE contribution_obligations SET status='waived' WHERE id='${waived}'`);
+  parityObligation(9,parityMid(9),parityExcludedType);
+  parityObligation(10,parityMid(10)); parityRecord(720010,parityMid(10),40);
+  parityObligation(11,parityMid(11)); parityObligation(111,parityMid(11),parityType2);
+  parityRecord(720011,parityMid(11),150);
+  parityObligation(12,parityMid(12)); parityObligation(112,parityMid(12),parityType2);
+  parityRecord(720012,parityMid(12),150); parityRecord(720013,parityMid(12),100,null);
+  parityObligation(13,parityMid(13)); parityRecord(720014,parityMid(14));
+  parityObligation(15,parityMid(15));
+  parityRecord(720015,parityMid(16),100,parityOtherType,{},parityGroup2,outsider);
+  parityObligation(17,parityMid(17),parityOldType,parityOldEpoch,"XAF",1000);
+  parityRecord(720017,parityMid(17),100,parityType);
+  parityObligation(18,parityMid(18));
+  parityRecord(720018,parityMid(18),100,null,{relief_plan_id:parityRelief});
+
+  // Simulate the pre-F0 cached-column pollution that the standing function must
+  // ignore.  The isolated superuser disables user triggers only for this test.
+  sql(`ALTER TABLE contribution_obligations DISABLE TRIGGER USER;
+    UPDATE contribution_obligations SET amount_paid=100,status='paid' WHERE id='${parityObl(5)}';
+    UPDATE contribution_obligations SET amount_paid=100,status='paid' WHERE id='${parityObl(6)}';
+    UPDATE contribution_obligations SET amount_paid=0,status='pending' WHERE id='${parityObl(7)}';
+    ALTER TABLE contribution_obligations ENABLE TRIGGER USER;`);
+
+  const matrix=[
+    ["A overdue/no payment",parityMid(1),[],"suspended"],
+    ["B confirmed full",parityMid(2),[],"good"],
+    ["C pending",parityMid(3),[],"suspended"],
+    ["D rejected",parityMid(4),[],"suspended"],
+    ["E polluted paid cache",parityMid(5),[],"suspended"],
+    ["F polluted paid cache with confirmed debt",parityMid(6),[],"suspended"],
+    ["G stale-low cache with confirmed full",parityMid(7),[],"good"],
+    ["H waived",parityMid(8),[],"good"],
+    ["I excluded type",parityMid(9),[parityExcludedType],"good"],
+    ["J confirmed partial",parityMid(10),[],"suspended"],
+    ["K1 typed overpayment cannot hide other type",parityMid(11),[],"suspended"],
+    ["K2 general credit follows typed allocation",parityMid(12),[],"good"],
+    ["L no cross-member credit",parityMid(13),[],"suspended"],
+    ["M no cross-group credit",parityMid(15),[],"suspended"],
+    ["N no cross-currency/epoch credit",parityMid(17),[],"suspended"],
+    ["O relief does not satisfy dues",parityMid(18),[],"suspended"],
+    ["P1 proxy guard",parityMid(19),[],"warning"],
+    ["P2 inactive guard",parityMid(20),[],"banned"],
+  ];
+  for(const [label,mid,excluded,expected] of matrix) {
+    assert.equal(tsParityStanding(mid,excluded),expected,`${label}: TypeScript`);
+    assert.equal(sqlParityStanding(mid,excluded),expected,`${label}: SQL`);
+  }
+  assert.equal(matrix.length,18);
+});
+
+test("standing triggers converge confirmed, rejected, corrected, voided and waived state once",()=>{
+  const mid=parityMid(21), oid=parityObligation(21,mid);
+  const baseline=Number(sql(`SELECT count(*) FROM group_audit_logs
+    WHERE entity_id='${mid}' AND action='member.standing_recalculated'`));
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"suspended");
+
+  const pending=parityCommand(721001,parityGroup,officer,"submit",{membership_id:mid,
+    contribution_type_id:parityType,amount:100,currency:"USD",payment_method:"cash"});
+  parityCommand(721002,parityGroup,officer,"reject",{},pending.payment.id,pending.payment.financial_version,"Synthetic rejection");
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"suspended");
+
+  let current=parityRecord(721003,mid).payment;
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"good");
+  current=parityCommand(721004,parityGroup,officer,"correct",{amount:40},current.id,current.financial_version,"Synthetic correction").payment;
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"suspended");
+  current=parityCommand(721005,parityGroup,officer,"correct",{amount:100},current.id,current.financial_version,"Synthetic restoration").payment;
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"good");
+  parityCommand(721006,parityGroup,officer,"void",{},current.id,current.financial_version,"Synthetic void");
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"suspended");
+  sql(`UPDATE contribution_obligations SET status='waived' WHERE id='${oid}'`);
+  assert.equal(sql(`SELECT standing FROM memberships WHERE id='${mid}'`),"good");
+
+  assert.equal(Number(sql(`SELECT count(*) FROM group_audit_logs
+    WHERE entity_id='${mid}' AND action='member.standing_recalculated'`))-baseline,5);
+  assert.equal(Number(sql(`SELECT count(*) FROM group_audit_logs
+    WHERE entity_id='${mid}' AND action='member.standing_recalculated'
+      AND details->>'source'='financial_transaction'`))-baseline,5);
+  assert.doesNotMatch(read(standingMigration),/notifications|notification_queue|standing_change_producer/);
+});
+
+test("standing RPC surface rejects anonymous, cross-group and inactive callers",()=>{
+  assert.equal(sql(`SELECT has_function_privilege('anon',
+    'public.compute_member_standing(uuid,jsonb)','EXECUTE')`),"f");
+  assert.equal(sql(`SELECT has_function_privilege('anon',
+    'public.recalculate_membership_standing(uuid)','EXECUTE')`),"f");
+  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(1)}')`,outsider),/permission denied/);
+  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(19)}')`,outsider),/permission denied/);
+  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(20)}')`,outsider),/permission denied/);
+  assert.throws(()=>sql(`SELECT public.recalculate_membership_standing('${parityMid(1)}')`,outsider),/permission denied/);
+  assert.throws(()=>sql(`SELECT public.compute_member_standing('${parityMid(1)}')`,parityUser(20)),/permission denied/);
+  assert.equal(sql(`SELECT public.compute_member_standing('${parityMid(1)}')`,parityUser(13)),"suspended");
+  assert.equal(sql(`SELECT p.prosecdef AND p.provolatile='s' AND p.proconfig @> ARRAY['search_path=""']
+    FROM pg_proc p WHERE p.oid='public.compute_member_standing(uuid,jsonb)'::regprocedure`),"t");
 });

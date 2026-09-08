@@ -7,6 +7,7 @@
     "test:financial-p1": "node --test scripts/test-financial-p1.mjs",
     "test:financial-f0": "node --test scripts/test-financial-f0.mjs",
     "test:financial-p1-db": "node --test scripts/test-financial-p1-db.mjs",
+    "test:standing-parity-db": "node --test scripts/test-financial-p1-db.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

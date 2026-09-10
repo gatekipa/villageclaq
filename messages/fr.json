@@ -3136,7 +3136,7 @@
     "generatedBy": "Généré par VillageClaq",
     "generatedOn": "Généré le {date}",
     "categories": {
-      "financial": "Cotisations et dues",
+      "financial": "Cotisations et contributions",
       "membership": "Rapports d'adhésion",
       "operations": "Rapports opérationnels",
       "executive": "Rapports exécutifs"
@@ -3154,8 +3154,8 @@
       "desc": "Chaque paiement filtrable par date, membre, type, méthode"
     },
     "report4": {
-      "name": "Ancienneté des créances",
-      "desc": "Soldes de cotisations/dues en souffrance groupés par 30/60/90/120+ jours"
+      "name": "Ancienneté des arriérés de cotisations",
+      "desc": "Soldes de cotisations en souffrance groupés par 30/60/90/120+ jours"
     },
     "report5": {
       "name": "Rapport de cycle Njangi",

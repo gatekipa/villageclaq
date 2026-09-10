@@ -3154,8 +3154,8 @@
       "desc": "Every payment filterable by date, member, type, method"
     },
     "report4": {
-      "name": "AR Aging",
-      "desc": "Contribution/dues outstanding balances grouped by 30/60/90/120+ days"
+      "name": "Contribution Arrears Aging",
+      "desc": "Contribution arrears outstanding balances grouped by 30/60/90/120+ days"
     },
     "report5": {
       "name": "Njangi Cycle Report",

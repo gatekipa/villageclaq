@@ -1,7 +1,18 @@
 /**
- * Shared notification policy evaluator (Product Consistency foundation).
- * Pure functions only — no DB, no providers, no sends.
- * Quiet hours return DEFER_UNTIL; callers must not mark reminders sent when deferred.
+ * Shared notification policy evaluator (Product Consistency foundation / PR #68 hardening).
+ * Pure functions only — no DB, no providers, no sends, no cron wiring.
+ *
+ * Quiet hours return DEFER_UNTIL with the SAME occurrence identity; callers must not
+ * mark reminders sent when deferred, and must not mint a new occurrence for the defer.
+ *
+ * Quiet-hour window semantics (documented contract):
+ * - Exact quiet start is INCLUSIVE (minute == startMinute → inside quiet hours).
+ * - Exact quiet end is EXCLUSIVE (minute == endMinute → outside quiet hours).
+ * - Overnight windows (startMinute > endMinute) wrap midnight.
+ * - startMinute === endMinute → empty window (never quiet).
+ *
+ * stopAfterHours is relative to the ANCHOR timestamp (domain-agnostic): no generated
+ * occurrence may have eligibleAt > anchorAt + stopAfterHours.
  */
 
 export type PolicyDisposition =
@@ -9,13 +20,23 @@ export type PolicyDisposition =
   | { kind: "DEFER_UNTIL"; until: Date }
   | { kind: "STOP_RESOLVED" }
   | { kind: "STOP_POLICY" }
-  | { kind: "SKIP_CHANNEL_DISABLED" };
+  | { kind: "SKIP_CHANNEL_DISABLED" }
+  | { kind: "INVALID_POLICY"; errors: string[] };
 
 export type PolicyAnchorKind = "payment_due" | "hosting_assigned" | "event_starts_at";
+
+export type PolicyChannel = "in_app" | "email" | "sms" | "whatsapp" | "push";
 
 export interface RelativeTrigger {
   /** Negative = before anchor; positive = after. Unit: hours. */
   offsetHours: number;
+}
+
+export interface QuietHours {
+  /** Minutes from local midnight in policy.timezone; integer in 0..1439. */
+  startMinute: number;
+  /** Minutes from local midnight; integer in 0..1439. End is exclusive. */
+  endMinute: number;
 }
 
 export interface NotificationPolicyConfig {
@@ -23,28 +44,44 @@ export interface NotificationPolicyConfig {
   timezone: string;
   anchor: PolicyAnchorKind;
   triggers: RelativeTrigger[];
+  /** When set, must be finite and > 0. Requires maxOccurrences (validation fails otherwise). */
   repeatIntervalHours: number | null;
+  /** When set, must be a positive integer. Required when repeatIntervalHours is set. */
   maxOccurrences: number | null;
   stopWhenResolved: boolean;
+  /** Relative to ANCHOR (not "now"). Finite and > 0 when set. */
   stopAfterHours: number | null;
-  quietHours?: { startMinute: number; endMinute: number } | null;
-  channels: { in_app: boolean; email: boolean; sms: boolean; whatsapp: boolean; push: boolean };
+  quietHours?: QuietHours | null;
+  channels: Record<PolicyChannel, boolean>;
 }
 
-/** Backwards-compatible defaults matching live behavior as of main ba479fb… */
-export const DEFAULT_PAYMENT_POLICY: NotificationPolicyConfig = {
-  enabled: true,
-  timezone: "UTC",
-  anchor: "payment_due",
-  triggers: [{ offsetHours: 24 }], // overdue path remains cron-owned until PC-PAYMENT migrates
-  repeatIntervalHours: 24,
-  maxOccurrences: null,
-  stopWhenResolved: true,
-  stopAfterHours: null,
-  quietHours: null,
-  channels: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+export interface ScheduledOccurrence {
+  identity: string;
+  domain: string;
+  objectId: string;
+  anchorAtIso: string;
+  triggerOffsetHours: number;
+  occurrenceIndex: number;
+  eligibleAt: Date;
+}
+
+export type ValidatePolicyResult =
+  | { ok: true; config: NotificationPolicyConfig }
+  | { ok: false; errors: string[] };
+
+const CHANNEL_KEYS: PolicyChannel[] = ["in_app", "email", "sms", "whatsapp", "push"];
+
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+const DEFAULT_CHANNELS: Record<PolicyChannel, boolean> = {
+  in_app: true,
+  email: true,
+  sms: true,
+  whatsapp: true,
+  push: true,
 };
 
+/** Hosting default: 7 days before assignment/hosting date, one-shot. */
 export const DEFAULT_HOSTING_POLICY: NotificationPolicyConfig = {
   enabled: true,
   timezone: "UTC",
@@ -55,9 +92,10 @@ export const DEFAULT_HOSTING_POLICY: NotificationPolicyConfig = {
   stopWhenResolved: true,
   stopAfterHours: null,
   quietHours: null,
-  channels: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  channels: { ...DEFAULT_CHANNELS },
 };
 
+/** Event default: 48 hours before starts_at, one-shot. */
 export const DEFAULT_EVENT_POLICY: NotificationPolicyConfig = {
   enabled: true,
   timezone: "UTC",
@@ -68,16 +106,216 @@ export const DEFAULT_EVENT_POLICY: NotificationPolicyConfig = {
   stopWhenResolved: true,
   stopAfterHours: null,
   quietHours: null,
-  channels: { in_app: true, email: true, sms: true, whatsapp: true, push: true },
+  channels: { ...DEFAULT_CHANNELS },
 };
 
-export function occurrenceIdentity(
-  domain: string,
-  objectId: string,
-  triggerOffsetHours: number,
-  occurrenceIndex: number,
-): string {
-  return `${domain}:${objectId}:${triggerOffsetHours}:${occurrenceIndex}`;
+/**
+ * Honesty note: the live payment reminder cron is NOT a +24h relative trigger policy.
+ * Do not treat any example +24h offset as the live payment contract.
+ */
+export const DEFAULT_PAYMENT_COMPAT_NOTE =
+  "Live payment reminders are overdue-daily selection (due_date < today UTC) with " +
+  "per-obligation-per-UTC-day idempotency. They are NOT a policy +24h trigger. " +
+  "See LEGACY_PAYMENT_CRON_CONTRACT. FUTURE_PAYMENT_POLICY is an example only and is NOT live-wired.";
+
+/**
+ * Documented live payment cron contract (read-only description).
+ * Selection: obligations with due_date before today (UTC day), remindable statuses.
+ * Idempotency: one send attempt bucket per obligation per UTC day (reminderDate YYYY-MM-DD).
+ * Cadence: daily cron (e.g. 08:00 UTC), not a relative +24h offset from due_date.
+ */
+export const LEGACY_PAYMENT_CRON_CONTRACT = {
+  live: true as const,
+  kind: "overdue_daily_selection" as const,
+  selection: "due_date < today (UTC calendar day); remindable statuses (pending/partial/overdue)",
+  idempotency: "per-obligation-per-UTC-day (reminderDate bucket)",
+  cadence: "daily cron sweep — NOT a +24h relative trigger from due_date",
+  notARelativeTriggerOffsetHours: null as null,
+  note: DEFAULT_PAYMENT_COMPAT_NOTE,
+} as const;
+
+/**
+ * Example future payment policy shape for PC-PAYMENT migration.
+ * LABEL: NOT live-wired — do not wire producers/crons to this without a separate ticket.
+ * Intentionally uses post-due offsets + repeat for illustration only.
+ */
+export const FUTURE_PAYMENT_POLICY: NotificationPolicyConfig & {
+  __label: "NOT_LIVE_WIRED_EXAMPLE";
+} = {
+  __label: "NOT_LIVE_WIRED_EXAMPLE",
+  enabled: true,
+  timezone: "UTC",
+  anchor: "payment_due",
+  // Example only — NOT the live cron contract.
+  triggers: [{ offsetHours: 24 }],
+  repeatIntervalHours: 24,
+  maxOccurrences: 14,
+  stopWhenResolved: true,
+  stopAfterHours: 24 * 30,
+  quietHours: null,
+  channels: { ...DEFAULT_CHANNELS },
+};
+
+/** Alias kept for discoverability; same honesty string as DEFAULT_PAYMENT_COMPAT_NOTE. */
+export const PAYMENT_LEGACY_COMPAT = DEFAULT_PAYMENT_COMPAT_NOTE;
+
+function isFiniteNumber(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n);
+}
+
+function isValidIanaTimeZone(tz: string): boolean {
+  if (typeof tz !== "string" || tz.trim() === "") return false;
+  try {
+    // Intl throws RangeError for invalid IANA zones.
+    new Intl.DateTimeFormat("en-US", { timeZone: tz }).format(new Date());
+    return true;
+  } catch (err) {
+    if (err instanceof RangeError) return false;
+    return false;
+  }
+}
+
+function toAnchorIso(anchorAt: Date | string): string {
+  if (anchorAt instanceof Date) {
+    if (Number.isNaN(anchorAt.getTime())) {
+      throw new RangeError("anchorAt Date is invalid");
+    }
+    return anchorAt.toISOString();
+  }
+  const d = new Date(anchorAt);
+  if (Number.isNaN(d.getTime())) {
+    throw new RangeError("anchorAt string is not a valid timestamp");
+  }
+  return d.toISOString();
+}
+
+/**
+ * Occurrence identity MUST include the anchor timestamp so a reschedule
+ * (anchor change) yields a new identity and does not collide with prior sends.
+ * Format: domain:objectId:anchorIso:triggerOffsetHours:occurrenceIndex
+ */
+export function occurrenceIdentity(input: {
+  domain: string;
+  objectId: string;
+  anchorAt: Date | string;
+  triggerOffsetHours: number;
+  occurrenceIndex: number;
+}): string {
+  const anchorIso = toAnchorIso(input.anchorAt);
+  return `${input.domain}:${input.objectId}:${anchorIso}:${input.triggerOffsetHours}:${input.occurrenceIndex}`;
+}
+
+/**
+ * Validate policy config. Invalid timezone must NEVER silently become SEND_NOW —
+ * callers must treat { ok:false } / INVALID_POLICY as hard stop.
+ */
+export function validatePolicyConfig(config: unknown): ValidatePolicyResult {
+  const errors: string[] = [];
+
+  if (config == null || typeof config !== "object") {
+    return { ok: false, errors: ["config must be a non-null object"] };
+  }
+
+  const c = config as Partial<NotificationPolicyConfig>;
+
+  if (typeof c.enabled !== "boolean") {
+    errors.push("enabled must be a boolean");
+  }
+
+  if (typeof c.timezone !== "string" || !isValidIanaTimeZone(c.timezone)) {
+    errors.push("timezone must be a valid IANA time zone");
+  }
+
+  const anchors: PolicyAnchorKind[] = ["payment_due", "hosting_assigned", "event_starts_at"];
+  if (!anchors.includes(c.anchor as PolicyAnchorKind)) {
+    errors.push("anchor must be payment_due | hosting_assigned | event_starts_at");
+  }
+
+  if (!Array.isArray(c.triggers) || c.triggers.length === 0) {
+    errors.push("triggers must be a non-empty array");
+  } else {
+    const seen = new Set<number>();
+    for (let i = 0; i < c.triggers.length; i += 1) {
+      const t = c.triggers[i];
+      if (t == null || typeof t !== "object") {
+        errors.push(`triggers[${i}] must be an object`);
+        continue;
+      }
+      const offset = (t as RelativeTrigger).offsetHours;
+      if (!isFiniteNumber(offset)) {
+        errors.push(`triggers[${i}].offsetHours must be a finite number`);
+        continue;
+      }
+      if (seen.has(offset)) {
+        errors.push(`duplicate trigger offsetHours: ${offset}`);
+      }
+      seen.add(offset);
+    }
+  }
+
+  if (c.repeatIntervalHours != null) {
+    if (!isFiniteNumber(c.repeatIntervalHours) || c.repeatIntervalHours <= 0) {
+      errors.push("repeatIntervalHours must be finite and > 0 when set");
+    }
+    if (c.maxOccurrences == null) {
+      errors.push(
+        "maxOccurrences is required when repeatIntervalHours is set (prevents infinite fan-out)",
+      );
+    }
+  }
+
+  if (c.maxOccurrences != null) {
+    if (
+      typeof c.maxOccurrences !== "number" ||
+      !Number.isInteger(c.maxOccurrences) ||
+      c.maxOccurrences <= 0
+    ) {
+      errors.push("maxOccurrences must be a positive integer when set");
+    }
+  }
+
+  if (c.stopAfterHours != null) {
+    if (!isFiniteNumber(c.stopAfterHours) || c.stopAfterHours <= 0) {
+      errors.push("stopAfterHours must be finite and > 0 when set");
+    }
+  }
+
+  if (typeof c.stopWhenResolved !== "boolean") {
+    errors.push("stopWhenResolved must be a boolean");
+  }
+
+  if (c.quietHours != null) {
+    if (typeof c.quietHours !== "object") {
+      errors.push("quietHours must be an object or null");
+    } else {
+      const { startMinute, endMinute } = c.quietHours as QuietHours;
+      for (const [name, value] of [
+        ["startMinute", startMinute],
+        ["endMinute", endMinute],
+      ] as const) {
+        if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > 1439) {
+          errors.push(`quietHours.${name} must be an integer in 0..1439`);
+        }
+      }
+    }
+  }
+
+  if (c.channels == null || typeof c.channels !== "object" || Array.isArray(c.channels)) {
+    errors.push("channels must be a non-empty object with channel booleans");
+  } else {
+    const keys = Object.keys(c.channels);
+    if (keys.length === 0) {
+      errors.push("channels must be a non-empty object");
+    }
+    for (const key of CHANNEL_KEYS) {
+      if (typeof (c.channels as Record<string, unknown>)[key] !== "boolean") {
+        errors.push(`channels.${key} must be a boolean`);
+      }
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, config: config as NotificationPolicyConfig };
 }
 
 function minutesOfDay(d: Date, timeZone: string): number {
@@ -87,29 +325,37 @@ function minutesOfDay(d: Date, timeZone: string): number {
     minute: "2-digit",
     hour12: false,
   }).formatToParts(d);
-  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  let hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
   const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  // Some engines emit "24" for midnight under hour12:false.
+  if (hour === 24) hour = 0;
   return hour * 60 + minute;
 }
 
-/** Quiet-hours window may wrap midnight. Returns whether `now` is inside the window. */
+/**
+ * Quiet-hours window may wrap midnight.
+ * Exact start inclusive; exact end exclusive.
+ */
 export function isInQuietHours(
   now: Date,
-  quiet: { startMinute: number; endMinute: number },
+  quiet: QuietHours,
   timeZone: string,
 ): boolean {
   const m = minutesOfDay(now, timeZone);
   if (quiet.startMinute === quiet.endMinute) return false;
-  if (quiet.startMinute < quiet.endMinute) return m >= quiet.startMinute && m < quiet.endMinute;
+  if (quiet.startMinute < quiet.endMinute) {
+    return m >= quiet.startMinute && m < quiet.endMinute;
+  }
+  // Overnight: [start, 1440) U [0, end)
   return m >= quiet.startMinute || m < quiet.endMinute;
 }
 
 export function nextQuietHoursEnd(
   now: Date,
-  quiet: { startMinute: number; endMinute: number },
+  quiet: QuietHours,
   timeZone: string,
 ): Date {
-  // Approximate: advance minute-by-minute until outside window (bounded).
+  // Advance minute-by-minute until outside window (bounded to 24h).
   let cursor = new Date(now.getTime());
   for (let i = 0; i < 24 * 60; i += 1) {
     if (!isInQuietHours(cursor, quiet, timeZone)) return cursor;
@@ -118,22 +364,140 @@ export function nextQuietHoursEnd(
   return new Date(now.getTime() + 60 * 60_000);
 }
 
+/**
+ * Generate scheduled occurrences from relative triggers (+ optional repeat cadence).
+ *
+ * - Multiple trigger offsets supported (e.g. -336, -168, -48, -24, -2), sorted ascending.
+ * - If repeatIntervalHours set: for each trigger, occurrenceIndex 0..maxOccurrences-1
+ *   (or until stop horizon) at eligibleAt = anchorAt + offset + index * repeat.
+ * - If maxOccurrences set without repeat: one-shot index 0 per trigger.
+ * - If neither repeat nor maxOccurrences: one-shot index 0 per trigger.
+ * - stopAfterHours: relative to ANCHOR; drop any occurrence with
+ *   eligibleAt > anchorAt + stopAfterHours.
+ * - `now` is accepted for API completeness; this generator does not filter by now
+ *   (callers compare eligibleAt to now when selecting due work).
+ */
+export function generateScheduledOccurrences(input: {
+  policy: NotificationPolicyConfig;
+  objectId: string;
+  domain: string;
+  anchorAt: Date;
+  now?: Date;
+}): ScheduledOccurrence[] {
+  void input.now;
+  const validated = validatePolicyConfig(input.policy);
+  if (!validated.ok) return [];
+
+  const policy = validated.config;
+  if (!(input.anchorAt instanceof Date) || Number.isNaN(input.anchorAt.getTime())) {
+    return [];
+  }
+
+  const anchorMs = input.anchorAt.getTime();
+  const anchorAtIso = input.anchorAt.toISOString();
+  const stopMs =
+    policy.stopAfterHours != null ? anchorMs + policy.stopAfterHours * MS_PER_HOUR : null;
+
+  const offsets = policy.triggers
+    .map((t) => t.offsetHours)
+    .slice()
+    .sort((a, b) => a - b);
+
+  const hasRepeat = policy.repeatIntervalHours != null;
+  // Safety: validation requires maxOccurrences when repeat is set.
+  const maxIdxExclusive = hasRepeat
+    ? (policy.maxOccurrences as number)
+    : policy.maxOccurrences != null
+      ? 1
+      : 1;
+
+  const out: ScheduledOccurrence[] = [];
+
+  for (const offsetHours of offsets) {
+    for (let occurrenceIndex = 0; occurrenceIndex < maxIdxExclusive; occurrenceIndex += 1) {
+      const eligibleMs =
+        anchorMs +
+        offsetHours * MS_PER_HOUR +
+        (hasRepeat ? occurrenceIndex * (policy.repeatIntervalHours as number) * MS_PER_HOUR : 0);
+
+      // stopAfterHours relative to ANCHOR: eligibleAt must not exceed anchor + stopAfterHours.
+      if (stopMs != null && eligibleMs > stopMs) {
+        break;
+      }
+
+      const eligibleAt = new Date(eligibleMs);
+      out.push({
+        identity: occurrenceIdentity({
+          domain: input.domain,
+          objectId: input.objectId,
+          anchorAt: input.anchorAt,
+          triggerOffsetHours: offsetHours,
+          occurrenceIndex,
+        }),
+        domain: input.domain,
+        objectId: input.objectId,
+        anchorAtIso,
+        triggerOffsetHours: offsetHours,
+        occurrenceIndex,
+        eligibleAt,
+      });
+    }
+  }
+
+  // Stable chronological order for callers/tests.
+  out.sort((a, b) => {
+    const dt = a.eligibleAt.getTime() - b.eligibleAt.getTime();
+    if (dt !== 0) return dt;
+    if (a.triggerOffsetHours !== b.triggerOffsetHours) {
+      return a.triggerOffsetHours - b.triggerOffsetHours;
+    }
+    return a.occurrenceIndex - b.occurrenceIndex;
+  });
+
+  return out;
+}
+
+/**
+ * Evaluate send disposition for a single occurrence identity / channel.
+ * Invalid policy → INVALID_POLICY (never SEND_NOW).
+ * Quiet defer preserves the same occurrenceIdentity (caller must not create a new one).
+ */
 export function evaluateDisposition(input: {
   policy: NotificationPolicyConfig;
   now: Date;
   resolved: boolean;
-  channel: keyof NotificationPolicyConfig["channels"];
-  occurrencesSent: number;
+  channel: PolicyChannel;
+  occurrenceIdentity?: string;
+  /** Count of successful sends already recorded for this occurrence identity. */
+  occurrencesSent?: number;
+  occurrencesSentForIdentity?: number;
 }): PolicyDisposition {
-  const { policy, now, resolved, channel, occurrencesSent } = input;
+  void input.occurrenceIdentity;
+
+  const validated = validatePolicyConfig(input.policy);
+  if (!validated.ok) {
+    return { kind: "INVALID_POLICY", errors: validated.errors };
+  }
+
+  const policy = validated.config;
+  const sent =
+    input.occurrencesSentForIdentity ?? input.occurrencesSent ?? 0;
+
   if (!policy.enabled) return { kind: "STOP_POLICY" };
-  if (policy.stopWhenResolved && resolved) return { kind: "STOP_RESOLVED" };
-  if (policy.maxOccurrences != null && occurrencesSent >= policy.maxOccurrences) {
+  if (policy.stopWhenResolved && input.resolved) return { kind: "STOP_RESOLVED" };
+
+  if (policy.maxOccurrences != null && sent >= policy.maxOccurrences) {
     return { kind: "STOP_POLICY" };
   }
-  if (!policy.channels[channel]) return { kind: "SKIP_CHANNEL_DISABLED" };
-  if (policy.quietHours && isInQuietHours(now, policy.quietHours, policy.timezone)) {
-    return { kind: "DEFER_UNTIL", until: nextQuietHoursEnd(now, policy.quietHours, policy.timezone) };
+
+  if (!policy.channels[input.channel]) return { kind: "SKIP_CHANNEL_DISABLED" };
+
+  if (policy.quietHours && isInQuietHours(input.now, policy.quietHours, policy.timezone)) {
+    return {
+      kind: "DEFER_UNTIL",
+      until: nextQuietHoursEnd(input.now, policy.quietHours, policy.timezone),
+    };
   }
+
   return { kind: "SEND_NOW" };
 }

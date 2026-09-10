@@ -1,14 +1,18 @@
 # S0 — Confirmed P0 Remediation Cut Plan + Cut 1 Contract Freeze
 
 **Date:** 2026-09-10  
-**Status:** PLANNING FREEZE — CUT 1 DEPENDENCIES CLEARED — DO NOT IMPLEMENT  
-**Overall recommended verdict:** **PASS — CUT 1 DEPENDENCIES CLEARED; READY FOR DAYBREAK SECURITY REVIEW**  
-**Daybreak handoff:** **READY FOR REVIEW** (see §21) — implement remains **FORBIDDEN** until Daybreak **PASS**  
+**Status:** **SECURITY REVISION 1 — READY FOR DAYBREAK RE-REVIEW**  
+**Overall recommended verdict:** **PASS — CUT 1 SECURITY REVISION COMPLETE; READY FOR DAYBREAK RE-REVIEW**  
+**Implementation:** **NOT AUTHORIZED** until Daybreak **PASS**. Daybreak PASS on this PR authorizes **IMPLEMENTATION ON A DEDICATED BRANCH only**, **NOT** production apply.  
+**Daybreak handoff:** **READY FOR RE-REVIEW** (see §21 / §25)  
 **Production mutation:** ZERO  
 **Historical migrations modified:** NO  
 **Messages sent:** ZERO  
-**This artifact implements:** nothing (docs only)  
-**Cut 1 clearance evidence:** `docs/evidence/S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910.json` (live prod `llbnliixczcqfftxpsmb`, read-only 2026-09-10)
+**This artifact implements:** nothing (docs / evidence only)  
+**Cut 1 clearance evidence:** `docs/evidence/S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910.json` (live prod `llbnliixczcqfftxpsmb`, read-only 2026-09-10)  
+**Exact policy rows included:** **YES** — count **145** (SECURITY REVISION 1 inventory; do not drop rows)  
+**Evidence tip that landed the 145-row inventory:** `62cea26713779d0d47e32c5db44090b652020142`  
+**Authoritative freeze:** §25 (Revisions 1–13). Where earlier sections conflict with §25, **§25 wins**.
 
 ---
 
@@ -32,7 +36,8 @@ Cite exactly. Do not substitute nearby SHAs, deploys, or project refs.
 | PR #69 (do not merge/apply) | `a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7` |
 | PR #70 (do not merge/apply) | `0f258726c9328ee0204f7b5dee9efceebe7265b9` |
 | Planning branch (this artifact) | `planning/s0-p0-remediation-cuts-20260910` from production main `0559b758bc53df3ec8081e361ffd022c1f19be43` |
-| Cut 1 live catalog (read-only 2026-09-10) | Prod `llbnliixczcqfftxpsmb`: `public_policy_count=375`; `helper_policy_count=145`. See §24 addendum + `docs/evidence/S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910.json` |
+| Cut 1 live catalog (read-only 2026-09-10) | Prod `llbnliixczcqfftxpsmb`: `public_policy_count=375`; `helper_matching_policy_count=145`. Exact policy rows included: **YES** (145). See §24 / §25 + `docs/evidence/S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910.json` |
+| Evidence inventory SHA (145 rows landed) | `62cea26713779d0d47e32c5db44090b652020142` |
 
 S0-A / S0-B / S0-C artifacts are **not** on production main `0559b758…`. They were read from the pinned PR SHAs above. This planning file must not copy those artifacts into the tree.
 
@@ -95,7 +100,7 @@ Default unless disposable-rehearsal evidence forces a change. Independent cuts. 
 
 | Cut | P0 | Objective | Depends on |
 |-----|----|-----------|------------|
-| **Cut 1** | P0-A | Membership / auth boundary: operational authority requires **active** membership; do **not** globally redefine `is_group_member` to active-only | S0-A/B/C PASS; this plan PASS; Daybreak PASS; disposable rehearsal inventory |
+| **Cut 1** | P0-A | Membership / auth boundary: operational authority requires **active** membership; do **not** globally redefine `is_group_member` to active-only | S0-A/B/C PASS; this plan **SECURITY REVISION 1** PASS; Daybreak PASS on this PR (authorizes **implementation on a dedicated branch only**). Rehearsal does **not** precede implementation. Production apply remains a later founder-authorized step |
 | **Cut 2** | P0-B | `notifications_queue` INSERT lockdown (tenant + producer / service-role). Bounded planning only. No real sends | Cut 1 helpers frozen so Cut 2 does not encode status-blind membership |
 | **Cut 3** | P0-C | Storage write/delete fail-open closure: NULL / invalid / foreign group-id **DENY**. Private SELECT unchanged or stronger | Cut 1 active-member primitive available for write checks; do not apply 00112 as-is |
 
@@ -107,19 +112,25 @@ Do **not** start Cut 2 or Cut 3 implementation in this planning PR. Do **not** i
 
 ```
 S0-A PASS ──┐
-S0-B PASS ──┼──► this plan (Cut contracts) ──► Daybreak PASS/HOLD
+S0-B PASS ──┼──► this plan SECURITY REVISION 1 ──► Daybreak RE-REVIEW PASS/HOLD
 S0-C PASS ──┘         │
-                      ├── Daybreak READY FOR REVIEW (2026-09-10 catalog)
-                      │         implement FORBIDDEN until Daybreak PASS
+                      ├── READY FOR DAYBREAK RE-REVIEW (145-row inventory)
+                      │         Implementation NOT AUTHORIZED until Daybreak PASS
+                      │         Daybreak PASS ⇒ IMPLEMENT on dedicated branch only
+                      │         (NOT production apply)
                       ▼
-              Cut 1 forward-only migration (later; not this PR)
+              CONTRACT PASS → IMPLEMENT on dedicated branch
+                → author ONE forward-only migration
+                → disposable apply → negative+regression → SHA freeze
+                → founder prod auth → apply one → read-only postconditions
                       │
                       ├── Cut 2 queue INSERT lockdown (later)
                       └── Cut 3 storage write/delete DENY (later)
                                 │
                                 ▼
               PR #70 requalification (S0-C §11) — after P0 cuts
-              F0 / F3 apply — after S0 exit; F3 must not become weaker
+              F0 / F3 apply — after S0 exit; F3 must be SAFER OR UNCHANGED
+              Rehearsal does NOT precede implementation.
 ```
 
 **Hard edges**
@@ -135,7 +146,7 @@ S0-C PASS ──┘         │
 - Live `pg_policies` / `pg_proc` inventory: **CLOSED** — `public_policy_count=375`, `helper_policy_count=145` (read-only prod 2026-09-10).
 - Duplicate permissive policies that OR with helper-based policies (00109 class): **CLOSED** — memberships UPDATE collision **NOT PRESENT**; remaining inline-role WRITE policies enumerated as Cut 1 **REWRITE** (not helpers-only REPLACE).
 - Inline `memberships` EXISTS clauses that never call the five helpers: **CLOSED** as Cut 1 **REWRITE** scope (§7.6 / §24 neutralize table).
-- Phase 10 disposable behavioral rehearsal: **DEFERRED** (catalog sufficient for dependency clearance; still required before implement).
+- Disposable behavioral rehearsal: **does NOT precede implementation** (R13). Sequence is CONTRACT PASS → IMPLEMENT on dedicated branch → one forward-only migration → disposable apply → negatives/regression → SHA freeze → founder prod auth → apply one. This planning PR remains docs/evidence only.
 
 ---
 
@@ -262,7 +273,7 @@ These are **not** “all membership policies.” They are named because helper R
 
 | Object | Evidence | Classification | Cut 1 |
 |--------|----------|----------------|-------|
-| `create_proxy_member` (live 2026-09-10; `00103` **not** in prod log) | `role IN ('owner','admin','moderator')`; **NO status**; DEFINER; `search_path` unset | **ACTIVE-ONLY OPERATIONAL AUTHORITY** | **REPLACE** in Cut 1: keep live officer-role gate (including **moderator**); add `membership_status = 'active'`. Do **not** import unconfirmed 00103 extras. Do **not** treat repo `00015` any-member body as live |
+| `create_proxy_member` (live 2026-09-10; `00103` **not** in prod log) | signature `(p_group_id, p_display_name, p_phone default null, p_role default member) RETURNS uuid`; plpgsql DEFINER; owner postgres; `search_path` UNSET; grants PUBLIC/anon/authenticated/postgres/service_role; `role IN ('owner','admin','moderator')`; **NO status** | **ACTIVE-ONLY OPERATIONAL AUTHORITY** | **REPLACE** (R3): exact actor set **ACTIVE owner \| ACTIVE admin \| ACTIVE moderator ONLY**. Do **not** add `members.manage`. `REVOKE` PUBLIC/anon; `GRANT` authenticated; pin `search_path`. Do **not** import 00103 extras. Do **not** treat repo `00015` any-member body as live |
 | `cast_ballot` (`00073`, **applied**) | Membership lookup; standing=`good`; **no** `membership_status='active'` (S0-A P1 #5) | Voting = operational | **NOT IN CUT 1** (P1). Must not regress |
 | `is_announcement_visible` (`00074`) | Membership lookup; no status | Visibility | **Leave**. SEPARATE CONTRACT |
 | `is_group_owner` (`00026`; 00061 status filter **not** live) | role=`owner` only | **ACTIVE-ONLY OPERATIONAL** (used by `rls_membership_role_guard` WITH CHECK) | **REPLACE** with `membership_status = 'active'` |
@@ -275,15 +286,15 @@ Source: read-only prod `llbnliixczcqfftxpsmb` 2026-09-10. Counts only; no PII. E
 
 | # | Prior blocker | Disposition |
 |---|---------------|-------------|
-| B1 | No exhaustive live `pg_policies` / helper-caller dump | **CLOSED** — `public_policy_count=375`; `helper_policy_count=145`. `is_active_group_member` / `get_user_active_group_ids` **absent** (Cut 1 CREATE). Live CHECK `memberships_membership_status_check` = `active\|pending_approval\|exited\|suspended\|archived` |
+| B1 | No exhaustive live `pg_policies` / helper-caller dump | **CLOSED** — `public_policy_count=375`; `helper_matching_policy_count=145`. Exact policy rows included: **YES** (145). Authenticated CREATE targets `is_active_group_member(gid)` / `get_my_active_group_ids()` **absent**. Arbitrary-subject active helpers **must not** be granted to authenticated/anon. Live CHECK `memberships_membership_status_check` = `active\|pending_approval\|exited\|suspended\|archived` |
 | B2 | Proxy INSERT policy using `get_user_group_ids` unnamed | **CLOSED** — exact live policy **`Admins can add proxy members`** on `memberships` INSERT, roles `{public}`, `WITH CHECK ((is_proxy = true) AND (proxy_manager_id = auth.uid()) AND (group_id IN (SELECT get_user_group_ids(auth.uid()))))`. Cut 1 **MUST REWRITE** to active operational authority |
 | B3 | Duplicate permissive memberships UPDATE (00109 class) | **CLOSED** — suspect `"Group owners/admins can update memberships"` is **NOT PRESENT**. Live UPDATE = `memberships_update_own` + `rls_membership_role_guard`. Remaining inline-role WRITE policies **NEUTRALIZE** a helpers-only REPLACE → Cut 1 **REWRITE** (add active gate). Full name list in §24 |
 | B4 | `get_relief_branch_summary` HQ path UNKNOWN | **CLOSED — SEPARATE RELIEF PHASE**. Org boundary is `get_user_group_ids()` (unchanged). **UNAFFECTED** by Cut 1 admin helper REPLACE. Do not redefine `get_user_group_ids` |
 | B5 | `rls_evote_insert` / `election_votes` UNKNOWN | **CLOSED — NOT PRESENT**. `election_votes_exists=false`; `rls_evote_insert_exists=false`. Superseded by `election_vote_receipts` + `election_ballots` + `cast_ballot`. **REMOVED from Cut 1** |
 
-**Position gap (confirmed live):** no same-group constraint on `position_assignments`. Cut 1 `has_group_permission` REPLACE **must** `JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid`. Optional same-group trigger (§7.7).
+**Position gap (confirmed live):** no same-group constraint on `position_assignments`. Cut 1 **REQUIRED** (R4): enforce function + BEFORE INSERT OR UPDATE OF (`membership_id`, `position_id`) trigger. Invariant: `memberships.group_id` = `group_positions.group_id` else REJECT. Live `mismatch_count` currently **0**; if `>0` at apply time **ABORT** — no auto-repair/delete/rewrite. `has_group_permission` REPLACE **must** also `JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid`.
 
-Dependency clearance does **not** authorize implement. Daybreak security review still required. Phase 10 disposable behavioral rehearsal is **DEFERRED** (catalog sufficient for this flip).
+Implementation remains **NOT AUTHORIZED** until Daybreak **PASS**. Daybreak PASS authorizes implementation **on a dedicated branch only**, not production apply. Rehearsal does **not** precede implementation (R13).
 
 ---
 
@@ -291,21 +302,29 @@ Dependency clearance does **not** authorize implement. Daybreak security review 
 
 **Objective:** Close P0-A for **operational authority** and **privileged reads that already use admin/permission helpers**, without inventing a global historical-visibility model and without weakening F3.
 
-### 6.1 New primitives
+### 6.1 New primitives (R1 — current-actor authenticated API ONLY)
+
+**CREATE public authenticated API ONLY** (no arbitrary-subject UID argument):
 
 ```
-is_active_group_member(gid uuid, uid uuid DEFAULT auth.uid())
-  → true iff auth/uid is non-null
-     AND EXISTS membership (group_id = gid AND user_id = uid
+is_active_group_member(gid uuid)
+  → true iff auth.uid() IS NOT NULL
+     AND EXISTS membership (group_id = gid AND user_id = auth.uid()
                             AND membership_status = 'active')
 
-get_user_active_group_ids(uid uuid DEFAULT auth.uid())
+get_my_active_group_ids()
   → SETOF uuid
-  → group_id from memberships where user_id = uid
+  → group_id from memberships where user_id = auth.uid()
      AND membership_status = 'active'
 ```
 
-Both: `SECURITY DEFINER`, `STABLE`, `SET search_path = ''` (S0-C pin 1; prefer empty), `REVOKE ALL FROM PUBLIC, anon` then `GRANT EXECUTE` to `authenticated` only (and `service_role` only if a named caller requires it — default **no**).
+Both: `SECURITY DEFINER`, `STABLE`, `SET search_path = ''` (S0-C pin 1; prefer empty), `REVOKE ALL FROM PUBLIC, anon` then `GRANT EXECUTE` to `authenticated` only.
+
+**Arbitrary-subject variants** (`…(gid, uid)`, `get_user_active_group_ids(uid)`, or any authenticated function that accepts another user UUID to probe/enumerate active membership): **NOT** granted to `authenticated` / `anon`. If needed at all → `service_role` / internal only with **explicit** grants.
+
+**Invariant (R1 / R10):** an authenticated user cannot supply another user UUID to probe or enumerate that user's active membership.
+
+**Tests:** User A cannot probe B; anon **DENY**; service_role only if explicitly required.
 
 ### 6.2 Replaced primitives (same signatures as production)
 
@@ -314,14 +333,38 @@ Both: `SECURITY DEFINER`, `STABLE`, `SET search_path = ''` (S0-C pin 1; prefer e
 | `is_group_admin` | `(gid uuid, uid uuid DEFAULT auth.uid())` | EXISTS membership group+user **and** `role IN ('owner','admin')` **and** `membership_status = 'active'` |
 | `is_group_admin_or_owner` | `(p_group_id uuid)` — **not** `gid` | Same as admin check; `user_id = auth.uid()`; **active** |
 | `is_group_owner` | `(gid uuid, uid uuid DEFAULT auth.uid())` | role=`owner` **and** `membership_status = 'active'` |
-| `has_group_permission` | `(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())` | Membership row must be **active**. Owner/admin bypass **only** if that membership is **active**. Position path: `memberships` → `position_assignments` (`ended_at IS NULL`) → `group_positions` → `position_permissions` with **`group_positions.group_id = memberships.group_id = gid`**. Inactive membership ⇒ false even if role string is owner/admin |
+| `has_group_permission` | `(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())` | **Preserve LIVE admin fallback** (R2). See CURRENT vs TARGET vs SECURITY CHANGE vs UNCHANGED BUSINESS SEMANTICS below. |
 
-Admin/owner role string **must not** override inactive membership.
+Admin/owner role string **must not** override inactive membership. Do **not** broaden admin-with-assignments to all permissions.
+
+**R2 — `has_group_permission` CURRENT vs TARGET**
+
+LIVE (from prod):
+1. Find membership by group+user (**any status** today)
+2. owner → TRUE
+3. count open `position_assignments`
+4. admin AND count=0 → TRUE (full bypass)
+5. else TRUE only if open assignment’s position has `perm_key`
+
+No status; no `gp.group_id = gid` join today.
+
+TARGET: **SAME business rules** with ONLY:
+- **A)** `membership_status = 'active'` before any TRUE
+- **B)** position path `JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid`
+
+| Layer | Content |
+|-------|---------|
+| **CURRENT** | Status-blind membership lookup; owner always TRUE; admin with zero open assignments = full bypass; else perm_key on open assignment only; no same-group `gp` join |
+| **TARGET** | Identical steps **after** requiring `membership_status = 'active'`; position path must join `gp.group_id = gid` |
+| **SECURITY CHANGE** | Inactive membership never TRUE; cross-tenant position assignment cannot grant; authenticated must not probe another uid (`uid IS NULL OR uid = auth.uid()`, or drop `uid` from the public signature) |
+| **UNCHANGED BUSINESS SEMANTICS** | Active owner always TRUE; active admin with zero **open** assignments still full bypass; active admin **with** open assignments still perm_key-only (not all-permissions); closed assignment counts toward open=0 exactly as live |
+
+For authenticated exposure of the `uid` param: require `uid IS NULL OR uid = auth.uid()` (or drop `uid` from the public signature).
 
 ### 6.3 Explicitly unchanged in Cut 1
 
 - `is_group_member` — remains the **visibility / existence** helper (status-blind in production). Operational callers that today use it for **WRITE** must be migrated to `is_active_group_member` **only when the live policy is named** (§7).
-- `get_user_group_ids` — remains the **visibility tenant-set** helper. Operational / privileged-read callers migrate to `get_user_active_group_ids` only when named and qualified.
+- `get_user_group_ids` — remains the **visibility tenant-set** helper. Body **UNCHANGED** (R8). Every OPERATIONAL WRITE using it is **REWRITE** to `get_my_active_group_ids()` / `is_active_group_member(gid)` **or** a proven inherit-REPLACE path. **ZERO UNKNOWN**.
 - `is_announcement_visible` — visibility; not rewritten.
 - `can_view_member_financial` — not rewritten; privileged branch inherits `is_group_admin_or_owner`. Own-row `!= 'exited'` stays (personal finance history). **Do not** invent archived/exited **peer** finance access.
 - `cast_ballot` — P1; out of Cut 1. Live: `standing = 'good'` only; **no** `membership_status`. Must not regress.
@@ -337,7 +380,7 @@ Actor → **active** membership → `position_assignments` (open) → `group_pos
 
 Cross-tenant position assignment (possible today: two FKs, no composite; S0-A same-group composites **MISSING**) must **not** grant permission.
 
-Optional extra: table constraint on `position_assignments` (§7). If omitted in Cut 1, the helper join is still mandatory.
+**REQUIRED extra (R4):** enforce function + BEFORE INSERT OR UPDATE OF (`membership_id`, `position_id`) trigger on `position_assignments`. Preflight: live `mismatch_count` currently **0**; if `>0` at apply time **ABORT** — no auto-repair/delete/rewrite. The helper join remains mandatory even with the trigger.
 
 ### 6.5 Loud preconditions (migration, later)
 
@@ -347,7 +390,8 @@ Abort (`RAISE`) unless:
 - `pg_get_functiondef` for the five helpers matches S0-A status-blind expectation (no `membership_status` predicate).
 - `is_group_admin_or_owner` argument name is `p_group_id` (not `gid`).
 - Live fingerprint compared to S0-C `0c39479e0b595fe5e1652169855abb96` is recorded (MATCH or explicit DRIFT accept).
-- Live `pg_policies` dump for helper write/RPC callers is **subset of** §7 allowlist **or** the migration aborts on extras.
+- Live `pg_policies` dump for helper write/RPC callers is **subset of** §7 allowlist **or** the migration **ABORT**s on extras.
+- **R12:** missing expected policy **OR** security-relevant predicate drift → **ABORT** (not `NOTICE`+skip). All-or-nothing. Partial continue is **FORBIDDEN**.
 
 ### 6.6 Postconditions
 
@@ -363,12 +407,14 @@ Abort (`RAISE`) unless:
 
 **Forbidden phrasing:** “all membership policies,” “all RLS,” “harden helpers everywhere.”
 
-### 7.1 Functions — CREATE (Cut 1)
+### 7.1 Functions — CREATE (Cut 1) — authenticated public API ONLY (R1 / R10)
 
 | Schema | Name | Signature |
 |--------|------|-----------|
-| `public` | `is_active_group_member` | `(gid uuid, uid uuid DEFAULT auth.uid())` |
-| `public` | `get_user_active_group_ids` | `(uid uuid DEFAULT auth.uid())` |
+| `public` | `is_active_group_member` | `(gid uuid)` — `auth.uid()` ACTIVE member of `gid` |
+| `public` | `get_my_active_group_ids` | `()` — active group ids for `auth.uid()` only |
+
+Arbitrary-subject variants are **not** part of the authenticated public API. If created at all, they are service_role/internal only with explicit grants. Authenticated callers must not be able to supply another user UUID.
 
 ### 7.2 Functions — REPLACE (Cut 1)
 
@@ -378,7 +424,7 @@ Abort (`RAISE`) unless:
 | `public` | `is_group_admin_or_owner` | `(p_group_id uuid)` |
 | `public` | `is_group_owner` | `(gid uuid, uid uuid DEFAULT auth.uid())` |
 | `public` | `has_group_permission` | `(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())` |
-| `public` | `create_proxy_member` | live signature from prod catalog (officer `role IN ('owner','admin','moderator')`; **no** status; DEFINER; `search_path` unset). Preserve moderator. Add `membership_status = 'active'`. Do **not** apply `00103` as-is |
+| `public` | `create_proxy_member` | live signature `create_proxy_member(p_group_id, p_display_name, p_phone default null, p_role default member) RETURNS uuid`; plpgsql; SECURITY DEFINER; owner postgres; `search_path` UNSET; live grants PUBLIC/anon/authenticated/postgres/service_role; live roles owner/admin/moderator; **no** status check. Cut 1: exact actor set **ACTIVE owner \| ACTIVE admin \| ACTIVE moderator ONLY**. Do **not** add `members.manage`. Add ACTIVE; `REVOKE` PUBLIC/anon; `GRANT` authenticated; pin `search_path`. Do **not** apply `00103` as-is |
 
 ### 7.3 Functions — DO NOT TOUCH in Cut 1
 
@@ -386,28 +432,35 @@ Abort (`RAISE`) unless:
 
 `get_relief_branch_summary`: **LEAVE** — **SEPARATE RELIEF PHASE** (B4 CLOSED). Org boundary via unchanged `get_user_group_ids()`. UNAFFECTED by Cut 1 admin REPLACE.
 
-### 7.4 Policies — REWRITE in Cut 1 (`is_group_member` / member-write helper → `is_active_group_member`)
+### 7.4 Policies — REWRITE in Cut 1 (23 helper-matching operational writes from evidence)
 
-Live-confirmed helper WRITE policies (do **not** rewrite SELECT visibility):
+Exact live names from the 145-row inventory (`REWRITE IN CUT 1` = **23**). Do **not** rewrite SELECT visibility. Rest of helper-matching **writes** inherit REPLACE (SAFE).
 
-| Policy | Table | Command |
-|--------|-------|---------|
-| `rls_pay_insert` | `payments` | INSERT |
-| `rls_att_insert` | `event_attendances` | INSERT |
-| `rls_fr_insert` | `feed_reactions` | INSERT |
-| `rls_pcon_write` | `project_contributions` | INSERT |
-| `rls_rsvp_insert` | `event_rsvps` | INSERT |
-| `rls_ep_insert` | `event_photos` | INSERT |
-| `rls_amend_insert` | `constitution_amendments` | INSERT |
-| `rls_prs_insert` | `payment_reminders_sent` | INSERT |
-| `rls_af_all` | `activity_feed` | ALL (write path) |
-| `rls_fin_update` | `fines` | UPDATE |
-| `rls_ad_update` | `announcement_deliveries` | UPDATE |
-| `rls_hsr_insert` | `hosting_swap_requests` | INSERT |
-| `disputes_insert` | `disputes` | INSERT |
-| `Users can create disputes` / `Users can update disputes` / `Users can delete disputes` | `disputes` | I/U/D |
-| `member_insert_audit_logs` | `group_audit_logs` | INSERT |
-| `Admins can add proxy members` | `memberships` | INSERT |
+| Table | Policy | Command | Live helper |
+|-------|--------|---------|-------------|
+| `activity_feed` | `rls_af_all` | ALL | `is_group_member` |
+| `announcement_deliveries` | `rls_ad_update` | UPDATE | `is_group_member` |
+| `committee_members` | `Admins can manage committee members` | ALL | `get_user_group_ids` + inline role |
+| `committees` | `Admins can manage committees` | ALL | `get_user_group_ids` + inline role |
+| `constitution_amendments` | `rls_amend_insert` | INSERT | `is_group_member` |
+| `disputes` | `Users can create disputes in their groups` | INSERT | `get_user_group_ids` |
+| `disputes` | `Users can delete disputes in their groups` | DELETE | `get_user_group_ids` |
+| `disputes` | `Users can update disputes in their groups` | UPDATE | `get_user_group_ids` |
+| `disputes` | `disputes_insert` | INSERT | `get_user_group_ids` |
+| `event_attendances` | `rls_att_insert` | INSERT | `is_group_member` |
+| `event_photos` | `rls_ep_insert` | INSERT | `is_group_member` |
+| `event_rsvps` | `rls_rsvp_insert` | INSERT | `is_group_member` |
+| `exchange_rates` | `HQ admins can manage exchange rates` | ALL | `get_user_group_ids` + inline role |
+| `feed_reactions` | `rls_fr_insert` | INSERT | `is_group_member` |
+| `fines` | `rls_fin_update` | UPDATE | `is_group_member` |
+| `group_audit_logs` | `member_insert_audit_logs` | INSERT | `get_user_group_ids` |
+| `hosting_swap_requests` | `rls_hsr_insert` | INSERT | `get_user_group_ids` |
+| `memberships` | `Admins can add proxy members` | INSERT | `get_user_group_ids` |
+| `payment_reminders_sent` | `rls_prs_insert` | INSERT | `is_group_member` |
+| `payments` | `rls_pay_insert` | INSERT | `is_group_member` |
+| `project_contributions` | `rls_pcon_write` | INSERT | `is_group_member` |
+| `sub_group_transfers` | `Admins can update transfers` | UPDATE | `get_user_group_ids` + inline role |
+| `sub_group_transfers` | `Users can create transfers` | INSERT | `get_user_group_ids` |
 
 **REMOVED:** `rls_evote_insert` / `election_votes` — **NOT PRESENT**.
 
@@ -421,7 +474,7 @@ Live-confirmed helper WRITE policies (do **not** rewrite SELECT visibility):
 | `"Users can create transfers"` | `sub_group_transfers` | INSERT |
 | `"Admins can manage committees"` / `"Admins can manage committee members"` / `"Admins can update transfers"` / `transfers_delete` | listed tables | ALL/UPDATE/INSERT — inline role + helper; add active gate |
 | `member_insert_audit_logs` | `group_audit_logs` | INSERT |
-| `get_relief_branch_summary` | function | **LEAVE** — SEPARATE RELIEF PHASE (B4). Do not migrate to `get_user_active_group_ids` in Cut 1 |
+| `get_relief_branch_summary` | function | **LEAVE** — SEPARATE RELIEF PHASE (B4). Do not migrate to `get_my_active_group_ids` in Cut 1 |
 
 ### 7.6 Policies — inherit REPLACE vs NEUTRALIZE REWRITE (finalized)
 
@@ -437,19 +490,21 @@ Live-confirmed helper WRITE policies (do **not** rewrite SELECT visibility):
 
 payments (`Group admins and treasurers can record payments`); fines (`Admin manage fines`, `fine_types_admin`); `event_attendances` (`Group admins can manage attendance`); `position_assignments` (`Group owners/admins can manage assignments`); hosting assignments/rosters (`Group admins can manage *`); elections / election_options (`Admins can manage *`); documents (`Admins can manage documents`); projects / milestones / expenses (`Admin manage *`); `savings_*` (`Admins can manage *`); relief plans/enrollments/claims/payouts/remittances admin+member **write**; contribution types/obligations (`Group admins *`); `payment_reminder_rules` (`Admin manage reminder rules`); constitutions/amendments admin write; activity_feed (`Members insert feed`, `Admin update feed`); feed_reactions (`Members react`); events (`Group admins can create/update/delete`); invitations (`Group admins *`); `group_payment_config` / `group_subscriptions` admin write; `loan_configs_*` / `loans_*` / `loan_repayments_*` / `loan_schedule_*` writes; `loan_requests_v1`; `disputes_admin`; committees / committee_members admin manage; `sub_group_transfers` create/update; `transfers_delete`; `HQ admins can manage exchange rates`; `family_members` `rls_fm_*` writes; event_photos (`Members upload photos`); project_contributions (`Members contribute to projects`); plus §7.4 helper-write names.
 
-### 7.7 Constraints / indexes (optional, named)
+### 7.7 Constraints / indexes (R4 same-group trigger is **REQUIRED**)
 
 | Object | Intent |
 |--------|--------|
-| **NEW** `position_assignments_membership_position_same_group` (CHECK via trigger or constraint trigger; Postgres CHECK cannot subquery) | `memberships.group_id` of `membership_id` = `group_positions.group_id` of `position_id` |
+| **REQUIRED** `FUNCTION public.enforce_position_assignment_same_group()` + `TRIGGER trg_position_assignments_same_group` BEFORE INSERT OR UPDATE OF (`membership_id`, `position_id`) ON `public.position_assignments` | Invariant: `memberships.group_id` of `membership_id` = `group_positions.group_id` of `position_id` else **REJECT**. Preflight `mismatch_count` currently **0**; if `>0` at apply **ABORT** — no auto-repair/delete/rewrite |
 | Do **not** drop `memberships_membership_status_check` | Live five-value set (S0-A). Do not revert to two-value or three-value 00061 CHECK |
-| Do **not** apply 00061's `idx_memberships_status_user` unless rehearsal wants it — optional, not required to close P0-A |
+| Do **not** apply 00061's `idx_memberships_status_user` unless a later rehearsal wants it — not required to close P0-A |
 
 ### 7.8 Grants / revokes (Cut 1)
 
 - `REVOKE ALL ON FUNCTION` each new/replaced function `FROM PUBLIC, anon`.
-- `GRANT EXECUTE` to `authenticated` only unless a named service caller is proven.
-- `has_group_permission`: revoke the `00072` **anon** execute grant.
+- `GRANT EXECUTE` on `is_active_group_member(gid)` and `get_my_active_group_ids()` to `authenticated` only. Do **not** GRANT authenticated/anon any arbitrary-subject active helper (R1 / R10).
+- `GRANT EXECUTE` to `authenticated` on replaced functions unless a named service caller is proven.
+- `has_group_permission`: revoke the `00072` **anon** execute grant. Authenticated `uid` exposure: `uid IS NULL OR uid = auth.uid()` (or drop `uid` from the public signature).
+- `create_proxy_member`: `REVOKE` PUBLIC/anon; `GRANT` authenticated (R3).
 - Do not GRANT/REVOKE table `TRUNCATE` in Cut 1 (S0-A P1 #6 — separate).
 
 ### 7.9 Out of Cut 1 object scope (explicit)
@@ -465,7 +520,8 @@ PR #70 `notification_policies`.
 `is_group_member` / `get_user_group_ids` bodies.  
 `memberships_insert_pending`.  
 `cast_ballot` (P1).  
-SELECT visibility policies that only use `is_group_member` / `get_user_group_ids`.
+SELECT visibility policies that only use `is_group_member` / `get_user_group_ids`.  
+P0-B / P0-C. M2. F3 / F0 / PR70 apply. Arbitrary-subject authenticated active helpers.
 
 ---
 
@@ -479,7 +535,7 @@ SELECT visibility policies that only use `is_group_member` / `get_user_group_ids
 | `suspended` owner/admin | Helpers true → can admin peers, phones RPCs, obligations, announcements, minutes, transfers | Helpers **false**. Privileged reads via those helpers **false**. Own-row financial via `can_view_member_financial` own clause (`!= exited`) still possible |
 | `exited` (1 row in prod S0-B) | Helpers true if role still owner/admin (role never cleared — vocabulary doc). Can still pass admin RPCs / RLS | Admin/permission **false**. `is_group_member` still true → **group-wide SELECT still possible** until historical contract. That residual is **accepted for Cut 1** and marked SEPARATE CONTRACT — **not** silently closed |
 | `archived` | Same as status-blind | Same as suspended for ops helpers (deny). Personal history **not invented** |
-| Dual-group user (active A, exited B) | `get_user_group_ids` returns A and B; admin of B still works | `get_user_group_ids` still A and B (unchanged). `is_group_admin(B)` **false**. `get_user_active_group_ids` returns A only |
+| Dual-group user (active A, exited B) | `get_user_group_ids` returns A and B; admin of B still works | `get_user_group_ids` still A and B (unchanged). `is_group_admin(B)` **false**. `get_my_active_group_ids()` returns A only |
 | Cross-tenant | Should already deny via group_id mismatch | Must remain deny. Position cross-tenant grant closed in `has_group_permission` |
 | Service role / `auth.uid()` NULL | DEFINER triggers skip (`00075`); RPCs raise or skip | Unchanged **SERVICE/SYSTEM ONLY**. Helpers with NULL uid return false |
 | Anon | Table grants exist (S0-A); RLS intended gate. `has_group_permission` executable by anon (`00072`) | Anon execute revoked on touched functions. Anon still **DENY** on authenticated policies |
@@ -492,7 +548,7 @@ SELECT visibility policies that only use `is_group_member` / `get_user_group_ids
 Official values (S0-A live): `active`, `pending_approval`, `exited`, `suspended`, `archived`.  
 `"pending"` is **not** a DB value (vocabulary doc).
 
-| Status | `is_group_member` (unchanged) | `is_active_group_member` | `is_group_admin` / `_or_owner` / `is_group_owner` | `has_group_permission` | `get_user_group_ids` (unchanged) | `get_user_active_group_ids` |
+| Status | `is_group_member` (unchanged) | `is_active_group_member(gid)` | `is_group_admin` / `_or_owner` / `is_group_owner` | `has_group_permission` | `get_user_group_ids` (unchanged) | `get_my_active_group_ids()` |
 |--------|-------------------------------|--------------------------|---------------------------------------------------|------------------------|----------------------------------|-----------------------------|
 | `active` | true if row exists | true | true if role/perm matches | true if chain matches | includes group | includes group |
 | `pending_approval` | true | **false** | **false** | **false** | includes group | **excludes** |
@@ -524,7 +580,7 @@ auth.uid()
 
 Owner/admin short-circuit runs **only after** the active membership row for `(gid, uid)` is found. It must **not** read a membership in group B to authorize group A.
 
-Optional constraint trigger: reject `position_assignments` insert/update when membership.group_id ≠ position.group_id.
+**REQUIRED** constraint trigger (R4): reject `position_assignments` INSERT/UPDATE OF (`membership_id`, `position_id`) when membership.group_id ≠ position.group_id. Live mismatch_count **0**; if `>0` at apply **ABORT**.
 
 S0-A: same-group composites **MISSING** for attendance, loans, fines, election candidates/positions, savings. Those constraints are **not** Cut 1 unless listed in §7.7.
 
@@ -557,6 +613,8 @@ AND public.has_group_permission(p_group_id, 'finances.manage', auth.uid())
 - Cut 1 must **not** create `financial_core` objects.
 - Future F3 apply remains production-baseline + forward-only (S0-C). Prefer a bounded compatibility/precondition migration over editing frozen F3 files.
 
+**F3 verdict (R freeze):** **SAFER OR UNCHANGED** — active AND same-group permission path; **no wider admin bypass than live**. If Cut 1 would broaden admin-with-assignments to all permissions → **HOLD**. F0 / F3 apply remain **OUT OF SCOPE**.
+
 ---
 
 ## 12. Service / system behavior
@@ -565,7 +623,7 @@ AND public.has_group_permission(p_group_id, 'finances.manage', auth.uid())
 |--------|-------|
 | `auth.uid()` NULL (service_role, many triggers) | `00075` self-escalation trigger already early-returns. Helpers return false for NULL uid. **Do not** add `auth.uid()` checks that break service-role DEFINER writes that currently rely on NULL skip |
 | Cron / producers | Must keep working via service_role (RLS bypass) or existing DEFINER. **No notification sends** in planning or Cut 1 apply |
-| `GRANT … TO service_role` on new helpers | Only if rehearsal names a non-bypass caller. Default: authenticated only |
+| `GRANT … TO service_role` on new helpers | Only if a named internal caller is explicitly required. Default: authenticated only. Never grant authenticated/anon an arbitrary-subject active helper |
 | Platform staff (`is_platform_staff`) | Unchanged. Staff policies are **not** rewritten in Cut 1 |
 | Africa's Talking / WhatsApp / Resend | **ZERO messages.** Cut 1 is authz SQL only |
 
@@ -609,7 +667,7 @@ Rehearsal actors: unauthenticated, `anon`, authenticated with **no** membership,
 | `pct_manage` | D | D | D | A if members.manage | A | D | D | D | D | D on B | D | D | D | N |
 | `get_member_phones` / roster contacts | D | D | D | A | D (admin helper, not perm) | D | D | D | D | D on B | D | D | D | N |
 | Transfer RPCs `00082` | D | D | self-request paths per existing body | A | D unless admin helper | D | D | D | D | D on B | D | D | D | N |
-| `create_proxy_member` | D | D | D (after Cut 1; today A if any member) | A | A if members.manage | D | D | D | D | D on B | D | D | D | N |
+| `create_proxy_member` | D | D | D (ordinary member) | A if ACTIVE owner/admin/moderator | **D** (`members.manage`-only **DENY**) | D | D | D | D | D on B | D | D | D | N |
 | `cast_ballot` | N | N | N | N | N | N | N | N | N | N | N | N | N | N |
 | `notifications_queue` INSERT | N | N | N | N | N | N | N | N | N | N | N | N | N | N |
 | Storage INSERT NULL path | N | N | N | N | N | N | N | N | N | N | N | N | N | N |
@@ -617,6 +675,21 @@ Rehearsal actors: unauthenticated, `anon`, authenticated with **no** membership,
 | Peer payment SELECT (admin helper path) | D | D | D | A | A if finances.* | D | D | D | D | D on B | D | D | D | N |
 
 Stale session: JWT valid, membership status flipped to exited/suspended under the user → operational helpers **D**.
+
+**R1 / R10 arbitrary-UID negatives (required):** User A calling any authenticated active helper with B’s UUID → **DENY** / rejected (no public signature that accepts another uid). Anon → **DENY**. `get_my_active_group_ids()` returns only A’s active groups.
+
+**R3 / R9 `create_proxy_member` actor set (required):** ACTIVE owner **A**; ACTIVE admin **A**; ACTIVE moderator **A**; pending/suspended/exited/archived of those roles **D**; ordinary member **D**; `members.manage`-only (non officer) **D**. Do not broaden.
+
+**R11 `has_group_permission` admin fallback (required — preserve LIVE):**
+
+| Actor | Expected |
+|-------|----------|
+| Active admin, **no** open `position_assignments` | Full bypass **ALLOW** (if active) |
+| Active admin, open assignment **lacking** `perm_key` | **DENY** that perm |
+| Active admin, open assignment **with** `perm_key` | **ALLOW** that perm |
+| Closed assignment (`ended_at IS NOT NULL`) | Counts toward open=0 exactly as live (closed-only admin ⇒ full bypass if active) |
+| Active owner | Always **TRUE** if active (separate from admin fallback) |
+| Inactive owner / inactive admin (any assignment state) | **DENY** |
 
 ---
 
@@ -657,22 +730,35 @@ Must remain true after Cut 1:
 2. **Isolated restore-derived project** in the S0-B pattern (`Restore to new project`; temp ref ≠ `llbnliixczcqfftxpsmb`). S0-B dest `fwosdtxdtwtqgvtejmkr` was **deleted** after proof — spin a **new** isolated restore if a data-shaped rehearsal is required.
 3. Local Supabase only if extensions live in `extensions` and roles `anon`/`authenticated`/`service_role` exist.
 
-**Rehearsal steps (Cut 1)**
+**R13 rehearsal sequence (frozen — rehearsal does NOT precede implementation)**
+
+```
+CONTRACT PASS
+  → IMPLEMENT on dedicated branch
+  → author ONE forward-only migration
+  → disposable apply
+  → negative + regression
+  → SHA freeze
+  → founder prod auth
+  → apply one
+  → read-only postconditions
+```
+
+Daybreak **PASS** on this PR authorizes **IMPLEMENTATION ON BRANCH only**, **NOT** production apply.
+
+**Disposable-apply steps (after implementation is authored on the dedicated branch)**
 
 1. Record temp project ref; assert ≠ `llbnliixczcqfftxpsmb`.
-2. Dump `pg_proc` for the five helpers + `is_group_owner` + `create_proxy_member` + `has_group_permission` grants.
+2. Dump `pg_proc` for the five helpers + `is_group_owner` + `create_proxy_member` + `has_group_permission` grants + new current-actor helpers.
 3. Dump `pg_policies` where `qual`/`with_check` matches `is_group_member|is_group_admin|is_group_admin_or_owner|has_group_permission|get_user_group_ids|is_group_owner`.
-4. Diff dump vs §7 allowlist → extras = **HOLD** (do not improvise drops).
-5. Apply **one** forward-only Cut 1 migration in a transaction; loud preconditions.
-6. Execute §14 / §15 as SQL under `authenticated` SET ROLE / JWT claims — counts and booleans only (no PII).
-7. Confirm `is_group_member` / `get_user_group_ids` bodies unchanged.
+4. Diff dump vs §7 / §25 allowlist → missing expected policy **or** security-relevant predicate drift = **ABORT** (R12). Do not `NOTICE`+skip.
+5. Apply **one** forward-only Cut 1 migration in a transaction; loud preconditions; all-or-nothing.
+6. Execute §14 / §15 / §25.11 as SQL under `authenticated` SET ROLE / JWT claims — counts and booleans only (no PII). Include R1/R10 arbitrary-UID negatives, R3 proxy actor set, R11 admin-with/without-position.
+7. Confirm `is_group_member` / `get_user_group_ids` bodies unchanged (R8).
 8. Neutralize outbound (`pg_cron`/`pg_net`/http) as S0-B documented.
 9. Destroy temp project only after evidence committed; re-check prod still `ACTIVE_HEALTHY`.
 
-**Phase 10 — disposable behavioral rehearsal: DEFERRED.**  
-The 2026-09-10 live catalog (`public_policy_count=375`, `helper_policy_count=145`, named helpers, B2–B5 closures) is **sufficient** to close §5.7 dependency blockers and flip this plan to **READY FOR DAYBREAK SECURITY REVIEW**. Phase 10 SQL behavioral matrix (§14 / §15) remains required **before implement**, on a disposable target only — it does **not** block Daybreak review. Catalog ≠ apply.
-
-**Never** use rehearsal as production apply.
+**Never** use rehearsal as production apply. This planning PR does **not** implement.
 
 ---
 
@@ -682,7 +768,7 @@ S0-C production forward-migration contract + security pins 1–10 and F1–F6:
 
 1. **ONE** new forward-only file (timestamped). Never edit `00001`–`00113`. Never “apply everything pending.”
 2. Single transaction (S0-C F3).
-3. Loud preconditions (`RAISE` on unexpected helper signatures, missing tables, extra write policies, fingerprint DRIFT without explicit accept).
+3. Loud preconditions (`RAISE` on unexpected helper signatures, missing tables, extra write policies, fingerprint DRIFT without explicit accept). **R12:** missing expected policy **OR** security-relevant predicate drift → **ABORT** (not `NOTICE`+skip). All-or-nothing. Partial continue **FORBIDDEN**.
 4. `SET search_path = ''` on DEFINER (pin 1); qualify `public.` / `auth.`.
 5. After each FUNCTION: `REVOKE ALL FROM PUBLIC, anon` then minimal GRANT (F2).
 6. Auth-before-disclosure in DEFINER bodies (F1).
@@ -756,26 +842,36 @@ Use `is_active_group_member` / `is_group_admin` (post-Cut 1) for group-scoped wr
 
 ## 21. Daybreak handoff contract
 
-**Daybreak handoff: READY FOR REVIEW.**  
-Implement Cut 1 remains **FORBIDDEN** until Daybreak issues **PASS**. This planning flip is docs/evidence only.
+**Daybreak handoff: SECURITY REVISION 1 — READY FOR RE-REVIEW.**  
+**Implementation: NOT AUTHORIZED** until Daybreak issues **PASS**. This planning flip is docs/evidence only.
+
+Daybreak **PASS** on this PR authorizes **IMPLEMENTATION ON A DEDICATED BRANCH only**, **NOT** production apply. Rehearsal does **not** precede implementation (R13).
 
 | Gate | Result |
 |------|--------|
 | Authority pins exact | PASS |
 | P0s limited to S0-A A/B/C | PASS |
 | Cut order 1→2→3 | PASS |
-| Cut 1 helper contract (active ops; do not globalize `is_group_member`) | PASS (design) |
-| Exact object scope (functions) | PASS — finalized §7.1–7.3 / §24 |
-| Exact object scope (policies) | PASS — B2 named; B3 collision absent; neutralize + helper-write REWRITE lists finalized §7.4–7.6 / §24 |
-| Critical operational callers classified | PASS — §5.7 CLOSED |
-| F3 never weaker | PASS (design) |
+| R1 current-actor helpers (no authenticated arbitrary-UID) | PASS (design freeze) |
+| R2 `has_group_permission` LIVE admin fallback preserved + ACTIVE + same-group join only | PASS (design freeze) |
+| R3 `create_proxy_member` ACTIVE owner/admin/moderator only; no `members.manage` | PASS (design freeze) |
+| R4 `position_assignments` same-group trigger **REQUIRED** | PASS (design freeze) |
+| R5 Exact policy rows included | **YES — 145** |
+| R6 Collision matrix (helper-matching WRITEs + §24 NEUTRALIZES); ANY BYPASS REMAINS? **NO** | PASS — §25.6 + evidence JSON |
+| R7 Payments exactness | PASS — §25.7 |
+| R8 `is_group_member` / `get_user_group_ids` bodies UNCHANGED; every ops WRITE classified | PASS — ZERO UNKNOWN |
+| R9 Active moderator first-class; do not broaden | PASS |
+| R10 Arbitrary UID negatives | PASS (design freeze) |
+| R11 Admin with/without position tests | PASS (design freeze) |
+| R12 Migration abort (missing policy / predicate drift) | **ABORT**, not NOTICE+skip |
+| R13 Rehearsal sequence | CONTRACT PASS → IMPLEMENT on branch → … ; rehearsal does **not** precede implement |
+| F3 | **SAFER OR UNCHANGED**; if broadened → HOLD |
 | Historical access not invented | PASS |
-| Relief HQ | PASS as **SEPARATE PHASE** (B4) — leave `get_relief_branch_summary` / `get_user_group_ids` |
-| Election legacy | PASS as **REMOVED** (B5) — `election_votes` / `rls_evote_insert` NOT PRESENT |
-| Phase 10 disposable behavioral | **DEFERRED** — catalog sufficient for review; required before implement |
-| No implement / no prod apply in this PR | PASS |
+| Relief HQ | PASS as **SEPARATE PHASE** (B4) |
+| Election legacy | PASS as **REMOVED** (B5) |
+| No implement / no prod apply / no migration SQL in this PR | PASS |
 
-**Implement is forbidden** until Daybreak security review **PASS**. A Daybreak PASS still does **not** authorize production apply without a separate founder-authorized apply step.
+**Implementation is not authorized** until Daybreak security re-review **PASS**. A Daybreak PASS still does **not** authorize production apply without a separate founder-authorized apply step.
 
 Prior flip criteria (now met by the 2026-09-10 live catalog + this addendum):
 
@@ -805,7 +901,9 @@ Prior flip criteria (now met by the 2026-09-10 live catalog + this addendum):
 - No notification_policies / agentic_action_intents.
 - No TRUNCATE grant cleanup (P1).
 - No service-worker cache work (P1).
-- No implementing Cut 1 / 2 / 3.
+- No implementing Cut 1 / 2 / 3 in this PR (implementation remains **NOT AUTHORIZED** until Daybreak PASS, and then only on a dedicated branch).
+- No authenticated arbitrary-subject active helper (`get_user_active_group_ids(uid)`, `is_active_group_member(gid, uid)` granted to authenticated/anon).
+- No broadening admin-with-assignments or adding `members.manage` to `create_proxy_member`.
 
 ---
 
@@ -826,7 +924,13 @@ Stop and HOLD (do not improvise) if any of the following occur:
 11. Inventing historical access rules to “make exited members work.”
 12. Using 00061's `!= 'exited'` as the operational predicate.
 13. Renaming `is_group_admin_or_owner(p_group_id)` in a way that 42P13-fails REPLACE.
-14. Daybreak starting implementation before Daybreak security review **PASS**, or any implement while this document still forbids it.
+14. Starting implementation before Daybreak security re-review **PASS**, or any implement / prod apply while this document marks implementation **NOT AUTHORIZED**.
+15. Granting authenticated/anon execute on an arbitrary-subject active-membership helper (R1 / R10).
+16. Broadening `has_group_permission` admin-with-assignments to all permissions (R2 / F3 HOLD).
+17. Adding `members.manage` to `create_proxy_member` or broadening its actor set past ACTIVE owner/admin/moderator (R3 / R9).
+18. Treating the `position_assignments` same-group trigger as optional, or auto-repairing mismatches (R4).
+19. `NOTICE`+skip / partial continue on missing expected policy or security-relevant predicate drift (R12).
+20. Running disposable rehearsal **before** implementation authorship, or treating rehearsal as production apply (R13).
 
 ---
 
@@ -834,16 +938,19 @@ Stop and HOLD (do not improvise) if any of the following occur:
 
 | Item | Value |
 |------|-------|
-| Overall recommended verdict | **PASS — CUT 1 DEPENDENCIES CLEARED; READY FOR DAYBREAK SECURITY REVIEW** |
-| Daybreak implement Cut 1 | **FORBIDDEN** until Daybreak **PASS** |
-| Why PASS (dependencies) | Live catalog closed B1–B5: 375 public / 145 helper policies; proxy INSERT named; memberships UPDATE collision absent; relief HQ separate phase; `election_votes` not present; neutralize REWRITE list finalized |
-| What remains forbidden | Cut 1/2/3 migration authorship and apply; any prod SQL write; Phase 10 is deferred but still required before implement |
-| What is frozen | Pins; P0 trio; order Cut1→2→3; active-only operational helper contract; F3 compatibility; migration rules; Cut 2/3 bounded contracts; STOP rules; §7 / §24 object lists |
+| Overall recommended verdict | **PASS — CUT 1 SECURITY REVISION COMPLETE; READY FOR DAYBREAK RE-REVIEW** |
+| Status | **SECURITY REVISION 1 — READY FOR DAYBREAK RE-REVIEW** |
+| Implementation | **NOT AUTHORIZED** until Daybreak **PASS** |
+| Daybreak PASS authorizes | **IMPLEMENTATION ON A DEDICATED BRANCH only** — **NOT** production apply |
+| Exact policy rows included | **YES** — **145** |
+| Why PASS (revision) | R1–R13 frozen; 145-row inventory retained; collision matrix ANY BYPASS REMAINS? **NO**; payments exact; current-actor helpers; LIVE admin fallback preserved; same-group trigger REQUIRED; migration ABORT; rehearsal does not precede implement |
+| What remains forbidden on this PR | Cut 1/2/3 migration authorship; any prod SQL write; app code; historical migration edits |
+| What is frozen | §25 Revisions 1–13 + final object contract; F3 SAFER OR UNCHANGED; Cut 2/3 bounded; STOP rules |
 | Prod apply | ZERO |
 | Historical migrations modified | NO |
 | Mutations / messages | ZERO |
 
-**Next authorized step (not automatic):** Daybreak security review of this contract + inventory. Implement remains forbidden until Daybreak **PASS**. Phase 10 disposable behavioral rehearsal stays deferred until then.
+**Next authorized step (not automatic):** Daybreak security **re-review** of this SECURITY REVISION 1 contract + 145-row inventory. Implementation remains **NOT AUTHORIZED** until Daybreak **PASS**.
 
 ---
 
@@ -855,17 +962,17 @@ Stop and HOLD (do not improvise) if any of the following occur:
 **Production mutation:** ZERO  
 **Remediation migration in this PR:** NONE  
 **App code in this PR:** NONE  
-**Phase 10 disposable behavioral:** **DEFERRED** (catalog sufficient for dependency clearance)
+**Rehearsal:** does **not** precede implementation (R13). This addendum is catalog/docs only.
 
 ### 24.1 Overall flip
 
 | Item | Value |
 |------|-------|
 | Prior verdict (tip `8d621b6baecf432dfc2ea7adfc6c8763725fb81b`) | **HOLD** |
-| This addendum | **PASS — CUT 1 DEPENDENCIES CLEARED; READY FOR DAYBREAK SECURITY REVIEW** |
-| Implement | **FORBIDDEN** until Daybreak **PASS** |
-| Catalog | `public_policy_count=375`; `helper_policy_count=145` |
-| New helpers present? | `is_active_group_member` **absent**; `get_user_active_group_ids` **absent** |
+| This addendum + §25 | **PASS — CUT 1 SECURITY REVISION COMPLETE; READY FOR DAYBREAK RE-REVIEW** |
+| Implementation | **NOT AUTHORIZED** until Daybreak **PASS** (branch implement only after PASS; not prod apply) |
+| Catalog | `public_policy_count=375`; `helper_matching_policy_count=145`. Exact policy rows included: **YES** |
+| New authenticated helpers present? | `is_active_group_member(gid)` **absent**; `get_my_active_group_ids()` **absent**. Arbitrary-subject active helpers must not be granted to authenticated/anon |
 | Live CHECK | `memberships_membership_status_check` = `active \| pending_approval \| exited \| suspended \| archived` |
 
 Do **not** redefine `is_group_member` or `get_user_group_ids` globally. Leave SELECT visibility helpers unchanged. Keep `memberships_insert_pending`.
@@ -879,12 +986,12 @@ Do **not** redefine `is_group_member` or `get_user_group_ids` globally. Leave SE
 | `is_group_admin` | role check only; **NO status** | **REPLACE** — add `membership_status = 'active'` |
 | `is_group_admin_or_owner(p_group_id)` | role check only; **NO status** | **REPLACE** — add active; keep `p_group_id` |
 | `is_group_owner` | role check only; **NO status** | **REPLACE** — add active |
-| `has_group_permission` | membership by group+user; owner → true; admin → true if 0 open `position_assignments`; else `pa` → `pp` on `membership_id`; **NO** `membership_status`; **NO** `gp.group_id = gid` join | **REPLACE** — require active + `JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid` |
-| `create_proxy_member` | `role IN ('owner','admin','moderator')`; **NO status**; DEFINER; `search_path` unset | **REPLACE** — keep moderator; add active. Do not apply `00103` as-is |
+| `has_group_permission` | LIVE admin fallback: (1) membership by group+user any status (2) owner → TRUE (3) count open `position_assignments` (4) admin AND count=0 → TRUE (5) else TRUE only if open assignment position has `perm_key`. **NO** status. **NO** `gp.group_id = gid` join | **REPLACE** (R2) — SAME business rules + ONLY (A) `membership_status='active'` before any TRUE (B) `JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid`. Do **not** broaden admin-with-assignments. Authenticated `uid IS NULL OR uid = auth.uid()` |
+| `create_proxy_member` | officer roles owner/admin/moderator; **NO status**; DEFINER; `search_path` unset; PUBLIC/anon execute | **REPLACE** (R3) — ACTIVE owner/admin/moderator ONLY; no `members.manage`; REVOKE PUBLIC/anon; GRANT authenticated; pin `search_path` |
 | `get_relief_branch_summary` | org boundary via `get_user_group_ids()` | **SEPARATE RELIEF PHASE** / **UNAFFECTED** by Cut 1 admin REPLACE |
 | `cast_ballot` | `standing = 'good'` only; **NO** `membership_status` | **P1 — out of Cut 1** |
 | `can_view_member_financial` | own `!= 'exited'` **OR** `is_group_admin_or_owner` **OR** position perms `!= 'exited'` | **UNCHANGED** body; privileged branch **benefits** from admin REPLACE |
-| `is_active_group_member` / `get_user_active_group_ids` | **absent** | **CREATE** |
+| `is_active_group_member(gid)` / `get_my_active_group_ids()` | **absent** | **CREATE** authenticated public API only (R1). No arbitrary-subject grant to authenticated/anon |
 
 ### 24.3 Blocker matrix (B1–B5)
 
@@ -919,18 +1026,18 @@ JOIN public.group_positions gp
  AND gp.group_id = gid
 ```
 
-Optional: constraint trigger `position_assignments_membership_position_same_group` (§7.7).
+**REQUIRED (R4):** `FUNCTION public.enforce_position_assignment_same_group()` + `TRIGGER trg_position_assignments_same_group` BEFORE INSERT OR UPDATE OF (`membership_id`, `position_id`). Live `mismatch_count=0`; if `>0` at apply **ABORT**.
 
-### 24.6 Final Cut 1 object set
+### 24.6 Final Cut 1 object set (superseded by §25.0 if any drift)
 
 | Action | Objects |
 |--------|---------|
-| **CREATE** | `is_active_group_member(gid uuid, uid uuid DEFAULT auth.uid())`; `get_user_active_group_ids(uid uuid DEFAULT auth.uid())` |
-| **REPLACE** | `is_group_admin`; `is_group_admin_or_owner`; `is_group_owner`; `has_group_permission` (active + same-group `gp` join); `create_proxy_member` (active + keep `owner/admin/moderator`) |
-| **REWRITE** | All §24.7 NEUTRALIZE names **plus** §24.8 named member-write helper policies |
-| **OPTIONAL** | `position_assignments` same-group trigger |
-| **UNCHANGED** | `is_group_member`; `get_user_group_ids`; SELECT visibility policies; `memberships_insert_pending`; `can_view_member_financial` body; `cast_ballot`; `get_relief_branch_summary` |
-| **REMOVED** | `election_votes` / `rls_evote_insert` |
+| **CREATE** | `is_active_group_member(gid uuid)`; `get_my_active_group_ids()` |
+| **REPLACE** | `is_group_admin`; `is_group_admin_or_owner`; `is_group_owner`; `has_group_permission` (R2 LIVE fallback + ACTIVE + same-group `gp` join); `create_proxy_member` (R3 ACTIVE owner/admin/moderator only) |
+| **REWRITE** | 23 helper-matching ops from evidence **plus** all prior §24.7 inline-role NEUTRALIZES **plus** `Admins can add proxy members` |
+| **REQUIRED** | `position_assignments` same-group trigger (R4) |
+| **UNCHANGED** | `is_group_member`; `get_user_group_ids`; visibility SELECTs; `memberships_insert_pending` |
+| **OUT OF SCOPE** | P0-B/C; Relief HQ; `election_votes`; `cast_ballot` P1; M2; F3/F0/PR70 apply |
 
 ### 24.7 Neutralize table — inline-role / status-blind WRITE (helpers-only REPLACE is insufficient)
 
@@ -1018,7 +1125,7 @@ Cut 1 **MUST REWRITE** each live name below (add an **active** operational gate)
 | `event_photos` | `Members upload photos` | member write |
 | `project_contributions` | `Members contribute to projects` | member write |
 
-If a named row is absent at apply time, the migration **skips that name** (loud `NOTICE`) and does **not** improvise a substitute. Extras not in this table or §24.8 remain **STOP** (§23.6).
+**R12:** If a named expected row is **absent** at apply time, **or** a security-relevant predicate has drifted, the migration **ABORT**s (not `NOTICE`+skip). All-or-nothing. Partial continue is **FORBIDDEN**. Do **not** improvise a substitute. Extra WRITE/RPC helper callers not in this table, §7.4, or §25 remain **STOP** (§23.6).
 
 ### 24.8 Named member-write helper policies (REWRITE)
 
@@ -1035,13 +1142,18 @@ If a named row is absent at apply time, the migration **skips that name** (loud 
 | `activity_feed` | `rls_af_all` | ALL (write path) |
 | `fines` | `rls_fin_update` | UPDATE |
 | `announcement_deliveries` | `rls_ad_update` | UPDATE |
-| `disputes` | `Users can create disputes` | INSERT |
-| `disputes` | `Users can update disputes` | UPDATE |
-| `disputes` | `Users can delete disputes` | DELETE |
+| `disputes` | `Users can create disputes in their groups` | INSERT |
+| `disputes` | `Users can update disputes in their groups` | UPDATE |
+| `disputes` | `Users can delete disputes in their groups` | DELETE |
 | `disputes` | `disputes_insert` | INSERT |
 | `group_audit_logs` | `member_insert_audit_logs` | INSERT |
 | `memberships` | `Admins can add proxy members` | INSERT |
 | `hosting_swap_requests` | `rls_hsr_insert` | INSERT |
+| `committees` | `Admins can manage committees` | ALL |
+| `committee_members` | `Admins can manage committee members` | ALL |
+| `exchange_rates` | `HQ admins can manage exchange rates` | ALL |
+| `sub_group_transfers` | `Users can create transfers` | INSERT |
+| `sub_group_transfers` | `Admins can update transfers` | UPDATE |
 
 **Not rewritten:** SELECT visibility via `is_group_member` / `get_user_group_ids`.  
 **Kept:** `memberships_insert_pending`.  
@@ -1059,6 +1171,277 @@ If a named row is absent at apply time, the migration **skips that name** (loud 
 | `get_relief_branch_summary` | org via `get_user_group_ids()` | **SEPARATE RELIEF PHASE** — leave |
 | Relief admin/member **write** policies | present (named in §24.7) | **REWRITE** (local write authority). HQ rollup function itself is not rewritten |
 
-### 24.10 Phase 10
+### 24.10 Rehearsal vs implementation (R13)
 
-Disposable behavioral rehearsal (§14 / §15 / §16) is **DEFERRED**. The live catalog is sufficient to close §5.7 and hand Daybreak a reviewable contract. Phase 10 remains mandatory **before implement**, on a disposable target, never on `llbnliixczcqfftxpsmb`.
+Rehearsal does **not** precede implementation. Frozen sequence:
+
+`CONTRACT PASS → IMPLEMENT on dedicated branch → author ONE forward-only migration → disposable apply → negative+regression → SHA freeze → founder prod auth → apply one → read-only postconditions.`
+
+Daybreak PASS on this PR authorizes **implementation on branch only**, never production apply, and never apply on `llbnliixczcqfftxpsmb` without separate founder authorization.
+
+---
+
+## 25. SECURITY REVISION 1 — frozen contract (authoritative)
+
+**Status:** **SECURITY REVISION 1 — READY FOR DAYBREAK RE-REVIEW**  
+**Implementation:** **NOT AUTHORIZED** until Daybreak **PASS**.  
+Daybreak PASS on this PR authorizes **IMPLEMENTATION ON A DEDICATED BRANCH only**, **NOT** production apply.  
+This section freezes Revisions **R1–R13**. Where earlier sections conflict, **this section wins**.
+
+**Exact policy rows included:** **YES** — count **145**. Artifact: `docs/evidence/S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910.json`. Do not drop the 145 rows. Inventory SHA that landed them: `62cea26713779d0d47e32c5db44090b652020142`.
+
+### 25.0 Final object contract (freeze)
+
+| Action | Objects |
+|--------|---------|
+| **CREATE** | `is_active_group_member(gid uuid)`; `get_my_active_group_ids()` |
+| **REPLACE** | `is_group_admin`; `is_group_admin_or_owner`; `is_group_owner`; `has_group_permission`; `create_proxy_member` |
+| **REWRITE** | **23** helper-matching ops from evidence **+** all prior §24.7 inline-role NEUTRALIZES **+** `Admins can add proxy members` |
+| **REQUIRED** | `position_assignments` same-group enforce function + BEFORE INSERT OR UPDATE OF (`membership_id`, `position_id`) trigger |
+| **UNCHANGED** | `is_group_member`; `get_user_group_ids`; visibility SELECTs; `memberships_insert_pending` |
+| **OUT OF SCOPE** | P0-B / P0-C; Relief HQ; `election_votes`; `cast_ballot` P1; M2; F3 / F0 / PR70 apply |
+
+### 25.1 R1 — Current-actor helpers
+
+CREATE public authenticated API **ONLY**:
+
+| Function | Args | Semantics |
+|----------|------|-----------|
+| `is_active_group_member` | `(gid uuid)` | `auth.uid()` is an **ACTIVE** member of `gid` |
+| `get_my_active_group_ids` | `()` | active `group_id`s for `auth.uid()` only |
+
+Arbitrary-subject variants: **NOT** granted to `authenticated` / `anon`. If needed at all → `service_role` / internal only with **explicit** grants.
+
+**Invariant:** an authenticated user cannot supply another user UUID to probe or enumerate active membership.
+
+**Tests:** User A cannot probe B; anon **DENY**; service only if explicitly required.
+
+### 25.2 R2 — `has_group_permission` preserves LIVE admin fallback
+
+**CURRENT (LIVE, from prod):**
+1. Find membership by group+user (**any status** today)
+2. owner → TRUE
+3. count open `position_assignments`
+4. admin AND count=0 → TRUE (full bypass)
+5. else TRUE only if open assignment’s position has `perm_key`
+
+No status. No `gp.group_id = gid` join today.
+
+**TARGET:** SAME business rules with **ONLY**:
+- **A)** `membership_status = 'active'` before any TRUE
+- **B)** position path `JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid`
+
+Do **NOT** broaden admin-with-assignments to all permissions.
+
+| Layer | Statement |
+|-------|-----------|
+| **CURRENT** | Status-blind; owner always TRUE; admin + zero open assignments = full bypass; else perm_key on open assignment only; no same-group join |
+| **TARGET** | Identical steps after requiring ACTIVE; position path must join `gp.group_id = gid` |
+| **SECURITY CHANGE** | Inactive never TRUE; cross-tenant position cannot grant; authenticated `uid IS NULL OR uid = auth.uid()` (or drop `uid` from the public signature) |
+| **UNCHANGED BUSINESS SEMANTICS** | Active owner always TRUE; active admin with zero **open** assignments still full bypass; active admin **with** open assignments still perm_key-only; closed assignment treated as counting toward open=0 exactly as live |
+
+### 25.3 R3 — `create_proxy_member`
+
+**Exact actor set:** **ACTIVE owner | ACTIVE admin | ACTIVE moderator ONLY**. Do **NOT** add `members.manage`.
+
+**LIVE:** `create_proxy_member(p_group_id, p_display_name, p_phone default null, p_role default member) RETURNS uuid`; plpgsql; SECURITY DEFINER; owner postgres; `search_path` UNSET; grants PUBLIC/anon/authenticated/postgres/service_role; roles owner/admin/moderator; no status check.
+
+**Cut 1:** add ACTIVE; `REVOKE` PUBLIC/anon; `GRANT` authenticated; pin `search_path`.
+
+**Tests:** active owner/admin/moderator **ALLOW**; pending/suspended/exited/archived of those roles **DENY**; ordinary member **DENY**; `members.manage`-only **DENY**.
+
+### 25.4 R4 — `position_assignments` same-group REQUIRED
+
+Objects:
+- `FUNCTION public.enforce_position_assignment_same_group()`
+- `TRIGGER trg_position_assignments_same_group` BEFORE INSERT OR UPDATE OF (`membership_id`, `position_id`) ON `public.position_assignments`
+
+**Invariant:** `memberships.group_id` of `membership_id` = `group_positions.group_id` of `position_id` else **REJECT**.
+
+**Preflight:** live `mismatch_count` currently **0**. If `>0` at apply time **ABORT** — no auto-repair / delete / rewrite.
+
+### 25.5 R5 — Evidence
+
+| Item | Value |
+|------|-------|
+| Exact policy rows included | **YES** |
+| Count | **145** |
+| Artifact | `docs/evidence/S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910.json` |
+| Disposition counts | 70 UNCHANGED — SAFE OPERATIONAL POLICY; **23 REWRITE IN CUT 1**; 52 UNCHANGED — HISTORICAL/VISIBILITY READ |
+| Inventory SHA | `62cea26713779d0d47e32c5db44090b652020142` |
+
+### 25.6 R6 — Collision matrix
+
+Helper-matching WRITE dispositions from evidence: **23 REWRITE**; rest of helper-matching writes inherit REPLACE (**SAFE**). Inline-role policies from prior §24.7 remain **REWRITE IN CUT 1** (not all are in the 145).
+
+For every affected **TABLE × COMMAND**: list policies that can allow; name the post-Cut active gate source; **ANY BYPASS REMAINS?** must be **NO** for operational writes after Cut 1.
+
+Operational policies still using status-blind visibility helpers after Cut 1: **ZERO UNKNOWN** (all helper-matching writes classified).
+
+Full TABLE×COMMAND rows (helper-matching + neutralize) live in the evidence JSON `collision_matrix`. Table-level summary (ANY BYPASS REMAINS? = **NO** for every row):
+
+| Table | Helper-matching WRITE cmds | Inline-role NEUTRALIZE cmds | ANY BYPASS REMAINS? |
+|-------|----------------------------|-----------------------------|---------------------|
+| `activity_feed` | ALL | INSERT, UPDATE | **NO** |
+| `announcement_deliveries` | INSERT, UPDATE | — | **NO** |
+| `announcements` | DELETE, INSERT, UPDATE | — | **NO** |
+| `committee_members` | ALL | ALL | **NO** |
+| `committees` | ALL | ALL | **NO** |
+| `constitution_amendments` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `contribution_obligations` | INSERT, UPDATE | ALL, UPDATE | **NO** |
+| `contribution_types` | INSERT, UPDATE | ALL, DELETE, UPDATE | **NO** |
+| `disputes` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `documents` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `election_candidates` | DELETE, INSERT, UPDATE | — | **NO** |
+| `election_options` | DELETE, INSERT | ALL | **NO** |
+| `elections` | ALL | ALL | **NO** |
+| `event_attendances` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `event_photos` | DELETE, INSERT, UPDATE | INSERT | **NO** |
+| `event_rsvps` | INSERT | — | **NO** |
+| `events` | DELETE, INSERT, UPDATE | DELETE, INSERT, UPDATE | **NO** |
+| `exchange_rates` | ALL | ALL | **NO** |
+| `family_members` | — | DELETE, INSERT, UPDATE | **NO** |
+| `feed_reactions` | INSERT | INSERT | **NO** |
+| `fine_types` | — | ALL | **NO** |
+| `fines` | INSERT, UPDATE | ALL | **NO** |
+| `group_audit_logs` | INSERT | — | **NO** |
+| `group_constitutions` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `group_payment_config` | — | ALL | **NO** |
+| `group_subscriptions` | — | ALL | **NO** |
+| `groups` | UPDATE | — | **NO** |
+| `hosting_assignments` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `hosting_rosters` | INSERT | ALL | **NO** |
+| `hosting_swap_requests` | INSERT, UPDATE | — | **NO** |
+| `invitations` | — | DELETE, INSERT, UPDATE | **NO** |
+| `loan_configs` | — | DELETE, INSERT, UPDATE | **NO** |
+| `loan_repayments` | — | DELETE, INSERT, UPDATE | **NO** |
+| `loan_requests_v1` | — | ALL | **NO** |
+| `loan_schedule` | — | DELETE, INSERT, UPDATE | **NO** |
+| `loans` | — | DELETE, INSERT, UPDATE | **NO** |
+| `meeting_minutes` | DELETE, INSERT, UPDATE | — | **NO** |
+| `member_badges` | DELETE, INSERT | — | **NO** |
+| `member_transfers` | — | DELETE | **NO** |
+| `memberships` | DELETE, INSERT, UPDATE | INSERT | **NO** |
+| `notifications` | INSERT | — | **NO** |
+| `payment_reminder_rules` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `payment_reminders_sent` | INSERT | — | **NO** |
+| `payments` | DELETE, INSERT, UPDATE | INSERT | **NO** |
+| `position_assignments` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `position_permissions` | DELETE, INSERT | — | **NO** |
+| `project_contributions` | INSERT | INSERT | **NO** |
+| `project_expenses` | INSERT | ALL | **NO** |
+| `project_milestones` | INSERT, UPDATE | ALL | **NO** |
+| `projects` | ALL | ALL | **NO** |
+| `proxy_claim_tokens` | ALL | — | **NO** |
+| `relief_claims` | — | ALL, DELETE, INSERT, UPDATE | **NO** |
+| `relief_enrollments` | — | ALL, DELETE, INSERT, UPDATE | **NO** |
+| `relief_payouts` | — | ALL, DELETE, INSERT, UPDATE | **NO** |
+| `relief_plans` | ALL | ALL | **NO** |
+| `relief_remittances` | — | INSERT, UPDATE | **NO** |
+| `savings_contributions` | INSERT, UPDATE | ALL | **NO** |
+| `savings_cycles` | ALL | ALL | **NO** |
+| `savings_participants` | DELETE, INSERT, UPDATE | ALL | **NO** |
+| `sub_group_transfers` | INSERT, UPDATE | INSERT, UPDATE | **NO** |
+
+**23 helper-matching REWRITE ops (complete):**
+
+| Table | Policy | Command | Live helper | Post-Cut active gate |
+|-------|--------|---------|-------------|----------------------|
+| `activity_feed` | `rls_af_all` | ALL | `is_group_member` | `is_active_group_member(gid)` |
+| `announcement_deliveries` | `rls_ad_update` | UPDATE | `is_group_member` | `is_active_group_member(gid)` |
+| `committee_members` | `Admins can manage committee members` | ALL | `get_user_group_ids` + inline role | `get_my_active_group_ids()` + ACTIVE role |
+| `committees` | `Admins can manage committees` | ALL | `get_user_group_ids` + inline role | `get_my_active_group_ids()` + ACTIVE role |
+| `constitution_amendments` | `rls_amend_insert` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `disputes` | `Users can create disputes in their groups` | INSERT | `get_user_group_ids` | `get_my_active_group_ids()` |
+| `disputes` | `Users can delete disputes in their groups` | DELETE | `get_user_group_ids` | `get_my_active_group_ids()` |
+| `disputes` | `Users can update disputes in their groups` | UPDATE | `get_user_group_ids` | `get_my_active_group_ids()` |
+| `disputes` | `disputes_insert` | INSERT | `get_user_group_ids` | `get_my_active_group_ids()` |
+| `event_attendances` | `rls_att_insert` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `event_photos` | `rls_ep_insert` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `event_rsvps` | `rls_rsvp_insert` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `exchange_rates` | `HQ admins can manage exchange rates` | ALL | `get_user_group_ids` + inline role | `get_my_active_group_ids()` + ACTIVE role |
+| `feed_reactions` | `rls_fr_insert` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `fines` | `rls_fin_update` | UPDATE | `is_group_member` | `is_active_group_member(gid)` |
+| `group_audit_logs` | `member_insert_audit_logs` | INSERT | `get_user_group_ids` | `get_my_active_group_ids()` |
+| `hosting_swap_requests` | `rls_hsr_insert` | INSERT | `get_user_group_ids` | `get_my_active_group_ids()` |
+| `memberships` | `Admins can add proxy members` | INSERT | `get_user_group_ids` | active operational authority |
+| `payment_reminders_sent` | `rls_prs_insert` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `payments` | `rls_pay_insert` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `project_contributions` | `rls_pcon_write` | INSERT | `is_group_member` | `is_active_group_member(gid)` |
+| `sub_group_transfers` | `Admins can update transfers` | UPDATE | `get_user_group_ids` + inline role | `get_my_active_group_ids()` + ACTIVE role |
+| `sub_group_transfers` | `Users can create transfers` | INSERT | `get_user_group_ids` | `get_my_active_group_ids()` |
+
+Post-Cut inherit-REPLACE writes (admin / owner / permission helpers): active gate source is the **REPLACE** of `is_group_admin` / `is_group_admin_or_owner` / `is_group_owner` / `has_group_permission`. **ANY BYPASS REMAINS? NO.**
+
+### 25.7 R7 — Payments exactness
+
+| Policy | Cmd | LIVE | TARGET | Unchanged |
+|--------|-----|------|--------|-----------|
+| `Group admins and treasurers can record payments` | INSERT | `EXISTS` memberships `group_id=payments.group_id AND user_id=auth.uid() AND role IN (owner,admin)` — **NO status** | SAME + `membership_status='active'` | role set owner/admin; no amount/status/currency logic |
+| `rls_pay_insert` | INSERT | `is_group_member(group_id)` AND `status=pending_confirmation` AND `recorded_by=auth.uid()` AND own `membership_id` | replace `is_group_member` with `is_active_group_member(gid)`; keep pending_confirmation, `recorded_by=auth.uid()`, own `membership_id` | pending_confirmation; recorded_by; own membership_id; no amount/currency |
+| `Group admins can update payments` | UPDATE | `is_group_admin_or_owner(group_id)` | policy **text unchanged**; inherits `is_group_admin_or_owner` REPLACE | admin/owner gate only |
+| `Group admins can delete payments` | DELETE | `is_group_admin_or_owner(group_id)` | policy **text unchanged**; inherits `is_group_admin_or_owner` REPLACE | admin/owner gate only |
+| `rls_pay_select` | SELECT | `can_view_member_financial(membership_id, group_id)` | **UNCHANGED** | inherits safer admin via helper REPLACE |
+| `Platform staff can view all payments` | SELECT | `is_platform_staff()` | **UNCHANGED** | staff SELECT |
+
+**Proof:** active officers **ALLOW**; inactive **DENY**; no amount / status / currency / F0 command-logic changes. SELECTs unchanged. After Cut 1, payments INSERT is allowed only via the rewritten treasurer/admin-active path **or** the rewritten member `rls_pay_insert` active path — **ANY BYPASS REMAINS? NO**.
+
+### 25.8 R8 — `is_group_member` / `get_user_group_ids`
+
+Bodies **UNCHANGED**. Every OPERATIONAL WRITE using them is **REWRITE** to an active helper **or** a proven inherit-REPLACE path. **ZERO UNKNOWN.**
+
+### 25.9 R9 — Active moderator matrix
+
+Moderator is a **first-class** Cut 1 actor where live already names it. Do **not** broaden moderator to new surfaces.
+
+| Surface | Active moderator | Inactive moderator | Ordinary member | Notes |
+|---------|------------------|--------------------|-----------------|-------|
+| `create_proxy_member` | **ALLOW** | **DENY** | **DENY** | Exact actor set with owner/admin only |
+| Policies that already name moderator | keep moderator **and** require ACTIVE | **DENY** | unchanged vs live | Do not add moderator where live does not |
+| `has_group_permission` / admin helpers | per live role (moderator is **not** admin bypass) | **DENY** | per live | Do not treat moderator as admin |
+| `members.manage`-only (non officer) | n/a | n/a | **DENY** on `create_proxy_member` | Do not add this permission to the actor set |
+
+### 25.10 R10 — Arbitrary UID negatives
+
+No authenticated arbitrary-subject **active** helper signature. Tests: User A cannot probe B; anon **DENY**.
+
+### 25.11 R11 — Admin with/without position tests
+
+| Case | Result |
+|------|--------|
+| Active admin, no open assignment | full bypass **preserved** (if active) |
+| Active admin, open assignment lacking `perm_key` | **DENY** that perm |
+| Active admin, open assignment with `perm_key` | **ALLOW** |
+| Closed assignment | treated as counting toward open=0 **exactly as live** |
+| Owner | separate always-TRUE **if active** |
+
+### 25.12 R12 — Migration abort
+
+Missing expected policy **OR** security-relevant predicate drift → **ABORT** (not `NOTICE`+skip). All-or-nothing. Partial continue **FORBIDDEN**.
+
+### 25.13 R13 — Rehearsal sequence
+
+```
+CONTRACT PASS
+  → IMPLEMENT on dedicated branch
+  → author ONE forward-only migration
+  → disposable apply
+  → negative + regression
+  → SHA freeze
+  → founder prod auth
+  → apply one
+  → read-only postconditions
+```
+
+Daybreak **PASS** on this PR authorizes **IMPLEMENTATION ON BRANCH only**, **NOT** production apply.  
+Rehearsal does **NOT** precede implementation.
+
+### 25.14 F3
+
+**SAFER OR UNCHANGED:** active AND same-group permission path; no wider admin bypass than live. If Cut 1 would broaden admin-with-assignments → **HOLD**. F3 / F0 apply remain out of scope.
+
+### 25.15 This PR
+
+Docs / evidence only. Implementation = **NO**. Migration SQL = **NO**. App code = **NO**. Production apply = **NO**.
+
+**Verdict:** **PASS — CUT 1 SECURITY REVISION COMPLETE; READY FOR DAYBREAK RE-REVIEW.**

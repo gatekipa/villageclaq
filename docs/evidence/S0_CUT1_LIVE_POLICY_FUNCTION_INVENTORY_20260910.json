@@ -6,9 +6,9 @@
   "public_policy_count": 375,
   "helper_matching_policy_count": 145,
   "disposition_counts": {
-    "UNCHANGED \u2014 SAFE OPERATIONAL POLICY": 70,
+    "UNCHANGED — SAFE OPERATIONAL POLICY": 70,
     "REWRITE IN CUT 1": 23,
-    "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ": 52
+    "UNCHANGED — HISTORICAL/VISIBILITY READ": 52
   },
   "current_actor_helpers": {
     "authenticated_public_api": [
@@ -38,7 +38,7 @@
       "postgres",
       "service_role"
     ],
-    "current_admin_fallback": "1) find membership by group+user (any status). 2) owner \u2192 TRUE. 3) count open position_assignments for membership. 4) admin AND count=0 \u2192 TRUE (full bypass). 5) else TRUE only if open assignment position has perm_key. No status. No same-group gp join.",
+    "current_admin_fallback": "1) find membership by group+user (any status). 2) owner → TRUE. 3) count open position_assignments for membership. 4) admin AND count=0 → TRUE (full bypass). 5) else TRUE only if open assignment position has perm_key. No status. No same-group gp join.",
     "target_admin_fallback": "Identical steps AFTER requiring membership_status=active. Position path must JOIN group_positions gp ON gp.id=pa.position_id AND gp.group_id=gid. Do NOT grant all-permissions to admin-with-assignments. Owner/admin-zero-assignment bypass preserved.",
     "business_semantics": "PRESERVED except ACTIVE + same-group closures",
     "cut1_uid_exposure": "Prefer force subject=auth.uid() for authenticated; if uid param retained, authenticated must not probe other users (require uid IS NULL OR uid=auth.uid())"
@@ -77,7 +77,7 @@
       "TRIGGER trg_position_assignments_same_group BEFORE INSERT OR UPDATE OF membership_id, position_id ON public.position_assignments"
     ],
     "invariant": "memberships.group_id of membership_id = group_positions.group_id of position_id",
-    "preflight": "SELECT count(*) mismatches; if >0 ABORT \u2014 no auto-repair",
+    "preflight": "SELECT count(*) mismatches; if >0 ABORT — no auto-repair",
     "live_mismatch_count": 0
   },
   "migration_abort_semantics": {
@@ -86,12 +86,12 @@
     "partial_continue": "FORBIDDEN",
     "notice_and_skip": "FORBIDDEN"
   },
-  "rehearsal_sequence": "IMPLEMENT on branch \u2192 ONE forward migration \u2192 disposable apply \u2192 negative+regression \u2192 SHA freeze \u2192 founder prod auth \u2192 apply one \u2192 read-only postconditions",
+  "rehearsal_sequence": "CONTRACT PASS → IMPLEMENT on dedicated branch → author ONE forward-only migration → disposable apply → negative+regression → SHA freeze → founder prod auth → apply one → read-only postconditions. Daybreak PASS on this PR authorizes IMPLEMENTATION ON BRANCH only, NOT production apply. Rehearsal does NOT precede implementation.",
   "payments_exact": [
     {
       "policy": "Group admins and treasurers can record payments",
       "cmd": "INSERT",
-      "live": "EXISTS memberships WHERE group_id=payments.group_id AND user_id=auth.uid() AND role IN (owner,admin) \u2014 NO status",
+      "live": "EXISTS memberships WHERE group_id=payments.group_id AND user_id=auth.uid() AND role IN (owner,admin) — NO status",
       "target": "SAME + membership_status=active",
       "unchanged": "role set owner/admin; no amount/status/currency logic in policy"
     },
@@ -149,7 +149,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "PRIVILEGED READ",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
     },
     {
@@ -187,7 +187,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -206,7 +206,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -225,7 +225,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -263,7 +263,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -282,7 +282,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -301,7 +301,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "PRIVILEGED READ",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
     },
     {
@@ -320,7 +320,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -358,7 +358,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -396,7 +396,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -415,7 +415,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -434,7 +434,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -453,7 +453,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -472,7 +472,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -510,7 +510,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -529,7 +529,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -549,7 +549,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -569,7 +569,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -588,7 +588,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -607,7 +607,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -626,7 +626,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -721,7 +721,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -740,7 +740,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -759,7 +759,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -778,7 +778,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -797,7 +797,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -816,7 +816,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -835,7 +835,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -854,7 +854,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -873,7 +873,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -892,7 +892,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -911,7 +911,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -930,7 +930,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -949,7 +949,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -968,7 +968,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -987,7 +987,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1006,7 +1006,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1044,7 +1044,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1063,7 +1063,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1082,7 +1082,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1120,7 +1120,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1139,7 +1139,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1177,7 +1177,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1196,7 +1196,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1215,7 +1215,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1234,7 +1234,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1253,7 +1253,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1291,7 +1291,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1329,7 +1329,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1348,7 +1348,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1367,7 +1367,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1386,7 +1386,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1443,7 +1443,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1462,7 +1462,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1481,7 +1481,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1500,7 +1500,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1519,7 +1519,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1538,7 +1538,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1557,7 +1557,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1576,7 +1576,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1595,7 +1595,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1614,7 +1614,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1633,7 +1633,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1652,7 +1652,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1671,7 +1671,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1690,7 +1690,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1709,7 +1709,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1728,7 +1728,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1747,7 +1747,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1785,7 +1785,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1804,7 +1804,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1823,7 +1823,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1842,7 +1842,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -1861,7 +1861,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1880,7 +1880,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1900,7 +1900,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "PRIVILEGED READ",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
     },
     {
@@ -1919,7 +1919,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1938,7 +1938,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1957,7 +1957,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -1976,7 +1976,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2014,7 +2014,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2033,7 +2033,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2053,7 +2053,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2073,7 +2073,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2092,7 +2092,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "PRIVILEGED READ",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
     },
     {
@@ -2111,7 +2111,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2130,7 +2130,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2149,7 +2149,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2168,7 +2168,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2206,7 +2206,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2225,7 +2225,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2244,7 +2244,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2282,7 +2282,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2301,7 +2301,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2320,7 +2320,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2339,7 +2339,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2358,7 +2358,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2377,7 +2377,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2396,7 +2396,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2415,7 +2415,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2453,7 +2453,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2472,7 +2472,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2491,7 +2491,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2510,7 +2510,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2529,7 +2529,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2548,7 +2548,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2567,7 +2567,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2586,7 +2586,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2605,7 +2605,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2624,7 +2624,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2643,7 +2643,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2662,7 +2662,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2681,7 +2681,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2700,7 +2700,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2719,7 +2719,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2738,7 +2738,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2757,7 +2757,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2776,7 +2776,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2795,7 +2795,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2814,7 +2814,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     },
     {
@@ -2833,7 +2833,7 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "OPERATIONAL WRITE",
-      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "cut1_disposition": "UNCHANGED — SAFE OPERATIONAL POLICY",
       "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
     },
     {
@@ -2890,11 +2890,2918 @@
       "membership_status_check": false,
       "tenant_group_check": true,
       "classification": "READ/HISTORY",
-      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "cut1_disposition": "UNCHANGED — HISTORICAL/VISIBILITY READ",
       "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
     }
   ],
-  "note_collision_matrix": "Helper-matching WRITEs are either REWRITE or inherit REPLACE. Additional NON-helper inline-role WRITE policies (not in the 145) remain NEUTRALIZES and stay in Cut1 REWRITE list from \u00a724 prior addendum \u2014 collision matrix in plan must include BOTH sets.",
-  "status": "SECURITY REVISION 1 \u2014 READY FOR DAYBREAK RE-REVIEW",
-  "implementation_authorized": false
+  "note_collision_matrix": "Helper-matching WRITEs are either REWRITE or inherit REPLACE. Additional NON-helper inline-role WRITE policies (not in the 145) remain NEUTRALIZES and stay in Cut1 REWRITE list from §24 prior addendum — collision matrix in plan must include BOTH sets.",
+  "status": "SECURITY REVISION 1 — READY FOR DAYBREAK RE-REVIEW",
+  "implementation_authorized": false,
+  "collision_matrix": {
+    "as_of": "2026-09-10",
+    "security_revision": 1,
+    "exact_policy_rows_included": true,
+    "exact_policy_row_count": 145,
+    "helper_matching_write_rewrite_count": 23,
+    "helper_matching_write_inherit_replace_safe": true,
+    "inline_role_neutralizes_from_prior_s24": "REWRITE IN CUT 1 (not all are in the 145)",
+    "operational_policies_still_using_status_blind_visibility_helpers_after_cut1": "ZERO UNKNOWN (all helper-matching writes classified)",
+    "any_bypass_remains_after_cut1": "NO for operational writes",
+    "helper_matching_table_command": [
+      {
+        "table": "activity_feed",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "rls_af_all"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "announcement_deliveries",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_ad_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "announcement_deliveries",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_ad_update"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "announcements",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "ann_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "announcements",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "ann_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "announcements",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "ann_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "committee_members",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "Admins can manage committee members"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() + ACTIVE inline role (owner/admin as live)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "committees",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "Admins can manage committees"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() + ACTIVE inline role (owner/admin as live)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "constitution_amendments",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_amend_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "constitution_amendments",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_amend_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "constitution_amendments",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_amend_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_obligations",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_co_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE) + REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_obligations",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_co_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE) + REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_types",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_ct_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_types",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_ct_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "disputes",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "Users can delete disputes in their groups"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() / is_active_group_member(gid)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "disputes",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "Users can create disputes in their groups",
+          "disputes_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() / is_active_group_member(gid)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "disputes",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "Users can update disputes in their groups"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() / is_active_group_member(gid)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "documents",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_doc_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "documents",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_doc_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "documents",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_doc_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_candidates",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_ec_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_candidates",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "ec_manage_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_candidates",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "ec_manage_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_options",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_eo_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_options",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_eo_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "elections",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "rls_elec_all"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_attendances",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_att_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_attendances",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_att_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_attendances",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_att_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_photos",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_ep_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_photos",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_ep_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_photos",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_ep_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_rsvps",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_rsvp_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "events",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_ev_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "events",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_ev_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "events",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_ev_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "exchange_rates",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "HQ admins can manage exchange rates"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() + ACTIVE inline role (owner/admin as live)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "feed_reactions",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_fr_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "fines",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_fin_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "fines",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_fin_update"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_audit_logs",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "member_insert_audit_logs"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() / is_active_group_member(gid)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_constitutions",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_const_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_constitutions",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_const_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_constitutions",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_const_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "groups",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "Group owners/admins can update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_assignments",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_ha_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_assignments",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_ha_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_assignments",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_ha_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_rosters",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_hr_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_swap_requests",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_hsr_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() / is_active_group_member(gid)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_swap_requests",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_hsr_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "meeting_minutes",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "mm_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "meeting_minutes",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "mm_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "meeting_minutes",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "mm_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "member_badges",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_mb_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "member_badges",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_mb_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "memberships",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "Members can leave or admins can remove members"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "memberships",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "Admins can add proxy members"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() / is_active_group_member(gid)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "memberships",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_membership_role_guard"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "notifications",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_notif_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE) + REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payment_reminder_rules",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_prr_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payment_reminder_rules",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_prr_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payment_reminder_rules",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_prr_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payment_reminders_sent",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_prs_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payments",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "Group admins can delete payments"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payments",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_pay_insert"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payments",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "Group admins can update payments"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_assignments",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_pa_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_assignments",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_pa_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_assignments",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_pa_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_permissions",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_pp_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_permissions",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_pp_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_contributions",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_pcon_write"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → is_active_group_member(gid) [auth.uid() only]"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_expenses",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_pexp_write"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_milestones",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_pmil_write"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_milestones",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_pmil_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "projects",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "rls_proj_all"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "proxy_claim_tokens",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "pct_manage"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE has_group_permission (ACTIVE + same-group gp join)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_plans",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "rls_rp_all"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_contributions",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_scon_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_contributions",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_scon_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_cycles",
+        "command": "ALL",
+        "policies_that_can_allow": [
+          "rls_sc_all"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_participants",
+        "command": "DELETE",
+        "policies_that_can_allow": [
+          "rls_sp_delete"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_participants",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "rls_sp_insert"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_participants",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "rls_sp_update"
+        ],
+        "helper_matching_dispositions": [
+          "UNCHANGED — SAFE OPERATIONAL POLICY"
+        ],
+        "post_cut_active_gate_source": [
+          "INHERIT REPLACE admin/owner helper (ACTIVE)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "sub_group_transfers",
+        "command": "INSERT",
+        "policies_that_can_allow": [
+          "Users can create transfers"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() / is_active_group_member(gid)"
+        ],
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "sub_group_transfers",
+        "command": "UPDATE",
+        "policies_that_can_allow": [
+          "Admins can update transfers"
+        ],
+        "helper_matching_dispositions": [
+          "REWRITE IN CUT 1"
+        ],
+        "post_cut_active_gate_source": [
+          "REWRITE → get_my_active_group_ids() + ACTIVE inline role (owner/admin as live)"
+        ],
+        "any_bypass_remains": "NO"
+      }
+    ],
+    "inline_role_neutralize_table_command": [
+      {
+        "table": "payments",
+        "command": "INSERT",
+        "policy": "Group admins and treasurers can record payments",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "fines",
+        "command": "ALL",
+        "policy": "Admin manage fines",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "fine_types",
+        "command": "ALL",
+        "policy": "fine_types_admin",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_attendances",
+        "command": "ALL",
+        "policy": "Group admins can manage attendance",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_assignments",
+        "command": "ALL",
+        "policy": "Group owners/admins can manage assignments",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_rosters",
+        "command": "ALL",
+        "policy": "Group admins can manage hosting rosters",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_assignments",
+        "command": "ALL",
+        "policy": "Group admins can manage hosting assignments",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "elections",
+        "command": "ALL",
+        "policy": "Admins can manage elections",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_options",
+        "command": "ALL",
+        "policy": "Admins can manage options",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "documents",
+        "command": "ALL",
+        "policy": "Admins can manage documents",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "projects",
+        "command": "ALL",
+        "policy": "Admin manage projects",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_milestones",
+        "command": "ALL",
+        "policy": "Admin manage milestones",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_expenses",
+        "command": "ALL",
+        "policy": "Admin manage expenses",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_cycles",
+        "command": "ALL",
+        "policy": "Admins can manage savings cycles",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_participants",
+        "command": "ALL",
+        "policy": "Admins can manage participants",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_contributions",
+        "command": "ALL",
+        "policy": "Admins can manage contributions",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_plans",
+        "command": "ALL",
+        "policy": "Group admins can manage relief plans",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_enrollments",
+        "command": "ALL",
+        "policy": "Admins can manage enrollments",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_enrollments",
+        "command": "INSERT",
+        "policy": "relief_enrollments_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_enrollments",
+        "command": "UPDATE",
+        "policy": "relief_enrollments_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_enrollments",
+        "command": "DELETE",
+        "policy": "relief_enrollments_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_claims",
+        "command": "INSERT",
+        "policy": "Members can submit claims",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_claims",
+        "command": "ALL",
+        "policy": "Admins can manage claims",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_claims",
+        "command": "INSERT",
+        "policy": "relief_claims_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_claims",
+        "command": "UPDATE",
+        "policy": "relief_claims_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_claims",
+        "command": "DELETE",
+        "policy": "relief_claims_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_payouts",
+        "command": "ALL",
+        "policy": "Admins can manage payouts",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_payouts",
+        "command": "INSERT",
+        "policy": "relief_payouts_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_payouts",
+        "command": "UPDATE",
+        "policy": "relief_payouts_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_payouts",
+        "command": "DELETE",
+        "policy": "relief_payouts_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_remittances",
+        "command": "INSERT",
+        "policy": "relief_remittances_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_remittances",
+        "command": "UPDATE",
+        "policy": "relief_remittances_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_types",
+        "command": "ALL",
+        "policy": "Group admins can manage contribution types",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_types",
+        "command": "UPDATE",
+        "policy": "Group admins can update contribution types",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_types",
+        "command": "DELETE",
+        "policy": "Group admins can delete contribution types",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_obligations",
+        "command": "ALL",
+        "policy": "Group admins can manage obligations",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_obligations",
+        "command": "UPDATE",
+        "policy": "Group admins can update obligations",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payment_reminder_rules",
+        "command": "ALL",
+        "policy": "Admin manage reminder rules",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_constitutions",
+        "command": "ALL",
+        "policy": "Admins can manage constitutions",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "constitution_amendments",
+        "command": "ALL",
+        "policy": "Admins can manage amendments",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "activity_feed",
+        "command": "INSERT",
+        "policy": "Members insert feed",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "activity_feed",
+        "command": "UPDATE",
+        "policy": "Admin update feed",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "feed_reactions",
+        "command": "INSERT",
+        "policy": "Members react",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "events",
+        "command": "INSERT",
+        "policy": "Group admins can create events",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "events",
+        "command": "UPDATE",
+        "policy": "Group admins can update events",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "events",
+        "command": "DELETE",
+        "policy": "Group admins can delete events",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "invitations",
+        "command": "INSERT",
+        "policy": "Group admins can create invitations",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "invitations",
+        "command": "UPDATE",
+        "policy": "Group admins can update invitations",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "invitations",
+        "command": "DELETE",
+        "policy": "Group admins can delete invitations",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_payment_config",
+        "command": "ALL",
+        "policy": "Group admins can manage payment config",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_subscriptions",
+        "command": "ALL",
+        "policy": "Admins can manage subscription",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_configs",
+        "command": "INSERT",
+        "policy": "loan_configs_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_configs",
+        "command": "UPDATE",
+        "policy": "loan_configs_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_configs",
+        "command": "DELETE",
+        "policy": "loan_configs_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loans",
+        "command": "INSERT",
+        "policy": "loans_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loans",
+        "command": "UPDATE",
+        "policy": "loans_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loans",
+        "command": "DELETE",
+        "policy": "loans_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_repayments",
+        "command": "INSERT",
+        "policy": "loan_repayments_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_repayments",
+        "command": "UPDATE",
+        "policy": "loan_repayments_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_repayments",
+        "command": "DELETE",
+        "policy": "loan_repayments_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_schedule",
+        "command": "INSERT",
+        "policy": "loan_schedule_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_schedule",
+        "command": "UPDATE",
+        "policy": "loan_schedule_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_schedule",
+        "command": "DELETE",
+        "policy": "loan_schedule_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_requests_v1",
+        "command": "ALL",
+        "policy": "rls_lr_all / Members request loans / Admin manage loans (if attached)",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "disputes",
+        "command": "ALL",
+        "policy": "disputes_admin",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "committees",
+        "command": "ALL",
+        "policy": "Admins can manage committees",
+        "in_helper_matching_145": true,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "committee_members",
+        "command": "ALL",
+        "policy": "Admins can manage committee members",
+        "in_helper_matching_145": true,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "sub_group_transfers",
+        "command": "INSERT",
+        "policy": "Users can create transfers",
+        "in_helper_matching_145": true,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "sub_group_transfers",
+        "command": "UPDATE",
+        "policy": "Admins can update transfers",
+        "in_helper_matching_145": true,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "member_transfers",
+        "command": "DELETE",
+        "policy": "transfers_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "exchange_rates",
+        "command": "ALL",
+        "policy": "HQ admins can manage exchange rates",
+        "in_helper_matching_145": true,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "family_members",
+        "command": "INSERT",
+        "policy": "rls_fm_insert",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "family_members",
+        "command": "UPDATE",
+        "policy": "rls_fm_update",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "family_members",
+        "command": "DELETE",
+        "policy": "rls_fm_delete",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_photos",
+        "command": "INSERT",
+        "policy": "Members upload photos",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_contributions",
+        "command": "INSERT",
+        "policy": "Members contribute to projects",
+        "in_helper_matching_145": false,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "memberships",
+        "command": "INSERT",
+        "policy": "Admins can add proxy members",
+        "in_helper_matching_145": true,
+        "cut1_disposition": "REWRITE IN CUT 1",
+        "post_cut_active_gate_source": "REWRITE — add membership_status='active' to live inline role/EXISTS (do not broaden actor set)",
+        "any_bypass_remains": "NO"
+      }
+    ],
+    "table_level": [
+      {
+        "table": "activity_feed",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Admin update feed",
+          "Members insert feed",
+          "rls_af_all"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "announcement_deliveries",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "rls_ad_insert",
+          "rls_ad_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "announcements",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "ann_delete",
+          "ann_insert",
+          "ann_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "committee_members",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage committee members"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "committees",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage committees"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "constitution_amendments",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage amendments",
+          "rls_amend_delete",
+          "rls_amend_insert",
+          "rls_amend_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_obligations",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can manage obligations",
+          "Group admins can update obligations",
+          "rls_co_insert",
+          "rls_co_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "contribution_types",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL",
+          "DELETE",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can delete contribution types",
+          "Group admins can manage contribution types",
+          "Group admins can update contribution types",
+          "rls_ct_insert",
+          "rls_ct_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "disputes",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Users can create disputes in their groups",
+          "Users can delete disputes in their groups",
+          "Users can update disputes in their groups",
+          "disputes_admin",
+          "disputes_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "documents",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage documents",
+          "rls_doc_delete",
+          "rls_doc_insert",
+          "rls_doc_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_candidates",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "ec_manage_insert",
+          "ec_manage_update",
+          "rls_ec_delete"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "election_options",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage options",
+          "rls_eo_delete",
+          "rls_eo_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "elections",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage elections",
+          "rls_elec_all"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_attendances",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can manage attendance",
+          "rls_att_delete",
+          "rls_att_insert",
+          "rls_att_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_photos",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "INSERT"
+        ],
+        "policies_that_can_allow": [
+          "Members upload photos",
+          "rls_ep_delete",
+          "rls_ep_insert",
+          "rls_ep_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "event_rsvps",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "rls_rsvp_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "events",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can create events",
+          "Group admins can delete events",
+          "Group admins can update events",
+          "rls_ev_delete",
+          "rls_ev_insert",
+          "rls_ev_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "exchange_rates",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "HQ admins can manage exchange rates"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "family_members",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "rls_fm_delete",
+          "rls_fm_insert",
+          "rls_fm_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "feed_reactions",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [
+          "INSERT"
+        ],
+        "policies_that_can_allow": [
+          "Members react",
+          "rls_fr_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "fine_types",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "fine_types_admin"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "fines",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admin manage fines",
+          "rls_fin_insert",
+          "rls_fin_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_audit_logs",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "member_insert_audit_logs"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_constitutions",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage constitutions",
+          "rls_const_delete",
+          "rls_const_insert",
+          "rls_const_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_payment_config",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can manage payment config"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "group_subscriptions",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage subscription"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "groups",
+        "helper_matching_write_commands": [
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "Group owners/admins can update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_assignments",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can manage hosting assignments",
+          "rls_ha_delete",
+          "rls_ha_insert",
+          "rls_ha_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_rosters",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can manage hosting rosters",
+          "rls_hr_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "hosting_swap_requests",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "rls_hsr_insert",
+          "rls_hsr_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "invitations",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can create invitations",
+          "Group admins can delete invitations",
+          "Group admins can update invitations"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_configs",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "loan_configs_delete",
+          "loan_configs_insert",
+          "loan_configs_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_repayments",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "loan_repayments_delete",
+          "loan_repayments_insert",
+          "loan_repayments_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_requests_v1",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "rls_lr_all / Members request loans / Admin manage loans (if attached)"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loan_schedule",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "loan_schedule_delete",
+          "loan_schedule_insert",
+          "loan_schedule_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "loans",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "loans_delete",
+          "loans_insert",
+          "loans_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "meeting_minutes",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "mm_delete",
+          "mm_insert",
+          "mm_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "member_badges",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "rls_mb_delete",
+          "rls_mb_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "member_transfers",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "DELETE"
+        ],
+        "policies_that_can_allow": [
+          "transfers_delete"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "memberships",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "INSERT"
+        ],
+        "policies_that_can_allow": [
+          "Admins can add proxy members",
+          "Members can leave or admins can remove members",
+          "rls_membership_role_guard"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "notifications",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "rls_notif_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payment_reminder_rules",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admin manage reminder rules",
+          "rls_prr_delete",
+          "rls_prr_insert",
+          "rls_prr_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payment_reminders_sent",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "rls_prs_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "payments",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "INSERT"
+        ],
+        "policies_that_can_allow": [
+          "Group admins and treasurers can record payments",
+          "Group admins can delete payments",
+          "Group admins can update payments",
+          "rls_pay_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_assignments",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Group owners/admins can manage assignments",
+          "rls_pa_delete",
+          "rls_pa_insert",
+          "rls_pa_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "position_permissions",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "rls_pp_delete",
+          "rls_pp_insert"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_contributions",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [
+          "INSERT"
+        ],
+        "policies_that_can_allow": [
+          "Members contribute to projects",
+          "rls_pcon_write"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_expenses",
+        "helper_matching_write_commands": [
+          "INSERT"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admin manage expenses",
+          "rls_pexp_write"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "project_milestones",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admin manage milestones",
+          "rls_pmil_update",
+          "rls_pmil_write"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "projects",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admin manage projects",
+          "rls_proj_all"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "proxy_claim_tokens",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [],
+        "policies_that_can_allow": [
+          "pct_manage"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_claims",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "ALL",
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage claims",
+          "Members can submit claims",
+          "relief_claims_delete",
+          "relief_claims_insert",
+          "relief_claims_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_enrollments",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "ALL",
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage enrollments",
+          "relief_enrollments_delete",
+          "relief_enrollments_insert",
+          "relief_enrollments_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_payouts",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "ALL",
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage payouts",
+          "relief_payouts_delete",
+          "relief_payouts_insert",
+          "relief_payouts_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_plans",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Group admins can manage relief plans",
+          "rls_rp_all"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "relief_remittances",
+        "helper_matching_write_commands": [],
+        "inline_role_neutralize_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "relief_remittances_insert",
+          "relief_remittances_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_contributions",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage contributions",
+          "rls_scon_insert",
+          "rls_scon_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_cycles",
+        "helper_matching_write_commands": [
+          "ALL"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage savings cycles",
+          "rls_sc_all"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "savings_participants",
+        "helper_matching_write_commands": [
+          "DELETE",
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "ALL"
+        ],
+        "policies_that_can_allow": [
+          "Admins can manage participants",
+          "rls_sp_delete",
+          "rls_sp_insert",
+          "rls_sp_update"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      },
+      {
+        "table": "sub_group_transfers",
+        "helper_matching_write_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "inline_role_neutralize_commands": [
+          "INSERT",
+          "UPDATE"
+        ],
+        "policies_that_can_allow": [
+          "Admins can update transfers",
+          "Users can create transfers"
+        ],
+        "post_cut_active_gate_source": "REWRITE of status-blind member helpers / inline-role EXISTS + INHERIT REPLACE of admin/permission helpers; ALL operational writes require ACTIVE",
+        "any_bypass_remains": "NO"
+      }
+    ]
+  },
+  "exact_policy_rows_included": true,
+  "exact_policy_row_count": 145,
+  "payments_proof": {
+    "active_officers_insert_update_delete": "ALLOW (ACTIVE owner/admin; treasurer INSERT only via live role IN owner/admin + active — no treasurer broadening)",
+    "inactive_officers": "DENY",
+    "amount_status_currency_f0_command_logic": "UNCHANGED",
+    "selects": "UNCHANGED (rls_pay_select / Platform staff can view all payments)"
+  }
 }

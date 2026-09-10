@@ -75,8 +75,10 @@ export interface EnabledChannels {
  * 4. Check muted_groups (if groupId provided and group is muted → only in_app)
  * 5. in_app is always true (cannot be disabled)
  *
- * If userId is null (proxy member), returns defaults with only in_app enabled.
- * NEVER throws — returns defaults on error.
+ * If userId is null (proxy member), returns defaults with WhatsApp-only external path
+ * (intentional proxy routing — do not collapse to in_app-only).
+ * NEVER throws. On preference-read ERROR for a REAL user, fail CLOSED for external
+ * channels so a transient prefs outage cannot override an opt-out.
  */
 export async function getEnabledChannels(
   supabase: SupabaseClient,
@@ -135,9 +137,10 @@ export async function getEnabledChannels(
 
     return result;
   } catch {
-    // On error, fail-OPEN for all external channels so user-enabled
-    // channels aren't silently blocked by transient query failures.
-    return { in_app: true, email: true, sms: true, whatsapp: true, push: false };
+    // Fail CLOSED for external channels when preference lookup fails for a real user.
+    // A temporary prefs outage must not force-send email/SMS/WhatsApp against an opt-out.
+    // Proxy members never reach this catch (handled above).
+    return { in_app: true, email: false, sms: false, whatsapp: false, push: false };
   }
 }
 

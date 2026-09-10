@@ -9,12 +9,19 @@
 -- adapters (PC-PAYMENT → PC-HOSTING → PC-EVENTS). No producers write rows yet.
 --
 -- Permission key (documented choice): settings.manage
---   WRITE (INSERT/UPDATE/DELETE): has_group_permission(..., 'settings.manage')
---   READ  (SELECT): same — officers with settings.manage OR owner / general admin
---     (has_group_permission already treats owner + admin-without-assignments as true).
+-- Permission (EXISTING vocab only — do NOT invent notifications.manage):
+--   Policy + triggers CRUD: has_group_permission(..., 'settings.manage')
+--     (owner/admin bypass is the existing helper contract).
+--   notifications.send is for FUTURE enqueue/send only — NOT policy-admin.
 --   Ordinary members: no SELECT/WRITE on policy tables.
---   Do NOT invent notifications.manage.
--- Platform service_role bypasses RLS for future workers (separate from this cut).
+-- Occurrence table (DORMANT this ticket):
+--   Authenticated: SELECT only (settings.manage). NO authenticated INSERT/UPDATE/DELETE.
+--   Future producer writes: SECURITY DEFINER / service_role workers only (later ticket).
+--   Browser clients must never hold service_role.
+-- Group policy configures schedule intent only — member opt-out / muted_group /
+-- Trust Cut 1 fail-closed prefs remain authoritative at send time (not this migration).
+-- Invalid IANA timezone: enforce in pure evaluator (#69) + future DEFINER validate;
+-- never coerce to UTC+SEND_NOW.
 -- F3 ledger track: untouched.
 -- Announcement queue modernization: remains DORMANT.
 -- =============================================================================
@@ -141,8 +148,13 @@ CREATE TABLE IF NOT EXISTS public.notification_policy_occurrences (
     UNIQUE (group_id, domain, object_id, anchor_at, trigger_offset_hours, occurrence_index)
 );
 
+-- Note: identity_key uniqueness covers open+terminal rows. Reschedule mints a NEW
+-- identity (new anchorIso); prior row stays with status=superseded (immutable history).
+-- Quiet DEFER_UNTIL must NOT insert a second row for the same identity_key.
+
+
 COMMENT ON TABLE public.notification_policy_occurrences IS
-  'DORMANT — future adapters only. identity_key must match pure occurrenceIdentity(). No producers write yet. CREATE-NOT-APPLY track must not wire crons.';
+  'DORMANT — future adapters only. identity_key = domain:objectId:anchorIso:offset:index. DEFER keeps same identity; reschedule supersedes prior unsent. No authenticated writes; no producers yet.';
 COMMENT ON COLUMN public.notification_policy_occurrences.identity_key IS
   'Stable string: domain:objectId:anchorIso:triggerOffsetHours:occurrenceIndex (see occurrenceIdentity).';
 
@@ -273,22 +285,12 @@ DROP POLICY IF EXISTS npo_insert ON public.notification_policy_occurrences;
 DROP POLICY IF EXISTS npo_update ON public.notification_policy_occurrences;
 DROP POLICY IF EXISTS npo_delete ON public.notification_policy_occurrences;
 
+-- DORMANT: officers may read for diagnostics; no authenticated writes this ticket.
 CREATE POLICY npo_select ON public.notification_policy_occurrences
   FOR SELECT TO authenticated
   USING (public.has_group_permission(group_id, 'settings.manage'));
-
-CREATE POLICY npo_insert ON public.notification_policy_occurrences
-  FOR INSERT TO authenticated
-  WITH CHECK (public.has_group_permission(group_id, 'settings.manage'));
-
-CREATE POLICY npo_update ON public.notification_policy_occurrences
-  FOR UPDATE TO authenticated
-  USING (public.has_group_permission(group_id, 'settings.manage'))
-  WITH CHECK (public.has_group_permission(group_id, 'settings.manage'));
-
-CREATE POLICY npo_delete ON public.notification_policy_occurrences
-  FOR DELETE TO authenticated
-  USING (public.has_group_permission(group_id, 'settings.manage'));
+-- Intentionally NO npo_insert / npo_update / npo_delete for authenticated.
+-- Future adapter ticket: SECURITY DEFINER RPCs (or service_role workers) only.
 
 -- ---------------------------------------------------------------------------
 -- Grants: revoke public; grant to authenticated behind RLS
@@ -300,7 +302,8 @@ REVOKE ALL ON public.notification_policy_occurrences FROM PUBLIC, anon;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_policies TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_policy_triggers TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_policy_occurrences TO authenticated;
+GRANT SELECT ON public.notification_policy_occurrences TO authenticated;
+-- No authenticated INSERT/UPDATE/DELETE on dormant occurrences (Daybreak HOLD pin).
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_policies TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_policy_triggers TO service_role;

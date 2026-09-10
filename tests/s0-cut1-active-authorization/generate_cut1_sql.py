@@ -96,10 +96,15 @@ def expect_policy_sql(table: str, name: str, cmd: str, qual: str | None, wcheck:
   );"""
 
 
+def ident(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
 def drop_create_sql(table: str, name: str, cmd: str, roles: str, qual: str | None, wcheck: str | None) -> str:
+    qn = ident(name)
     lines = [
-        f'DROP POLICY IF EXISTS {dollar(name, "pn")} ON public.{table};',
-        f"CREATE POLICY {dollar(name, 'pn')} ON public.{table}",
+        f"DROP POLICY IF EXISTS {qn} ON public.{table};",
+        f"CREATE POLICY {qn} ON public.{table}",
         f"  FOR {cmd}",
         f"  {roles_clause(roles)}",
     ]
@@ -594,8 +599,7 @@ BEGIN
     WHERE n.nspname = 'public'
       AND p.proname IN ('is_active_group_member', 'get_my_active_group_ids',
                         'get_user_active_group_ids', 'is_active_member_of')
-      AND pg_get_function_identity_arguments(p.oid) ~* 'uid'
-      AND r.rolname IN ('authenticated', 'anon', 'PUBLIC')
+      AND pg_get_function_identity_arguments(p.oid) ~* '(^|[[:space:],])uid[[:space:]]'
   ) THEN
     RAISE EXCEPTION 'CUT1_ABORT_POST: arbitrary-subject active helper granted to authenticated/anon';
   END IF;

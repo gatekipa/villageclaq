@@ -1217,16 +1217,16 @@ CREATE TRIGGER trg_position_assignments_same_group
 -- ---------------------------------------------------------------------------
 
 -- [rewrite23] activity_feed.rls_af_all ALL
-DROP POLICY IF EXISTS $pn$rls_af_all$pn$ ON public.activity_feed;
-CREATE POLICY $pn$rls_af_all$pn$ ON public.activity_feed
+DROP POLICY IF EXISTS "rls_af_all" ON public.activity_feed;
+CREATE POLICY "rls_af_all" ON public.activity_feed
   FOR ALL
   TO authenticated
   USING (is_active_group_member(group_id))
   WITH CHECK (is_active_group_member(group_id));
 
 -- [rewrite23] announcement_deliveries.rls_ad_update UPDATE
-DROP POLICY IF EXISTS $pn$rls_ad_update$pn$ ON public.announcement_deliveries;
-CREATE POLICY $pn$rls_ad_update$pn$ ON public.announcement_deliveries
+DROP POLICY IF EXISTS "rls_ad_update" ON public.announcement_deliveries;
+CREATE POLICY "rls_ad_update" ON public.announcement_deliveries
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1234,8 +1234,8 @@ CREATE POLICY $pn$rls_ad_update$pn$ ON public.announcement_deliveries
   WHERE ((a.id = announcement_deliveries.announcement_id) AND is_active_group_member(a.group_id)))));
 
 -- [rewrite23] committee_members.Admins can manage committee members ALL
-DROP POLICY IF EXISTS $pn$Admins can manage committee members$pn$ ON public.committee_members;
-CREATE POLICY $pn$Admins can manage committee members$pn$ ON public.committee_members
+DROP POLICY IF EXISTS "Admins can manage committee members" ON public.committee_members;
+CREATE POLICY "Admins can manage committee members" ON public.committee_members
   FOR ALL
   TO public
   USING ((committee_id IN ( SELECT c.id
@@ -1245,8 +1245,8 @@ CREATE POLICY $pn$Admins can manage committee members$pn$ ON public.committee_me
           WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.group_id = c.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))))));
 
 -- [rewrite23] committees.Admins can manage committees ALL
-DROP POLICY IF EXISTS $pn$Admins can manage committees$pn$ ON public.committees;
-CREATE POLICY $pn$Admins can manage committees$pn$ ON public.committees
+DROP POLICY IF EXISTS "Admins can manage committees" ON public.committees;
+CREATE POLICY "Admins can manage committees" ON public.committees
   FOR ALL
   TO public
   USING (((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1
@@ -1254,43 +1254,43 @@ CREATE POLICY $pn$Admins can manage committees$pn$ ON public.committees
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.group_id = committees.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))));
 
 -- [rewrite23] constitution_amendments.rls_amend_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_amend_insert$pn$ ON public.constitution_amendments;
-CREATE POLICY $pn$rls_amend_insert$pn$ ON public.constitution_amendments
+DROP POLICY IF EXISTS "rls_amend_insert" ON public.constitution_amendments;
+CREATE POLICY "rls_amend_insert" ON public.constitution_amendments
   FOR INSERT
   TO authenticated
   WITH CHECK (is_active_group_member(group_id));
 
 -- [rewrite23] disputes.Users can create disputes in their groups INSERT
-DROP POLICY IF EXISTS $pn$Users can create disputes in their groups$pn$ ON public.disputes;
-CREATE POLICY $pn$Users can create disputes in their groups$pn$ ON public.disputes
+DROP POLICY IF EXISTS "Users can create disputes in their groups" ON public.disputes;
+CREATE POLICY "Users can create disputes in their groups" ON public.disputes
   FOR INSERT
   TO public
   WITH CHECK ((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)));
 
 -- [rewrite23] disputes.Users can delete disputes in their groups DELETE
-DROP POLICY IF EXISTS $pn$Users can delete disputes in their groups$pn$ ON public.disputes;
-CREATE POLICY $pn$Users can delete disputes in their groups$pn$ ON public.disputes
+DROP POLICY IF EXISTS "Users can delete disputes in their groups" ON public.disputes;
+CREATE POLICY "Users can delete disputes in their groups" ON public.disputes
   FOR DELETE
   TO public
   USING ((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)));
 
 -- [rewrite23] disputes.Users can update disputes in their groups UPDATE
-DROP POLICY IF EXISTS $pn$Users can update disputes in their groups$pn$ ON public.disputes;
-CREATE POLICY $pn$Users can update disputes in their groups$pn$ ON public.disputes
+DROP POLICY IF EXISTS "Users can update disputes in their groups" ON public.disputes;
+CREATE POLICY "Users can update disputes in their groups" ON public.disputes
   FOR UPDATE
   TO public
   USING ((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)));
 
 -- [rewrite23] disputes.disputes_insert INSERT
-DROP POLICY IF EXISTS $pn$disputes_insert$pn$ ON public.disputes;
-CREATE POLICY $pn$disputes_insert$pn$ ON public.disputes
+DROP POLICY IF EXISTS "disputes_insert" ON public.disputes;
+CREATE POLICY "disputes_insert" ON public.disputes
   FOR INSERT
   TO public
   WITH CHECK ((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)));
 
 -- [rewrite23] event_attendances.rls_att_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_att_insert$pn$ ON public.event_attendances;
-CREATE POLICY $pn$rls_att_insert$pn$ ON public.event_attendances
+DROP POLICY IF EXISTS "rls_att_insert" ON public.event_attendances;
+CREATE POLICY "rls_att_insert" ON public.event_attendances
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1298,8 +1298,8 @@ CREATE POLICY $pn$rls_att_insert$pn$ ON public.event_attendances
   WHERE ((e.id = event_attendances.event_id) AND is_active_group_member(e.group_id)))));
 
 -- [rewrite23] event_photos.rls_ep_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_ep_insert$pn$ ON public.event_photos;
-CREATE POLICY $pn$rls_ep_insert$pn$ ON public.event_photos
+DROP POLICY IF EXISTS "rls_ep_insert" ON public.event_photos;
+CREATE POLICY "rls_ep_insert" ON public.event_photos
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1307,8 +1307,8 @@ CREATE POLICY $pn$rls_ep_insert$pn$ ON public.event_photos
   WHERE ((e.id = event_photos.event_id) AND is_active_group_member(e.group_id)))));
 
 -- [rewrite23] event_rsvps.rls_rsvp_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_rsvp_insert$pn$ ON public.event_rsvps;
-CREATE POLICY $pn$rls_rsvp_insert$pn$ ON public.event_rsvps
+DROP POLICY IF EXISTS "rls_rsvp_insert" ON public.event_rsvps;
+CREATE POLICY "rls_rsvp_insert" ON public.event_rsvps
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1316,8 +1316,8 @@ CREATE POLICY $pn$rls_rsvp_insert$pn$ ON public.event_rsvps
   WHERE ((e.id = event_rsvps.event_id) AND is_active_group_member(e.group_id)))));
 
 -- [rewrite23] exchange_rates.HQ admins can manage exchange rates ALL
-DROP POLICY IF EXISTS $pn$HQ admins can manage exchange rates$pn$ ON public.exchange_rates;
-CREATE POLICY $pn$HQ admins can manage exchange rates$pn$ ON public.exchange_rates
+DROP POLICY IF EXISTS "HQ admins can manage exchange rates" ON public.exchange_rates;
+CREATE POLICY "HQ admins can manage exchange rates" ON public.exchange_rates
   FOR ALL
   TO public
   USING ((organization_id IN ( SELECT o.id
@@ -1328,8 +1328,8 @@ CREATE POLICY $pn$HQ admins can manage exchange rates$pn$ ON public.exchange_rat
           WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.group_id = g.id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))))));
 
 -- [rewrite23] feed_reactions.rls_fr_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_fr_insert$pn$ ON public.feed_reactions;
-CREATE POLICY $pn$rls_fr_insert$pn$ ON public.feed_reactions
+DROP POLICY IF EXISTS "rls_fr_insert" ON public.feed_reactions;
+CREATE POLICY "rls_fr_insert" ON public.feed_reactions
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1337,22 +1337,22 @@ CREATE POLICY $pn$rls_fr_insert$pn$ ON public.feed_reactions
   WHERE ((af.id = feed_reactions.feed_item_id) AND is_active_group_member(af.group_id)))));
 
 -- [rewrite23] fines.rls_fin_update UPDATE
-DROP POLICY IF EXISTS $pn$rls_fin_update$pn$ ON public.fines;
-CREATE POLICY $pn$rls_fin_update$pn$ ON public.fines
+DROP POLICY IF EXISTS "rls_fin_update" ON public.fines;
+CREATE POLICY "rls_fin_update" ON public.fines
   FOR UPDATE
   TO authenticated
   USING (is_active_group_member(group_id));
 
 -- [rewrite23] group_audit_logs.member_insert_audit_logs INSERT
-DROP POLICY IF EXISTS $pn$member_insert_audit_logs$pn$ ON public.group_audit_logs;
-CREATE POLICY $pn$member_insert_audit_logs$pn$ ON public.group_audit_logs
+DROP POLICY IF EXISTS "member_insert_audit_logs" ON public.group_audit_logs;
+CREATE POLICY "member_insert_audit_logs" ON public.group_audit_logs
   FOR INSERT
   TO authenticated
   WITH CHECK ((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)));
 
 -- [rewrite23] hosting_swap_requests.rls_hsr_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_hsr_insert$pn$ ON public.hosting_swap_requests;
-CREATE POLICY $pn$rls_hsr_insert$pn$ ON public.hosting_swap_requests
+DROP POLICY IF EXISTS "rls_hsr_insert" ON public.hosting_swap_requests;
+CREATE POLICY "rls_hsr_insert" ON public.hosting_swap_requests
   FOR INSERT
   TO authenticated
   WITH CHECK (((requested_by = auth.uid()) AND (from_assignment_id IN ( SELECT ha.id
@@ -1361,8 +1361,8 @@ CREATE POLICY $pn$rls_hsr_insert$pn$ ON public.hosting_swap_requests
   WHERE (hr.group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids))))));
 
 -- [rewrite23] memberships.Admins can add proxy members INSERT
-DROP POLICY IF EXISTS $pn$Admins can add proxy members$pn$ ON public.memberships;
-CREATE POLICY $pn$Admins can add proxy members$pn$ ON public.memberships
+DROP POLICY IF EXISTS "Admins can add proxy members" ON public.memberships;
+CREATE POLICY "Admins can add proxy members" ON public.memberships
   FOR INSERT
   TO public
   WITH CHECK (((is_proxy = true) AND (proxy_manager_id = auth.uid()) AND (EXISTS ( SELECT 1
@@ -1370,8 +1370,8 @@ CREATE POLICY $pn$Admins can add proxy members$pn$ ON public.memberships
   WHERE ((m.user_id = auth.uid()) AND (m.group_id = memberships.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role])) AND (m.membership_status = 'active'::text))))));
 
 -- [rewrite23] payment_reminders_sent.rls_prs_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_prs_insert$pn$ ON public.payment_reminders_sent;
-CREATE POLICY $pn$rls_prs_insert$pn$ ON public.payment_reminders_sent
+DROP POLICY IF EXISTS "rls_prs_insert" ON public.payment_reminders_sent;
+CREATE POLICY "rls_prs_insert" ON public.payment_reminders_sent
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1379,8 +1379,8 @@ CREATE POLICY $pn$rls_prs_insert$pn$ ON public.payment_reminders_sent
   WHERE ((prr.id = payment_reminders_sent.rule_id) AND is_active_group_member(prr.group_id)))));
 
 -- [rewrite23] payments.rls_pay_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_pay_insert$pn$ ON public.payments;
-CREATE POLICY $pn$rls_pay_insert$pn$ ON public.payments
+DROP POLICY IF EXISTS "rls_pay_insert" ON public.payments;
+CREATE POLICY "rls_pay_insert" ON public.payments
   FOR INSERT
   TO authenticated
   WITH CHECK ((is_active_group_member(group_id) AND (status = 'pending_confirmation'::text) AND (recorded_by = auth.uid()) AND (EXISTS ( SELECT 1
@@ -1388,8 +1388,8 @@ CREATE POLICY $pn$rls_pay_insert$pn$ ON public.payments
   WHERE ((m.id = payments.membership_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text))))));
 
 -- [rewrite23] project_contributions.rls_pcon_write INSERT
-DROP POLICY IF EXISTS $pn$rls_pcon_write$pn$ ON public.project_contributions;
-CREATE POLICY $pn$rls_pcon_write$pn$ ON public.project_contributions
+DROP POLICY IF EXISTS "rls_pcon_write" ON public.project_contributions;
+CREATE POLICY "rls_pcon_write" ON public.project_contributions
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1397,8 +1397,8 @@ CREATE POLICY $pn$rls_pcon_write$pn$ ON public.project_contributions
   WHERE ((p.id = project_contributions.project_id) AND is_active_group_member(p.group_id)))));
 
 -- [rewrite23] sub_group_transfers.Admins can update transfers UPDATE
-DROP POLICY IF EXISTS $pn$Admins can update transfers$pn$ ON public.sub_group_transfers;
-CREATE POLICY $pn$Admins can update transfers$pn$ ON public.sub_group_transfers
+DROP POLICY IF EXISTS "Admins can update transfers" ON public.sub_group_transfers;
+CREATE POLICY "Admins can update transfers" ON public.sub_group_transfers
   FOR UPDATE
   TO public
   USING (((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1
@@ -1406,15 +1406,15 @@ CREATE POLICY $pn$Admins can update transfers$pn$ ON public.sub_group_transfers
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.group_id = sub_group_transfers.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))));
 
 -- [rewrite23] sub_group_transfers.Users can create transfers INSERT
-DROP POLICY IF EXISTS $pn$Users can create transfers$pn$ ON public.sub_group_transfers;
-CREATE POLICY $pn$Users can create transfers$pn$ ON public.sub_group_transfers
+DROP POLICY IF EXISTS "Users can create transfers" ON public.sub_group_transfers;
+CREATE POLICY "Users can create transfers" ON public.sub_group_transfers
   FOR INSERT
   TO public
   WITH CHECK ((group_id IN ( SELECT get_my_active_group_ids() AS get_user_group_ids)));
 
 -- [neutralize] activity_feed.Admin update feed UPDATE
-DROP POLICY IF EXISTS $pn$Admin update feed$pn$ ON public.activity_feed;
-CREATE POLICY $pn$Admin update feed$pn$ ON public.activity_feed
+DROP POLICY IF EXISTS "Admin update feed" ON public.activity_feed;
+CREATE POLICY "Admin update feed" ON public.activity_feed
   FOR UPDATE
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1422,8 +1422,8 @@ CREATE POLICY $pn$Admin update feed$pn$ ON public.activity_feed
   WHERE ((memberships.group_id = activity_feed.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] activity_feed.Members insert feed INSERT
-DROP POLICY IF EXISTS $pn$Members insert feed$pn$ ON public.activity_feed;
-CREATE POLICY $pn$Members insert feed$pn$ ON public.activity_feed
+DROP POLICY IF EXISTS "Members insert feed" ON public.activity_feed;
+CREATE POLICY "Members insert feed" ON public.activity_feed
   FOR INSERT
   TO public
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1431,8 +1431,8 @@ CREATE POLICY $pn$Members insert feed$pn$ ON public.activity_feed
   WHERE ((memberships.group_id = activity_feed.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text)))));
 
 -- [neutralize] constitution_amendments.Admins can manage amendments ALL
-DROP POLICY IF EXISTS $pn$Admins can manage amendments$pn$ ON public.constitution_amendments;
-CREATE POLICY $pn$Admins can manage amendments$pn$ ON public.constitution_amendments
+DROP POLICY IF EXISTS "Admins can manage amendments" ON public.constitution_amendments;
+CREATE POLICY "Admins can manage amendments" ON public.constitution_amendments
   FOR ALL
   TO public
   USING ((group_id IN ( SELECT memberships.group_id
@@ -1440,8 +1440,8 @@ CREATE POLICY $pn$Admins can manage amendments$pn$ ON public.constitution_amendm
   WHERE ((memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] contribution_obligations.Group admins can manage obligations INSERT
-DROP POLICY IF EXISTS $pn$Group admins can manage obligations$pn$ ON public.contribution_obligations;
-CREATE POLICY $pn$Group admins can manage obligations$pn$ ON public.contribution_obligations
+DROP POLICY IF EXISTS "Group admins can manage obligations" ON public.contribution_obligations;
+CREATE POLICY "Group admins can manage obligations" ON public.contribution_obligations
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1449,8 +1449,8 @@ CREATE POLICY $pn$Group admins can manage obligations$pn$ ON public.contribution
   WHERE ((memberships.group_id = contribution_obligations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] contribution_obligations.Group admins can update obligations UPDATE
-DROP POLICY IF EXISTS $pn$Group admins can update obligations$pn$ ON public.contribution_obligations;
-CREATE POLICY $pn$Group admins can update obligations$pn$ ON public.contribution_obligations
+DROP POLICY IF EXISTS "Group admins can update obligations" ON public.contribution_obligations;
+CREATE POLICY "Group admins can update obligations" ON public.contribution_obligations
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1458,8 +1458,8 @@ CREATE POLICY $pn$Group admins can update obligations$pn$ ON public.contribution
   WHERE ((memberships.group_id = contribution_obligations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] contribution_types.Group admins can delete contribution types DELETE
-DROP POLICY IF EXISTS $pn$Group admins can delete contribution types$pn$ ON public.contribution_types;
-CREATE POLICY $pn$Group admins can delete contribution types$pn$ ON public.contribution_types
+DROP POLICY IF EXISTS "Group admins can delete contribution types" ON public.contribution_types;
+CREATE POLICY "Group admins can delete contribution types" ON public.contribution_types
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1467,8 +1467,8 @@ CREATE POLICY $pn$Group admins can delete contribution types$pn$ ON public.contr
   WHERE ((memberships.group_id = contribution_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] contribution_types.Group admins can manage contribution types INSERT
-DROP POLICY IF EXISTS $pn$Group admins can manage contribution types$pn$ ON public.contribution_types;
-CREATE POLICY $pn$Group admins can manage contribution types$pn$ ON public.contribution_types
+DROP POLICY IF EXISTS "Group admins can manage contribution types" ON public.contribution_types;
+CREATE POLICY "Group admins can manage contribution types" ON public.contribution_types
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1476,8 +1476,8 @@ CREATE POLICY $pn$Group admins can manage contribution types$pn$ ON public.contr
   WHERE ((memberships.group_id = contribution_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] contribution_types.Group admins can update contribution types UPDATE
-DROP POLICY IF EXISTS $pn$Group admins can update contribution types$pn$ ON public.contribution_types;
-CREATE POLICY $pn$Group admins can update contribution types$pn$ ON public.contribution_types
+DROP POLICY IF EXISTS "Group admins can update contribution types" ON public.contribution_types;
+CREATE POLICY "Group admins can update contribution types" ON public.contribution_types
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1485,8 +1485,8 @@ CREATE POLICY $pn$Group admins can update contribution types$pn$ ON public.contr
   WHERE ((memberships.group_id = contribution_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] disputes.disputes_admin ALL
-DROP POLICY IF EXISTS $pn$disputes_admin$pn$ ON public.disputes;
-CREATE POLICY $pn$disputes_admin$pn$ ON public.disputes
+DROP POLICY IF EXISTS "disputes_admin" ON public.disputes;
+CREATE POLICY "disputes_admin" ON public.disputes
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1494,8 +1494,8 @@ CREATE POLICY $pn$disputes_admin$pn$ ON public.disputes
   WHERE ((memberships.group_id = disputes.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] documents.Admins can manage documents ALL
-DROP POLICY IF EXISTS $pn$Admins can manage documents$pn$ ON public.documents;
-CREATE POLICY $pn$Admins can manage documents$pn$ ON public.documents
+DROP POLICY IF EXISTS "Admins can manage documents" ON public.documents;
+CREATE POLICY "Admins can manage documents" ON public.documents
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1503,8 +1503,8 @@ CREATE POLICY $pn$Admins can manage documents$pn$ ON public.documents
   WHERE ((memberships.group_id = documents.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] election_options.Admins can manage options ALL
-DROP POLICY IF EXISTS $pn$Admins can manage options$pn$ ON public.election_options;
-CREATE POLICY $pn$Admins can manage options$pn$ ON public.election_options
+DROP POLICY IF EXISTS "Admins can manage options" ON public.election_options;
+CREATE POLICY "Admins can manage options" ON public.election_options
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1513,8 +1513,8 @@ CREATE POLICY $pn$Admins can manage options$pn$ ON public.election_options
   WHERE ((e.id = election_options.election_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] elections.Admins can manage elections ALL
-DROP POLICY IF EXISTS $pn$Admins can manage elections$pn$ ON public.elections;
-CREATE POLICY $pn$Admins can manage elections$pn$ ON public.elections
+DROP POLICY IF EXISTS "Admins can manage elections" ON public.elections;
+CREATE POLICY "Admins can manage elections" ON public.elections
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1522,8 +1522,8 @@ CREATE POLICY $pn$Admins can manage elections$pn$ ON public.elections
   WHERE ((memberships.group_id = elections.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] event_attendances.Group admins can manage attendance ALL
-DROP POLICY IF EXISTS $pn$Group admins can manage attendance$pn$ ON public.event_attendances;
-CREATE POLICY $pn$Group admins can manage attendance$pn$ ON public.event_attendances
+DROP POLICY IF EXISTS "Group admins can manage attendance" ON public.event_attendances;
+CREATE POLICY "Group admins can manage attendance" ON public.event_attendances
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1532,8 +1532,8 @@ CREATE POLICY $pn$Group admins can manage attendance$pn$ ON public.event_attenda
   WHERE ((events.id = event_attendances.event_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] event_photos.Members upload photos INSERT
-DROP POLICY IF EXISTS $pn$Members upload photos$pn$ ON public.event_photos;
-CREATE POLICY $pn$Members upload photos$pn$ ON public.event_photos
+DROP POLICY IF EXISTS "Members upload photos" ON public.event_photos;
+CREATE POLICY "Members upload photos" ON public.event_photos
   FOR INSERT
   TO public
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1542,8 +1542,8 @@ CREATE POLICY $pn$Members upload photos$pn$ ON public.event_photos
   WHERE ((e.id = event_photos.event_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
 
 -- [neutralize] events.Group admins can create events INSERT
-DROP POLICY IF EXISTS $pn$Group admins can create events$pn$ ON public.events;
-CREATE POLICY $pn$Group admins can create events$pn$ ON public.events
+DROP POLICY IF EXISTS "Group admins can create events" ON public.events;
+CREATE POLICY "Group admins can create events" ON public.events
   FOR INSERT
   TO public
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1551,8 +1551,8 @@ CREATE POLICY $pn$Group admins can create events$pn$ ON public.events
   WHERE ((memberships.group_id = events.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] events.Group admins can delete events DELETE
-DROP POLICY IF EXISTS $pn$Group admins can delete events$pn$ ON public.events;
-CREATE POLICY $pn$Group admins can delete events$pn$ ON public.events
+DROP POLICY IF EXISTS "Group admins can delete events" ON public.events;
+CREATE POLICY "Group admins can delete events" ON public.events
   FOR DELETE
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1560,8 +1560,8 @@ CREATE POLICY $pn$Group admins can delete events$pn$ ON public.events
   WHERE ((memberships.group_id = events.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] events.Group admins can update events UPDATE
-DROP POLICY IF EXISTS $pn$Group admins can update events$pn$ ON public.events;
-CREATE POLICY $pn$Group admins can update events$pn$ ON public.events
+DROP POLICY IF EXISTS "Group admins can update events" ON public.events;
+CREATE POLICY "Group admins can update events" ON public.events
   FOR UPDATE
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1569,8 +1569,8 @@ CREATE POLICY $pn$Group admins can update events$pn$ ON public.events
   WHERE ((memberships.group_id = events.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] family_members.rls_fm_delete DELETE
-DROP POLICY IF EXISTS $pn$rls_fm_delete$pn$ ON public.family_members;
-CREATE POLICY $pn$rls_fm_delete$pn$ ON public.family_members
+DROP POLICY IF EXISTS "rls_fm_delete" ON public.family_members;
+CREATE POLICY "rls_fm_delete" ON public.family_members
   FOR DELETE
   TO authenticated
   USING (((EXISTS ( SELECT 1
@@ -1581,8 +1581,8 @@ CREATE POLICY $pn$rls_fm_delete$pn$ ON public.family_members
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))));
 
 -- [neutralize] family_members.rls_fm_insert INSERT
-DROP POLICY IF EXISTS $pn$rls_fm_insert$pn$ ON public.family_members;
-CREATE POLICY $pn$rls_fm_insert$pn$ ON public.family_members
+DROP POLICY IF EXISTS "rls_fm_insert" ON public.family_members;
+CREATE POLICY "rls_fm_insert" ON public.family_members
   FOR INSERT
   TO authenticated
   WITH CHECK (((EXISTS ( SELECT 1
@@ -1593,8 +1593,8 @@ CREATE POLICY $pn$rls_fm_insert$pn$ ON public.family_members
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))));
 
 -- [neutralize] family_members.rls_fm_update UPDATE
-DROP POLICY IF EXISTS $pn$rls_fm_update$pn$ ON public.family_members;
-CREATE POLICY $pn$rls_fm_update$pn$ ON public.family_members
+DROP POLICY IF EXISTS "rls_fm_update" ON public.family_members;
+CREATE POLICY "rls_fm_update" ON public.family_members
   FOR UPDATE
   TO authenticated
   USING (((EXISTS ( SELECT 1
@@ -1605,8 +1605,8 @@ CREATE POLICY $pn$rls_fm_update$pn$ ON public.family_members
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))));
 
 -- [neutralize] feed_reactions.Members react ALL
-DROP POLICY IF EXISTS $pn$Members react$pn$ ON public.feed_reactions;
-CREATE POLICY $pn$Members react$pn$ ON public.feed_reactions
+DROP POLICY IF EXISTS "Members react" ON public.feed_reactions;
+CREATE POLICY "Members react" ON public.feed_reactions
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1615,8 +1615,8 @@ CREATE POLICY $pn$Members react$pn$ ON public.feed_reactions
   WHERE ((af.id = feed_reactions.feed_item_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
 
 -- [neutralize] fine_types.fine_types_admin ALL
-DROP POLICY IF EXISTS $pn$fine_types_admin$pn$ ON public.fine_types;
-CREATE POLICY $pn$fine_types_admin$pn$ ON public.fine_types
+DROP POLICY IF EXISTS "fine_types_admin" ON public.fine_types;
+CREATE POLICY "fine_types_admin" ON public.fine_types
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1624,8 +1624,8 @@ CREATE POLICY $pn$fine_types_admin$pn$ ON public.fine_types
   WHERE ((memberships.group_id = fine_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] fines.Admin manage fines ALL
-DROP POLICY IF EXISTS $pn$Admin manage fines$pn$ ON public.fines;
-CREATE POLICY $pn$Admin manage fines$pn$ ON public.fines
+DROP POLICY IF EXISTS "Admin manage fines" ON public.fines;
+CREATE POLICY "Admin manage fines" ON public.fines
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1633,8 +1633,8 @@ CREATE POLICY $pn$Admin manage fines$pn$ ON public.fines
   WHERE ((memberships.group_id = fines.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] group_constitutions.Admins can manage constitutions ALL
-DROP POLICY IF EXISTS $pn$Admins can manage constitutions$pn$ ON public.group_constitutions;
-CREATE POLICY $pn$Admins can manage constitutions$pn$ ON public.group_constitutions
+DROP POLICY IF EXISTS "Admins can manage constitutions" ON public.group_constitutions;
+CREATE POLICY "Admins can manage constitutions" ON public.group_constitutions
   FOR ALL
   TO public
   USING ((group_id IN ( SELECT memberships.group_id
@@ -1642,8 +1642,8 @@ CREATE POLICY $pn$Admins can manage constitutions$pn$ ON public.group_constituti
   WHERE ((memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] group_subscriptions.Admins can manage subscription ALL
-DROP POLICY IF EXISTS $pn$Admins can manage subscription$pn$ ON public.group_subscriptions;
-CREATE POLICY $pn$Admins can manage subscription$pn$ ON public.group_subscriptions
+DROP POLICY IF EXISTS "Admins can manage subscription" ON public.group_subscriptions;
+CREATE POLICY "Admins can manage subscription" ON public.group_subscriptions
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1651,8 +1651,8 @@ CREATE POLICY $pn$Admins can manage subscription$pn$ ON public.group_subscriptio
   WHERE ((memberships.group_id = group_subscriptions.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] hosting_assignments.Group admins can manage hosting assignments ALL
-DROP POLICY IF EXISTS $pn$Group admins can manage hosting assignments$pn$ ON public.hosting_assignments;
-CREATE POLICY $pn$Group admins can manage hosting assignments$pn$ ON public.hosting_assignments
+DROP POLICY IF EXISTS "Group admins can manage hosting assignments" ON public.hosting_assignments;
+CREATE POLICY "Group admins can manage hosting assignments" ON public.hosting_assignments
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1661,8 +1661,8 @@ CREATE POLICY $pn$Group admins can manage hosting assignments$pn$ ON public.host
   WHERE ((hosting_rosters.id = hosting_assignments.roster_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] hosting_rosters.Group admins can manage hosting rosters ALL
-DROP POLICY IF EXISTS $pn$Group admins can manage hosting rosters$pn$ ON public.hosting_rosters;
-CREATE POLICY $pn$Group admins can manage hosting rosters$pn$ ON public.hosting_rosters
+DROP POLICY IF EXISTS "Group admins can manage hosting rosters" ON public.hosting_rosters;
+CREATE POLICY "Group admins can manage hosting rosters" ON public.hosting_rosters
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1670,8 +1670,8 @@ CREATE POLICY $pn$Group admins can manage hosting rosters$pn$ ON public.hosting_
   WHERE ((memberships.group_id = hosting_rosters.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] invitations.Group admins can create invitations INSERT
-DROP POLICY IF EXISTS $pn$Group admins can create invitations$pn$ ON public.invitations;
-CREATE POLICY $pn$Group admins can create invitations$pn$ ON public.invitations
+DROP POLICY IF EXISTS "Group admins can create invitations" ON public.invitations;
+CREATE POLICY "Group admins can create invitations" ON public.invitations
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1679,8 +1679,8 @@ CREATE POLICY $pn$Group admins can create invitations$pn$ ON public.invitations
   WHERE ((memberships.group_id = invitations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] invitations.Group admins can delete invitations DELETE
-DROP POLICY IF EXISTS $pn$Group admins can delete invitations$pn$ ON public.invitations;
-CREATE POLICY $pn$Group admins can delete invitations$pn$ ON public.invitations
+DROP POLICY IF EXISTS "Group admins can delete invitations" ON public.invitations;
+CREATE POLICY "Group admins can delete invitations" ON public.invitations
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1688,8 +1688,8 @@ CREATE POLICY $pn$Group admins can delete invitations$pn$ ON public.invitations
   WHERE ((memberships.group_id = invitations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] invitations.Group admins can update invitations UPDATE
-DROP POLICY IF EXISTS $pn$Group admins can update invitations$pn$ ON public.invitations;
-CREATE POLICY $pn$Group admins can update invitations$pn$ ON public.invitations
+DROP POLICY IF EXISTS "Group admins can update invitations" ON public.invitations;
+CREATE POLICY "Group admins can update invitations" ON public.invitations
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1697,8 +1697,8 @@ CREATE POLICY $pn$Group admins can update invitations$pn$ ON public.invitations
   WHERE ((memberships.group_id = invitations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] loan_configs.loan_configs_delete DELETE
-DROP POLICY IF EXISTS $pn$loan_configs_delete$pn$ ON public.loan_configs;
-CREATE POLICY $pn$loan_configs_delete$pn$ ON public.loan_configs
+DROP POLICY IF EXISTS "loan_configs_delete" ON public.loan_configs;
+CREATE POLICY "loan_configs_delete" ON public.loan_configs
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1706,8 +1706,8 @@ CREATE POLICY $pn$loan_configs_delete$pn$ ON public.loan_configs
   WHERE ((m.group_id = loan_configs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] loan_configs.loan_configs_insert INSERT
-DROP POLICY IF EXISTS $pn$loan_configs_insert$pn$ ON public.loan_configs;
-CREATE POLICY $pn$loan_configs_insert$pn$ ON public.loan_configs
+DROP POLICY IF EXISTS "loan_configs_insert" ON public.loan_configs;
+CREATE POLICY "loan_configs_insert" ON public.loan_configs
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1715,8 +1715,8 @@ CREATE POLICY $pn$loan_configs_insert$pn$ ON public.loan_configs
   WHERE ((m.group_id = loan_configs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] loan_configs.loan_configs_update UPDATE
-DROP POLICY IF EXISTS $pn$loan_configs_update$pn$ ON public.loan_configs;
-CREATE POLICY $pn$loan_configs_update$pn$ ON public.loan_configs
+DROP POLICY IF EXISTS "loan_configs_update" ON public.loan_configs;
+CREATE POLICY "loan_configs_update" ON public.loan_configs
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1724,8 +1724,8 @@ CREATE POLICY $pn$loan_configs_update$pn$ ON public.loan_configs
   WHERE ((m.group_id = loan_configs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] loan_repayments.loan_repayments_delete DELETE
-DROP POLICY IF EXISTS $pn$loan_repayments_delete$pn$ ON public.loan_repayments;
-CREATE POLICY $pn$loan_repayments_delete$pn$ ON public.loan_repayments
+DROP POLICY IF EXISTS "loan_repayments_delete" ON public.loan_repayments;
+CREATE POLICY "loan_repayments_delete" ON public.loan_repayments
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1734,8 +1734,8 @@ CREATE POLICY $pn$loan_repayments_delete$pn$ ON public.loan_repayments
   WHERE (l.id = loan_repayments.loan_id))));
 
 -- [neutralize] loan_repayments.loan_repayments_insert INSERT
-DROP POLICY IF EXISTS $pn$loan_repayments_insert$pn$ ON public.loan_repayments;
-CREATE POLICY $pn$loan_repayments_insert$pn$ ON public.loan_repayments
+DROP POLICY IF EXISTS "loan_repayments_insert" ON public.loan_repayments;
+CREATE POLICY "loan_repayments_insert" ON public.loan_repayments
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1744,8 +1744,8 @@ CREATE POLICY $pn$loan_repayments_insert$pn$ ON public.loan_repayments
   WHERE (l.id = loan_repayments.loan_id))));
 
 -- [neutralize] loan_repayments.loan_repayments_update UPDATE
-DROP POLICY IF EXISTS $pn$loan_repayments_update$pn$ ON public.loan_repayments;
-CREATE POLICY $pn$loan_repayments_update$pn$ ON public.loan_repayments
+DROP POLICY IF EXISTS "loan_repayments_update" ON public.loan_repayments;
+CREATE POLICY "loan_repayments_update" ON public.loan_repayments
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1754,8 +1754,8 @@ CREATE POLICY $pn$loan_repayments_update$pn$ ON public.loan_repayments
   WHERE (l.id = loan_repayments.loan_id))));
 
 -- [neutralize] loan_requests_v1.Admin manage loans UPDATE
-DROP POLICY IF EXISTS $pn$Admin manage loans$pn$ ON public.loan_requests_v1;
-CREATE POLICY $pn$Admin manage loans$pn$ ON public.loan_requests_v1
+DROP POLICY IF EXISTS "Admin manage loans" ON public.loan_requests_v1;
+CREATE POLICY "Admin manage loans" ON public.loan_requests_v1
   FOR UPDATE
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1763,8 +1763,8 @@ CREATE POLICY $pn$Admin manage loans$pn$ ON public.loan_requests_v1
   WHERE ((memberships.group_id = loan_requests_v1.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] loan_requests_v1.Members request loans INSERT
-DROP POLICY IF EXISTS $pn$Members request loans$pn$ ON public.loan_requests_v1;
-CREATE POLICY $pn$Members request loans$pn$ ON public.loan_requests_v1
+DROP POLICY IF EXISTS "Members request loans" ON public.loan_requests_v1;
+CREATE POLICY "Members request loans" ON public.loan_requests_v1
   FOR INSERT
   TO public
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1772,8 +1772,8 @@ CREATE POLICY $pn$Members request loans$pn$ ON public.loan_requests_v1
   WHERE ((memberships.group_id = loan_requests_v1.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text)))));
 
 -- [neutralize] loan_schedule.loan_schedule_delete DELETE
-DROP POLICY IF EXISTS $pn$loan_schedule_delete$pn$ ON public.loan_schedule;
-CREATE POLICY $pn$loan_schedule_delete$pn$ ON public.loan_schedule
+DROP POLICY IF EXISTS "loan_schedule_delete" ON public.loan_schedule;
+CREATE POLICY "loan_schedule_delete" ON public.loan_schedule
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1782,8 +1782,8 @@ CREATE POLICY $pn$loan_schedule_delete$pn$ ON public.loan_schedule
   WHERE (l.id = loan_schedule.loan_id))));
 
 -- [neutralize] loan_schedule.loan_schedule_insert INSERT
-DROP POLICY IF EXISTS $pn$loan_schedule_insert$pn$ ON public.loan_schedule;
-CREATE POLICY $pn$loan_schedule_insert$pn$ ON public.loan_schedule
+DROP POLICY IF EXISTS "loan_schedule_insert" ON public.loan_schedule;
+CREATE POLICY "loan_schedule_insert" ON public.loan_schedule
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1792,8 +1792,8 @@ CREATE POLICY $pn$loan_schedule_insert$pn$ ON public.loan_schedule
   WHERE (l.id = loan_schedule.loan_id))));
 
 -- [neutralize] loan_schedule.loan_schedule_update UPDATE
-DROP POLICY IF EXISTS $pn$loan_schedule_update$pn$ ON public.loan_schedule;
-CREATE POLICY $pn$loan_schedule_update$pn$ ON public.loan_schedule
+DROP POLICY IF EXISTS "loan_schedule_update" ON public.loan_schedule;
+CREATE POLICY "loan_schedule_update" ON public.loan_schedule
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1802,8 +1802,8 @@ CREATE POLICY $pn$loan_schedule_update$pn$ ON public.loan_schedule
   WHERE (l.id = loan_schedule.loan_id))));
 
 -- [neutralize] loans.loans_delete DELETE
-DROP POLICY IF EXISTS $pn$loans_delete$pn$ ON public.loans;
-CREATE POLICY $pn$loans_delete$pn$ ON public.loans
+DROP POLICY IF EXISTS "loans_delete" ON public.loans;
+CREATE POLICY "loans_delete" ON public.loans
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1811,8 +1811,8 @@ CREATE POLICY $pn$loans_delete$pn$ ON public.loans
   WHERE ((m.group_id = loans.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] loans.loans_insert INSERT
-DROP POLICY IF EXISTS $pn$loans_insert$pn$ ON public.loans;
-CREATE POLICY $pn$loans_insert$pn$ ON public.loans
+DROP POLICY IF EXISTS "loans_insert" ON public.loans;
+CREATE POLICY "loans_insert" ON public.loans
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1820,8 +1820,8 @@ CREATE POLICY $pn$loans_insert$pn$ ON public.loans
   WHERE ((m.group_id = loans.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
 
 -- [neutralize] loans.loans_update UPDATE
-DROP POLICY IF EXISTS $pn$loans_update$pn$ ON public.loans;
-CREATE POLICY $pn$loans_update$pn$ ON public.loans
+DROP POLICY IF EXISTS "loans_update" ON public.loans;
+CREATE POLICY "loans_update" ON public.loans
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1829,8 +1829,8 @@ CREATE POLICY $pn$loans_update$pn$ ON public.loans
   WHERE ((m.group_id = loans.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] member_transfers.transfers_delete DELETE
-DROP POLICY IF EXISTS $pn$transfers_delete$pn$ ON public.member_transfers;
-CREATE POLICY $pn$transfers_delete$pn$ ON public.member_transfers
+DROP POLICY IF EXISTS "transfers_delete" ON public.member_transfers;
+CREATE POLICY "transfers_delete" ON public.member_transfers
   FOR DELETE
   TO authenticated
   USING (((status = ANY (ARRAY['requested'::transfer_status, 'rejected'::transfer_status, 'cancelled'::transfer_status])) AND (EXISTS ( SELECT 1
@@ -1838,8 +1838,8 @@ CREATE POLICY $pn$transfers_delete$pn$ ON public.member_transfers
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])) AND (m.group_id = member_transfers.source_group_id))))));
 
 -- [neutralize] payment_reminder_rules.Admin manage reminder rules ALL
-DROP POLICY IF EXISTS $pn$Admin manage reminder rules$pn$ ON public.payment_reminder_rules;
-CREATE POLICY $pn$Admin manage reminder rules$pn$ ON public.payment_reminder_rules
+DROP POLICY IF EXISTS "Admin manage reminder rules" ON public.payment_reminder_rules;
+CREATE POLICY "Admin manage reminder rules" ON public.payment_reminder_rules
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1847,8 +1847,8 @@ CREATE POLICY $pn$Admin manage reminder rules$pn$ ON public.payment_reminder_rul
   WHERE ((memberships.group_id = payment_reminder_rules.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] payments.Group admins and treasurers can record payments INSERT
-DROP POLICY IF EXISTS $pn$Group admins and treasurers can record payments$pn$ ON public.payments;
-CREATE POLICY $pn$Group admins and treasurers can record payments$pn$ ON public.payments
+DROP POLICY IF EXISTS "Group admins and treasurers can record payments" ON public.payments;
+CREATE POLICY "Group admins and treasurers can record payments" ON public.payments
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1856,8 +1856,8 @@ CREATE POLICY $pn$Group admins and treasurers can record payments$pn$ ON public.
   WHERE ((memberships.group_id = payments.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] position_assignments.Group owners/admins can manage assignments ALL
-DROP POLICY IF EXISTS $pn$Group owners/admins can manage assignments$pn$ ON public.position_assignments;
-CREATE POLICY $pn$Group owners/admins can manage assignments$pn$ ON public.position_assignments
+DROP POLICY IF EXISTS "Group owners/admins can manage assignments" ON public.position_assignments;
+CREATE POLICY "Group owners/admins can manage assignments" ON public.position_assignments
   FOR ALL
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1866,8 +1866,8 @@ CREATE POLICY $pn$Group owners/admins can manage assignments$pn$ ON public.posit
   WHERE ((gp.id = position_assignments.position_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] project_contributions.Members contribute to projects INSERT
-DROP POLICY IF EXISTS $pn$Members contribute to projects$pn$ ON public.project_contributions;
-CREATE POLICY $pn$Members contribute to projects$pn$ ON public.project_contributions
+DROP POLICY IF EXISTS "Members contribute to projects" ON public.project_contributions;
+CREATE POLICY "Members contribute to projects" ON public.project_contributions
   FOR INSERT
   TO public
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1876,8 +1876,8 @@ CREATE POLICY $pn$Members contribute to projects$pn$ ON public.project_contribut
   WHERE ((p.id = project_contributions.project_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
 
 -- [neutralize] project_expenses.Admin manage expenses ALL
-DROP POLICY IF EXISTS $pn$Admin manage expenses$pn$ ON public.project_expenses;
-CREATE POLICY $pn$Admin manage expenses$pn$ ON public.project_expenses
+DROP POLICY IF EXISTS "Admin manage expenses" ON public.project_expenses;
+CREATE POLICY "Admin manage expenses" ON public.project_expenses
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1886,8 +1886,8 @@ CREATE POLICY $pn$Admin manage expenses$pn$ ON public.project_expenses
   WHERE ((p.id = project_expenses.project_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] project_milestones.Admin manage milestones ALL
-DROP POLICY IF EXISTS $pn$Admin manage milestones$pn$ ON public.project_milestones;
-CREATE POLICY $pn$Admin manage milestones$pn$ ON public.project_milestones
+DROP POLICY IF EXISTS "Admin manage milestones" ON public.project_milestones;
+CREATE POLICY "Admin manage milestones" ON public.project_milestones
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1896,8 +1896,8 @@ CREATE POLICY $pn$Admin manage milestones$pn$ ON public.project_milestones
   WHERE ((p.id = project_milestones.project_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] projects.Admin manage projects ALL
-DROP POLICY IF EXISTS $pn$Admin manage projects$pn$ ON public.projects;
-CREATE POLICY $pn$Admin manage projects$pn$ ON public.projects
+DROP POLICY IF EXISTS "Admin manage projects" ON public.projects;
+CREATE POLICY "Admin manage projects" ON public.projects
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1905,8 +1905,8 @@ CREATE POLICY $pn$Admin manage projects$pn$ ON public.projects
   WHERE ((memberships.group_id = projects.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] relief_claims.Admins can manage claims ALL
-DROP POLICY IF EXISTS $pn$Admins can manage claims$pn$ ON public.relief_claims;
-CREATE POLICY $pn$Admins can manage claims$pn$ ON public.relief_claims
+DROP POLICY IF EXISTS "Admins can manage claims" ON public.relief_claims;
+CREATE POLICY "Admins can manage claims" ON public.relief_claims
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1915,8 +1915,8 @@ CREATE POLICY $pn$Admins can manage claims$pn$ ON public.relief_claims
   WHERE ((relief_plans.id = relief_claims.plan_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] relief_claims.Members can submit claims INSERT
-DROP POLICY IF EXISTS $pn$Members can submit claims$pn$ ON public.relief_claims;
-CREATE POLICY $pn$Members can submit claims$pn$ ON public.relief_claims
+DROP POLICY IF EXISTS "Members can submit claims" ON public.relief_claims;
+CREATE POLICY "Members can submit claims" ON public.relief_claims
   FOR INSERT
   TO public
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1924,8 +1924,8 @@ CREATE POLICY $pn$Members can submit claims$pn$ ON public.relief_claims
   WHERE ((memberships.id = relief_claims.membership_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text)))));
 
 -- [neutralize] relief_claims.relief_claims_delete DELETE
-DROP POLICY IF EXISTS $pn$relief_claims_delete$pn$ ON public.relief_claims;
-CREATE POLICY $pn$relief_claims_delete$pn$ ON public.relief_claims
+DROP POLICY IF EXISTS "relief_claims_delete" ON public.relief_claims;
+CREATE POLICY "relief_claims_delete" ON public.relief_claims
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1934,8 +1934,8 @@ CREATE POLICY $pn$relief_claims_delete$pn$ ON public.relief_claims
   WHERE (rp.id = relief_claims.plan_id))));
 
 -- [neutralize] relief_claims.relief_claims_insert INSERT
-DROP POLICY IF EXISTS $pn$relief_claims_insert$pn$ ON public.relief_claims;
-CREATE POLICY $pn$relief_claims_insert$pn$ ON public.relief_claims
+DROP POLICY IF EXISTS "relief_claims_insert" ON public.relief_claims;
+CREATE POLICY "relief_claims_insert" ON public.relief_claims
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1943,8 +1943,8 @@ CREATE POLICY $pn$relief_claims_insert$pn$ ON public.relief_claims
   WHERE ((m.id = relief_claims.membership_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
 
 -- [neutralize] relief_claims.relief_claims_update UPDATE
-DROP POLICY IF EXISTS $pn$relief_claims_update$pn$ ON public.relief_claims;
-CREATE POLICY $pn$relief_claims_update$pn$ ON public.relief_claims
+DROP POLICY IF EXISTS "relief_claims_update" ON public.relief_claims;
+CREATE POLICY "relief_claims_update" ON public.relief_claims
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1953,8 +1953,8 @@ CREATE POLICY $pn$relief_claims_update$pn$ ON public.relief_claims
   WHERE (rp.id = relief_claims.plan_id))));
 
 -- [neutralize] relief_enrollments.Admins can manage enrollments ALL
-DROP POLICY IF EXISTS $pn$Admins can manage enrollments$pn$ ON public.relief_enrollments;
-CREATE POLICY $pn$Admins can manage enrollments$pn$ ON public.relief_enrollments
+DROP POLICY IF EXISTS "Admins can manage enrollments" ON public.relief_enrollments;
+CREATE POLICY "Admins can manage enrollments" ON public.relief_enrollments
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -1963,8 +1963,8 @@ CREATE POLICY $pn$Admins can manage enrollments$pn$ ON public.relief_enrollments
   WHERE ((relief_plans.id = relief_enrollments.plan_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] relief_enrollments.relief_enrollments_delete DELETE
-DROP POLICY IF EXISTS $pn$relief_enrollments_delete$pn$ ON public.relief_enrollments;
-CREATE POLICY $pn$relief_enrollments_delete$pn$ ON public.relief_enrollments
+DROP POLICY IF EXISTS "relief_enrollments_delete" ON public.relief_enrollments;
+CREATE POLICY "relief_enrollments_delete" ON public.relief_enrollments
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1973,8 +1973,8 @@ CREATE POLICY $pn$relief_enrollments_delete$pn$ ON public.relief_enrollments
   WHERE (rp.id = relief_enrollments.plan_id))));
 
 -- [neutralize] relief_enrollments.relief_enrollments_insert INSERT
-DROP POLICY IF EXISTS $pn$relief_enrollments_insert$pn$ ON public.relief_enrollments;
-CREATE POLICY $pn$relief_enrollments_insert$pn$ ON public.relief_enrollments
+DROP POLICY IF EXISTS "relief_enrollments_insert" ON public.relief_enrollments;
+CREATE POLICY "relief_enrollments_insert" ON public.relief_enrollments
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -1983,8 +1983,8 @@ CREATE POLICY $pn$relief_enrollments_insert$pn$ ON public.relief_enrollments
   WHERE (rp.id = relief_enrollments.plan_id))));
 
 -- [neutralize] relief_enrollments.relief_enrollments_update UPDATE
-DROP POLICY IF EXISTS $pn$relief_enrollments_update$pn$ ON public.relief_enrollments;
-CREATE POLICY $pn$relief_enrollments_update$pn$ ON public.relief_enrollments
+DROP POLICY IF EXISTS "relief_enrollments_update" ON public.relief_enrollments;
+CREATE POLICY "relief_enrollments_update" ON public.relief_enrollments
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -1993,8 +1993,8 @@ CREATE POLICY $pn$relief_enrollments_update$pn$ ON public.relief_enrollments
   WHERE (rp.id = relief_enrollments.plan_id))));
 
 -- [neutralize] relief_payouts.Admins can manage payouts ALL
-DROP POLICY IF EXISTS $pn$Admins can manage payouts$pn$ ON public.relief_payouts;
-CREATE POLICY $pn$Admins can manage payouts$pn$ ON public.relief_payouts
+DROP POLICY IF EXISTS "Admins can manage payouts" ON public.relief_payouts;
+CREATE POLICY "Admins can manage payouts" ON public.relief_payouts
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -2004,8 +2004,8 @@ CREATE POLICY $pn$Admins can manage payouts$pn$ ON public.relief_payouts
   WHERE ((relief_claims.id = relief_payouts.claim_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] relief_payouts.relief_payouts_delete DELETE
-DROP POLICY IF EXISTS $pn$relief_payouts_delete$pn$ ON public.relief_payouts;
-CREATE POLICY $pn$relief_payouts_delete$pn$ ON public.relief_payouts
+DROP POLICY IF EXISTS "relief_payouts_delete" ON public.relief_payouts;
+CREATE POLICY "relief_payouts_delete" ON public.relief_payouts
   FOR DELETE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -2015,8 +2015,8 @@ CREATE POLICY $pn$relief_payouts_delete$pn$ ON public.relief_payouts
   WHERE (rc.id = relief_payouts.claim_id))));
 
 -- [neutralize] relief_payouts.relief_payouts_insert INSERT
-DROP POLICY IF EXISTS $pn$relief_payouts_insert$pn$ ON public.relief_payouts;
-CREATE POLICY $pn$relief_payouts_insert$pn$ ON public.relief_payouts
+DROP POLICY IF EXISTS "relief_payouts_insert" ON public.relief_payouts;
+CREATE POLICY "relief_payouts_insert" ON public.relief_payouts
   FOR INSERT
   TO authenticated
   WITH CHECK ((EXISTS ( SELECT 1
@@ -2026,8 +2026,8 @@ CREATE POLICY $pn$relief_payouts_insert$pn$ ON public.relief_payouts
   WHERE (rc.id = relief_payouts.claim_id))));
 
 -- [neutralize] relief_payouts.relief_payouts_update UPDATE
-DROP POLICY IF EXISTS $pn$relief_payouts_update$pn$ ON public.relief_payouts;
-CREATE POLICY $pn$relief_payouts_update$pn$ ON public.relief_payouts
+DROP POLICY IF EXISTS "relief_payouts_update" ON public.relief_payouts;
+CREATE POLICY "relief_payouts_update" ON public.relief_payouts
   FOR UPDATE
   TO authenticated
   USING ((EXISTS ( SELECT 1
@@ -2037,8 +2037,8 @@ CREATE POLICY $pn$relief_payouts_update$pn$ ON public.relief_payouts
   WHERE (rc.id = relief_payouts.claim_id))));
 
 -- [neutralize] relief_plans.Group admins can manage relief plans ALL
-DROP POLICY IF EXISTS $pn$Group admins can manage relief plans$pn$ ON public.relief_plans;
-CREATE POLICY $pn$Group admins can manage relief plans$pn$ ON public.relief_plans
+DROP POLICY IF EXISTS "Group admins can manage relief plans" ON public.relief_plans;
+CREATE POLICY "Group admins can manage relief plans" ON public.relief_plans
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -2046,8 +2046,8 @@ CREATE POLICY $pn$Group admins can manage relief plans$pn$ ON public.relief_plan
   WHERE ((memberships.group_id = relief_plans.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
 
 -- [neutralize] relief_remittances.relief_remittances_insert INSERT
-DROP POLICY IF EXISTS $pn$relief_remittances_insert$pn$ ON public.relief_remittances;
-CREATE POLICY $pn$relief_remittances_insert$pn$ ON public.relief_remittances
+DROP POLICY IF EXISTS "relief_remittances_insert" ON public.relief_remittances;
+CREATE POLICY "relief_remittances_insert" ON public.relief_remittances
   FOR INSERT
   TO public
   WITH CHECK ((EXISTS ( SELECT 1
@@ -2055,8 +2055,8 @@ CREATE POLICY $pn$relief_remittances_insert$pn$ ON public.relief_remittances
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.group_id = relief_remittances.branch_group_id) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] relief_remittances.relief_remittances_update UPDATE
-DROP POLICY IF EXISTS $pn$relief_remittances_update$pn$ ON public.relief_remittances;
-CREATE POLICY $pn$relief_remittances_update$pn$ ON public.relief_remittances
+DROP POLICY IF EXISTS "relief_remittances_update" ON public.relief_remittances;
+CREATE POLICY "relief_remittances_update" ON public.relief_remittances
   FOR UPDATE
   TO public
   USING (((EXISTS ( SELECT 1
@@ -2068,8 +2068,8 @@ CREATE POLICY $pn$relief_remittances_update$pn$ ON public.relief_remittances
   WHERE ((m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])) AND (g_branch.id = relief_remittances.branch_group_id))))));
 
 -- [neutralize] savings_contributions.Admins can manage contributions ALL
-DROP POLICY IF EXISTS $pn$Admins can manage contributions$pn$ ON public.savings_contributions;
-CREATE POLICY $pn$Admins can manage contributions$pn$ ON public.savings_contributions
+DROP POLICY IF EXISTS "Admins can manage contributions" ON public.savings_contributions;
+CREATE POLICY "Admins can manage contributions" ON public.savings_contributions
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -2078,8 +2078,8 @@ CREATE POLICY $pn$Admins can manage contributions$pn$ ON public.savings_contribu
   WHERE ((sc.id = savings_contributions.cycle_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] savings_cycles.Admins can manage savings cycles ALL
-DROP POLICY IF EXISTS $pn$Admins can manage savings cycles$pn$ ON public.savings_cycles;
-CREATE POLICY $pn$Admins can manage savings cycles$pn$ ON public.savings_cycles
+DROP POLICY IF EXISTS "Admins can manage savings cycles" ON public.savings_cycles;
+CREATE POLICY "Admins can manage savings cycles" ON public.savings_cycles
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -2087,8 +2087,8 @@ CREATE POLICY $pn$Admins can manage savings cycles$pn$ ON public.savings_cycles
   WHERE ((memberships.group_id = savings_cycles.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] savings_participants.Admins can manage participants ALL
-DROP POLICY IF EXISTS $pn$Admins can manage participants$pn$ ON public.savings_participants;
-CREATE POLICY $pn$Admins can manage participants$pn$ ON public.savings_participants
+DROP POLICY IF EXISTS "Admins can manage participants" ON public.savings_participants;
+CREATE POLICY "Admins can manage participants" ON public.savings_participants
   FOR ALL
   TO public
   USING ((EXISTS ( SELECT 1
@@ -2097,8 +2097,8 @@ CREATE POLICY $pn$Admins can manage participants$pn$ ON public.savings_participa
   WHERE ((sc.id = savings_participants.cycle_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role]))))));
 
 -- [neutralize] group_payment_config.Admins can delete payment config DELETE
-DROP POLICY IF EXISTS $pn$Admins can delete payment config$pn$ ON public.group_payment_config;
-CREATE POLICY $pn$Admins can delete payment config$pn$ ON public.group_payment_config
+DROP POLICY IF EXISTS "Admins can delete payment config" ON public.group_payment_config;
+CREATE POLICY "Admins can delete payment config" ON public.group_payment_config
   FOR DELETE
   TO public
   USING ((group_id IN ( SELECT memberships.group_id
@@ -2106,8 +2106,8 @@ CREATE POLICY $pn$Admins can delete payment config$pn$ ON public.group_payment_c
   WHERE ((memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] group_payment_config.Admins can insert payment config INSERT
-DROP POLICY IF EXISTS $pn$Admins can insert payment config$pn$ ON public.group_payment_config;
-CREATE POLICY $pn$Admins can insert payment config$pn$ ON public.group_payment_config
+DROP POLICY IF EXISTS "Admins can insert payment config" ON public.group_payment_config;
+CREATE POLICY "Admins can insert payment config" ON public.group_payment_config
   FOR INSERT
   TO public
   WITH CHECK ((group_id IN ( SELECT memberships.group_id
@@ -2115,8 +2115,8 @@ CREATE POLICY $pn$Admins can insert payment config$pn$ ON public.group_payment_c
   WHERE ((memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))));
 
 -- [neutralize] group_payment_config.Admins can update payment config UPDATE
-DROP POLICY IF EXISTS $pn$Admins can update payment config$pn$ ON public.group_payment_config;
-CREATE POLICY $pn$Admins can update payment config$pn$ ON public.group_payment_config
+DROP POLICY IF EXISTS "Admins can update payment config" ON public.group_payment_config;
+CREATE POLICY "Admins can update payment config" ON public.group_payment_config
   FOR UPDATE
   TO public
   USING ((group_id IN ( SELECT memberships.group_id
@@ -2210,8 +2210,7 @@ BEGIN
     WHERE n.nspname = 'public'
       AND p.proname IN ('is_active_group_member', 'get_my_active_group_ids',
                         'get_user_active_group_ids', 'is_active_member_of')
-      AND pg_get_function_identity_arguments(p.oid) ~* 'uid'
-      AND r.rolname IN ('authenticated', 'anon', 'PUBLIC')
+      AND pg_get_function_identity_arguments(p.oid) ~* '(^|[[:space:],])uid[[:space:]]'
   ) THEN
     RAISE EXCEPTION 'CUT1_ABORT_POST: arbitrary-subject active helper granted to authenticated/anon';
   END IF;

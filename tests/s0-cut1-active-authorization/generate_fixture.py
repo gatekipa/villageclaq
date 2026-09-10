@@ -383,6 +383,14 @@ def main() -> None:
     for fn in grant_fns:
         parts.append(f"GRANT EXECUTE ON FUNCTION public.{fn} TO PUBLIC, anon, authenticated, service_role;")
 
+    # Live memberships have SELECT visibility policies. Without one, inline
+    # EXISTS (memberships …) in write policies sees zero rows under FORCE RLS.
+    parts.append(
+        'CREATE POLICY "cut1_fixture_memberships_select" ON public.memberships\n'
+        "  FOR SELECT TO public\n"
+        "  USING ((user_id = auth.uid()) OR is_group_member(group_id));"
+    )
+
     seen = set()
     policies = []
     for p in load_rewrite23():

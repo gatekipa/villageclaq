@@ -116,7 +116,7 @@ const rewrite23 = [
 
 test("all 23 helper-matching REWRITE policies are present", () => {
   for (const [table, name] of rewrite23) {
-    const needle = `$pn$${name}$pn$ ON public.${table}`;
+    const needle = `"${name}" ON public.${table}`;
     assert.ok(migration.includes(needle), `missing rewrite of ${table}.${name}`);
   }
   assert.match(migration, /is_active_group_member\(group_id\) AND \(status = 'pending_confirmation'/);

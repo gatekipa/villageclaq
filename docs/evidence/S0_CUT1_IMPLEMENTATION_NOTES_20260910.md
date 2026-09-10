@@ -13,7 +13,17 @@
 2. Run `tests/s0-cut1-active-authorization/run.sh` (local postgres; installs `postgresql` if missing).
 3. Static asserts: `npm run test:s0-cut1-active-authorization`.
 
-Schema-from-repo (`00001`–`00113` on bare postgres) cannot boot without Supabase `auth` / storage. Full 375-policy catalog rehearsal on a prod-shaped dump remains **HOLD**.
+Schema-from-repo probe (2026-09-10, local PG 16): `00001_core_tables.sql` fails immediately (`schema "auth" does not exist`). Full 375-policy catalog rehearsal on a prod-shaped dump remains **HOLD**.
+
+## Test results (disposable)
+
+- Static: `node --test scripts/test-s0-cut1-active-authorization.mjs` → **PASS** (9/9)
+- Harness: `./tests/s0-cut1-active-authorization/run.sh` → **CUT1_DISPOSABLE_PASS** / **CUT1_ACTOR_MATRIX_PASS**
+  - Migration preconditions + postconditions committed
+  - Active owner/admin/moderator proxy ALLOW; pending/suspended/exited/archived/member DENY
+  - uid probe DENY; cross-group position REJECT
+  - Payment active officer ALLOW / inactive DENY
+  - `rls_pay_insert` active member `pending_confirmation` ALLOW
 
 ## Live name mappings
 

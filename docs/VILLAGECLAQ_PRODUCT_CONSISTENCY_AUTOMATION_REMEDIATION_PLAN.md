@@ -108,7 +108,7 @@ Also audit: dashboard financial cards (`totalCollected` / `collectionRate` / `ou
 
 **Today (`src/lib/notification-prefs.ts`):**
 
-- Preference-read **errors fail-OPEN** for external channels (`email/sms/whatsapp=true`) — **P1 honesty/safety**.
+- Preference-read errors historically **fail-OPEN** — **Trust Cut 1 (#67) flips real-user error to fail-CLOSED** (proxy WhatsApp-only preserved).
 - Proxy (`userId=null`) intentionally WhatsApp-only path — preserve.
 - Quiet hours: stored in prefs model / settings UI (verify) but **not enforced** in producers — **P1**.
 
@@ -163,10 +163,58 @@ Activation remains **HOLD**.
 
 ---
 
+
+## Confirmed notification-policy contract gaps (2026-09-10 review)
+
+Do not rewrite the architecture above. These gaps must be closed in the pure foundation (**PR #68**) before any domain cron migration.
+
+### PC-NP1 — Occurrence identity must include anchor identity/time (P0 contract)
+
+**Current (insufficient):** `domain + object + trigger offset + occurrence index`
+
+**Why:** If the same event/hosting assignment/due date is rescheduled, a new reminder can collide with the old occurrence identity.
+
+**Target:** Include canonical **anchor timestamp** (or equivalent immutable schedule-generation discriminator):
+
+`domain + object_id + anchor_timestamp + trigger_offset + occurrence_index`
+
+Reschedule → distinct identity. Unchanged schedule retries → same identity (dedupe). Quiet-hour defer retains the **same** occurrence identity (defer ≠ new occurrence).
+
+### PC-NP2 — API surface must not imply unimplemented schedule math (P0 contract)
+
+The config declares `triggers`, `repeatIntervalHours`, `stopAfterHours`, but a pure evaluator that only checks enabled/resolved/channel/quiet hours does **not** generate the schedule those fields describe.
+
+**Target split:**
+
+- `generateScheduledOccurrences(...)` — relative triggers, repeat cadence, max occurrences, stop-after horizon
+- `evaluateDisposition(...)` — SEND_NOW / DEFER_UNTIL / STOP_* / SKIP_CHANNEL / INVALID_POLICY
+
+Do not permit the public API to imply behavior the engine does not implement. Live cron wiring remains **HOLD** until this contract is qualified.
+
+### PC-NP3 — Timezone / quiet-hour validation fail-closed (P1 contract)
+
+Invalid IANA timezone must not crash a producer and must not accidentally `SEND_NOW`.
+
+Quiet hours → **`DEFER_UNTIL`** (never mark occurrence sent).
+
+Malformed quiet minutes / channels / non-finite offsets / zero-or-negative repeat / invalid max → controlled `INVALID_POLICY` (or validation failure) before delivery evaluation.
+
+### Payment compatibility note (evidence)
+
+Live `api/cron/payment-reminders` selects obligations with `due_date < today` (overdue daily candidacy) with per-obligation-per-UTC-day WhatsApp idempotency — **not** an exact `+24h` relative trigger. Do not encode a false `+24h` live default in the foundation; document legacy overdue-daily separately from future policy templates.
+
+### Announcements
+
+Remain **DORMANT**. Checklist in section F unchanged. Do not apply `00106`/`00107`.
+
+
 ## Gap inventory (severity × cut)
 
 | ID | Area | Sev | Cut |
 | --- | --- | --- | --- |
+| PC-NP1 | Occurrence identity missing anchor timestamp | P0 | FIX IN POLICY FOUNDATION (#68) |
+| PC-NP2 | Config fields without schedule generation | P0 | FIX IN POLICY FOUNDATION (#68) |
+| PC-NP3 | Timezone/quiet-hour validation fail-closed | P1 | FIX IN POLICY FOUNDATION (#68) |
 | PC-E1 | Prefs fail-open on error | P1 | FIX IN TRUST CUT 1 |
 | PC-A1 | Report 2 titled as org-wide finance | P1 | FIX IN TRUST CUT 1 |
 | PC-A2 | Financial category label implies full ledger | P2 | FIX IN TRUST CUT 1 |

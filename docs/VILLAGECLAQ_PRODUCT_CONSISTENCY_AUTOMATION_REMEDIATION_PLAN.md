@@ -24,7 +24,7 @@
 | PR #67 Trust Cut 1 | **MERGED to main** | head `3160678a…` → merge `0559b758…` |
 | PR #68 foundation (stale base) | **SUPERSEDED** — do not merge | historical `5feb995c…` |
 | PR #69 foundation v2 | **DRAFT** on current main | `a8cdeaa9…` (34/34) |
-| Schema / adapter contract PR | see latest security/* draft | CREATE-NOT-APPLY |
+| PR #70 schema + adapter contracts | **DRAFT** CREATE-NOT-APPLY | `dab794b6…` (72/72 pure tests) |
 | Announcements | **DORMANT** | 00106/00107 unapplied |
 | F3-06 | READY / NOT STARTED | F3 tip `c7b4cd53…` |
 

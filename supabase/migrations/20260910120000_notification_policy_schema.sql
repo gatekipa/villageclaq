@@ -20,8 +20,10 @@
 --   Browser clients must never hold service_role.
 -- Group policy configures schedule intent only — member opt-out / muted_group /
 -- Trust Cut 1 fail-closed prefs remain authoritative at send time (not this migration).
--- Invalid IANA timezone: enforce in pure evaluator (#69) + future DEFINER validate;
+-- Timezone: CHECK against pg_timezone_names at write (fail closed) + pure evaluator (#69).
 -- never coerce to UTC+SEND_NOW.
+-- RLS: is_group_member (excludes exited) AND has_group_permission(settings.manage).
+-- P0: occurrences authenticated SELECT-only (Daybreak).
 -- F3 ledger track: untouched.
 -- Announcement queue modernization: remains DORMANT.
 -- =============================================================================
@@ -76,6 +78,9 @@ CREATE TABLE IF NOT EXISTS public.notification_policies (
       repeat_interval_hours IS NULL
       OR max_occurrences IS NOT NULL
     ),
+  -- IANA allowlist (fail closed at write): must exist in pg_timezone_names
+  CONSTRAINT notification_policies_timezone_iana
+    CHECK (EXISTS (SELECT 1 FROM pg_catalog.pg_timezone_names tz WHERE tz.name = timezone)),
   -- PG15+: NULLS NOT DISTINCT so one NULL object_id default per (group, domain)
   CONSTRAINT notification_policies_group_domain_object_unique
     UNIQUE NULLS NOT DISTINCT (group_id, domain, object_id)
@@ -113,7 +118,7 @@ CREATE INDEX IF NOT EXISTS notification_policy_triggers_policy_id_idx
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.notification_policy_occurrences (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  group_id uuid NOT NULL,
+  group_id uuid NOT NULL REFERENCES public.groups(id) ON DELETE CASCADE,
   domain text NOT NULL,
   object_id uuid NOT NULL,
   anchor_at timestamptz NOT NULL,
@@ -169,9 +174,10 @@ CREATE INDEX IF NOT EXISTS notification_policy_occurrences_object_idx
 CREATE OR REPLACE FUNCTION public.notification_policy_set_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
-  NEW.updated_at := now();
+  NEW.updated_at = now();
   RETURN NEW;
 END;
 $$;
@@ -209,20 +215,35 @@ DROP POLICY IF EXISTS np_delete ON public.notification_policies;
 -- READ: settings.manage holders (includes owner + admin-without-assignments via helper)
 CREATE POLICY np_select ON public.notification_policies
   FOR SELECT TO authenticated
-  USING (public.has_group_permission(group_id, 'settings.manage'));
+  USING (
+    public.is_group_member(group_id)
+    AND public.has_group_permission(group_id, 'settings.manage')
+  );
 
 CREATE POLICY np_insert ON public.notification_policies
   FOR INSERT TO authenticated
-  WITH CHECK (public.has_group_permission(group_id, 'settings.manage'));
+  WITH CHECK (
+    public.is_group_member(group_id)
+    AND public.has_group_permission(group_id, 'settings.manage')
+  );
 
 CREATE POLICY np_update ON public.notification_policies
   FOR UPDATE TO authenticated
-  USING (public.has_group_permission(group_id, 'settings.manage'))
-  WITH CHECK (public.has_group_permission(group_id, 'settings.manage'));
+  USING (
+    public.is_group_member(group_id)
+    AND public.has_group_permission(group_id, 'settings.manage')
+  )
+  WITH CHECK (
+    public.is_group_member(group_id)
+    AND public.has_group_permission(group_id, 'settings.manage')
+  );
 
 CREATE POLICY np_delete ON public.notification_policies
   FOR DELETE TO authenticated
-  USING (public.has_group_permission(group_id, 'settings.manage'));
+  USING (
+    public.is_group_member(group_id)
+    AND public.has_group_permission(group_id, 'settings.manage')
+  );
 
 -- Triggers: gate via parent policy's group_id
 DROP POLICY IF EXISTS npt_select ON public.notification_policy_triggers;
@@ -236,6 +257,7 @@ CREATE POLICY npt_select ON public.notification_policy_triggers
     EXISTS (
       SELECT 1 FROM public.notification_policies p
       WHERE p.id = policy_id
+        AND public.is_group_member(p.group_id)
         AND public.has_group_permission(p.group_id, 'settings.manage')
     )
   );
@@ -246,6 +268,7 @@ CREATE POLICY npt_insert ON public.notification_policy_triggers
     EXISTS (
       SELECT 1 FROM public.notification_policies p
       WHERE p.id = policy_id
+        AND public.is_group_member(p.group_id)
         AND public.has_group_permission(p.group_id, 'settings.manage')
     )
   );
@@ -256,6 +279,7 @@ CREATE POLICY npt_update ON public.notification_policy_triggers
     EXISTS (
       SELECT 1 FROM public.notification_policies p
       WHERE p.id = policy_id
+        AND public.is_group_member(p.group_id)
         AND public.has_group_permission(p.group_id, 'settings.manage')
     )
   )
@@ -263,6 +287,7 @@ CREATE POLICY npt_update ON public.notification_policy_triggers
     EXISTS (
       SELECT 1 FROM public.notification_policies p
       WHERE p.id = policy_id
+        AND public.is_group_member(p.group_id)
         AND public.has_group_permission(p.group_id, 'settings.manage')
     )
   );
@@ -273,6 +298,7 @@ CREATE POLICY npt_delete ON public.notification_policy_triggers
     EXISTS (
       SELECT 1 FROM public.notification_policies p
       WHERE p.id = policy_id
+        AND public.is_group_member(p.group_id)
         AND public.has_group_permission(p.group_id, 'settings.manage')
     )
   );
@@ -288,7 +314,10 @@ DROP POLICY IF EXISTS npo_delete ON public.notification_policy_occurrences;
 -- DORMANT: officers may read for diagnostics; no authenticated writes this ticket.
 CREATE POLICY npo_select ON public.notification_policy_occurrences
   FOR SELECT TO authenticated
-  USING (public.has_group_permission(group_id, 'settings.manage'));
+  USING (
+    public.is_group_member(group_id)
+    AND public.has_group_permission(group_id, 'settings.manage')
+  );
 -- Intentionally NO npo_insert / npo_update / npo_delete for authenticated.
 -- Future adapter ticket: SECURITY DEFINER RPCs (or service_role workers) only.
 

@@ -3136,7 +3136,7 @@
     "generatedBy": "Généré par VillageClaq",
     "generatedOn": "Généré le {date}",
     "categories": {
-      "financial": "Rapports financiers",
+      "financial": "Cotisations et dues",
       "membership": "Rapports d'adhésion",
       "operations": "Rapports opérationnels",
       "executive": "Rapports exécutifs"
@@ -3146,8 +3146,8 @@
       "desc": "Soldes impayés triés par montant dû"
     },
     "report2": {
-      "name": "Résumé financier annuel",
-      "desc": "Total collecté vs attendu, par type et mois avec comparaison annuelle"
+      "name": "Résumé annuel des cotisations",
+      "desc": "Cotisations collectées vs attendues, par type et mois avec comparaison annuelle"
     },
     "report3": {
       "name": "Grand livre des cotisations",
@@ -3155,7 +3155,7 @@
     },
     "report4": {
       "name": "Ancienneté des créances",
-      "desc": "Soldes impayés groupés par 30/60/90/120+ jours"
+      "desc": "Soldes de cotisations/dues en souffrance groupés par 30/60/90/120+ jours"
     },
     "report5": {
       "name": "Rapport de cycle Njangi",

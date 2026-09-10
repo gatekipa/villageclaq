@@ -1,0 +1,291 @@
+{
+  "artifact": "S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910",
+  "generated_at_utc": "2026-09-10T18:00:00Z",
+  "source": {
+    "kind": "live_production_readonly_catalog",
+    "project_ref": "llbnliixczcqfftxpsmb",
+    "catalog_date": "2026-09-10",
+    "production_mutation": 0,
+    "pii_included": false,
+    "disposable_behavioral_phase10": "DEFERRED"
+  },
+  "pins": {
+    "production_main": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "planning_prior_tip": "8d621b6baecf432dfc2ea7adfc6c8763725fb81b",
+    "prd_freeze": "050be86c9df3455c66b27bb5853eb786228b4009",
+    "s0a": "97388b34037589a21eae66e3a5a1668f71e3bb55",
+    "s0b": "e1df73fd7536511fd2c062ab575eac9916fe86c7",
+    "s0c": "d214197c93001141bae600b2ba0ee837e11890b7",
+    "s0c_schema_fingerprint_md5": "0c39479e0b595fe5e1652169855abb96"
+  },
+  "verdict": {
+    "overall": "PASS — CUT 1 DEPENDENCIES CLEARED; READY FOR DAYBREAK SECURITY REVIEW",
+    "implement": "FORBIDDEN_UNTIL_DAYBREAK_PASS",
+    "daybreak_handoff": "READY_FOR_REVIEW"
+  },
+  "counts": {
+    "public_policy_count": 375,
+    "helper_policy_count": 145
+  },
+  "membership_status_check": {
+    "constraint": "memberships_membership_status_check",
+    "allowed_values": [
+      "active",
+      "pending_approval",
+      "exited",
+      "suspended",
+      "archived"
+    ]
+  },
+  "absent_cut1_primitives": [
+    "is_active_group_member",
+    "get_user_active_group_ids"
+  ],
+  "helper_summaries": [
+    {
+      "name": "is_group_member",
+      "semantic": "EXISTS memberships by group_id+user_id; NO status",
+      "security_definer": true,
+      "search_path": "unset",
+      "cut1": "UNCHANGED"
+    },
+    {
+      "name": "get_user_group_ids",
+      "semantic": "SELECT group_id FROM memberships WHERE user_id = uid; NO status",
+      "cut1": "UNCHANGED"
+    },
+    {
+      "name": "is_group_admin",
+      "semantic": "role check only; NO status",
+      "cut1": "REPLACE_ADD_ACTIVE"
+    },
+    {
+      "name": "is_group_admin_or_owner",
+      "signature": "(p_group_id uuid)",
+      "semantic": "role check only; NO status",
+      "cut1": "REPLACE_ADD_ACTIVE"
+    },
+    {
+      "name": "is_group_owner",
+      "semantic": "role check only; NO status",
+      "cut1": "REPLACE_ADD_ACTIVE"
+    },
+    {
+      "name": "has_group_permission",
+      "semantic": "membership by group+user; owner true; admin true if 0 open position_assignments; else pa→pp on membership_id; NO membership_status; NO gp.group_id=gid join",
+      "cut1": "REPLACE_ACTIVE_AND_SAME_GROUP_GP_JOIN"
+    },
+    {
+      "name": "create_proxy_member",
+      "semantic": "role IN (owner,admin,moderator); NO status",
+      "security_definer": true,
+      "search_path": "unset",
+      "cut1": "REPLACE_KEEP_MODERATOR_ADD_ACTIVE"
+    },
+    {
+      "name": "get_relief_branch_summary",
+      "semantic": "org boundary via get_user_group_ids()",
+      "cut1": "SEPARATE_RELIEF_PHASE_LEAVE"
+    },
+    {
+      "name": "cast_ballot",
+      "semantic": "standing=good only; NO membership_status",
+      "cut1": "P1_OUT_OF_CUT1"
+    },
+    {
+      "name": "can_view_member_financial",
+      "semantic": "own != exited OR is_group_admin_or_owner OR position perms != exited",
+      "cut1": "UNCHANGED_BODY_BENEFITS_FROM_ADMIN_REPLACE"
+    }
+  ],
+  "proxy_insert_policy": {
+    "table": "memberships",
+    "policy": "Admins can add proxy members",
+    "command": "INSERT",
+    "roles": ["public"],
+    "with_check": "((is_proxy = true) AND (proxy_manager_id = auth.uid()) AND (group_id IN ( SELECT get_user_group_ids(auth.uid()))))",
+    "cut1": "REWRITE_TO_ACTIVE_OPERATIONAL_AUTHORITY"
+  },
+  "memberships_update_live": {
+    "suspect_group_owners_admins_can_update_memberships": "NOT_PRESENT",
+    "live_update_policies": [
+      "memberships_update_own",
+      "rls_membership_role_guard"
+    ]
+  },
+  "blocker_matrix": [
+    {
+      "id": "B1",
+      "status": "CLOSED",
+      "summary": "Live pg_policies/pg_proc catalog recorded: 375 public, 145 helper-matching; active primitives absent; five-value CHECK confirmed"
+    },
+    {
+      "id": "B2",
+      "status": "CLOSED",
+      "summary": "Proxy INSERT named Admins can add proxy members; Cut1 MUST REWRITE to active operational authority"
+    },
+    {
+      "id": "B3",
+      "status": "CLOSED",
+      "summary": "Group owners/admins can update memberships NOT PRESENT; helpers-only REPLACE insufficient for neutralize list — require REWRITE"
+    },
+    {
+      "id": "B4",
+      "status": "CLOSED",
+      "summary": "Relief HQ SEPARATE PHASE; get_relief_branch_summary UNAFFECTED by Cut1 admin REPLACE; do not redefine get_user_group_ids"
+    },
+    {
+      "id": "B5",
+      "status": "CLOSED",
+      "summary": "election_votes and rls_evote_insert NOT PRESENT; REMOVED from Cut1; superseded by election_vote_receipts + election_ballots + cast_ballot"
+    }
+  ],
+  "election_disposition": {
+    "election_votes_exists": false,
+    "rls_evote_insert_exists": false,
+    "superseded_by": [
+      "election_vote_receipts",
+      "election_ballots",
+      "cast_ballot"
+    ],
+    "cut1": "REMOVED"
+  },
+  "relief_disposition": {
+    "get_relief_branch_summary": "SEPARATE_RELIEF_PHASE_LEAVE",
+    "org_boundary_helper": "get_user_group_ids",
+    "local_admin_member_write_policies": "REWRITE_IN_CUT1",
+    "unaffected_by_admin_helper_replace": true
+  },
+  "position_gap": {
+    "same_group_constraint_on_position_assignments": false,
+    "cut1_has_group_permission": "REPLACE with active membership AND JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid",
+    "optional_trigger": "position_assignments_membership_position_same_group"
+  },
+  "unchanged": [
+    "is_group_member",
+    "get_user_group_ids",
+    "memberships_insert_pending",
+    "SELECT visibility helpers",
+    "can_view_member_financial body",
+    "cast_ballot",
+    "get_relief_branch_summary"
+  ],
+  "create": [
+    "is_active_group_member",
+    "get_user_active_group_ids"
+  ],
+  "replace": [
+    "is_group_admin",
+    "is_group_admin_or_owner",
+    "is_group_owner",
+    "has_group_permission",
+    "create_proxy_member"
+  ],
+  "removed_from_cut1": [
+    "election_votes",
+    "rls_evote_insert"
+  ],
+  "neutralizing_policy_names": [
+    { "table": "payments", "policy": "Group admins and treasurers can record payments" },
+    { "table": "fines", "policy": "Admin manage fines" },
+    { "table": "fine_types", "policy": "fine_types_admin" },
+    { "table": "event_attendances", "policy": "Group admins can manage attendance" },
+    { "table": "position_assignments", "policy": "Group owners/admins can manage assignments" },
+    { "table": "hosting_rosters", "policy": "Group admins can manage hosting rosters" },
+    { "table": "hosting_assignments", "policy": "Group admins can manage hosting assignments" },
+    { "table": "elections", "policy": "Admins can manage elections" },
+    { "table": "election_options", "policy": "Admins can manage options" },
+    { "table": "documents", "policy": "Admins can manage documents" },
+    { "table": "projects", "policy": "Admin manage projects" },
+    { "table": "project_milestones", "policy": "Admin manage milestones" },
+    { "table": "project_expenses", "policy": "Admin manage expenses" },
+    { "table": "savings_cycles", "policy": "Admins can manage savings cycles" },
+    { "table": "savings_participants", "policy": "Admins can manage participants" },
+    { "table": "savings_contributions", "policy": "Admins can manage contributions" },
+    { "table": "relief_plans", "policy": "Group admins can manage relief plans" },
+    { "table": "relief_enrollments", "policy": "Admins can manage enrollments" },
+    { "table": "relief_enrollments", "policy": "relief_enrollments_insert" },
+    { "table": "relief_enrollments", "policy": "relief_enrollments_update" },
+    { "table": "relief_enrollments", "policy": "relief_enrollments_delete" },
+    { "table": "relief_claims", "policy": "Members can submit claims" },
+    { "table": "relief_claims", "policy": "Admins can manage claims" },
+    { "table": "relief_claims", "policy": "relief_claims_insert" },
+    { "table": "relief_claims", "policy": "relief_claims_update" },
+    { "table": "relief_claims", "policy": "relief_claims_delete" },
+    { "table": "relief_payouts", "policy": "Admins can manage payouts" },
+    { "table": "relief_payouts", "policy": "relief_payouts_insert" },
+    { "table": "relief_payouts", "policy": "relief_payouts_update" },
+    { "table": "relief_payouts", "policy": "relief_payouts_delete" },
+    { "table": "relief_remittances", "policy": "relief_remittances_insert" },
+    { "table": "relief_remittances", "policy": "relief_remittances_update" },
+    { "table": "contribution_types", "policy": "Group admins can manage contribution types" },
+    { "table": "contribution_types", "policy": "Group admins can update contribution types" },
+    { "table": "contribution_types", "policy": "Group admins can delete contribution types" },
+    { "table": "contribution_obligations", "policy": "Group admins can manage obligations" },
+    { "table": "contribution_obligations", "policy": "Group admins can update obligations" },
+    { "table": "payment_reminder_rules", "policy": "Admin manage reminder rules" },
+    { "table": "group_constitutions", "policy": "Admins can manage constitutions" },
+    { "table": "group_constitutions", "policy": "rls_const_insert" },
+    { "table": "group_constitutions", "policy": "rls_const_update" },
+    { "table": "group_constitutions", "policy": "rls_const_delete" },
+    { "table": "constitution_amendments", "policy": "Admins can manage amendments" },
+    { "table": "constitution_amendments", "policy": "rls_amend_update" },
+    { "table": "constitution_amendments", "policy": "rls_amend_delete" },
+    { "table": "activity_feed", "policy": "Members insert feed" },
+    { "table": "activity_feed", "policy": "Admin update feed" },
+    { "table": "feed_reactions", "policy": "Members react" },
+    { "table": "events", "policy": "Group admins can create events" },
+    { "table": "events", "policy": "Group admins can update events" },
+    { "table": "events", "policy": "Group admins can delete events" },
+    { "table": "invitations", "policy": "Group admins can create invitations" },
+    { "table": "invitations", "policy": "Group admins can update invitations" },
+    { "table": "invitations", "policy": "Group admins can delete invitations" },
+    { "table": "group_payment_config", "policy": "Group admins can manage payment config" },
+    { "table": "group_subscriptions", "policy": "Admins can manage subscription" },
+    { "table": "loan_configs", "policy": "loan_configs_insert" },
+    { "table": "loan_configs", "policy": "loan_configs_update" },
+    { "table": "loan_configs", "policy": "loan_configs_delete" },
+    { "table": "loans", "policy": "loans_insert" },
+    { "table": "loans", "policy": "loans_update" },
+    { "table": "loans", "policy": "loans_delete" },
+    { "table": "loan_repayments", "policy": "loan_repayments_insert" },
+    { "table": "loan_repayments", "policy": "loan_repayments_update" },
+    { "table": "loan_repayments", "policy": "loan_repayments_delete" },
+    { "table": "loan_schedule", "policy": "loan_schedule_insert" },
+    { "table": "loan_schedule", "policy": "loan_schedule_update" },
+    { "table": "loan_schedule", "policy": "loan_schedule_delete" },
+    { "table": "loan_requests_v1", "policy": "loan_requests_v1 write policies (rls_lr_all / Members request loans / Admin manage loans if attached)" },
+    { "table": "disputes", "policy": "disputes_admin" },
+    { "table": "committees", "policy": "Admins can manage committees" },
+    { "table": "committee_members", "policy": "Admins can manage committee members" },
+    { "table": "sub_group_transfers", "policy": "Users can create transfers" },
+    { "table": "sub_group_transfers", "policy": "Admins can update transfers" },
+    { "table": "member_transfers", "policy": "transfers_delete" },
+    { "table": "exchange_rates", "policy": "HQ admins can manage exchange rates" },
+    { "table": "family_members", "policy": "rls_fm_insert" },
+    { "table": "family_members", "policy": "rls_fm_update" },
+    { "table": "family_members", "policy": "rls_fm_delete" },
+    { "table": "event_photos", "policy": "Members upload photos" },
+    { "table": "project_contributions", "policy": "Members contribute to projects" }
+  ],
+  "helper_write_policy_names": [
+    { "table": "payments", "policy": "rls_pay_insert" },
+    { "table": "event_attendances", "policy": "rls_att_insert" },
+    { "table": "feed_reactions", "policy": "rls_fr_insert" },
+    { "table": "project_contributions", "policy": "rls_pcon_write" },
+    { "table": "event_rsvps", "policy": "rls_rsvp_insert" },
+    { "table": "event_photos", "policy": "rls_ep_insert" },
+    { "table": "constitution_amendments", "policy": "rls_amend_insert" },
+    { "table": "payment_reminders_sent", "policy": "rls_prs_insert" },
+    { "table": "activity_feed", "policy": "rls_af_all" },
+    { "table": "fines", "policy": "rls_fin_update" },
+    { "table": "announcement_deliveries", "policy": "rls_ad_update" },
+    { "table": "disputes", "policy": "Users can create disputes" },
+    { "table": "disputes", "policy": "Users can update disputes" },
+    { "table": "disputes", "policy": "Users can delete disputes" },
+    { "table": "disputes", "policy": "disputes_insert" },
+    { "table": "group_audit_logs", "policy": "member_insert_audit_logs" },
+    { "table": "memberships", "policy": "Admins can add proxy members" },
+    { "table": "hosting_swap_requests", "policy": "rls_hsr_insert" }
+  ]
+}

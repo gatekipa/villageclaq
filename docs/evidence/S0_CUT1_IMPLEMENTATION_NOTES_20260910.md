@@ -5,6 +5,8 @@
 **Migration:** `supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql`  
 **PRODUCTION APPLY NOT AUTHORIZED**
 
+**P1-A (2026-09-10 requal):** Cut 1 SECURITY DEFINER functions use `SET search_path TO ''` (bodies `public.`-qualified). Postcondition asserts `proconfig` empty search_path, not `public`.
+
 ## Disposable method
 
 1. Generate fixture + migration (already committed):

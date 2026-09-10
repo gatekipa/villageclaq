@@ -24,6 +24,14 @@ test("exactly one new Cut 1 migration exists and historical files are untouched 
   assert.ok(historical.length >= 100, `expected historical migrations, got ${historical.length}`);
 });
 
+test("Cut 1 DEFINER helpers pin empty search_path (P1-A / S0-C)", () => {
+  const setPublic = (migration.match(/^SET search_path TO 'public'$/gm) || []).length;
+  const setEmpty = (migration.match(/^SET search_path TO ''$/gm) || []).length;
+  assert.equal(setPublic, 0, "no DEFINER should SET search_path TO 'public'");
+  assert.ok(setEmpty >= 8, `expected >=8 empty search_path pins, got ${setEmpty}`);
+  assert.match(migration, /CUT1_ABORT_POST: Cut 1 DEFINER search_path is not empty/);
+});
+
 test("creates current-actor helpers only (no authenticated arbitrary-subject active API)", () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.is_active_group_member\(gid uuid\)/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.get_my_active_group_ids\(\)/);

@@ -250,7 +250,7 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
   SELECT auth.uid() IS NOT NULL
      AND EXISTS (
@@ -267,7 +267,7 @@ RETURNS SETOF uuid
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
   SELECT m.group_id
   FROM public.memberships m
@@ -288,7 +288,7 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
   SELECT (auth.uid() IS NULL OR uid IS NULL OR uid = auth.uid())
      AND EXISTS (
@@ -306,7 +306,7 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
   SELECT EXISTS (
     SELECT 1
@@ -323,7 +323,7 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
   SELECT (auth.uid() IS NULL OR uid IS NULL OR uid = auth.uid())
      AND EXISTS (
@@ -349,7 +349,7 @@ RETURNS boolean
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
 DECLARE
   v_membership_id uuid;
@@ -412,7 +412,7 @@ CREATE OR REPLACE FUNCTION public.create_proxy_member(
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
 DECLARE
   new_membership_id uuid;
@@ -444,8 +444,8 @@ BEGIN
     NULL,
     p_group_id,
     p_display_name,
-    COALESCE(p_role, 'member')::membership_role,
-    'good'::membership_standing,
+    COALESCE(p_role, 'member')::public.membership_role,
+    'good'::public.membership_standing,
     true,
     caller_id,
     now(),
@@ -480,7 +480,7 @@ CREATE OR REPLACE FUNCTION public.enforce_position_assignment_same_group()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO ''
 AS $$
 DECLARE
   v_m_group uuid;
@@ -611,6 +611,38 @@ BEGIN
   WHERE m.group_id IS DISTINCT FROM gp.group_id;
   IF v_mismatch <> 0 THEN
     RAISE EXCEPTION 'CUT1_ABORT_POST: position_assignments mismatch_count=% (expected 0)', v_mismatch;
+  END IF;
+
+  -- P1-A: Cut 1 DEFINER helpers pin empty search_path (S0-C / contract), not public.
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prosecdef
+      AND p.proname IN (
+        'is_active_group_member',
+        'get_my_active_group_ids',
+        'is_group_admin',
+        'is_group_admin_or_owner',
+        'is_group_owner',
+        'has_group_permission',
+        'create_proxy_member',
+        'enforce_position_assignment_same_group'
+      )
+      AND (
+        p.proconfig IS NULL
+        OR EXISTS (
+          SELECT 1 FROM unnest(p.proconfig) AS c(cfg)
+          WHERE c.cfg LIKE 'search_path=%public%'
+        )
+        OR NOT EXISTS (
+          SELECT 1 FROM unnest(p.proconfig) AS c(cfg)
+          WHERE c.cfg IN ('search_path=""', 'search_path=')
+        )
+      )
+  ) THEN
+    RAISE EXCEPTION 'CUT1_ABORT_POST: Cut 1 DEFINER search_path is not empty';
   END IF;
 END;
 $cut1_post$;

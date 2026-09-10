@@ -1,291 +1,2900 @@
 {
-  "artifact": "S0_CUT1_LIVE_POLICY_FUNCTION_INVENTORY_20260910",
-  "generated_at_utc": "2026-09-10T18:00:00Z",
-  "source": {
-    "kind": "live_production_readonly_catalog",
-    "project_ref": "llbnliixczcqfftxpsmb",
-    "catalog_date": "2026-09-10",
-    "production_mutation": 0,
-    "pii_included": false,
-    "disposable_behavioral_phase10": "DEFERRED"
+  "as_of": "2026-09-10",
+  "project": "llbnliixczcqfftxpsmb",
+  "security_revision": 1,
+  "prior_plan_sha": "acf14f62c3db438b221ccab2982405dec814c0ee",
+  "public_policy_count": 375,
+  "helper_matching_policy_count": 145,
+  "disposition_counts": {
+    "UNCHANGED \u2014 SAFE OPERATIONAL POLICY": 70,
+    "REWRITE IN CUT 1": 23,
+    "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ": 52
   },
-  "pins": {
-    "production_main": "0559b758bc53df3ec8081e361ffd022c1f19be43",
-    "planning_prior_tip": "8d621b6baecf432dfc2ea7adfc6c8763725fb81b",
-    "prd_freeze": "050be86c9df3455c66b27bb5853eb786228b4009",
-    "s0a": "97388b34037589a21eae66e3a5a1668f71e3bb55",
-    "s0b": "e1df73fd7536511fd2c062ab575eac9916fe86c7",
-    "s0c": "d214197c93001141bae600b2ba0ee837e11890b7",
-    "s0c_schema_fingerprint_md5": "0c39479e0b595fe5e1652169855abb96"
-  },
-  "verdict": {
-    "overall": "PASS — CUT 1 DEPENDENCIES CLEARED; READY FOR DAYBREAK SECURITY REVIEW",
-    "implement": "FORBIDDEN_UNTIL_DAYBREAK_PASS",
-    "daybreak_handoff": "READY_FOR_REVIEW"
-  },
-  "counts": {
-    "public_policy_count": 375,
-    "helper_policy_count": 145
-  },
-  "membership_status_check": {
-    "constraint": "memberships_membership_status_check",
-    "allowed_values": [
-      "active",
-      "pending_approval",
-      "exited",
-      "suspended",
-      "archived"
-    ]
-  },
-  "absent_cut1_primitives": [
-    "is_active_group_member",
-    "get_user_active_group_ids"
-  ],
-  "helper_summaries": [
-    {
-      "name": "is_group_member",
-      "semantic": "EXISTS memberships by group_id+user_id; NO status",
-      "security_definer": true,
-      "search_path": "unset",
-      "cut1": "UNCHANGED"
-    },
-    {
-      "name": "get_user_group_ids",
-      "semantic": "SELECT group_id FROM memberships WHERE user_id = uid; NO status",
-      "cut1": "UNCHANGED"
-    },
-    {
-      "name": "is_group_admin",
-      "semantic": "role check only; NO status",
-      "cut1": "REPLACE_ADD_ACTIVE"
-    },
-    {
-      "name": "is_group_admin_or_owner",
-      "signature": "(p_group_id uuid)",
-      "semantic": "role check only; NO status",
-      "cut1": "REPLACE_ADD_ACTIVE"
-    },
-    {
-      "name": "is_group_owner",
-      "semantic": "role check only; NO status",
-      "cut1": "REPLACE_ADD_ACTIVE"
-    },
-    {
-      "name": "has_group_permission",
-      "semantic": "membership by group+user; owner true; admin true if 0 open position_assignments; else pa→pp on membership_id; NO membership_status; NO gp.group_id=gid join",
-      "cut1": "REPLACE_ACTIVE_AND_SAME_GROUP_GP_JOIN"
-    },
-    {
-      "name": "create_proxy_member",
-      "semantic": "role IN (owner,admin,moderator); NO status",
-      "security_definer": true,
-      "search_path": "unset",
-      "cut1": "REPLACE_KEEP_MODERATOR_ADD_ACTIVE"
-    },
-    {
-      "name": "get_relief_branch_summary",
-      "semantic": "org boundary via get_user_group_ids()",
-      "cut1": "SEPARATE_RELIEF_PHASE_LEAVE"
-    },
-    {
-      "name": "cast_ballot",
-      "semantic": "standing=good only; NO membership_status",
-      "cut1": "P1_OUT_OF_CUT1"
-    },
-    {
-      "name": "can_view_member_financial",
-      "semantic": "own != exited OR is_group_admin_or_owner OR position perms != exited",
-      "cut1": "UNCHANGED_BODY_BENEFITS_FROM_ADMIN_REPLACE"
-    }
-  ],
-  "proxy_insert_policy": {
-    "table": "memberships",
-    "policy": "Admins can add proxy members",
-    "command": "INSERT",
-    "roles": ["public"],
-    "with_check": "((is_proxy = true) AND (proxy_manager_id = auth.uid()) AND (group_id IN ( SELECT get_user_group_ids(auth.uid()))))",
-    "cut1": "REWRITE_TO_ACTIVE_OPERATIONAL_AUTHORITY"
-  },
-  "memberships_update_live": {
-    "suspect_group_owners_admins_can_update_memberships": "NOT_PRESENT",
-    "live_update_policies": [
-      "memberships_update_own",
-      "rls_membership_role_guard"
-    ]
-  },
-  "blocker_matrix": [
-    {
-      "id": "B1",
-      "status": "CLOSED",
-      "summary": "Live pg_policies/pg_proc catalog recorded: 375 public, 145 helper-matching; active primitives absent; five-value CHECK confirmed"
-    },
-    {
-      "id": "B2",
-      "status": "CLOSED",
-      "summary": "Proxy INSERT named Admins can add proxy members; Cut1 MUST REWRITE to active operational authority"
-    },
-    {
-      "id": "B3",
-      "status": "CLOSED",
-      "summary": "Group owners/admins can update memberships NOT PRESENT; helpers-only REPLACE insufficient for neutralize list — require REWRITE"
-    },
-    {
-      "id": "B4",
-      "status": "CLOSED",
-      "summary": "Relief HQ SEPARATE PHASE; get_relief_branch_summary UNAFFECTED by Cut1 admin REPLACE; do not redefine get_user_group_ids"
-    },
-    {
-      "id": "B5",
-      "status": "CLOSED",
-      "summary": "election_votes and rls_evote_insert NOT PRESENT; REMOVED from Cut1; superseded by election_vote_receipts + election_ballots + cast_ballot"
-    }
-  ],
-  "election_disposition": {
-    "election_votes_exists": false,
-    "rls_evote_insert_exists": false,
-    "superseded_by": [
-      "election_vote_receipts",
-      "election_ballots",
-      "cast_ballot"
+  "current_actor_helpers": {
+    "authenticated_public_api": [
+      {
+        "name": "is_active_group_member",
+        "args": "gid uuid",
+        "semantics": "auth.uid() ACTIVE member of gid"
+      },
+      {
+        "name": "get_my_active_group_ids",
+        "args": "",
+        "semantics": "active group_ids for auth.uid() only"
+      }
     ],
-    "cut1": "REMOVED"
+    "arbitrary_subject_exposure": "NONE to authenticated/anon",
+    "invariant": "Authenticated user cannot supply another user UUID to probe/enumerate that user active membership"
   },
-  "relief_disposition": {
-    "get_relief_branch_summary": "SEPARATE_RELIEF_PHASE_LEAVE",
-    "org_boundary_helper": "get_user_group_ids",
-    "local_admin_member_write_policies": "REWRITE_IN_CUT1",
-    "unaffected_by_admin_helper_replace": true
+  "has_group_permission": {
+    "signature": "has_group_permission(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())",
+    "security_definer": true,
+    "owner": "postgres",
+    "search_path": "public",
+    "execute_grants_live": [
+      "PUBLIC",
+      "anon",
+      "authenticated",
+      "postgres",
+      "service_role"
+    ],
+    "current_admin_fallback": "1) find membership by group+user (any status). 2) owner \u2192 TRUE. 3) count open position_assignments for membership. 4) admin AND count=0 \u2192 TRUE (full bypass). 5) else TRUE only if open assignment position has perm_key. No status. No same-group gp join.",
+    "target_admin_fallback": "Identical steps AFTER requiring membership_status=active. Position path must JOIN group_positions gp ON gp.id=pa.position_id AND gp.group_id=gid. Do NOT grant all-permissions to admin-with-assignments. Owner/admin-zero-assignment bypass preserved.",
+    "business_semantics": "PRESERVED except ACTIVE + same-group closures",
+    "cut1_uid_exposure": "Prefer force subject=auth.uid() for authenticated; if uid param retained, authenticated must not probe other users (require uid IS NULL OR uid=auth.uid())"
   },
-  "position_gap": {
-    "same_group_constraint_on_position_assignments": false,
-    "cut1_has_group_permission": "REPLACE with active membership AND JOIN group_positions gp ON gp.id = pa.position_id AND gp.group_id = gid",
-    "optional_trigger": "position_assignments_membership_position_same_group"
+  "create_proxy_member": {
+    "signature": "create_proxy_member(p_group_id uuid, p_display_name text, p_phone text DEFAULT NULL, p_role text DEFAULT member) RETURNS uuid",
+    "language": "plpgsql",
+    "security": "DEFINER",
+    "owner": "postgres",
+    "search_path": "unset",
+    "execute_grants_live": [
+      "PUBLIC",
+      "anon",
+      "authenticated",
+      "postgres",
+      "service_role"
+    ],
+    "live_actor_roles": [
+      "owner",
+      "admin",
+      "moderator"
+    ],
+    "live_status_check": false,
+    "cut1_actor_set": [
+      "ACTIVE owner",
+      "ACTIVE admin",
+      "ACTIVE moderator"
+    ],
+    "members_manage": false,
+    "cut1_grants": "REVOKE ALL FROM PUBLIC,anon; GRANT EXECUTE TO authenticated"
   },
-  "unchanged": [
-    "is_group_member",
-    "get_user_group_ids",
-    "memberships_insert_pending",
-    "SELECT visibility helpers",
-    "can_view_member_financial body",
-    "cast_ballot",
-    "get_relief_branch_summary"
+  "position_assignments_same_group": {
+    "status": "REQUIRED",
+    "objects": [
+      "FUNCTION public.enforce_position_assignment_same_group()",
+      "TRIGGER trg_position_assignments_same_group BEFORE INSERT OR UPDATE OF membership_id, position_id ON public.position_assignments"
+    ],
+    "invariant": "memberships.group_id of membership_id = group_positions.group_id of position_id",
+    "preflight": "SELECT count(*) mismatches; if >0 ABORT \u2014 no auto-repair",
+    "live_mismatch_count": 0
+  },
+  "migration_abort_semantics": {
+    "missing_expected_policy": "ABORT",
+    "predicate_drift": "ABORT",
+    "partial_continue": "FORBIDDEN",
+    "notice_and_skip": "FORBIDDEN"
+  },
+  "rehearsal_sequence": "IMPLEMENT on branch \u2192 ONE forward migration \u2192 disposable apply \u2192 negative+regression \u2192 SHA freeze \u2192 founder prod auth \u2192 apply one \u2192 read-only postconditions",
+  "payments_exact": [
+    {
+      "policy": "Group admins and treasurers can record payments",
+      "cmd": "INSERT",
+      "live": "EXISTS memberships WHERE group_id=payments.group_id AND user_id=auth.uid() AND role IN (owner,admin) \u2014 NO status",
+      "target": "SAME + membership_status=active",
+      "unchanged": "role set owner/admin; no amount/status/currency logic in policy"
+    },
+    {
+      "policy": "rls_pay_insert",
+      "cmd": "INSERT",
+      "live": "is_group_member(group_id) AND status=pending_confirmation AND recorded_by=auth.uid() AND membership_id owned by auth.uid()",
+      "target": "is_active_group_member(group_id) AND status=pending_confirmation AND recorded_by=auth.uid() AND membership_id owned by auth.uid()",
+      "unchanged": "pending_confirmation requirement; recorded_by; own membership_id; no amount/currency"
+    },
+    {
+      "policy": "Group admins can update payments",
+      "cmd": "UPDATE",
+      "live": "is_group_admin_or_owner(group_id)",
+      "target": "policy text UNCHANGED; helper REPLACE requires ACTIVE",
+      "unchanged": "admin/owner gate only"
+    },
+    {
+      "policy": "Group admins can delete payments",
+      "cmd": "DELETE",
+      "live": "is_group_admin_or_owner(group_id)",
+      "target": "policy text UNCHANGED; helper REPLACE requires ACTIVE",
+      "unchanged": "admin/owner gate only"
+    },
+    {
+      "policy": "rls_pay_select",
+      "cmd": "SELECT",
+      "live": "can_view_member_financial(membership_id, group_id)",
+      "target": "UNCHANGED",
+      "note": "inherits safer admin via is_group_admin_or_owner REPLACE"
+    },
+    {
+      "policy": "Platform staff can view all payments",
+      "cmd": "SELECT",
+      "live": "is_platform_staff()",
+      "target": "UNCHANGED"
+    }
   ],
-  "create": [
-    "is_active_group_member",
-    "get_user_active_group_ids"
+  "helper_matching_policies": [
+    {
+      "schemaname": "public",
+      "tablename": "action_intents",
+      "policyname": "rls_ai_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (is_group_admin(group_id) OR (action_intent_is_financial(proposed_action) AND (has_group_permission(group_id, 'finances.view'::text) OR has_group_permission(group_id, 'finances.manage'::text)))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids",
+        "is_group_admin",
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "PRIVILEGED READ",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "activity_feed",
+      "policyname": "rls_af_all",
+      "command": "ALL",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": "is_group_member(group_id)",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "activity_feed",
+      "policyname": "rls_af_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcement_deliveries",
+      "policyname": "rls_ad_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM announcements a\n  WHERE ((a.id = announcement_deliveries.announcement_id) AND is_group_admin(a.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcement_deliveries",
+      "policyname": "rls_ad_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM announcements a\n  WHERE ((a.id = announcement_deliveries.announcement_id) AND is_group_member(a.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcement_deliveries",
+      "policyname": "rls_ad_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM announcements a\n  WHERE ((a.id = announcement_deliveries.announcement_id) AND is_group_member(a.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcements",
+      "policyname": "ann_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "has_group_permission(group_id, 'announcements.manage'::text)",
+      "with_check": null,
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcements",
+      "policyname": "ann_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "has_group_permission(group_id, 'announcements.manage'::text)",
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcements",
+      "policyname": "ann_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(has_group_permission(group_id, 'announcements.manage'::text) OR (((sent_at IS NOT NULL) OR (scheduled_at IS NOT NULL)) AND is_announcement_visible(audience, group_id)))",
+      "with_check": null,
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "PRIVILEGED READ",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcements",
+      "policyname": "ann_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "has_group_permission(group_id, 'announcements.manage'::text)",
+      "with_check": "has_group_permission(group_id, 'announcements.manage'::text)",
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "committee_members",
+      "policyname": "Admins can manage committee members",
+      "command": "ALL",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(committee_id IN ( SELECT c.id\n   FROM committees c\n  WHERE ((c.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n           FROM memberships m\n          WHERE ((m.user_id = auth.uid()) AND (m.group_id = c.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "committee_members",
+      "policyname": "Users can view committee members in their groups",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(committee_id IN ( SELECT c.id\n   FROM committees c\n  WHERE (c.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "committees",
+      "policyname": "Admins can manage committees",
+      "command": "ALL",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "((group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = auth.uid()) AND (m.group_id = committees.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "committees",
+      "policyname": "Users can view committees in their groups",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_acknowledgments",
+      "policyname": "Admins can view all",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(constitution_id IN ( SELECT group_constitutions.id\n   FROM group_constitutions\n  WHERE (group_constitutions.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_acknowledgments",
+      "policyname": "rls_ack_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM group_constitutions gc\n  WHERE ((gc.id = constitution_acknowledgments.constitution_id) AND is_group_member(gc.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_amendments",
+      "policyname": "Users can view amendments",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_amendments",
+      "policyname": "rls_amend_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_amendments",
+      "policyname": "rls_amend_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_member(group_id)",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_amendments",
+      "policyname": "rls_amend_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_amendments",
+      "policyname": "rls_amend_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "contribution_obligations",
+      "policyname": "rls_co_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(is_group_admin(group_id) OR has_group_permission(group_id, 'contributions.manage'::text) OR has_group_permission(group_id, 'finances.record'::text))",
+      "helper_references": [
+        "is_group_admin",
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "contribution_obligations",
+      "policyname": "rls_co_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(is_group_admin(group_id) OR has_group_permission(group_id, 'contributions.manage'::text) OR has_group_permission(group_id, 'finances.record'::text))",
+      "with_check": "(is_group_admin(group_id) OR has_group_permission(group_id, 'contributions.manage'::text) OR has_group_permission(group_id, 'finances.record'::text))",
+      "helper_references": [
+        "is_group_admin",
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "contribution_types",
+      "policyname": "rls_ct_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "contribution_types",
+      "policyname": "rls_ct_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "contribution_types",
+      "policyname": "rls_ct_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "Users can create disputes in their groups",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "Users can delete disputes in their groups",
+      "command": "DELETE",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "Users can update disputes in their groups",
+      "command": "UPDATE",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "disputes_insert",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "disputes_select",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "documents",
+      "policyname": "rls_doc_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "documents",
+      "policyname": "rls_doc_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "documents",
+      "policyname": "rls_doc_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "documents",
+      "policyname": "rls_doc_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_ballots",
+      "policyname": "eb_select_after_close",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_ballots.election_id) AND (e.status = ANY (ARRAY['closed'::election_status, 'cancelled'::election_status])) AND is_group_member(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_candidates",
+      "policyname": "ec_manage_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_candidates.election_id) AND has_group_permission(e.group_id, 'elections.manage'::text))))",
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_candidates",
+      "policyname": "ec_manage_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_candidates.election_id) AND has_group_permission(e.group_id, 'elections.manage'::text))))",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_candidates.election_id) AND has_group_permission(e.group_id, 'elections.manage'::text))))",
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_candidates",
+      "policyname": "rls_ec_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_candidates.election_id) AND is_group_admin(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_candidates",
+      "policyname": "rls_ec_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_candidates.election_id) AND is_group_member(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_options",
+      "policyname": "rls_eo_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_options.election_id) AND is_group_admin(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_options",
+      "policyname": "rls_eo_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_options.election_id) AND is_group_admin(e.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "election_options",
+      "policyname": "rls_eo_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM elections e\n  WHERE ((e.id = election_options.election_id) AND is_group_member(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "elections",
+      "policyname": "rls_elec_all",
+      "command": "ALL",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "elections",
+      "policyname": "rls_elec_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_attendances",
+      "policyname": "rls_att_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_attendances.event_id) AND is_group_admin(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_attendances",
+      "policyname": "rls_att_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_attendances.event_id) AND is_group_member(e.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_attendances",
+      "policyname": "rls_att_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_attendances.event_id) AND is_group_member(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_attendances",
+      "policyname": "rls_att_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_attendances.event_id) AND is_group_admin(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_photos",
+      "policyname": "rls_ep_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = event_photos.uploaded_by) AND (m.user_id = auth.uid())))) OR (EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_photos.event_id) AND is_group_admin(e.group_id)))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_photos",
+      "policyname": "rls_ep_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_photos.event_id) AND is_group_member(e.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_photos",
+      "policyname": "rls_ep_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_photos.event_id) AND is_group_member(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_photos",
+      "policyname": "rls_ep_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = event_photos.uploaded_by) AND (m.user_id = auth.uid())))) OR (EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_photos.event_id) AND is_group_admin(e.group_id)))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_rsvps",
+      "policyname": "rls_rsvp_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_rsvps.event_id) AND is_group_member(e.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_rsvps",
+      "policyname": "rls_rsvp_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_rsvps.event_id) AND is_group_member(e.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "rls_ev_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "rls_ev_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "rls_ev_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "events",
+      "policyname": "rls_ev_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "exchange_rates",
+      "policyname": "HQ admins can manage exchange rates",
+      "command": "ALL",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(organization_id IN ( SELECT o.id\n   FROM (organizations o\n     JOIN groups g ON ((g.id = o.hq_group_id)))\n  WHERE ((g.id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n           FROM memberships m\n          WHERE ((m.user_id = auth.uid()) AND (m.group_id = g.id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "exchange_rates",
+      "policyname": "Members of org groups can view exchange rates",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(organization_id IN ( SELECT g.organization_id\n   FROM groups g\n  WHERE ((g.id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (g.organization_id IS NOT NULL))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "feed_reactions",
+      "policyname": "rls_fr_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM activity_feed af\n  WHERE ((af.id = feed_reactions.feed_item_id) AND is_group_member(af.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "feed_reactions",
+      "policyname": "rls_fr_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM activity_feed af\n  WHERE ((af.id = feed_reactions.feed_item_id) AND is_group_member(af.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "fine_types",
+      "policyname": "fine_types_select",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "fines",
+      "policyname": "rls_fin_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "fines",
+      "policyname": "rls_fin_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "fines",
+      "policyname": "rls_fin_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_audit_logs",
+      "policyname": "member_insert_audit_logs",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_constitutions",
+      "policyname": "Users can view constitutions",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_constitutions",
+      "policyname": "rls_const_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_constitutions",
+      "policyname": "rls_const_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_constitutions",
+      "policyname": "rls_const_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_constitutions",
+      "policyname": "rls_const_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_payment_config",
+      "policyname": "Members can view payment config",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_positions",
+      "policyname": "positions_select",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "((group_id IN ( SELECT get_user_group_ids(auth.uid()) AS get_user_group_ids)) OR (EXISTS ( SELECT 1\n   FROM groups\n  WHERE ((groups.id = group_positions.group_id) AND (groups.created_by = auth.uid())))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_subscriptions",
+      "policyname": "Group members can view subscription",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "groups",
+      "policyname": "Group owners/admins can update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin_or_owner(id)",
+      "with_check": "is_group_admin_or_owner(id)",
+      "helper_references": [
+        "is_group_admin_or_owner"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "groups",
+      "policyname": "Members can view their groups",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) OR (is_active = true))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "groups",
+      "policyname": "groups_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((EXISTS ( SELECT 1\n   FROM platform_staff\n  WHERE ((platform_staff.user_id = auth.uid()) AND (platform_staff.is_active = true)))) OR (id IN ( SELECT get_user_group_ids() AS get_user_group_ids)))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_assignments",
+      "policyname": "rls_ha_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(roster_id IN ( SELECT hosting_rosters.id\n   FROM hosting_rosters\n  WHERE is_group_admin(hosting_rosters.group_id)))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_assignments",
+      "policyname": "rls_ha_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(roster_id IN ( SELECT hosting_rosters.id\n   FROM hosting_rosters\n  WHERE is_group_admin(hosting_rosters.group_id)))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_assignments",
+      "policyname": "rls_ha_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(roster_id IN ( SELECT hosting_rosters.id\n   FROM hosting_rosters\n  WHERE (hosting_rosters.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_assignments",
+      "policyname": "rls_ha_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(roster_id IN ( SELECT hosting_rosters.id\n   FROM hosting_rosters\n  WHERE is_group_admin(hosting_rosters.group_id)))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_rosters",
+      "policyname": "rls_hr_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_rosters",
+      "policyname": "rls_hr_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_swap_requests",
+      "policyname": "rls_hsr_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "((requested_by = auth.uid()) AND (from_assignment_id IN ( SELECT ha.id\n   FROM (hosting_assignments ha\n     JOIN hosting_rosters hr ON ((hr.id = ha.roster_id)))\n  WHERE (hr.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)))))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_swap_requests",
+      "policyname": "rls_hsr_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(from_assignment_id IN ( SELECT ha.id\n   FROM (hosting_assignments ha\n     JOIN hosting_rosters hr ON ((hr.id = ha.roster_id)))\n  WHERE (hr.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_swap_requests",
+      "policyname": "rls_hsr_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((from_assignment_id IN ( SELECT ha.id\n   FROM (hosting_assignments ha\n     JOIN hosting_rosters hr ON ((hr.id = ha.roster_id)))\n  WHERE is_group_admin(hr.group_id))) OR ((requested_by = auth.uid()) AND (status = 'pending'::swap_request_status)))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "join_codes",
+      "policyname": "codes_select",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "((group_id IN ( SELECT get_user_group_ids(auth.uid()) AS get_user_group_ids)) OR (EXISTS ( SELECT 1\n   FROM groups\n  WHERE ((groups.id = join_codes.group_id) AND (groups.created_by = auth.uid())))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "loan_configs",
+      "policyname": "loan_configs_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "meeting_minutes",
+      "policyname": "mm_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "has_group_permission(group_id, 'minutes.manage'::text)",
+      "with_check": null,
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "meeting_minutes",
+      "policyname": "mm_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "has_group_permission(group_id, 'minutes.manage'::text)",
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "meeting_minutes",
+      "policyname": "mm_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(is_group_member(group_id) AND ((status = 'published'::minutes_status) OR has_group_permission(group_id, 'minutes.manage'::text)))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member",
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "PRIVILEGED READ",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "meeting_minutes",
+      "policyname": "mm_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "has_group_permission(group_id, 'minutes.manage'::text)",
+      "with_check": "has_group_permission(group_id, 'minutes.manage'::text)",
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "member_badges",
+      "policyname": "rls_mb_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = member_badges.membership_id) AND is_group_admin(m.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "member_badges",
+      "policyname": "rls_mb_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = member_badges.membership_id) AND is_group_admin(m.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "member_badges",
+      "policyname": "rls_mb_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = member_badges.membership_id) AND is_group_member(m.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "memberships",
+      "policyname": "Admins can add proxy members",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "((is_proxy = true) AND (proxy_manager_id = auth.uid()) AND (group_id IN ( SELECT get_user_group_ids(auth.uid()) AS get_user_group_ids)))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Proxy INSERT status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "memberships",
+      "policyname": "Members can leave or admins can remove members",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((user_id = auth.uid()) OR is_group_admin_or_owner(group_id))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin_or_owner"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "memberships",
+      "policyname": "memberships_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((EXISTS ( SELECT 1\n   FROM platform_staff\n  WHERE ((platform_staff.user_id = auth.uid()) AND (platform_staff.is_active = true)))) OR (user_id = auth.uid()) OR (group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "memberships",
+      "policyname": "rls_membership_role_guard",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": "((role <> 'owner'::membership_role) OR is_group_owner(group_id))",
+      "helper_references": [
+        "is_group_admin",
+        "is_group_owner"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "notifications",
+      "policyname": "rls_notif_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "((user_id = auth.uid()) OR ((group_id IS NOT NULL) AND (is_group_admin(group_id) OR has_group_permission(group_id, 'announcements.manage'::text) OR has_group_permission(group_id, 'minutes.manage'::text) OR has_group_permission(group_id, 'elections.manage'::text) OR has_group_permission(group_id, 'events.manage'::text))))",
+      "helper_references": [
+        "is_group_admin",
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_obligation_applications",
+      "policyname": "poa_select_admin",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM payments p\n  WHERE ((p.id = payment_obligation_applications.payment_id) AND is_group_admin(p.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "PRIVILEGED READ",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "SELECT inherits helper REPLACE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_reminder_rules",
+      "policyname": "rls_prr_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_reminder_rules",
+      "policyname": "rls_prr_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_reminder_rules",
+      "policyname": "rls_prr_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_reminder_rules",
+      "policyname": "rls_prr_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_reminders_sent",
+      "policyname": "rls_prs_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM payment_reminder_rules prr\n  WHERE ((prr.id = payment_reminders_sent.rule_id) AND is_group_member(prr.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_reminders_sent",
+      "policyname": "rls_prs_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM payment_reminder_rules prr\n  WHERE ((prr.id = payment_reminders_sent.rule_id) AND is_group_member(prr.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payments",
+      "policyname": "Group admins can delete payments",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin_or_owner(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin_or_owner"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payments",
+      "policyname": "Group admins can update payments",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin_or_owner(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin_or_owner"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payments",
+      "policyname": "rls_pay_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(is_group_member(group_id) AND (status = 'pending_confirmation'::text) AND (recorded_by = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = payments.membership_id) AND (m.user_id = auth.uid())))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "position_assignments",
+      "policyname": "rls_pa_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM group_positions gp\n  WHERE ((gp.id = position_assignments.position_id) AND is_group_admin(gp.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "position_assignments",
+      "policyname": "rls_pa_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM group_positions gp\n  WHERE ((gp.id = position_assignments.position_id) AND is_group_admin(gp.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "position_assignments",
+      "policyname": "rls_pa_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM group_positions gp\n  WHERE ((gp.id = position_assignments.position_id) AND is_group_admin(gp.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "position_permissions",
+      "policyname": "perms_select",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM group_positions gp\n  WHERE ((gp.id = position_permissions.position_id) AND ((gp.group_id IN ( SELECT get_user_group_ids(auth.uid()) AS get_user_group_ids)) OR (EXISTS ( SELECT 1\n           FROM groups\n          WHERE ((groups.id = gp.group_id) AND (groups.created_by = auth.uid()))))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "position_permissions",
+      "policyname": "rls_pp_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM group_positions gp\n  WHERE ((gp.id = position_permissions.position_id) AND is_group_admin(gp.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "position_permissions",
+      "policyname": "rls_pp_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM group_positions gp\n  WHERE ((gp.id = position_permissions.position_id) AND is_group_admin(gp.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "Profiles readable by self and co-members",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "((id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = profiles.id) AND (m.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_contributions",
+      "policyname": "rls_pcon_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_contributions.project_id) AND is_group_member(p.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_contributions",
+      "policyname": "rls_pcon_write",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_contributions.project_id) AND is_group_member(p.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_expenses",
+      "policyname": "rls_pexp_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_expenses.project_id) AND is_group_member(p.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_expenses",
+      "policyname": "rls_pexp_write",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_expenses.project_id) AND is_group_admin(p.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_milestones",
+      "policyname": "rls_pmil_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_milestones.project_id) AND is_group_member(p.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_milestones",
+      "policyname": "rls_pmil_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_milestones.project_id) AND is_group_admin(p.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_milestones",
+      "policyname": "rls_pmil_write",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_milestones.project_id) AND is_group_admin(p.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "projects",
+      "policyname": "rls_proj_all",
+      "command": "ALL",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "projects",
+      "policyname": "rls_proj_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "proxy_claim_tokens",
+      "policyname": "pct_manage",
+      "command": "ALL",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = proxy_claim_tokens.membership_id) AND has_group_permission(m.group_id, 'members.manage'::text))))",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = proxy_claim_tokens.membership_id) AND has_group_permission(m.group_id, 'members.manage'::text))))",
+      "helper_references": [
+        "has_group_permission"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "relief_enrollments",
+      "policyname": "relief_enrollments_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM relief_plans rp\n  WHERE ((rp.id = relief_enrollments.plan_id) AND (rp.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "relief_plans",
+      "policyname": "rls_rp_all",
+      "command": "ALL",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "relief_plans",
+      "policyname": "rls_rp_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "relief_remittances",
+      "policyname": "relief_remittances_select",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "((branch_group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) OR (EXISTS ( SELECT 1\n   FROM (groups g_branch\n     JOIN groups g_user ON (((g_user.organization_id = g_branch.organization_id) AND (g_user.organization_id IS NOT NULL))))\n  WHERE ((g_branch.id = relief_remittances.branch_group_id) AND (g_user.id IN ( SELECT get_user_group_ids() AS get_user_group_ids))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_contributions",
+      "policyname": "rls_scon_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM savings_cycles sc\n  WHERE ((sc.id = savings_contributions.cycle_id) AND is_group_admin(sc.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_contributions",
+      "policyname": "rls_scon_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM savings_cycles sc\n  WHERE ((sc.id = savings_contributions.cycle_id) AND is_group_member(sc.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_contributions",
+      "policyname": "rls_scon_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM savings_cycles sc\n  WHERE ((sc.id = savings_contributions.cycle_id) AND is_group_admin(sc.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_cycles",
+      "policyname": "rls_sc_all",
+      "command": "ALL",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_admin(group_id)",
+      "with_check": "is_group_admin(group_id)",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_cycles",
+      "policyname": "rls_sc_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_participants",
+      "policyname": "rls_sp_delete",
+      "command": "DELETE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM savings_cycles sc\n  WHERE ((sc.id = savings_participants.cycle_id) AND is_group_admin(sc.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_participants",
+      "policyname": "rls_sp_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM savings_cycles sc\n  WHERE ((sc.id = savings_participants.cycle_id) AND is_group_admin(sc.group_id))))",
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_participants",
+      "policyname": "rls_sp_select",
+      "command": "SELECT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM savings_cycles sc\n  WHERE ((sc.id = savings_participants.cycle_id) AND is_group_member(sc.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "savings_participants",
+      "policyname": "rls_sp_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM savings_cycles sc\n  WHERE ((sc.id = savings_participants.cycle_id) AND is_group_admin(sc.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_admin"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "UNCHANGED \u2014 SAFE OPERATIONAL POLICY",
+      "disposition_reason": "WRITE uses admin/permission helper; Cut1 REPLACE enforces ACTIVE; policy text unchanged"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sub_group_transfers",
+      "policyname": "Admins can update transfers",
+      "command": "UPDATE",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "((group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = auth.uid()) AND (m.group_id = sub_group_transfers.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sub_group_transfers",
+      "policyname": "Users can create transfers",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sub_group_transfers",
+      "policyname": "Users can view transfers in their groups",
+      "command": "SELECT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "READ/HISTORY",
+      "cut1_disposition": "UNCHANGED \u2014 HISTORICAL/VISIBILITY READ",
+      "disposition_reason": "SELECT visibility via is_group_member/get_user_group_ids; not ops write"
+    }
   ],
-  "replace": [
-    "is_group_admin",
-    "is_group_admin_or_owner",
-    "is_group_owner",
-    "has_group_permission",
-    "create_proxy_member"
-  ],
-  "removed_from_cut1": [
-    "election_votes",
-    "rls_evote_insert"
-  ],
-  "neutralizing_policy_names": [
-    { "table": "payments", "policy": "Group admins and treasurers can record payments" },
-    { "table": "fines", "policy": "Admin manage fines" },
-    { "table": "fine_types", "policy": "fine_types_admin" },
-    { "table": "event_attendances", "policy": "Group admins can manage attendance" },
-    { "table": "position_assignments", "policy": "Group owners/admins can manage assignments" },
-    { "table": "hosting_rosters", "policy": "Group admins can manage hosting rosters" },
-    { "table": "hosting_assignments", "policy": "Group admins can manage hosting assignments" },
-    { "table": "elections", "policy": "Admins can manage elections" },
-    { "table": "election_options", "policy": "Admins can manage options" },
-    { "table": "documents", "policy": "Admins can manage documents" },
-    { "table": "projects", "policy": "Admin manage projects" },
-    { "table": "project_milestones", "policy": "Admin manage milestones" },
-    { "table": "project_expenses", "policy": "Admin manage expenses" },
-    { "table": "savings_cycles", "policy": "Admins can manage savings cycles" },
-    { "table": "savings_participants", "policy": "Admins can manage participants" },
-    { "table": "savings_contributions", "policy": "Admins can manage contributions" },
-    { "table": "relief_plans", "policy": "Group admins can manage relief plans" },
-    { "table": "relief_enrollments", "policy": "Admins can manage enrollments" },
-    { "table": "relief_enrollments", "policy": "relief_enrollments_insert" },
-    { "table": "relief_enrollments", "policy": "relief_enrollments_update" },
-    { "table": "relief_enrollments", "policy": "relief_enrollments_delete" },
-    { "table": "relief_claims", "policy": "Members can submit claims" },
-    { "table": "relief_claims", "policy": "Admins can manage claims" },
-    { "table": "relief_claims", "policy": "relief_claims_insert" },
-    { "table": "relief_claims", "policy": "relief_claims_update" },
-    { "table": "relief_claims", "policy": "relief_claims_delete" },
-    { "table": "relief_payouts", "policy": "Admins can manage payouts" },
-    { "table": "relief_payouts", "policy": "relief_payouts_insert" },
-    { "table": "relief_payouts", "policy": "relief_payouts_update" },
-    { "table": "relief_payouts", "policy": "relief_payouts_delete" },
-    { "table": "relief_remittances", "policy": "relief_remittances_insert" },
-    { "table": "relief_remittances", "policy": "relief_remittances_update" },
-    { "table": "contribution_types", "policy": "Group admins can manage contribution types" },
-    { "table": "contribution_types", "policy": "Group admins can update contribution types" },
-    { "table": "contribution_types", "policy": "Group admins can delete contribution types" },
-    { "table": "contribution_obligations", "policy": "Group admins can manage obligations" },
-    { "table": "contribution_obligations", "policy": "Group admins can update obligations" },
-    { "table": "payment_reminder_rules", "policy": "Admin manage reminder rules" },
-    { "table": "group_constitutions", "policy": "Admins can manage constitutions" },
-    { "table": "group_constitutions", "policy": "rls_const_insert" },
-    { "table": "group_constitutions", "policy": "rls_const_update" },
-    { "table": "group_constitutions", "policy": "rls_const_delete" },
-    { "table": "constitution_amendments", "policy": "Admins can manage amendments" },
-    { "table": "constitution_amendments", "policy": "rls_amend_update" },
-    { "table": "constitution_amendments", "policy": "rls_amend_delete" },
-    { "table": "activity_feed", "policy": "Members insert feed" },
-    { "table": "activity_feed", "policy": "Admin update feed" },
-    { "table": "feed_reactions", "policy": "Members react" },
-    { "table": "events", "policy": "Group admins can create events" },
-    { "table": "events", "policy": "Group admins can update events" },
-    { "table": "events", "policy": "Group admins can delete events" },
-    { "table": "invitations", "policy": "Group admins can create invitations" },
-    { "table": "invitations", "policy": "Group admins can update invitations" },
-    { "table": "invitations", "policy": "Group admins can delete invitations" },
-    { "table": "group_payment_config", "policy": "Group admins can manage payment config" },
-    { "table": "group_subscriptions", "policy": "Admins can manage subscription" },
-    { "table": "loan_configs", "policy": "loan_configs_insert" },
-    { "table": "loan_configs", "policy": "loan_configs_update" },
-    { "table": "loan_configs", "policy": "loan_configs_delete" },
-    { "table": "loans", "policy": "loans_insert" },
-    { "table": "loans", "policy": "loans_update" },
-    { "table": "loans", "policy": "loans_delete" },
-    { "table": "loan_repayments", "policy": "loan_repayments_insert" },
-    { "table": "loan_repayments", "policy": "loan_repayments_update" },
-    { "table": "loan_repayments", "policy": "loan_repayments_delete" },
-    { "table": "loan_schedule", "policy": "loan_schedule_insert" },
-    { "table": "loan_schedule", "policy": "loan_schedule_update" },
-    { "table": "loan_schedule", "policy": "loan_schedule_delete" },
-    { "table": "loan_requests_v1", "policy": "loan_requests_v1 write policies (rls_lr_all / Members request loans / Admin manage loans if attached)" },
-    { "table": "disputes", "policy": "disputes_admin" },
-    { "table": "committees", "policy": "Admins can manage committees" },
-    { "table": "committee_members", "policy": "Admins can manage committee members" },
-    { "table": "sub_group_transfers", "policy": "Users can create transfers" },
-    { "table": "sub_group_transfers", "policy": "Admins can update transfers" },
-    { "table": "member_transfers", "policy": "transfers_delete" },
-    { "table": "exchange_rates", "policy": "HQ admins can manage exchange rates" },
-    { "table": "family_members", "policy": "rls_fm_insert" },
-    { "table": "family_members", "policy": "rls_fm_update" },
-    { "table": "family_members", "policy": "rls_fm_delete" },
-    { "table": "event_photos", "policy": "Members upload photos" },
-    { "table": "project_contributions", "policy": "Members contribute to projects" }
-  ],
-  "helper_write_policy_names": [
-    { "table": "payments", "policy": "rls_pay_insert" },
-    { "table": "event_attendances", "policy": "rls_att_insert" },
-    { "table": "feed_reactions", "policy": "rls_fr_insert" },
-    { "table": "project_contributions", "policy": "rls_pcon_write" },
-    { "table": "event_rsvps", "policy": "rls_rsvp_insert" },
-    { "table": "event_photos", "policy": "rls_ep_insert" },
-    { "table": "constitution_amendments", "policy": "rls_amend_insert" },
-    { "table": "payment_reminders_sent", "policy": "rls_prs_insert" },
-    { "table": "activity_feed", "policy": "rls_af_all" },
-    { "table": "fines", "policy": "rls_fin_update" },
-    { "table": "announcement_deliveries", "policy": "rls_ad_update" },
-    { "table": "disputes", "policy": "Users can create disputes" },
-    { "table": "disputes", "policy": "Users can update disputes" },
-    { "table": "disputes", "policy": "Users can delete disputes" },
-    { "table": "disputes", "policy": "disputes_insert" },
-    { "table": "group_audit_logs", "policy": "member_insert_audit_logs" },
-    { "table": "memberships", "policy": "Admins can add proxy members" },
-    { "table": "hosting_swap_requests", "policy": "rls_hsr_insert" }
-  ]
+  "note_collision_matrix": "Helper-matching WRITEs are either REWRITE or inherit REPLACE. Additional NON-helper inline-role WRITE policies (not in the 145) remain NEUTRALIZES and stay in Cut1 REWRITE list from \u00a724 prior addendum \u2014 collision matrix in plan must include BOTH sets.",
+  "status": "SECURITY REVISION 1 \u2014 READY FOR DAYBREAK RE-REVIEW",
+  "implementation_authorized": false
 }

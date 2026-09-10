@@ -14,6 +14,28 @@
 - No F3 → main merge in this track
 - No Meta/WABA/template or Vercel env changes
 
+
+## Status update — 2026-09-10 (Trust Cut 1 released + policy foundation refresh)
+
+**main:** `0559b758bc53df3ec8081e361ffd022c1f19be43` (PR #67 Trust Cut 1 MERGED)
+
+| Artifact | State | Tip |
+| --- | --- | --- |
+| PR #67 Trust Cut 1 | **MERGED to main** | head `3160678a…` → merge `0559b758…` |
+| PR #68 foundation (stale base) | **SUPERSEDED** — do not merge | historical `5feb995c…` |
+| PR #69 foundation v2 | **DRAFT** on current main | `a8cdeaa9…` (34/34) |
+| Schema / adapter contract PR | see latest security/* draft | CREATE-NOT-APPLY |
+| Announcements | **DORMANT** | 00106/00107 unapplied |
+| F3-06 | READY / NOT STARTED | F3 tip `c7b4cd53…` |
+
+### Domain order (next)
+1. **PC-PAYMENT** — READY FOR BOUNDED IMPLEMENTATION (live cron HOLD)
+2. **PC-HOSTING**
+3. **PC-EVENTS**
+
+Permission for policy admin: existing **`settings.manage`** (do not invent `notifications.manage`).
+
+
 ## Unified notification policy architecture
 
 ```

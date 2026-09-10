@@ -304,8 +304,7 @@ CREATE POLICY npt_delete ON public.notification_policy_triggers
   );
 
 -- Occurrences (dormant): officers may SELECT for diagnostics; writes reserved for
--- service_role workers later. Authenticated INSERT/UPDATE/DELETE still gated by
--- settings.manage so accidental client writes cannot fan out without permission.
+-- DORMANT occurrences: authenticated SELECT-only. Writes: future DEFINER/service_role workers only.
 DROP POLICY IF EXISTS npo_select ON public.notification_policy_occurrences;
 DROP POLICY IF EXISTS npo_insert ON public.notification_policy_occurrences;
 DROP POLICY IF EXISTS npo_update ON public.notification_policy_occurrences;

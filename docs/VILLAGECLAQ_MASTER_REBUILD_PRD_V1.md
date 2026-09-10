@@ -1,6 +1,11 @@
 # VillageClaq Master Rebuild PRD v1.0
 
-**Status:** SECURITY REVISION 2 — HARD-FREEZE CANDIDATE pending Daybreak final re-review and founder freeze  
+**Status:** HARD FROZEN — IMPLEMENTATION AUTHORITY  
+**Hard-freeze date:** 2026-09-10 (America/New_York)  
+**Hard-freeze lineage tip:** `a04cdc640234ef7db95e6da3bde8e7f4668062c6` (PR #71 Security Revision 2)  
+**Daybreak Blue final verdict:** PASS — MASTER REBUILD PRD V1 SAFE FOR HARD FREEZE (F4-002 PASS, FCG-1 PASS, P-003 PASS, build order PASS)  
+**Next stage:** S0-A (read-only production truth snapshot) — M0 COMPLETE; M1 COMPLETE after this freeze  
+**Main merge:** NOT authorized by freeze alone — founder merge authorization required separately  
 **Date:** 2026-09-10  
 **Production main at freeze input:** `0559b758bc53df3ec8081e361ffd022c1f19be43`  
 **F0 financial track:** `99e17e2b4f4dc16753843f1e115312e70a8ae8ca`  
@@ -187,8 +192,8 @@ The controlling sequence is:
 ### M0 — Independent audit — COMPLETE
 Astra multi-audit + supplements, Kimi K3 defensive audit, live-production/Claude audit, Product Consistency audits, qualified F0/F3 evidence.
 
-### M1 — Master PRD + security freeze — CURRENT
-Create this PRD, run Daybreak security review, apply only bounded evidence-backed revisions, then hard-freeze.
+### M1 — Master PRD + security freeze — COMPLETE
+Create this PRD, run Daybreak security review, apply only bounded evidence-backed revisions, then hard-freeze. **Hard-frozen 2026-09-10** at tip `a04cdc640234ef7db95e6da3bde8e7f4668062c6`.
 
 ### S0 — Production Stabilization & Recovery Gate
 Mandatory before broad new production feature work.

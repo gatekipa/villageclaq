@@ -59,7 +59,7 @@
     "R4-21 SUPERSEDES R3-3 order",
     "1. Validate fingerprints of all 17 WA indexdefs (CUT2_ABORT before DROP on drift)",
     "2. ADD COLUMN cut2_provenance_version smallint WITHOUT DEFAULT + CHECK (NULL OR 1)",
-    "3. DROP/RECREATE all 17 WA uniques with AND cut2_provenance_version = 1",
+    "3. DROP/RECREATE all 17 WA uniques: WHERE ((<exact existing WHERE body>) AND cut2_provenance_version = 1); preserve payment_receipt/welcome missing IS NOT NULL",
     "4. CREATE trusted-only canonical unique index",
     "5. CREATE enqueue_outbound_notification (R2 signature; hardcodes provenance=1; R4 trusted-only duplicate lookup)",
     "6. DROP unsafe INSERT/UPDATE policies",

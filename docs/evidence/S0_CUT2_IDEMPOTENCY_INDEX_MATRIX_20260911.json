@@ -10,7 +10,7 @@
     "SR3 revise (canonical, unchanged): WHERE cut2_provenance_version = 1 so legacy/NULL keys cannot poison the trusted canonical index.",
     "No status predicate — queued, sent, AND failed TRUSTED rows participate.",
     "Empty or null/blank idempotencyKey is excluded; RPC MUST always write a non-empty key for inserted trusted rows.",
-    "SR4: the 17 WA uniques are NOT left unscoped. DROP INDEX public.<same_name>; CREATE UNIQUE INDEX <same_name> ... WHERE (<EXACT EXISTING PREDICATE>) AND cut2_provenance_version = 1. Fingerprint old_exact_indexdef or CUT2_ABORT before DROP.",
+    "SR4: the 17 WA uniques are NOT left unscoped. DROP INDEX public.<same_name>; CREATE UNIQUE INDEX <same_name> ... WHERE ((<exact existing WHERE body without one outer paren layer>) AND cut2_provenance_version = 1). payment_receipt and welcome KEEP missing IS NOT NULL. Fingerprint old_exact_indexdef (Chief-verbatim live) or CUT2_ABORT before DROP.",
     "Do not author this SQL in this planning PR."
   ],
   "duplicate_behavior": {
@@ -133,6 +133,12 @@
       "example": "<swapRequestId>:<recipientMembershipId>:<pending|approved|rejected>",
       "snapshot_parts": ["hosting_swap_requests.id", "recipient memberships.id", "hosting_swap_requests.status at enqueue"]
     }
+  },
+  "chief_reconfirmed_live_wa_uniques_20260911": {
+    "project": "llbnliixczcqfftxpsmb",
+    "count": 17,
+    "indexdef": "VERBATIM pg_indexes — do not paraphrase",
+    "payment_receipt_and_welcome": "NO ((data ->> ...) IS NOT NULL) in live WHERE — preserve"
   },
   "live_pg_indexes_verbatim_mcp_20260911": [
     {"indexname": "idx_notifications_queue_created", "indexdef": "CREATE INDEX idx_notifications_queue_created ON public.notifications_queue USING btree (created_at DESC)"},

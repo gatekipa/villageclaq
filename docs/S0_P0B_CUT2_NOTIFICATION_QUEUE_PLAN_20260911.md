@@ -895,15 +895,19 @@ Unscoped live WhatsApp unique indexes match **any** row with the key, including 
 
 ### R4-2 — Disposition for ALL 17
 
-**PRESERVE** name + key expressions + existing template/channel/data conditions. **ADD** `AND cut2_provenance_version = 1`.
+**PRESERVE** name + key expressions + existing template/channel/data conditions **verbatim** (including `::text` casts and live NULL-check asymmetry). **ADD** `cut2_provenance_version = 1` **inside** the WHERE:
 
 Atomic in 00115 (PLAN only — **no migration file**):
 
 ```
 DROP INDEX public.<same_name>;
 CREATE UNIQUE INDEX <same_name> ON public.notifications_queue (...)
-WHERE (<EXACT EXISTING PREDICATE>) AND cut2_provenance_version = 1;
+WHERE ((<exact existing WHERE body without one outer paren layer>) AND cut2_provenance_version = 1);
 ```
+
+Chief READ-ONLY reconfirm on `llbnliixczcqfftxpsmb`: **exactly 17** WhatsApp unique indexes. `old_exact_indexdef` is the live `pg_indexes.indexdef` **verbatim** (do not paraphrase).
+
+**Asymmetry (must preserve):** `payment_receipt` and `welcome` live predicates have `data ? '…'` **only** — they do **NOT** include `((data ->> …) IS NOT NULL)`. Do not invent that check. The other 15 keep their existing `IS NOT NULL` fragments.
 
 No `CONCURRENTLY`. No data mutation. No rename preferred.
 
@@ -911,7 +915,7 @@ No `CONCURRENTLY`. No data mutation. No rename preferred.
 
 `claim_approved`, `claim_denied`, `event_reminder`, `fine_issued`, `hosting_assignment`, `hosting_reminder`, `loan_approved`, `loan_overdue`, `member_invitation`, `payment_receipt`, `payment_reminder`, `relief_enrollment`, `remittance_confirmed`, `remittance_disputed`, `standing_changed`, `subscription_expiring`, `welcome`.
 
-Full names: `idx_notifications_queue_whatsapp_<short>_unique` (claim_* templates remain `relief_claim_approved` / `relief_claim_denied`). Each row in the matrix has `old_exact_indexdef`, `indexed_expression`, `old_predicate`, `future_predicate`, `future_exact_indexdef`.
+Full names: `idx_notifications_queue_whatsapp_<short>_unique` (claim_* templates remain `relief_claim_approved` / `relief_claim_denied`). Each row in the matrix has `old_exact_indexdef` (Chief-verbatim live), `indexed_expression`, `old_predicate`, `old_where_body_without_outer_parens`, `future_predicate`, `future_exact_indexdef`.
 
 ### R4-4 / R4-5 / R4-6 — Mechanics
 

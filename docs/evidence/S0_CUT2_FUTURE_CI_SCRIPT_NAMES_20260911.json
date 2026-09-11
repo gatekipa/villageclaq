@@ -1,9 +1,10 @@
 {
   "document": "S0_CUT2_FUTURE_CI_SCRIPT_NAMES_20260911",
-  "status": "FROZEN_R2_20_PLUS_R3_21_NAMES_ONLY",
+  "status": "FROZEN_R2_20_PLUS_R3_21_PLUS_R4_23_NAMES_ONLY",
   "authored_in_this_pr": false,
-  "note": "Exact future implementation CI script pathnames. Do not create these files on the planning branch. R2-20 names are frozen; R3-21 ADDS four names only.",
+  "note": "Exact future implementation CI script pathnames. Do not create these files on the planning branch. R2-20 and R3-21 names are frozen; R4-23 ADDS three names only.",
   "r2_20_do_not_rename": true,
+  "r3_21_do_not_rename": true,
   "scripts": [
     {
       "path": "scripts/test-s0-cut2-sms-send-410.mjs",
@@ -64,6 +65,21 @@
       "path": "scripts/test-s0-cut2-worker-column-grants.mjs",
       "frozen": "R3-21",
       "assert": "service_role UPDATE only status, error_message, attempts, sent_at, data; MUST NOT UPDATE cut2_provenance_version, channel, template, user_id, created_at, id"
+    },
+    {
+      "path": "scripts/test-s0-cut2-legacy-wa-index-provenance.mjs",
+      "frozen": "R4-23",
+      "assert": "each of 17 WA uniques is provenance-scoped; NULL fixture does not block trusted insert; legacy row unchanged"
+    },
+    {
+      "path": "scripts/test-s0-cut2-duplicate-trusted-lookup.mjs",
+      "frozen": "R4-23",
+      "assert": "duplicate lookup only provenance=1 + channel + template + idempotencyKey; legacy id never returned"
+    },
+    {
+      "path": "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs",
+      "frozen": "R4-23",
+      "assert": "conflict without trusted canonical row → trusted_idempotency_conflict_mismatch; no mutation"
     }
   ],
   "release_gate_checklist_name": "docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md",

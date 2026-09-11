@@ -1,12 +1,12 @@
-# S0 P0-B Cut 2 — SECURITY REVISION 3 (Daybreak HOLD closeout)
+# S0 P0-B Cut 2 — SECURITY REVISION 4 (Daybreak HOLD closeout)
 
 **Date:** 2026-09-11  
-**Status:** **SECURITY REVISION 3 — READY FOR DAYBREAK RE-REVIEW**  
-**Overall recommended verdict:** **PASS — LAYER B ONLY; R1–R30 + R2 FROZEN; R3-1–R3-22 FROZEN**  
+**Status:** **SECURITY REVISION 4 — READY FOR DAYBREAK RE-REVIEW**  
+**Overall recommended verdict:** **PASS — LAYER B ONLY; R1–R30 + R2 + R3 FROZEN; R4-1–R4-25 FROZEN**  
 **Implementation:** **NOT AUTHORIZED** until Daybreak **PASS**. PASS authorizes **implementation on a dedicated branch only**, **NOT** production apply.  
 **This PR:** docs / evidence only. **No** `00115` SQL. **No** runtime code.  
-**Authoritative freeze:** this document (SR3). SR1/SR2 remain ancestry; conflicting SR1/SR2 sentences below are **superseded** by the SR3 section (R3-1–R3-22).  
-**Previous Daybreak-reviewed tip (MUST be ancestry):** `ca333b03c898cedf729e83166e27f642f034c6f1`  
+**Authoritative freeze:** this document (SR4). SR1–SR3 remain ancestry; conflicting SR3 sentences on unscoped WA uniques / duplicate lookup / 00115 atomic order are **superseded** by R4-1–R4-25.  
+**Previous Daybreak-reviewed tip (MUST be ancestry):** `a806c3403f0723bb8e316919d72154b9dd52c890`  
 **Evidence:**  
 - `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`  
 - `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`  
@@ -14,7 +14,8 @@
 - `docs/evidence/S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`  
 - `docs/evidence/S0_CUT2_CHIEF_READONLY_SR2_FOLD_20260911.json`  
 - `docs/evidence/S0_CUT2_FUTURE_CI_SCRIPT_NAMES_20260911.json`  
-- `docs/evidence/S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911.json`
+- `docs/evidence/S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911.json`  
+- `docs/evidence/S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json`
 
 ---
 
@@ -22,7 +23,7 @@
 
 | Pin | Value |
 |-----|-------|
-| This revision parent tip | `ca333b03c898cedf729e83166e27f642f034c6f1` |
+| This revision parent tip | `a806c3403f0723bb8e316919d72154b9dd52c890` |
 | Production main | `1693b806beaf80d1c8101c8011874a2a2bcbb642` |
 | Master PRD #71 freeze | `050be86c9df3455c66b27bb5853eb786228b4009` |
 | Cut 1 CLOSED prod | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **DO NOT MODIFY** |
@@ -312,9 +313,11 @@ WHERE cut2_provenance_version = 1
   AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;
 ```
 
-**SR3 revise (R3-16 / R3-17):** trusted-only predicate `cut2_provenance_version = 1`. No status filter — queued, sent, **and** failed trusted rows participate. Preserve all live WhatsApp unique indexes (verbatim `pg_indexes` in the evidence file). Legacy / NULL-provenance keys **cannot** occupy or poison this index.
+**SR3 revise (R3-16 / R3-17):** trusted-only predicate `cut2_provenance_version = 1` on the **canonical** index. No status filter — queued, sent, **and** failed trusted rows participate. Legacy / NULL-provenance keys **cannot** occupy or poison this index.
 
-On unique conflict (new index **or** legacy WA index): `SELECT` existing `id`; return `(existing_id, 'duplicate')`. **No UPDATE / DELETE / REQUEUE / REPLACE**, including `failed`.
+**SR4 SUPERSEDES “preserve unscoped WA uniques / do not DROP”.** All 17 live WhatsApp unique indexes are **DROP + CREATE same name** with `AND cut2_provenance_version = 1` (R4-1–R4-9). Names, key expressions, and existing template/channel/data predicates stay exact.
+
+**SR4 duplicate contract (R4-10–R4-14) SUPERSEDES** “on unique conflict return any existing id”: lookup **ONLY** `cut2_provenance_version=1` + `channel` + `template` + canonical `idempotencyKey`. NULL legacy is **never** returned as `duplicate`/`queue_id`. Conflict without a matching trusted canonical row → `trusted_idempotency_conflict_mismatch` (no mutation).
 
 Existing unique indexes (do not DROP). Legacy WA conflict keys remain as a second backstop:
 
@@ -605,15 +608,16 @@ Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_qu
 **CREATE:** `enqueue_outbound_notification(...)` (R2); optional internal helpers **not** granted to `authenticated`.  
 **DROP:** policies named in R19.  
 **REVOKE/GRANT:** R19.  
-**CREATE UNIQUE INDEX:** `idx_notifications_queue_cut2_semantic_idempotency_unique` (R10 **as revised by R3-16** — `WHERE cut2_provenance_version = 1`). **Do not DROP** existing WhatsApp uniques. SMS/email twins of old WA indexes are **not** required if the semantic index is present.  
-**00115 atomic (R3-3):** add `cut2_provenance_version` + CHECK, create RPC (hardcodes provenance=1), create trusted-only index, drop unsafe policies, REVOKE INSERT (incl. `service_role`), column-level UPDATE grants, provenance immutability.  
+**CREATE UNIQUE INDEX:** `idx_notifications_queue_cut2_semantic_idempotency_unique` (R10 **as revised by R3-16** — `WHERE cut2_provenance_version = 1`).  
+**SR4 SUPERSEDES “Do not DROP existing WhatsApp uniques”:** DROP + CREATE the same 17 names with `AND cut2_provenance_version = 1` (R4-2). SMS/email twins of old WA indexes are **not** required if the semantic index is present.  
+**00115 atomic order:** **R4-21 SUPERSEDES R3-3.**  
 **Preconditions (`CUT2_ABORT`) — DB-observable only (no source/CI gates in SQL):**  
 1. `schema_migrations.version = '20260911183755'` exists.  
 2. Policy `Authenticated users can queue notifications` exists with `WITH CHECK` containing `auth.uid()`.  
 3. `notification_queue_status` labels are exactly `queued`,`sent`,`failed` (no `processing`).  
 4. `notifications_queue` has **no** `group_id` column.  
 5. `to_regclass('public.notification_policies')` IS NULL.  
-6. The 17 live WhatsApp unique index **names** listed in the idempotency evidence file exist.  
+6. The 17 live WhatsApp unique index **names** exist **AND** each `pg_indexes.indexdef` equals the frozen `old_exact_indexdef` in `S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json` **exactly**. Any drift → `CUT2_ABORT` **before DROP**.  
 
 **Not in 00115 SQL:** deployed app SHA; sms-sender source scan; route 410 checks; package tests.  
 
@@ -633,6 +637,9 @@ Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_qu
 | `scripts/test-s0-cut2-legacy-quarantine.mjs` | **NEW R3-21** — NULL provenance untouched; no send/render/provider/update/upgrade |
 | `scripts/test-s0-cut2-idempotency-provenance.mjs` | **NEW R3-21** — trusted unique index only matches provenance=1; legacy keys cannot poison |
 | `scripts/test-s0-cut2-worker-column-grants.mjs` | **NEW R3-21** — service_role UPDATE only `status`,`error_message`,`attempts`,`sent_at`,`data`; MUST NOT `cut2_provenance_version`,`channel`,`template`,`user_id`,`created_at`,`id` |
+| `scripts/test-s0-cut2-legacy-wa-index-provenance.mjs` | **NEW R4-23** — each of 17 WA uniques is provenance-scoped; NULL fixture does not block trusted insert |
+| `scripts/test-s0-cut2-duplicate-trusted-lookup.mjs` | **NEW R4-23** — duplicate lookup only provenance=1 + channel + template + idempotencyKey; legacy id never returned |
+| `scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs` | **NEW R4-23** — conflict without trusted canonical row → `trusted_idempotency_conflict_mismatch`, no mutation |
 
 **Release gate name (created at release time, not now):**  
 `docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md`  
@@ -693,7 +700,7 @@ Live CHECK (MCP): `membership_status IN ('active','pending_approval','exited','s
 
 ### R2-E — Idempotency
 
-See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` on `llbnliixczcqfftxpsmb` copied **verbatim** (`indexdef` strings). **PRESERVE all unique WhatsApp indexes.** Canonical index WHERE revised by **R3-16** (`cut2_provenance_version = 1`). No unique yet for `minutes_published` / `election_opened` / `announcement` / `proxy_claim` / `hosting_swap` — covered by that trusted-only index. No TBD keys. `idempotencyKey` is **idempotency only**, not trust evidence.
+See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` on `llbnliixczcqfftxpsmb` copied **verbatim** (`indexdef` strings). Canonical index WHERE revised by **R3-16** (`cut2_provenance_version = 1`). **SR4:** the 17 WA uniques are **not** left unscoped — DROP + CREATE same name with `AND cut2_provenance_version = 1` (see `S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json`). No unique yet for `minutes_published` / `election_opened` / `announcement` / `proxy_claim` / `hosting_swap` — covered by the canonical trusted-only index. No TBD keys. `idempotencyKey` is **idempotency only**, not trust evidence.
 
 ### R2-F / R2-20 — Source/CI out of SQL; exact script names
 
@@ -736,15 +743,7 @@ Before 00115 applies, there is no `cut2_provenance_version` column. A client or 
 
 ### R3-3 — 00115 atomic bundle (names only — do not author SQL here)
 
-In **one** migration, in this order of intent (single transaction):
-
-1. ADD COLUMN `cut2_provenance_version smallint` **without DEFAULT** + CHECK (NULL OR 1).
-2. CREATE `enqueue_outbound_notification` (R2 signature unchanged).
-3. CREATE trusted-only canonical unique index (R3-16).
-4. DROP unsafe INSERT/UPDATE policies (R19 names).
-5. REVOKE INSERT from `anon`, `authenticated`, **and `service_role`**.
-6. REVOKE broad UPDATE; GRANT UPDATE only on R3-12 columns.
-7. Provenance immutability (column grants + optional trigger, R3-15).
+**SUPERSEDED by R4-21.** Keep the objects; do **not** use this order. R4-21 requires fingerprint → ADD column → DROP/RECREATE 17 WA uniques → canonical index → RPC → policies/revokes/grants/protections → postconditions → COMMIT.
 
 ### R3-4 — RPC hardcodes provenance=1
 
@@ -835,11 +834,11 @@ WHERE cut2_provenance_version = 1
   AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;
 ```
 
-No status filter. Preserve all 17 live WhatsApp uniques. Legacy keys cannot poison the trusted index.
+No status filter. Canonical design unchanged (R4-20). **SR4:** the 17 WA uniques are DROP+CREATE same name with `AND cut2_provenance_version = 1` — they are no longer unscoped. Legacy keys cannot poison any trusted index.
 
 ### R3-18 — Post-00115 postcondition
 
-Report `legacy_quarantine_count` = `COUNT(*) WHERE status='queued' AND cut2_provenance_version IS NULL`. Ideal **0**. If `> 0`: **report only**. Do not process, send, clean, delete, upgrade, or requeue.
+Report `legacy_quarantine_count` = `COUNT(*) WHERE status='queued' AND cut2_provenance_version IS NULL`. Ideal **0**. If `> 0`: **report only**; do not process, send, clean, delete, upgrade, or requeue. **R4-19:** `> 0` may be a **SECURITY PASS** if those rows are proven non-participating in all trusted indexes (17 scoped WA + canonical).
 
 ### R3-19 — Production release order (exact, frozen)
 
@@ -884,6 +883,124 @@ This revision authors **no** `00115` SQL, **no** runtime, **no** CI script files
 
 ---
 
+## SECURITY REVISION 4 — provenance-scope the 17 WA unique indexes (R4-1 … R4-25)
+
+Machine-readable copy: `docs/evidence/S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json` (**17/17, TBD=0**).
+
+Do not reopen: Layer B; RPC signature; provenance column; NULL quarantine; drain isolation; app-first no-send; route 410s; matrices; proxy roles; worker column grants; canonical Cut 2 index design (`provenance=1` + non-empty `idempotencyKey`); production rollout except the index-cutover assertions below.
+
+### R4-1 — Problem
+
+Unscoped live WhatsApp unique indexes match **any** row with the key, including `cut2_provenance_version IS NULL`. A forged/pre-00115 NULL-provenance row can **UNIQUE-block** a trusted `provenance=1` INSERT (availability / idempotency poisoning).
+
+### R4-2 — Disposition for ALL 17
+
+**PRESERVE** name + key expressions + existing template/channel/data conditions. **ADD** `AND cut2_provenance_version = 1`.
+
+Atomic in 00115 (PLAN only — **no migration file**):
+
+```
+DROP INDEX public.<same_name>;
+CREATE UNIQUE INDEX <same_name> ON public.notifications_queue (...)
+WHERE (<EXACT EXISTING PREDICATE>) AND cut2_provenance_version = 1;
+```
+
+No `CONCURRENTLY`. No data mutation. No rename preferred.
+
+### R4-3 — Exact 17 names (verbatim live `indexdef` frozen)
+
+`claim_approved`, `claim_denied`, `event_reminder`, `fine_issued`, `hosting_assignment`, `hosting_reminder`, `loan_approved`, `loan_overdue`, `member_invitation`, `payment_receipt`, `payment_reminder`, `relief_enrollment`, `remittance_confirmed`, `remittance_disputed`, `standing_changed`, `subscription_expiring`, `welcome`.
+
+Full names: `idx_notifications_queue_whatsapp_<short>_unique` (claim_* templates remain `relief_claim_approved` / `relief_claim_denied`). Each row in the matrix has `old_exact_indexdef`, `indexed_expression`, `old_predicate`, `future_predicate`, `future_exact_indexdef`.
+
+### R4-4 / R4-5 / R4-6 — Mechanics
+
+No `CONCURRENTLY`. No UPDATE/DELETE/backfill of queue rows during rebuild. Keep the same index name (do not rename).
+
+### R4-7 / R4-8 / R4-9 — Fingerprint precondition
+
+00115 MUST fingerprint **EXACT** current `pg_indexes.indexdef` for all 17 against `old_exact_indexdef`. Any drift → **`CUT2_ABORT` before DROP**. Names-only check is insufficient.
+
+### R4-10 — Unique conflict: no mutation / no convert
+
+On UNIQUE conflict: **no** UPDATE, REQUEUE, REPLACE, or convert-legacy (NULL → 1). Failed/sent/queued trusted rows stay as-is.
+
+### R4-11 — Duplicate lookup (trusted only)
+
+```
+SELECT id FROM public.notifications_queue
+ WHERE cut2_provenance_version = 1
+   AND channel = p_channel
+   AND template = p_notification_type
+   AND data->>'idempotencyKey' = v_key
+ LIMIT 1;
+```
+
+### R4-12 — NULL legacy never returned
+
+A NULL-provenance row MUST NOT be returned as `duplicate` or as `queue_id`.
+
+### R4-13 — Conflict mismatch
+
+If a unique index raises a conflict but **no** matching trusted canonical row exists → return `queue_id` NULL, `result='trusted_idempotency_conflict_mismatch'`. **No mutation.** (RPC `RETURNS TABLE` signature unchanged; this is a new `result` text value.)
+
+### R4-14 — Trusted duplicate
+
+Trusted duplicate in `queued` / `sent` / `failed` → existing **trusted** id + `result='duplicate'`. No mutation.
+
+### R4-15 … R4-19 — Epoch
+
+New trusted idempotency epoch. **No** backfill `provenance=1`. **No** automatic legacy replay/re-enqueue. Legacy rows remain stored / quarantined / inert. `legacy_quarantine_count > 0` may be a **SECURITY PASS** if those rows are proven **non-participating** in **all** trusted indexes (17 scoped WA + canonical).
+
+### R4-20 — Canonical index unchanged
+
+`idx_notifications_queue_cut2_semantic_idempotency_unique` stays:
+
+```
+WHERE cut2_provenance_version = 1
+  AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;
+```
+
+No status filter. Do not reopen key expressions.
+
+### R4-21 — Atomic 00115 order (exact)
+
+Single transaction:
+
+1. Validate fingerprints of all 17 `indexdef`s (R4-8). Drift → `CUT2_ABORT` (no DROP).
+2. ADD `cut2_provenance_version smallint` **without DEFAULT** + CHECK (NULL OR 1).
+3. DROP / RECREATE all 17 with `AND cut2_provenance_version = 1`.
+4. CREATE canonical unique index (R4-20).
+5. CREATE `enqueue_outbound_notification` (R2 signature; hardcodes provenance=1; R4-10–R4-14 lookup).
+6. DROP unsafe policies (R19 names).
+7. REVOKE INSERT (anon, authenticated, **and** `service_role`).
+8. Column-level UPDATE grants (R3-12: `status`, `error_message`, `attempts`, `sent_at`, `data`).
+9. Provenance protections (immutability trigger optional).
+10. Postconditions (`legacy_quarantine_count` report; prove 17+canonical exclude NULL).
+11. COMMIT.
+
+### R4-22 — Evidence
+
+`S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json` — 17/17, no TBD. Each row: `index_name`, `old_exact_indexdef`, `indexed_expression`, `old_predicate`, `future_predicate`, `future_exact_indexdef`, `legacy_poison_fixture`, `trusted_rpc_case`, `expected_first_trusted_result`, `expected_second_trusted_result`, `legacy_row_unchanged`.
+
+### R4-23 — Added future CI names (do not rename R2-20 / R3-21)
+
+1. `scripts/test-s0-cut2-legacy-wa-index-provenance.mjs`
+2. `scripts/test-s0-cut2-duplicate-trusted-lookup.mjs`
+3. `scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs`
+
+Files are **not** authored in this PR.
+
+### R4-24 — Required tests (implementation PR)
+
+For each of 17: seed the `legacy_poison_fixture` (NULL provenance, same WA key) → first trusted RPC `inserted` → second trusted RPC `duplicate` (trusted id) → fixture row byte-identical. Plus: lookup never returns NULL id; mismatch path returns `trusted_idempotency_conflict_mismatch` with zero mutation.
+
+### R4-25 — Docs / evidence only
+
+This revision authors **no** `00115` SQL, **no** runtime, **no** CI script files, **no** production mutation.
+
+---
+
 ## Daybreak handoff
 
 | Gate | Result |
@@ -895,21 +1012,24 @@ This revision authors **no** `00115` SQL, **no** runtime, **no** CI script files
 | Per-type channel DEFAULT DENY | PASS — channel matrix |
 | Email source auth.users / invitations; proxy email DENY | PASS — R2-C |
 | Proxy actor ACTIVE owner/admin only | PASS — R2-D |
-| Canonical idempotencyKey + live pg_indexes | PASS — R2-E; index WHERE revised R3-16 |
-| 00115 preconditions DB-only; CI/SHA outside SQL | PASS — R2-F / R2-20 + R3-21 (12 script names) |
+| Canonical idempotencyKey + live pg_indexes | PASS — R2-E; canonical WHERE R3-16; **17 WA uniques provenance-scoped R4** |
+| 00115 preconditions DB-only; CI/SHA outside SQL | PASS — R2-F / R2-20 + R3-21 + R4-23 (15 script names) |
 | `/api/sms/send` 410 only | PASS — R2-G |
 | `/api/whatsapp/send` 410; Meta = drain only | PASS (do not reopen) |
 | App-first then 00115 | PASS — R3-19 (supersedes SR2 production INSERT fallback) |
 | Unforgeable provenance column; NULL = quarantine | PASS — R3-1–R3-8 |
 | Production missing-RPC: no raw INSERT | PASS — R3-10 |
-| Worker column UPDATE grants Chief-verified | PASS — R3-12 |
+| Worker column UPDATE grants Chief-verified | PASS — R3-12 (do not reopen) |
+| 17 WA uniques provenance-scoped; fingerprints frozen | PASS — R4-1–R4-9 / matrix 17/17 |
+| Duplicate lookup trusted-only; mismatch fail-closed | PASS — R4-10–R4-14 |
+| 00115 order fingerprint→column→17 rebuild→canonical→RPC | PASS — R4-21 |
 | No SQL / no runtime in this PR | PASS |
 | PR #69/#70/Cut 3/Cut 1 | PASS — R30 |
 
 ### HOLD blockers
 
 **Open count: 0** for this contract.  
-Implementation-time aborts remain: missing expected WA unique index at apply; `notification_policies` present; service_role INSERT grant left on after 00115; app SHA ≠ Daybreak-qualified impl SHA at apply time; production adapter still contains a raw INSERT path; drain still delivers NULL-provenance rows.
+Implementation-time aborts remain: any of 17 `indexdef`s drift from frozen `old_exact_indexdef`; missing expected WA unique index at apply; `notification_policies` present; service_role INSERT grant left on after 00115; app SHA ≠ Daybreak-qualified impl SHA at apply time; production adapter still contains a raw INSERT path; drain still delivers NULL-provenance rows; any trusted unique index still matches NULL provenance.
 
 ---
 

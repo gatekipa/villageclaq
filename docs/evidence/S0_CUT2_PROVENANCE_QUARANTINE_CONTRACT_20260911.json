@@ -1,10 +1,10 @@
 {
   "document": "S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911",
-  "status": "FROZEN_SECURITY_REVISION_3",
+  "status": "FROZEN_SECURITY_REVISION_4",
   "authored_in_this_pr": true,
   "implementation_in_this_pr": false,
   "migration_file_in_this_pr": false,
-  "parent_daybreak_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
+  "parent_daybreak_tip": "a806c3403f0723bb8e316919d72154b9dd52c890",
   "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
   "master_prd_pr_71_freeze_sha": "050be86c9df3455c66b27bb5853eb786228b4009",
   "purpose": "Unforgeable Cut 2 provenance column + pre-00115 legacy quarantine. ONLY cut2_provenance_version=1 is trusted. Envelope/JSON fields are NOT trust evidence.",
@@ -16,7 +16,8 @@
     "proxy ACTIVE owner/admin",
     "sms/whatsapp 410",
     "Meta=drain only",
-    "canonical idempotency design (key expressions, failed no-retry, preserve WA uniques)",
+    "canonical idempotency design (key expressions, failed no-retry, provenance=1 + non-empty idempotencyKey)",
+    "17 WA unique names + key expressions (predicates now provenance-scoped by R4)",
     "00115 forward-only",
     "app-first order",
     "PR69/70/Cut3"
@@ -55,13 +56,18 @@
     "do_not_add_parameter": "p_cut2_provenance_version"
   },
   "atomic_00115": [
-    "ADD COLUMN cut2_provenance_version smallint WITHOUT DEFAULT + CHECK (NULL OR 1)",
-    "CREATE enqueue_outbound_notification (R2 signature; hardcodes provenance=1)",
-    "CREATE trusted-only canonical unique index",
-    "DROP unsafe INSERT/UPDATE policies",
-    "REVOKE INSERT from anon, authenticated, AND service_role",
-    "REVOKE broad UPDATE; GRANT UPDATE only on worker/webhook columns",
-    "provenance immutability (column grants + optional trigger)"
+    "R4-21 SUPERSEDES R3-3 order",
+    "1. Validate fingerprints of all 17 WA indexdefs (CUT2_ABORT before DROP on drift)",
+    "2. ADD COLUMN cut2_provenance_version smallint WITHOUT DEFAULT + CHECK (NULL OR 1)",
+    "3. DROP/RECREATE all 17 WA uniques with AND cut2_provenance_version = 1",
+    "4. CREATE trusted-only canonical unique index",
+    "5. CREATE enqueue_outbound_notification (R2 signature; hardcodes provenance=1; R4 trusted-only duplicate lookup)",
+    "6. DROP unsafe INSERT/UPDATE policies",
+    "7. REVOKE INSERT from anon, authenticated, AND service_role",
+    "8. REVOKE broad UPDATE; GRANT UPDATE only on worker/webhook columns",
+    "9. provenance immutability (column grants + optional trigger)",
+    "10. postconditions (legacy_quarantine_count; prove trusted indexes exclude NULL)",
+    "11. COMMIT"
   ],
   "drain": {
     "after_cutover_select": "status = 'queued' AND cut2_provenance_version = 1",
@@ -196,13 +202,21 @@
   "idempotency_index_plan_sql_only": "CREATE UNIQUE INDEX idx_notifications_queue_cut2_semantic_idempotency_unique ON public.notifications_queue (channel, template, ((data ->> 'idempotencyKey'))) WHERE cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;",
   "idempotency_index_notes": [
     "No status filter",
-    "Preserve existing WhatsApp uniques",
-    "Legacy keys cannot poison trusted index"
+    "Canonical index WHERE cut2_provenance_version = 1 AND non-empty idempotencyKey (unchanged)",
+    "SR4: 17 WA uniques DROP+CREATE same name with AND cut2_provenance_version = 1",
+    "Legacy keys cannot poison any trusted index"
   ],
+  "rpc_duplicate_contract_r4": {
+    "on_unique_conflict": "no UPDATE / REQUEUE / REPLACE / convert legacy",
+    "duplicate_lookup": "ONLY cut2_provenance_version=1 AND channel AND template AND canonical idempotencyKey",
+    "null_legacy_never_returned_as_duplicate_or_queue_id": true,
+    "conflict_without_matching_trusted_canonical_row": "trusted_idempotency_conflict_mismatch",
+    "trusted_duplicate_queued_sent_or_failed": "existing trusted id + duplicate, no mutation"
+  },
   "postcondition": {
     "legacy_quarantine_count": "COUNT(*) WHERE status='queued' AND cut2_provenance_version IS NULL",
     "ideal": 0,
-    "if_gt_0": "report only; do not process; do not clean"
+    "if_gt_0": "SECURITY PASS if proven non-participating in all trusted indexes (17 scoped WA + canonical); report only; do not process; do not clean"
   },
   "production_release_order_R3_19": [
     "1. READ-ONLY queued_count (status=queued). Prefer 0. If >0 wait for natural drain only. Else HOLD APP CUTOVER.",
@@ -230,6 +244,10 @@
     "scripts/test-s0-cut2-provenance-gate.mjs",
     "scripts/test-s0-cut2-legacy-quarantine.mjs",
     "scripts/test-s0-cut2-idempotency-provenance.mjs",
-    "scripts/test-s0-cut2-worker-column-grants.mjs"
-  ]
+    "scripts/test-s0-cut2-worker-column-grants.mjs",
+    "scripts/test-s0-cut2-legacy-wa-index-provenance.mjs",
+    "scripts/test-s0-cut2-duplicate-trusted-lookup.mjs",
+    "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs"
+  ],
+  "legacy_wa_index_provenance_matrix": "docs/evidence/S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json"
 }

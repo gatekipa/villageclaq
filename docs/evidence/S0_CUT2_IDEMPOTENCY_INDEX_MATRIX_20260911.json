@@ -1,22 +1,26 @@
 {
   "document": "S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911",
-  "status": "FROZEN_SECURITY_REVISION_3",
+  "status": "FROZEN_SECURITY_REVISION_4",
   "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
-  "parent_daybreak_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
-  "canonical_mechanism": "RPC computes data.idempotencyKey in SQL from domain columns. ONE unique index across channels, TRUSTED-ONLY (cut2_provenance_version = 1). Existing WhatsApp unique indexes PRESERVED (not dropped). Conflict → return existing id, result='duplicate'. NO UPDATE/DELETE/REQUEUE/REPLACE including failed rows. idempotencyKey is idempotency only — NOT trust evidence.",
+  "parent_daybreak_tip": "a806c3403f0723bb8e316919d72154b9dd52c890",
+  "legacy_wa_index_provenance_matrix": "docs/evidence/S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json",
+  "canonical_mechanism": "RPC computes data.idempotencyKey in SQL from domain columns. ONE canonical unique index across channels, TRUSTED-ONLY (cut2_provenance_version = 1). All 17 live WhatsApp unique indexes DROP+CREATE same name with AND cut2_provenance_version = 1 (R4). Duplicate lookup ONLY provenance=1 + channel + template + idempotencyKey. NULL legacy NEVER returned. Conflict without trusted canonical row → trusted_idempotency_conflict_mismatch. NO UPDATE/DELETE/REQUEUE/REPLACE including failed rows. idempotencyKey is idempotency only — NOT trust evidence.",
   "future_index_sql_plan_only_not_a_migration_file": "CREATE UNIQUE INDEX idx_notifications_queue_cut2_semantic_idempotency_unique ON public.notifications_queue (channel, template, ((data ->> 'idempotencyKey'))) WHERE cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;",
   "future_index_notes": [
-    "SR3 revise: WHERE cut2_provenance_version = 1 so legacy/NULL keys cannot poison the trusted index.",
+    "SR3 revise (canonical, unchanged): WHERE cut2_provenance_version = 1 so legacy/NULL keys cannot poison the trusted canonical index.",
     "No status predicate — queued, sent, AND failed TRUSTED rows participate.",
     "Empty or null/blank idempotencyKey is excluded; RPC MUST always write a non-empty key for inserted trusted rows.",
-    "Preserve all existing WhatsApp unique indexes.",
+    "SR4: the 17 WA uniques are NOT left unscoped. DROP INDEX public.<same_name>; CREATE UNIQUE INDEX <same_name> ... WHERE (<EXACT EXISTING PREDICATE>) AND cut2_provenance_version = 1. Fingerprint old_exact_indexdef or CUT2_ABORT before DROP.",
     "Do not author this SQL in this planning PR."
   ],
   "duplicate_behavior": {
-    "on_unique_violation_23505": "SELECT id FROM notifications_queue WHERE channel = p_channel AND template = p_notification_type AND data->>'idempotencyKey' = v_key LIMIT 1; RETURN (existing_id, 'duplicate')",
+    "on_unique_violation_23505": "SELECT id FROM notifications_queue WHERE cut2_provenance_version = 1 AND channel = p_channel AND template = p_notification_type AND data->>'idempotencyKey' = v_key LIMIT 1; IF found RETURN (existing_id, 'duplicate'); ELSE RETURN (NULL, 'trusted_idempotency_conflict_mismatch')",
     "mutate_existing": false,
     "requeue_failed": false,
-    "replace_failed": false
+    "replace_failed": false,
+    "convert_legacy": false,
+    "null_legacy_never_returned_as_duplicate_or_queue_id": true,
+    "trusted_duplicate_queued_sent_failed": "existing trusted id + duplicate"
   },
   "idempotency_key_expression_per_type": {
     "payment_receipt": {
@@ -161,8 +165,8 @@
     "proxy_claim",
     "hosting_swap"
   ],
-  "preserve_existing_whatsapp_uniques": true,
-  "do_not_drop": [
+  "preserve_existing_whatsapp_uniques": "NAMES_AND_KEY_EXPRESSIONS_ONLY — SR4 DROP+CREATE same name with provenance=1",
+  "do_not_rename": [
     "idx_notifications_queue_whatsapp_payment_receipt_unique",
     "idx_notifications_queue_whatsapp_welcome_unique",
     "idx_notifications_queue_whatsapp_relief_enrollment_unique",

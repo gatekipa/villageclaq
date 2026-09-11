@@ -1,0 +1,49 @@
+{
+  "cut1_table_command_count": 132,
+  "evaluated": 132,
+  "bypass_count": 3,
+  "unknown_count": 0,
+  "bypasses": [
+    {
+      "table": "feed_reactions",
+      "cmd": "DELETE",
+      "paths": [
+        {
+          "policy": "rls_fr_delete",
+          "reason": "membership/own-row predicate without active gate",
+          "pred_head": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))"
+        }
+      ]
+    },
+    {
+      "table": "feed_reactions",
+      "cmd": "UPDATE",
+      "paths": [
+        {
+          "policy": "rls_fr_update",
+          "reason": "membership/own-row predicate without active gate",
+          "pred_head": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid())))) || "
+        }
+      ]
+    },
+    {
+      "table": "hosting_swap_requests",
+      "cmd": "INSERT",
+      "paths": [
+        {
+          "policy": "Members can create swap requests",
+          "reason": "own-uid predicate without active gate",
+          "pred_head": "(requested_by = auth.uid())"
+        }
+      ]
+    }
+  ],
+  "unknowns": [],
+  "verdict": "HOLD",
+  "notes": [
+    "Cut1-affected table\u00d7command = commands covered by migration DROP/CREATE (rewrite23 + neutralize + inherit asserts).",
+    "Permissive OR sibling policies without active gate counted as bypass for inactive WRITE.",
+    "Platform staff policies excluded as EXPECTED PLATFORM.",
+    "memberships_insert_pending excluded as intentional pending workflow."
+  ]
+}

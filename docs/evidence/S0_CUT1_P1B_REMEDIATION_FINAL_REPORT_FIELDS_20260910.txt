@@ -1,0 +1,57 @@
+1. overall_verdict=PASS
+2. paid_restore_required=false
+3. disposable_method=schema-only prod catalog dump via execute_sql + local PG17 empty structural DB; reset_pre_00114.sh remount
+4. implementation_sha=eec8cab85cc77be73300af8048364797a25f59ed
+5. migration_file=supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql
+6. migration_blob_sha=95925d68047d41d501664b1ef2c30c2c0304eae8
+7. contract_pr=75
+8. contract_sha=5263f160943374676362b3983f39ac510a7930a2
+9. production_project=llbnliixczcqfftxpsmb
+10. prod_access=READ-ONLY execute_sql catalog only (not used this remount; local disposable only)
+11. local_pg=PostgreSQL 17.11 installed via apt
+12. disposable_db=s0p1b_disposable
+13. roles=anon,authenticated,service_role,postgres
+14. auth_stub=auth.uid() via request.jwt.claim.sub GUC; auth.jwt(); minimal auth.users stub empty
+15. public_policy_count_pre=375
+16. helper_policy_count_pre=145
+17. position_assignments_mismatch_pre=0
+18. fp_is_group_member=b91a35aadb657fa2cd2c99e9313ca0f1
+19. fp_get_user_group_ids=a9865ade7502badcd2b92a74429ac1d9
+20. fp_is_group_admin=a606b2986f998e8cd6ec9f6f488f6172 (pre; replaced by Cut1 body post-apply)
+21. fp_is_group_admin_or_owner=44e3246f8dab340bf65a9766c70baac2 (pre; replaced by Cut1 body post-apply)
+22. fp_is_group_owner=b57b416768d1af85bd50f07bcb9c733f (pre; replaced by Cut1 body post-apply)
+23. fp_has_group_permission=9948d97decfc42d3159a34d3f04934b9 (pre; replaced by Cut1 body post-apply)
+24. fp_create_proxy_member=10ab1a40d56ab1cc96fc3e59d23cd503 (pre; replaced by Cut1 body post-apply)
+25. rewrite_targets_present_pre=23/23 (plus neutralize + or_bypass remediation; exact DROP/CREATE rewrite_count=100)
+26. memberships_insert_pending_intact_pre=yes
+27. memberships_membership_status_check=active|pending_approval|exited|suspended|archived
+28. parity_verdict=PASS
+29. parity_cut1_relevant_drift=0
+30. parity_unknown_affecting_cut1=0
+31. parity_expected_platform_stub=auth stubs, empty tables, grant postgres ownership noise
+32. apply_scope=ONLY 00114 revised (not 00001-00113, not F0/F3)
+33. apply_result=PASS (transaction COMMIT)
+34. post_is_group_member_unchanged=PASS (fp b91a35aadb657fa2cd2c99e9313ca0f1)
+35. post_get_user_group_ids_unchanged=PASS (fp a9865ade7502badcd2b92a74429ac1d9)
+36. post_search_path_empty=PASS 8/8
+37. post_no_arbitrary_subject_active_helpers=PASS (is_active_group_member(gid); get_my_active_group_ids())
+38. post_trigger_trg_position_assignments_same_group=PASS
+39. post_memberships_insert_pending_intact=PASS
+40. post_active_helper_grants=authenticated EXECUTE only (anon revoked)
+41. collision_method=permissive OR across Cut1-affected table×command via collision_rescan.py
+42. collision_bypass_count=0
+43. collision_unknown_count=0
+44. collision_bypass_1=NONE (feed_reactions DELETE closed: membership_status=active)
+45. collision_bypass_2=NONE (feed_reactions UPDATE closed: membership_status=active)
+46. collision_bypass_3=NONE (hosting_swap_requests INSERT closed: is_active_group_member + requested_by=auth.uid())
+47. collision_verdict=PASS (operational_bypasses=0 unknown=0 status_blind_operational_write_unknowns=0)
+48. actor_matrix=PASS CUT1_ACTOR_MATRIX_PASS (+ P1B_THREE_BYPASS_ACTOR_MATRIX_PASS)
+49. actor_covered=active/pending/suspended/exited/archived/moderator/uid-probe/cross-tenant-position/payment/foreign/cross-group/requested_by-spoof
+50. dual_group=seeded g1+g2; cross-group position REJECT covered; three-bypass cross-group DENY covered
+51. postgrest=CANNOT REPRODUCE LOCALLY
+52. p1a_reconfirm=PASS empty search_path on all 8 Cut1 DEFINER helpers
+53. prod_apply=NOT DONE (forbidden)
+54. customer_row_export=NOT DONE (forbidden)
+55. secrets_committed=no; evidence under /workspace/s0p1b/evidence/remediation sanitized synthetic UUIDs only
+56. recommendation=PASS remediation rehearsal; three prior OR-bypasses closed on disposable; Chief may promote docs evidence + schedule controlled non-prod next gate — still NO production apply until release authorization
+57. rewrite_count_exact=100; three_bypass_remaining=0; prior_evidence_tip=ed2b8df59b6ef203efdc491bdcd796d91dc1f317; migration_content_sha1=b35e1bb1728feaf4235a42d2099cab6009b32511; production_mutation=ZERO

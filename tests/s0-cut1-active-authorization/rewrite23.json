@@ -1,0 +1,452 @@
+{
+  "contract_sha": "5263f160943374676362b3983f39ac510a7930a2",
+  "base_sha": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+  "helper_fingerprints_live": {
+    "is_group_member(gid uuid, uid uuid)": "b91a35aadb657fa2cd2c99e9313ca0f1",
+    "get_user_group_ids(uid uuid)": "a9865ade7502badcd2b92a74429ac1d9",
+    "is_group_admin(gid uuid, uid uuid)": "a606b2986f998e8cd6ec9f6f488f6172",
+    "is_group_admin_or_owner(p_group_id uuid)": "44e3246f8dab340bf65a9766c70baac2",
+    "is_group_owner(gid uuid, uid uuid)": "b57b416768d1af85bd50f07bcb9c733f",
+    "has_group_permission(gid uuid, perm_key text, uid uuid)": "9948d97decfc42d3159a34d3f04934b9",
+    "create_proxy_member(p_group_id uuid, p_display_name text, p_phone text, p_role text)": "10ab1a40d56ab1cc96fc3e59d23cd503"
+  },
+  "rewrite23": [
+    {
+      "schemaname": "public",
+      "tablename": "activity_feed",
+      "policyname": "rls_af_all",
+      "command": "ALL",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": "is_group_member(group_id)",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "announcement_deliveries",
+      "policyname": "rls_ad_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM announcements a\n  WHERE ((a.id = announcement_deliveries.announcement_id) AND is_group_member(a.group_id))))",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "committee_members",
+      "policyname": "Admins can manage committee members",
+      "command": "ALL",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(committee_id IN ( SELECT c.id\n   FROM committees c\n  WHERE ((c.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n           FROM memberships m\n          WHERE ((m.user_id = auth.uid()) AND (m.group_id = c.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "committees",
+      "policyname": "Admins can manage committees",
+      "command": "ALL",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "((group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = auth.uid()) AND (m.group_id = committees.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "constitution_amendments",
+      "policyname": "rls_amend_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "is_group_member(group_id)",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "Users can create disputes in their groups",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "Users can delete disputes in their groups",
+      "command": "DELETE",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "Users can update disputes in their groups",
+      "command": "UPDATE",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "disputes",
+      "policyname": "disputes_insert",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_attendances",
+      "policyname": "rls_att_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_attendances.event_id) AND is_group_member(e.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_photos",
+      "policyname": "rls_ep_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_photos.event_id) AND is_group_member(e.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "event_rsvps",
+      "policyname": "rls_rsvp_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM events e\n  WHERE ((e.id = event_rsvps.event_id) AND is_group_member(e.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "exchange_rates",
+      "policyname": "HQ admins can manage exchange rates",
+      "command": "ALL",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "(organization_id IN ( SELECT o.id\n   FROM (organizations o\n     JOIN groups g ON ((g.id = o.hq_group_id)))\n  WHERE ((g.id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n           FROM memberships m\n          WHERE ((m.user_id = auth.uid()) AND (m.group_id = g.id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "feed_reactions",
+      "policyname": "rls_fr_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM activity_feed af\n  WHERE ((af.id = feed_reactions.feed_item_id) AND is_group_member(af.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "fines",
+      "policyname": "rls_fin_update",
+      "command": "UPDATE",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": "is_group_member(group_id)",
+      "with_check": null,
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "group_audit_logs",
+      "policyname": "member_insert_audit_logs",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "hosting_swap_requests",
+      "policyname": "rls_hsr_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "((requested_by = auth.uid()) AND (from_assignment_id IN ( SELECT ha.id\n   FROM (hosting_assignments ha\n     JOIN hosting_rosters hr ON ((hr.id = ha.roster_id)))\n  WHERE (hr.group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)))))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "memberships",
+      "policyname": "Admins can add proxy members",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "((is_proxy = true) AND (proxy_manager_id = auth.uid()) AND (group_id IN ( SELECT get_user_group_ids(auth.uid()) AS get_user_group_ids)))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Proxy INSERT status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payment_reminders_sent",
+      "policyname": "rls_prs_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM payment_reminder_rules prr\n  WHERE ((prr.id = payment_reminders_sent.rule_id) AND is_group_member(prr.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "payments",
+      "policyname": "rls_pay_insert",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(is_group_member(group_id) AND (status = 'pending_confirmation'::text) AND (recorded_by = auth.uid()) AND (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = payments.membership_id) AND (m.user_id = auth.uid())))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "project_contributions",
+      "policyname": "rls_pcon_write",
+      "command": "INSERT",
+      "roles": "{authenticated}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(EXISTS ( SELECT 1\n   FROM projects p\n  WHERE ((p.id = project_contributions.project_id) AND is_group_member(p.group_id))))",
+      "helper_references": [
+        "is_group_member"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind is_group_member"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sub_group_transfers",
+      "policyname": "Admins can update transfers",
+      "command": "UPDATE",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": "((group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids)) AND (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = auth.uid()) AND (m.group_id = sub_group_transfers.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))",
+      "with_check": null,
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": true,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "sub_group_transfers",
+      "policyname": "Users can create transfers",
+      "command": "INSERT",
+      "roles": "{public}",
+      "permissive": "PERMISSIVE",
+      "qual": null,
+      "with_check": "(group_id IN ( SELECT get_user_group_ids() AS get_user_group_ids))",
+      "helper_references": [
+        "get_user_group_ids"
+      ],
+      "inline_role_check": false,
+      "membership_status_check": false,
+      "tenant_group_check": true,
+      "classification": "OPERATIONAL WRITE",
+      "cut1_disposition": "REWRITE IN CUT 1",
+      "disposition_reason": "Operational write gated by status-blind get_user_group_ids"
+    }
+  ]
+}

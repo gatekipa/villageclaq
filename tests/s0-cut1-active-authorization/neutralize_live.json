@@ -1,0 +1,772 @@
+[
+  {
+    "tablename": "activity_feed",
+    "policyname": "Admin update feed",
+    "cmd": "UPDATE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = activity_feed.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "activity_feed",
+    "policyname": "Members insert feed",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = activity_feed.group_id) AND (memberships.user_id = auth.uid()))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "constitution_amendments",
+    "policyname": "Admins can manage amendments",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(group_id IN ( SELECT memberships.group_id\n   FROM memberships\n  WHERE ((memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "contribution_obligations",
+    "policyname": "Group admins can manage obligations",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = contribution_obligations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "contribution_obligations",
+    "policyname": "Group admins can update obligations",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = contribution_obligations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "contribution_types",
+    "policyname": "Group admins can delete contribution types",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = contribution_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "contribution_types",
+    "policyname": "Group admins can manage contribution types",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = contribution_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "contribution_types",
+    "policyname": "Group admins can update contribution types",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = contribution_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "disputes",
+    "policyname": "disputes_admin",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = disputes.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "documents",
+    "policyname": "Admins can manage documents",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = documents.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "election_options",
+    "policyname": "Admins can manage options",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (elections e\n     JOIN memberships m ON ((m.group_id = e.group_id)))\n  WHERE ((e.id = election_options.election_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "elections",
+    "policyname": "Admins can manage elections",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = elections.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "event_attendances",
+    "policyname": "Group admins can manage attendance",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (events\n     JOIN memberships ON ((memberships.group_id = events.group_id)))\n  WHERE ((events.id = event_attendances.event_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "event_photos",
+    "policyname": "Members upload photos",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM (events e\n     JOIN memberships m ON ((m.group_id = e.group_id)))\n  WHERE ((e.id = event_photos.event_id) AND (m.user_id = auth.uid()))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "events",
+    "policyname": "Group admins can create events",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = events.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "events",
+    "policyname": "Group admins can delete events",
+    "cmd": "DELETE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = events.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "events",
+    "policyname": "Group admins can update events",
+    "cmd": "UPDATE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = events.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "family_members",
+    "policyname": "rls_fm_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "((EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = family_members.membership_id) AND (m.user_id = auth.uid())))) OR (EXISTS ( SELECT 1\n   FROM (memberships m\n     JOIN memberships target ON (((target.id = family_members.membership_id) AND (target.group_id = m.group_id))))\n  WHERE ((m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "family_members",
+    "policyname": "rls_fm_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "((EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = family_members.membership_id) AND (m.user_id = auth.uid())))) OR (EXISTS ( SELECT 1\n   FROM (memberships m\n     JOIN memberships target ON (((target.id = family_members.membership_id) AND (target.group_id = m.group_id))))\n  WHERE ((m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "family_members",
+    "policyname": "rls_fm_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "((EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = family_members.membership_id) AND (m.user_id = auth.uid())))) OR (EXISTS ( SELECT 1\n   FROM (memberships m\n     JOIN memberships target ON (((target.id = family_members.membership_id) AND (target.group_id = m.group_id))))\n  WHERE ((m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "feed_reactions",
+    "policyname": "Members react",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (activity_feed af\n     JOIN memberships m ON ((m.group_id = af.group_id)))\n  WHERE ((af.id = feed_reactions.feed_item_id) AND (m.user_id = auth.uid()))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "feed_reactions",
+    "policyname": "rls_fr_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))",
+    "with_check": null,
+    "kind": "or_bypass",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "feed_reactions",
+    "policyname": "rls_fr_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))",
+    "with_check": null,
+    "kind": "or_bypass",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "fine_types",
+    "policyname": "fine_types_admin",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = fine_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "fines",
+    "policyname": "Admin manage fines",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = fines.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "group_constitutions",
+    "policyname": "Admins can manage constitutions",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(group_id IN ( SELECT memberships.group_id\n   FROM memberships\n  WHERE ((memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "group_subscriptions",
+    "policyname": "Admins can manage subscription",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = group_subscriptions.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "hosting_assignments",
+    "policyname": "Group admins can manage hosting assignments",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (hosting_rosters\n     JOIN memberships ON ((memberships.group_id = hosting_rosters.group_id)))\n  WHERE ((hosting_rosters.id = hosting_assignments.roster_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "hosting_rosters",
+    "policyname": "Group admins can manage hosting rosters",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = hosting_rosters.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "hosting_swap_requests",
+    "policyname": "Members can create swap requests",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(requested_by = auth.uid())",
+    "kind": "or_bypass",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "invitations",
+    "policyname": "Group admins can create invitations",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = invitations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "invitations",
+    "policyname": "Group admins can delete invitations",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = invitations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "invitations",
+    "policyname": "Group admins can update invitations",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = invitations.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_configs",
+    "policyname": "loan_configs_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = loan_configs.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_configs",
+    "policyname": "loan_configs_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = loan_configs.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_configs",
+    "policyname": "loan_configs_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = loan_configs.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_repayments",
+    "policyname": "loan_repayments_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (loans l\n     JOIN memberships m ON (((m.group_id = l.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (l.id = loan_repayments.loan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_repayments",
+    "policyname": "loan_repayments_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM (loans l\n     JOIN memberships m ON (((m.group_id = l.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (l.id = loan_repayments.loan_id)))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_repayments",
+    "policyname": "loan_repayments_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (loans l\n     JOIN memberships m ON (((m.group_id = l.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (l.id = loan_repayments.loan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_requests_v1",
+    "policyname": "Admin manage loans",
+    "cmd": "UPDATE",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = loan_requests_v1.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_requests_v1",
+    "policyname": "Members request loans",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = loan_requests_v1.group_id) AND (memberships.user_id = auth.uid()))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_schedule",
+    "policyname": "loan_schedule_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (loans l\n     JOIN memberships m ON (((m.group_id = l.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (l.id = loan_schedule.loan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_schedule",
+    "policyname": "loan_schedule_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM (loans l\n     JOIN memberships m ON (((m.group_id = l.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (l.id = loan_schedule.loan_id)))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loan_schedule",
+    "policyname": "loan_schedule_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (loans l\n     JOIN memberships m ON (((m.group_id = l.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (l.id = loan_schedule.loan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loans",
+    "policyname": "loans_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = loans.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loans",
+    "policyname": "loans_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = loans.group_id) AND (m.user_id = auth.uid()))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "loans",
+    "policyname": "loans_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = loans.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "member_transfers",
+    "policyname": "transfers_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "((status = ANY (ARRAY['requested'::transfer_status, 'rejected'::transfer_status, 'cancelled'::transfer_status])) AND (EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])) AND (m.group_id = member_transfers.source_group_id)))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "payment_reminder_rules",
+    "policyname": "Admin manage reminder rules",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = payment_reminder_rules.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "payments",
+    "policyname": "Group admins and treasurers can record payments",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = payments.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "position_assignments",
+    "policyname": "Group owners/admins can manage assignments",
+    "cmd": "ALL",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (group_positions gp\n     JOIN memberships m ON ((m.group_id = gp.group_id)))\n  WHERE ((gp.id = position_assignments.position_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "project_contributions",
+    "policyname": "Members contribute to projects",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM (projects p\n     JOIN memberships m ON ((m.group_id = p.group_id)))\n  WHERE ((p.id = project_contributions.project_id) AND (m.user_id = auth.uid()))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "project_expenses",
+    "policyname": "Admin manage expenses",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (projects p\n     JOIN memberships m ON ((m.group_id = p.group_id)))\n  WHERE ((p.id = project_expenses.project_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "project_milestones",
+    "policyname": "Admin manage milestones",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (projects p\n     JOIN memberships m ON ((m.group_id = p.group_id)))\n  WHERE ((p.id = project_milestones.project_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "projects",
+    "policyname": "Admin manage projects",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = projects.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_claims",
+    "policyname": "Admins can manage claims",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (relief_plans\n     JOIN memberships ON ((memberships.group_id = relief_plans.group_id)))\n  WHERE ((relief_plans.id = relief_claims.plan_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_claims",
+    "policyname": "Members can submit claims",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.id = relief_claims.membership_id) AND (memberships.user_id = auth.uid()))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_claims",
+    "policyname": "relief_claims_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (relief_plans rp\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rp.id = relief_claims.plan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_claims",
+    "policyname": "relief_claims_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = relief_claims.membership_id) AND (m.user_id = auth.uid()))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_claims",
+    "policyname": "relief_claims_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (relief_plans rp\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rp.id = relief_claims.plan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_enrollments",
+    "policyname": "Admins can manage enrollments",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (relief_plans\n     JOIN memberships ON ((memberships.group_id = relief_plans.group_id)))\n  WHERE ((relief_plans.id = relief_enrollments.plan_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_enrollments",
+    "policyname": "relief_enrollments_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (relief_plans rp\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rp.id = relief_enrollments.plan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_enrollments",
+    "policyname": "relief_enrollments_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM (relief_plans rp\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rp.id = relief_enrollments.plan_id)))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_enrollments",
+    "policyname": "relief_enrollments_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (relief_plans rp\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rp.id = relief_enrollments.plan_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_payouts",
+    "policyname": "Admins can manage payouts",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM ((relief_claims\n     JOIN relief_plans ON ((relief_plans.id = relief_claims.plan_id)))\n     JOIN memberships ON ((memberships.group_id = relief_plans.group_id)))\n  WHERE ((relief_claims.id = relief_payouts.claim_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_payouts",
+    "policyname": "relief_payouts_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM ((relief_claims rc\n     JOIN relief_plans rp ON ((rp.id = rc.plan_id)))\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rc.id = relief_payouts.claim_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_payouts",
+    "policyname": "relief_payouts_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM ((relief_claims rc\n     JOIN relief_plans rp ON ((rp.id = rc.plan_id)))\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rc.id = relief_payouts.claim_id)))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_payouts",
+    "policyname": "relief_payouts_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM ((relief_claims rc\n     JOIN relief_plans rp ON ((rp.id = rc.plan_id)))\n     JOIN memberships m ON (((m.group_id = rp.group_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))\n  WHERE (rc.id = relief_payouts.claim_id)))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_plans",
+    "policyname": "Group admins can manage relief plans",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = relief_plans.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_remittances",
+    "policyname": "relief_remittances_insert",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = auth.uid()) AND (m.group_id = relief_remittances.branch_group_id) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "relief_remittances",
+    "policyname": "relief_remittances_update",
+    "cmd": "UPDATE",
+    "roles": "{public}",
+    "qual": "((EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.user_id = auth.uid()) AND (m.group_id = relief_remittances.branch_group_id) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role]))))) OR (EXISTS ( SELECT 1\n   FROM ((memberships m\n     JOIN groups g_hq ON (((g_hq.id = m.group_id) AND (g_hq.group_level = 'hq'::text))))\n     JOIN groups g_branch ON (((g_branch.organization_id = g_hq.organization_id) AND (g_branch.organization_id IS NOT NULL))))\n  WHERE ((m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])) AND (g_branch.id = relief_remittances.branch_group_id)))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "savings_contributions",
+    "policyname": "Admins can manage contributions",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (savings_cycles sc\n     JOIN memberships m ON ((m.group_id = sc.group_id)))\n  WHERE ((sc.id = savings_contributions.cycle_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "savings_cycles",
+    "policyname": "Admins can manage savings cycles",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = savings_cycles.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "savings_participants",
+    "policyname": "Admins can manage participants",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM (savings_cycles sc\n     JOIN memberships m ON ((m.group_id = sc.group_id)))\n  WHERE ((sc.id = savings_participants.cycle_id) AND (m.user_id = auth.uid()) AND (m.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role, 'moderator'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "group_payment_config",
+    "policyname": "Admins can delete payment config",
+    "cmd": "DELETE",
+    "roles": "{public}",
+    "qual": "(group_id IN ( SELECT memberships.group_id\n   FROM memberships\n  WHERE ((memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": "live name for \u00a724.7 Group admins can manage payment config"
+  },
+  {
+    "tablename": "group_payment_config",
+    "policyname": "Admins can insert payment config",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(group_id IN ( SELECT memberships.group_id\n   FROM memberships\n  WHERE ((memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "kind": "neutralize",
+    "s24_7_note": "live name for \u00a724.7 Group admins can manage payment config"
+  },
+  {
+    "tablename": "group_payment_config",
+    "policyname": "Admins can update payment config",
+    "cmd": "UPDATE",
+    "roles": "{public}",
+    "qual": "(group_id IN ( SELECT memberships.group_id\n   FROM memberships\n  WHERE ((memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['admin'::membership_role, 'owner'::membership_role])))))",
+    "with_check": null,
+    "kind": "neutralize",
+    "s24_7_note": "live name for \u00a724.7 Group admins can manage payment config"
+  }
+]

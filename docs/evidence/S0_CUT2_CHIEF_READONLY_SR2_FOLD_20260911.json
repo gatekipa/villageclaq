@@ -1,0 +1,114 @@
+{
+  "document": "S0_CUT2_CHIEF_READONLY_SR2_FOLD_20260911",
+  "status": "FROZEN_CHIEF_READONLY_EVIDENCE_FOLDED_VERBATIM",
+  "project": "llbnliixczcqfftxpsmb",
+  "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+  "parent_daybreak_tip": "d041bd10d67c660b7414d4f5db74f9e8985f5886",
+  "production_mutation": "ZERO",
+  "sms_send": "410_GONE_ONLY",
+  "registered_email_authority": "memberships.user_id → auth.users.email. NOT profiles.email (column absent).",
+  "drain_today_tip_1693b806": {
+    "file": "src/app/api/cron/drain-notification-queue/route.ts",
+    "sms": {
+      "today": "uses data.message only",
+      "source_comment": "SMS payload is pre-rendered at enqueue time (see notifications/sms-sender.ts) — no locale re-resolution. / SMS payloads rendered at enqueue time (data.message) cannot be re-localized — drain cannot know the original template or values.",
+      "cut2_new_rows": "MUST NOT use data.message; drain switches to semantic renderer from template=notification_type + data envelope"
+    },
+    "email": {
+      "today": "data.template + data.emailData via sendEmail",
+      "cut2_new_rows": "drain selects frozen EmailTemplate from notification_type; no caller template"
+    },
+    "whatsapp": {
+      "today": "prefers data.whatsappType+whatsappData dispatcher; else raw data.template Meta",
+      "cut2_new_rows": "typed dispatcher only; no raw Meta from queue"
+    },
+    "legacy_discriminator": "Cut 2 semantic IFF data.cut2Semantic === true OR (non-empty data.idempotencyKey AND template in allowlist). NEW rows only on semantic branch."
+  },
+  "email_template_union_send_email_ts": [
+    "welcome",
+    "payment-receipt",
+    "payment-reminder",
+    "event-reminder",
+    "minutes-published",
+    "invitation",
+    "notification",
+    "proxy-claim"
+  ],
+  "email_allow_mapping": {
+    "welcome": "welcome",
+    "payment_receipt": "payment-receipt",
+    "payment_reminder": "payment-reminder",
+    "event_reminder": "event-reminder",
+    "minutes_published": "minutes-published",
+    "member_invitation": "invitation"
+  },
+  "email_deny": {
+    "notification": "generic; calculate-standing.ts supplies client title/body — prefer DENY over inventing server-owned generic",
+    "proxy-claim": "template module exists BUT no authoritative stored email (memberships has phone only; proxy_claim_tokens.email not auto-authoritative)",
+    "no_dedicated_module": [
+      "loan_approved",
+      "loan_overdue",
+      "fine_issued",
+      "standing_changed",
+      "relief_enrollment",
+      "relief_claim_approved",
+      "relief_claim_denied",
+      "remittance_confirmed",
+      "remittance_disputed",
+      "hosting_assignment",
+      "hosting_reminder",
+      "hosting_swap",
+      "subscription_expiring",
+      "announcement",
+      "election_opened"
+    ]
+  },
+  "sms_template_cases_send_sms_notification_ts": [
+    "payment-reminder",
+    "event-reminder",
+    "payment-receipt",
+    "welcome",
+    "minutes-published",
+    "payment-pending",
+    "hosting-reminder",
+    "standing-changed",
+    "hosting-assignment",
+    "relief-enrollment",
+    "remittance-status",
+    "subscription-expiring",
+    "relief-claim-approved",
+    "relief-claim-denied",
+    "announcement",
+    "loan-approved",
+    "fine-issued",
+    "proxy-claim"
+  ],
+  "sms_dormant_not_allowlisted": ["payment-pending"],
+  "sms_missing_renderer_deny_verified": ["loan_overdue", "member_invitation", "election_opened"],
+  "sms_reuse_allow": {
+    "hosting_swap": "hosting-reminder / hostingReminderSms"
+  },
+  "live_pg_indexes_unique_whatsapp_preserve_all": {
+    "note": "Exact indexdef strings are in S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json live_pg_indexes_verbatim_mcp_20260911. PRESERVE all. No unique yet for minutes/election/announcement/proxy_claim/hosting_swap — covered by idx_notifications_queue_cut2_semantic_idempotency_unique.",
+    "unique_whatsapp_keys_chief": {
+      "payment_receipt": "paymentId",
+      "payment_reminder": ["obligationId", "reminderDate"],
+      "welcome": "membershipId",
+      "standing_changed": ["membershipId", "newStanding", "changeDate"],
+      "relief_enrollment": "enrollmentId",
+      "claim_approved": "claimId",
+      "claim_denied": "claimId",
+      "remittance_confirmed": ["remittanceId", "recipientUserId"],
+      "remittance_disputed": ["remittanceId", "recipientUserId"],
+      "hosting_assignment": "assignmentId",
+      "hosting_reminder": ["assignmentId", "assignedDate"],
+      "event_reminder": ["eventId", "userId"],
+      "loan_approved": "loanId",
+      "loan_overdue": ["loanId", "reminderDate"],
+      "fine_issued": "fineId",
+      "member_invitation": ["invitationId", "sendDate"],
+      "subscription_expiring": ["subscriptionId", "reminderDate", "userId"]
+    },
+    "non_unique": ["idx_notifications_queue_created", "idx_notifications_queue_queued", "idx_notifications_queue_status", "idx_notifications_queue_user", "notifications_queue_pkey"]
+  }
+}

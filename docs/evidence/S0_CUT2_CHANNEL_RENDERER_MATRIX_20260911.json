@@ -16,6 +16,38 @@
     "invitation": "invitations.email (live column exists)",
     "proxy_claim": "EMAIL DENY. memberships has no email. proxy_claim_tokens.email is caller-written today and is NOT auto-authoritative."
   },
+  "email_template_union_verbatim": [
+    "welcome",
+    "payment-receipt",
+    "payment-reminder",
+    "event-reminder",
+    "minutes-published",
+    "invitation",
+    "notification",
+    "proxy-claim"
+  ],
+  "email_generic_notification": "DENY — calculate-standing.ts uses client title/body; do not invent server-owned generic",
+  "sms_template_cases_verbatim": [
+    "payment-reminder",
+    "event-reminder",
+    "payment-receipt",
+    "welcome",
+    "minutes-published",
+    "payment-pending",
+    "hosting-reminder",
+    "standing-changed",
+    "hosting-assignment",
+    "relief-enrollment",
+    "remittance-status",
+    "subscription-expiring",
+    "relief-claim-approved",
+    "relief-claim-denied",
+    "announcement",
+    "loan-approved",
+    "fine-issued",
+    "proxy-claim"
+  ],
+  "sms_missing_verified_deny": ["loan_overdue", "member_invitation", "election_opened"],
   "default_deny": true,
   "push": "DENY_ALL",
   "types": {

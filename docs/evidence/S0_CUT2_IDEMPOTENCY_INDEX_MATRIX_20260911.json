@@ -152,6 +152,13 @@
     {"indexname": "idx_notifications_queue_whatsapp_welcome_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_welcome_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text))"},
     {"indexname": "notifications_queue_pkey", "indexdef": "CREATE UNIQUE INDEX notifications_queue_pkey ON public.notifications_queue USING btree (id)"}
   ],
+  "no_unique_yet_covered_by_canonical_index": [
+    "minutes_published",
+    "election_opened",
+    "announcement",
+    "proxy_claim",
+    "hosting_swap"
+  ],
   "preserve_existing_whatsapp_uniques": true,
   "do_not_drop": [
     "idx_notifications_queue_whatsapp_payment_receipt_unique",

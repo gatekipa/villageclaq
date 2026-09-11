@@ -11,7 +11,8 @@
 - `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`  
 - `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`  
 - `docs/evidence/S0_CUT2_CHANNEL_RENDERER_MATRIX_20260911.json`  
-- `docs/evidence/S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`
+- `docs/evidence/S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`  
+- `docs/evidence/S0_CUT2_CHIEF_READONLY_SR2_FOLD_20260911.json`
 
 ---
 
@@ -244,6 +245,7 @@ RPC writes `template = p_notification_type` and `data` = **CANONICAL SEMANTIC EN
 | Key | Source | Freshness |
 |-----|--------|-----------|
 | `envelopeVersion` | literal `2` | A snapshot |
+| `cut2Semantic` | literal `true` | A snapshot — **required on every NEW Cut 2 row** |
 | `notification_type` | `p_notification_type` | A snapshot |
 | `domain_object_id` | `p_domain_object_id` | A snapshot |
 | `derived_group_id` | R3 chain (also copied to `groupId` for legacy readers) | A snapshot — **not authz** |
@@ -257,10 +259,23 @@ RPC writes `template = p_notification_type` and `data` = **CANONICAL SEMANTIC EN
 | `claimUrl` (proxy_claim only) | token created in the **authorized route** before RPC; route may pass… **NO** — RPC must not accept URL. Drain B-reloads latest unclaimed `proxy_claim_tokens.token` for that membership and builds URL | B reload |
 | `message`, `components`, `whatsappData` | **forbidden on Cut 2 rows** | — |
 
-Drain discriminator:
+### Drain TODAY (`drain-notification-queue/route.ts` on tip `1693b806`) — must change for Cut 2 NEW rows
 
-- **Cut 2 branch:** `data.envelopeVersion = 2` → TypeScript renderers (SMS/email/WA). Ignore `data.message` / `data.components`.
-- **Legacy branch:** `envelopeVersion` IS DISTINCT FROM `2` → existing `processSms(data.message)` / `processWhatsApp(whatsappType|template+components)` for pre-cutover rows only. No new legacy rows after 00115.
+| Channel | Today | Cut 2 NEW rows |
+|---------|-------|----------------|
+| SMS | `processSms` uses **`data.message` only**. Comment: “SMS payload is pre-rendered at enqueue time … cannot be re-localized.” | **MUST NOT** use `data.message`. Drain selects semantic SMS renderer from `template = notification_type` + envelope. |
+| Email | `data.template` + `data.emailData` via `sendEmail` | Drain selects frozen `EmailTemplate` from `notification_type`. **No** caller/`data.template`. |
+| WhatsApp | prefers `data.whatsappType`+`whatsappData` dispatcher; else raw `data.template` Meta | Typed dispatcher **only**. **No** raw Meta from queue. |
+
+**Legacy discriminator (NEW rows only on semantic branch):**
+
+A queued row is Cut 2 semantic **iff**:
+
+`data.cut2Semantic === true` **OR** (`data.idempotencyKey` is non-empty **AND** `template` is in the type allowlist).
+
+Else → **legacy** branch: existing `processSms(data.message)` / `processEmail(data.template, data.emailData)` / `processWhatsApp(whatsappType | raw template+components)` for pre-cutover rows only. No new legacy rows after 00115.
+
+NEW Cut 2 rows **must not** write `data.message`, `data.components`, or caller `data.template` (email/Meta).
 
 ---
 
@@ -633,6 +648,20 @@ RPC writes the envelope (R5). Drain TypeScript owns `paymentReceiptSms` / `sendE
 
 See `S0_CUT2_CHANNEL_RENDERER_MATRIX_20260911.json`. ALLOW only if recipient + prefs + renderer + idempotency + domain row exist. `push` DENY all.
 
+**`EmailTemplate` union (`src/lib/send-email.ts`) — ALLOW email ONLY if `notification_type` maps to one of these and a dedicated mapping exists:**  
+`welcome`, `payment-receipt`, `payment-reminder`, `event-reminder`, `minutes-published`, `invitation`, `notification`, `proxy-claim`.
+
+Frozen mapping (email ALLOW): `welcome`→`welcome`, `payment_receipt`→`payment-receipt`, `payment_reminder`→`payment-reminder`, `event_reminder`→`event-reminder`, `minutes_published`→`minutes-published`, `member_invitation`→`invitation`.
+
+**`notification`:** live `calculate-standing.ts` uses it with **client-rendered** `title`/`body` — **EMAIL DENY** (do not invent a server-owned generic).  
+**`proxy-claim`:** module exists; **EMAIL DENY** (no authoritative stored email; `memberships` has phone only).  
+No dedicated email modules for loan/fine/standing/relief/hosting/subscription/announcement/election → **EMAIL DENY**.
+
+**`SmsTemplate` / `send-sms-notification.ts` cases (ALLOW SMS only if renderer exists):**  
+`payment-reminder`, `event-reminder`, `payment-receipt`, `welcome`, `minutes-published`, `payment-pending` (**DORMANT / not allowlisted**), `hosting-reminder`, `standing-changed`, `hosting-assignment`, `relief-enrollment`, `remittance-status`, `subscription-expiring`, `relief-claim-approved`, `relief-claim-denied`, `announcement`, `loan-approved`, `fine-issued`, `proxy-claim`.
+
+**Verified missing SMS renderer → DENY:** `loan_overdue`, `member_invitation`, `election_opened`. `hosting_swap` reuses `hosting-reminder` renderer → ALLOW.
+
 ### R2-C — Email source
 
 | Kind | Source |
@@ -653,7 +682,7 @@ Live CHECK (MCP): `membership_status IN ('active','pending_approval','exited','s
 
 ### R2-E — Idempotency
 
-See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` copied verbatim there. No TBD keys.
+See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` on `llbnliixczcqfftxpsmb` copied **verbatim** (`indexdef` strings). **PRESERVE all unique WhatsApp indexes.** No unique yet for `minutes_published` / `election_opened` / `announcement` / `proxy_claim` / `hosting_swap` — covered by the new canonical semantic index. No TBD keys.
 
 ### R2-F — Source/CI out of SQL
 

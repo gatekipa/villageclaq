@@ -665,7 +665,10 @@
   },
   "security_revision_2": {
     "sql_renders": false,
-    "envelope": "canonical semantic envelopeVersion=2; drain TypeScript renders",
+      "envelope": "cut2Semantic=true + envelopeVersion=2 + idempotencyKey; drain TypeScript renders; NEW rows MUST NOT use data.message",
+      "drain_discriminator": "data.cut2Semantic === true OR (non-empty data.idempotencyKey AND template in allowlist)",
+      "email_template_union": ["welcome", "payment-receipt", "payment-reminder", "event-reminder", "minutes-published", "invitation", "notification", "proxy-claim"],
+      "email_notification_generic": "DENY",
     "channel_default_deny": true,
     "email_registered": "memberships.user_id \u2192 auth.users.email",
     "profiles_email_column": false,

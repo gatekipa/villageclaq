@@ -1260,5 +1260,22 @@
       "exited",
       "archived"
     ]
-  }
+  },
+  "drain_discriminator": "data.cut2Semantic === true OR (non-empty data.idempotencyKey AND template in allowlist)",
+  "cut2_new_rows_must_not_use_data_message": true,
+  "email_template_union": [
+    "welcome",
+    "payment-receipt",
+    "payment-reminder",
+    "event-reminder",
+    "minutes-published",
+    "invitation",
+    "notification",
+    "proxy-claim"
+  ],
+  "sms_missing_renderer_deny": [
+    "loan_overdue",
+    "member_invitation",
+    "election_opened"
+  ]
 }

@@ -11,7 +11,8 @@
 **Messages sent:** ZERO  
 **Failed queue rows retried:** ZERO  
 **Cut 1:** **CLOSED** in production — do not modify  
-**PR #70 / #71:** **NOT TOUCHED** (no merge, no apply)  
+**PR #69 / #70:** **OPEN DRAFT** — must stay **untouched / unapplied** (PR #70 SEPARATION; #69 foundation likewise)  
+**PR #71:** **NOT TOUCHED** (no merge)  
 **Authoritative freeze:** §21. Where earlier sections conflict with §21, **§21 wins**.  
 **Evidence:** `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`
 
@@ -28,7 +29,9 @@ Cite exactly. Do not substitute nearby SHAs, deploys, or project refs.
 | Cut 1 CLOSED production | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **do not modify** |
 | Cut 1 repo file (immutable for Cut 2) | `supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql` |
 | Supabase prod | `llbnliixczcqfftxpsmb` |
-| PR #70 (CREATE-NOT-APPLY; do not merge/apply) | head `0f258726c9328ee0204f7b5dee9efceebe7265b9` — `security/notification-policy-schema-20260910` |
+| Live `schema_migrations` count (Chief, prod) | **29** (includes Cut 1 `20260911183755`) |
+| PR #69 (OPEN DRAFT foundation; do not merge/apply) | head `a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7` — `product-consistency/notification-policy-foundation-v2-20260910` |
+| PR #70 (OPEN DRAFT CREATE-NOT-APPLY; do not merge/apply) | head `0f258726c9328ee0204f7b5dee9efceebe7265b9` — `security/notification-policy-schema-20260910` |
 | PR #71 (docs governance; do not merge) | head `050be86c9df3455c66b27bb5853eb786228b4009` |
 | Planning branch (this artifact) | `planning/s0-p0b-cut2-notification-queue-20260911` from `1693b806beaf80d1c8101c8011874a2a2bcbb642` |
 | Prior Cut 1 planning contract (phases 1–22 template) | PR #75 `docs/S0_P0_REMEDIATION_CUT_PLAN_20260910.md` §19 bounded Cut 2 stub — **superseded by this freeze** |
@@ -101,6 +104,65 @@ Any logged-in browser (or any server using the user JWT / cookie `anon` client) 
 
 The drain (`GET /api/cron/drain-notification-queue`, every 15 minutes, `CRON_SECRET` + **service_role**) will then attempt SMS / email / WhatsApp for `status = 'queued'`. That is the outbound relay.
 
+### 2.6 Critical compatibility (frozen — docs addendum)
+
+These five facts are **apply-blocking** for Cut 2 implementation sequencing. They do not authorize SQL or app edits in this PR.
+
+#### C1 — `sms-sender.ts` depends on the live INSERT policy (MUST move before/with revoke)
+
+`src/lib/notifications/sms-sender.ts` `queueNotification` uses `createClient()` from `@/lib/supabase/server` (cookie session + `NEXT_PUBLIC_SUPABASE_ANON_KEY`). On AT key missing or SDK failure it INSERTs:
+
+```ts
+{ channel, template: "generic", data: { recipient, ...data }, status: "queued" }
+```
+
+`data` is a **free-form `message` string + arbitrary phone** (`recipient`). There is no template allowlist, no `groupId`, no producer key.
+
+That path **DEPENDS** on live policy `Authenticated users can queue notifications` / `WITH CHECK (auth.uid() IS NOT NULL)` (plus `GRANT INSERT` to `authenticated`).  
+
+**Cut 2 MUST move this insert to `service_role` (or a bounded `SECURITY DEFINER` enqueue) BEFORE or IN THE SAME implementation commit as** DROP of that policy / `REVOKE INSERT` from `authenticated`. SQL-only policy drop **without** this move is **`CUT2_ABORT`**: session-path SMS fallback queueing breaks, and leaving it on the authenticated path is **high forge-adjacent risk** (any request that reaches `sendSMS` with a user cookie can enqueue arbitrary phone + free-form SMS body for the drain to send).
+
+Cron callers of `sendSMS` typically have **no cookies** → `auth.uid()` NULL → WITH CHECK already fails. Moving to service_role also **repairs** that cron fallback.
+
+#### C2 — Canonical domain producers survive INSERT *policy* drop iff service_role GRANT INSERT remains
+
+Payment / welcome / standing / relief / hosting / event / loan / fine / invitation / subscription producers are invoked from API/cron routes that construct **`createClient(url, SUPABASE_SERVICE_ROLE_KEY)`** and pass that client into `produce*`. `service_role` **bypasses RLS**.
+
+Therefore: **DROP** of `Authenticated users can queue notifications` does **not** break those producers **IF** `GRANT INSERT` on `notifications_queue` to `service_role` **remains**.
+
+**Layer distinction (do not collapse):**
+
+| Layer | SQL action | Domain producers | sms-sender (today) |
+|-------|------------|------------------|--------------------|
+| **A — close the forge** | DROP authenticated INSERT policy; `REVOKE INSERT` from `anon`/`authenticated` | **Survive** (service_role grant + RLS bypass) | **Breaks** unless already moved (C1) |
+| **B — RPC allowlist** | also `REVOKE INSERT` from `service_role`; only `enqueue_outbound_notification` may insert | **Break** until each `.insert()` switches to RPC | Must use RPC or skip |
+
+Layer B is the stricter freeze in §6 / §7. It is **not** implied by policy drop alone. Implementation must not revoke `service_role` INSERT while producers still call `.from("notifications_queue").insert`.
+
+#### C3 — Zero UI insert call-sites; forge is PostgREST + sms-sender session path
+
+Repo tip: **zero** `*.tsx` / UI `.from("notifications_queue").insert` call-sites. The live forge is:
+
+1. PostgREST + RLS policy `auth.uid() IS NOT NULL` + `GRANT INSERT` to `authenticated` (any logged-in client SDK)
+2. `sms-sender.ts` session/anon-key path (C1)
+
+Not a current dashboard button that writes the queue directly.
+
+#### C4 — Live prod confirmation (`llbnliixczcqfftxpsmb`)
+
+Chief-confirmed (do not invent extras):
+
+- `schema_migrations` **29** rows
+- Cut 1 version **`20260911183755`** name `s0_p0a_cut1_active_authorization`
+- INSERT policy **`Authenticated users can queue notifications`** / `WITH CHECK (auth.uid() IS NOT NULL)`
+- `GRANT INSERT` for **`anon` + `authenticated` + `service_role`**
+- **no `group_id` column**
+- status enum **`queued | sent | failed` only** (no `processing`)
+
+#### C5 — PR #69 / #70 remain OPEN DRAFT
+
+Both stay **untouched and unapplied**. Cut 2 must not merge, rebase onto, or apply either. See §20.
+
 ---
 
 ## 3. Remediation order (Cut 2 position)
@@ -128,7 +190,9 @@ this Cut 2 contract ──► Daybreak PASS / HOLD
         ▼
 CONTRACT PASS → IMPLEMENT on dedicated branch
   → author ONE forward-only migration AFTER 00114
-  → companion app: service_role + enqueue RPC only (sms-sender, relays)
+  → C1: sms-sender → service_role/DEFINER BEFORE/WITH Layer A
+  → Layer A: DROP authenticated INSERT policy (domain producers survive if service_role GRANT INSERT remains)
+  → Layer B (if frozen): RPC + revoke service_role table INSERT (requires produce* RPC switch)
   → disposable no-send harness → negatives + regression
   → SHA freeze → founder prod auth → apply one
   → read-only postconditions (no drain invoke; no provider calls)
@@ -141,7 +205,8 @@ CONTRACT PASS → IMPLEMENT on dedicated branch
 **Hard edges**
 
 - Cut 2 must **not** call status-blind `is_group_member` / `get_user_group_ids` as its only producer gate.
-- Cut 2 must **not** apply, merge, or rewrite PR #70 `notification_policies` / `notification_policy_triggers` / `notification_policy_occurrences`.
+- Cut 2 must **not** apply, merge, or rewrite PR #69 foundation or PR #70 `notification_policies` / `notification_policy_triggers` / `notification_policy_occurrences`.
+- **C1 hard gate:** do not DROP `Authenticated users can queue notifications` / `REVOKE INSERT` from `authenticated` unless `sms-sender.ts` already writes via `service_role` or bounded DEFINER (same implementation commit is allowed; SQL-only first is **ABORT**).
 - Cut 2 must **not** add `processing` to `notification_queue_status` (would force drain rewrite + send-path risk). Browser non-claim is achieved by **REVOKE UPDATE** from `anon`/`authenticated` + **DROP** staff UPDATE policy.
 - Cut 2 must **not** retry or delete `status = 'failed'` rows.
 - Cut 2 must **not** drop queued rows for quiet hours. M2 may later `DEFER_UNTIL`; Cut 2 leaves rows `queued`.
@@ -194,14 +259,14 @@ Cron producers: `CRON_SECRET` Bearer → service_role client → `produce*`.
 
 | Call-site | Class | Client used for INSERT | Cut 2 fate |
 |-----------|-------|------------------------|------------|
-| `src/lib/notifications/sms-sender.ts` `queueNotification` | **TRUSTED SERVER** library with **LEGACY authenticated insert** | `createClient()` from `@/lib/supabase/server` = **cookie + anon key** (user JWT if present; **anon if cron**) | **REQUIRED COMPANION** on implementation branch: switch to service_role + `enqueue_outbound_notification`. Cron-without-cookies already fails WITH CHECK (`auth.uid()` NULL). |
+| `src/lib/notifications/sms-sender.ts` `queueNotification` | **TRUSTED SERVER** library with **LEGACY authenticated insert** | `createClient()` from `@/lib/supabase/server` = **cookie + anon key** (user JWT if present; **anon if cron**) | **C1 HARD GATE:** move to `service_role` or bounded DEFINER **before/with** INSERT policy drop. Payload is `template: "generic"` + free-form `data.message` + arbitrary `recipient` phone — **forge-adjacent** if left on authenticated. Cron-without-cookies already fails WITH CHECK (`auth.uid()` NULL). |
 | `src/app/api/whatsapp/send/route.ts` `queueWhatsAppMessage` | **BROWSER-INITIATED SERVER-AUTHORIZED** (JWT + `callerCanMessageTarget` / staff) overflow / retryable Meta failure | **service_role** direct INSERT; `template` from request body (`type` / `template` / `"generic"`) | Must call enqueue RPC; **template allowlist**; no arbitrary Meta template name |
 | `src/app/api/sms/send/route.ts` | **BROWSER-INITIATED SERVER-AUTHORIZED** (JWT + recipient guard) | Delegates to `sendSmsNotification` → sms-sender (legacy insert) | Companion with sms-sender |
 | `src/app/api/proxy-claim/send/route.ts` | **TRUSTED SERVER** | sms-sender fallback | Companion with sms-sender |
 | Cron SMS paths (`payment-reminders`, `event-reminders`, `hosting-reminders`, `subscription-reminders`, `send-scheduled-announcements`) | **SERVICE/CRON** | sms-sender fallback (cookie client → **anon** on cron) | Companion; cron fallback must use service_role + RPC |
 | `src/lib/announcement-producer.ts` | **DORMANT** | would use injected client | Do not wire |
 
-**No** `*.tsx` client file calls `.from("notifications_queue")` on this tip. The forge is **policy + GRANT**, not a current UI insert.
+**No** `*.tsx` / UI `.from("notifications_queue").insert` call-sites on this tip (**C3**). The live forge is **PostgREST RLS** (`Authenticated users can queue notifications` + `GRANT INSERT` to `authenticated`) **plus** the **sms-sender session path** (**C1**). Not a dashboard insert button.
 
 ### 5.3 Workers (mutate, not produce)
 
@@ -236,11 +301,12 @@ Drain retries: increment `attempts` while `status` stays `queued` until `attempt
 
 ### 6.1 Producer model (frozen)
 
-1. **Trusted server only.** Ordinary `authenticated` / `anon` **direct table INSERT is revoked**.
-2. The only INSERT path is `public.enqueue_outbound_notification(...)` `SECURITY DEFINER` `SET search_path TO ''`, `REVOKE` from `PUBLIC` / `anon` / `authenticated`, `GRANT EXECUTE` to **`service_role` only**.
-3. `service_role` **table INSERT is also revoked** so a compromised or sloppy service client cannot forge arbitrary rows without the RPC allowlist.
-4. Browser-initiated routes remain allowed **only** as they exist today (JWT + tenant/role checks) **and** only if they enqueue via service_role → RPC. Cut 2 SQL does not add new browser enqueue grants.
-5. Cut 2 SQL does **not** send, drain, or retry.
+1. **Trusted server only.** Ordinary `authenticated` / `anon` **direct table INSERT is revoked** (Layer A).
+2. **C1:** `sms-sender.ts` MUST write via `service_role` or bounded `SECURITY DEFINER` **before or with** Layer A. Leaving free-form `message` + arbitrary phone on the authenticated path is **forge-adjacent** and forbidden.
+3. **C2:** Canonical `produce*` modules called with route-constructed **service_role** clients **survive Layer A** (policy drop) **iff** `GRANT INSERT` to `service_role` remains. Do not treat policy drop as breaking payment/welcome/etc.
+4. **Layer B (stricter, same Cut 2 object list):** the only INSERT path becomes `public.enqueue_outbound_notification(...)` `SECURITY DEFINER` `SET search_path TO ''`, `REVOKE` from `PUBLIC` / `anon` / `authenticated`, `GRANT EXECUTE` to **`service_role` only**, and `service_role` **table INSERT is revoked**. Layer B **does not survive** while producers still `.insert()` — ship RPC switch in the same implementation PR, or do not revoke `service_role` INSERT until they have.
+5. Browser-initiated routes remain allowed **only** as they exist today (JWT + tenant/role checks) and enqueue via service_role (Layer A) or service_role → RPC (Layer B). Cut 2 SQL does not add new browser enqueue grants.
+6. Cut 2 SQL does **not** send, drain, or retry.
 
 ### 6.2 Tenant / recipient / template / payload authority
 
@@ -294,7 +360,9 @@ Failed row = unique key occupied → producer already skips; RPC returns `duplic
 3. Table missing; or a `group_id` column **already exists** (unexpected — ABORT, do not invent a dual contract).
 4. Enum already contains `processing` (unexpected drift).
 5. Expected unique index names from §7.6 missing (ABORT; do not silently skip).
-6. `to_regclass('public.notification_policies')` IS NOT NULL — PR #70 leaked; **ABORT** (Cut 2 must not share a migration with #70).
+6. `to_regclass('public.notification_policies')` IS NOT NULL — PR #70 leaked; **ABORT** (Cut 2 must not share a migration with #69/#70).
+7. **C1:** `sms-sender.ts` on the implementation tip still imports `@/lib/supabase/server` `createClient` for `notifications_queue` INSERT → **`CUT2_ABORT`** (must move before/with policy drop).
+8. Live Cut 1 version is not `20260911183755` / migration count unexpected vs Chief **29** → **ABORT** (do not guess; re-read-only confirm).
 
 ### 6.7 Postconditions
 
@@ -416,7 +484,7 @@ Cut 1 functions/policies. Storage. F0/F3. PR #70 tables. `00106`/`00107`. `annou
 | Authenticated TRUNCATE | **ALLOW** (RLS bypass) | **DENY** |
 | Platform staff JWT UPDATE queue | **ALLOW** | **DENY** |
 | Platform staff JWT SELECT | ALLOW | ALLOW (unchanged) |
-| service_role table INSERT | ALLOW (bypass RLS) | **DENY**; must RPC |
+| service_role table INSERT | ALLOW (bypass RLS) | **Layer A: still ALLOW** (C2 — domain producers survive). **Layer B: DENY**; must RPC |
 | service_role RPC allowlisted enqueue | n/a | **ALLOW** → `queued` |
 | service_role RPC unknown template / no tenant key | n/a | **DENY** |
 | service_role drain UPDATE queued → sent/failed | ALLOW | ALLOW |
@@ -497,7 +565,7 @@ If implementation broadens F3 or Cut 1 → **HOLD**.
 | Vercel drain | service_role UPDATE only; `CRON_SECRET` |
 | Meta webhook | service_role UPDATE `data` |
 | Browser producer routes | JWT authorize → service_role → RPC |
-| sms-sender | **must** stop using cookie client; service_role → RPC or skip |
+| sms-sender | **C1 MUST** leave cookie/anon client **before/with** Layer A; service_role or bounded DEFINER (Layer B: RPC or skip). Free-form message + arbitrary phone must not stay on authenticated |
 | `/api/whatsapp/send` overflow | service_role → RPC; allowlist only (no `generic`) |
 | Supabase Realtime / client SDK | no INSERT |
 
@@ -524,7 +592,7 @@ Execute on **disposable** Postgres + mocked service_role. **No** Meta / AT / Res
 | A3 | `anon` | INSERT | **DENY** |
 | A4 | `authenticated` staff | UPDATE `queued`→`sent` | **DENY** |
 | A5 | `authenticated` | `TRUNCATE notifications_queue` | **DENY** |
-| A6 | `service_role` | table INSERT | **DENY** |
+| A6 | `service_role` | table INSERT | **ALLOW** after Layer A only (C2); **DENY** after Layer B |
 | A7 | `service_role` | `enqueue_outbound_notification` allowlisted `payment_receipt` + keys | **inserted** `queued` |
 | A8 | `service_role` | RPC unknown template `generic` | **denied** |
 | A9 | `service_role` | RPC missing `groupId` on `welcome` | **denied** |
@@ -552,7 +620,7 @@ Execute on **disposable** Postgres + mocked service_role. **No** Meta / AT / Res
 | R4 | Drain still requires `CRON_SECRET`; still skips non-African SMS **in code** |
 | R5 | Staff SELECT policies both present |
 | R6 | Announcement producer still unwired (`produceAnnouncementDeliveries` import count = 0) |
-| R7 | PR #70 relations still absent (`to_regclass` NULL) |
+| R7 | PR #69/#70 unapplied; `to_regclass('public.notification_policies')` NULL |
 | R8 | `00114` file hash unchanged |
 | R9 | No new cron that selects `failed` |
 | R10 | `isAfricanPhoneNumber` still imported in drain `processSms` |
@@ -586,7 +654,7 @@ Rehearsal does **not** precede implementation. This planning PR is docs only.
 6. No index rebuild.
 7. `SET search_path TO ''` on new DEFINER functions; bodies `public.`-qualified.
 8. Do not `GRANT` enqueue to `authenticated`.
-9. Companion app changes **required on the implementation branch** (not this PR): sms-sender, `/api/whatsapp/send` overflow, any leftover `.insert()` on the table from service_role producers (switch to RPC).
+9. Companion app (implementation branch only, not this PR): **C1 first** — `sms-sender.ts` off cookie/anon INSERT (service_role or bounded DEFINER) **before/with** Layer A. Layer B also requires `/api/whatsapp/send` overflow + every leftover service_role `.insert()` to use the enqueue RPC. Layer A alone does **not** require rewriting canonical `produce*` inserts (**C2**).
 10. Do not edit `package.json` dependencies for Cut 2.
 
 ---
@@ -596,7 +664,8 @@ Rehearsal does **not** precede implementation. This planning PR is docs only.
 | Failure | Recovery |
 |---------|----------|
 | Migration ABORT mid-transaction | nothing committed |
-| Applied then producers still `.insert()` | service_role INSERT denied → queue dry; **roll forward** companion RPC (do not re-open authenticated INSERT) |
+| Applied Layer A before C1 sms-sender move | session SMS fallback queueing **dead**; **ABORT / roll forward C1** — do not re-open authenticated INSERT |
+| Applied Layer B while producers still `.insert()` | service_role table INSERT denied → canonical queue dry; **roll forward RPC** (do not re-open authenticated INSERT; **C2** says Layer A alone would have survived) |
 | Unique index unexpected duplicate at apply | ABORT (precondition); founder decides; **no** silent DELETE |
 | Need to undo prod apply | **PITR / restore**, not a down-migration that re-creates the forge |
 | Drain cannot INSERT | expected; drain must not INSERT |
@@ -620,18 +689,20 @@ A Daybreak PASS on **this** PR does **not** authorize Cut 3 planning or implemen
 
 ---
 
-## 20. PR #70 SEPARATION + M2 / F3-06
+## 20. PR #69 / #70 SEPARATION + M2 / F3-06
 
-### PR #70 (CREATE-NOT-APPLY)
+### PR #69 and PR #70 (both OPEN DRAFT — untouched / unapplied)
 
-| Item | Rule |
-|------|------|
-| Branch / SHA | `security/notification-policy-schema-20260910` / `0f258726c9328ee0204f7b5dee9efceebe7265b9` |
-| Objects | `notification_policies`, `notification_policy_triggers`, `notification_policy_occurrences` — **DORMANT**, unapplied |
-| Cut 2 | **must not** merge, rebase onto, or apply #70 |
-| Cut 2 enqueue allowlist | **static** template names, not policy-table driven |
-| `to_regclass('public.notification_policies')` | must remain NULL after Cut 2 apply |
-| Requalification | after S0 P0 cuts, **separate** PR |
+| Item | PR #69 | PR #70 |
+|------|--------|--------|
+| State | **OPEN DRAFT** | **OPEN DRAFT** CREATE-NOT-APPLY |
+| Head | `a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7` | `0f258726c9328ee0204f7b5dee9efceebe7265b9` |
+| Branch | `product-consistency/notification-policy-foundation-v2-20260910` | `security/notification-policy-schema-20260910` |
+| What it is | Pure policy foundation (`notification-policy.ts` + tests) | Unapplied `notification_policies` / triggers / occurrences schema |
+| Cut 2 | **must not** merge, rebase onto, or apply | **must not** merge, rebase onto, or apply |
+| Cut 2 enqueue allowlist | **static** template names — not #69 module, not #70 tables | same |
+| `to_regclass('public.notification_policies')` | n/a (no table) | must remain **NULL** after Cut 2 apply |
+| Requalification | after S0 P0 cuts, **separate** | after S0 P0 cuts, **separate** |
 
 ### M2 / F3-06
 
@@ -658,26 +729,29 @@ Daybreak PASS authorizes **IMPLEMENTATION ON A DEDICATED BRANCH only**, **NOT** 
 | Exact CREATE/REPLACE/REWRITE/REVOKE names | PASS — §7 |
 | Producer-by-producer matrix (incl. announcement DORMANT) | PASS — §9 |
 | Acceptance + no-send harness + disposable + forward-only after 00114 | PASS — §14–§17 |
-| PR #70 SEPARATION; Cut 3 SEPARATION | PASS — §19–§20 |
-| Cut 1 untouched | PASS |
+| PR #69 / #70 SEPARATION; Cut 3 SEPARATION | PASS — §19–§20 |
+| Cut 1 untouched; live migrations **29** / version `20260911183755` recorded | PASS |
+| C1 sms-sender before/with INSERT revoke | PASS (hard gate named; not implemented here) |
+| C2 domain producers survive policy drop iff service_role GRANT INSERT remains | PASS |
+| C3 zero UI inserts; forge = PostgREST RLS + sms-sender session | PASS |
 | No migration SQL / no app code / no prod apply in this PR | PASS |
-| Companion sms-sender / RPC switch named for **later** implementation branch | PASS (not a HOLD) |
 | F3 | **SAFER OR UNCHANGED** |
 
-**HOLD if** Daybreak finds an additional **wired** INSERT call-site not in §5, or demands `processing` enum / PR #70 apply / failed-row retry / quiet-hours drop / Cut 1 edit / production drain.
+**HOLD if** Daybreak finds an additional **wired** INSERT call-site not in §5, or demands `processing` enum / PR #69/#70 apply / failed-row retry / quiet-hours drop / Cut 1 edit / production drain / SQL-only policy drop while sms-sender still uses `@/lib/supabase/server`.
 
 ### 21.1 HOLD blockers (this freeze)
 
 | ID | Blocker | Disposition |
 |----|---------|-------------|
 | H1 | Additional live INSERT site not in §5 | **NONE found** on tip `1693b806`. New site → HOLD |
-| H2 | Need live re-query of grants/indexes | **Not required** — Chief inventory + repo; do not invent |
-| H3 | sms-sender cookie INSERT breaks after REVOKE | **Named companion** — not HOLD if implementation ships SQL+app together |
-| H4 | `generic` SMS overflow | **DENY** at RPC; companion must not enqueue generic |
+| H2 | Need live re-query of grants/indexes | **Not required** — Chief inventory + C4 (migrations 29, Cut 1 version, INSERT policy, grants, no `group_id`, enum) |
+| H3 | sms-sender cookie INSERT vs policy drop | **HARD GATE (C1)** — implementation ABORT if policy dropped first. Not an open Daybreak HOLD on this docs PR |
+| H4 | `generic` + free-form message/phone on authenticated path | **Forge-adjacent** — must leave authenticated path (C1); Layer B DENY `generic` |
 | H5 | Concurrent drain without claim | **OUT OF SCOPE** (P1); HOLD only if reviewer makes it Cut 2-mandatory |
 | H6 | 00097 index apply-time vs S0-A log | Chief inventory **names** hosting/event/subscription unique indexes as live. Do not invent log row. Missing index at apply → `CUT2_ABORT` |
+| H7 | Layer B revoke service_role INSERT while `produce*` still `.insert()` | **ABORT** — violates C2 survival condition; ship RPC in same PR or keep service_role GRANT INSERT |
 
-**Open HOLD count for Daybreak: 0** (contract complete). Implementation remains unauthorized.
+**Open HOLD count for Daybreak: 0** (contract complete, including C1–C5). Implementation remains unauthorized.
 
 ---
 
@@ -686,7 +760,7 @@ Daybreak PASS authorizes **IMPLEMENTATION ON A DEDICATED BRANCH only**, **NOT** 
 - No application/runtime product code in **this** PR.
 - No Cut 2 migration SQL file in **this** PR.
 - No production SQL / MCP write / dashboard apply.
-- No merge or apply of PR #70 / #71.
+- No merge or apply of PR #69 / #70 / #71.
 - No Cut 3 / M2 / F3-06 start.
 - No WhatsApp / SMS / email / push send.
 - No drain invoke against production.
@@ -709,7 +783,9 @@ Stop and HOLD (do not improvise) if:
 1. Pressure to implement Cut 2 / author `00115` / apply to `llbnliixczcqfftxpsmb` from this planning branch.
 2. Request to send a “test” WhatsApp/SMS/email or drain production.
 3. Request to retry failed queue rows.
-4. Request to merge/apply PR #70 or #71, or start Cut 3 / M2 / F3-06.
+4. Request to merge/apply PR #69, #70, or #71, or start Cut 3 / M2 / F3-06.
+11. Request to DROP the INSERT policy / `REVOKE INSERT` from `authenticated` while `sms-sender.ts` still uses `@/lib/supabase/server` `createClient` for queue INSERT (C1).
+12. Request to `REVOKE INSERT` from `service_role` while canonical `produce*` still `.insert()` without RPC (C2 / Layer B).
 5. Request to edit Cut 1 / `00114`.
 6. Live rehearsal discovers an extra INSERT call-site — **add it to §5**, do not drop ad hoc.
 7. Request to re-open `auth.uid() IS NOT NULL` INSERT “temporarily.”

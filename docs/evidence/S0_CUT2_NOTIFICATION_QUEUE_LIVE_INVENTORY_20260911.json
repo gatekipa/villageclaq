@@ -16,8 +16,23 @@
       "do_not_modify": true
     },
     "supabase_project": "llbnliixczcqfftxpsmb",
+    "pr_69_head_sha": "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+    "pr_69_state": "OPEN DRAFT; must stay untouched/unapplied",
     "pr_70_head_sha": "0f258726c9328ee0204f7b5dee9efceebe7265b9",
-    "pr_70_state": "CREATE-NOT-APPLY; do not merge or apply"
+    "pr_70_state": "OPEN DRAFT CREATE-NOT-APPLY; must stay untouched/unapplied"
+  },
+  "live_prod_confirmation_chief_20260911_addendum": {
+    "project": "llbnliixczcqfftxpsmb",
+    "schema_migrations_count": 29,
+    "cut1_version": "20260911183755",
+    "cut1_name": "s0_p0a_cut1_active_authorization",
+    "insert_policy_name": "Authenticated users can queue notifications",
+    "insert_policy_with_check": "auth.uid() IS NOT NULL",
+    "grants_insert": ["anon", "authenticated", "service_role"],
+    "group_id_column": false,
+    "status_enum": ["queued", "sent", "failed"],
+    "status_enum_processing": false,
+    "note": "Chief-confirmed live facts folded 2026-09-11. This addendum does not invent extra catalog rows."
   },
   "live_production_inventory_chief_verbatim": {
     "source": "Chief-verified live inventory 2026-09-11 — copied verbatim; this task did not re-query production",
@@ -125,7 +140,12 @@
       "authenticated_direct_insert": "YES (only auth.uid() IS NOT NULL)",
       "anon_effective_insert": "NO (WITH CHECK fails) but GRANT INSERT still present",
       "arbitrary_template_channel_data": "YES",
-      "group_id_column_on_table": false
+      "group_id_column_on_table": false,
+      "ui_from_notifications_queue_insert": 0,
+      "forge_surfaces": [
+        "PostgREST RLS policy Authenticated users can queue notifications + GRANT INSERT authenticated",
+        "sms-sender.ts cookie session + anon key path (depends on that policy)"
+      ]
     },
     "idempotency_indexes_named_by_chief": [
       "payment_receipt",
@@ -157,6 +177,29 @@
     "sql_insert_into_notifications_queue_in_migrations": false,
     "supabase_edge_functions_dir": "absent",
     "client_tsx_from_notifications_queue": false,
+    "ui_from_notifications_queue_insert_call_sites": 0,
+    "forge_is": "PostgREST RLS + sms-sender session path; not a UI insert button",
+    "sms_sender_critical_compatibility": {
+      "file": "src/lib/notifications/sms-sender.ts",
+      "function": "queueNotification",
+      "client": "createClient() from @/lib/supabase/server (cookie session + NEXT_PUBLIC_SUPABASE_ANON_KEY)",
+      "depends_on_live_policy": "Authenticated users can queue notifications WITH CHECK (auth.uid() IS NOT NULL)",
+      "when": "AFRICASTALKING_API_KEY missing or AT SDK throws",
+      "insert_shape": {
+        "channel": "sms",
+        "template": "generic",
+        "data": "recipient + free-form message (arbitrary phone + arbitrary body)",
+        "status": "queued"
+      },
+      "forge_adjacent_risk": "HIGH if left on authenticated path — free-form message + arbitrary phone in data jsonb",
+      "cut2_hard_gate": "MUST move to service_role or bounded SECURITY DEFINER before/with INSERT policy drop / REVOKE authenticated INSERT. SQL-only first = CUT2_ABORT."
+    },
+    "canonical_producers_survive_insert_policy_drop": {
+      "condition": "GRANT INSERT to service_role remains",
+      "reason": "API/cron routes construct service_role clients and pass them into produce*; service_role bypasses RLS",
+      "layer_a": "DROP authenticated INSERT policy — producers survive",
+      "layer_b": "REVOKE INSERT from service_role — producers break until RPC switch"
+    },
     "s0a_20260910_queue_note": {
       "source": "docs/S0_A_PRODUCTION_TRUTH_SNAPSHOT_20260910.md on PR #72 SHA 97388b34037589a21eae66e3a5a1668f71e3bb55",
       "insert_policy": "Authenticated users can queue notifications WITH CHECK (auth.uid() IS NOT NULL) — CONFIRMED P0",
@@ -354,6 +397,9 @@
         "class": "TRUSTED SERVER with LEGACY authenticated insert",
         "insert_client": "createClient() from @/lib/supabase/server (cookie + NEXT_PUBLIC_SUPABASE_ANON_KEY)",
         "template_written": "generic",
+        "payload": "free-form data.message + arbitrary recipient phone",
+        "depends_on_policy": "Authenticated users can queue notifications / auth.uid() IS NOT NULL",
+        "cut2_hard_gate_c1": "MUST move to service_role or bounded DEFINER before/with INSERT revoke",
         "cut2_companion_required": true
       },
       {
@@ -421,7 +467,7 @@
     "REVOKE": [
       "ALL ON public.notifications_queue FROM anon",
       "INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM authenticated",
-      "INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM service_role",
+      "LAYER_B_ONLY: INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM service_role — do not apply while produce* still .insert() (C2)",
       "ALL ON enqueue_outbound_notification FROM PUBLIC, anon, authenticated"
     ],
     "GRANT": [
@@ -436,9 +482,13 @@
       "notification_channel enum",
       "notification_queue_status enum (no processing)",
       "Cut 1 objects / 00114",
-      "PR #70 tables (remain absent)"
+      "PR #69 / #70 (remain OPEN DRAFT unapplied)"
     ],
-    "migration_filename_later_not_in_this_pr": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql"
+    "migration_filename_later_not_in_this_pr": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
+    "layer_a_vs_layer_b": {
+      "layer_a_closes_forge": "DROP Authenticated users can queue notifications; REVOKE INSERT from anon+authenticated. Canonical produce* survive IFF service_role GRANT INSERT remains. sms-sender MUST already be moved (C1).",
+      "layer_b_rpc_lock": "Also REVOKE INSERT from service_role; enqueue RPC only. Requires produce* + whatsapp/send switch in same implementation PR."
+    }
   },
   "hold_blockers": {
     "open_count": 0,
@@ -446,12 +496,12 @@
       {
         "id": "H1",
         "status": "CLOSED",
-        "detail": "No additional named INSERT call-site beyond inventory on tip 1693b806"
+        "detail": "No additional named INSERT call-site beyond inventory on tip 1693b806; zero UI .insert sites"
       },
       {
         "id": "H3",
-        "status": "NAMED_COMPANION_NOT_HOLD",
-        "detail": "sms-sender.ts cookie/anon insert must switch to service_role+RPC on implementation branch"
+        "status": "HARD_GATE_C1_NOT_OPEN_HOLD",
+        "detail": "sms-sender.ts cookie/anon insert MUST move to service_role or bounded DEFINER before/with INSERT policy drop. SQL-only first = CUT2_ABORT. Free-form message + arbitrary phone is forge-adjacent on authenticated path."
       },
       {
         "id": "H5",
@@ -462,11 +512,17 @@
         "id": "H6",
         "status": "FAIL_CLOSED_AT_APPLY",
         "detail": "Missing expected unique index at implementation apply → CUT2_ABORT; do not invent 00097 apply time"
+      },
+      {
+        "id": "H7",
+        "status": "LAYER_B_ABORT_IF_PRODUCERS_STILL_INSERT",
+        "detail": "REVOKE service_role INSERT while produce* still .insert() violates C2 survival; keep grant or ship RPC together"
       }
     ]
   },
   "separations": {
-    "pr_70": "CREATE-NOT-APPLY; do not merge or apply",
+    "pr_69": "OPEN DRAFT a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7; do not merge or apply",
+    "pr_70": "OPEN DRAFT CREATE-NOT-APPLY 0f258726c9328ee0204f7b5dee9efceebe7265b9; do not merge or apply",
     "cut_3": "storage P0-C not started",
     "m2_f3_06": "not started",
     "cut_1": "CLOSED production 20260911183755; do not modify"

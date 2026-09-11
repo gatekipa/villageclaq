@@ -37,7 +37,21 @@
     "group_id_column": false,
     "status_enum": ["queued", "sent", "failed"],
     "status_enum_processing": false,
-    "note": "Chief-confirmed live facts folded 2026-09-11. This addendum does not invent extra catalog rows."
+    "note": "Chief-confirmed live facts folded 2026-09-11. This addendum does not invent extra catalog rows.",
+    "tenant_columns_readonly_mcp_sr1_followup": {
+      "payment_obligations_regclass": null,
+      "contribution_obligations_regclass": "public.contribution_obligations",
+      "hosting_assignments_group_id": false,
+      "hosting_assignments_roster_id": true,
+      "hosting_assignments_event_id": "nullable",
+      "relief_enrollments_collecting_group_id": "nullable_not_authz",
+      "relief_remittances_group_id": false,
+      "relief_remittances_hq_group_id": false,
+      "relief_remittances_branch_group_id": true,
+      "group_subscriptions_group_id": true,
+      "memberships_membership_status": true,
+      "proxy_claim_tokens": true
+    }
   },
   "live_production_inventory_chief_verbatim": {
     "source": "Chief-verified live inventory 2026-09-11 — copied verbatim; this task did not re-query production",
@@ -537,7 +551,16 @@
     "whatsapp_disposition": "CLOSE /api/whatsapp/send ALL THREE branches (typed + direct Meta template+components + text) → 410 including overflow INSERT",
     "proxy_disposition": "Keep authz; enqueue proxy_claim via RPC; derive phone from membership; ignore request-body phone",
     "dual_compat_fallback_error_codes": ["42883", "PGRST202"],
-    "release_order": "app first then 00115"
+    "release_order": "app first then 00115",
+    "chief_interim_evidence_20260911": {
+      "sms_send_generic": "FAIL — REMOVE or domain-bound {notification_type, domain_object_id} only",
+      "whatsapp_send": "CLOSE typed + direct Meta + text + overflow; raw Meta after Cut 2 = drain only",
+      "proxy_claim": "ACTIVE membership (Cut 1) + proxy_claim_tokens; no caller contact authority",
+      "sms_sender_chain": "send-sms-notification.ts → sms-sender.ts sendSMS({to,message}); private transport after Layer B",
+      "obligation_table": "contribution_obligations — payment_obligations ABSENT live",
+      "subscription_scope": "GROUP_SCOPED group_subscriptions.group_id",
+      "data_groupId": "never authorization source"
+    }
   },
   "hold_blockers": {
     "open_count": 0,

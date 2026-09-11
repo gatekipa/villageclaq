@@ -32,6 +32,89 @@
     "user_id"
   ],
   "queue_template_column_note": "Live unique indexes predicate on notifications_queue.template (not a notification_type column). RPC writes template = p_notification_type (underscore form).",
+  "data_groupId_never_authorization": true,
+  "payment_obligations_table": "ABSENT_LIVE_AND_REPO — reminder domain is contribution_obligations",
+  "subscription_expiring_scope": "GROUP_SCOPED — group_subscriptions.group_id; not a platform-user table",
+  "live_prod_tenant_chains_readonly_mcp": {
+    "project": "llbnliixczcqfftxpsmb",
+    "date": "2026-09-11",
+    "mutation": "NONE",
+    "confirmed_group_id_not_null": [
+      "payments.group_id",
+      "fines.group_id",
+      "loans.group_id",
+      "invitations.group_id",
+      "memberships.group_id",
+      "announcements.group_id",
+      "events.group_id",
+      "hosting_rosters.group_id",
+      "relief_plans.group_id",
+      "group_subscriptions.group_id",
+      "contribution_obligations.group_id",
+      "meeting_minutes.group_id",
+      "elections.group_id"
+    ],
+    "confirmed_hop_tenants": {
+      "relief_remittances": "branch_group_id NOT NULL; no group_id; no hq_group_id; relief_plan_id content-only",
+      "relief_claims": "plan_id → relief_plans.group_id",
+      "relief_enrollments": "plan_id → relief_plans.group_id; collecting_group_id nullable NOT authz",
+      "hosting_assignments": "NO group_id; roster_id NOT NULL → hosting_rosters.group_id (authoritative); event_id nullable → events.group_id (consistency check only)"
+    },
+    "absent_tables": ["public.payment_obligations"],
+    "proxy_claim_tokens": "live; membership_id NOT NULL; email/phone nullable — Cut 2 writes these from DB-derived membership contact only"
+  },
+  "sms_semantic_renderers": {
+    "file": "src/lib/notifications/sms-templates.ts",
+    "switch_file": "src/lib/send-sms-notification.ts",
+    "no_raw_browser_message": true,
+    "functions": [
+      "paymentReminderSms",
+      "eventReminderSms",
+      "paymentReceiptSms",
+      "welcomeSms",
+      "minutesPublishedSms",
+      "hostingReminderSms",
+      "standingChangedSms",
+      "hostingAssignmentSms",
+      "reliefEnrollmentSms",
+      "remittanceStatusSms",
+      "subscriptionExpiringSms",
+      "reliefClaimApprovedSms",
+      "reliefClaimDeniedSms",
+      "announcementSms",
+      "loanApprovedSms",
+      "fineIssuedSms",
+      "proxyClaimSms"
+    ],
+    "dormant_not_allowlisted": ["paymentPendingSms", "payment-pending"],
+    "cut2_must_add_server_render": ["member_invitation", "loan_overdue", "election_opened"]
+  },
+  "wa_templates_repo": {
+    "file": "src/lib/whatsapp-templates.ts",
+    "allowlisted_meta_names": [
+      "villageclaq_payment_receipt_v2",
+      "villageclaq_payment_reminder_v2",
+      "villageclaq_event_reminder",
+      "villageclaq_hosting_reminder",
+      "villageclaq_minutes_published",
+      "villageclaq_relief_claim_approved",
+      "villageclaq_relief_claim_denied",
+      "villageclaq_announcement_v2",
+      "villageclaq_election_opened",
+      "villageclaq_member_invitation_notice",
+      "villageclaq_loan_approved",
+      "villageclaq_loan_overdue",
+      "villageclaq_fine_issued",
+      "villageclaq_standing_changed",
+      "villageclaq_member_joined",
+      "villageclaq_plan_enrollment_confirmed",
+      "villageclaq_remittance_confirmed",
+      "villageclaq_remittance_disputed",
+      "villageclaq_account_access_notice",
+      "villageclaq_proxy_claim"
+    ],
+    "not_allowlisted": ["villageclaq_invitation"]
+  },
   "matrix": [
     {
       "notification_type": "payment_receipt",
@@ -69,7 +152,7 @@
       "domain_pk": "contribution_obligations.id",
       "p_domain_object_id": "contribution_obligations.id",
       "tenant_derivation": "contribution_obligations.group_id",
-      "tenant_proven_by": "supabase/migrations/00001_initial_schema.sql contribution_obligations.group_id NOT NULL",
+      "tenant_proven_by": "LIVE MCP + 00001: contribution_obligations.group_id NOT NULL. public.payment_obligations ABSENT (to_regclass NULL).",
       "recipient_derivation": "contribution_obligations.membership_id → memberships; skip proxy / null user_id; phone via proxy || memberships.phone || profiles.phone || auth.users.phone",
       "fan_out": false,
       "p_recipient_membership_id_required": false,
@@ -149,7 +232,7 @@
       "domain_pk": "relief_enrollments.id",
       "p_domain_object_id": "relief_enrollments.id",
       "tenant_derivation": "relief_enrollments.plan_id → relief_plans.group_id",
-      "tenant_proven_by": "supabase/migrations/00004_relief.sql relief_enrollments.plan_id REFERENCES relief_plans(id); relief_plans.group_id NOT NULL",
+      "tenant_proven_by": "LIVE MCP: relief_enrollments.plan_id NOT NULL; collecting_group_id nullable NOT authz. Producer asserts memberships.group_id = plan.group_id.",
       "recipient_derivation": "relief_enrollments.membership_id → memberships; phone via proxy || memberships.phone || profiles.phone || auth.users.phone",
       "fan_out": false,
       "p_recipient_membership_id_required": false,
@@ -230,7 +313,7 @@
       "domain_pk": "relief_remittances.id",
       "p_domain_object_id": "relief_remittances.id",
       "tenant_derivation": "relief_remittances.branch_group_id (NOT group_id — column does not exist on this table)",
-      "tenant_proven_by": "supabase/migrations/00032_diaspora_remittances.sql relief_remittances.branch_group_id NOT NULL REFERENCES groups(id); HQ via hq_group_id",
+      "tenant_proven_by": "LIVE MCP: branch_group_id NOT NULL; no group_id; no hq_group_id. relief_plan_id content-only. Producer fans out on branch_group_id.",
       "recipient_derivation": "FAN-OUT: active memberships role IN (owner, admin) on branch_group_id; phone via profiles.phone || memberships.phone || auth.users.phone (producer has no proxy_phone path). RPC SHOULD include proxy_phone for consistency.",
       "fan_out": true,
       "p_recipient_membership_id_required": true,
@@ -258,7 +341,7 @@
       "domain_pk": "relief_remittances.id",
       "p_domain_object_id": "relief_remittances.id",
       "tenant_derivation": "relief_remittances.branch_group_id",
-      "tenant_proven_by": "supabase/migrations/00032_diaspora_remittances.sql",
+      "tenant_proven_by": "LIVE MCP: same as remittance_confirmed — branch_group_id only; no group_id; no hq_group_id",
       "recipient_derivation": "FAN-OUT same as remittance_confirmed",
       "fan_out": true,
       "p_recipient_membership_id_required": true,
@@ -284,8 +367,8 @@
       "domain_table": "public.hosting_assignments",
       "domain_pk": "hosting_assignments.id",
       "p_domain_object_id": "hosting_assignments.id",
-      "tenant_derivation": "hosting_assignments.roster_id → hosting_rosters.group_id",
-      "tenant_proven_by": "supabase/migrations/00003_events_operations_tables.sql hosting_assignments.roster_id REFERENCES hosting_rosters(id); hosting_rosters.group_id NOT NULL",
+      "tenant_derivation": "hosting_assignments.roster_id → hosting_rosters.group_id (authoritative). Alternate: nullable event_id → events.group_id (must match roster tenant if set).",
+      "tenant_proven_by": "LIVE MCP: hosting_assignments has NO group_id; roster_id NOT NULL; event_id nullable. Producer uses roster only.",
       "recipient_derivation": "hosting_assignments.membership_id → memberships; phone via proxy || memberships.phone || profiles.phone || auth.users.phone",
       "fan_out": false,
       "p_recipient_membership_id_required": false,
@@ -310,8 +393,8 @@
       "domain_table": "public.hosting_assignments",
       "domain_pk": "hosting_assignments.id",
       "p_domain_object_id": "hosting_assignments.id",
-      "tenant_derivation": "hosting_assignments.roster_id → hosting_rosters.group_id",
-      "tenant_proven_by": "supabase/migrations/00003_events_operations_tables.sql",
+      "tenant_derivation": "hosting_assignments.roster_id → hosting_rosters.group_id (authoritative). Alternate: nullable event_id → events.group_id (must match roster tenant if set).",
+      "tenant_proven_by": "LIVE MCP: hosting_assignments has NO group_id; roster_id NOT NULL; event_id nullable.",
       "recipient_derivation": "hosting_assignments.membership_id → memberships; phone via proxy || memberships.phone || profiles.phone || auth.users.phone",
       "fan_out": false,
       "p_recipient_membership_id_required": false,
@@ -470,7 +553,7 @@
       "domain_pk": "group_subscriptions.id",
       "p_domain_object_id": "group_subscriptions.id",
       "tenant_derivation": "group_subscriptions.group_id — GROUP-SCOPED tenant row, NOT a platform-user object",
-      "tenant_proven_by": "supabase/migrations/00050_stripe_billing.sql CREATE TABLE group_subscriptions (group_id UUID NOT NULL UNIQUE REFERENCES groups(id))",
+      "tenant_proven_by": "LIVE MCP group_subscriptions.group_id NOT NULL. Producer src/lib/subscription-expiring-producer.ts L136-169 reads only id, group_id, status, current_period_end. Recipients = that group's active owner/admins.",
       "recipient_derivation": "FAN-OUT: active memberships role IN (owner, admin) on group_subscriptions.group_id; phone via profiles.phone || memberships.phone || auth.users.phone (producer has no proxy_phone). RPC SHOULD include proxy_phone.",
       "fan_out": true,
       "p_recipient_membership_id_required": true,
@@ -599,7 +682,7 @@
       "live_callers": [
         "src/app/[locale]/(dashboard)/dashboard/members/page.tsx → POST /api/proxy-claim/send"
       ],
-      "notes": "Today sends AT + Meta using request-body phone (and request-body email for Resend). Cut 2: close direct send; enqueue via RPC; derive contact from DB. Request phone ≠ DB phone → enqueue uses DB or denied (A20)."
+      "notes": "Today sends AT + Meta using request-body phone (and request-body email for Resend); generateClaimToken writes proxy_claim_tokens.email/phone from caller fields; does NOT check membership_status. Cut 2: ACTIVE membership (Cut 1) + is_proxy + user_id NULL; enqueue via RPC; derive contact from DB; token contacts from DB only. Request phone ≠ DB phone → enqueue uses DB or denied (A20). Inactive membership → denied (A21)."
     },
     {
       "notification_type": "hosting_swap",
@@ -673,12 +756,21 @@
     "idx_notifications_queue_whatsapp_hosting_swap_unique + sms/email twins"
   ],
   "relay_dispositions": {
-    "POST /api/sms/send": "CLOSE → 410. No AT, no queue, no UUID→phone send.",
-    "POST /api/whatsapp/send typed": "CLOSE → 410 including overflow INSERT.",
+    "POST /api/sms/send": "Daybreak FAIL as generic {to,template,data}. Preferred REMOVE → 410. Only alternative: domain-bound {notification_type, domain_object_id} — no phone/template/free-form data. Direct callers: notify-client.ts, calculate-standing.ts, my-invitations/page.tsx, contributions/record/page.tsx.",
+    "POST /api/whatsapp/send typed": "CLOSE → 410 including overflow INSERT. Callers: notify-client + announcements/minutes/elections/hosting/relief/loans/fines pages.",
     "POST /api/whatsapp/send direct Meta {template,components}": "CLOSE → 410. Capability OPEN today with zero live callers — still a forge.",
     "POST /api/whatsapp/send {text}": "CLOSE → 410. Capability OPEN today with zero live callers — still a forge.",
-    "sms-sender.ts queueNotification": "No queue INSERT after Cut 2. Drain-only AT.",
-    "proxy-claim/send": "Keep JWT/owner-admin authz; enqueue proxy_claim via RPC; derive phone from membership; no dispatchWhatsApp / sendSmsNotification.",
+    "raw_meta_callers_today": [
+      "src/lib/whatsapp-dispatcher.ts",
+      "src/app/api/whatsapp/send/route.ts",
+      "src/app/api/cron/drain-notification-queue/route.ts",
+      "src/app/api/proxy-claim/send/route.ts",
+      "src/app/api/cron/send-scheduled-announcements/route.ts"
+    ],
+    "raw_meta_after_cut2": "drain cron only (or explicitly justified server-only). Default: remove all others.",
+    "sms-sender.ts queueNotification": "No queue INSERT after Cut 2. sendSMS is private AT transport under domain producers/drain only. No free-form browser path.",
+    "sms_sender_chain": "send-sms-notification.ts → sms-sender.ts sendSMS({to,message}). Live users: sms/send, proxy-claim/send, crons payment/event/hosting/subscription-reminders + send-scheduled-announcements.",
+    "proxy-claim/send": "Caller members/page.tsx. Bind ACTIVE membership (Cut 1 membership_status) + is_proxy + user_id NULL + proxy_claim_tokens. No caller-supplied contact as authority. Enqueue proxy_claim via RPC.",
     "cron SMS fallbacks": "payment-reminders, event-reminders, hosting-reminders, subscription-reminders, send-scheduled-announcements → RPC p_channel='sms' / announcement enqueue. No sendSmsNotification happy path."
   }
 }

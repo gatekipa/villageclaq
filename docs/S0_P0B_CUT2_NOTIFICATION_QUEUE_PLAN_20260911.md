@@ -9,7 +9,9 @@
 **Previous Daybreak-reviewed tip (base of this revision):** `1478c33129502026346f8fb386614f6c66b9836c`  
 **Evidence:**  
 - `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`  
-- `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`
+- `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`  
+
+**SR1 follow-up (Chief interim evidence, 2026-09-11):** R11–R16 + domain matrix folded with verified generic-relay callers, sms-sender chain, live MCP tenant columns (`payment_obligations` absent), WA_TEMPLATES, and SMS semantic renderers. `data.groupId` is never authorization.
 
 ---
 
@@ -114,22 +116,22 @@ Machine-readable copy: `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.jso
 | Type | Domain table | `p_domain_object_id` | Tenant chain (derived) | Recipient | Fan-out | Prefs key |
 |------|--------------|----------------------|------------------------|-----------|---------|-----------|
 | `payment_receipt` | `payments` | `payments.id` | `payments.group_id` (producer also asserts `memberships.group_id` = `payments.group_id`) | `payments.membership_id` | no | `payment_reminders` |
-| `payment_reminder` | `contribution_obligations` | `contribution_obligations.id` | `contribution_obligations.group_id` (assert = `memberships.group_id`) | `contribution_obligations.membership_id` (skip proxy / null `user_id`) | no | `payment_reminders` |
+| `payment_reminder` | `contribution_obligations` (**not** `payment_obligations` — that table is **absent** live + repo) | `contribution_obligations.id` | `contribution_obligations.group_id` (assert = `memberships.group_id`) | `contribution_obligations.membership_id` (skip proxy / null `user_id`) | no | `payment_reminders` |
 | `welcome` | `memberships` | `memberships.id` | `memberships.group_id` | same membership (`user_id` required) | no | `new_member` |
 | `standing_changed` | `memberships` | `memberships.id` | `memberships.group_id` | same (`user_id` required; standing from `memberships.standing`) | no | `standing_changes` |
-| `relief_enrollment` | `relief_enrollments` | `relief_enrollments.id` | `relief_enrollments.plan_id` → `relief_plans.group_id` (assert = `memberships.group_id`) | `relief_enrollments.membership_id` | no | `relief_updates` |
+| `relief_enrollment` | `relief_enrollments` | `relief_enrollments.id` | **`plan_id` → `relief_plans.group_id`** (producer + live). Column `collecting_group_id` exists (nullable) — **not** the authz tenant. Assert `memberships.group_id` = plan tenant. | `relief_enrollments.membership_id` | no | `relief_updates` |
 | `relief_claim_approved` | `relief_claims` | `relief_claims.id` | `relief_claims.plan_id` → `relief_plans.group_id` | `relief_claims.membership_id` | no | `relief_updates` |
 | `relief_claim_denied` | `relief_claims` | `relief_claims.id` | same | same | no | `relief_updates` |
-| `remittance_confirmed` | `relief_remittances` | `relief_remittances.id` | `relief_remittances.branch_group_id` | fan-out: active owner/admin membership of **branch** group, `user_id` NOT NULL | **yes** | `relief_updates` |
+| `remittance_confirmed` | `relief_remittances` | `relief_remittances.id` | **`branch_group_id`** (live NOT NULL). **No** `group_id` / **no** `hq_group_id` on this table (live). `relief_plan_id` exists for content only — not tenant. | fan-out: active owner/admin membership of **branch** group, `user_id` NOT NULL | **yes** | `relief_updates` |
 | `remittance_disputed` | `relief_remittances` | `relief_remittances.id` | same | same | **yes** | `relief_updates` |
-| `hosting_assignment` | `hosting_assignments` | `hosting_assignments.id` | `roster_id` → `hosting_rosters.group_id` (`00003_events_operations_tables.sql`; assert = `memberships.group_id`) | `hosting_assignments.membership_id` | no | `hosting_reminders` |
+| `hosting_assignment` | `hosting_assignments` | `hosting_assignments.id` | **No `group_id` on this table (live).** Authoritative: `roster_id` → `hosting_rosters.group_id` (producer). Alternate column: nullable `event_id` → `events.group_id`. If `event_id` set, `events.group_id` MUST equal roster tenant else **denied**. Missing roster → denied. | `hosting_assignments.membership_id` | no | `hosting_reminders` |
 | `hosting_reminder` | `hosting_assignments` | `hosting_assignments.id` | same | same | no | `hosting_reminders` |
 | `event_reminder` | `events` | `events.id` | `events.group_id` (`00003_events_operations_tables.sql`) | fan-out: active non-proxy memberships of that group, `user_id` NOT NULL (producer L149–155; **not** `event_attendances`) | **yes** | `event_reminders` |
 | `loan_approved` | `loans` | `loans.id` | `loans.group_id` (assert = `memberships.group_id`) | `loans.membership_id` | no | `loan_updates` |
 | `loan_overdue` | `loans` | `loans.id` | `loans.group_id` | `loans.membership_id` (amount/due from `loan_schedule` overdue rows — content only) | no | `loan_updates` |
 | `fine_issued` | `fines` | `fines.id` | `fines.group_id` (`00010_stickiness_features.sql`; assert = `memberships.group_id`) | `fines.membership_id` | no | `fine_updates` |
-| `member_invitation` | `invitations` | `invitations.id` | `invitations.group_id` | **invitee phone = `invitations.phone`** (DB); `user_id` NULL | no | **none (R9)** |
-| `subscription_expiring` | `group_subscriptions` | `group_subscriptions.id` | **`group_subscriptions.group_id`** (group-scoped billing; **not** a platform-user table — evidence `00050`) | fan-out: active non-proxy owner/admin of that group | **yes** | `subscription_updates` |
+| `member_invitation` | `invitations` | `invitations.id` | `invitations.group_id` (live NOT NULL) | **invitee phone = `invitations.phone`** (DB); `user_id` NULL | no | **none (R9)** |
+| `subscription_expiring` | `group_subscriptions` | `group_subscriptions.id` | **GROUP-SCOPED** — `group_subscriptions.group_id` (producer reads only `id, group_id, status, current_period_end`; live `group_id` NOT NULL UNIQUE). **Not** a platform-user subscription. | fan-out: active non-proxy owner/admin of that group | **yes** | `subscription_updates` |
 
 Claim/remittance **type** is derived from authoritative `status` on the loaded row (`approved`/`denied`, `confirmed`/`disputed`). Caller must pass the matching `p_notification_type`; mismatch with row status → **denied**.
 
@@ -146,6 +148,14 @@ Claim/remittance **type** is derived from authoritative `status` on the loaded r
 `announcement-producer.ts` remains **DORMANT** (00106/00107). Cut 2 still enqueues `announcement` via RPC from cron/page conversion — **does not** apply 00106/00107.
 
 **Producer-validates is not a substitute.** Every row above has an explicit table.column chain.
+
+### Live prod tenant columns (READ-ONLY MCP `llbnliixczcqfftxpsmb`, 2026-09-11)
+
+Confirmed present: `payments.group_id`, `fines.group_id`, `loans.group_id`, `invitations.group_id`, `memberships.group_id` + `membership_status`, `announcements.group_id`, `events.group_id`, `hosting_rosters.group_id`, `relief_plans.group_id`, `group_subscriptions.group_id`, `contribution_obligations.group_id`, `meeting_minutes.group_id`, `elections.group_id`, `relief_remittances.branch_group_id`, `relief_claims.plan_id`, `relief_enrollments.plan_id` + nullable `collecting_group_id`, `hosting_assignments.roster_id` + nullable `event_id` (**no** `group_id`).
+
+**Absent:** `public.payment_obligations` (`to_regclass` NULL). Reminder domain table is **`contribution_obligations`**.
+
+`data.groupId` is **never** an authorization source. RPC may emit derived `groupId` in `data` only **after** the chain above.
 
 ---
 
@@ -165,6 +175,35 @@ Claim/remittance **type** is derived from authoritative `status` on the loaded r
 
 Equals `p_notification_type` (underscore form). SMS does **not** use hyphenated `SmsTemplate` in the queue row.
 
+### SMS semantic renderers (server-owned — no raw browser message)
+
+From `src/lib/notifications/sms-templates.ts` + `send-sms-notification.ts` `buildMessage` switch. Queue/RPC uses **underscore** type; hyphenated ids are live `SmsTemplate` aliases only (not RPC params).
+
+| RPC type | Semantic function | Live `SmsTemplate` alias |
+|----------|-------------------|--------------------------|
+| `payment_reminder` | `paymentReminderSms` | `payment-reminder` |
+| `event_reminder` | `eventReminderSms` | `event-reminder` |
+| `payment_receipt` | `paymentReceiptSms` | `payment-receipt` |
+| `welcome` | `welcomeSms` | `welcome` |
+| `minutes_published` | `minutesPublishedSms` | `minutes-published` |
+| `hosting_reminder` / `hosting_swap` | `hostingReminderSms` | `hosting-reminder` |
+| `standing_changed` | `standingChangedSms` | `standing-changed` |
+| `hosting_assignment` | `hostingAssignmentSms` | `hosting-assignment` |
+| `relief_enrollment` | `reliefEnrollmentSms` | `relief-enrollment` |
+| `remittance_confirmed` / `remittance_disputed` | `remittanceStatusSms` | `remittance-status` |
+| `subscription_expiring` | `subscriptionExpiringSms` | `subscription-expiring` |
+| `relief_claim_approved` | `reliefClaimApprovedSms` | `relief-claim-approved` |
+| `relief_claim_denied` | `reliefClaimDeniedSms` | `relief-claim-denied` |
+| `announcement` | `announcementSms` | `announcement` |
+| `loan_approved` | `loanApprovedSms` | `loan-approved` |
+| `fine_issued` | `fineIssuedSms` | `fine-issued` |
+| `proxy_claim` | `proxyClaimSms` | `proxy-claim` |
+| `member_invitation` | *(no dedicated renderer today — Cut 2 adds server render from invitation row)* | — |
+| `loan_overdue` | *(no dedicated renderer today — Cut 2 adds server render from loan row)* | — |
+| `election_opened` | *(no dedicated renderer today — Cut 2 adds server render from election row)* | — |
+
+**Not allowlisted:** `paymentPendingSms` / `payment-pending` (DORMANT). **No** caller-supplied `message` string.
+
 ### Meta template names (drain / R5)
 
 From `src/lib/whatsapp-templates.ts` `WA_TEMPLATES` / `whatsapp-dispatcher.ts` `TYPE_TO_TEMPLATE`:
@@ -180,6 +219,7 @@ From `src/lib/whatsapp-templates.ts` `WA_TEMPLATES` / `whatsapp-dispatcher.ts` `
 | `relief_claim_denied` | `villageclaq_relief_claim_denied` |
 | `announcement` | `villageclaq_announcement_v2` |
 | `election_opened` | `villageclaq_election_opened` |
+| `invitation` (legacy MARKETING) | `villageclaq_invitation` — **NOT allowlisted** |
 | `member_invitation` | `villageclaq_member_invitation_notice` |
 | `loan_approved` | `villageclaq_loan_approved` |
 | `loan_overdue` | `villageclaq_loan_overdue` |
@@ -201,7 +241,7 @@ RPC / producer builds `data` jsonb **after** loading the domain row:
 
 - `recipient` = derived E.164 (R7)
 - `user_id` = membership.user_id or NULL
-- `groupId` = **derived** tenant (storage only; never an authz input)
+- `groupId` = **derived** tenant (storage only; **NEVER** an authorization source — emit only after R3 derivation)
 - type-specific keys already used by producers (`paymentId`, `obligationId`, …)
 - `whatsappType` = `p_notification_type`
 - `whatsappData` = fields from DB (`getMemberName`, `formatAmount`, group name, …)
@@ -277,18 +317,20 @@ Indexes (WhatsApp; SMS/email use **new** unique indexes in 00115 with same keys 
 
 ## R11–R16 — Close browser-reachable arbitrary relays (including direct Meta)
 
-### Live inventory (exact callers)
+Chief interim evidence verified on tip `1693b806` + live READ-ONLY MCP. Generic `{to, template, data}` / free-form Meta is **Daybreak FAIL**.
 
-**`POST /api/sms/send`** — JWT + `callerCanMessageTarget`; body `{to, template, data, locale}`. Arbitrary phone/UUID + `SmsTemplate` + free-form data. Direct AT via `sendSmsNotification` → `sendSMS`.
+### 1. `POST /api/sms/send` — generic relay (FAIL)
 
-Browser fetch sites:
+**Live body:** `{to, template, data, locale?}`. JWT + `callerCanMessageTarget`. Arbitrary phone **or** UUID + `SmsTemplate` + free-form `data`. Direct AT via `sendSmsNotification` → `sms-sender.ts` `sendSMS({to, message})`.
+
+**Direct browser/lib callers (exact):**
 
 1. `src/lib/notify-client.ts` (`notifyFromClient`, `notifyBulkFromClient`)
-2. `src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx`
+2. `src/lib/calculate-standing.ts`
 3. `src/app/[locale]/(dashboard)/dashboard/my-invitations/page.tsx`
-4. `src/lib/calculate-standing.ts`
+4. `src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx`
 
-notify-client importers that hit SMS and/or WhatsApp relays:
+**notify-client importers (SMS and/or WhatsApp via the generic relays):**
 
 5. `src/components/payments/pay-now-dialog.tsx`
 6. `src/app/[locale]/(dashboard)/dashboard/fines/page.tsx`
@@ -301,36 +343,74 @@ notify-client importers that hit SMS and/or WhatsApp relays:
 13. `src/app/[locale]/(dashboard)/dashboard/hosting/page.tsx`
 14. `src/app/[locale]/(dashboard)/dashboard/elections/page.tsx`
 
-**`POST /api/whatsapp/send`** — JWT + recipient guard. **Three** server routes:
+**Disposition (either is PASS; generic body is FAIL):**
 
-| Route | Body | Live browser caller |
-|-------|------|---------------------|
-| Typed | `{to, type, data, locale}` | notify-client only |
-| **Direct Meta template** | `{to, template, language, components}` | **none** (capability OPEN) |
-| **Direct text** | `{to, text}` | **none** (capability OPEN) |
+- **Preferred:** **REMOVE** the route — return **410**. No AT, no queue, no UUID→phone.
+- **Only alternative:** convert to domain-bound `{notification_type, domain_object_id, recipient_membership_id?, locale?}` that calls the enqueue adapter. **No** `to` / phone / `template` / free-form `data`.
 
-Cut 2 closes **all three**, including unused direct Meta/text (capability is the forge).
+### 2. `POST /api/whatsapp/send` — typed + direct Meta + overflow (FAIL)
 
-**`sms-sender.ts` / `send-sms-notification.ts`:** session INSERT `template=generic` + `{recipient, message}`. Cron + proxy-claim + `/api/sms/send` use this. **Direct AT** when key present.
+**Three server branches** (all browser-reachable with JWT):
 
-**`proxy-claim/send`:** session cookie client; owner/admin; body `{membershipId, email, phone, channels}`. **Direct** `sendSmsNotification` + `dispatchWhatsApp` using **request `phone`**. Caller: `src/app/[locale]/(dashboard)/dashboard/members/page.tsx`.
+| Branch | Body | Live browser caller |
+|--------|------|---------------------|
+| Typed | `{to, type, data, locale}` | `notify-client.ts` **and** announcements / minutes / elections / hosting / relief / loans / fines pages via that helper |
+| **Direct Meta template** | `{to, template, language, components}` | **none** (capability OPEN — still a forge) |
+| **Direct text** | `{to, text}` | **none** (capability OPEN — still a forge) |
 
-**Cron SMS (direct AT, parallel to WA producers):**  
-`cron/payment-reminders`, `cron/event-reminders`, `cron/hosting-reminders`, `cron/subscription-reminders`, `cron/send-scheduled-announcements` (also **direct** `dispatchWhatsApp`).
+Overflow + retryable provider failure: `queueWhatsAppMessage` **service_role INSERT** (arbitrary `type`/`template`/`components`/`text` into `data`). Closes **both** direct Meta send **and** queue overflow.
 
-### Frozen dispositions
+**Raw Meta callers today (repo):**
+
+| File | Call |
+|------|------|
+| `src/lib/whatsapp-dispatcher.ts` | `sendWhatsAppMessage` |
+| `src/app/api/whatsapp/send/route.ts` | `dispatchWhatsAppWithResult` + `sendWhatsAppMessage` + `sendWhatsAppText` |
+| `src/app/api/cron/drain-notification-queue/route.ts` | `dispatchWhatsAppWithResult` + `sendWhatsAppMessage` (can replay `data.components`) |
+| `src/app/api/proxy-claim/send/route.ts` | `dispatchWhatsApp` |
+| `src/app/api/cron/send-scheduled-announcements/route.ts` | `dispatchWhatsApp` |
+
+**After Cut 2:** raw Meta **only** from the drain cron (trusted `CRON_SECRET`). Dispatcher may remain as a **drain-only** helper. Any other raw Meta caller must be **explicitly justified server-only** in the implementation PR — default is remove.
+
+**Disposition:** **CLOSE all three branches → 410** (preferred). If a WhatsApp HTTP route survives, it MUST be domain-bound IDs only (same shape as SMS alternative) and must **not** call Meta or INSERT the queue.
+
+### 3. `POST /api/proxy-claim/send`
+
+**Caller:** `src/app/[locale]/(dashboard)/dashboard/members/page.tsx`.  
+**Today:** cookie session; owner/admin role check; body `{membershipId, email, phone, channels}`. Direct `sendSmsNotification` + `dispatchWhatsApp` + Resend using **request-body** phone/email. `generateClaimToken` writes `proxy_claim_tokens.email/phone` from those same caller fields. **Does not** check `memberships.membership_status = 'active'` (Cut 1 column exists live).
+
+**Disposition:**
+
+- Bind **ACTIVE** membership (`membership_status = 'active'`, Cut 1) + `is_proxy` + `user_id IS NULL`.
+- Authoritative records: `memberships` (domain) + server-created `proxy_claim_tokens` (claim). Token contact columns are written from **DB-derived** membership phone/email only.
+- **No** caller-supplied contact as authority. Request `phone`/`email` ≠ DB → use DB or **denied** (A20).
+- Enqueue `proxy_claim` + channel via RPC. **No** `dispatchWhatsApp` / `sendSmsNotification`.
+
+### sms-sender chain (R12)
+
+```
+send-sms-notification.ts (SmsTemplate + data → semantic renderer)
+  → sms-sender.ts sendSMS({to, message})
+      → Africa's Talking  OR  cookie/anon notifications_queue INSERT template=generic
+```
+
+**Live users of this chain:** `/api/sms/send`, `proxy-claim/send`, crons `payment-reminders`, `event-reminders`, `hosting-reminders`, `subscription-reminders`, `send-scheduled-announcements`.
+
+**After Layer B:** `sendSMS` is a **private transport** under domain producers / drain only. **No** free-form browser path. Queue only via `enqueue_outbound_notification`. sms-sender **must not INSERT**. Cron happy path = RPC `p_channel='sms'` (or `announcement`), not `sendSmsNotification`.
+
+### Frozen dispositions (summary)
 
 | Surface | After Cut 2 |
 |---------|-------------|
-| `/api/sms/send` | **CLOSE** as relay. Return **410** (or 404). No AT, no queue, no UUID→phone send. |
-| `/api/whatsapp/send` | **CLOSE** all three branches (typed + **direct Meta** + **text**). **410**. Drain is the only Meta client besides no-op tests. |
-| `notify-client.ts` SMS/WA fetches | **Remove**. Pages call domain `*-notifications` routes (or new typed enqueue routes) with **ids only**. |
-| `sms-sender.ts` | **No queue INSERT**. Happy path: **not called from browser/cron**. Drain may call AT only. |
-| `send-sms-notification.ts` | Not used for enqueue. Renderer logic may be reused **inside** RPC/drain. |
-| `proxy-claim/send` | Keep authz; **enqueue** `proxy_claim` + channel via RPC; **derive phone from membership**; do not `dispatchWhatsApp` / `sendSmsNotification`. Email may stay Resend-direct (not queue) **or** enqueue `email` — freeze: **enqueue `email` too** for one pipe. |
-| Cron SMS | Same `produce*` / RPC with `p_channel='sms'`. **No** `sendSmsNotification`. |
-| `send-scheduled-announcements` | Enqueue `announcement` per resolved membership; **no** `dispatchWhatsApp`. |
-| Drain | Unchanged providers; `CRON_SECRET`; no INSERT. |
+| `/api/sms/send` | **REMOVE generic (410)** or domain-bound IDs only. No phone/template/data. |
+| `/api/whatsapp/send` | **CLOSE** typed + **direct Meta** + **text** + overflow INSERT. **410**. |
+| `notify-client.ts` SMS/WA fetches | **Remove**. Pages call domain `*-notifications` / new typed enqueue routes with **ids only**. |
+| `sms-sender.ts` | Private AT transport. **No queue INSERT**. Not called from browser. |
+| `send-sms-notification.ts` | Not a browser/cron enqueue API. Semantic renderers reused **inside** RPC/drain. |
+| `proxy-claim/send` | ACTIVE membership + proxy + null `user_id`; enqueue `proxy_claim`; DB contact only. |
+| Cron SMS | RPC `p_channel='sms'`. **No** `sendSmsNotification`. |
+| `send-scheduled-announcements` | Enqueue `announcement`; **no** `dispatchWhatsApp`. |
+| Drain | Only remaining raw Meta + AT client; `CRON_SECRET`; no INSERT. |
 
 ---
 
@@ -441,7 +521,7 @@ New enqueue routes (implementation may add, names frozen):
 
 Disposable Postgres + mocked service_role. **No** Meta / AT / Resend / prod drain.
 
-Must include: A1–A5 client INSERT/UPDATE/TRUNCATE DENY; A6 service_role table INSERT DENY; A7 RPC allowlisted inserted; A8 unknown type denied; A9 missing domain row denied; A10 fan-out without membership denied; A11 foreign membership denied; A12 trusted `groupId` smuggle impossible (no param); A13 phone param impossible; A14 invitation NULL user inserted; A15 failed-row re-enqueue duplicate; A16 authenticated EXECUTE denied; A17 staff UPDATE denied; A18 `/api/sms/send` 410; A19 `/api/whatsapp/send` typed **and** `{template,components}` **and** `{text}` 410; A20 proxy-claim request phone ≠ DB phone → enqueue uses DB or denied.
+Must include: A1–A5 client INSERT/UPDATE/TRUNCATE DENY; A6 service_role table INSERT DENY; A7 RPC allowlisted inserted; A8 unknown type denied; A9 missing domain row denied; A10 fan-out without membership denied; A11 foreign membership denied; A12 trusted `groupId` smuggle impossible (no param; `data.groupId` not authz); A13 phone param impossible; A14 invitation NULL user inserted; A15 failed-row re-enqueue duplicate; A16 authenticated EXECUTE denied; A17 staff UPDATE denied; A18 `/api/sms/send` generic `{to,template,data}` 410 (or 400 if domain-bound-only conversion); A19 `/api/whatsapp/send` typed **and** `{template,components}` **and** `{text}` 410; A20 proxy-claim request phone ≠ DB phone → enqueue uses DB or denied; A21 proxy-claim inactive membership (`membership_status <> 'active'`) denied.
 
 No-send harness: provider keys unset; no `failed`→`queued`; synthetic UUIDs only.
 

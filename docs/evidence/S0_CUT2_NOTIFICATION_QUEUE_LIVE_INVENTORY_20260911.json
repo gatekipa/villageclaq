@@ -551,13 +551,13 @@
       "ALL ON public.notifications_queue FROM anon",
       "INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM authenticated",
       "INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM service_role",
-      "broad UPDATE ON public.notifications_queue FROM service_role (replaced by column-level GRANT — R3-13)",
+      "broad UPDATE ON public.notifications_queue FROM service_role (replaced by column-level GRANT — R3-12)",
       "ALL ON enqueue_outbound_notification FROM PUBLIC, anon, authenticated"
     ],
     "GRANT": [
       "SELECT ON public.notifications_queue TO authenticated (staff SELECT policies only \u2014 no INSERT)",
       "SELECT ON public.notifications_queue TO service_role (NO INSERT)",
-      "UPDATE (status, error_message, attempts, sent_at, data) ON public.notifications_queue TO service_role — SR3 column-level; MUST NOT UPDATE cut2_provenance_version, channel, template, user_id, created_at",
+      "UPDATE (status, error_message, attempts, sent_at, data) ON public.notifications_queue TO service_role — R3-12 Chief-verified; MUST NOT UPDATE cut2_provenance_version, channel, template, user_id, created_at, id",
       "EXECUTE ON enqueue_outbound_notification TO service_role ONLY"
     ],
     "UNCHANGED": [
@@ -741,8 +741,17 @@
       "channel",
       "template",
       "user_id",
-      "created_at"
+      "created_at",
+      "id"
     ],
+    "chief_verified_r3_12": {
+      "tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+      "drain_updates_only": ["status", "sent_at", "error_message", "attempts", "data"],
+      "drain_data_note": "merge providerMessageId into jsonb",
+      "webhook_queue_updates_only": ["data"],
+      "webhook_lookup": "data.providerMessageId",
+      "webhook_also_inserts_whatsapp_message_status_events": "OUT_OF_CUT2_QUEUE_PRIVILEGE_SCOPE"
+    },
     "canonical_index_where": "cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL",
     "legacy_quarantine_count": "queued AND provenance NULL; report only; do not process/clean",
     "release_order": "R3-19",

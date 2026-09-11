@@ -124,15 +124,39 @@
       "channel",
       "template",
       "user_id",
-      "created_at"
+      "created_at",
+      "id"
     ],
+    "folded_into": "R3-12",
+    "chief_verified_r3_12": {
+      "tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+      "grant_update_exact": ["status", "error_message", "attempts", "sent_at", "data"],
+      "drain_updates_only": [
+        "status",
+        "sent_at",
+        "error_message",
+        "attempts",
+        "data (merge providerMessageId into jsonb)"
+      ],
+      "webhook_queue_updates_only": [
+        "data (patch provider status fields; lookup by data.providerMessageId)"
+      ],
+      "webhook_also_inserts": {
+        "table": "whatsapp_message_status_events",
+        "cut2_queue_privilege_scope": false,
+        "note": "separate table — out of Cut 2 notifications_queue REVOKE/GRANT"
+      }
+    },
     "source_verification": {
       "main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+      "chief_verified": true,
+      "folded_into": "R3-12",
       "drain_file": "src/app/api/cron/drain-notification-queue/route.ts",
       "drain_updates": [
         {
           "site": "sentPayload L119-130",
-          "keys": ["status", "sent_at", "error_message", "data"]
+          "keys": ["status", "sent_at", "error_message", "data"],
+          "data_note": "merge providerMessageId into jsonb"
         },
         {
           "site": "persist-fail mark L148-152",
@@ -148,12 +172,19 @@
         }
       ],
       "webhook_file": "src/lib/whatsapp-webhook-status.ts",
+      "webhook_queue_lookup": "channel=whatsapp AND data contains { providerMessageId }",
       "webhook_updates": [
         {
           "site": "L178-179",
-          "keys": ["data"]
+          "keys": ["data"],
+          "data_note": "patch latestProviderStatus / latestProviderStatusAt / optional providerError*"
         }
-      ]
+      ],
+      "webhook_out_of_queue_scope": {
+        "table": "whatsapp_message_status_events",
+        "operation": "INSERT",
+        "site": "L147-158"
+      }
     },
     "immutability": {
       "column_grants": true,
@@ -192,7 +223,7 @@
     "H": "Pre-00115 drain: DB not ready → cut2_db_not_ready, processed/sent/failed=0, zero provider calls.",
     "I": "Production adapter missing-RPC → FAIL CLOSED / DO NOT ENQUEUE; no raw INSERT.",
     "J": "Canonical unique index matches only cut2_provenance_version=1; a legacy key cannot poison it.",
-    "K": "Webhook UPDATE data only; cannot SET cut2_provenance_version, channel, template, user_id, created_at.",
+    "K": "Webhook UPDATE data only; cannot SET cut2_provenance_version, channel, template, user_id, created_at, id.",
     "L": "No upgrade path/RPC NULL→1; postcondition reports legacy_quarantine_count read-only and does not clean."
   },
   "added_ci_script_names_not_authored": [

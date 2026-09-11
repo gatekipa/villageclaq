@@ -546,16 +546,16 @@ New enqueue routes (implementation may add, names frozen):
 |------|--------|--------|--------|-----------------|-----------------|
 | `anon` | DENY | DENY | DENY | DENY | DENY |
 | `authenticated` (incl. staff JWT) | staff SELECT policies only | DENY | DENY | DENY | DENY |
-| `service_role` | GRANT | **DENY** | **COLUMN-LEVEL only (R3-13)** | DENY | **GRANT** |
+| `service_role` | GRANT | **DENY** | **COLUMN-LEVEL only (R3-12)** | DENY | **GRANT** |
 | `postgres` | owner | owner (00115 only) | owner | owner | owner |
 
 - DROP policies: `Authenticated users can queue notifications`, `Staff can update notification queue`.
 - KEEP SELECT: `Platform staff can view all notifications_queue`, `Staff can view notification queue`.
 - DEFINER: `SET search_path TO ''`; bodies `public.`-qualified; no `auth.uid()` tenant trust.
 - Status enum **unchanged** (`queued|sent|failed`). **No** `processing`.
-- Drain: `CRON_SECRET`; after 00115 SELECT **`status='queued' AND cut2_provenance_version=1` only**; UPDATE only worker columns in R3-13; **no INSERT**; keep `isAfricanPhoneNumber` before AT; **do not** select `failed` or NULL-provenance rows.
-- Webhook: Meta signature; service_role **UPDATE `data` only**; must not set `status='queued'` on failed rows; **must not** UPDATE `cut2_provenance_version`.
-- **SR3 UPDATE grants (source-verified):** REVOKE broad `service_role` UPDATE. GRANT UPDATE only on `status`, `error_message`, `attempts`, `sent_at`, `data`. **MUST NOT** UPDATE `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`.
+- Drain: `CRON_SECRET`; after 00115 SELECT **`status='queued' AND cut2_provenance_version=1` only**; UPDATE only worker columns in R3-12; **no INSERT**; keep `isAfricanPhoneNumber` before AT; **do not** select `failed` or NULL-provenance rows.
+- Webhook: Meta signature; queue UPDATE **`data` only** (lookup by `data.providerMessageId`); must not set `status='queued'` on failed rows; **must not** UPDATE `cut2_provenance_version`. INSERT into `whatsapp_message_status_events` is a **separate table** — out of Cut 2 queue privilege scope.
+- **SR3 UPDATE grants (R3-12 Chief-verified on `1693b806`):** REVOKE broad `service_role` UPDATE. GRANT UPDATE only on `status`, `error_message`, `attempts`, `sent_at`, `data`. **MUST NOT** UPDATE `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`, `id`.
 
 ---
 
@@ -632,7 +632,7 @@ Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_qu
 | `scripts/test-s0-cut2-provenance-gate.mjs` | **NEW R3-21** — only `cut2_provenance_version=1` is trusted; RPC hardcodes 1; clients cannot mint it |
 | `scripts/test-s0-cut2-legacy-quarantine.mjs` | **NEW R3-21** — NULL provenance untouched; no send/render/provider/update/upgrade |
 | `scripts/test-s0-cut2-idempotency-provenance.mjs` | **NEW R3-21** — trusted unique index only matches provenance=1; legacy keys cannot poison |
-| `scripts/test-s0-cut2-worker-column-grants.mjs` | **NEW R3-21** — service_role UPDATE only `status`,`error_message`,`attempts`,`sent_at`,`data` |
+| `scripts/test-s0-cut2-worker-column-grants.mjs` | **NEW R3-21** — service_role UPDATE only `status`,`error_message`,`attempts`,`sent_at`,`data`; MUST NOT `cut2_provenance_version`,`channel`,`template`,`user_id`,`created_at`,`id` |
 
 **Release gate name (created at release time, not now):**  
 `docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md`  
@@ -743,7 +743,7 @@ In **one** migration, in this order of intent (single transaction):
 3. CREATE trusted-only canonical unique index (R3-16).
 4. DROP unsafe INSERT/UPDATE policies (R19 names).
 5. REVOKE INSERT from `anon`, `authenticated`, **and `service_role`**.
-6. REVOKE broad UPDATE; GRANT UPDATE only on R3-13 columns.
+6. REVOKE broad UPDATE; GRANT UPDATE only on R3-12 columns.
 7. Provenance immutability (column grants + optional trigger, R3-15).
 
 ### R3-4 — RPC hardcodes provenance=1
@@ -785,36 +785,46 @@ During the cutover window, if `enqueue_outbound_notification` is missing: **do n
 
 `queued_count = COUNT(*) FROM notifications_queue WHERE status = 'queued'`. Prefer **0**. If `> 0`, wait for **natural drain** only. **No** force-send, DELETE, status rewrite, or requeue. If rows remain and founder does not accept them as post-cutover quarantine → **HOLD APP CUTOVER**.
 
-### R3-12 — Race
+### R3-12 — Race + Chief-verified `service_role` UPDATE grants
 
-A table INSERT that commits before 00115 receives **NULL** provenance when the column is added (no DEFAULT). That row is **never** trusted. No upgrade path (R3-15).
+**Race:** A table INSERT that commits before 00115 receives **NULL** provenance when the column is added (no DEFAULT). That row is **never** trusted. No upgrade path (R3-15).
 
-### R3-13 — Worker / webhook UPDATE columns (verified from source on tip `1693b806`)
+**Chief-verified UPDATE columns (tip `1693b806` — folded here).** Drain and webhook on that tip write **only** the columns below. 00115 MUST GRANT `service_role` UPDATE on `notifications_queue` to **exactly** this set:
 
-**Drain** `src/app/api/cron/drain-notification-queue/route.ts`:
+`status`, `error_message`, `attempts`, `sent_at`, `data`
 
-| Site | Keys written |
-|------|----------------|
-| `sentPayload` L119–130 | `status`, `sent_at`, `error_message`, `data` |
-| persist-fail mark L148–152 | `status`, `attempts`, `error_message` |
-| max-retries fail L173–177 | `status`, `attempts`, `error_message` |
-| retry increment L184–187 | `attempts`, `error_message` |
+**MUST NOT UPDATE:** `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`, `id`.
 
-**Webhook** `src/lib/whatsapp-webhook-status.ts` L178–179: `{ data: nextData }` only.
+**Drain** (`src/app/api/cron/drain-notification-queue/route.ts`) updates only:
 
-**GRANT UPDATE (exact):** `status`, `error_message`, `attempts`, `sent_at`, `data`.
+| Column | How used |
+|--------|----------|
+| `status` | `sent` / `failed` |
+| `sent_at` | set on successful persist |
+| `error_message` | clear on sent; set on fail/retry |
+| `attempts` | increment on fail/retry |
+| `data` | merge `providerMessageId` (and `providerStatus`) into jsonb |
 
-**MUST NOT UPDATE:** `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`.
+**Webhook** (`src/lib/whatsapp-webhook-status.ts`) updates **queue rows only** via `{ data: nextData }`:
 
-REVOKE broad `service_role` UPDATE; grant only the five columns above.
+- Lookup: `.eq("channel","whatsapp").contains("data", { providerMessageId })`
+- Patch: provider status fields (`latestProviderStatus`, `latestProviderStatusAt`, optional `providerErrorCode` / `providerErrorMessage`)
+
+Webhook also **INSERT**s into `whatsapp_message_status_events` (separate table). That INSERT is **out of Cut 2 queue privilege scope** — 00115 queue REVOKE/GRANT does not define privileges on that table.
+
+REVOKE broad `service_role` UPDATE on `notifications_queue`; grant only the five columns above.
+
+### R3-13 — Worker / webhook UPDATE columns (pointer)
+
+Authoritative freeze is **R3-12** (Chief fold). Site-level drain keys remain: sentPayload `{status,sent_at,error_message,data}`; persist-fail / max-retries `{status,attempts,error_message}`; retry `{attempts,error_message}`. Webhook queue UPDATE `{data}` only.
 
 ### R3-14 — Forbidden UPDATE targets
 
-`cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at` must be omitted from column grants and rejected by the immutability trigger if present.
+`cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`, `id` must be omitted from column grants and rejected by the immutability trigger if present.
 
 ### R3-15 — Provenance immutability
 
-Column-level grants (R3-13) **plus** optional trigger: `IF OLD.cut2_provenance_version IS DISTINCT FROM NEW.cut2_provenance_version THEN RAISE`. **No** upgrade path. **No** upgrade RPC. NULL cannot become 1. 1 cannot become NULL or any other value.
+Column-level grants (R3-12) **plus** optional trigger: `IF OLD.cut2_provenance_version IS DISTINCT FROM NEW.cut2_provenance_version THEN RAISE`. **No** upgrade path. **No** upgrade RPC. NULL cannot become 1. 1 cannot become NULL or any other value.
 
 ### R3-16 / R3-17 — Trusted-only canonical index
 
@@ -856,7 +866,7 @@ Do **not** apply 00115 before step 2 is live. Insert-before-00115 races become N
 | **H** | Pre-00115 drain: DB not ready → `cut2_db_not_ready`, processed/sent/failed=0, zero provider calls. |
 | **I** | Production adapter missing-RPC → FAIL CLOSED / DO NOT ENQUEUE; no raw INSERT. |
 | **J** | Canonical unique index matches only `cut2_provenance_version=1`; a legacy key cannot poison it. |
-| **K** | Webhook UPDATE `data` only; cannot SET `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`. |
+| **K** | Webhook UPDATE `data` only; cannot SET `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`, `id`. |
 | **L** | No upgrade path/RPC NULL→1; postcondition reports `legacy_quarantine_count` read-only and does not clean. |
 
 ### R3-21 — Added future CI names (do not rename R2-20)
@@ -892,7 +902,7 @@ This revision authors **no** `00115` SQL, **no** runtime, **no** CI script files
 | App-first then 00115 | PASS — R3-19 (supersedes SR2 production INSERT fallback) |
 | Unforgeable provenance column; NULL = quarantine | PASS — R3-1–R3-8 |
 | Production missing-RPC: no raw INSERT | PASS — R3-10 |
-| Worker column UPDATE grants source-verified | PASS — R3-13 |
+| Worker column UPDATE grants Chief-verified | PASS — R3-12 |
 | No SQL / no runtime in this PR | PASS |
 | PR #69/#70/Cut 3/Cut 1 | PASS — R30 |
 

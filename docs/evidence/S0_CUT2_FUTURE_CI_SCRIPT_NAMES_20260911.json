@@ -63,7 +63,7 @@
     {
       "path": "scripts/test-s0-cut2-worker-column-grants.mjs",
       "frozen": "R3-21",
-      "assert": "service_role UPDATE only status, error_message, attempts, sent_at, data"
+      "assert": "service_role UPDATE only status, error_message, attempts, sent_at, data; MUST NOT UPDATE cut2_provenance_version, channel, template, user_id, created_at, id"
     }
   ],
   "release_gate_checklist_name": "docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md",

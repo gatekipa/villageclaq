@@ -88,6 +88,15 @@ None),
 "ALL", "{public}",
 "(EXISTS ( SELECT 1\n   FROM (activity_feed af\n     JOIN memberships m ON ((m.group_id = af.group_id)))\n  WHERE ((af.id = feed_reactions.feed_item_id) AND (m.user_id = auth.uid()))))",
 None),
+# P1-B OR-bypass: own-membership UPDATE/DELETE without active (live 2026-09-10).
+"feed_reactions|rls_fr_delete": (
+"DELETE", "{authenticated}",
+"(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))",
+None),
+"feed_reactions|rls_fr_update": (
+"UPDATE", "{authenticated}",
+"(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))",
+None),
 "fine_types|fine_types_admin": (
 "ALL", "{public}",
 "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = fine_types.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
@@ -112,6 +121,11 @@ None),
 "ALL", "{public}",
 "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = hosting_rosters.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
 None),
+# P1-B OR-bypass: requested_by=auth.uid() INSERT without active (live 2026-09-10).
+"hosting_swap_requests|Members can create swap requests": (
+"INSERT", "{public}",
+None,
+"(requested_by = auth.uid())"),
 "invitations|Group admins can create invitations": (
 "INSERT", "{authenticated}",
 None,
@@ -303,6 +317,12 @@ None,
 None),
 }
 
+OR_BYPASS_KEYS = {
+    "feed_reactions|rls_fr_delete",
+    "feed_reactions|rls_fr_update",
+    "hosting_swap_requests|Members can create swap requests",
+}
+
 rows = []
 for key, (cmd, roles, qual, wcheck) in Q.items():
     table, name = key.split("|", 1)
@@ -313,7 +333,7 @@ for key, (cmd, roles, qual, wcheck) in Q.items():
         "roles": roles,
         "qual": qual,
         "with_check": wcheck,
-        "kind": "neutralize",
+        "kind": "or_bypass" if key in OR_BYPASS_KEYS else "neutralize",
         "s24_7_note": (
             "live name for §24.7 Group admins can manage payment config"
             if table == "group_payment_config" else None

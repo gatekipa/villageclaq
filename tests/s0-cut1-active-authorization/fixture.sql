@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS public.family_members (
 );
 CREATE TABLE IF NOT EXISTS public.feed_reactions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  feed_item_id uuid
+  feed_item_id uuid, membership_id uuid
 );
 CREATE TABLE IF NOT EXISTS public.fine_types (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -626,6 +626,15 @@ GRANT EXECUTE ON FUNCTION public.create_proxy_member(uuid, text, text, text) TO 
 CREATE POLICY "cut1_fixture_memberships_select" ON public.memberships
   FOR SELECT TO public
   USING ((user_id = auth.uid()) OR is_group_member(group_id));
+CREATE POLICY "cut1_fixture_feed_reactions_select" ON public.feed_reactions
+  FOR SELECT TO authenticated
+  USING (true);
+CREATE POLICY "cut1_fixture_hosting_assignments_select" ON public.hosting_assignments
+  FOR SELECT TO authenticated
+  USING (true);
+CREATE POLICY "cut1_fixture_hosting_rosters_select" ON public.hosting_rosters
+  FOR SELECT TO authenticated
+  USING (true);
 DROP POLICY IF EXISTS "rls_af_all" ON public.activity_feed;
 CREATE POLICY "rls_af_all" ON public.activity_feed
   FOR ALL
@@ -934,6 +943,20 @@ CREATE POLICY "Members react" ON public.feed_reactions
    FROM (activity_feed af
      JOIN memberships m ON ((m.group_id = af.group_id)))
   WHERE ((af.id = feed_reactions.feed_item_id) AND (m.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "rls_fr_delete" ON public.feed_reactions;
+CREATE POLICY "rls_fr_delete" ON public.feed_reactions
+  FOR DELETE
+  TO authenticated
+  USING ((EXISTS ( SELECT 1
+   FROM memberships m
+  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid())))));
+DROP POLICY IF EXISTS "rls_fr_update" ON public.feed_reactions;
+CREATE POLICY "rls_fr_update" ON public.feed_reactions
+  FOR UPDATE
+  TO authenticated
+  USING ((EXISTS ( SELECT 1
+   FROM memberships m
+  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid())))));
 DROP POLICY IF EXISTS "fine_types_admin" ON public.fine_types;
 CREATE POLICY "fine_types_admin" ON public.fine_types
   FOR ALL
@@ -977,6 +1000,11 @@ CREATE POLICY "Group admins can manage hosting rosters" ON public.hosting_roster
   USING ((EXISTS ( SELECT 1
    FROM memberships
   WHERE ((memberships.group_id = hosting_rosters.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
+DROP POLICY IF EXISTS "Members can create swap requests" ON public.hosting_swap_requests;
+CREATE POLICY "Members can create swap requests" ON public.hosting_swap_requests
+  FOR INSERT
+  TO public
+  WITH CHECK ((requested_by = auth.uid()));
 DROP POLICY IF EXISTS "Group admins can create invitations" ON public.invitations;
 CREATE POLICY "Group admins can create invitations" ON public.invitations
   FOR INSERT

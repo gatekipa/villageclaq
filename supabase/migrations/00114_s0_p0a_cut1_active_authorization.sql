@@ -478,6 +478,22 @@ BEGIN
   );
 
   PERFORM public.cut1_expect_policy(
+    $t$feed_reactions$t$,
+    $n$rls_fr_delete$n$,
+    $c$DELETE$c$,
+    $q$(EXISTS ( SELECT 1 FROM memberships m WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))$q$,
+    NULL
+  );
+
+  PERFORM public.cut1_expect_policy(
+    $t$feed_reactions$t$,
+    $n$rls_fr_update$n$,
+    $c$UPDATE$c$,
+    $q$(EXISTS ( SELECT 1 FROM memberships m WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))$q$,
+    NULL
+  );
+
+  PERFORM public.cut1_expect_policy(
     $t$fine_types$t$,
     $n$fine_types_admin$n$,
     $c$ALL$c$,
@@ -523,6 +539,14 @@ BEGIN
     $c$ALL$c$,
     $q$(EXISTS ( SELECT 1 FROM memberships WHERE ((memberships.group_id = hosting_rosters.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))$q$,
     NULL
+  );
+
+  PERFORM public.cut1_expect_policy(
+    $t$hosting_swap_requests$t$,
+    $n$Members can create swap requests$n$,
+    $c$INSERT$c$,
+    NULL,
+    $w$(requested_by = auth.uid())$w$
   );
 
   PERFORM public.cut1_expect_policy(
@@ -1213,7 +1237,7 @@ CREATE TRIGGER trg_position_assignments_same_group
   EXECUTE FUNCTION public.enforce_position_assignment_same_group();
 
 -- ---------------------------------------------------------------------------
--- REWRITE policies (23 helper-matching + §24.7 neutralize)
+-- REWRITE policies (23 helper-matching + §24.7 neutralize + P1-B OR-bypass)
 -- ---------------------------------------------------------------------------
 
 -- [rewrite23] activity_feed.rls_af_all ALL
@@ -1614,6 +1638,24 @@ CREATE POLICY "Members react" ON public.feed_reactions
      JOIN memberships m ON ((m.group_id = af.group_id)))
   WHERE ((af.id = feed_reactions.feed_item_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
 
+-- [or_bypass] feed_reactions.rls_fr_delete DELETE
+DROP POLICY IF EXISTS "rls_fr_delete" ON public.feed_reactions;
+CREATE POLICY "rls_fr_delete" ON public.feed_reactions
+  FOR DELETE
+  TO authenticated
+  USING ((EXISTS ( SELECT 1
+   FROM memberships m
+  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
+
+-- [or_bypass] feed_reactions.rls_fr_update UPDATE
+DROP POLICY IF EXISTS "rls_fr_update" ON public.feed_reactions;
+CREATE POLICY "rls_fr_update" ON public.feed_reactions
+  FOR UPDATE
+  TO authenticated
+  USING ((EXISTS ( SELECT 1
+   FROM memberships m
+  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))));
+
 -- [neutralize] fine_types.fine_types_admin ALL
 DROP POLICY IF EXISTS "fine_types_admin" ON public.fine_types;
 CREATE POLICY "fine_types_admin" ON public.fine_types
@@ -1668,6 +1710,17 @@ CREATE POLICY "Group admins can manage hosting rosters" ON public.hosting_roster
   USING ((EXISTS ( SELECT 1
    FROM memberships
   WHERE ((memberships.group_id = hosting_rosters.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.membership_status = 'active'::text) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role]))))));
+
+-- [or_bypass] hosting_swap_requests.Members can create swap requests INSERT
+DROP POLICY IF EXISTS "Members can create swap requests" ON public.hosting_swap_requests;
+CREATE POLICY "Members can create swap requests" ON public.hosting_swap_requests
+  FOR INSERT
+  TO public
+  WITH CHECK (((requested_by = auth.uid()) AND (EXISTS ( SELECT 1
+   FROM public.hosting_assignments ha
+   JOIN public.hosting_rosters hr ON hr.id = ha.roster_id
+  WHERE ha.id = hosting_swap_requests.from_assignment_id
+    AND public.is_active_group_member(hr.group_id)))));
 
 -- [neutralize] invitations.Group admins can create invitations INSERT
 DROP POLICY IF EXISTS "Group admins can create invitations" ON public.invitations;
@@ -2222,6 +2275,36 @@ BEGIN
   WHERE m.group_id IS DISTINCT FROM gp.group_id;
   IF v_mismatch <> 0 THEN
     RAISE EXCEPTION 'CUT1_ABORT_POST: position_assignments mismatch_count=% (expected 0)', v_mismatch;
+  END IF;
+
+  -- P1-B OR-bypass remediations must carry an active gate (not ownership-only).
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'feed_reactions'
+      AND policyname = 'rls_fr_delete' AND cmd = 'DELETE'
+      AND qual ~ 'membership_status' AND qual ~ 'active'
+      AND qual ~ 'membership_id' AND qual ~ 'auth.uid'
+  ) THEN
+    RAISE EXCEPTION 'CUT1_ABORT_POST: rls_fr_delete missing active ownership gate';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'feed_reactions'
+      AND policyname = 'rls_fr_update' AND cmd = 'UPDATE'
+      AND qual ~ 'membership_status' AND qual ~ 'active'
+      AND qual ~ 'membership_id' AND qual ~ 'auth.uid'
+  ) THEN
+    RAISE EXCEPTION 'CUT1_ABORT_POST: rls_fr_update missing active ownership gate';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'hosting_swap_requests'
+      AND policyname = 'Members can create swap requests' AND cmd = 'INSERT'
+      AND with_check ~ 'requested_by' AND with_check ~ 'auth.uid'
+      AND with_check ~ 'is_active_group_member'
+      AND with_check ~ 'from_assignment_id'
+  ) THEN
+    RAISE EXCEPTION 'CUT1_ABORT_POST: Members can create swap requests missing active group gate';
   END IF;
 
   -- P1-A: Cut 1 DEFINER helpers pin empty search_path (S0-C / contract), not public.

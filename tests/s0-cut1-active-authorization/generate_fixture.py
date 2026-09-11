@@ -263,7 +263,7 @@ STUB_TABLES = {
     "events": "group_id uuid",
     "exchange_rates": "organization_id uuid",
     "family_members": "membership_id uuid",
-    "feed_reactions": "feed_item_id uuid",
+    "feed_reactions": "feed_item_id uuid, membership_id uuid",
     "fine_types": "group_id uuid",
     "fines": "group_id uuid",
     "group_audit_logs": "group_id uuid",
@@ -389,6 +389,25 @@ def main() -> None:
         'CREATE POLICY "cut1_fixture_memberships_select" ON public.memberships\n'
         "  FOR SELECT TO public\n"
         "  USING ((user_id = auth.uid()) OR is_group_member(group_id));"
+    )
+    # Isolate P1-B write-policy gates: visibility SELECTs so inactive actors can
+    # still *see* rows. Production keeps status-blind rls_fr_select / rls_ha_select
+    # / rls_hr_select (out of Cut 1 rewrite). Fixture uses USING (true) so the
+    # actor matrix exercises UPDATE/DELETE/INSERT WITH CHECK, not SELECT hiding.
+    parts.append(
+        'CREATE POLICY "cut1_fixture_feed_reactions_select" ON public.feed_reactions\n'
+        "  FOR SELECT TO authenticated\n"
+        "  USING (true);"
+    )
+    parts.append(
+        'CREATE POLICY "cut1_fixture_hosting_assignments_select" ON public.hosting_assignments\n'
+        "  FOR SELECT TO authenticated\n"
+        "  USING (true);"
+    )
+    parts.append(
+        'CREATE POLICY "cut1_fixture_hosting_rosters_select" ON public.hosting_rosters\n'
+        "  FOR SELECT TO authenticated\n"
+        "  USING (true);"
     )
 
     seen = set()

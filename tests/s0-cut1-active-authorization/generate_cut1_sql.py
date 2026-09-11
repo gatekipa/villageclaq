@@ -137,6 +137,14 @@ PROXY_TARGET_CHECK = """((is_proxy = true) AND (proxy_manager_id = auth.uid()) A
    FROM memberships m
   WHERE ((m.user_id = auth.uid()) AND (m.group_id = memberships.group_id) AND (m.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role, 'moderator'::membership_role])) AND (m.membership_status = 'active'::text)))))"""
 
+# P1-B: keep requested_by = auth.uid(); add ACTIVE membership via the live
+# from_assignment_id → hosting_assignments → hosting_rosters.group_id chain.
+SWAP_MEMBER_INSERT_CHECK = """((requested_by = auth.uid()) AND (EXISTS ( SELECT 1
+   FROM public.hosting_assignments ha
+   JOIN public.hosting_rosters hr ON hr.id = ha.roster_id
+  WHERE ha.id = hosting_swap_requests.from_assignment_id
+    AND public.is_active_group_member(hr.group_id))))"""
+
 
 HEADER = r"""-- S0 Cut 1 — P0-A active membership / authorization boundary
 --
@@ -613,6 +621,36 @@ BEGIN
     RAISE EXCEPTION 'CUT1_ABORT_POST: position_assignments mismatch_count=% (expected 0)', v_mismatch;
   END IF;
 
+  -- P1-B OR-bypass remediations must carry an active gate (not ownership-only).
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'feed_reactions'
+      AND policyname = 'rls_fr_delete' AND cmd = 'DELETE'
+      AND qual ~ 'membership_status' AND qual ~ 'active'
+      AND qual ~ 'membership_id' AND qual ~ 'auth.uid'
+  ) THEN
+    RAISE EXCEPTION 'CUT1_ABORT_POST: rls_fr_delete missing active ownership gate';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'feed_reactions'
+      AND policyname = 'rls_fr_update' AND cmd = 'UPDATE'
+      AND qual ~ 'membership_status' AND qual ~ 'active'
+      AND qual ~ 'membership_id' AND qual ~ 'auth.uid'
+  ) THEN
+    RAISE EXCEPTION 'CUT1_ABORT_POST: rls_fr_update missing active ownership gate';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'hosting_swap_requests'
+      AND policyname = 'Members can create swap requests' AND cmd = 'INSERT'
+      AND with_check ~ 'requested_by' AND with_check ~ 'auth.uid'
+      AND with_check ~ 'is_active_group_member'
+      AND with_check ~ 'from_assignment_id'
+  ) THEN
+    RAISE EXCEPTION 'CUT1_ABORT_POST: Members can create swap requests missing active group gate';
+  END IF;
+
   -- P1-A: Cut 1 DEFINER helpers pin empty search_path (S0-C / contract), not public.
   IF EXISTS (
     SELECT 1
@@ -744,7 +782,7 @@ def main() -> None:
     parts.append("END;\n$cut1_pre$;\n")
     parts.append(FOOT_HELPERS)
     parts.append("-- ---------------------------------------------------------------------------")
-    parts.append("-- REWRITE policies (23 helper-matching + §24.7 neutralize)")
+    parts.append("-- REWRITE policies (23 helper-matching + §24.7 neutralize + P1-B OR-bypass)")
     parts.append("-- ---------------------------------------------------------------------------\n")
 
     for p in ordered:
@@ -752,6 +790,9 @@ def main() -> None:
         if name == "Admins can add proxy members":
             tqual = inject_active(p["qual"]) if p["qual"] else None
             twcheck = PROXY_TARGET_CHECK
+        elif name == "Members can create swap requests":
+            tqual = None
+            twcheck = SWAP_MEMBER_INSERT_CHECK
         else:
             tqual = inject_active(p["qual"]) if p["qual"] else None
             twcheck = inject_active(p["with_check"]) if p["with_check"] else None
@@ -761,7 +802,7 @@ def main() -> None:
 
     parts.append(FOOT_POST)
     OUT_PATH.write_text("\n".join(parts) + "\n")
-    print(f"wrote {OUT_PATH} policies={len(ordered)}")
+    print(f"wrote {OUT_PATH} policies={len(ordered)} drop_create={len(ordered)}")
 
 
 if __name__ == "__main__":

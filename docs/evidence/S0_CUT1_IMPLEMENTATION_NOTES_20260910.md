@@ -7,6 +7,15 @@
 
 **P1-A (2026-09-10 requal):** Cut 1 SECURITY DEFINER functions use `SET search_path TO ''` (bodies `public.`-qualified). Postcondition asserts `proconfig` empty search_path, not `public`.
 
+**P1-B OR-bypass remediations (2026-09-11):** Three remaining permissive-OR writes now DROP+CREATE in `00114` (no carve-out). Live predicates are `cut1_expect_policy` preconditions (drift → `CUT1_ABORT`). Historical `00001`–`00113` untouched. PRODUCTION APPLY NOT AUTHORIZED.
+
+| Policy | Live predicate | After Cut 1 |
+|--------|----------------|-------------|
+| `feed_reactions.rls_fr_delete` / `rls_fr_update` | own `membership_id` + `auth.uid()` | same + `m.membership_status = 'active'` (authenticated, not admin-only) |
+| `hosting_swap_requests.Members can create swap requests` | `requested_by = auth.uid()` | same + ACTIVE membership via `from_assignment_id` → `hosting_assignments` → `hosting_rosters.group_id` + `is_active_group_member` |
+
+DROP+CREATE count: **100** (23 helper-matching + 74 §24.7 neutralize + 3 P1-B OR-bypass).
+
 ## Disposable method
 
 1. Generate fixture + migration (already committed):
@@ -19,13 +28,15 @@ Schema-from-repo probe (2026-09-10, local PG 16): `00001_core_tables.sql` fails 
 
 ## Test results (disposable)
 
-- Static: `node --test scripts/test-s0-cut1-active-authorization.mjs` → **PASS** (9/9)
+- Static: `node --test scripts/test-s0-cut1-active-authorization.mjs` → **PASS** (includes P1-B trio + 100 DROP+CREATE)
 - Harness: `./tests/s0-cut1-active-authorization/run.sh` → **CUT1_DISPOSABLE_PASS** / **CUT1_ACTOR_MATRIX_PASS**
   - Migration preconditions + postconditions committed
   - Active owner/admin/moderator proxy ALLOW; pending/suspended/exited/archived/member DENY
   - uid probe DENY; cross-group position REJECT
   - Payment active officer ALLOW / inactive DENY
   - `rls_pay_insert` active member `pending_confirmation` ALLOW
+  - `feed_reactions` UPDATE/DELETE: active owner ALLOW; pending/suspended/exited/archived/foreign/cross-group DENY
+  - `hosting_swap_requests` member INSERT: active `requested_by=auth.uid()` ALLOW; inactive/foreign/cross-group/`requested_by!=auth.uid` DENY
 
 ## Live name mappings
 

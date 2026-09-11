@@ -13,8 +13,8 @@ Minimal-schema fixture that recreates:
 - §24.7 inline-role neutralize policies (live predicates)
 - Inherit-only helper policies (`rls_const_*`, `rls_amend_update/delete`)
 
-Then applies `00114` (loud preconditions + helpers + trigger + rewrites) and runs an
-executable actor matrix:
+Then applies `00114` (loud preconditions + helpers + trigger + rewrites, including
+the three P1-B OR-bypass policies) and runs an executable actor matrix:
 
 | Case | Expected |
 |------|----------|
@@ -28,6 +28,12 @@ executable actor matrix:
 | Payment INSERT active officer | ALLOW |
 | Payment INSERT inactive officer | DENY |
 | `rls_pay_insert` active member `pending_confirmation` | ALLOW |
+| `feed_reactions` UPDATE/DELETE own row, active member | ALLOW |
+| `feed_reactions` UPDATE/DELETE own row, pending/suspended/exited/archived | DENY |
+| `feed_reactions` UPDATE/DELETE, foreign / cross-group | DENY |
+| `hosting_swap_requests` INSERT active member `requested_by=auth.uid()` | ALLOW |
+| `hosting_swap_requests` INSERT pending/suspended/exited/archived / foreign / cross-group | DENY |
+| `hosting_swap_requests` INSERT `requested_by != auth.uid()` | DENY |
 
 ## How to run
 
@@ -56,7 +62,7 @@ environment does not have and which is **not authorized**.
 
 **HOLD residual:** full 375-policy catalog rehearsal on a prod-shaped disposable
 (schema-only dump or founder-authorized branch DB). This harness covers Cut 1
-objects (helpers, trigger, 23 REWRITE + §24.7 neutralize + inherit asserts).
+objects (helpers, trigger, 23 REWRITE + §24.7 neutralize + 3 P1-B OR-bypass + inherit asserts).
 
 ## Name mappings (live vs §24.7 pattern)
 

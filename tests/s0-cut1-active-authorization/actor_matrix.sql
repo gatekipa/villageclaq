@@ -44,6 +44,21 @@ DECLARE
   pos2 uuid := '00000000-0000-0000-0000-000000000032';
   v_proxy uuid;
   v_caught boolean;
+  v_rows int;
+  v_pred text;
+  u_foreign uuid := '00000000-0000-0000-0000-00000000001a';
+  feed_g1 uuid := '00000000-0000-0000-0000-000000000041';
+  feed_g2 uuid := '00000000-0000-0000-0000-000000000042';
+  r_member uuid := '00000000-0000-0000-0000-000000000051';
+  r_pending uuid := '00000000-0000-0000-0000-000000000052';
+  r_suspended uuid := '00000000-0000-0000-0000-000000000053';
+  r_exited uuid := '00000000-0000-0000-0000-000000000054';
+  r_archived uuid := '00000000-0000-0000-0000-000000000055';
+  r_other uuid := '00000000-0000-0000-0000-000000000056';
+  roster_g1 uuid := '00000000-0000-0000-0000-000000000061';
+  roster_g2 uuid := '00000000-0000-0000-0000-000000000062';
+  ha_g1 uuid := '00000000-0000-0000-0000-000000000071';
+  ha_g2 uuid := '00000000-0000-0000-0000-000000000072';
 BEGIN
   INSERT INTO public.groups (id) VALUES (g1), (g2)
   ON CONFLICT (id) DO NOTHING;
@@ -191,6 +206,203 @@ BEGIN
   INSERT INTO public.payments (group_id, status, recorded_by, membership_id)
   VALUES (g1, 'pending_confirmation', u_member, m_member);
   RESET ROLE;
+
+  -- Post-apply predicate: the three P1-B OR-bypass policies carry an active gate.
+  SELECT qual INTO v_pred FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'feed_reactions' AND policyname = 'rls_fr_delete';
+  PERFORM public.cut1_assert(
+    v_pred ~ 'membership_status' AND v_pred ~ 'active' AND v_pred ~ 'auth.uid',
+    'rls_fr_delete predicate has active ownership gate'
+  );
+  SELECT qual INTO v_pred FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'feed_reactions' AND policyname = 'rls_fr_update';
+  PERFORM public.cut1_assert(
+    v_pred ~ 'membership_status' AND v_pred ~ 'active' AND v_pred ~ 'auth.uid',
+    'rls_fr_update predicate has active ownership gate'
+  );
+  SELECT with_check INTO v_pred FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'hosting_swap_requests'
+     AND policyname = 'Members can create swap requests';
+  PERFORM public.cut1_assert(
+    v_pred ~ 'requested_by' AND v_pred ~ 'auth.uid'
+      AND v_pred ~ 'is_active_group_member' AND v_pred ~ 'from_assignment_id',
+    'Members can create swap requests has requested_by + active group gate'
+  );
+
+  -- Seed feed + hosting rows as table owner (bypasses RLS).
+  INSERT INTO public.activity_feed (id, group_id) VALUES (feed_g1, g1), (feed_g2, g2)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.feed_reactions (id, feed_item_id, membership_id) VALUES
+    (r_member, feed_g1, m_member),
+    (r_pending, feed_g1, m_pending),
+    (r_suspended, feed_g1, m_suspended),
+    (r_exited, feed_g1, '00000000-0000-0000-0000-000000000027'),
+    (r_archived, feed_g1, '00000000-0000-0000-0000-000000000028'),
+    (r_other, feed_g2, '00000000-0000-0000-0000-000000000029')
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.hosting_rosters (id, group_id) VALUES (roster_g1, g1), (roster_g2, g2)
+  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.hosting_assignments (id, roster_id) VALUES (ha_g1, roster_g1), (ha_g2, roster_g2)
+  ON CONFLICT (id) DO NOTHING;
+
+  -- feed_reactions UPDATE/DELETE: active owner ALLOW
+  PERFORM public.cut1_set_actor(u_member);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_member::text, true);
+  UPDATE public.feed_reactions SET feed_item_id = feed_item_id WHERE id = r_member;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_rows = 1, 'active member UPDATE own reaction ALLOW');
+
+  PERFORM public.cut1_set_actor(u_member);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_member::text, true);
+  DELETE FROM public.feed_reactions WHERE id = r_member;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_rows = 1, 'active member DELETE own reaction ALLOW');
+  INSERT INTO public.feed_reactions (id, feed_item_id, membership_id)
+  VALUES (r_member, feed_g1, m_member);
+
+  -- pending / suspended / exited / archived own-row DENY
+  FOREACH v_proxy IN ARRAY ARRAY[u_pending, u_suspended, u_exited, u_archived]
+  LOOP
+    PERFORM public.cut1_set_actor(v_proxy);
+    SET LOCAL ROLE authenticated;
+    PERFORM set_config('request.jwt.claim.sub', v_proxy::text, true);
+    UPDATE public.feed_reactions SET feed_item_id = feed_item_id
+     WHERE membership_id IN (
+       SELECT id FROM public.memberships WHERE user_id = v_proxy
+     );
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    RESET ROLE;
+    PERFORM public.cut1_assert(v_rows = 0, 'inactive UPDATE own reaction DENY');
+
+    PERFORM public.cut1_set_actor(v_proxy);
+    SET LOCAL ROLE authenticated;
+    PERFORM set_config('request.jwt.claim.sub', v_proxy::text, true);
+    DELETE FROM public.feed_reactions
+     WHERE membership_id IN (
+       SELECT id FROM public.memberships WHERE user_id = v_proxy
+     );
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    RESET ROLE;
+    PERFORM public.cut1_assert(v_rows = 0, 'inactive DELETE own reaction DENY');
+  END LOOP;
+
+  -- foreign (no membership) DENY
+  PERFORM public.cut1_set_actor(u_foreign);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_foreign::text, true);
+  UPDATE public.feed_reactions SET feed_item_id = feed_item_id WHERE id = r_member;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_rows = 0, 'foreign UPDATE reaction DENY');
+
+  PERFORM public.cut1_set_actor(u_foreign);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_foreign::text, true);
+  DELETE FROM public.feed_reactions WHERE id = r_member;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_rows = 0, 'foreign DELETE reaction DENY');
+
+  -- cross-group (active in g2 only) DENY on g1 reaction
+  PERFORM public.cut1_set_actor(u_other);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_other::text, true);
+  UPDATE public.feed_reactions SET feed_item_id = feed_item_id WHERE id = r_member;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_rows = 0, 'cross-group UPDATE reaction DENY');
+
+  PERFORM public.cut1_set_actor(u_other);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_other::text, true);
+  DELETE FROM public.feed_reactions WHERE id = r_member;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_rows = 0, 'cross-group DELETE reaction DENY');
+
+  -- hosting_swap_requests INSERT: active member requested_by=self ALLOW
+  PERFORM public.cut1_set_actor(u_member);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_member::text, true);
+  INSERT INTO public.hosting_swap_requests (requested_by, from_assignment_id)
+  VALUES (u_member, ha_g1);
+  RESET ROLE;
+
+  -- pending / suspended / exited / archived DENY
+  FOREACH v_proxy IN ARRAY ARRAY[u_pending, u_suspended, u_exited, u_archived]
+  LOOP
+    PERFORM public.cut1_set_actor(v_proxy);
+    SET LOCAL ROLE authenticated;
+    PERFORM set_config('request.jwt.claim.sub', v_proxy::text, true);
+    v_caught := false;
+    BEGIN
+      INSERT INTO public.hosting_swap_requests (requested_by, from_assignment_id)
+      VALUES (v_proxy, ha_g1);
+    EXCEPTION WHEN OTHERS THEN
+      v_caught := true;
+    END;
+    RESET ROLE;
+    PERFORM public.cut1_assert(v_caught, 'inactive swap INSERT DENY');
+  END LOOP;
+
+  -- foreign DENY
+  PERFORM public.cut1_set_actor(u_foreign);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_foreign::text, true);
+  v_caught := false;
+  BEGIN
+    INSERT INTO public.hosting_swap_requests (requested_by, from_assignment_id)
+    VALUES (u_foreign, ha_g1);
+  EXCEPTION WHEN OTHERS THEN
+    v_caught := true;
+  END;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_caught, 'foreign swap INSERT DENY');
+
+  -- cross-group: g2 actor on g1 assignment DENY; g1 actor on g2 assignment DENY
+  PERFORM public.cut1_set_actor(u_other);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_other::text, true);
+  v_caught := false;
+  BEGIN
+    INSERT INTO public.hosting_swap_requests (requested_by, from_assignment_id)
+    VALUES (u_other, ha_g1);
+  EXCEPTION WHEN OTHERS THEN
+    v_caught := true;
+  END;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_caught, 'cross-group swap INSERT (g2 on g1) DENY');
+
+  PERFORM public.cut1_set_actor(u_member);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_member::text, true);
+  v_caught := false;
+  BEGIN
+    INSERT INTO public.hosting_swap_requests (requested_by, from_assignment_id)
+    VALUES (u_member, ha_g2);
+  EXCEPTION WHEN OTHERS THEN
+    v_caught := true;
+  END;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_caught, 'cross-group swap INSERT (g1 on g2) DENY');
+
+  -- requested_by != auth.uid() DENY
+  PERFORM public.cut1_set_actor(u_member);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub', u_member::text, true);
+  v_caught := false;
+  BEGIN
+    INSERT INTO public.hosting_swap_requests (requested_by, from_assignment_id)
+    VALUES (u_owner, ha_g1);
+  EXCEPTION WHEN OTHERS THEN
+    v_caught := true;
+  END;
+  RESET ROLE;
+  PERFORM public.cut1_assert(v_caught, 'swap requested_by!=auth.uid DENY');
 
   RAISE NOTICE 'CUT1_ACTOR_MATRIX_PASS';
 END;

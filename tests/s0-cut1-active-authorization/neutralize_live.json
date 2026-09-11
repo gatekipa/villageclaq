@@ -210,6 +210,26 @@
     "s24_7_note": null
   },
   {
+    "tablename": "feed_reactions",
+    "policyname": "rls_fr_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))",
+    "with_check": null,
+    "kind": "or_bypass",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "feed_reactions",
+    "policyname": "rls_fr_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}",
+    "qual": "(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.id = feed_reactions.membership_id) AND (m.user_id = auth.uid()))))",
+    "with_check": null,
+    "kind": "or_bypass",
+    "s24_7_note": null
+  },
+  {
     "tablename": "fine_types",
     "policyname": "fine_types_admin",
     "cmd": "ALL",
@@ -267,6 +287,16 @@
     "qual": "(EXISTS ( SELECT 1\n   FROM memberships\n  WHERE ((memberships.group_id = hosting_rosters.group_id) AND (memberships.user_id = auth.uid()) AND (memberships.role = ANY (ARRAY['owner'::membership_role, 'admin'::membership_role])))))",
     "with_check": null,
     "kind": "neutralize",
+    "s24_7_note": null
+  },
+  {
+    "tablename": "hosting_swap_requests",
+    "policyname": "Members can create swap requests",
+    "cmd": "INSERT",
+    "roles": "{public}",
+    "qual": null,
+    "with_check": "(requested_by = auth.uid())",
+    "kind": "or_bypass",
     "s24_7_note": null
   },
   {

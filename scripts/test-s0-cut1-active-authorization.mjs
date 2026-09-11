@@ -142,3 +142,69 @@ test("payments treasurer policy adds active without changing role set", () => {
     /role = ANY \(ARRAY\['owner'::membership_role, 'admin'::membership_role\]\)/,
   );
 });
+
+const p1bOrBypass = [
+  ["feed_reactions", "rls_fr_delete", "DELETE"],
+  ["feed_reactions", "rls_fr_update", "UPDATE"],
+  ["hosting_swap_requests", "Members can create swap requests", "INSERT"],
+];
+
+test("P1-B OR-bypass trio is prechecked then DROP+CREATE with active gate", () => {
+  const dropCreates = (migration.match(/^DROP POLICY IF EXISTS /gm) || []).length;
+  assert.equal(dropCreates, 100, `expected 100 DROP+CREATE, got ${dropCreates}`);
+
+  assert.match(
+    migration,
+    /cut1_expect_policy\(\s*\$t\$feed_reactions\$t\$,\s*\$n\$rls_fr_delete\$n\$,\s*\$c\$DELETE\$c\$,/,
+  );
+  assert.match(
+    migration,
+    /cut1_expect_policy\(\s*\$t\$feed_reactions\$t\$,\s*\$n\$rls_fr_update\$n\$,\s*\$c\$UPDATE\$c\$,/,
+  );
+  assert.match(
+    migration,
+    /cut1_expect_policy\(\s*\$t\$hosting_swap_requests\$t\$,\s*\$n\$Members can create swap requests\$n\$,\s*\$c\$INSERT\$c\$,/,
+  );
+
+  // Live predicates (precondition, before rewrite) — ownership / requested_by only.
+  assert.match(
+    migration,
+    /m\.id = feed_reactions\.membership_id\) AND \(m\.user_id = auth\.uid\(\)\)\)\)/,
+  );
+  assert.match(
+    migration,
+    /\$w\$\(requested_by = auth\.uid\(\)\)\$w\$/,
+  );
+
+  for (const [table, name, cmd] of p1bOrBypass) {
+    const drop = `DROP POLICY IF EXISTS "${name}" ON public.${table};`;
+    assert.ok(migration.includes(drop), `missing DROP of ${table}.${name}`);
+    const create = `CREATE POLICY "${name}" ON public.${table}\n  FOR ${cmd}`;
+    assert.ok(migration.includes(create), `missing CREATE of ${table}.${name} ${cmd}`);
+  }
+
+  const deleteStart = migration.indexOf('CREATE POLICY "rls_fr_delete" ON public.feed_reactions');
+  const updateStart = migration.indexOf('CREATE POLICY "rls_fr_update" ON public.feed_reactions');
+  const swapStart = migration.indexOf(
+    'CREATE POLICY "Members can create swap requests" ON public.hosting_swap_requests',
+  );
+  assert.ok(deleteStart > 0 && updateStart > 0 && swapStart > 0);
+  const deleteBody = migration.slice(deleteStart, deleteStart + 600);
+  const updateBody = migration.slice(updateStart, updateStart + 600);
+  const swapBody = migration.slice(swapStart, swapStart + 800);
+
+  assert.match(deleteBody, /TO authenticated/);
+  assert.match(updateBody, /TO authenticated/);
+  assert.match(swapBody, /TO public/);
+  assert.match(deleteBody, /m\.user_id = auth\.uid\(\)/);
+  assert.match(deleteBody, /m\.membership_status = 'active'/);
+  assert.match(updateBody, /m\.user_id = auth\.uid\(\)/);
+  assert.match(updateBody, /m\.membership_status = 'active'/);
+  assert.match(swapBody, /requested_by = auth\.uid\(\)/);
+  assert.match(swapBody, /is_active_group_member\(hr\.group_id\)/);
+  assert.match(swapBody, /from_assignment_id/);
+  assert.match(swapBody, /hosting_assignments ha/);
+  assert.match(swapBody, /hosting_rosters hr/);
+  assert.doesNotMatch(deleteBody, /is_group_admin/);
+  assert.doesNotMatch(updateBody, /is_group_admin/);
+});

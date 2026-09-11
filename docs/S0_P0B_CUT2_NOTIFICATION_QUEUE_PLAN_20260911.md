@@ -12,7 +12,8 @@
 - `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`  
 - `docs/evidence/S0_CUT2_CHANNEL_RENDERER_MATRIX_20260911.json`  
 - `docs/evidence/S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`  
-- `docs/evidence/S0_CUT2_CHIEF_READONLY_SR2_FOLD_20260911.json`
+- `docs/evidence/S0_CUT2_CHIEF_READONLY_SR2_FOLD_20260911.json`  
+- `docs/evidence/S0_CUT2_FUTURE_CI_SCRIPT_NAMES_20260911.json`
 
 ---
 
@@ -574,6 +575,8 @@ Must include: A1–A5 client INSERT/UPDATE/TRUNCATE DENY; A6 service_role table 
 
 No-send harness: provider keys unset; no `failed`→`queued`; synthetic UUIDs only.
 
+**R2-20 exact CI script names** (implementation PR; not authored here): listed under R29 / `docs/evidence/S0_CUT2_FUTURE_CI_SCRIPT_NAMES_20260911.json`.
+
 ---
 
 ## R27–R28 — Dual-compatible rollout (app first, then 00115)
@@ -623,9 +626,22 @@ Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_qu
 
 **Not in 00115 SQL:** deployed app SHA; sms-sender source scan; route 410 checks; package tests.  
 
-**Separate CI/static (implementation PR):** no `notifications_queue.insert` in app producers; `/api/sms/send` and `/api/whatsapp/send` return 410; sms-sender does not INSERT.  
+**Separate CI/static — exact future script names (R2-20). Names frozen; files are NOT authored in this PR:**
 
-**Release prerequisite (founder, not SQL):** deployed Vercel SHA **equals** the Daybreak-qualified implementation SHA; relays 410 in production; **then** founder authorizes 00115 apply. Temporary pre-00115 existing-risk window is **accepted**.  
+| Script | Assertion |
+|--------|-----------|
+| `scripts/test-s0-cut2-sms-send-410.mjs` | `/api/sms/send` → **410** |
+| `scripts/test-s0-cut2-whatsapp-send-410.mjs` | `/api/whatsapp/send` all branches (typed, `{template,components}`, `{text}`) → **410** |
+| `scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs` | ACTIVE owner/admin only; moderator/member/pending/suspended/exited/archived **DENY** |
+| `scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs` | `sms-sender` + `send-sms-notification` do not INSERT `notifications_queue` |
+| `scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs` | all 15 `produce*` use adapter; no direct `.from("notifications_queue").insert` except temporary pre-00115 fallback **inside** the adapter |
+| `scripts/test-s0-cut2-adapter-fallback-42883-only.mjs` | fallback ONLY on exact `42883`/`PGRST202` missing-function matcher; never on semantic/auth |
+| `scripts/test-s0-cut2-raw-meta-drain-only.mjs` | raw Meta/provider adapter call sites restricted to drain boundary |
+| `scripts/test-s0-cut2-no-extra-provider-send.mjs` | no new provider send outside approved boundary |
+
+**Release gate name (created at release time, not now):**  
+`docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md`  
+Must record: deployed Vercel SHA **==** Daybreak-qualified impl SHA; relays 410 in production; **then** founder authorizes 00115 apply. Temporary pre-00115 existing-risk window is **accepted**.  
 **Never:** DELETE FROM `notifications_queue`; retry failed; edit `00001`–`00114`.
 
 ---
@@ -684,9 +700,15 @@ Live CHECK (MCP): `membership_status IN ('active','pending_approval','exited','s
 
 See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` on `llbnliixczcqfftxpsmb` copied **verbatim** (`indexdef` strings). **PRESERVE all unique WhatsApp indexes.** No unique yet for `minutes_published` / `election_opened` / `announcement` / `proxy_claim` / `hosting_swap` — covered by the new canonical semantic index. No TBD keys.
 
-### R2-F — Source/CI out of SQL
+### R2-F / R2-20 — Source/CI out of SQL; exact script names
 
-00115 `CUT2_ABORT` = R29 DB-observable list only. CI/static + founder SHA gate are release prerequisites, not SQL.
+00115 `CUT2_ABORT` = R29 DB-observable list only. CI/static scripts are **not** SQL preconditions.
+
+Frozen implementation CI filenames (do not author in this PR) — see R29 table:
+
+`scripts/test-s0-cut2-sms-send-410.mjs`, `scripts/test-s0-cut2-whatsapp-send-410.mjs`, `scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs`, `scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs`, `scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs`, `scripts/test-s0-cut2-adapter-fallback-42883-only.mjs`, `scripts/test-s0-cut2-raw-meta-drain-only.mjs`, `scripts/test-s0-cut2-no-extra-provider-send.mjs`.
+
+Release checklist (created at cutover, not now): `docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md` — deployed Vercel SHA == Daybreak-qualified impl SHA.
 
 ### R2-G — `/api/sms/send` = 410 only
 
@@ -706,7 +728,7 @@ Replacement table in R11. No remaining `{to,template,data}` path.
 | Email source auth.users / invitations; proxy email DENY | PASS — R2-C |
 | Proxy actor ACTIVE owner/admin only | PASS — R2-D |
 | Canonical idempotencyKey + live pg_indexes | PASS — R2-E |
-| 00115 preconditions DB-only; CI/SHA outside SQL | PASS — R2-F |
+| 00115 preconditions DB-only; CI/SHA outside SQL | PASS — R2-F / R2-20 (8 script names frozen) |
 | `/api/sms/send` 410 only | PASS — R2-G |
 | `/api/whatsapp/send` 410; Meta = drain only | PASS (do not reopen) |
 | App-first then 00115 | PASS — R28 |

@@ -676,6 +676,18 @@
     "proxy_actor": "ACTIVE owner OR ACTIVE admin same group only",
     "idempotency": "data.idempotencyKey + idx_notifications_queue_cut2_semantic_idempotency_unique (plan SQL only)",
     "sql_preconditions": "DB-observable only",
-    "sms_send": "410_GONE"
+    "sms_send": "410_GONE",
+    "r2_20_future_ci_scripts_not_authored": [
+      "scripts/test-s0-cut2-sms-send-410.mjs",
+      "scripts/test-s0-cut2-whatsapp-send-410.mjs",
+      "scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs",
+      "scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs",
+      "scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs",
+      "scripts/test-s0-cut2-adapter-fallback-42883-only.mjs",
+      "scripts/test-s0-cut2-raw-meta-drain-only.mjs",
+      "scripts/test-s0-cut2-no-extra-provider-send.mjs"
+    ],
+    "release_gate_checklist_name": "docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md",
+    "release_gate_requires": "deployed Vercel SHA == Daybreak-qualified impl SHA"
   }
 }

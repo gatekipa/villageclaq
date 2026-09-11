@@ -768,7 +768,8 @@ async function persistAndNotify(
     }
 
     // Email — localized title/body rendered above; notification template
-    // picks locale internally via the `locale` param.
+    // picks locale internally via the `locale` param. standing_changed
+    // email is DENY in the queue matrix; generic /api/email/send stays.
     if (sendEmail) {
       postJson("/api/email/send", {
         to: membership.user_id,
@@ -778,20 +779,9 @@ async function persistAndNotify(
       });
     }
 
-    // SMS — sms-templates.ts handles EN/FR internally via `t(locale, en, fr)`.
-    if (sendSms) {
-      postJson("/api/sms/send", {
-        to: membership.user_id,
-        template: "standing-changed",
-        data: { groupName, newStatus: standing },
-        locale,
-      });
-    }
-
-    // WhatsApp — server-side, queue-backed producer (exactly-once per
-    // membership/standing/day). The producer reads the authoritative
-    // standing from the DB and resolves the template variables itself.
-    if (sendWhatsapp) {
+    // SMS + WhatsApp — standing-notifications producer enqueues all ALLOW
+    // channels (WA + SMS). Post whenever either channel is wanted.
+    if (sendSms || sendWhatsapp) {
       postJson("/api/members/standing-notifications", {
         membershipId,
         locale,

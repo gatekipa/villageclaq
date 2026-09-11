@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { maskPhoneNumber } from "@/lib/mask-phone";
 
 interface SendSMSParams {
@@ -7,16 +6,15 @@ interface SendSMSParams {
 }
 
 /**
- * Send SMS via Africa's Talking API.
- * If AFRICASTALKING_API_KEY is not configured, queues the SMS in notifications_queue.
+ * Private Africa's Talking transport.
+ * After Cut 2 this function MUST NOT INSERT into notifications_queue.
+ * Callers: trusted drain (and leftover server renderers). Not a browser API.
  * Safe to call fire-and-forget — never throws.
  */
 export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: boolean; queued: boolean; error?: string }> {
   const apiKey = process.env.AFRICASTALKING_API_KEY;
   const username = process.env.AFRICASTALKING_USERNAME || "villageclaq";
 
-  // Diagnostics never log the raw phone (maskPhoneNumber, repo-wide rule)
-  // or any fragment of the API key.
   console.log("[SMS DIAG] sendSMS called", {
     to: maskPhoneNumber(to),
     messageLength: message.length,
@@ -25,27 +23,24 @@ export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: b
   });
 
   if (!apiKey) {
-    console.log("[SMS DIAG] AFRICASTALKING_API_KEY not configured — queuing SMS");
-    await queueNotification("sms", to, { message });
-    return { sent: false, queued: true, error: "AFRICASTALKING_API_KEY not configured" };
+    console.log("[SMS DIAG] AFRICASTALKING_API_KEY not configured — Cut 2 does not queue");
+    return { sent: false, queued: false, error: "AFRICASTALKING_API_KEY not configured" };
   }
 
   try {
     const AfricasTalking = (await import("africastalking")).default;
     const at = AfricasTalking({ apiKey, username });
-    // Only set custom sender ID if registered via AFRICASTALKING_SENDER_ID.
-    // Unregistered alphanumeric sender IDs are rejected by carriers.
-    // When omitted, Africa's Talking uses a default shared shortcode.
     const senderId = process.env.AFRICASTALKING_SENDER_ID;
     const smsPayload: { to: string[]; message: string; from?: string } = { to: [to], message };
     if (senderId) smsPayload.from = senderId;
 
-    console.log("[SMS DIAG] Calling Africa's Talking SDK", { to: maskPhoneNumber(to), senderId: senderId || "(default shortcode)", username });
+    console.log("[SMS DIAG] Calling Africa's Talking SDK", {
+      to: maskPhoneNumber(to),
+      senderId: senderId || "(default shortcode)",
+      username,
+    });
     const response = await at.SMS.send(smsPayload);
 
-    // Log a structured AT response summary for debugging delivery issues.
-    // Never dump the raw response JSON — its Recipients array echoes the
-    // full recipient phone number.
     const msgData = (response as Record<string, unknown>)?.SMSMessageData as Record<string, unknown> | undefined;
     const recipients = (msgData?.Recipients as Array<Record<string, unknown>>) || [];
     console.log("[SMS DIAG] Africa's Talking response", {
@@ -67,21 +62,6 @@ export async function sendSMS({ to, message }: SendSMSParams): Promise<{ sent: b
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown SMS error";
     console.error(`[SMS DIAG] Africa's Talking SDK EXCEPTION for ${maskPhoneNumber(to)}:`, msg);
-    await queueNotification("sms", to, { message });
-    return { sent: false, queued: true, error: msg };
-  }
-}
-
-async function queueNotification(channel: string, recipient: string, data: Record<string, unknown>) {
-  try {
-    const supabase = await createClient();
-    await supabase.from("notifications_queue").insert({
-      channel,
-      template: "generic",
-      data: { recipient, ...data },
-      status: "queued",
-    });
-  } catch (err) {
-    console.warn("[SMS:Queue] Failed to queue notification:", err instanceof Error ? err.message : err);
+    return { sent: false, queued: false, error: msg };
   }
 }

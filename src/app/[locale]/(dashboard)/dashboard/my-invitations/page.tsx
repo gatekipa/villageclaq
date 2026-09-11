@@ -5,7 +5,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { getEnabledChannels } from "@/lib/notification-prefs";
 import { requestWelcomeWhatsApp } from "@/lib/notify-welcome";
 import { phoneDigits, phoneDigitsMatch } from "@/lib/phone-digits";
 import { getMemberName } from "@/lib/get-member-name";
@@ -147,11 +146,7 @@ export default function MyInvitationsPage() {
       if (!invitation) throw new Error("Invitation not found");
 
       const groupId = invitation.group_id as string;
-      const role = (invitation.role as string) || "member";
-      const group = invitation.group as Record<string, unknown> | null;
-      const groupName = (group?.name as string) || "";
       const claimMembershipId = invitation.claim_membership_id as string | null;
-      const claimMembership = invitation.claim_membership as Record<string, unknown> | null;
       const isClaim = !!claimMembershipId;
 
       // Get the current authenticated user
@@ -229,77 +224,11 @@ export default function MyInvitationsPage() {
         }
       }
 
-      // Send welcome notifications (fire-and-forget)
-      // Guard: only send if user has an id (they always do since they're logged in)
+      // Welcome SMS/WA/email are enqueued by welcome-notifications (all ALLOW
+      // channels). No client /api/sms/send or /api/email/send — avoids double email.
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token && authUser.id) {
-          const memberName = isClaim
-            ? (claimMembership?.display_name as string) || user?.full_name || "Member"
-            : user?.full_name || user?.display_name || authUser.email || "Member";
-
-          let sendEmail = true, sendSms = true;
-          try {
-            const prefs = await getEnabledChannels(supabase, authUser.id, "new_member", groupId);
-            sendEmail = prefs.email;
-            sendSms = prefs.sms;
-          } catch (err) {
-            // fail-open
-            console.warn("[MyInvitations] notification prefs lookup failed:", err instanceof Error ? err.message : err);
-          }
-
-          // Email (fire-and-forget)
-          if (sendEmail) {
-            fetch("/api/email/send", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                to: authUser.id,
-                template: "welcome",
-                data: {
-                  memberName,
-                  groupName,
-                  dashboardUrl: `${window.location.origin}/${locale}/dashboard`,
-                },
-                locale,
-              }),
-            }).catch((err) => {
-              console.warn("[MyInvitations] welcome email request failed:", err instanceof Error ? err.message : err);
-            });
-          }
-
-          // SMS (fire-and-forget)
-          if (sendSms) {
-            fetch("/api/sms/send", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                to: authUser.id,
-                template: "welcome",
-                data: {
-                  memberName,
-                  groupName,
-                },
-                locale,
-              }),
-            }).catch((err) => {
-              console.warn("[MyInvitations] welcome SMS request failed:", err instanceof Error ? err.message : err);
-            });
-          }
-
-          // WhatsApp welcome — server-side, queue-backed producer re-checks
-          // new_member preferences, phone eligibility, and idempotency
-          // (at most one welcome per membership).
-          requestWelcomeWhatsApp(supabase, welcomeMembershipId, locale);
-        }
+        requestWelcomeWhatsApp(supabase, welcomeMembershipId, locale);
       } catch (err) {
-        // Notifications are non-critical — never block invitation acceptance
         console.warn("[MyInvitations] welcome notification dispatch failed:", err instanceof Error ? err.message : err);
       }
 

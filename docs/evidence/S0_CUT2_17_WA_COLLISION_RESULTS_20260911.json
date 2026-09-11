@@ -1,0 +1,315 @@
+{
+  "document": "S0_CUT2_17_WA_COLLISION_RESULTS_20260911",
+  "disposable_db": "s0p0b_cut2_disposable",
+  "production_apply": false,
+  "real_sends": 0,
+  "count": 17,
+  "all_first_inserted": true,
+  "all_second_duplicate": true,
+  "all_legacy_unchanged": true,
+  "legacy_id_never_returned": true,
+  "results": [
+    {
+      "index_name": "idx_notifications_queue_whatsapp_claim_approved_unique",
+      "notification_type": "relief_claim_approved",
+      "legacy_poison_id": "424534bb-967c-4124-8017-09870cdaab07",
+      "first": {
+        "queue_id": "737176e7-0c09-4609-8042-dfbd644d0f1f",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "737176e7-0c09-4609-8042-dfbd644d0f1f",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_claim_denied_unique",
+      "notification_type": "relief_claim_denied",
+      "legacy_poison_id": "e433d735-925e-47ea-82d0-633760a77904",
+      "first": {
+        "queue_id": "c04e1885-cb5d-4d99-b376-e734ea7e8066",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "c04e1885-cb5d-4d99-b376-e734ea7e8066",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_event_reminder_unique",
+      "notification_type": "event_reminder",
+      "legacy_poison_id": "74ee8c30-2696-466b-94eb-7cda3d71c9ba",
+      "first": {
+        "queue_id": "942d22f6-8731-444e-b3f3-5ef7b9f56e45",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "942d22f6-8731-444e-b3f3-5ef7b9f56e45",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_fine_issued_unique",
+      "notification_type": "fine_issued",
+      "legacy_poison_id": "799d13ac-9a4a-4de4-8e8f-66ae4054ef54",
+      "first": {
+        "queue_id": "05329352-63db-4832-a42d-2b3bb7f0b609",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "05329352-63db-4832-a42d-2b3bb7f0b609",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_hosting_assignment_unique",
+      "notification_type": "hosting_assignment",
+      "legacy_poison_id": "c5917ee8-5692-46d2-a8ca-a9a1ac89f976",
+      "first": {
+        "queue_id": "7d82d233-3abb-4e21-a1fd-0e72112c1ab4",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "7d82d233-3abb-4e21-a1fd-0e72112c1ab4",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_hosting_reminder_unique",
+      "notification_type": "hosting_reminder",
+      "legacy_poison_id": "ff168fcb-a488-4179-903e-f893b9f64c44",
+      "first": {
+        "queue_id": "661a2e47-06fa-433c-b773-ee12dc3270d6",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "661a2e47-06fa-433c-b773-ee12dc3270d6",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_loan_approved_unique",
+      "notification_type": "loan_approved",
+      "legacy_poison_id": "628f9613-3652-4e08-9f99-c7daf5d65662",
+      "first": {
+        "queue_id": "19cbd8ad-28ca-480a-bd66-05977cdae0a7",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "19cbd8ad-28ca-480a-bd66-05977cdae0a7",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_loan_overdue_unique",
+      "notification_type": "loan_overdue",
+      "legacy_poison_id": "d514164c-36bb-4b98-a360-76d86530bc19",
+      "first": {
+        "queue_id": "43733acc-e83c-4f4b-bc0b-e1ee97f94cfd",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "43733acc-e83c-4f4b-bc0b-e1ee97f94cfd",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_member_invitation_unique",
+      "notification_type": "member_invitation",
+      "legacy_poison_id": "f260f4a0-8fac-4ca8-8827-082802198ec9",
+      "first": {
+        "queue_id": "945cc828-8e81-4ac4-87ce-63a0f51c00a5",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "945cc828-8e81-4ac4-87ce-63a0f51c00a5",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_payment_receipt_unique",
+      "notification_type": "payment_receipt",
+      "legacy_poison_id": "fbf75450-b5c6-46d9-b5eb-209c7f15c349",
+      "first": {
+        "queue_id": "c7adc837-fb76-4c62-88e1-b444c4531d16",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "c7adc837-fb76-4c62-88e1-b444c4531d16",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_payment_reminder_unique",
+      "notification_type": "payment_reminder",
+      "legacy_poison_id": "b70edb20-bd5c-49d1-8140-71a198a6caec",
+      "first": {
+        "queue_id": "7e4bf249-7252-4e70-b4c1-573a1a66524e",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "7e4bf249-7252-4e70-b4c1-573a1a66524e",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_relief_enrollment_unique",
+      "notification_type": "relief_enrollment",
+      "legacy_poison_id": "0ceef35c-a192-4207-bd98-9a33236b4d9f",
+      "first": {
+        "queue_id": "e61fe1f1-be77-4395-aed6-cb7867ef5844",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "e61fe1f1-be77-4395-aed6-cb7867ef5844",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_remittance_confirmed_unique",
+      "notification_type": "remittance_confirmed",
+      "legacy_poison_id": "84fe5d37-112c-463d-8b75-f93ffbabc13f",
+      "first": {
+        "queue_id": "d55275e6-101d-4a4f-beab-0b0274ff873b",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "d55275e6-101d-4a4f-beab-0b0274ff873b",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_remittance_disputed_unique",
+      "notification_type": "remittance_disputed",
+      "legacy_poison_id": "e04ffcfa-52ab-4259-8f68-6fcc936cd53e",
+      "first": {
+        "queue_id": "1b452613-9278-4a8b-8181-08223ab34a8e",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "1b452613-9278-4a8b-8181-08223ab34a8e",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_standing_changed_unique",
+      "notification_type": "standing_changed",
+      "legacy_poison_id": "24a2cd2b-5bfb-40cf-bb6c-3dc03c27adf2",
+      "first": {
+        "queue_id": "189f7525-a1ab-4b62-9a65-7c2f88459a62",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "189f7525-a1ab-4b62-9a65-7c2f88459a62",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_subscription_expiring_unique",
+      "notification_type": "subscription_expiring",
+      "legacy_poison_id": "19367b4a-2b11-4939-bfae-abe1d83e2a3c",
+      "first": {
+        "queue_id": "a5b5bebd-bc10-4263-976a-df62f94a89c8",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "a5b5bebd-bc10-4263-976a-df62f94a89c8",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    },
+    {
+      "index_name": "idx_notifications_queue_whatsapp_welcome_unique",
+      "notification_type": "welcome",
+      "legacy_poison_id": "8832222b-ba3f-47a4-8357-f72892059d49",
+      "first": {
+        "queue_id": "47c9c81c-b47d-48b8-8b46-fe9bbf4803a1",
+        "result": "inserted",
+        "cut2_provenance_version": 1
+      },
+      "second": {
+        "queue_id": "47c9c81c-b47d-48b8-8b46-fe9bbf4803a1",
+        "result": "duplicate"
+      },
+      "legacy_row_unchanged": true,
+      "legacy_id_never_returned": true,
+      "zero_sends": true
+    }
+  ],
+  "privileges": {
+    "anon_insert": "f",
+    "auth_insert": "f",
+    "sr_insert": "f",
+    "anon_execute": "f",
+    "auth_execute": "f",
+    "sr_execute": "t",
+    "sr_update_status": "t",
+    "sr_update_provenance": "f",
+    "channel_deny_loan_overdue_sms": "denied",
+    "channel_deny_proxy_email": "denied",
+    "push_deny": "denied"
+  }
+}

@@ -65,6 +65,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useSubscription } from "@/lib/hooks/use-subscription";
 import { FeatureLock } from "@/components/ui/upgrade-prompt";
 import { createClient } from "@/lib/supabase/client";
+import { requestElectionOpenedNotifications } from "@/lib/notify-election-opened";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { PermissionGate } from "@/components/ui/permission-gate";
 import { cn, normalizeSearch } from "@/lib/utils";
@@ -411,6 +412,9 @@ export default function ElectionsPage() {
       }
 
       // Notify on open (voting starts) and on closed (results announced).
+      if (newStatus === "open") {
+        requestElectionOpenedNotifications(supabase, electionId, locale);
+      }
       if (newStatus === "open" || newStatus === "closed") {
         try {
           const { notifyBulkFromClient } = await import("@/lib/notify-client");
@@ -418,9 +422,6 @@ export default function ElectionsPage() {
             .filter((m: Record<string, unknown>) => m.user_id && m.user_id !== user?.id && m.membership_status !== "exited" && m.standing !== "banned")
             .map((m: Record<string, unknown>) => {
               const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-              // profile.phone no longer in useMembers cache. /api/sms/send
-              // and /api/whatsapp/send resolve real-member phone from
-              // user_id server-side. Only proxy phones flow client-side.
               const phone = (privSettings?.proxy_phone as string) || null;
               return { userId: m.user_id as string, phone };
             });
@@ -447,8 +448,7 @@ export default function ElectionsPage() {
               },
               link: `/dashboard/elections`,
               data: { electionTitle: electionTitle || "", groupName: currentGroup?.name || "" },
-              channels: { inApp: true, email: true, sms: false, whatsapp: isOpen },
-              whatsappType: isOpen ? "election_opened" : undefined,
+              channels: { inApp: true, email: !isOpen, sms: false, whatsapp: false },
               prefType: "announcements",
             }).catch((err) => {
               console.warn("[Elections:Notify] bulk dispatch failed:", err instanceof Error ? err.message : err);

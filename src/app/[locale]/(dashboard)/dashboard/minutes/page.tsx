@@ -52,6 +52,7 @@ import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime as formatDateTimeLocaleAware } from "@/lib/format";
 import { notifyBulkFromClient } from "@/lib/notify-client";
+import { requestMinutesPublishedNotifications } from "@/lib/notify-minutes-published";
 import { useSearchParam } from "@/lib/hooks/use-stable-search-params";
 import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useQueryClient } from "@tanstack/react-query";
@@ -532,9 +533,8 @@ export default function MinutesPage() {
         savedMinutesId = (inserted?.id as string) || null;
       }
 
-      // Notify members on publish — delegate to notifyBulkFromClient which
-      // enforces per-member channel preferences and respects rule #11
-      // (SMS only for African numbers, WhatsApp global, email always).
+      // In-app on publish via notifyBulkFromClient. SMS/WA/email enqueue
+      // via /api/minutes/published-notifications (ids only).
       if (status === "published") {
         const minutesTitle = payload.title as string;
         const meetingDate = selectedEvent?.starts_at
@@ -559,9 +559,6 @@ export default function MinutesPage() {
             .filter((m) => m.user_id && m.user_id !== user.id)
             .map((m) => {
               const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-              // profile.phone no longer in client cache; /api/sms/send and
-              // /api/whatsapp/send resolve real-member phone from user_id
-              // server-side. Only proxy phones stay client-side.
               const phone = (privSettings?.proxy_phone as string) || null;
               return { userId: m.user_id as string, phone };
             });
@@ -587,9 +584,6 @@ export default function MinutesPage() {
                 return { title, body };
               },
               inAppType: "meeting_minutes",
-              emailTemplate: "minutes-published",
-              smsTemplate: "minutes-published",
-              whatsappType: "minutes_published",
               link: deepLink,
               data: {
                 memberName: "",
@@ -600,7 +594,7 @@ export default function MinutesPage() {
                 minutesUrl: `${window.location.origin}/${locale}${deepLink}`,
               },
               locale,
-              channels: { inApp: true, email: true, sms: true, whatsapp: true },
+              channels: { inApp: true, email: false, sms: false, whatsapp: false },
               prefType: "minutes_published",
             }).catch((err) => {
               console.warn("[Minutes:Notify] bulk dispatch failed:", err instanceof Error ? err.message : err);
@@ -609,6 +603,8 @@ export default function MinutesPage() {
         } catch (err) {
           console.warn("[Minutes:Notify] recipient lookup failed:", err instanceof Error ? err.message : err);
         }
+
+        requestMinutesPublishedNotifications(supabase, savedMinutesId, locale);
       }
 
       // Audit log for publish

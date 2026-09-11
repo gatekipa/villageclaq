@@ -1,3 +1,4 @@
+import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
 import { getMemberName } from "@/lib/get-member-name";
@@ -230,29 +231,13 @@ export async function produceMemberInvitationNotification(
     };
   }
 
-  const { error: queueError } = await supabase.from("notifications_queue").insert({
-    // The invitee has no account yet; claim invitations target proxy
-    // memberships whose user_id is null by definition.
-    user_id: null,
-    channel: "whatsapp",
-    template: "member_invitation",
-    status: "queued",
-    data: {
-      recipient: recipientPhone,
-      user_id: null,
-      groupId: invitation.group_id,
-      invitationId: invitation.id,
-      sendDate,
-      whatsappType: "member_invitation",
-      whatsappData: {
-        inviteeName,
-        groupName,
-        invitationLink,
-      },
-      template: WA_TEMPLATES.MEMBER_INVITATION,
-      locale,
-    },
-  });
+  const enq = await enqueueCut2ProducerChannels({
+    notificationType: "member_invitation",
+    domainObjectId: invitation.id,
+    locale,
+  }, supabase);
+  const queueError = cut2QueueError(enq);
+
 
   if (queueError) {
     if (queueError.code === "23505") {
@@ -293,3 +278,11 @@ export async function produceMemberInvitationNotification(
     whatsappQueued: true,
   };
 }
+
+function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; code: string } | null {
+  if (enq.failClosed) return { message: enq.results[0]?.error || "fail_closed", code: "CUT2" };
+  if (enq.anyDuplicate && !enq.anyInserted) return { message: "duplicate", code: "23505" };
+  if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
+  return null;
+}
+

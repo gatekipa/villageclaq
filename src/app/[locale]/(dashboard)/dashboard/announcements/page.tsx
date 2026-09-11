@@ -58,6 +58,7 @@ import { Loader2 } from "lucide-react";
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
+import { requestAnnouncementEnqueue } from "@/lib/notify-announcement-enqueue";
 
 import { useAnnouncements, useMembers } from "@/lib/hooks/use-supabase-query";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -241,7 +242,7 @@ export default function AnnouncementsPage() {
           : audience === "roles"
           ? { type: "roles", roles: selectedRoles }
           : { type: "members", members: selectedMembers };
-      const { error: insertError } = await supabase.from("announcements").insert({
+      const { data: inserted, error: insertError } = await supabase.from("announcements").insert({
         group_id: groupId,
         title: titleEn,
         title_fr: titleFr || null,
@@ -252,7 +253,7 @@ export default function AnnouncementsPage() {
         sent_at: asDraft ? null : schedule === "now" ? new Date().toISOString() : null,
         scheduled_at: !asDraft && schedule === "later" && scheduledDate ? new Date(scheduledDate).toISOString() : null,
         created_by: user.id,
-      });
+      }).select("id").single();
       if (insertError) throw insertError;
 
       // Dispatch notifications only when actually sending now — not for
@@ -270,6 +271,7 @@ export default function AnnouncementsPage() {
           contentEn,
           contentFr,
         });
+        requestAnnouncementEnqueue(supabase, inserted?.id, locale);
       }
 
       // Audit log
@@ -321,9 +323,8 @@ export default function AnnouncementsPage() {
 
     let query = supabase
       .from("memberships")
-      // profiles.phone intentionally NOT selected. /api/sms/send and
-      // /api/whatsapp/send resolve real-member phone from user_id; proxies
-      // read privacy_settings.proxy_phone below.
+      // SMS/WA/email go through /api/announcements/enqueue (ids only).
+      // This helper only builds in-app recipients.
       .select("id, user_id, role, display_name, is_proxy, standing, privacy_settings, profiles:profiles!memberships_user_id_fkey(full_name)")
       .eq("group_id", groupId);
 
@@ -345,10 +346,7 @@ export default function AnnouncementsPage() {
       .filter((m) => m.user_id && m.user_id !== user.id && m.standing !== "banned")
       .map((m) => {
         const privSettings = (m.privacy_settings as Record<string, unknown>) || null;
-        // Real-member phones are no longer in the client cache (see
-        // useMembers select). Pass `phone` only for proxies; /api/sms/send
-        // and /api/whatsapp/send resolve real-member phones from user_id
-        // server-side with a recipient-authorisation check.
+        // In-app only here; queue channels enqueue server-side.
         const phone = (privSettings?.proxy_phone as string) || null;
         return { userId: m.user_id as string | null, phone };
       });
@@ -380,16 +378,13 @@ export default function AnnouncementsPage() {
             data: { title, body: (body || "").slice(0, 100) },
           };
         },
-        emailTemplate: "notification",
-        smsTemplate: "announcement",
-        whatsappType: "announcement",
         inAppType: "announcement",
         locale,
         channels: {
           inApp: activeChannels.includes("in_app"),
-          email: activeChannels.includes("email"),
-          sms: activeChannels.includes("sms"),
-          whatsapp: activeChannels.includes("whatsapp"),
+          email: false,
+          sms: false,
+          whatsapp: false,
         },
         prefType: "announcements",
       }).catch((err) => {
@@ -477,6 +472,7 @@ export default function AnnouncementsPage() {
             contentEn: (ann.content as string) || "",
             contentFr: (ann.content_fr as string) || "",
           });
+          requestAnnouncementEnqueue(supabase, annId, locale);
         }
       } catch (nerr) {
         console.warn("[Announcements:Publish] dispatch failed:", nerr instanceof Error ? nerr.message : nerr);

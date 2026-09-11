@@ -1,3 +1,4 @@
+import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildTranslator } from "@/lib/cron-notify-helper";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
@@ -426,33 +427,14 @@ async function produceForRecipient(
     return { userId, status: "skipped", reason: "duplicate_whatsapp_event_reminder" };
   }
 
-  const { error: queueError } = await supabase.from("notifications_queue").insert({
-    user_id: userId,
-    channel: "whatsapp",
-    template: "event_reminder",
-    status: "queued",
-    data: {
-      // The normalized (digits-only) form, not the raw profile value.
-      recipient: formattedPhone,
-      user_id: userId,
-      // camelCase duplicate of user_id: migration 00097's unique index keys
-      // on (data->>'eventId', data->>'userId') and predicates on data ? 'userId'.
-      userId,
-      groupId: event.group_id,
-      membershipId: membership.id,
-      eventId: event.id,
-      whatsappType: "event_reminder",
-      whatsappData: {
-        memberName: recipientName,
-        eventTitle,
-        eventDate,
-        eventLocation,
-        groupName,
-      },
-      template: WA_TEMPLATES.EVENT_REMINDER,
-      locale,
-    },
-  });
+  const enq = await enqueueCut2ProducerChannels({
+    notificationType: "event_reminder",
+    domainObjectId: event.id,
+    recipientMembershipId: membership.id,
+    locale,
+  }, supabase);
+  const queueError = cut2QueueError(enq);
+
 
   if (queueError) {
     if (queueError.code === "23505") {
@@ -476,3 +458,11 @@ async function produceForRecipient(
 
   return { userId, status: "queued" };
 }
+
+function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; code: string } | null {
+  if (enq.failClosed) return { message: enq.results[0]?.error || "fail_closed", code: "CUT2" };
+  if (enq.anyDuplicate && !enq.anyInserted) return { message: "duplicate", code: "23505" };
+  if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
+  return null;
+}
+

@@ -311,20 +311,17 @@ export default function RecordPaymentPage() {
       const formattedAmt = formatAmount(payAmount, currency);
       const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
 
-      // Resolve the member's user_id + phone for email/SMS.
+      // Resolve the member's user_id for email. SMS/WA are enqueued by
+      // produceServerSideReceiptNotifications above.
       let recipientUserId: string | null = null;
-      let recipientPhone: string | null = null;
       try {
         const supabase = createClient();
         const { data: membership } = await supabase
           .from("memberships")
-          // profiles.phone intentionally NOT selected — /api/sms/send
-          // resolves real-member phone from user_id.
-          .select("user_id, privacy_settings")
+          .select("user_id")
           .eq("id", membershipId)
           .single();
         recipientUserId = membership?.user_id || null;
-        recipientPhone = (membership?.privacy_settings as Record<string, unknown>)?.proxy_phone as string || null;
       } catch {
         // Non-critical — continue without external notifications
       }
@@ -357,21 +354,6 @@ export default function RecordPaymentPage() {
                   recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
                   paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
                 },
-                locale,
-              }),
-            }).catch(() => {});
-          }
-
-          // SMS: send to phone directly (or UUID as fallback for phone lookup)
-          const smsRecipient = recipientPhone || recipientUserId;
-          if (smsRecipient && channels.sms) {
-            fetch("/api/sms/send", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({
-                to: smsRecipient,
-                template: "payment-receipt",
-                data: { groupName: currentGroup?.name || "", amount: formattedAmt, contributionType: typeName },
                 locale,
               }),
             }).catch(() => {});

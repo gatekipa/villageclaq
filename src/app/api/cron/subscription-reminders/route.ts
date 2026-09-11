@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/send-email";
-import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { produceSubscriptionExpiringNotification } from "@/lib/subscription-expiring-producer";
 import { getEnabledChannels } from "@/lib/notification-prefs";
 import { buildTranslator, fetchLocaleMap, getLocale } from "@/lib/cron-notify-helper";
@@ -26,18 +24,13 @@ function shortId(id: string | null | undefined): string {
 /**
  * GET /api/cron/subscription-reminders
  * Vercel Cron — runs daily at 09:00 UTC.
- * Sends reminders for subscriptions expiring within 7 days.
+ * Enqueues subscription-expiring notices via the producer (ALLOW:
+ * WA + SMS). subscription email is DENY — do not send email. In-app
+ * remains direct. No happy-path SMS/email provider send.
  *
  * Recipients: the billing contacts (group owner/admin memberships).
  * Every title/body is rendered per admin in their preferred_locale
  * via the bilingual translator (cron namespace).
- *
- * In-app/email/SMS are sent directly from this route, deduped by the
- * locale-agnostic `dedup_key` row. WhatsApp is queued exclusively via
- * the subscription-expiring producer (notifications_queue, drained by
- * the queue cron) with its own per-recipient day-bucket idempotency —
- * decoupled from the in-app dedup row, so same-day reruns are safe on
- * both paths independently. No direct WhatsApp provider sends here.
  *
  * Billing state is read-only: this route only SELECTs from
  * group_subscriptions and never writes to it.
@@ -149,9 +142,7 @@ export async function GET(request: Request) {
         // Get group owner/admin memberships
         const { data: admins } = await supabase
           .from("memberships")
-          .select(
-            "user_id, profiles:profiles!memberships_user_id_fkey(email, phone)",
-          )
+          .select("user_id")
           .eq("group_id", groupId)
           .in("role", ["owner", "admin"])
           .not("user_id", "is", null);
@@ -189,40 +180,25 @@ export async function GET(request: Request) {
 
         for (const admin of admins) {
           const userId = admin.user_id as string;
-          const profile = (Array.isArray(admin.profiles)
-            ? admin.profiles[0]
-            : admin.profiles) as Record<string, unknown> | null;
-          const email = (profile?.email as string) || null;
-          const phone = (profile?.phone as string) || null;
           const locale = getLocale(localeMap, userId);
 
-          // Fail-open channel preferences
+          // Fail-open channel preferences (in-app only — SMS/WA via producer)
           let channels = { in_app: true, email: true, sms: true, whatsapp: true, push: false };
           try {
             channels = await getEnabledChannels(supabase, userId, "subscription_updates", groupId);
-          } catch {
-            /* fail-open: use defaults */
+          } catch (err) {
+            console.warn(
+              `[Cron:SubscriptionReminders] preference lookup failed for ${shortId(userId)}:`,
+              err instanceof Error ? err.message : err,
+            );
           }
-
-          // Locale-aware billing URL. The /{locale}/ prefix matches the
-          // route structure; using "en" for English keeps backwards
-          // compatibility with existing email links.
-          const billingUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/${locale}/dashboard/settings/billing`;
 
           const inAppTitle = bt(locale, "subscriptionExpiringInAppTitle", {
             tier,
             days: daysLeft,
           });
           const inAppBody = bt(locale, "subscriptionExpiringInAppBody", { groupName });
-          const emailTitle = bt(locale, "subscriptionExpiringEmailTitle", { days: daysLeft });
-          const emailBody = bt(locale, "subscriptionExpiringEmailBody", {
-            tier,
-            groupName,
-            date: periodEnd,
-          });
-          const ctaText = bt(locale, "renewNow");
 
-          // In-app (always if enabled)
           if (channels.in_app) {
             try {
               await supabase.from("notifications").insert({
@@ -243,49 +219,6 @@ export async function GET(request: Request) {
               );
             }
           }
-
-          // Email
-          if (email && channels.email) {
-            try {
-              await sendEmail({
-                to: email,
-                template: "notification",
-                data: {
-                  title: emailTitle,
-                  body: emailBody,
-                  groupName,
-                  ctaText,
-                  ctaUrl: billingUrl,
-                },
-                locale,
-              });
-            } catch (err) {
-              console.warn(
-                `[Cron:SubscriptionReminders] email failed for ${shortId(userId)}:`,
-                err instanceof Error ? err.message : err,
-              );
-            }
-          }
-
-          // SMS — locale picked up by the localized template
-          if (phone && channels.sms) {
-            try {
-              await sendSmsNotification({
-                to: phone,
-                template: "subscription-expiring",
-                data: { planName: tier, days: String(daysLeft) },
-                locale,
-              });
-            } catch (err) {
-              console.warn(
-                `[Cron:SubscriptionReminders] sms failed for ${shortId(userId)}:`,
-                err instanceof Error ? err.message : err,
-              );
-            }
-          }
-
-          // WhatsApp is handled by the queue-backed producer above — no
-          // direct provider sends from this cron.
 
           notified++;
         }

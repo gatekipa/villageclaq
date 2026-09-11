@@ -193,37 +193,13 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
     } catch (err) { console.warn("[Notify:Email] Send failed:", err instanceof Error ? err.message : err); }
   }
 
-  // ─── SMS ──────────────────────────────────────────────────────────────────
-  if (enabledSms && smsTemplate && (recipientPhone || recipientUserId)) {
-    try {
-      fetch("/api/sms/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          to: recipientPhone || recipientUserId,
-          template: smsTemplate,
-          data,
-          locale,
-        }),
-      }).catch((err) => { console.warn("[Notify:SMS] Fetch failed:", err instanceof Error ? err.message : err); });
-    } catch (err) { console.warn("[Notify:SMS] Send failed:", err instanceof Error ? err.message : err); }
-  }
-
-  // ─── WhatsApp ─────────────────────────────────────────────────────────────
-  if (enabledWhatsapp && whatsappType && (recipientPhone || recipientUserId)) {
-    try {
-      fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          to: recipientPhone || recipientUserId,
-          type: whatsappType,
-          data,
-          locale,
-        }),
-      }).catch((err) => { console.warn("[Notify:WhatsApp] Fetch failed:", err instanceof Error ? err.message : err); });
-    } catch (err) { console.warn("[Notify:WhatsApp] Send failed:", err instanceof Error ? err.message : err); }
-  }
+  // Cut 2: SMS/WhatsApp generic relays are 410. Pages must call domain
+  // *-notifications routes with ids only. smsTemplate/whatsappType are ignored.
+  void enabledSms;
+  void enabledWhatsapp;
+  void smsTemplate;
+  void whatsappType;
+  void recipientPhone;
 }
 
 /**
@@ -347,34 +323,9 @@ export async function notifyBulkFromClient(
       } catch (err) { console.warn("[NotifyBulk:Email] Send failed:", err instanceof Error ? err.message : err); }
     }
 
-    if (enabledSms && params.smsTemplate) {
-      try {
-        fetch("/api/sms/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({
-            to,
-            template: params.smsTemplate,
-            data: rendered.data,
-            locale: rendered.locale,
-          }),
-        }).catch((err) => { console.warn("[NotifyBulk:SMS] Fetch failed:", err instanceof Error ? err.message : err); });
-      } catch (err) { console.warn("[NotifyBulk:SMS] Send failed:", err instanceof Error ? err.message : err); }
-    }
-
-    if (enabledWhatsapp && params.whatsappType && (r.phone || r.userId)) {
-      try {
-        fetch("/api/whatsapp/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({
-            to: r.phone || r.userId,
-            type: params.whatsappType,
-            data: rendered.data,
-            locale: rendered.locale,
-          }),
-        }).catch((err) => { console.warn("[NotifyBulk:WhatsApp] Fetch failed:", err instanceof Error ? err.message : err); });
-      } catch (err) { console.warn("[NotifyBulk:WhatsApp] Send failed:", err instanceof Error ? err.message : err); }
-    }
+    // Cut 2: no /api/sms/send or /api/whatsapp/send. Domain routes enqueue.
+    void enabledSms;
+    void enabledWhatsapp;
+    void to;
   }
 }

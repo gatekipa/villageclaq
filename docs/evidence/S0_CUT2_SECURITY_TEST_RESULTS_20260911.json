@@ -1,0 +1,44 @@
+{
+  "document": "S0_CUT2_SECURITY_TEST_RESULTS_20260911",
+  "production_apply": false,
+  "real_sends": 0,
+  "failed_rows_retried": 0,
+  "frozen_ci_scripts": {
+    "scripts/test-s0-cut2-sms-send-410.mjs": "PASS",
+    "scripts/test-s0-cut2-whatsapp-send-410.mjs": "PASS",
+    "scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs": "PASS",
+    "scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs": "PASS",
+    "scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs": "PASS",
+    "scripts/test-s0-cut2-adapter-fallback-42883-only.mjs": "PASS",
+    "scripts/test-s0-cut2-raw-meta-drain-only.mjs": "PASS",
+    "scripts/test-s0-cut2-no-extra-provider-send.mjs": "PASS",
+    "scripts/test-s0-cut2-provenance-gate.mjs": "PASS",
+    "scripts/test-s0-cut2-legacy-quarantine.mjs": "PASS",
+    "scripts/test-s0-cut2-idempotency-provenance.mjs": "PASS",
+    "scripts/test-s0-cut2-worker-column-grants.mjs": "PASS",
+    "scripts/test-s0-cut2-legacy-wa-index-provenance.mjs": "PASS",
+    "scripts/test-s0-cut2-duplicate-trusted-lookup.mjs": "PASS",
+    "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs": "PASS"
+  },
+  "frozen_ci_pass_count": "15/15",
+  "npm_run_build": "PASS",
+  "wa_collisions": "17/17 PASS",
+  "privileges": {
+    "anon_insert": "DENY",
+    "authenticated_insert": "DENY",
+    "service_role_insert": "DENY",
+    "anon_execute": "DENY",
+    "authenticated_execute": "DENY",
+    "service_role_execute": "ALLOW",
+    "service_role_update_worker_columns": "ALLOW",
+    "service_role_update_provenance": "DENY"
+  },
+  "channel_denies": {
+    "loan_overdue_sms": "denied",
+    "member_invitation_sms": "matrix DENY (static + RPC allowlist)",
+    "election_opened_sms": "matrix DENY (static + RPC allowlist)",
+    "proxy_claim_email": "denied",
+    "push": "denied"
+  },
+  "historic_producer_payload_tests": "NOT the Cut 2 gate; some payload-field asserts fail after adapter conversion (expected). Frozen 15 scripts pass."
+}

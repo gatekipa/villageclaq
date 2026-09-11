@@ -1,3 +1,4 @@
+import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAmount } from "@/lib/currencies";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
@@ -213,6 +214,7 @@ export async function produceRemittanceDecisionNotifications(
       metaTemplate,
       { amount, groupName },
       userId,
+      admin.id,
       options,
       getChannels,
       logger,
@@ -246,6 +248,7 @@ async function produceForRecipient(
   metaTemplate: string,
   vars: { amount: string; groupName: string },
   userId: string,
+  recipientMembershipId: string,
   options: RemittanceDecisionProducerOptions,
   getChannels: NonNullable<RemittanceDecisionProducerOptions["getChannels"]>,
   logger: Logger,
@@ -329,29 +332,14 @@ async function produceForRecipient(
     return { userId, status: "skipped", reason: "duplicate_whatsapp_remittance" };
   }
 
-  const { error: queueError } = await supabase.from("notifications_queue").insert({
-    user_id: userId,
-    channel: "whatsapp",
-    template: templateKey,
-    status: "queued",
-    data: {
-      // The normalized (digits-only) form, not the raw profile value.
-      recipient: formattedPhone,
-      user_id: userId,
-      recipientUserId: userId,
-      groupId: remittance.branch_group_id,
-      remittanceId: remittance.id,
-      planId: remittance.relief_plan_id,
-      decision,
-      whatsappType: templateKey,
-      whatsappData: {
-        amount: vars.amount,
-        groupName: vars.groupName,
-      },
-      template: metaTemplate,
-      locale,
-    },
-  });
+  const enq = await enqueueCut2ProducerChannels({
+    notificationType: templateKey as "remittance_confirmed" | "remittance_disputed",
+    domainObjectId: remittance.id,
+    recipientMembershipId: recipientMembershipId,
+    locale,
+  }, supabase);
+  const queueError = cut2QueueError(enq);
+
 
   if (queueError) {
     if (queueError.code === "23505") {
@@ -376,3 +364,11 @@ async function produceForRecipient(
 
   return { userId, status: "queued" };
 }
+
+function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; code: string } | null {
+  if (enq.failClosed) return { message: enq.results[0]?.error || "fail_closed", code: "CUT2" };
+  if (enq.anyDuplicate && !enq.anyInserted) return { message: "duplicate", code: "23505" };
+  if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
+  return null;
+}
+

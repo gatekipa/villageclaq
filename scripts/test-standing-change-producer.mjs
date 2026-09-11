@@ -66,6 +66,49 @@ function loadProducer() {
         },
       };
     }
+    if (id === "@/lib/enqueue-outbound-notification") {
+      return {
+        enqueueCut2ProducerChannels: async (args, supabase) => {
+          if (supabase && typeof supabase.from === "function") {
+            supabase.from("notifications_queue").insert({
+              user_id: "cut2-adapter",
+              channel: "whatsapp",
+              template: args.notificationType,
+              status: "queued",
+              data: {
+                whatsappType: args.notificationType,
+                template: "cut2-semantic",
+                paymentId: args.domainObjectId,
+                membershipId: args.domainObjectId,
+                obligationId: args.domainObjectId,
+                enrollmentId: args.domainObjectId,
+                claimId: args.domainObjectId,
+                remittanceId: args.domainObjectId,
+                assignmentId: args.domainObjectId,
+                eventId: args.domainObjectId,
+                loanId: args.domainObjectId,
+                fineId: args.domainObjectId,
+                invitationId: args.domainObjectId,
+                subscriptionId: args.domainObjectId,
+                recipient: "+13014335857",
+                recipientUserId: args.recipientMembershipId,
+                userId: args.recipientMembershipId,
+                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
+              },
+            });
+          }
+          return {
+            anyInserted: true,
+            anyDuplicate: false,
+            anyDenied: false,
+            failClosed: false,
+            whatsappInserted: true,
+            results: [{ queueId: "cut2-qid", result: "inserted" }],
+          };
+        },
+      };
+    }
+
     if (id === "@/lib/notification-prefs") {
       return {
         getEnabledChannels: async () => ({ in_app: true, email: true, sms: true, whatsapp: true, push: false }),

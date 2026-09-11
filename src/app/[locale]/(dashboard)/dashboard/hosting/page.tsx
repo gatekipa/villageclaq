@@ -52,6 +52,7 @@ import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useHostingRosters, useMembers } from "@/lib/hooks/use-supabase-query";
 import { createClient } from "@/lib/supabase/client";
+import { requestHostingSwapNotifications } from "@/lib/notify-hosting-swap";
 import { logActivity } from "@/lib/audit-log";
 import { getMemberName } from "@/lib/get-member-name";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -2998,7 +2999,7 @@ function RequestSwapDialog({
       const supabase = createClient();
 
       // Insert swap request
-      const { error: insertErr } = await supabase
+      const { data: inserted, error: insertErr } = await supabase
         .from("hosting_swap_requests")
         .insert({
           from_assignment_id: assignment.id,
@@ -3007,19 +3008,19 @@ function RequestSwapDialog({
           proposed_membership_id: proposedMemberId,
           reason: reason.trim(),
           status: "pending",
-        });
+        })
+        .select("id")
+        .single();
       if (insertErr) throw insertErr;
+      const swapRequestId = inserted?.id as string | undefined;
 
       // Notify group admins (in-app)
       const requesterName = getMemberName(
         activeMembers.find((m) => m.id === currentMembershipId) as unknown as Record<string, unknown>
       );
-      // profiles.phone intentionally NOT selected. For real members the
-      // dispatch APIs resolve phone from user_id server-side; proxy
-      // phones live in privacy_settings and remain available here.
       const { data: adminMembers } = await supabase
         .from("memberships")
-        .select("user_id, privacy_settings")
+        .select("user_id")
         .eq("group_id", groupId)
         .in("role", ["admin", "owner"])
         .not("user_id", "is", null);
@@ -3056,35 +3057,9 @@ function RequestSwapDialog({
         });
       }
 
-      // Notify via external channels (fire-and-forget)
-      try {
-        const { notifyFromClient } = await import("@/lib/notify-client");
-        if (adminMembers) {
-          for (const admin of adminMembers.filter((m) => m.user_id !== userId)) {
-            const adminPriv = (admin.privacy_settings as Record<string, unknown>) || null;
-            // Admins are always real members (user_id NOT NULL filter); the
-            // dispatch API resolves phone from user_id. Kept the proxy_phone
-            // fallback defensively in case an admin somehow has a proxy
-            // membership.
-            const adminPhone = (adminPriv?.proxy_phone as string) || null;
-            notifyFromClient({
-              recipientUserId: admin.user_id,
-              recipientPhone: adminPhone,
-              groupId,
-              title: t("swapRequestNotifTitle"),
-              body: t("swapRequestNotifBodyAdmin", { memberName: requesterName, date: fmtDate(assignment.assigned_date) }),
-              data: { groupName: "", memberName: requesterName, date: fmtDate(assignment.assigned_date) },
-              emailTemplate: "notification",
-              smsTemplate: "hosting-reminder",
-              whatsappType: "hosting_reminder",
-              inAppType: "system",
-              locale,
-              channels: { inApp: true, email: true, sms: true, whatsapp: true },
-              prefType: "hosting_reminders",
-            }).catch(() => {});
-          }
-        }
-      } catch { /* best-effort */ }
+      if (swapRequestId) {
+        requestHostingSwapNotifications(supabase, swapRequestId, locale);
+      }
 
       onOpenChange(false);
       setProposedMemberId("");
@@ -3281,33 +3256,7 @@ function SwapRequestsAdminTab({
         },
       });
 
-      // 6. Notify via external channels (fire-and-forget)
-      try {
-        const { notifyFromClient } = await import("@/lib/notify-client");
-        if (requesterUserId) {
-          const requesterMember = activeMembers.find((m) => (m as unknown as Record<string, unknown>).user_id === requesterUserId);
-          const reqRaw = requesterMember as unknown as Record<string, unknown> | undefined;
-          const reqPriv = (reqRaw?.privacy_settings as Record<string, unknown>) || null;
-          // profile.phone no longer in cache; /api/sms/send + /api/whatsapp/send
-          // resolve from user_id. Only proxy phones client-side.
-          const reqPhone = (reqPriv?.proxy_phone as string) || null;
-          notifyFromClient({
-            recipientUserId: requesterUserId,
-            recipientPhone: reqPhone,
-            groupId,
-            title: t("swapApprovedNotifTitle"),
-            body: t("swapApprovedNotifBody", { date: fmtDate(assignedDate) }),
-            data: { date: fmtDate(assignedDate), groupName: "" },
-            emailTemplate: "notification",
-            smsTemplate: "hosting-reminder",
-            whatsappType: "hosting_reminder",
-            inAppType: "system",
-            locale,
-            channels: { inApp: true, email: true, sms: true, whatsapp: true },
-            prefType: "hosting_reminders",
-          }).catch(() => {});
-        }
-      } catch { /* best-effort */ }
+      requestHostingSwapNotifications(supabase, sr.id, locale);
 
       onRefresh();
       onSuccessMsg(t("swapRequestApproved"));
@@ -3351,31 +3300,7 @@ function SwapRequestsAdminTab({
         });
       }
 
-      // Notify via external channels (fire-and-forget)
-      try {
-        const { notifyFromClient } = await import("@/lib/notify-client");
-        if (requesterUserId) {
-          const reqMember = activeMembers.find((m) => (m as unknown as Record<string, unknown>).user_id === requesterUserId);
-          const reqRaw = reqMember as unknown as Record<string, unknown> | undefined;
-          const reqPriv = (reqRaw?.privacy_settings as Record<string, unknown>) || null;
-          // profile.phone no longer in cache; /api/sms/send + /api/whatsapp/send
-          // resolve from user_id. Only proxy phones client-side.
-          const reqPhone = (reqPriv?.proxy_phone as string) || null;
-          notifyFromClient({
-            recipientUserId: requesterUserId,
-            recipientPhone: reqPhone,
-            groupId,
-            title: t("swapRejectedNotifTitle"),
-            body: t("swapRejectedNotifBody", { date: fmtDate(assignedDate), reason: rejectNotes.trim() }),
-            data: { date: fmtDate(assignedDate), reason: rejectNotes.trim(), groupName: "" },
-            emailTemplate: "notification",
-            inAppType: "system",
-            locale,
-            channels: { inApp: true, email: true, sms: true, whatsapp: true },
-            prefType: "hosting_reminders",
-          }).catch(() => {});
-        }
-      } catch { /* best-effort */ }
+      requestHostingSwapNotifications(supabase, sr.id, locale);
 
       // Audit log
       await logActivity(supabase, {

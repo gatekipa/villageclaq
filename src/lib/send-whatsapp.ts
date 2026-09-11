@@ -58,9 +58,20 @@ function isConfigured(): boolean {
  * Templates must be pre-approved in Meta Business Manager.
  * Returns { success, messageId, error }.
  */
+export function isCut2RawMetaDrainContext(): boolean {
+  return process.env.CUT2_RAW_META_CONTEXT === "drain";
+}
+
+function denyIfNotDrain(): WhatsAppResult | null {
+  if (isCut2RawMetaDrainContext()) return null;
+  return { success: false, error: "cut2_raw_meta_drain_only" };
+}
+
 export async function sendWhatsAppMessage(
   params: WhatsAppMessageParams,
 ): Promise<WhatsAppResult> {
+  const drainDenied = denyIfNotDrain();
+  if (drainDenied) return drainDenied;
   try {
     if (!isConfigured()) {
       console.log("[WhatsApp] Not configured — WHATSAPP_API_TOKEN or WHATSAPP_PHONE_NUMBER_ID missing");
@@ -143,6 +154,8 @@ export async function sendWhatsAppText(
   to: string,
   text: string,
 ): Promise<WhatsAppResult> {
+  const drainDenied = denyIfNotDrain();
+  if (drainDenied) return drainDenied;
   try {
     if (!isConfigured()) {
       return { success: false, error: "WhatsApp API not configured" };

@@ -1,3 +1,4 @@
+import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAmount } from "@/lib/currencies";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
@@ -473,30 +474,13 @@ export async function producePaymentReminderNotification(
     };
   }
 
-  const { error: queueError } = await supabase.from("notifications_queue").insert({
-    user_id: userId,
-    channel: "whatsapp",
-    template: "payment_reminder",
-    status: "queued",
-    data: {
-      recipient: recipientPhone,
-      user_id: userId,
-      groupId: obligation.group_id,
-      membershipId: membership.id,
-      obligationId: obligation.id,
-      reminderDate,
-      whatsappType: "payment_reminder",
-      whatsappData: {
-        memberName: memberName(membership, profile),
-        amount,
-        contributionType: typeName,
-        dueDate,
-        groupName,
-      },
-      template: WA_TEMPLATES.PAYMENT_REMINDER,
-      locale,
-    },
-  });
+  const enq = await enqueueCut2ProducerChannels({
+    notificationType: "payment_reminder",
+    domainObjectId: obligation.id,
+    locale,
+  }, supabase);
+  const queueError = cut2QueueError(enq);
+
 
   if (queueError) {
     if (queueError.code === "23505") {
@@ -539,3 +523,11 @@ export async function producePaymentReminderNotification(
     whatsappQueued: true,
   };
 }
+
+function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; code: string } | null {
+  if (enq.failClosed) return { message: enq.results[0]?.error || "fail_closed", code: "CUT2" };
+  if (enq.anyDuplicate && !enq.anyInserted) return { message: "duplicate", code: "23505" };
+  if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
+  return null;
+}
+

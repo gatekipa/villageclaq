@@ -1,807 +1,520 @@
-# S0 P0-B — Cut 2 Notification Queue / Outbound Relay Lockdown — Security Contract Freeze
+# S0 P0-B Cut 2 — SECURITY REVISION 1 (Daybreak HOLD closeout)
 
 **Date:** 2026-09-11  
-**Status:** **PLANNING ONLY — READY FOR DAYBREAK REVIEW**  
-**Overall recommended verdict:** **PASS — CUT 2 SECURITY CONTRACT COMPLETE; READY FOR DAYBREAK REVIEW**  
-**Implementation:** **NOT AUTHORIZED** until Daybreak **PASS**. Daybreak PASS on this PR authorizes **IMPLEMENTATION ON A DEDICATED BRANCH only**, **NOT** production apply.  
-**This artifact implements:** nothing (docs / evidence only)  
-**Cut 2 SQL migration in this PR:** **NONE** (do not author `00115` or any Cut 2 `.sql` here)  
-**Production mutation:** ZERO  
-**Historical migrations modified:** NO  
-**Messages sent:** ZERO  
-**Failed queue rows retried:** ZERO  
-**Cut 1:** **CLOSED** in production — do not modify  
-**PR #69 / #70:** **OPEN DRAFT** — must stay **untouched / unapplied** (PR #70 SEPARATION; #69 foundation likewise)  
-**PR #71:** **NOT TOUCHED** (no merge)  
-**Authoritative freeze:** §21. Where earlier sections conflict with §21, **§21 wins**.  
-**Evidence:** `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`
+**Status:** **SECURITY REVISION 1 — READY FOR DAYBREAK RE-REVIEW**  
+**Overall recommended verdict:** **PASS — LAYER B ONLY; R1–R30 FROZEN**  
+**Implementation:** **NOT AUTHORIZED** until Daybreak **PASS**. PASS authorizes **implementation on a dedicated branch only**, **NOT** production apply.  
+**This PR:** docs / evidence only. **No** `00115` SQL. **No** runtime code.  
+**Authoritative freeze:** this document (SR1). Prior Layer A / “survive policy drop” language is **VOID**.  
+**Previous Daybreak-reviewed tip (base of this revision):** `1478c33129502026346f8fb386614f6c66b9836c`  
+**Evidence:**  
+- `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`  
+- `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`
 
 ---
 
-## 1. Authority pins
+## Pins (do not drift)
 
-Cite exactly. Do not substitute nearby SHAs, deploys, or project refs.
-
-| Pin | Exact value |
-|-----|-------------|
-| Production main (this planning base) | `1693b806beaf80d1c8101c8011874a2a2bcbb642` |
-| Master PRD V1 PR #71 hard-freeze SHA | `050be86c9df3455c66b27bb5853eb786228b4009` |
-| Cut 1 CLOSED production | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **do not modify** |
-| Cut 1 repo file (immutable for Cut 2) | `supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql` |
-| Supabase prod | `llbnliixczcqfftxpsmb` |
-| Live `schema_migrations` count (Chief, prod) | **29** (includes Cut 1 `20260911183755`) |
-| PR #69 (OPEN DRAFT foundation; do not merge/apply) | head `a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7` — `product-consistency/notification-policy-foundation-v2-20260910` |
-| PR #70 (OPEN DRAFT CREATE-NOT-APPLY; do not merge/apply) | head `0f258726c9328ee0204f7b5dee9efceebe7265b9` — `security/notification-policy-schema-20260910` |
-| PR #71 (docs governance; do not merge) | head `050be86c9df3455c66b27bb5853eb786228b4009` |
-| Planning branch (this artifact) | `planning/s0-p0b-cut2-notification-queue-20260911` from `1693b806beaf80d1c8101c8011874a2a2bcbb642` |
-| Prior Cut 1 planning contract (phases 1–22 template) | PR #75 `docs/S0_P0_REMEDIATION_CUT_PLAN_20260910.md` §19 bounded Cut 2 stub — **superseded by this freeze** |
-| S0-A P0-B confirmation (2026-09-10) | PR #72 `97388b34037589a21eae66e3a5a1668f71e3bb55` §4 / §20 — INSERT `auth.uid() IS NOT NULL` |
-| Live queue inventory source | Chief-verified 2026-09-11 capture — copied **verbatim** into evidence JSON (this task did **not** re-query production) |
-
-Cut 1 is **CLOSED**. Cut 2 must consume post-Cut 1 **ACTIVE** membership primitives (`is_active_group_member`, `get_my_active_group_ids`, replaced `is_group_admin` / `has_group_permission`) and must **not** encode status-blind `is_group_member` / `get_user_group_ids` as its only producer gate.
+| Pin | Value |
+|-----|-------|
+| This revision parent tip | `1478c33129502026346f8fb386614f6c66b9836c` |
+| Production main | `1693b806beaf80d1c8101c8011874a2a2bcbb642` |
+| Master PRD #71 freeze | `050be86c9df3455c66b27bb5853eb786228b4009` |
+| Cut 1 CLOSED prod | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **DO NOT MODIFY** |
+| Repo | `https://github.com/gatekipa/villageclaq` |
+| Planning branch / PR | `planning/s0-p0b-cut2-notification-queue-20260911` / DRAFT **#77** |
+| PR #69 | OPEN DRAFT `a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7` — **untouched / unapplied** |
+| PR #70 | OPEN DRAFT CREATE-NOT-APPLY `0f258726c9328ee0204f7b5dee9efceebe7265b9` — **untouched / unapplied** |
+| Live project | `llbnliixczcqfftxpsmb` — migrations **29**; INSERT policy `Authenticated users can queue notifications` `WITH CHECK (auth.uid() IS NOT NULL)`; GRANT INSERT anon+authenticated+service_role; **no `group_id` column**; enum `queued\|sent\|failed` only |
 
 ---
 
-## 2. Live INSERT authorization analysis (P0-B)
+## R1 — Layer B mandatory path (Layer A removed)
 
-Source of live table/policy/grant facts: **Chief-verified inventory 2026-09-11** (verbatim in evidence JSON). This planning task did **not** execute production SQL.
-
-### 2.1 Live table (Chief)
-
-`public.notifications_queue`
-
-| Column | Type / default | Notes |
-|--------|----------------|-------|
-| `id` | `uuid` PK `gen_random_uuid()` | |
-| `user_id` | `uuid` NULL FK → `profiles(id)` ON DELETE CASCADE | Invitee / proxy rows may be NULL |
-| `channel` | `notification_channel` NOT NULL | `email \| sms \| whatsapp \| push` |
-| `template` | `text` NOT NULL | **no DB allowlist** |
-| `data` | `jsonb` NOT NULL default `{}` | **no tenant CHECK**; **no `group_id` column** |
-| `status` | `notification_queue_status` NOT NULL default `queued` | `queued \| sent \| failed` — **NO `processing` / claim state** |
-| `error_message` | `text` | |
-| `attempts` | `int4` default `0` | Drain retries **queued** only, max 3 (app) |
-| `created_at` | `timestamptz` default `now()` | |
-| `sent_at` | `timestamptz` | |
-
-RLS: `enabled=true` `forced=false`.  
-User triggers on the table: **none found** (Chief).  
-No SQL `INSERT INTO notifications_queue` in repo migrations / edge functions (repo source).
-
-### 2.2 Live policies (Chief)
-
-| # | Name | Cmd | Qualifier |
-|---|------|-----|-----------|
-| 1 | `Authenticated users can queue notifications` | INSERT | `roles={}` USING `null` WITH CHECK `(auth.uid() IS NOT NULL)` |
-| 2 | `Platform staff can view all notifications_queue` | SELECT | `is_platform_staff()` |
-| 3 | `Staff can view notification queue` | SELECT | `is_platform_staff()` |
-| 4 | `Staff can update notification queue` | UPDATE | `is_platform_staff()` |
-
-**Forge (Chief):** authenticated **direct INSERT YES** (only `auth.uid() IS NOT NULL`); anon **effective INSERT NO** (WITH CHECK fails) but **GRANT INSERT still present**; **arbitrary `template` / `channel` / `data` YES**; **no `group_id` column**.
-
-### 2.3 Live grants (Chief)
-
-`anon` + `authenticated` + `service_role` + `postgres` all have `SELECT` / `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE` / `REFERENCES` / `TRIGGER`.
-
-**RLS does not apply to `TRUNCATE`.** Authenticated `TRUNCATE` on this table is a queue-wipe capability independent of the INSERT forge. Cut 2 **must** revoke it on this table (table-scoped; not a global grant sweep).
-
-### 2.4 Repo origin (not a substitute for live)
-
-- Table + fail-open INSERT: `supabase/migrations/00012_notification_queue.sql` (comment claims “system inserts via service role”; policy does not).
-- Staff UPDATE: `00051_notification_queue_update_policy.sql` (comment: drain uses service_role and bypasses RLS; policy is “completeness” for dashboard).
-- Duplicate staff SELECT: `00070_admin_p1_fixes.sql`.
-- `GRANT ALL … TO authenticated`: `00048_rls_security_audit_fixes.sql`.
-- Cut 1 `00114` header: **out of scope `notifications_queue`**.
-
-### 2.5 What the forge allows today
-
-Any logged-in browser (or any server using the user JWT / cookie `anon` client) can insert a row with:
-
-- any `channel` enum value
-- any `template` string (`generic`, attacker-chosen Meta template names, etc.)
-- any `data` jsonb (arbitrary `recipient`, `message`, `whatsappType`, `components`)
-- any `user_id` the FK allows (or NULL)
-- `status = 'queued'` (or `sent` / `failed` if supplied — **no CHECK** that INSERT must be `queued`)
-
-The drain (`GET /api/cron/drain-notification-queue`, every 15 minutes, `CRON_SECRET` + **service_role**) will then attempt SMS / email / WhatsApp for `status = 'queued'`. That is the outbound relay.
-
-### 2.6 Critical compatibility (frozen — docs addendum)
-
-These five facts are **apply-blocking** for Cut 2 implementation sequencing. They do not authorize SQL or app edits in this PR.
-
-#### C1 — `sms-sender.ts` depends on the live INSERT policy (MUST move before/with revoke)
-
-`src/lib/notifications/sms-sender.ts` `queueNotification` uses `createClient()` from `@/lib/supabase/server` (cookie session + `NEXT_PUBLIC_SUPABASE_ANON_KEY`). On AT key missing or SDK failure it INSERTs:
-
-```ts
-{ channel, template: "generic", data: { recipient, ...data }, status: "queued" }
-```
-
-`data` is a **free-form `message` string + arbitrary phone** (`recipient`). There is no template allowlist, no `groupId`, no producer key.
-
-That path **DEPENDS** on live policy `Authenticated users can queue notifications` / `WITH CHECK (auth.uid() IS NOT NULL)` (plus `GRANT INSERT` to `authenticated`).  
-
-**Cut 2 MUST move this insert to `service_role` (or a bounded `SECURITY DEFINER` enqueue) BEFORE or IN THE SAME implementation commit as** DROP of that policy / `REVOKE INSERT` from `authenticated`. SQL-only policy drop **without** this move is **`CUT2_ABORT`**: session-path SMS fallback queueing breaks, and leaving it on the authenticated path is **high forge-adjacent risk** (any request that reaches `sendSMS` with a user cookie can enqueue arbitrary phone + free-form SMS body for the drain to send).
-
-Cron callers of `sendSMS` typically have **no cookies** → `auth.uid()` NULL → WITH CHECK already fails. Moving to service_role also **repairs** that cron fallback.
-
-#### C2 — Canonical domain producers survive INSERT *policy* drop iff service_role GRANT INSERT remains
-
-Payment / welcome / standing / relief / hosting / event / loan / fine / invitation / subscription producers are invoked from API/cron routes that construct **`createClient(url, SUPABASE_SERVICE_ROLE_KEY)`** and pass that client into `produce*`. `service_role` **bypasses RLS**.
-
-Therefore: **DROP** of `Authenticated users can queue notifications` does **not** break those producers **IF** `GRANT INSERT` on `notifications_queue` to `service_role` **remains**.
-
-**Layer distinction (do not collapse):**
-
-| Layer | SQL action | Domain producers | sms-sender (today) |
-|-------|------------|------------------|--------------------|
-| **A — close the forge** | DROP authenticated INSERT policy; `REVOKE INSERT` from `anon`/`authenticated` | **Survive** (service_role grant + RLS bypass) | **Breaks** unless already moved (C1) |
-| **B — RPC allowlist** | also `REVOKE INSERT` from `service_role`; only `enqueue_outbound_notification` may insert | **Break** until each `.insert()` switches to RPC | Must use RPC or skip |
-
-Layer B is the stricter freeze in §6 / §7. It is **not** implied by policy drop alone. Implementation must not revoke `service_role` INSERT while producers still call `.from("notifications_queue").insert`.
-
-#### C3 — Zero UI insert call-sites; forge is PostgREST + sms-sender session path
-
-Repo tip: **zero** `*.tsx` / UI `.from("notifications_queue").insert` call-sites. The live forge is:
-
-1. PostgREST + RLS policy `auth.uid() IS NOT NULL` + `GRANT INSERT` to `authenticated` (any logged-in client SDK)
-2. `sms-sender.ts` session/anon-key path (C1)
-
-Not a current dashboard button that writes the queue directly.
-
-#### C4 — Live prod confirmation (`llbnliixczcqfftxpsmb`)
-
-Chief-confirmed (do not invent extras):
-
-- `schema_migrations` **29** rows
-- Cut 1 version **`20260911183755`** name `s0_p0a_cut1_active_authorization`
-- INSERT policy **`Authenticated users can queue notifications`** / `WITH CHECK (auth.uid() IS NOT NULL)`
-- `GRANT INSERT` for **`anon` + `authenticated` + `service_role`**
-- **no `group_id` column**
-- status enum **`queued | sent | failed` only** (no `processing`)
-
-#### C5 — PR #69 / #70 remain OPEN DRAFT
-
-Both stay **untouched and unapplied**. Cut 2 must not merge, rebase onto, or apply either. See §20.
-
----
-
-## 3. Remediation order (Cut 2 position)
-
-| Cut | P0 | Objective | State |
-|-----|----|-----------|-------|
-| **Cut 1** | P0-A | Active membership / authorization boundary | **CLOSED** production `20260911183755` — **do not modify** |
-| **Cut 2** | P0-B | `notifications_queue` INSERT lockdown: trusted server only; revoke ordinary authenticated direct INSERT; tenant / recipient / template / payload authority at enqueue; drain service_role-only mutate; failed-row **NO RETRY**; prefs fail-closed preserved; quiet-hours **defer-compatible** (do not drop) | **THIS FREEZE** (docs only) |
-| **Cut 3** | P0-C | Storage write/delete fail-open closure | **NOT STARTED** — §19 SEPARATION |
-
-Independent cut. **One new forward-only migration after `00114`.** Never edit `00001`–`00114`. Never apply PR #70 as Cut 2. Never start M2 / F3-06 / Cut 3 in the Cut 2 implementation PR.
-
----
-
-## 4. Dependency graph
+**Layer A is not an implementation option.** After Cut 2 there is one architecture:
 
 ```
-Cut 1 CLOSED (20260911183755)
-        │
-        ▼
-this Cut 2 contract ──► Daybreak PASS / HOLD
-        │
-        │  PASS authorizes IMPLEMENT on a dedicated branch only
-        │  (NOT production apply; NOT this planning PR)
-        ▼
-CONTRACT PASS → IMPLEMENT on dedicated branch
-  → author ONE forward-only migration AFTER 00114
-  → C1: sms-sender → service_role/DEFINER BEFORE/WITH Layer A
-  → Layer A: DROP authenticated INSERT policy (domain producers survive if service_role GRANT INSERT remains)
-  → Layer B (if frozen): RPC + revoke service_role table INSERT (requires produce* RPC switch)
-  → disposable no-send harness → negatives + regression
-  → SHA freeze → founder prod auth → apply one
-  → read-only postconditions (no drain invoke; no provider calls)
-        │
-        ├── Cut 3 storage (later)     §19 SEPARATION
-        ├── PR #70 requal             §20 SEPARATION
-        └── M2 quiet-hours DEFER_UNTIL / F3-06   §20 SEPARATION
+BROWSER
+  → authorized domain route / cron
+    → domain producer (authz + load object + prefs)
+      → service_role EXECUTE enqueue_outbound_notification(...)
+        → notifications_queue (status=queued only)
+          → trusted drain (CRON_SECRET + service_role SELECT/UPDATE)
+            → provider (AT / Meta / Resend)
 ```
 
-**Hard edges**
+**Forbidden after Cut 2**
 
-- Cut 2 must **not** call status-blind `is_group_member` / `get_user_group_ids` as its only producer gate.
-- Cut 2 must **not** apply, merge, or rewrite PR #69 foundation or PR #70 `notification_policies` / `notification_policy_triggers` / `notification_policy_occurrences`.
-- **C1 hard gate:** do not DROP `Authenticated users can queue notifications` / `REVOKE INSERT` from `authenticated` unless `sms-sender.ts` already writes via `service_role` or bounded DEFINER (same implementation commit is allowed; SQL-only first is **ABORT**).
-- Cut 2 must **not** add `processing` to `notification_queue_status` (would force drain rewrite + send-path risk). Browser non-claim is achieved by **REVOKE UPDATE** from `anon`/`authenticated` + **DROP** staff UPDATE policy.
-- Cut 2 must **not** retry or delete `status = 'failed'` rows.
-- Cut 2 must **not** drop queued rows for quiet hours. M2 may later `DEFER_UNTIL`; Cut 2 leaves rows `queued`.
-- Historical journal `00001`–`00114`: **immutable**.
-- Announcement producer (Build 8) stays **DORMANT**. Do not wire. Do not apply `00106`/`00107`.
+- Direct `notifications_queue` INSERT by `anon`, `authenticated`, platform-staff JWT, **or** `service_role` application producers.
+- Browser `/api/sms/send` or `/api/whatsapp/send` (typed, direct Meta template, or text).
+- `sms-sender.ts` cookie/anon INSERT (`generic` + free-form message + arbitrary phone).
+- Cron `sendSmsNotification` / `dispatchWhatsApp` happy-path (except drain).
+
+`service_role` table privileges after 00115: **SELECT + UPDATE only**. **EXECUTE** `enqueue_outbound_notification` only. **No** INSERT / DELETE / TRUNCATE.
 
 ---
 
-## 5. Producer model and classification
+## R2 — Exact `enqueue_outbound_notification` signature
 
-Classification vocabulary (use **only** these labels). If unsure → **UNKNOWN — FAIL CLOSED**.
+```
+public.enqueue_outbound_notification(
+  p_notification_type         text,
+  p_domain_object_id          uuid,
+  p_channel                   public.notification_channel,
+  p_recipient_membership_id   uuid     DEFAULT NULL,
+  p_locale                    text     DEFAULT NULL
+)
+RETURNS TABLE (
+  queue_id   uuid,
+  result     text   -- 'inserted' | 'duplicate' | 'denied'
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+```
 
-| Label | Meaning |
-|-------|---------|
-| **TRUSTED SERVER** | Next.js server library / route; queue write must use **service_role** (or enqueue RPC executable only by service_role) |
-| **BROWSER-INITIATED SERVER-AUTHORIZED** | Browser `fetch` + user JWT → API route authorizes → **service_role** enqueue |
-| **SERVICE/CRON** | `Authorization: Bearer CRON_SECRET` (or Meta webhook signature) + **service_role** |
-| **LEGACY DIRECT CLIENT** | Browser or cookie/`anon` JWT performs `.from("notifications_queue").insert` |
-| **DORMANT** | Source exists; **not imported** by any live route/cron |
-| **UNKNOWN — FAIL CLOSED** | Cannot prove call-site or client role |
+**Grants:** `REVOKE ALL FROM PUBLIC, anon, authenticated`. `GRANT EXECUTE TO service_role` only.
 
-### 5.1 Named WhatsApp producers (repo tip `1693b806`)
+### Fail-closed rules (inside the function — no caller-trusted contact)
 
-All `src/lib/*-producer.ts` modules accept an injected `SupabaseClient` and insert WhatsApp rows. They do **not** construct the client. Classification is by **caller**.
-
-| Producer | Template(s) | Live caller | Class | Prefs | Idempotency key (unique index / check) |
-|----------|-------------|-------------|-------|-------|----------------------------------------|
-| `payment-receipt-producer` | `payment_receipt` | `POST /api/payments/receipt-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | `getEnabledChannels` (`payment_reminders` type used by receipt path — see producer) fail-closed | `data.paymentId` — `idx_notifications_queue_whatsapp_payment_receipt_unique` |
-| `payment-reminder-producer` | `payment_reminder` | `GET /api/cron/payment-reminders` | **SERVICE/CRON** | fail-closed | `(obligationId, reminderDate)` |
-| `welcome-producer` | `welcome` | `POST /api/members/welcome-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | fail-closed | `data.membershipId` |
-| `standing-change-producer` | `standing_changed` | `POST /api/members/standing-notifications` (from `calculate-standing.ts`) | **BROWSER-INITIATED SERVER-AUTHORIZED** | fail-closed | `(membershipId, newStanding, changeDate)` |
-| `relief-enrollment-producer` | `relief_enrollment` | `POST /api/relief/enrollment-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | fail-closed | `data.enrollmentId` |
-| `relief-claim-decision-producer` | `relief_claim_approved` / `relief_claim_denied` | `POST /api/relief/claim-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | `relief_updates` fail-closed | `data.claimId` per decision template |
-| `remittance-decision-producer` | `remittance_confirmed` / `remittance_disputed` | `POST /api/relief/remittance-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | fail-closed | `(remittanceId, recipientUserId)` per decision |
-| `hosting-assignment-producer` | `hosting_assignment` | `POST /api/hosting/assignment-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | fail-closed | `data.assignmentId` |
-| `hosting-reminder-producer` | `hosting_reminder` | `GET /api/cron/hosting-reminders` | **SERVICE/CRON** | fail-closed | `(assignmentId, assignedDate)` |
-| `event-reminder-producer` | `event_reminder` | `GET /api/cron/event-reminders` | **SERVICE/CRON** | fail-closed | `(eventId, userId)` |
-| `loan-approved-producer` | `loan_approved` | `POST /api/loans/approval-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | `loan_updates` fail-closed | `data.loanId` |
-| `loan-overdue-producer` | `loan_overdue` | `GET /api/cron/loan-overdue-reminders` | **SERVICE/CRON** | fail-closed | `(loanId, reminderDate)` |
-| `fine-issued-producer` | `fine_issued` | `POST /api/fines/issued-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | `fine_updates` fail-closed | `data.fineId` |
-| `member-invitation-producer` | `member_invitation` | `POST /api/invitations/whatsapp-notifications` | **BROWSER-INITIATED SERVER-AUTHORIZED** | **no profile prefs** (invitee has no account; `user_id` NULL) | `(invitationId, sendDate)` |
-| `subscription-expiring-producer` | `subscription_expiring` | `GET /api/cron/subscription-reminders` | **SERVICE/CRON** | fail-closed | `(subscriptionId, reminderDate, userId)` |
-| `announcement-producer` | `announcement` | **none** (file header: DORMANT Build 8; not imported) | **DORMANT** | fail-closed in source; **must not wire** | none live; `00106`/`00107` **not** this cut |
-
-Browser-initiated producer routes share one pattern (repo): Bearer JWT `getUser` → **403** unless recorder/self/active owner-admin (or invitation inviter) or `isPlatformStaff` → `createClient(url, SERVICE_ROLE)` → `produce*(adminClient, id)`.
-
-Cron producers: `CRON_SECRET` Bearer → service_role client → `produce*`.
-
-### 5.2 Other queue INSERT call-sites
-
-| Call-site | Class | Client used for INSERT | Cut 2 fate |
-|-----------|-------|------------------------|------------|
-| `src/lib/notifications/sms-sender.ts` `queueNotification` | **TRUSTED SERVER** library with **LEGACY authenticated insert** | `createClient()` from `@/lib/supabase/server` = **cookie + anon key** (user JWT if present; **anon if cron**) | **C1 HARD GATE:** move to `service_role` or bounded DEFINER **before/with** INSERT policy drop. Payload is `template: "generic"` + free-form `data.message` + arbitrary `recipient` phone — **forge-adjacent** if left on authenticated. Cron-without-cookies already fails WITH CHECK (`auth.uid()` NULL). |
-| `src/app/api/whatsapp/send/route.ts` `queueWhatsAppMessage` | **BROWSER-INITIATED SERVER-AUTHORIZED** (JWT + `callerCanMessageTarget` / staff) overflow / retryable Meta failure | **service_role** direct INSERT; `template` from request body (`type` / `template` / `"generic"`) | Must call enqueue RPC; **template allowlist**; no arbitrary Meta template name |
-| `src/app/api/sms/send/route.ts` | **BROWSER-INITIATED SERVER-AUTHORIZED** (JWT + recipient guard) | Delegates to `sendSmsNotification` → sms-sender (legacy insert) | Companion with sms-sender |
-| `src/app/api/proxy-claim/send/route.ts` | **TRUSTED SERVER** | sms-sender fallback | Companion with sms-sender |
-| Cron SMS paths (`payment-reminders`, `event-reminders`, `hosting-reminders`, `subscription-reminders`, `send-scheduled-announcements`) | **SERVICE/CRON** | sms-sender fallback (cookie client → **anon** on cron) | Companion; cron fallback must use service_role + RPC |
-| `src/lib/announcement-producer.ts` | **DORMANT** | would use injected client | Do not wire |
-
-**No** `*.tsx` / UI `.from("notifications_queue").insert` call-sites on this tip (**C3**). The live forge is **PostgREST RLS** (`Authenticated users can queue notifications` + `GRANT INSERT` to `authenticated`) **plus** the **sms-sender session path** (**C1**). Not a dashboard insert button.
-
-### 5.3 Workers (mutate, not produce)
-
-| Worker | Auth | Client | Queue ops | Class |
-|--------|------|--------|-----------|-------|
-| `GET /api/cron/drain-notification-queue` | `CRON_SECRET` | service_role | SELECT `status='queued'` LIMIT 50; UPDATE sent/failed/attempts | **SERVICE/CRON** |
-| `POST /api/webhooks/whatsapp` | Meta `x-hub-signature-256` | service_role | SELECT by `data.providerMessageId`; UPDATE `data` only (status events) | **SERVICE/CRON** |
-| Admin UI `src/app/[locale]/admin/notifications/page.tsx` | platform staff (client) | user JWT | **SELECT only** (`id, status, created_at`) | staff read; **must not UPDATE** after Cut 2 |
-
-Drain retries: increment `attempts` while `status` stays `queued` until `attempts >= 3`, then `failed`. **Does not select `failed`.** Unique indexes span **all** statuses → failed WhatsApp producer keys **cannot** be re-inserted. Cut 2 **NO RETRY** of failed rows (no status flip, no delete+insert).
-
-### 5.4 Counts (this tip)
-
-| Class | Named producers | Other INSERT sites | Workers |
-|-------|-----------------|--------------------|---------|
-| BROWSER-INITIATED SERVER-AUTHORIZED | **10** | **2** (`/api/whatsapp/send`, `/api/sms/send` via sms-sender) | 0 |
-| SERVICE/CRON | **5** | cron SMS fallbacks (same sms-sender) | **2** (drain + webhook) |
-| TRUSTED SERVER (legacy insert path) | 0 | **1** (`sms-sender.ts`) | 0 |
-| LEGACY DIRECT CLIENT (wired UI) | **0** | **0** (forge remains open) | 0 |
-| DORMANT | **1** (announcement / Build 8) | 0 | 0 |
-| UNKNOWN — FAIL CLOSED | **0** named | any unsigned future site | 0 |
-
-**Producer-module total:** 16 files (`*-producer.ts`). **Live wired:** 15. **Dormant:** 1.
-
-### 5.5 Direct-dispatch (not queue producers) — do not confuse
-
-`GET /api/cron/send-scheduled-announcements` sends email/SMS/WhatsApp **directly** (Build 7). It is **SERVICE/CRON** and **not** a `notifications_queue` producer except sms-sender fallback. Build 8 `announcement-producer` remains **DORMANT**. Cut 2 does **not** producerize announcements.
-
----
-
-## 6. Cut 2 exact contract
-
-### 6.1 Producer model (frozen)
-
-1. **Trusted server only.** Ordinary `authenticated` / `anon` **direct table INSERT is revoked** (Layer A).
-2. **C1:** `sms-sender.ts` MUST write via `service_role` or bounded `SECURITY DEFINER` **before or with** Layer A. Leaving free-form `message` + arbitrary phone on the authenticated path is **forge-adjacent** and forbidden.
-3. **C2:** Canonical `produce*` modules called with route-constructed **service_role** clients **survive Layer A** (policy drop) **iff** `GRANT INSERT` to `service_role` remains. Do not treat policy drop as breaking payment/welcome/etc.
-4. **Layer B (stricter, same Cut 2 object list):** the only INSERT path becomes `public.enqueue_outbound_notification(...)` `SECURITY DEFINER` `SET search_path TO ''`, `REVOKE` from `PUBLIC` / `anon` / `authenticated`, `GRANT EXECUTE` to **`service_role` only**, and `service_role` **table INSERT is revoked**. Layer B **does not survive** while producers still `.insert()` — ship RPC switch in the same implementation PR, or do not revoke `service_role` INSERT until they have.
-5. Browser-initiated routes remain allowed **only** as they exist today (JWT + tenant/role checks) and enqueue via service_role (Layer A) or service_role → RPC (Layer B). Cut 2 SQL does not add new browser enqueue grants.
-6. Cut 2 SQL does **not** send, drain, or retry.
-
-### 6.2 Tenant / recipient / template / payload authority
-
-Enforced **inside** `enqueue_outbound_notification` (service_role bypasses RLS; RLS cannot be the tenant gate).
-
-| Check | Rule |
+| Input | Rule |
 |-------|------|
-| `channel` | Must be `email` \| `sms` \| `whatsapp` \| `push` |
-| `template` | Must be in the **Cut 2 allowlist** (§7.4). Unknown → **DENY** |
-| `status` | INSERT must be `queued` only. Caller cannot insert `sent` / `failed` |
-| Tenant | `data ? 'groupId'` AND `data->>'groupId'` is UUID, **except** `subscription_expiring` (platform billing; require `subscriptionId` + `userId`) and sms-sender `generic` **REJECTED** (no generic) |
-| Recipient | `data.recipient` required non-empty text for sms/whatsapp/email. `push` **DENY** in Cut 2 (enum exists; no live producer) |
-| Payload | Per-template required keys (§9). Extra keys allowed. Empty required key → **DENY** |
-| Membership | If `data.groupId` present and `user_id` present: `is_active_group_member` is **not** sufficient alone (recipient may be the member, not the caller). RPC runs as definer with **no `auth.uid()`**. Tenant check is: `EXISTS` group row for `groupId`. Recipient-vs-group binding is **producer-layer** (already in routes). RPC does **not** invent a weaker cross-tenant bind than producers. |
-| Cross-tenant | If `user_id` NOT NULL and `groupId` present: `EXISTS` membership `(user_id, group_id)` **any status** (historical recipient OK) **OR** template is `member_invitation` (`user_id` NULL allowed). Fail closed if `user_id` set and no membership in that group. |
-| Prefs | **Not** re-implemented in SQL. Producers keep `getEnabledChannels` fail-closed. RPC does not force-send by ignoring prefs. |
-| Quiet hours | RPC does **not** delete or reject for quiet hours. Leave `queued` (M2 `DEFER_UNTIL` compatible). |
-| Idempotency | Unique indexes **UNCHANGED**. Unique violation → RPC returns `duplicate` (not an update of failed rows). |
-| Failed rows | RPC **never** `DELETE` / `UPDATE` existing rows. **NO RETRY**. |
+| `p_notification_type` | Must be in R4 type allowlist. Else `result='denied'`, no insert. |
+| `p_channel` | Must be `whatsapp` \| `sms` \| `email`. `push` → denied. |
+| `p_domain_object_id` | Required UUID. Function **loads** the domain row. Missing → denied. |
+| `p_recipient_membership_id` | **Required** for fan-out types (R3 `fanout=true`). **NULL** for single-recipient types. Wrong/foreign membership → denied. |
+| `p_locale` | `NULL` or `en` or `fr`. Anything else → denied. |
+| **Rejected parameters (MUST NOT exist)** | phone, email, recipient text, free-form message, Meta `components`, `groupId`, `template`, `data` jsonb, `status`, `user_id` |
 
-### 6.3 Worker / drain authorization
+**Internal algorithm (order is mandatory)**
 
-| Actor | SELECT | INSERT | UPDATE | DELETE / TRUNCATE |
-|-------|--------|--------|--------|-------------------|
-| `anon` | DENY (revoke + no policy) | DENY | DENY | DENY |
-| `authenticated` (including platform staff JWT) | ALLOW via existing staff SELECT policies only | DENY | **DENY** (browser must **not** claim) | DENY |
-| `service_role` | ALLOW (grant; RLS bypass) | **DENY table**; EXECUTE enqueue RPC only | ALLOW table UPDATE (drain + webhook) | DENY |
-| `postgres` | owner | owner (migrations) | owner | owner |
+1. Allowlist `p_notification_type` + `p_channel`.
+2. Load domain object by R3 table + `p_domain_object_id`.
+3. **Derive tenant `group_id` from the object chain** (R3). **Do not trust** any caller `groupId`.
+4. Resolve recipient membership (single-recipient: from object; fan-out: `p_recipient_membership_id` must belong to that tenant per R3).
+5. **Derive recipient contact from DB** (R7). Never from args.
+6. Prefs (R9): fail-closed. Invitation exception.
+7. Allowlist queue `template` string (R4) and server-own content (R5).
+8. INSERT `status='queued'` only. Unique conflict → `duplicate` (no UPDATE).
+9. **Never** UPDATE/DELETE/requeue/replace a `failed` or `sent` row.
 
-Drain remains `CRON_SECRET` + service_role. Browser staff dashboard stays **read-only** on the queue.  
-**Do not** add `processing` claim state in Cut 2. Concurrent drain double-send is a **pre-existing P1**, not this P0.
-
-### 6.4 Preference fail-closed + quiet hours
-
-- Preserve `getEnabledChannels()` catch → external channels **false** (`src/lib/notification-prefs.ts`).
-- Preserve `get_notification_preferences(p_user_id)` (00054). Do not replace with a client-only prefs read.
-- Quiet hours are **stored** (`profiles.notification_preferences.quiet_hours`) and **not enforced** today (`NOTIFICATION_CHANNEL_AUDIT.md` Risk 2). Cut 2 **must not** start dropping queue rows to “honor” quiet hours. M2 may add `DEFER_UNTIL`. Compatibility = **defer, not drop**.
-
-### 6.5 Idempotency + failed-row NO RETRY
-
-Preserve all live WhatsApp unique indexes (Chief + repo). Implementation must `CREATE UNIQUE INDEX IF NOT EXISTS` **only if** a loud precondition finds one missing — **do not DROP/rebuild** indexes (rewrite would lock and could fail on duplicates). Default: **UNCHANGED**.
-
-Failed row = unique key occupied → producer already skips; RPC returns `duplicate`; drain never selects `failed`; **no admin retry** in Cut 2.
-
-### 6.6 Loud preconditions (implementation migration, later)
-
-`RAISE EXCEPTION` / `CUT2_ABORT` (never NOTICE+skip) if any of:
-
-1. Cut 1 version `20260911183755` / `s0_p0a_cut1_active_authorization` **absent** from `supabase_migrations.schema_migrations`.
-2. Policy `Authenticated users can queue notifications` missing or WITH CHECK drifted from `auth.uid() IS NOT NULL`.
-3. Table missing; or a `group_id` column **already exists** (unexpected — ABORT, do not invent a dual contract).
-4. Enum already contains `processing` (unexpected drift).
-5. Expected unique index names from §7.6 missing (ABORT; do not silently skip).
-6. `to_regclass('public.notification_policies')` IS NOT NULL — PR #70 leaked; **ABORT** (Cut 2 must not share a migration with #69/#70).
-7. **C1:** `sms-sender.ts` on the implementation tip still imports `@/lib/supabase/server` `createClient` for `notifications_queue` INSERT → **`CUT2_ABORT`** (must move before/with policy drop).
-8. Live Cut 1 version is not `20260911183755` / migration count unexpected vs Chief **29** → **ABORT** (do not guess; re-read-only confirm).
-
-### 6.7 Postconditions
-
-1. Authenticated JWT **cannot** INSERT (PostgREST 401/42501 or 0 rows).
-2. Anon **cannot** INSERT (grant + check).
-3. Authenticated staff **cannot** UPDATE/DELETE/TRUNCATE.
-4. `service_role` table INSERT **fails**; RPC with allowlisted payload **succeeds** (disposable only).
-5. RPC with unknown template / missing `groupId` / missing recipient **fails**.
-6. All §7.6 unique indexes still present (same names).
-7. Cut 1 helpers / policies **byte-identical** (or documented `prosrc` md5 unchanged for Cut 1 objects).
-8. No queue row status flipped from `failed` → `queued`.
-9. No provider HTTP in the harness.
+`denied` and `duplicate` return `queue_id` NULL (or existing id on duplicate — implementation may return existing id **read-only**; must not mutate).
 
 ---
 
-## 7. Exact object scope
+## R3 — Domain resolution matrix (complete)
 
-### 7.1 CREATE (Cut 2)
+Machine-readable copy: `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`.  
+**Unknown live named producers: 0.** Schema chains from repo producers + migrations on tip `1693b806`.
 
-| Object | Name | Notes |
-|--------|------|-------|
-| FUNCTION | `public.enqueue_outbound_notification(p_user_id uuid, p_channel public.notification_channel, p_template text, p_data jsonb)` | `SECURITY DEFINER`; `SET search_path TO ''`; returns `TABLE(id uuid, result text)` where `result ∈ {inserted, duplicate, denied}`; **does not send** |
-| FUNCTION | `public.cut2_expect_queue_policy(p_name text, p_cmd text, p_qual text, p_with_check text)` | precondition helper; `SET search_path TO ''`; **not** granted to authenticated |
-| FUNCTION | `public.cut2_notification_template_allowed(p_template text)` | `IMMUTABLE`; allowlist predicate used by enqueue; empty `search_path` |
+`fanout=true` ⇒ caller must pass `p_recipient_membership_id` of a membership that the chain accepts.
 
-No new tables. No new enum values. No `group_id` column. No `notification_policies`.
+### 15 live named WhatsApp producers
 
-### 7.2 REPLACE
+| Type | Domain table | `p_domain_object_id` | Tenant chain (derived) | Recipient | Fan-out | Prefs key |
+|------|--------------|----------------------|------------------------|-----------|---------|-----------|
+| `payment_receipt` | `payments` | `payments.id` | `payments.group_id` (producer also asserts `memberships.group_id` = `payments.group_id`) | `payments.membership_id` | no | `payment_reminders` |
+| `payment_reminder` | `contribution_obligations` | `contribution_obligations.id` | `contribution_obligations.group_id` (assert = `memberships.group_id`) | `contribution_obligations.membership_id` (skip proxy / null `user_id`) | no | `payment_reminders` |
+| `welcome` | `memberships` | `memberships.id` | `memberships.group_id` | same membership (`user_id` required) | no | `new_member` |
+| `standing_changed` | `memberships` | `memberships.id` | `memberships.group_id` | same (`user_id` required; standing from `memberships.standing`) | no | `standing_changes` |
+| `relief_enrollment` | `relief_enrollments` | `relief_enrollments.id` | `relief_enrollments.plan_id` → `relief_plans.group_id` (assert = `memberships.group_id`) | `relief_enrollments.membership_id` | no | `relief_updates` |
+| `relief_claim_approved` | `relief_claims` | `relief_claims.id` | `relief_claims.plan_id` → `relief_plans.group_id` | `relief_claims.membership_id` | no | `relief_updates` |
+| `relief_claim_denied` | `relief_claims` | `relief_claims.id` | same | same | no | `relief_updates` |
+| `remittance_confirmed` | `relief_remittances` | `relief_remittances.id` | `relief_remittances.branch_group_id` | fan-out: active owner/admin membership of **branch** group, `user_id` NOT NULL | **yes** | `relief_updates` |
+| `remittance_disputed` | `relief_remittances` | `relief_remittances.id` | same | same | **yes** | `relief_updates` |
+| `hosting_assignment` | `hosting_assignments` | `hosting_assignments.id` | `roster_id` → `hosting_rosters.group_id` (`00003_events_operations_tables.sql`; assert = `memberships.group_id`) | `hosting_assignments.membership_id` | no | `hosting_reminders` |
+| `hosting_reminder` | `hosting_assignments` | `hosting_assignments.id` | same | same | no | `hosting_reminders` |
+| `event_reminder` | `events` | `events.id` | `events.group_id` (`00003_events_operations_tables.sql`) | fan-out: active non-proxy memberships of that group, `user_id` NOT NULL (producer L149–155; **not** `event_attendances`) | **yes** | `event_reminders` |
+| `loan_approved` | `loans` | `loans.id` | `loans.group_id` (assert = `memberships.group_id`) | `loans.membership_id` | no | `loan_updates` |
+| `loan_overdue` | `loans` | `loans.id` | `loans.group_id` | `loans.membership_id` (amount/due from `loan_schedule` overdue rows — content only) | no | `loan_updates` |
+| `fine_issued` | `fines` | `fines.id` | `fines.group_id` (`00010_stickiness_features.sql`; assert = `memberships.group_id`) | `fines.membership_id` | no | `fine_updates` |
+| `member_invitation` | `invitations` | `invitations.id` | `invitations.group_id` | **invitee phone = `invitations.phone`** (DB); `user_id` NULL | no | **none (R9)** |
+| `subscription_expiring` | `group_subscriptions` | `group_subscriptions.id` | **`group_subscriptions.group_id`** (group-scoped billing; **not** a platform-user table — evidence `00050`) | fan-out: active non-proxy owner/admin of that group | **yes** | `subscription_updates` |
 
-**None.** Do not `CREATE OR REPLACE` Cut 1 helpers, `is_platform_staff`, `get_notification_preferences`, or drain SQL (there is none).
+Claim/remittance **type** is derived from authoritative `status` on the loaded row (`approved`/`denied`, `confirmed`/`disputed`). Caller must pass the matching `p_notification_type`; mismatch with row status → **denied**.
 
-### 7.3 REWRITE (DROP + CREATE / DROP)
+### Additional live SMS/WhatsApp paths (not among the 15 queue producers today)
 
-| Object | Action |
-|--------|--------|
-| POLICY `"Authenticated users can queue notifications"` | **DROP** |
-| POLICY `"Staff can update notification queue"` | **DROP** (browser must not claim / mutate) |
+| Type | Domain table | Tenant chain | Recipient | Fan-out | Live source |
+|------|--------------|--------------|-----------|---------|-------------|
+| `minutes_published` | `meeting_minutes` | `meeting_minutes.group_id` (`00003_events_operations_tables.sql`) | active-ish members of group (today: `standing <> banned`, `user_id` set) — **Cut 2: active membership + `user_id` NOT NULL** | yes | `minutes/page.tsx` → notify-client |
+| `election_opened` | `elections` | `elections.group_id` (`00009_phase9_features.sql`) | group members with `user_id` | yes | `elections/page.tsx` → notify-client |
+| `announcement` | `announcements` | `announcements.group_id` (`00008_communications_tables.sql`) | audience JSON (all/roles/members) — **RPC loads announcement + resolves audience from DB, not client recipient list** | yes | `announcements/page.tsx` + cron `send-scheduled-announcements` |
+| `proxy_claim` | `memberships` | `memberships.group_id` | **same proxy membership**; contact from `privacy_settings.proxy_phone` \|\| `memberships.phone` — **ignore request-body phone** | no | `proxy-claim/send` + `members/page.tsx` |
+| `hosting_swap` | `hosting_swap_requests` | `from_assignment_id` → `hosting_assignments.roster_id` → `hosting_rosters.group_id` (`00003_events_operations_tables.sql`) | request: owner/admins; approve/reject: membership of `requested_by` | yes for request | `hosting/page.tsx` swap flows (today misuses `hosting_reminder` for request+approve; reject is email/in-app only) |
 
-SELECT policies **UNCHANGED**:
+`announcement-producer.ts` remains **DORMANT** (00106/00107). Cut 2 still enqueues `announcement` via RPC from cron/page conversion — **does not** apply 00106/00107.
 
-- `"Platform staff can view all notifications_queue"`
-- `"Staff can view notification queue"`
-
-Optional belt-and-suspenders (only if Daybreak requires a named INSERT deny policy in addition to REVOKE):
-
-| Object | Action |
-|--------|--------|
-| POLICY `"notifications_queue_insert_deny_client"` | **CREATE** `FOR INSERT TO anon, authenticated WITH CHECK (false)` |
-
-Default freeze: **omit** the deny policy if REVOKEs are proven; **include** it if disposable shows GRANT residual. Implementation must not create an INSERT policy that re-opens `auth.uid() IS NOT NULL`.
-
-### 7.4 Template allowlist (enqueue RPC)
-
-Exact names (WhatsApp producer templates + no `generic`):
-
-`payment_receipt`, `payment_reminder`, `welcome`, `standing_changed`, `relief_enrollment`, `relief_claim_approved`, `relief_claim_denied`, `remittance_confirmed`, `remittance_disputed`, `hosting_assignment`, `hosting_reminder`, `event_reminder`, `loan_approved`, `loan_overdue`, `fine_issued`, `member_invitation`, `subscription_expiring`
-
-**Not allowlisted in Cut 2:** `announcement`, `generic`, `push`, arbitrary Meta names, email template aliases.
-
-SMS/email queueing after Cut 2: either map to the same allowlisted template keys with required `data` keys, or **do not enqueue** (fail closed). sms-sender’s current `template: "generic"` is **rejected** — companion must pass a real allowlisted key or skip queue.
-
-### 7.5 REVOKE / GRANT (exact)
-
-```
-REVOKE ALL ON TABLE public.notifications_queue FROM anon;
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE public.notifications_queue FROM authenticated;
-GRANT SELECT ON TABLE public.notifications_queue TO authenticated;   -- staff RLS SELECT only
-
-REVOKE INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE public.notifications_queue FROM service_role;
-GRANT SELECT, UPDATE ON TABLE public.notifications_queue TO service_role;
-
-REVOKE ALL ON FUNCTION public.enqueue_outbound_notification(uuid, public.notification_channel, text, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.enqueue_outbound_notification(uuid, public.notification_channel, text, jsonb) TO service_role;
-
-REVOKE ALL ON FUNCTION public.cut2_expect_queue_policy(text, text, text, text) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.cut2_notification_template_allowed(text) FROM PUBLIC, anon, authenticated;
--- GRANT EXECUTE on cut2_notification_template_allowed to service_role only if enqueue is SQL-language and needs it;
--- prefer INTERNAL use (same definer) with no GRANT.
-```
-
-`postgres` ownership unchanged. Do **not** REVOKE from `postgres`.
-
-### 7.6 Indexes — UNCHANGED (do not DROP)
-
-| Name | Protects |
-|------|----------|
-| `idx_notifications_queue_whatsapp_payment_receipt_unique` | `payment_receipt` / `paymentId` |
-| `idx_notifications_queue_whatsapp_welcome_unique` | `welcome` / `membershipId` |
-| `idx_notifications_queue_whatsapp_relief_enrollment_unique` | `relief_enrollment` / `enrollmentId` |
-| `idx_notifications_queue_whatsapp_hosting_assignment_unique` | `hosting_assignment` / `assignmentId` |
-| `idx_notifications_queue_whatsapp_payment_reminder_unique` | `payment_reminder` / `(obligationId, reminderDate)` |
-| `idx_notifications_queue_whatsapp_standing_changed_unique` | `standing_changed` / `(membershipId, newStanding, changeDate)` |
-| `idx_notifications_queue_whatsapp_fine_issued_unique` | `fine_issued` / `fineId` |
-| `idx_notifications_queue_whatsapp_loan_approved_unique` | `loan_approved` / `loanId` |
-| `idx_notifications_queue_whatsapp_claim_approved_unique` | `relief_claim_approved` / `claimId` |
-| `idx_notifications_queue_whatsapp_claim_denied_unique` | `relief_claim_denied` / `claimId` |
-| `idx_notifications_queue_whatsapp_member_invitation_unique` | `member_invitation` / `(invitationId, sendDate)` |
-| `idx_notifications_queue_whatsapp_loan_overdue_unique` | `loan_overdue` / `(loanId, reminderDate)` |
-| `idx_notifications_queue_whatsapp_remittance_confirmed_unique` | `remittance_confirmed` / `(remittanceId, recipientUserId)` |
-| `idx_notifications_queue_whatsapp_remittance_disputed_unique` | `remittance_disputed` / `(remittanceId, recipientUserId)` |
-| `idx_notifications_queue_whatsapp_hosting_reminder_unique` | `hosting_reminder` / `(assignmentId, assignedDate)` |
-| `idx_notifications_queue_whatsapp_event_reminder_unique` | `event_reminder` / `(eventId, userId)` |
-| `idx_notifications_queue_whatsapp_subscription_expiring_unique` | `subscription_expiring` / `(subscriptionId, reminderDate, userId)` |
-
-Also leave non-unique `idx_notifications_queue_status`, `idx_notifications_queue_user`, `idx_notifications_queue_created`, and repo `idx_notifications_queue_queued` (00105) if present. **Do not invent live presence of 00105.**
-
-### 7.7 Out of Cut 2 object scope
-
-Cut 1 functions/policies. Storage. F0/F3. PR #70 tables. `00106`/`00107`. `announcement` allowlist. `processing` enum. `group_id` column. Global TRUNCATE sweep on other tables. Drain route rewrite (except companion **stop using user JWT for insert**). Real sends. Failed-row retry admin UI.
+**Producer-validates is not a substitute.** Every row above has an explicit table.column chain.
 
 ---
 
-## 8. Before / after behavior
+## R4 — Type + channel + template allowlists
 
-| Actor / action | Before (live) | After Cut 2 |
-|----------------|---------------|-------------|
-| Authenticated PostgREST INSERT arbitrary row | **ALLOW** | **DENY** |
-| Anon INSERT | GRANT yes; WITH CHECK no | **DENY** (revoke grant) |
-| Authenticated TRUNCATE | **ALLOW** (RLS bypass) | **DENY** |
-| Platform staff JWT UPDATE queue | **ALLOW** | **DENY** |
-| Platform staff JWT SELECT | ALLOW | ALLOW (unchanged) |
-| service_role table INSERT | ALLOW (bypass RLS) | **Layer A: still ALLOW** (C2 — domain producers survive). **Layer B: DENY**; must RPC |
-| service_role RPC allowlisted enqueue | n/a | **ALLOW** → `queued` |
-| service_role RPC unknown template / no tenant key | n/a | **DENY** |
-| service_role drain UPDATE queued → sent/failed | ALLOW | ALLOW |
-| Browser claim / flip `failed` → `queued` | staff UPDATE could | **DENY** |
-| Unique-key re-enqueue after `failed` | unique violation / producer skip | **same** (NO RETRY) |
-| Quiet-hours queued row | stays queued (unenforced) | stays queued |
-| Announcement producer | unwired | unwired |
-| Cut 1 active helpers | closed | **untouched** |
-| Provider send | drain may send | **unchanged code path**; rehearsal must **not** invoke drain against prod |
+### `p_notification_type` (enqueue)
 
----
+`payment_receipt`, `payment_reminder`, `welcome`, `standing_changed`, `relief_enrollment`, `relief_claim_approved`, `relief_claim_denied`, `remittance_confirmed`, `remittance_disputed`, `hosting_assignment`, `hosting_reminder`, `event_reminder`, `loan_approved`, `loan_overdue`, `fine_issued`, `member_invitation`, `subscription_expiring`, `minutes_published`, `election_opened`, `announcement`, `proxy_claim`, `hosting_swap`
 
-## 9. Producer-by-producer authority matrix
+**Not allowlisted:** `generic`, `invitation` (legacy MARKETING), `payment-pending`, `push`, arbitrary strings.
 
-Required `data` keys for enqueue RPC (plus `recipient` except where noted). `groupId` required unless noted.
+### Channel
 
-| Family | Template | Tenant | Recipient | Required payload keys | Prefs | Failed NO RETRY |
-|--------|----------|--------|-----------|----------------------|-------|-----------------|
-| Payment receipt | `payment_receipt` | `groupId` | member phone | `paymentId`, `membershipId` | fail-closed | unique `paymentId` |
-| Payment reminder | `payment_reminder` | `groupId` | member phone | `obligationId`, `reminderDate` | fail-closed | unique pair |
-| Welcome | `welcome` | `groupId` | member phone | `membershipId` | fail-closed | unique `membershipId` |
-| Standing | `standing_changed` | `groupId` | member phone | `membershipId`, `newStanding`, `changeDate` | fail-closed | unique triple |
-| Relief enrollment | `relief_enrollment` | `groupId` | member phone | `enrollmentId` | fail-closed | unique `enrollmentId` |
-| Relief claim | `relief_claim_approved` / `_denied` | `groupId` | claimant phone | `claimId` | `relief_updates` fail-closed | unique `claimId` per template |
-| Remittance | `remittance_confirmed` / `_disputed` | `groupId` (branch) | **branch active owner/admin** phones | `remittanceId`, `recipientUserId` | fail-closed | unique pair per template |
-| Hosting assignment | `hosting_assignment` | `groupId` | assignee phone | `assignmentId` | fail-closed | unique `assignmentId` |
-| Hosting reminder | `hosting_reminder` | `groupId` | assignee phone | `assignmentId`, `assignedDate` | fail-closed | unique pair |
-| Event reminder | `event_reminder` | `groupId` | member phone | `eventId`, `userId` | fail-closed | unique pair |
-| Loan approved | `loan_approved` | `groupId` | borrower phone | `loanId` | fail-closed | unique `loanId` |
-| Loan overdue | `loan_overdue` | `groupId` | borrower phone | `loanId`, `reminderDate` | fail-closed | unique pair |
-| Fine | `fine_issued` | `groupId` | fined member phone | `fineId` | fail-closed | unique `fineId` |
-| Invitation | `member_invitation` | `groupId` | invitee phone; `user_id` NULL | `invitationId`, `sendDate` | N/A (no account) | unique pair |
-| Subscription | `subscription_expiring` | **no groupId**; `subscriptionId` | billed user | `subscriptionId`, `reminderDate`, `userId` | fail-closed | unique triple |
-| Announcement (Build 8) | `announcement` | n/a | n/a | **DENY** (dormant) | n/a | n/a |
+`whatsapp` | `sms` | `email`. `push` denied.
 
-Route-layer recipient authority (already in repo; Cut 2 must not weaken):
+### Queue `template` column (written by RPC, not caller)
 
-- Receipt: `recorded_by = auth.uid()` OR active owner/admin of `payment.group_id` OR staff.
-- Welcome: joining `user_id = auth.uid()` OR staff.
-- Standing: affected member OR active owner/admin OR staff.
-- Hosting assignment / relief enrollment: active owner/admin of roster/plan group OR staff (batch IDs must all be in caller’s groups).
-- Fine / loan / claim / remittance / invitation: issuer/reviewer/inviter **or** active owner/admin of the **same** group (remittance: branch admin or HQ admin) OR staff.
-- Crons: `CRON_SECRET` only.
+Equals `p_notification_type` (underscore form). SMS does **not** use hyphenated `SmsTemplate` in the queue row.
+
+### Meta template names (drain / R5)
+
+From `src/lib/whatsapp-templates.ts` `WA_TEMPLATES` / `whatsapp-dispatcher.ts` `TYPE_TO_TEMPLATE`:
+
+| Type | Meta name |
+|------|-----------|
+| `payment_receipt` | `villageclaq_payment_receipt_v2` |
+| `payment_reminder` | `villageclaq_payment_reminder_v2` |
+| `event_reminder` | `villageclaq_event_reminder` |
+| `hosting_reminder` / `hosting_assignment` | `villageclaq_hosting_reminder` |
+| `minutes_published` | `villageclaq_minutes_published` |
+| `relief_claim_approved` | `villageclaq_relief_claim_approved` |
+| `relief_claim_denied` | `villageclaq_relief_claim_denied` |
+| `announcement` | `villageclaq_announcement_v2` |
+| `election_opened` | `villageclaq_election_opened` |
+| `member_invitation` | `villageclaq_member_invitation_notice` |
+| `loan_approved` | `villageclaq_loan_approved` |
+| `loan_overdue` | `villageclaq_loan_overdue` |
+| `fine_issued` | `villageclaq_fine_issued` |
+| `standing_changed` | `villageclaq_standing_changed` |
+| `welcome` | `villageclaq_member_joined` |
+| `relief_enrollment` | `villageclaq_plan_enrollment_confirmed` |
+| `remittance_confirmed` | `villageclaq_remittance_confirmed` |
+| `remittance_disputed` | `villageclaq_remittance_disputed` |
+| `subscription_expiring` | `villageclaq_account_access_notice` |
+| `proxy_claim` | `villageclaq_proxy_claim` |
+| `hosting_swap` | `villageclaq_hosting_reminder` (same Meta body as hosting reminder) |
 
 ---
 
-## 10. Worker / drain contract (no browser claim)
+## R5 — Server-owned content
 
-1. Drain auth stays `CRON_SECRET`. Missing/wrong secret → 401. **No** cookie JWT drain.
-2. Drain uses service_role SELECT/UPDATE only. After Cut 2 it **must not** need table INSERT.
-3. Drain **must** keep `isAfricanPhoneNumber()` re-check before Africa's Talking (`NOTIFICATION_CHANNEL_AUDIT` / CLAUDE.md rule 11). Out of Cut 2 SQL; regression-tested as **no-send** (function call with fixture numbers, no AT HTTP).
-4. Drain must **not** be changed to select `failed` or reset `attempts`.
-5. Webhook may UPDATE `data` provider status fields only; must not set `status='queued'` on failed rows.
-6. Staff UI SELECT stays. Staff UI UPDATE **removed** at SQL (policy drop + revoke).
-7. No `FOR UPDATE SKIP LOCKED` / `processing` in Cut 2.
+RPC / producer builds `data` jsonb **after** loading the domain row:
 
----
+- `recipient` = derived E.164 (R7)
+- `user_id` = membership.user_id or NULL
+- `groupId` = **derived** tenant (storage only; never an authz input)
+- type-specific keys already used by producers (`paymentId`, `obligationId`, …)
+- `whatsappType` = `p_notification_type`
+- `whatsappData` = fields from DB (`getMemberName`, `formatAmount`, group name, …)
+- `template` = Meta name from R4
+- `locale` = `p_locale` or `profiles.preferred_locale`
 
-## 11. F0 / F3 / Cut 1 impact
+**No** browser free-form `message`, Meta `components`, or caller `whatsappData`.
 
-| Surface | Cut 2 effect |
-|---------|--------------|
-| Cut 1 helpers / 00114 | **UNCHANGED**. Preconditions assert Cut 1 applied. |
-| F3 `financial_core.can_manage_finances` | **SAFER OR UNCHANGED**. Cut 2 does not touch finance helpers. |
-| F0 | **NOT TOUCHED**. |
-| Payments / obligations | Producers keep reading them; no schema change. |
-| `has_group_permission` | Not used as the queue INSERT gate (service_role RPC). Routes keep their own active owner/admin checks. |
-
-If implementation broadens F3 or Cut 1 → **HOLD**.
+Drain `processWhatsApp` uses `whatsappType` + `whatsappData` (typed dispatch). Drain `processSms` uses a **server-rendered** `data.message` written by the RPC from `sms-templates` (same switch as `buildMessage`). Drain must not accept a caller-supplied raw SMS body that did not come from that renderer.
 
 ---
 
-## 12. Service / system behavior
+## R6–R8 — Tenant / recipient / subscription
 
-| Path | After Cut 2 |
-|------|-------------|
-| Vercel cron producers | service_role → RPC |
-| Vercel drain | service_role UPDATE only; `CRON_SECRET` |
-| Meta webhook | service_role UPDATE `data` |
-| Browser producer routes | JWT authorize → service_role → RPC |
-| sms-sender | **C1 MUST** leave cookie/anon client **before/with** Layer A; service_role or bounded DEFINER (Layer B: RPC or skip). Free-form message + arbitrary phone must not stay on authenticated |
-| `/api/whatsapp/send` overflow | service_role → RPC; allowlist only (no `generic`) |
-| Supabase Realtime / client SDK | no INSERT |
-
----
-
-## 13. Historical / preference / quiet-hours preservation
-
-- Do not invent a rule that exited members cannot receive a receipt already keyed by `paymentId`.
-- Invitation `user_id` NULL remains valid.
-- Prefs fail-closed preserved (§6.4).
-- Quiet hours: **defer-compatible, not drop** (§6.4).
-- In-app `notifications` table and its unique `dedup_key` indexes are **out of Cut 2** except “do not drop them.”
+- **Tenant** is always derived (R3). Caller `groupId` is not a parameter.
+- **Recipient membership** must sit on that tenant (`memberships.group_id` = derived tenant), except `member_invitation` (no membership) and remittance (branch group, not HQ).
+- **Contact derivation (R7)** — standard chain proven in producers:  
+  proxy: `privacy_settings.proxy_phone` \|\| `memberships.phone`  
+  else: `profiles.phone` \|\| `memberships.phone` \|\| `proxy_phone` \|\| `auth.users.phone`  
+  invitation: **`invitations.phone` only**.  
+  remittance: `profiles.phone` \|\| `auth.users.phone` (producer has no proxy path).  
+  `proxy_claim`: proxy chain on the **target** membership; **not** request body.
+- **`subscription_expiring`:** tenant = `group_subscriptions.group_id` (migration `00050`). Recipients = that group’s active owner/admins. **Not** a platform-user subscription table. Do not invent a platform tenant.
 
 ---
 
-## 14. Acceptance matrix (behavioral)
+## R9 — Prefs fail-closed
 
-Execute on **disposable** Postgres + mocked service_role. **No** Meta / AT / Resend / drain-against-prod.
-
-| ID | Actor | Action | Expect |
-|----|-------|--------|--------|
-| A1 | `authenticated` member JWT | PostgREST INSERT `whatsapp`/`payment_receipt` | **DENY** |
-| A2 | `authenticated` staff JWT | same INSERT | **DENY** |
-| A3 | `anon` | INSERT | **DENY** |
-| A4 | `authenticated` staff | UPDATE `queued`→`sent` | **DENY** |
-| A5 | `authenticated` | `TRUNCATE notifications_queue` | **DENY** |
-| A6 | `service_role` | table INSERT | **ALLOW** after Layer A only (C2); **DENY** after Layer B |
-| A7 | `service_role` | `enqueue_outbound_notification` allowlisted `payment_receipt` + keys | **inserted** `queued` |
-| A8 | `service_role` | RPC unknown template `generic` | **denied** |
-| A9 | `service_role` | RPC missing `groupId` on `welcome` | **denied** |
-| A10 | `service_role` | RPC `subscription_expiring` without `groupId` but with billing keys | **inserted** |
-| A11 | `service_role` | RPC `announcement` | **denied** |
-| A12 | `service_role` | RPC duplicate `paymentId` (including existing `failed`) | **duplicate**; row unchanged |
-| A13 | `service_role` | RPC `status` smuggled `sent` via `p_data` | INSERT still `queued`; cannot set sent via RPC |
-| A14 | `authenticated` | `EXECUTE enqueue_outbound_notification` | **DENY** |
-| A15 | `service_role` | UPDATE drain-shaped `queued`→`failed` | **ALLOW** (table UPDATE) |
-| A16 | staff JWT | SELECT queue | **ALLOW** if `is_platform_staff()` |
-| A17 | member JWT | SELECT queue | **DENY** |
-| A18 | dual-group actor | RPC `groupId` A + `user_id` only in B | **denied** |
-| A19 | invitation | RPC `member_invitation` `user_id` NULL + keys | **inserted** |
-| A20 | push channel | RPC `push` | **denied** |
+- Location: `getEnabledChannels()` / `get_notification_preferences(p_user_id)` (`00054` + `src/lib/notification-prefs.ts`).
+- On prefs-read **error** for a real user: external channels **false**.
+- RPC must implement the **same fail-closed** (must **not** copy event/subscription producer try/catch fail-**open** at `event-reminder-producer.ts` L350–359 / `subscription-expiring-producer.ts` L358–367).
+- **Invitation exception:** no profile; skip prefs; WhatsApp/SMS to `invitations.phone` if present.
+- Quiet hours: stored, not enforced. Cut 2 **does not drop** rows. M2 may `DEFER_UNTIL`.
+- In-app remains always-on for real users (out of queue RPC).
 
 ---
 
-## 15. Regression matrix
+## R10 — Idempotency (FAILED = terminal)
 
-| ID | Must remain |
-|----|-------------|
-| R1 | Cut 1 `is_active_group_member` / `get_my_active_group_ids` / replaced admin helpers unchanged |
-| R2 | All §7.6 unique indexes present |
-| R3 | `getEnabledChannels` fail-closed catch unchanged (implementation PR must not “fix” quiet hours by dropping) |
-| R4 | Drain still requires `CRON_SECRET`; still skips non-African SMS **in code** |
-| R5 | Staff SELECT policies both present |
-| R6 | Announcement producer still unwired (`produceAnnouncementDeliveries` import count = 0) |
-| R7 | PR #69/#70 unapplied; `to_regclass('public.notification_policies')` NULL |
-| R8 | `00114` file hash unchanged |
-| R9 | No new cron that selects `failed` |
-| R10 | `isAfricanPhoneNumber` still imported in drain `processSms` |
+Existing unique indexes (do not DROP). Conflict target = those expressions. Behavior:
 
----
+| Status already present | Re-enqueue same key |
+|------------------------|---------------------|
+| `queued` | `duplicate` — no UPDATE |
+| `sent` | `duplicate` — no UPDATE |
+| `failed` | `duplicate` — **NO UPDATE / DELETE / REQUEUE / REPLACEMENT** |
 
-## 16. Disposable rehearsal + no-send harness (never production)
+Indexes (WhatsApp; SMS/email use **new** unique indexes in 00115 with same keys + `channel`):
 
-**Sequence (R13-equivalent):** CONTRACT PASS → IMPLEMENT on dedicated branch → one forward-only file after `00114` → disposable apply → A1–A20 + R1–R10 → SHA freeze → founder prod auth → apply one → **read-only** postconditions.
+| Type | Index | Conflict keys |
+|------|-------|---------------|
+| `payment_receipt` | `idx_notifications_queue_whatsapp_payment_receipt_unique` | `data.paymentId` |
+| `welcome` | `…_welcome_unique` | `data.membershipId` |
+| `relief_enrollment` | `…_relief_enrollment_unique` | `data.enrollmentId` |
+| `hosting_assignment` | `…_hosting_assignment_unique` | `data.assignmentId` |
+| `payment_reminder` | `…_payment_reminder_unique` | `obligationId`,`reminderDate` |
+| `standing_changed` | `…_standing_changed_unique` | `membershipId`,`newStanding`,`changeDate` |
+| `fine_issued` | `…_fine_issued_unique` | `fineId` |
+| `loan_approved` | `…_loan_approved_unique` | `loanId` |
+| `relief_claim_approved` | `…_claim_approved_unique` | `claimId` |
+| `relief_claim_denied` | `…_claim_denied_unique` | `claimId` |
+| `member_invitation` | `…_member_invitation_unique` | `invitationId`,`sendDate` |
+| `loan_overdue` | `…_loan_overdue_unique` | `loanId`,`reminderDate` |
+| `remittance_confirmed` | `…_remittance_confirmed_unique` | `remittanceId`,`recipientUserId` |
+| `remittance_disputed` | `…_remittance_disputed_unique` | `remittanceId`,`recipientUserId` |
+| `hosting_reminder` | `…_hosting_reminder_unique` | `assignmentId`,`assignedDate` |
+| `event_reminder` | `…_event_reminder_unique` | `eventId`,`userId` |
+| `subscription_expiring` | `…_subscription_expiring_unique` | `subscriptionId`,`reminderDate`,`userId` |
 
-Rehearsal does **not** precede implementation. This planning PR is docs only.
-
-**No-send harness rules**
-
-- Do **not** call drain HTTP on production or disposable with real provider keys.
-- Set `AFRICASTALKING_API_KEY`, WhatsApp tokens, Resend keys **unset** in harness.
-- Do **not** `UPDATE … SET status='queued'` on copied failed rows.
-- Do **not** clone production queue PII to a laptop; use synthetic UUIDs.
-- Prove A1–A6 without inserting attacker rows into production.
-- Optional: local `tests/s0-cut2-notification-queue/` modeled on Cut 1 `tests/s0-cut1-active-authorization/` — **not created in this PR**.
-
----
-
-## 17. Migration design rules
-
-1. Exactly **one** new file: suggested name `supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql` — **not authored here**.
-2. Forward-only. Never edit `00001`–`00114`.
-3. Transactional; `CUT2_ABORT` on precondition failure.
-4. No `NOTICE` + skip.
-5. No `DELETE FROM notifications_queue`.
-6. No index rebuild.
-7. `SET search_path TO ''` on new DEFINER functions; bodies `public.`-qualified.
-8. Do not `GRANT` enqueue to `authenticated`.
-9. Companion app (implementation branch only, not this PR): **C1 first** — `sms-sender.ts` off cookie/anon INSERT (service_role or bounded DEFINER) **before/with** Layer A. Layer B also requires `/api/whatsapp/send` overflow + every leftover service_role `.insert()` to use the enqueue RPC. Layer A alone does **not** require rewriting canonical `produce*` inserts (**C2**).
-10. Do not edit `package.json` dependencies for Cut 2.
+00115 **CREATE UNIQUE INDEX IF NOT EXISTS** (same key + channel) for `sms`/`email` twins, plus new types: `minutes_published` (`minutesId`,`userId`), `election_opened` (`electionId`,`userId`), `announcement` (`announcementId`,`userId`,`channel`), `proxy_claim` (`membershipId`), `hosting_swap` (`swapRequestId`,`userId`,`decision`). Missing expected live WhatsApp index at apply → `CUT2_ABORT`.
 
 ---
 
-## 18. Forward-recovery plan
+## R11–R16 — Close browser-reachable arbitrary relays (including direct Meta)
 
-| Failure | Recovery |
-|---------|----------|
-| Migration ABORT mid-transaction | nothing committed |
-| Applied Layer A before C1 sms-sender move | session SMS fallback queueing **dead**; **ABORT / roll forward C1** — do not re-open authenticated INSERT |
-| Applied Layer B while producers still `.insert()` | service_role table INSERT denied → canonical queue dry; **roll forward RPC** (do not re-open authenticated INSERT; **C2** says Layer A alone would have survived) |
-| Unique index unexpected duplicate at apply | ABORT (precondition); founder decides; **no** silent DELETE |
-| Need to undo prod apply | **PITR / restore**, not a down-migration that re-creates the forge |
-| Drain cannot INSERT | expected; drain must not INSERT |
+### Live inventory (exact callers)
 
-No in-place “re-open `auth.uid() IS NOT NULL`” backout.
+**`POST /api/sms/send`** — JWT + `callerCanMessageTarget`; body `{to, template, data, locale}`. Arbitrary phone/UUID + `SmsTemplate` + free-form data. Direct AT via `sendSmsNotification` → `sendSMS`.
+
+Browser fetch sites:
+
+1. `src/lib/notify-client.ts` (`notifyFromClient`, `notifyBulkFromClient`)
+2. `src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx`
+3. `src/app/[locale]/(dashboard)/dashboard/my-invitations/page.tsx`
+4. `src/lib/calculate-standing.ts`
+
+notify-client importers that hit SMS and/or WhatsApp relays:
+
+5. `src/components/payments/pay-now-dialog.tsx`
+6. `src/app/[locale]/(dashboard)/dashboard/fines/page.tsx`
+7. `src/app/[locale]/(dashboard)/dashboard/loans/page.tsx`
+8. `src/app/[locale]/(dashboard)/dashboard/relief/claims/page.tsx`
+9. `src/app/[locale]/(dashboard)/dashboard/relief/remittances/page.tsx`
+10. `src/app/[locale]/(dashboard)/dashboard/relief/enrollment/page.tsx`
+11. `src/app/[locale]/(dashboard)/dashboard/announcements/page.tsx`
+12. `src/app/[locale]/(dashboard)/dashboard/minutes/page.tsx`
+13. `src/app/[locale]/(dashboard)/dashboard/hosting/page.tsx`
+14. `src/app/[locale]/(dashboard)/dashboard/elections/page.tsx`
+
+**`POST /api/whatsapp/send`** — JWT + recipient guard. **Three** server routes:
+
+| Route | Body | Live browser caller |
+|-------|------|---------------------|
+| Typed | `{to, type, data, locale}` | notify-client only |
+| **Direct Meta template** | `{to, template, language, components}` | **none** (capability OPEN) |
+| **Direct text** | `{to, text}` | **none** (capability OPEN) |
+
+Cut 2 closes **all three**, including unused direct Meta/text (capability is the forge).
+
+**`sms-sender.ts` / `send-sms-notification.ts`:** session INSERT `template=generic` + `{recipient, message}`. Cron + proxy-claim + `/api/sms/send` use this. **Direct AT** when key present.
+
+**`proxy-claim/send`:** session cookie client; owner/admin; body `{membershipId, email, phone, channels}`. **Direct** `sendSmsNotification` + `dispatchWhatsApp` using **request `phone`**. Caller: `src/app/[locale]/(dashboard)/dashboard/members/page.tsx`.
+
+**Cron SMS (direct AT, parallel to WA producers):**  
+`cron/payment-reminders`, `cron/event-reminders`, `cron/hosting-reminders`, `cron/subscription-reminders`, `cron/send-scheduled-announcements` (also **direct** `dispatchWhatsApp`).
+
+### Frozen dispositions
+
+| Surface | After Cut 2 |
+|---------|-------------|
+| `/api/sms/send` | **CLOSE** as relay. Return **410** (or 404). No AT, no queue, no UUID→phone send. |
+| `/api/whatsapp/send` | **CLOSE** all three branches (typed + **direct Meta** + **text**). **410**. Drain is the only Meta client besides no-op tests. |
+| `notify-client.ts` SMS/WA fetches | **Remove**. Pages call domain `*-notifications` routes (or new typed enqueue routes) with **ids only**. |
+| `sms-sender.ts` | **No queue INSERT**. Happy path: **not called from browser/cron**. Drain may call AT only. |
+| `send-sms-notification.ts` | Not used for enqueue. Renderer logic may be reused **inside** RPC/drain. |
+| `proxy-claim/send` | Keep authz; **enqueue** `proxy_claim` + channel via RPC; **derive phone from membership**; do not `dispatchWhatsApp` / `sendSmsNotification`. Email may stay Resend-direct (not queue) **or** enqueue `email` — freeze: **enqueue `email` too** for one pipe. |
+| Cron SMS | Same `produce*` / RPC with `p_channel='sms'`. **No** `sendSmsNotification`. |
+| `send-scheduled-announcements` | Enqueue `announcement` per resolved membership; **no** `dispatchWhatsApp`. |
+| Drain | Unchanged providers; `CRON_SECRET`; no INSERT. |
 
 ---
 
-## 19. Cut 3 SEPARATION
+## R17–R18 — Producer conversion + exact app file list
 
-Cut 3 = P0-C storage NULL-path fail-open **only**.
+Every `produce*` stops `.from("notifications_queue").insert`. They call the dual-compat adapter (R27) with RPC args only.
 
-Cut 2 must **not**:
+**Exact files (no “etc.”)**
 
-- edit `storage.objects` policies
-- apply `00112`
-- add `storage_path_group_id_v2` write denials
-- touch `avatars` / `receipts` / `group-documents`
+### Adapter (new on implementation branch — not this PR)
 
-A Daybreak PASS on **this** PR does **not** authorize Cut 3 planning or implementation.
+- `src/lib/enqueue-outbound-notification.ts`
+
+### Producer modules (15)
+
+- `src/lib/payment-receipt-producer.ts`
+- `src/lib/payment-reminder-producer.ts`
+- `src/lib/welcome-producer.ts`
+- `src/lib/standing-change-producer.ts`
+- `src/lib/relief-enrollment-producer.ts`
+- `src/lib/relief-claim-decision-producer.ts`
+- `src/lib/remittance-decision-producer.ts`
+- `src/lib/hosting-assignment-producer.ts`
+- `src/lib/hosting-reminder-producer.ts`
+- `src/lib/event-reminder-producer.ts`
+- `src/lib/loan-approved-producer.ts`
+- `src/lib/loan-overdue-producer.ts`
+- `src/lib/fine-issued-producer.ts`
+- `src/lib/member-invitation-producer.ts`
+- `src/lib/subscription-expiring-producer.ts`
+
+### Domain routes (keep JWT/CRON authz; pass ids only)
+
+- `src/app/api/payments/receipt-notifications/route.ts`
+- `src/app/api/members/welcome-notifications/route.ts`
+- `src/app/api/members/standing-notifications/route.ts`
+- `src/app/api/relief/enrollment-notifications/route.ts`
+- `src/app/api/relief/claim-notifications/route.ts`
+- `src/app/api/relief/remittance-notifications/route.ts`
+- `src/app/api/hosting/assignment-notifications/route.ts`
+- `src/app/api/invitations/whatsapp-notifications/route.ts`
+- `src/app/api/loans/approval-notifications/route.ts`
+- `src/app/api/fines/issued-notifications/route.ts`
+- `src/app/api/cron/payment-reminders/route.ts`
+- `src/app/api/cron/event-reminders/route.ts`
+- `src/app/api/cron/hosting-reminders/route.ts`
+- `src/app/api/cron/subscription-reminders/route.ts`
+- `src/app/api/cron/loan-overdue-reminders/route.ts`
+- `src/app/api/cron/send-scheduled-announcements/route.ts`
+- `src/app/api/cron/drain-notification-queue/route.ts` (no INSERT; keep UPDATE)
+- `src/app/api/webhooks/whatsapp/route.ts` (UPDATE `data` only)
+- `src/app/api/proxy-claim/send/route.ts`
+- `src/app/api/sms/send/route.ts` (**close**)
+- `src/app/api/whatsapp/send/route.ts` (**close**)
+
+### Relay / client conversion
+
+- `src/lib/notifications/sms-sender.ts`
+- `src/lib/send-sms-notification.ts`
+- `src/lib/notify-client.ts`
+- `src/lib/calculate-standing.ts`
+- `src/lib/notify-welcome.ts`
+- `src/lib/notify-money-path.ts`
+- `src/lib/notify-hosting-assignment.ts`
+- `src/lib/notify-relief-enrollment.ts`
+- `src/lib/notify-member-invitation.ts`
+- `src/components/payments/pay-now-dialog.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/my-invitations/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/fines/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/loans/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/relief/claims/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/relief/remittances/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/relief/enrollment/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/announcements/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/minutes/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/hosting/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/elections/page.tsx`
+- `src/app/[locale]/(dashboard)/dashboard/members/page.tsx`
+
+**Do not wire:** `src/lib/announcement-producer.ts` (DORMANT).  
+**No `package.json` dependency edits.**
+
+New enqueue routes (implementation may add, names frozen):  
+`/api/minutes/published-notifications`, `/api/elections/opened-notifications`, `/api/announcements/enqueue`, `/api/hosting/swap-notifications` — JWT + domain id only.
 
 ---
 
-## 20. PR #69 / #70 SEPARATION + M2 / F3-06
+## R19–R23 — DB privileges, DEFINER, status, drain, webhook
 
-### PR #69 and PR #70 (both OPEN DRAFT — untouched / unapplied)
+| Role | SELECT | INSERT | UPDATE | DELETE/TRUNCATE | EXECUTE enqueue |
+|------|--------|--------|--------|-----------------|-----------------|
+| `anon` | DENY | DENY | DENY | DENY | DENY |
+| `authenticated` (incl. staff JWT) | staff SELECT policies only | DENY | DENY | DENY | DENY |
+| `service_role` | GRANT | **DENY** | GRANT | DENY | **GRANT** |
+| `postgres` | owner | owner (00115 only) | owner | owner | owner |
 
-| Item | PR #69 | PR #70 |
-|------|--------|--------|
-| State | **OPEN DRAFT** | **OPEN DRAFT** CREATE-NOT-APPLY |
-| Head | `a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7` | `0f258726c9328ee0204f7b5dee9efceebe7265b9` |
-| Branch | `product-consistency/notification-policy-foundation-v2-20260910` | `security/notification-policy-schema-20260910` |
-| What it is | Pure policy foundation (`notification-policy.ts` + tests) | Unapplied `notification_policies` / triggers / occurrences schema |
-| Cut 2 | **must not** merge, rebase onto, or apply | **must not** merge, rebase onto, or apply |
-| Cut 2 enqueue allowlist | **static** template names — not #69 module, not #70 tables | same |
-| `to_regclass('public.notification_policies')` | n/a (no table) | must remain **NULL** after Cut 2 apply |
-| Requalification | after S0 P0 cuts, **separate** | after S0 P0 cuts, **separate** |
-
-### M2 / F3-06
-
-M2 notification foundation (quiet-hours `DEFER_UNTIL`, policy versioning, occurrence identity) is **after** S0 exit per PR #71 order. F3-06 is **after** M2. Cut 2 must not start either.
+- DROP policies: `Authenticated users can queue notifications`, `Staff can update notification queue`.
+- KEEP SELECT: `Platform staff can view all notifications_queue`, `Staff can view notification queue`.
+- DEFINER: `SET search_path TO ''`; bodies `public.`-qualified; no `auth.uid()` tenant trust.
+- Status enum **unchanged** (`queued|sent|failed`). **No** `processing`.
+- Drain: `CRON_SECRET`; SELECT `queued`; UPDATE sent/failed/attempts; **no INSERT**; keep `isAfricanPhoneNumber` before AT; **do not** select `failed`.
+- Webhook: Meta signature; service_role **UPDATE `data` only**; must not set `status='queued'` on failed rows.
 
 ---
 
-## 21. Daybreak handoff contract (authoritative)
+## R24–R26 — Tests + no-send
 
-**Daybreak handoff: READY FOR REVIEW.**  
-**Implementation: NOT AUTHORIZED** until Daybreak **PASS**.  
-Daybreak PASS authorizes **IMPLEMENTATION ON A DEDICATED BRANCH only**, **NOT** production apply, **NOT** drain invoke, **NOT** provider sends.
+Disposable Postgres + mocked service_role. **No** Meta / AT / Resend / prod drain.
+
+Must include: A1–A5 client INSERT/UPDATE/TRUNCATE DENY; A6 service_role table INSERT DENY; A7 RPC allowlisted inserted; A8 unknown type denied; A9 missing domain row denied; A10 fan-out without membership denied; A11 foreign membership denied; A12 trusted `groupId` smuggle impossible (no param); A13 phone param impossible; A14 invitation NULL user inserted; A15 failed-row re-enqueue duplicate; A16 authenticated EXECUTE denied; A17 staff UPDATE denied; A18 `/api/sms/send` 410; A19 `/api/whatsapp/send` typed **and** `{template,components}` **and** `{text}` 410; A20 proxy-claim request phone ≠ DB phone → enqueue uses DB or denied.
+
+No-send harness: provider keys unset; no `failed`→`queued`; synthetic UUIDs only.
+
+---
+
+## R27–R28 — Dual-compatible rollout (app first, then 00115)
+
+**Phase A (app deploy, function may be absent):**  
+`src/lib/enqueue-outbound-notification.ts` (service_role client):
+
+1. `rpc('enqueue_outbound_notification', { p_notification_type, p_domain_object_id, p_channel, p_recipient_membership_id, p_locale })`
+2. On success (including `duplicate`/`denied` **from the function**) → **stop**. **Never** fallback.
+3. Fallback to service_role **table INSERT** of a **server-derived** row (same derivation as the RPC) **ONLY** when the error identity matches **exactly** R27 below.
+
+**Frozen missing-function identity (ALL must match to fallback):**
+
+| Layer | Exact identity |
+|-------|----------------|
+| Postgres SQLSTATE | **`42883`** (`undefined_function`) |
+| supabase-js / PostgREST `error.code` | **`42883`** **OR** **`PGRST202`** |
+| Message (case-insensitive) | contains `enqueue_outbound_notification` **AND** (`does not exist` **OR** `could not find the function`) |
+
+**NEVER fallback** if `code` is `42501`, `23505`, `22P02`, `PGRST301`, HTTP 401/403, network/timeout, or RPC returned `denied`/`duplicate`.
+
+**Release order (frozen)**
+
+1. **Source / Vercel app first** (adapter + close relays + producers use adapter).  
+2. **Then** apply `00115` (creates function, REVOKE INSERT).  
+3. After 00115: function exists → RPC always; table INSERT denied → fallback dead (fail-closed if someone deletes the function).
+
+Do **not** apply 00115 before the app adapter is in production.
+
+---
+
+## R29 — 00115 contract (names / preconditions only — **do not author SQL in this PR**)
+
+Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql`
+
+**CREATE:** `enqueue_outbound_notification(...)` (R2); optional internal helpers **not** granted to `authenticated`.  
+**DROP:** policies named in R19.  
+**REVOKE/GRANT:** R19.  
+**CREATE UNIQUE INDEX IF NOT EXISTS:** SMS/email twins + new types (R10). **Do not DROP** existing WhatsApp uniques.  
+**Preconditions (`CUT2_ABORT`):** Cut 1 version `20260911183755` present; live INSERT policy name/check as pinned; enum has no `processing`; no `group_id` column; `to_regclass('public.notification_policies')` IS NULL; expected WhatsApp unique index names present; `sms-sender` on implementation tip must not still INSERT via `@/lib/supabase/server` (static check).  
+**Never:** DELETE FROM `notifications_queue`; retry failed; edit `00001`–`00114`.
+
+---
+
+## R30 — PR #69 / #70 / Cut 3 / M2 / F3-06
+
+Untouched / unapplied. Cut 2 static allowlist ≠ policy tables. Cut 3 storage not started. M2 quiet-hours `DEFER_UNTIL` not started. F3-06 not started. Cut 1 unmodified.
+
+---
+
+## Daybreak handoff
 
 | Gate | Result |
 |------|--------|
-| Authority pins exact | PASS |
-| Live INSERT analysis (Chief verbatim + repo origin) | PASS |
-| Producer inventory classified; UNKNOWN = 0 named; fail-closed | PASS |
-| Trusted-server-only; revoke authenticated direct INSERT | PASS (design freeze) |
-| Tenant / recipient / template / payload authority named | PASS |
-| Prefs fail-closed preserved; quiet hours defer-not-drop | PASS |
-| Idempotency indexes UNCHANGED; failed **NO RETRY** | PASS |
-| Worker service_role explicit; browser must not claim | PASS |
-| Exact CREATE/REPLACE/REWRITE/REVOKE names | PASS — §7 |
-| Producer-by-producer matrix (incl. announcement DORMANT) | PASS — §9 |
-| Acceptance + no-send harness + disposable + forward-only after 00114 | PASS — §14–§17 |
-| PR #69 / #70 SEPARATION; Cut 3 SEPARATION | PASS — §19–§20 |
-| Cut 1 untouched; live migrations **29** / version `20260911183755` recorded | PASS |
-| C1 sms-sender before/with INSERT revoke | PASS (hard gate named; not implemented here) |
-| C2 domain producers survive policy drop iff service_role GRANT INSERT remains | PASS |
-| C3 zero UI inserts; forge = PostgREST RLS + sms-sender session | PASS |
-| No migration SQL / no app code / no prod apply in this PR | PASS |
-| F3 | **SAFER OR UNCHANGED** |
+| Layer B only; Layer A removed | PASS |
+| Exact RPC signature | PASS — R2 |
+| Domain matrix complete; unknown named producers = 0 | PASS — R3 + matrix JSON |
+| Relays closed including direct Meta | PASS — R11–R16 |
+| Dual-compat error `42883` / `PGRST202` | PASS — R27 |
+| App-first then 00115 | PASS — R28 |
+| No SQL / no runtime in this PR | PASS |
+| PR #69/#70/Cut 3/Cut 1 | PASS — R30 |
 
-**HOLD if** Daybreak finds an additional **wired** INSERT call-site not in §5, or demands `processing` enum / PR #69/#70 apply / failed-row retry / quiet-hours drop / Cut 1 edit / production drain / SQL-only policy drop while sms-sender still uses `@/lib/supabase/server`.
+### HOLD blockers
 
-### 21.1 HOLD blockers (this freeze)
-
-| ID | Blocker | Disposition |
-|----|---------|-------------|
-| H1 | Additional live INSERT site not in §5 | **NONE found** on tip `1693b806`. New site → HOLD |
-| H2 | Need live re-query of grants/indexes | **Not required** — Chief inventory + C4 (migrations 29, Cut 1 version, INSERT policy, grants, no `group_id`, enum) |
-| H3 | sms-sender cookie INSERT vs policy drop | **HARD GATE (C1)** — implementation ABORT if policy dropped first. Not an open Daybreak HOLD on this docs PR |
-| H4 | `generic` + free-form message/phone on authenticated path | **Forge-adjacent** — must leave authenticated path (C1); Layer B DENY `generic` |
-| H5 | Concurrent drain without claim | **OUT OF SCOPE** (P1); HOLD only if reviewer makes it Cut 2-mandatory |
-| H6 | 00097 index apply-time vs S0-A log | Chief inventory **names** hosting/event/subscription unique indexes as live. Do not invent log row. Missing index at apply → `CUT2_ABORT` |
-| H7 | Layer B revoke service_role INSERT while `produce*` still `.insert()` | **ABORT** — violates C2 survival condition; ship RPC in same PR or keep service_role GRANT INSERT |
-
-**Open HOLD count for Daybreak: 0** (contract complete, including C1–C5). Implementation remains unauthorized.
+**Open count: 0** for this contract.  
+Implementation-time aborts remain: missing unique index; sms-sender still cookie-INSERT; `notification_policies` present; Layer-B INSERT grant left on service_role.
 
 ---
 
-## 22. Non-goals
+## Non-goals / STOP
 
-- No application/runtime product code in **this** PR.
-- No Cut 2 migration SQL file in **this** PR.
-- No production SQL / MCP write / dashboard apply.
-- No merge or apply of PR #69 / #70 / #71.
-- No Cut 3 / M2 / F3-06 start.
-- No WhatsApp / SMS / email / push send.
-- No drain invoke against production.
-- No retry of `failed` rows; no `failed`→`queued`.
-- No edit of `00001`–`00114` or Cut 1 objects.
-- No `package.json` dependency changes.
-- No wiring of Build 8 announcement producer.
-- No `notification_policies` / agentic intents.
-- No `group_id` column add.
-- No `processing` enum value.
-- No global `is_group_member` change.
-- No PITR / member / payment / storage mutation.
-
----
-
-## 23. STOP rules
-
-Stop and HOLD (do not improvise) if:
-
-1. Pressure to implement Cut 2 / author `00115` / apply to `llbnliixczcqfftxpsmb` from this planning branch.
-2. Request to send a “test” WhatsApp/SMS/email or drain production.
-3. Request to retry failed queue rows.
-4. Request to merge/apply PR #69, #70, or #71, or start Cut 3 / M2 / F3-06.
-11. Request to DROP the INSERT policy / `REVOKE INSERT` from `authenticated` while `sms-sender.ts` still uses `@/lib/supabase/server` `createClient` for queue INSERT (C1).
-12. Request to `REVOKE INSERT` from `service_role` while canonical `produce*` still `.insert()` without RPC (C2 / Layer B).
-5. Request to edit Cut 1 / `00114`.
-6. Live rehearsal discovers an extra INSERT call-site — **add it to §5**, do not drop ad hoc.
-7. Request to re-open `auth.uid() IS NOT NULL` INSERT “temporarily.”
-8. Request to GRANT enqueue RPC to `authenticated`.
-9. Request to DROP unique indexes to “allow retry.”
-10. Request to delete queued rows for quiet hours.
-
----
-
-## Planning verdict (this artifact)
-
-| Question | Answer |
-|----------|--------|
-| Sufficient for Daybreak PASS/HOLD without implementation? | **YES** |
-| What is frozen | §21 + §7 object list + §5 inventory + §9 matrix |
-| What is implemented | **NOTHING** |
-| Next | Daybreak review → (if PASS) dedicated implementation branch |
-
-**PASS — CUT 2 SECURITY CONTRACT COMPLETE; READY FOR DAYBREAK REVIEW.**
+No implementation, no `00115` file, no prod write, no sends, no failed retry, no #69/#70/#71 merge, no Cut 3/M2/F3-06, no Cut 1 edit, no Layer A apply, no GRANT enqueue to `authenticated`, no re-open `/api/whatsapp/send` “just for typed”.

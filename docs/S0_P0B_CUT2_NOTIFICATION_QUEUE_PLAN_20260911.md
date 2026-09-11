@@ -1,17 +1,17 @@
-# S0 P0-B Cut 2 — SECURITY REVISION 1 (Daybreak HOLD closeout)
+# S0 P0-B Cut 2 — SECURITY REVISION 2 (Daybreak HOLD closeout)
 
 **Date:** 2026-09-11  
-**Status:** **SECURITY REVISION 1 — READY FOR DAYBREAK RE-REVIEW**  
-**Overall recommended verdict:** **PASS — LAYER B ONLY; R1–R30 FROZEN**  
+**Status:** **SECURITY REVISION 2 — READY FOR DAYBREAK RE-REVIEW**  
+**Overall recommended verdict:** **PASS — LAYER B ONLY; R1–R30 + R2-1–R2-27 FROZEN**  
 **Implementation:** **NOT AUTHORIZED** until Daybreak **PASS**. PASS authorizes **implementation on a dedicated branch only**, **NOT** production apply.  
 **This PR:** docs / evidence only. **No** `00115` SQL. **No** runtime code.  
-**Authoritative freeze:** this document (SR1). Prior Layer A / “survive policy drop” language is **VOID**.  
-**Previous Daybreak-reviewed tip (base of this revision):** `1478c33129502026346f8fb386614f6c66b9836c`  
+**Authoritative freeze:** this document (SR2). SR1 remains ancestry; conflicting SR1 sentences below are **superseded** by the SR2 section.  
+**Previous Daybreak-reviewed tip (MUST be ancestry):** `d041bd10d67c660b7414d4f5db74f9e8985f5886`  
 **Evidence:**  
 - `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`  
 - `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`  
-
-**SR1 follow-up (Chief interim evidence, 2026-09-11):** R11–R16 + domain matrix folded with verified generic-relay callers, sms-sender chain, live MCP tenant columns (`payment_obligations` absent), WA_TEMPLATES, and SMS semantic renderers. `data.groupId` is never authorization.
+- `docs/evidence/S0_CUT2_CHANNEL_RENDERER_MATRIX_20260911.json`  
+- `docs/evidence/S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`
 
 ---
 
@@ -19,7 +19,7 @@
 
 | Pin | Value |
 |-----|-------|
-| This revision parent tip | `1478c33129502026346f8fb386614f6c66b9836c` |
+| This revision parent tip | `d041bd10d67c660b7414d4f5db74f9e8985f5886` |
 | Production main | `1693b806beaf80d1c8101c8011874a2a2bcbb642` |
 | Master PRD #71 freeze | `050be86c9df3455c66b27bb5853eb786228b4009` |
 | Cut 1 CLOSED prod | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **DO NOT MODIFY** |
@@ -167,9 +167,9 @@ Confirmed present: `payments.group_id`, `fines.group_id`, `loans.group_id`, `inv
 
 **Not allowlisted:** `generic`, `invitation` (legacy MARKETING), `payment-pending`, `push`, arbitrary strings.
 
-### Channel
+### Channel (SR2 — DEFAULT DENY)
 
-`whatsapp` | `sms` | `email`. `push` denied.
+**Not** “all channels.” Per type×channel ALLOW/DENY is in `S0_CUT2_CHANNEL_RENDERER_MATRIX_20260911.json`. `push` = **DENY** for every type. SQL RPC denies a channel that is not ALLOW.
 
 ### Queue `template` column (written by RPC, not caller)
 
@@ -235,22 +235,32 @@ From `src/lib/whatsapp-templates.ts` `WA_TEMPLATES` / `whatsapp-dispatcher.ts` `
 
 ---
 
-## R5 — Server-owned content
+## R5 — Canonical semantic envelope (SQL does **not** render) — SR2
 
-RPC / producer builds `data` jsonb **after** loading the domain row:
+**SQL RPC does not render SMS/email/WhatsApp.** It never depends on `sms-templates.ts`. Cron does **not** pre-render SMS.
 
-- `recipient` = derived E.164 (R7)
-- `user_id` = membership.user_id or NULL
-- `groupId` = **derived** tenant (storage only; **NEVER** an authorization source — emit only after R3 derivation)
-- type-specific keys already used by producers (`paymentId`, `obligationId`, …)
-- `whatsappType` = `p_notification_type`
-- `whatsappData` = fields from DB (`getMemberName`, `formatAmount`, group name, …)
-- `template` = Meta name from R4
-- `locale` = `p_locale` or `profiles.preferred_locale`
+RPC writes `template = p_notification_type` and `data` = **CANONICAL SEMANTIC ENVELOPE** only:
 
-**No** browser free-form `message`, Meta `components`, or caller `whatsappData`.
+| Key | Source | Freshness |
+|-----|--------|-----------|
+| `envelopeVersion` | literal `2` | A snapshot |
+| `notification_type` | `p_notification_type` | A snapshot |
+| `domain_object_id` | `p_domain_object_id` | A snapshot |
+| `derived_group_id` | R3 chain (also copied to `groupId` for legacy readers) | A snapshot — **not authz** |
+| `recipient_membership_id` | derived or `p_recipient_membership_id` | A snapshot |
+| `recipient_user_id` | `memberships.user_id` or NULL | A snapshot |
+| `idempotencyKey` | R2-E expression | A snapshot |
+| `locale` | `p_locale` if `en`/`fr`, else NULL | A snapshot if passed; else drain B-reloads `profiles.preferred_locale` |
+| type-specific IDs | `paymentId`, `obligationId`, `reminderDate`, … | **A snapshot** (part of key / identity) |
+| display names, amounts, titles, Meta body vars | **not written by RPC** | **B reload** in drain from domain row |
+| phone / email | **not used as send authority from envelope** | **B reload** at drain (R7 / email source). If reload empty → fail that attempt (no snapshot send) |
+| `claimUrl` (proxy_claim only) | token created in the **authorized route** before RPC; route may pass… **NO** — RPC must not accept URL. Drain B-reloads latest unclaimed `proxy_claim_tokens.token` for that membership and builds URL | B reload |
+| `message`, `components`, `whatsappData` | **forbidden on Cut 2 rows** | — |
 
-Drain `processWhatsApp` uses `whatsappType` + `whatsappData` (typed dispatch). Drain `processSms` uses a **server-rendered** `data.message` written by the RPC from `sms-templates` (same switch as `buildMessage`). Drain must not accept a caller-supplied raw SMS body that did not come from that renderer.
+Drain discriminator:
+
+- **Cut 2 branch:** `data.envelopeVersion = 2` → TypeScript renderers (SMS/email/WA). Ignore `data.message` / `data.components`.
+- **Legacy branch:** `envelopeVersion` IS DISTINCT FROM `2` → existing `processSms(data.message)` / `processWhatsApp(whatsappType|template+components)` for pre-cutover rows only. No new legacy rows after 00115.
 
 ---
 
@@ -279,9 +289,27 @@ Drain `processWhatsApp` uses `whatsappType` + `whatsappData` (typed dispatch). D
 
 ---
 
-## R10 — Idempotency (FAILED = terminal)
+## R10 — Idempotency (FAILED = terminal) — SR2 canonical key
 
-Existing unique indexes (do not DROP). Conflict target = those expressions. Behavior:
+**ONE** mechanism: RPC writes `data.idempotencyKey` (expressions in `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`). Future unique index (PLAN text only — **do not author a migration file**):
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_queue_cut2_semantic_idempotency_unique
+  ON public.notifications_queue
+  USING btree (
+    channel,
+    template,
+    ((data ->> 'idempotencyKey'::text))
+  )
+  WHERE ((data ->> 'idempotencyKey'::text) IS NOT NULL)
+    AND ((data ->> 'idempotencyKey'::text) <> '');
+```
+
+No status predicate — **includes failed rows**. Preserve all live WhatsApp unique indexes (verbatim `pg_indexes` in the evidence file).
+
+On unique conflict (new index **or** legacy WA index): `SELECT` existing `id`; return `(existing_id, 'duplicate')`. **No UPDATE / DELETE / REQUEUE / REPLACE**, including `failed`.
+
+Existing unique indexes (do not DROP). Legacy WA conflict keys remain as a second backstop:
 
 | Status already present | Re-enqueue same key |
 |------------------------|---------------------|
@@ -343,10 +371,16 @@ Chief interim evidence verified on tip `1693b806` + live READ-ONLY MCP. Generic 
 13. `src/app/[locale]/(dashboard)/dashboard/hosting/page.tsx`
 14. `src/app/[locale]/(dashboard)/dashboard/elections/page.tsx`
 
-**Disposition (either is PASS; generic body is FAIL):**
+**Disposition (SINGULAR — no optionality):** **`410 GONE`**. Remove the generic relay. No AT, no queue, no UUID→phone, no remaining `{to, template, data}`.
 
-- **Preferred:** **REMOVE** the route — return **410**. No AT, no queue, no UUID→phone.
-- **Only alternative:** convert to domain-bound `{notification_type, domain_object_id, recipient_membership_id?, locale?}` that calls the enqueue adapter. **No** `to` / phone / `template` / free-form `data`.
+**Exact replacement path per current caller:**
+
+| Current caller | Today | Replacement (ids only) |
+|----------------|-------|------------------------|
+| `src/lib/notify-client.ts` SMS `fetch("/api/sms/send")` | `{to, template, data}` | **Delete** those fetches. Importers call domain `*-notifications` routes. |
+| `src/lib/calculate-standing.ts` L783 | `postJson("/api/sms/send", standing-changed)` | **Remove.** Already posts `/api/members/standing-notifications` (L795). That route enqueues ALLOW channels (`standing_changed` SMS+WA; email DENY). |
+| `src/app/.../contributions/record/page.tsx` L368 | `fetch("/api/sms/send", payment-receipt)` | **Remove.** Already calls `/api/payments/receipt-notifications` (L248). That route enqueues ALLOW channels. |
+| `src/app/.../my-invitations/page.tsx` L276 | `fetch("/api/sms/send", welcome)` | **Remove.** Use `/api/members/welcome-notifications` (already used for WA via `requestWelcomeWhatsApp`). |
 
 ### 2. `POST /api/whatsapp/send` — typed + direct Meta + overflow (FAIL)
 
@@ -372,7 +406,7 @@ Overflow + retryable provider failure: `queueWhatsAppMessage` **service_role INS
 
 **After Cut 2:** raw Meta **only** from the drain cron (trusted `CRON_SECRET`). Dispatcher may remain as a **drain-only** helper. Any other raw Meta caller must be **explicitly justified server-only** in the implementation PR — default is remove.
 
-**Disposition:** **CLOSE all three branches → 410** (preferred). If a WhatsApp HTTP route survives, it MUST be domain-bound IDs only (same shape as SMS alternative) and must **not** call Meta or INSERT the queue.
+**Disposition:** **CLOSE all three branches → 410.** No remaining WhatsApp HTTP send path.
 
 ### 3. `POST /api/proxy-claim/send`
 
@@ -402,7 +436,7 @@ send-sms-notification.ts (SmsTemplate + data → semantic renderer)
 
 | Surface | After Cut 2 |
 |---------|-------------|
-| `/api/sms/send` | **REMOVE generic (410)** or domain-bound IDs only. No phone/template/data. |
+| `/api/sms/send` | **`410 GONE` only.** No domain-bound conversion of this route. |
 | `/api/whatsapp/send` | **CLOSE** typed + **direct Meta** + **text** + overflow INSERT. **410**. |
 | `notify-client.ts` SMS/WA fetches | **Remove**. Pages call domain `*-notifications` / new typed enqueue routes with **ids only**. |
 | `sms-sender.ts` | Private AT transport. **No queue INSERT**. Not called from browser. |
@@ -521,7 +555,7 @@ New enqueue routes (implementation may add, names frozen):
 
 Disposable Postgres + mocked service_role. **No** Meta / AT / Resend / prod drain.
 
-Must include: A1–A5 client INSERT/UPDATE/TRUNCATE DENY; A6 service_role table INSERT DENY; A7 RPC allowlisted inserted; A8 unknown type denied; A9 missing domain row denied; A10 fan-out without membership denied; A11 foreign membership denied; A12 trusted `groupId` smuggle impossible (no param; `data.groupId` not authz); A13 phone param impossible; A14 invitation NULL user inserted; A15 failed-row re-enqueue duplicate; A16 authenticated EXECUTE denied; A17 staff UPDATE denied; A18 `/api/sms/send` generic `{to,template,data}` 410 (or 400 if domain-bound-only conversion); A19 `/api/whatsapp/send` typed **and** `{template,components}` **and** `{text}` 410; A20 proxy-claim request phone ≠ DB phone → enqueue uses DB or denied; A21 proxy-claim inactive membership (`membership_status <> 'active'`) denied.
+Must include: A1–A5 client INSERT/UPDATE/TRUNCATE DENY; A6 service_role table INSERT DENY; A7 RPC allowlisted type+channel inserted; A8 unknown type denied; A8b DENY channel for that type denied (no row); A9 missing domain row denied; A10 fan-out without membership denied; A11 foreign membership denied; A12 `groupId` smuggle impossible; A13 phone param impossible; A14 invitation NULL user inserted (WA/email if `invitations.email` present); A15 failed-row re-enqueue → existing id + `duplicate` (no UPDATE); A16 authenticated EXECUTE denied; A17 staff UPDATE denied; A18 **`/api/sms/send` any body → 410**; A19 `/api/whatsapp/send` typed **and** `{template,components}` **and** `{text}` **410**; A20 proxy-claim request phone ≠ DB phone → enqueue uses DB or denied; A21 proxy-claim target membership not `active` → denied; A22 proxy **actor** `role=moderator` DENY; A23 actor `role=member` DENY; A24 actor `membership_status=pending_approval` DENY; A25 actor `suspended` DENY; A26 actor `exited` DENY; A27 actor `archived` DENY; A28 email enqueue with `profiles.email` (column absent) impossible — source is `auth.users.email` or `invitations.email`; A29 `proxy_claim` + `p_channel=email` → denied; A30 `loan_overdue`/`election_opened`/`member_invitation` + `p_channel=sms` → denied; A31 `push` → denied.
 
 No-send harness: provider keys unset; no `failed`→`queued`; synthetic UUIDs only.
 
@@ -563,8 +597,20 @@ Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_qu
 **CREATE:** `enqueue_outbound_notification(...)` (R2); optional internal helpers **not** granted to `authenticated`.  
 **DROP:** policies named in R19.  
 **REVOKE/GRANT:** R19.  
-**CREATE UNIQUE INDEX IF NOT EXISTS:** SMS/email twins + new types (R10). **Do not DROP** existing WhatsApp uniques.  
-**Preconditions (`CUT2_ABORT`):** Cut 1 version `20260911183755` present; live INSERT policy name/check as pinned; enum has no `processing`; no `group_id` column; `to_regclass('public.notification_policies')` IS NULL; expected WhatsApp unique index names present; `sms-sender` on implementation tip must not still INSERT via `@/lib/supabase/server` (static check).  
+**CREATE UNIQUE INDEX IF NOT EXISTS:** `idx_notifications_queue_cut2_semantic_idempotency_unique` (R10). **Do not DROP** existing WhatsApp uniques. SMS/email twins of old WA indexes are **not** required if the semantic index is present.  
+**Preconditions (`CUT2_ABORT`) — DB-observable only (no source/CI gates in SQL):**  
+1. `schema_migrations.version = '20260911183755'` exists.  
+2. Policy `Authenticated users can queue notifications` exists with `WITH CHECK` containing `auth.uid()`.  
+3. `notification_queue_status` labels are exactly `queued`,`sent`,`failed` (no `processing`).  
+4. `notifications_queue` has **no** `group_id` column.  
+5. `to_regclass('public.notification_policies')` IS NULL.  
+6. The 17 live WhatsApp unique index **names** listed in the idempotency evidence file exist.  
+
+**Not in 00115 SQL:** deployed app SHA; sms-sender source scan; route 410 checks; package tests.  
+
+**Separate CI/static (implementation PR):** no `notifications_queue.insert` in app producers; `/api/sms/send` and `/api/whatsapp/send` return 410; sms-sender does not INSERT.  
+
+**Release prerequisite (founder, not SQL):** deployed Vercel SHA **equals** the Daybreak-qualified implementation SHA; relays 410 in production; **then** founder authorizes 00115 apply. Temporary pre-00115 existing-risk window is **accepted**.  
 **Never:** DELETE FROM `notifications_queue`; retry failed; edit `00001`–`00114`.
 
 ---
@@ -575,15 +621,65 @@ Untouched / unapplied. Cut 2 static allowlist ≠ policy tables. Cut 3 storage n
 
 ---
 
+## SECURITY REVISION 2 — gap closeout (R2-1 … R2-27)
+
+Do not reopen: Layer B; R2 RPC signature; EXECUTE `service_role` only; `search_path ''`; no raw contact/content/template/data/status args; `data.groupId` not authz; no service_role INSERT after 00115; `/api/whatsapp/send` → 410; Meta after Cut 2 = drain only; app-first→DB cutover; pre-00115 existing-risk window accepted.
+
+### R2-A — SQL does not render
+
+RPC writes the envelope (R5). Drain TypeScript owns `paymentReceiptSms` / `sendEmail` / `dispatchWhatsAppWithResult`. SQL has no dependency on `sms-templates.ts`.
+
+### R2-B — Per-type channel DEFAULT DENY
+
+See `S0_CUT2_CHANNEL_RENDERER_MATRIX_20260911.json`. ALLOW only if recipient + prefs + renderer + idempotency + domain row exist. `push` DENY all.
+
+### R2-C — Email source
+
+| Kind | Source |
+|------|--------|
+| Registered member | `memberships.user_id` → **`auth.users.email`**. Live `profiles` columns: id, full_name, display_name, avatar_url, phone, preferred_locale, preferred_theme, timezone, created_at, updated_at, notification_preferences, date_of_birth — **no `email`**. |
+| Invitation | `invitations.email` |
+| Proxy claim | **EMAIL DENY**. `proxy_claim_tokens.email` is not auto-authoritative (caller-written). `memberships` has no email. |
+
+### R2-D — Proxy actor (Cut 1)
+
+Caller membership on **same** `memberships.group_id` as the proxy target MUST be:
+
+`membership_status = 'active'` **AND** `role IN ('owner','admin')`.
+
+**DENY** (negative tests A22–A27): `moderator`, `member`; `pending_approval`; `suspended`; `exited`; `archived`. Also DENY if caller membership missing or different group. Target proxy must be `is_proxy`, `user_id IS NULL`, `membership_status = 'active'`.
+
+Live CHECK (MCP): `membership_status IN ('active','pending_approval','exited','suspended','archived')`.
+
+### R2-E — Idempotency
+
+See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` copied verbatim there. No TBD keys.
+
+### R2-F — Source/CI out of SQL
+
+00115 `CUT2_ABORT` = R29 DB-observable list only. CI/static + founder SHA gate are release prerequisites, not SQL.
+
+### R2-G — `/api/sms/send` = 410 only
+
+Replacement table in R11. No remaining `{to,template,data}` path.
+
+---
+
 ## Daybreak handoff
 
 | Gate | Result |
 |------|--------|
-| Layer B only; Layer A removed | PASS |
-| Exact RPC signature | PASS — R2 |
-| Domain matrix complete; unknown named producers = 0 | PASS — R3 + matrix JSON |
-| Relays closed including direct Meta | PASS — R11–R16 |
-| Dual-compat error `42883` / `PGRST202` | PASS — R27 |
+| Layer B only; Layer A removed | PASS (do not reopen) |
+| Exact RPC signature | PASS — R2 (do not reopen) |
+| Domain matrix complete; unknown named producers = 0 | PASS — 22 types |
+| SQL does not render; drain TypeScript renders | PASS — R2-A / R5 |
+| Per-type channel DEFAULT DENY | PASS — channel matrix |
+| Email source auth.users / invitations; proxy email DENY | PASS — R2-C |
+| Proxy actor ACTIVE owner/admin only | PASS — R2-D |
+| Canonical idempotencyKey + live pg_indexes | PASS — R2-E |
+| 00115 preconditions DB-only; CI/SHA outside SQL | PASS — R2-F |
+| `/api/sms/send` 410 only | PASS — R2-G |
+| `/api/whatsapp/send` 410; Meta = drain only | PASS (do not reopen) |
 | App-first then 00115 | PASS — R28 |
 | No SQL / no runtime in this PR | PASS |
 | PR #69/#70/Cut 3/Cut 1 | PASS — R30 |
@@ -591,7 +687,7 @@ Untouched / unapplied. Cut 2 static allowlist ≠ policy tables. Cut 3 storage n
 ### HOLD blockers
 
 **Open count: 0** for this contract.  
-Implementation-time aborts remain: missing unique index; sms-sender still cookie-INSERT; `notification_policies` present; Layer-B INSERT grant left on service_role.
+Implementation-time aborts remain: missing expected WA unique index at apply; `notification_policies` present; service_role INSERT grant left on after 00115; app SHA ≠ Daybreak-qualified impl SHA at apply time.
 
 ---
 

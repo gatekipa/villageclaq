@@ -1,12 +1,12 @@
 {
   "artifact": "S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911",
   "date": "2026-09-11",
-  "status": "FROZEN_SECURITY_REVISION_1",
+  "status": "FROZEN_SECURITY_REVISION_2",
   "architecture": "LAYER_B_ONLY",
   "layer_a": "VOID_NOT_AN_IMPLEMENTATION_OPTION",
-  "daybreak_reviewed_tip": "1478c33129502026346f8fb386614f6c66b9836c",
+  "daybreak_reviewed_tip": "d041bd10d67c660b7414d4f5db74f9e8985f5886",
   "domain_matrix": "docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json",
-  "purpose": "Read-only evidence for Cut 2 notification queue security contract freeze. Planning only. No production SQL was executed by this task. SECURITY REVISION 1 closes Daybreak R1–R30: Layer B mandatory; no direct notifications_queue INSERT from anon, authenticated, platform staff, OR service_role application producers.",
+  "purpose": "Read-only evidence for Cut 2 notification queue security contract freeze. Planning only. No production SQL was executed by this task. SECURITY REVISION 1 closes Daybreak R1\u2013R30: Layer B mandatory; no direct notifications_queue INSERT from anon, authenticated, platform staff, OR service_role application producers.",
   "production_mutation": "ZERO",
   "messages_sent": "ZERO",
   "failed_rows_retried": "ZERO",
@@ -33,9 +33,17 @@
     "cut1_name": "s0_p0a_cut1_active_authorization",
     "insert_policy_name": "Authenticated users can queue notifications",
     "insert_policy_with_check": "auth.uid() IS NOT NULL",
-    "grants_insert": ["anon", "authenticated", "service_role"],
+    "grants_insert": [
+      "anon",
+      "authenticated",
+      "service_role"
+    ],
     "group_id_column": false,
-    "status_enum": ["queued", "sent", "failed"],
+    "status_enum": [
+      "queued",
+      "sent",
+      "failed"
+    ],
     "status_enum_processing": false,
     "note": "Chief-confirmed live facts folded 2026-09-11. This addendum does not invent extra catalog rows.",
     "tenant_columns_readonly_mcp_sr1_followup": {
@@ -54,7 +62,7 @@
     }
   },
   "live_production_inventory_chief_verbatim": {
-    "source": "Chief-verified live inventory 2026-09-11 — copied verbatim; this task did not re-query production",
+    "source": "Chief-verified live inventory 2026-09-11 \u2014 copied verbatim; this task did not re-query production",
     "project": "llbnliixczcqfftxpsmb",
     "table": "public.notifications_queue",
     "rls": {
@@ -117,8 +125,17 @@
       }
     ],
     "enums": {
-      "notification_channel": ["email", "sms", "whatsapp", "push"],
-      "notification_queue_status": ["queued", "sent", "failed"],
+      "notification_channel": [
+        "email",
+        "sms",
+        "whatsapp",
+        "push"
+      ],
+      "notification_queue_status": [
+        "queued",
+        "sent",
+        "failed"
+      ],
       "notification_queue_status_note": "NO processing/claim state"
     },
     "policies": [
@@ -151,8 +168,21 @@
       }
     ],
     "grants": {
-      "roles": ["anon", "authenticated", "service_role", "postgres"],
-      "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"],
+      "roles": [
+        "anon",
+        "authenticated",
+        "service_role",
+        "postgres"
+      ],
+      "privileges": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER"
+      ],
       "note": "anon+authenticated+service_role+postgres all have SELECT/INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER"
     },
     "forge": {
@@ -210,18 +240,18 @@
         "data": "recipient + free-form message (arbitrary phone + arbitrary body)",
         "status": "queued"
       },
-      "forge_adjacent_risk": "HIGH if left on authenticated path — free-form message + arbitrary phone in data jsonb",
-        "cut2_hard_gate": "MUST stop cookie/anon INSERT before/with 00115. After Cut 2: no table INSERT at all (Layer B). Drain may call AT only. SQL-only first or leftover session INSERT = CUT2_ABORT."
+      "forge_adjacent_risk": "HIGH if left on authenticated path \u2014 free-form message + arbitrary phone in data jsonb",
+      "cut2_hard_gate": "MUST stop cookie/anon INSERT before/with 00115. After Cut 2: no table INSERT at all (Layer B). Drain may call AT only. SQL-only first or leftover session INSERT = CUT2_ABORT."
     },
     "canonical_producers_and_layer_b": {
-      "layer_a": "VOID — not an implementation option after Daybreak HOLD",
+      "layer_a": "VOID \u2014 not an implementation option after Daybreak HOLD",
       "layer_b_required": "REVOKE INSERT from service_role; all produce* + whatsapp/send overflow + sms-sender stop table INSERT; service_role EXECUTE enqueue_outbound_notification only",
-      "reason": "After Cut 2, no application producer may INSERT notifications_queue — including service_role",
+      "reason": "After Cut 2, no application producer may INSERT notifications_queue \u2014 including service_role",
       "cut2_abort_if": "service_role GRANT INSERT left on after 00115, OR produce* still .insert() after adapter deploy"
     },
     "s0a_20260910_queue_note": {
       "source": "docs/S0_A_PRODUCTION_TRUTH_SNAPSHOT_20260910.md on PR #72 SHA 97388b34037589a21eae66e3a5a1668f71e3bb55",
-      "insert_policy": "Authenticated users can queue notifications WITH CHECK (auth.uid() IS NOT NULL) — CONFIRMED P0",
+      "insert_policy": "Authenticated users can queue notifications WITH CHECK (auth.uid() IS NOT NULL) \u2014 CONFIRMED P0",
       "select_update": "limited to is_platform_staff()",
       "notification_policies_regclass": "NULL",
       "s0b_queue_row_count_cited_in_cut1_plan": 2306,
@@ -244,7 +274,7 @@
         "idx_notifications_queue_whatsapp_event_reminder_unique",
         "idx_notifications_queue_whatsapp_subscription_expiring_unique"
       ],
-      "live_apply_timestamp": "NOT RE-QUERIED — Chief inventory names hosting_*, event_reminder, subscription_expiring unique indexes as present"
+      "live_apply_timestamp": "NOT RE-QUERIED \u2014 Chief inventory names hosting_*, event_reminder, subscription_expiring unique indexes as present"
     },
     "repo_unique_index_names": [
       "idx_notifications_queue_whatsapp_payment_receipt_unique",
@@ -274,7 +304,7 @@
       "enforced_by_getEnabledChannels": false,
       "source": "src/NOTIFICATION_CHANNEL_AUDIT.md Risk 2 + src/app/[locale]/(dashboard)/dashboard/settings/notifications/page.tsx"
     },
-    "prefs_rpc": "supabase/migrations/00054_notification_prefs_rpc.sql — get_notification_preferences(p_user_id) SECURITY DEFINER GRANT authenticated",
+    "prefs_rpc": "supabase/migrations/00054_notification_prefs_rpc.sql \u2014 get_notification_preferences(p_user_id) SECURITY DEFINER GRANT authenticated",
     "drain": {
       "route": "src/app/api/cron/drain-notification-queue/route.ts",
       "vercel_cron": "*/15 * * * *",
@@ -292,7 +322,7 @@
       "SERVICE/CRON",
       "LEGACY DIRECT CLIENT",
       "DORMANT",
-      "UNKNOWN — FAIL CLOSED"
+      "UNKNOWN \u2014 FAIL CLOSED"
     ],
     "named_producer_modules": [
       {
@@ -333,14 +363,20 @@
       },
       {
         "file": "src/lib/relief-claim-decision-producer.ts",
-        "templates": ["relief_claim_approved", "relief_claim_denied"],
+        "templates": [
+          "relief_claim_approved",
+          "relief_claim_denied"
+        ],
         "caller": "src/app/api/relief/claim-notifications/route.ts",
         "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
         "insert_client": "service_role after JWT + same-group admin/staff"
       },
       {
         "file": "src/lib/remittance-decision-producer.ts",
-        "templates": ["remittance_confirmed", "remittance_disputed"],
+        "templates": [
+          "remittance_confirmed",
+          "remittance_disputed"
+        ],
         "caller": "src/app/api/relief/remittance-notifications/route.ts",
         "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
         "insert_client": "service_role after JWT + branch/HQ admin/staff"
@@ -393,7 +429,7 @@
         "caller": "src/app/api/invitations/whatsapp-notifications/route.ts",
         "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
         "insert_client": "service_role after JWT + inviter/active owner-admin/staff",
-        "prefs": "none — invitee has no account; user_id NULL"
+        "prefs": "none \u2014 invitee has no account; user_id NULL"
       },
       {
         "file": "src/lib/subscription-expiring-producer.ts",
@@ -434,19 +470,27 @@
       {
         "file": "src/app/api/cron/drain-notification-queue/route.ts",
         "class": "SERVICE/CRON",
-        "ops": ["SELECT queued", "UPDATE sent/failed/attempts"]
+        "ops": [
+          "SELECT queued",
+          "UPDATE sent/failed/attempts"
+        ]
       },
       {
         "file": "src/lib/whatsapp-webhook-status.ts",
         "caller": "src/app/api/webhooks/whatsapp/route.ts",
         "class": "SERVICE/CRON",
-        "ops": ["SELECT by providerMessageId", "UPDATE data only"],
+        "ops": [
+          "SELECT by providerMessageId",
+          "UPDATE data only"
+        ],
         "auth": "x-hub-signature-256"
       },
       {
         "file": "src/app/[locale]/admin/notifications/page.tsx",
         "class": "platform staff browser SELECT only",
-        "ops": ["SELECT id,status,created_at"]
+        "ops": [
+          "SELECT id,status,created_at"
+        ]
       }
     ],
     "direct_dispatch_not_queue_producer": [
@@ -500,14 +544,14 @@
       "ALL ON enqueue_outbound_notification FROM PUBLIC, anon, authenticated"
     ],
     "GRANT": [
-      "SELECT ON public.notifications_queue TO authenticated (staff SELECT policies only — no INSERT)",
+      "SELECT ON public.notifications_queue TO authenticated (staff SELECT policies only \u2014 no INSERT)",
       "SELECT, UPDATE ON public.notifications_queue TO service_role (NO INSERT)",
       "EXECUTE ON enqueue_outbound_notification TO service_role ONLY"
     ],
     "UNCHANGED": [
       "POLICY \"Platform staff can view all notifications_queue\"",
       "POLICY \"Staff can view notification queue\"",
-      "all listed unique WhatsApp indexes from 00087–00097",
+      "all listed unique WhatsApp indexes from 00087\u201300097",
       "notification_channel enum",
       "notification_queue_status enum (no processing)",
       "Cut 1 objects / 00114",
@@ -515,7 +559,7 @@
     ],
     "migration_filename_later_not_in_this_pr": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
     "layer_a_vs_layer_b": {
-      "layer_a": "VOID — removed as an implementation option (Daybreak HOLD / SECURITY REVISION 1)",
+      "layer_a": "VOID \u2014 removed as an implementation option (Daybreak HOLD / SECURITY REVISION 1)",
       "layer_b_mandatory": "REVOKE INSERT from service_role; enqueue RPC only. App adapter first, then 00115."
     },
     "dual_compatible_fallback": {
@@ -523,13 +567,30 @@
       "fallback_allowed_only_when_all_match": {
         "postgres_sqlstate": "42883",
         "postgres_sqlstate_name": "undefined_function",
-        "postgrest_or_supabase_error_code": ["42883", "PGRST202"],
+        "postgrest_or_supabase_error_code": [
+          "42883",
+          "PGRST202"
+        ],
         "message_must_contain_case_insensitive": {
           "function_name": "enqueue_outbound_notification",
-          "and_one_of": ["does not exist", "could not find the function"]
+          "and_one_of": [
+            "does not exist",
+            "could not find the function"
+          ]
         }
       },
-      "never_fallback_on": ["42501", "23505", "22P02", "PGRST301", "HTTP 401", "HTTP 403", "network", "timeout", "RPC result denied", "RPC result duplicate"],
+      "never_fallback_on": [
+        "42501",
+        "23505",
+        "22P02",
+        "PGRST301",
+        "HTTP 401",
+        "HTTP 403",
+        "network",
+        "timeout",
+        "RPC result denied",
+        "RPC result duplicate"
+      ],
       "release_order": "app adapter + close relays FIRST, then apply 00115"
     }
   },
@@ -547,17 +608,20 @@
       "unknown_live_sms_whatsapp_paths": 0,
       "unproven_schema_chain_holds": 0
     },
-    "sms_disposition": "CLOSE /api/sms/send → 410; cron sendSmsNotification happy paths convert to RPC p_channel=sms; sms-sender no INSERT",
-    "whatsapp_disposition": "CLOSE /api/whatsapp/send ALL THREE branches (typed + direct Meta template+components + text) → 410 including overflow INSERT",
+    "sms_disposition": "POST /api/sms/send \u2192 410 GONE only (no domain-bound conversion of this route). Callers move to *-notifications routes. Cron sendSmsNotification \u2192 RPC. sms-sender no INSERT.",
+    "whatsapp_disposition": "CLOSE /api/whatsapp/send ALL THREE branches (typed + direct Meta template+components + text) \u2192 410 including overflow INSERT",
     "proxy_disposition": "Keep authz; enqueue proxy_claim via RPC; derive phone from membership; ignore request-body phone",
-    "dual_compat_fallback_error_codes": ["42883", "PGRST202"],
+    "dual_compat_fallback_error_codes": [
+      "42883",
+      "PGRST202"
+    ],
     "release_order": "app first then 00115",
     "chief_interim_evidence_20260911": {
-      "sms_send_generic": "FAIL — REMOVE or domain-bound {notification_type, domain_object_id} only",
+      "sms_send_generic": "410 GONE only \u2014 no remaining {to,template,data}",
       "whatsapp_send": "CLOSE typed + direct Meta + text + overflow; raw Meta after Cut 2 = drain only",
       "proxy_claim": "ACTIVE membership (Cut 1) + proxy_claim_tokens; no caller contact authority",
-      "sms_sender_chain": "send-sms-notification.ts → sms-sender.ts sendSMS({to,message}); private transport after Layer B",
-      "obligation_table": "contribution_obligations — payment_obligations ABSENT live",
+      "sms_sender_chain": "send-sms-notification.ts \u2192 sms-sender.ts sendSMS({to,message}); private transport after Layer B",
+      "obligation_table": "contribution_obligations \u2014 payment_obligations ABSENT live",
       "subscription_scope": "GROUP_SCOPED group_subscriptions.group_id",
       "data_groupId": "never authorization source"
     }
@@ -583,7 +647,7 @@
       {
         "id": "H6",
         "status": "FAIL_CLOSED_AT_APPLY",
-        "detail": "Missing expected unique index at implementation apply → CUT2_ABORT; do not invent 00097 apply time"
+        "detail": "Missing expected unique index at implementation apply \u2192 CUT2_ABORT; do not invent 00097 apply time"
       },
       {
         "id": "H7",
@@ -598,5 +662,17 @@
     "cut_3": "storage P0-C not started",
     "m2_f3_06": "not started",
     "cut_1": "CLOSED production 20260911183755; do not modify"
+  },
+  "security_revision_2": {
+    "sql_renders": false,
+    "envelope": "canonical semantic envelopeVersion=2; drain TypeScript renders",
+    "channel_default_deny": true,
+    "email_registered": "memberships.user_id \u2192 auth.users.email",
+    "profiles_email_column": false,
+    "proxy_claim_email": "DENY",
+    "proxy_actor": "ACTIVE owner OR ACTIVE admin same group only",
+    "idempotency": "data.idempotencyKey + idx_notifications_queue_cut2_semantic_idempotency_unique (plan SQL only)",
+    "sql_preconditions": "DB-observable only",
+    "sms_send": "410_GONE"
   }
 }

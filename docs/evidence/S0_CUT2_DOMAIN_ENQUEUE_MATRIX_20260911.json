@@ -1,8 +1,9 @@
 {
   "document": "S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911",
-  "status": "FROZEN_SECURITY_REVISION_2",
+  "status": "FROZEN_SECURITY_REVISION_3",
   "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
-  "daybreak_reviewed_tip": "1478c33129502026346f8fb386614f6c66b9836c",
+  "daybreak_reviewed_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
+  "sr3_note": "Domain matrix rows UNCHANGED. SR3 adds: RPC hardcodes cut2_provenance_version=1 (not an arg). Envelope fields are NOT trust evidence.",
   "architecture": "LAYER_B_ONLY",
   "layer_a": "VOID_NOT_AN_IMPLEMENTATION_OPTION",
   "rpc": "public.enqueue_outbound_notification(p_notification_type text, p_domain_object_id uuid, p_channel public.notification_channel, p_recipient_membership_id uuid DEFAULT NULL, p_locale text DEFAULT NULL)",
@@ -29,7 +30,8 @@
     "template / p_template",
     "data jsonb",
     "status",
-    "user_id"
+    "user_id",
+    "cut2_provenance_version / p_cut2_provenance_version (RPC hardcodes 1; not an arg)"
   ],
   "queue_template_column_note": "Live unique indexes predicate on notifications_queue.template (not a notification_type column). RPC writes template = p_notification_type (underscore form).",
   "data_groupId_never_authorization": true,
@@ -1261,7 +1263,8 @@
       "archived"
     ]
   },
-  "drain_discriminator": "data.cut2Semantic === true OR (non-empty data.idempotencyKey AND template in allowlist)",
+  "drain_discriminator": "SUPERSEDED_BY_R3_5 — ONLY cut2_provenance_version = 1 is trusted. data.cut2Semantic / envelopeVersion / idempotencyKey / template are NOT trust evidence.",
+  "sr2_drain_discriminator_void": "data.cut2Semantic === true OR (non-empty data.idempotencyKey AND template in allowlist)",
   "cut2_new_rows_must_not_use_data_message": true,
   "email_template_union": [
     "welcome",

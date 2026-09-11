@@ -1,13 +1,15 @@
 {
   "document": "S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911",
-  "status": "FROZEN_SECURITY_REVISION_2",
+  "status": "FROZEN_SECURITY_REVISION_3",
   "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
-  "parent_daybreak_tip": "d041bd10d67c660b7414d4f5db74f9e8985f5886",
-  "canonical_mechanism": "RPC computes data.idempotencyKey in SQL from domain columns. ONE unique index across channels. Existing WhatsApp unique indexes PRESERVED (not dropped). Conflict → return existing id, result='duplicate'. NO UPDATE/DELETE/REQUEUE/REPLACE including failed rows.",
-  "future_index_sql_plan_only_not_a_migration_file": "CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_queue_cut2_semantic_idempotency_unique ON public.notifications_queue USING btree (channel, template, ((data ->> 'idempotencyKey'::text))) WHERE (((data ->> 'idempotencyKey'::text) IS NOT NULL) AND ((data ->> 'idempotencyKey'::text) <> ''));",
+  "parent_daybreak_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
+  "canonical_mechanism": "RPC computes data.idempotencyKey in SQL from domain columns. ONE unique index across channels, TRUSTED-ONLY (cut2_provenance_version = 1). Existing WhatsApp unique indexes PRESERVED (not dropped). Conflict → return existing id, result='duplicate'. NO UPDATE/DELETE/REQUEUE/REPLACE including failed rows. idempotencyKey is idempotency only — NOT trust evidence.",
+  "future_index_sql_plan_only_not_a_migration_file": "CREATE UNIQUE INDEX idx_notifications_queue_cut2_semantic_idempotency_unique ON public.notifications_queue (channel, template, ((data ->> 'idempotencyKey'))) WHERE cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;",
   "future_index_notes": [
-    "No status predicate — queued, sent, AND failed rows participate.",
-    "Empty or null idempotencyKey is excluded from the unique index; RPC MUST always write a non-empty key for inserted rows.",
+    "SR3 revise: WHERE cut2_provenance_version = 1 so legacy/NULL keys cannot poison the trusted index.",
+    "No status predicate — queued, sent, AND failed TRUSTED rows participate.",
+    "Empty or null/blank idempotencyKey is excluded; RPC MUST always write a non-empty key for inserted trusted rows.",
+    "Preserve all existing WhatsApp unique indexes.",
     "Do not author this SQL in this planning PR."
   ],
   "duplicate_behavior": {

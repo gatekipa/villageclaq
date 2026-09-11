@@ -1,19 +1,20 @@
-# S0 P0-B Cut 2 — SECURITY REVISION 2 (Daybreak HOLD closeout)
+# S0 P0-B Cut 2 — SECURITY REVISION 3 (Daybreak HOLD closeout)
 
 **Date:** 2026-09-11  
-**Status:** **SECURITY REVISION 2 — READY FOR DAYBREAK RE-REVIEW**  
-**Overall recommended verdict:** **PASS — LAYER B ONLY; R1–R30 + R2-1–R2-27 FROZEN**  
+**Status:** **SECURITY REVISION 3 — READY FOR DAYBREAK RE-REVIEW**  
+**Overall recommended verdict:** **PASS — LAYER B ONLY; R1–R30 + R2 FROZEN; R3-1–R3-22 FROZEN**  
 **Implementation:** **NOT AUTHORIZED** until Daybreak **PASS**. PASS authorizes **implementation on a dedicated branch only**, **NOT** production apply.  
 **This PR:** docs / evidence only. **No** `00115` SQL. **No** runtime code.  
-**Authoritative freeze:** this document (SR2). SR1 remains ancestry; conflicting SR1 sentences below are **superseded** by the SR2 section.  
-**Previous Daybreak-reviewed tip (MUST be ancestry):** `d041bd10d67c660b7414d4f5db74f9e8985f5886`  
+**Authoritative freeze:** this document (SR3). SR1/SR2 remain ancestry; conflicting SR1/SR2 sentences below are **superseded** by the SR3 section (R3-1–R3-22).  
+**Previous Daybreak-reviewed tip (MUST be ancestry):** `ca333b03c898cedf729e83166e27f642f034c6f1`  
 **Evidence:**  
 - `docs/evidence/S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911.json`  
 - `docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json`  
 - `docs/evidence/S0_CUT2_CHANNEL_RENDERER_MATRIX_20260911.json`  
 - `docs/evidence/S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`  
 - `docs/evidence/S0_CUT2_CHIEF_READONLY_SR2_FOLD_20260911.json`  
-- `docs/evidence/S0_CUT2_FUTURE_CI_SCRIPT_NAMES_20260911.json`
+- `docs/evidence/S0_CUT2_FUTURE_CI_SCRIPT_NAMES_20260911.json`  
+- `docs/evidence/S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911.json`
 
 ---
 
@@ -21,7 +22,7 @@
 
 | Pin | Value |
 |-----|-------|
-| This revision parent tip | `d041bd10d67c660b7414d4f5db74f9e8985f5886` |
+| This revision parent tip | `ca333b03c898cedf729e83166e27f642f034c6f1` |
 | Production main | `1693b806beaf80d1c8101c8011874a2a2bcbb642` |
 | Master PRD #71 freeze | `050be86c9df3455c66b27bb5853eb786228b4009` |
 | Cut 1 CLOSED prod | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **DO NOT MODIFY** |
@@ -99,7 +100,7 @@ SET search_path TO ''
 5. **Derive recipient contact from DB** (R7). Never from args.
 6. Prefs (R9): fail-closed. Invitation exception.
 7. Allowlist queue `template` string (R4) and server-own content (R5).
-8. INSERT `status='queued'` only. Unique conflict → `duplicate` (no UPDATE).
+8. INSERT `status='queued'` only and **hardcode `cut2_provenance_version=1`** (R3-4; not an arg). Unique conflict → `duplicate` (no UPDATE).
 9. **Never** UPDATE/DELETE/requeue/replace a `failed` or `sent` row.
 
 `denied` and `duplicate` return `queue_id` NULL (or existing id on duplicate — implementation may return existing id **read-only**; must not mutate).
@@ -268,15 +269,10 @@ RPC writes `template = p_notification_type` and `data` = **CANONICAL SEMANTIC EN
 | Email | `data.template` + `data.emailData` via `sendEmail` | Drain selects frozen `EmailTemplate` from `notification_type`. **No** caller/`data.template`. |
 | WhatsApp | prefers `data.whatsappType`+`whatsappData` dispatcher; else raw `data.template` Meta | Typed dispatcher **only**. **No** raw Meta from queue. |
 
-**Legacy discriminator (NEW rows only on semantic branch):**
+**~~Legacy discriminator (SR2) — SUPERSEDED by R3-5 / R3-6.~~**  
+SR2 used `data.cut2Semantic` / `idempotencyKey` / `template` as a semantic-vs-legacy branch. **That is NOT trust evidence.** After 00115 the **only** trusted discriminator is the table column `cut2_provenance_version = 1` (R3-1–R3-8). NULL provenance is quarantined and **must not** take the legacy raw `data.message` / `template` / `components` path.
 
-A queued row is Cut 2 semantic **iff**:
-
-`data.cut2Semantic === true` **OR** (`data.idempotencyKey` is non-empty **AND** `template` is in the type allowlist).
-
-Else → **legacy** branch: existing `processSms(data.message)` / `processEmail(data.template, data.emailData)` / `processWhatsApp(whatsappType | raw template+components)` for pre-cutover rows only. No new legacy rows after 00115.
-
-NEW Cut 2 rows **must not** write `data.message`, `data.components`, or caller `data.template` (email/Meta).
+NEW Cut 2 rows **must not** write `data.message`, `data.components`, or caller `data.template` (email/Meta). Envelope fields remain snapshots for render/idempotency only.
 
 ---
 
@@ -310,18 +306,13 @@ NEW Cut 2 rows **must not** write `data.message`, `data.components`, or caller `
 **ONE** mechanism: RPC writes `data.idempotencyKey` (expressions in `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`). Future unique index (PLAN text only — **do not author a migration file**):
 
 ```sql
-CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_queue_cut2_semantic_idempotency_unique
-  ON public.notifications_queue
-  USING btree (
-    channel,
-    template,
-    ((data ->> 'idempotencyKey'::text))
-  )
-  WHERE ((data ->> 'idempotencyKey'::text) IS NOT NULL)
-    AND ((data ->> 'idempotencyKey'::text) <> '');
+CREATE UNIQUE INDEX idx_notifications_queue_cut2_semantic_idempotency_unique
+ON public.notifications_queue (channel, template, ((data ->> 'idempotencyKey')))
+WHERE cut2_provenance_version = 1
+  AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;
 ```
 
-No status predicate — **includes failed rows**. Preserve all live WhatsApp unique indexes (verbatim `pg_indexes` in the evidence file).
+**SR3 revise (R3-16 / R3-17):** trusted-only predicate `cut2_provenance_version = 1`. No status filter — queued, sent, **and** failed trusted rows participate. Preserve all live WhatsApp unique indexes (verbatim `pg_indexes` in the evidence file). Legacy / NULL-provenance keys **cannot** occupy or poison this index.
 
 On unique conflict (new index **or** legacy WA index): `SELECT` existing `id`; return `(existing_id, 'duplicate')`. **No UPDATE / DELETE / REQUEUE / REPLACE**, including `failed`.
 
@@ -555,15 +546,16 @@ New enqueue routes (implementation may add, names frozen):
 |------|--------|--------|--------|-----------------|-----------------|
 | `anon` | DENY | DENY | DENY | DENY | DENY |
 | `authenticated` (incl. staff JWT) | staff SELECT policies only | DENY | DENY | DENY | DENY |
-| `service_role` | GRANT | **DENY** | GRANT | DENY | **GRANT** |
+| `service_role` | GRANT | **DENY** | **COLUMN-LEVEL only (R3-13)** | DENY | **GRANT** |
 | `postgres` | owner | owner (00115 only) | owner | owner | owner |
 
 - DROP policies: `Authenticated users can queue notifications`, `Staff can update notification queue`.
 - KEEP SELECT: `Platform staff can view all notifications_queue`, `Staff can view notification queue`.
 - DEFINER: `SET search_path TO ''`; bodies `public.`-qualified; no `auth.uid()` tenant trust.
 - Status enum **unchanged** (`queued|sent|failed`). **No** `processing`.
-- Drain: `CRON_SECRET`; SELECT `queued`; UPDATE sent/failed/attempts; **no INSERT**; keep `isAfricanPhoneNumber` before AT; **do not** select `failed`.
-- Webhook: Meta signature; service_role **UPDATE `data` only**; must not set `status='queued'` on failed rows.
+- Drain: `CRON_SECRET`; after 00115 SELECT **`status='queued' AND cut2_provenance_version=1` only**; UPDATE only worker columns in R3-13; **no INSERT**; keep `isAfricanPhoneNumber` before AT; **do not** select `failed` or NULL-provenance rows.
+- Webhook: Meta signature; service_role **UPDATE `data` only**; must not set `status='queued'` on failed rows; **must not** UPDATE `cut2_provenance_version`.
+- **SR3 UPDATE grants (source-verified):** REVOKE broad `service_role` UPDATE. GRANT UPDATE only on `status`, `error_message`, `attempts`, `sent_at`, `data`. **MUST NOT** UPDATE `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`.
 
 ---
 
@@ -581,14 +573,18 @@ No-send harness: provider keys unset; no `failed`→`queued`; synthetic UUIDs on
 
 ## R27–R28 — Dual-compatible rollout (app first, then 00115)
 
+**SR3 PRODUCTION RULE (R3-10 / R3-19) SUPERSEDES SR2 Phase A step 3.**  
+Production missing-RPC: **FAIL CLOSED / DO NOT ENQUEUE**. **No** raw `service_role` INSERT during the cutover window. Disposable/testing harness may still use the frozen 42883/PGRST202 matcher **only** if explicitly marked non-production.
+
 **Phase A (app deploy, function may be absent):**  
 `src/lib/enqueue-outbound-notification.ts` (service_role client):
 
 1. `rpc('enqueue_outbound_notification', { p_notification_type, p_domain_object_id, p_channel, p_recipient_membership_id, p_locale })`
 2. On success (including `duplicate`/`denied` **from the function**) → **stop**. **Never** fallback.
-3. Fallback to service_role **table INSERT** of a **server-derived** row (same derivation as the RPC) **ONLY** when the error identity matches **exactly** R27 below.
+3. **PRODUCTION:** if the RPC is missing → **FAIL CLOSED / DO NOT ENQUEUE**. Do **not** INSERT.  
+   **DISPOSABLE / TESTING ONLY (non-production):** table INSERT of a server-derived row **ONLY** when the error identity matches **exactly** the frozen matcher below — and that path MUST be compiled/gated out of production.
 
-**Frozen missing-function identity (ALL must match to fallback):**
+**Frozen missing-function identity (matcher identity unchanged; PRODUCTION must not INSERT):**
 
 | Layer | Exact identity |
 |-------|----------------|
@@ -598,13 +594,7 @@ No-send harness: provider keys unset; no `failed`→`queued`; synthetic UUIDs on
 
 **NEVER fallback** if `code` is `42501`, `23505`, `22P02`, `PGRST301`, HTTP 401/403, network/timeout, or RPC returned `denied`/`duplicate`.
 
-**Release order (frozen)**
-
-1. **Source / Vercel app first** (adapter + close relays + producers use adapter).  
-2. **Then** apply `00115` (creates function, REVOKE INSERT).  
-3. After 00115: function exists → RPC always; table INSERT denied → fallback dead (fail-closed if someone deletes the function).
-
-Do **not** apply 00115 before the app adapter is in production.
+**Release order:** **R3-19 exactly** (below). App-first order is unchanged: do **not** apply 00115 before the fail-closed provenance-aware app is in production.
 
 ---
 
@@ -615,7 +605,8 @@ Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_qu
 **CREATE:** `enqueue_outbound_notification(...)` (R2); optional internal helpers **not** granted to `authenticated`.  
 **DROP:** policies named in R19.  
 **REVOKE/GRANT:** R19.  
-**CREATE UNIQUE INDEX IF NOT EXISTS:** `idx_notifications_queue_cut2_semantic_idempotency_unique` (R10). **Do not DROP** existing WhatsApp uniques. SMS/email twins of old WA indexes are **not** required if the semantic index is present.  
+**CREATE UNIQUE INDEX:** `idx_notifications_queue_cut2_semantic_idempotency_unique` (R10 **as revised by R3-16** — `WHERE cut2_provenance_version = 1`). **Do not DROP** existing WhatsApp uniques. SMS/email twins of old WA indexes are **not** required if the semantic index is present.  
+**00115 atomic (R3-3):** add `cut2_provenance_version` + CHECK, create RPC (hardcodes provenance=1), create trusted-only index, drop unsafe policies, REVOKE INSERT (incl. `service_role`), column-level UPDATE grants, provenance immutability.  
 **Preconditions (`CUT2_ABORT`) — DB-observable only (no source/CI gates in SQL):**  
 1. `schema_migrations.version = '20260911183755'` exists.  
 2. Policy `Authenticated users can queue notifications` exists with `WITH CHECK` containing `auth.uid()`.  
@@ -634,15 +625,19 @@ Suggested filename later: `supabase/migrations/00115_s0_p0b_cut2_notification_qu
 | `scripts/test-s0-cut2-whatsapp-send-410.mjs` | `/api/whatsapp/send` all branches (typed, `{template,components}`, `{text}`) → **410** |
 | `scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs` | ACTIVE owner/admin only; moderator/member/pending/suspended/exited/archived **DENY** |
 | `scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs` | `sms-sender` + `send-sms-notification` do not INSERT `notifications_queue` |
-| `scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs` | all 15 `produce*` use adapter; no direct `.from("notifications_queue").insert` except temporary pre-00115 fallback **inside** the adapter |
-| `scripts/test-s0-cut2-adapter-fallback-42883-only.mjs` | fallback ONLY on exact `42883`/`PGRST202` missing-function matcher; never on semantic/auth |
+| `scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs` | all 15 `produce*` use adapter; **production** adapter has **no** `.from("notifications_queue").insert` |
+| `scripts/test-s0-cut2-adapter-fallback-42883-only.mjs` | matcher identity remains exact `42883`/`PGRST202`; **production** must fail-closed (no INSERT); disposable/testing only if explicitly non-production |
 | `scripts/test-s0-cut2-raw-meta-drain-only.mjs` | raw Meta/provider adapter call sites restricted to drain boundary |
 | `scripts/test-s0-cut2-no-extra-provider-send.mjs` | no new provider send outside approved boundary |
+| `scripts/test-s0-cut2-provenance-gate.mjs` | **NEW R3-21** — only `cut2_provenance_version=1` is trusted; RPC hardcodes 1; clients cannot mint it |
+| `scripts/test-s0-cut2-legacy-quarantine.mjs` | **NEW R3-21** — NULL provenance untouched; no send/render/provider/update/upgrade |
+| `scripts/test-s0-cut2-idempotency-provenance.mjs` | **NEW R3-21** — trusted unique index only matches provenance=1; legacy keys cannot poison |
+| `scripts/test-s0-cut2-worker-column-grants.mjs` | **NEW R3-21** — service_role UPDATE only `status`,`error_message`,`attempts`,`sent_at`,`data` |
 
 **Release gate name (created at release time, not now):**  
 `docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md`  
-Must record: deployed Vercel SHA **==** Daybreak-qualified impl SHA; relays 410 in production; **then** founder authorizes 00115 apply. Temporary pre-00115 existing-risk window is **accepted**.  
-**Never:** DELETE FROM `notifications_queue`; retry failed; edit `00001`–`00114`.
+Must record: deployed Vercel SHA **==** Daybreak-qualified impl SHA; relays 410 in production; production adapter fail-closed (no raw INSERT); drain returns `cut2_db_not_ready` until 00115; **then** founder authorizes 00115 apply per **R3-19**.  
+**Never:** DELETE FROM `notifications_queue`; retry failed; edit `00001`–`00114`; upgrade NULL provenance.
 
 ---
 
@@ -654,7 +649,7 @@ Untouched / unapplied. Cut 2 static allowlist ≠ policy tables. Cut 3 storage n
 
 ## SECURITY REVISION 2 — gap closeout (R2-1 … R2-27)
 
-Do not reopen: Layer B; R2 RPC signature; EXECUTE `service_role` only; `search_path ''`; no raw contact/content/template/data/status args; `data.groupId` not authz; no service_role INSERT after 00115; `/api/whatsapp/send` → 410; Meta after Cut 2 = drain only; app-first→DB cutover; pre-00115 existing-risk window accepted.
+Do not reopen: Layer B; R2 RPC signature; EXECUTE `service_role` only; `search_path ''`; no raw contact/content/template/data/status args; `data.groupId` not authz; `/api/whatsapp/send` → 410; Meta after Cut 2 = drain only; app-first→DB cutover; PR69/70/Cut3. **SR3 supersedes** SR2 envelope-as-trust, SR2 production INSERT fallback, SR2 broad UPDATE, and the SR2 index WHERE (no provenance predicate).
 
 ### R2-A — SQL does not render
 
@@ -698,7 +693,7 @@ Live CHECK (MCP): `membership_status IN ('active','pending_approval','exited','s
 
 ### R2-E — Idempotency
 
-See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` on `llbnliixczcqfftxpsmb` copied **verbatim** (`indexdef` strings). **PRESERVE all unique WhatsApp indexes.** No unique yet for `minutes_published` / `election_opened` / `announcement` / `proxy_claim` / `hosting_swap` — covered by the new canonical semantic index. No TBD keys.
+See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` on `llbnliixczcqfftxpsmb` copied **verbatim** (`indexdef` strings). **PRESERVE all unique WhatsApp indexes.** Canonical index WHERE revised by **R3-16** (`cut2_provenance_version = 1`). No unique yet for `minutes_published` / `election_opened` / `announcement` / `proxy_claim` / `hosting_swap` — covered by that trusted-only index. No TBD keys. `idempotencyKey` is **idempotency only**, not trust evidence.
 
 ### R2-F / R2-20 — Source/CI out of SQL; exact script names
 
@@ -706,13 +701,176 @@ See `S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911.json`. Live `pg_indexes` on `llbn
 
 Frozen implementation CI filenames (do not author in this PR) — see R29 table:
 
-`scripts/test-s0-cut2-sms-send-410.mjs`, `scripts/test-s0-cut2-whatsapp-send-410.mjs`, `scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs`, `scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs`, `scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs`, `scripts/test-s0-cut2-adapter-fallback-42883-only.mjs`, `scripts/test-s0-cut2-raw-meta-drain-only.mjs`, `scripts/test-s0-cut2-no-extra-provider-send.mjs`.
+R2-20 (unchanged names): `scripts/test-s0-cut2-sms-send-410.mjs`, `scripts/test-s0-cut2-whatsapp-send-410.mjs`, `scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs`, `scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs`, `scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs`, `scripts/test-s0-cut2-adapter-fallback-42883-only.mjs`, `scripts/test-s0-cut2-raw-meta-drain-only.mjs`, `scripts/test-s0-cut2-no-extra-provider-send.mjs`.
+
+**R3-21 added names (do not rename R2-20):** `scripts/test-s0-cut2-provenance-gate.mjs`, `scripts/test-s0-cut2-legacy-quarantine.mjs`, `scripts/test-s0-cut2-idempotency-provenance.mjs`, `scripts/test-s0-cut2-worker-column-grants.mjs`.
 
 Release checklist (created at cutover, not now): `docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md` — deployed Vercel SHA == Daybreak-qualified impl SHA.
 
 ### R2-G — `/api/sms/send` = 410 only
 
 Replacement table in R11. No remaining `{to,template,data}` path.
+
+---
+
+## SECURITY REVISION 3 — unforgeable provenance + pre-00115 legacy quarantine (R3-1 … R3-22)
+
+Machine-readable copy: `docs/evidence/S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911.json`.
+
+Do not reopen: Layer B; RPC signature/args; domain/channel/renderer matrices; email/phone/tenant/recipient; proxy ACTIVE owner/admin; sms/whatsapp 410; Meta=drain only; canonical idempotency **design** (key expressions / failed no-retry / preserve WA uniques); 00115 forward-only; app-first order; PR69/70/Cut3. This section **only** freezes the provenance column, quarantine, production no-raw-insert, column UPDATE grants, and the trusted-only index predicate.
+
+### R3-1 — Column contract (PLAN only; no 00115 file in this PR)
+
+`public.notifications_queue.cut2_provenance_version smallint`
+
+| Rule | Value |
+|------|--------|
+| DEFAULT | **NONE**. Existing rows → **NULL**. |
+| Trusted value | **`1`** |
+| CHECK | `cut2_provenance_version IS NULL OR cut2_provenance_version = 1` |
+| Pre-00115 | Column **does not exist**. Attacker **cannot** INSERT `provenance=1`. |
+
+### R3-2 — Pre-00115: column absent ⇒ unforgeable
+
+Before 00115 applies, there is no `cut2_provenance_version` column. A client or `service_role` INSERT cannot mint a trusted row. Any INSERT that races 00115 lands as **NULL** provenance after the column is added (R3-12).
+
+### R3-3 — 00115 atomic bundle (names only — do not author SQL here)
+
+In **one** migration, in this order of intent (single transaction):
+
+1. ADD COLUMN `cut2_provenance_version smallint` **without DEFAULT** + CHECK (NULL OR 1).
+2. CREATE `enqueue_outbound_notification` (R2 signature unchanged).
+3. CREATE trusted-only canonical unique index (R3-16).
+4. DROP unsafe INSERT/UPDATE policies (R19 names).
+5. REVOKE INSERT from `anon`, `authenticated`, **and `service_role`**.
+6. REVOKE broad UPDATE; GRANT UPDATE only on R3-13 columns.
+7. Provenance immutability (column grants + optional trigger, R3-15).
+
+### R3-4 — RPC hardcodes provenance=1
+
+The function **MUST** `INSERT … cut2_provenance_version = 1`.  
+**Not** a parameter. **Not** read from `data` / JSON / envelope. R2 rejected-parameter list is unchanged; do **not** add `p_cut2_provenance_version`.
+
+### R3-5 — ONLY trusted discriminator
+
+Trusted **iff** `cut2_provenance_version = 1`.
+
+**NOT** trust evidence (may exist on forged/legacy rows): `data.cut2Semantic`, `data.envelopeVersion`, `data.idempotencyKey`, `template`, channel, `user_id`, status, any other JSON field. `idempotencyKey` remains **idempotency only**.
+
+### R3-6 — Drain after cutover
+
+Deliver **ONLY** rows matching `status = 'queued' AND cut2_provenance_version = 1`, via semantic renderers (R2-A / channel matrix). No other SELECT set is sendable.
+
+### R3-7 — NULL provenance = LEGACY / UNTRUSTED QUARANTINE
+
+For `cut2_provenance_version IS NULL`: **no** send, **no** render, **no** provider call, **no** UPDATE (`status`/`attempts`/`error_message`/`sent_at`/`data`), **no** DELETE, **no** requeue, **no** replace, **no** copy, **no** upgrade. Row remains untouched.
+
+### R3-8 — No legacy raw path after 00115
+
+After 00115 there is **no** `data.message` / raw `data.template` / `data.components` delivery path for NULL-provenance rows. SR2’s “legacy branch for pre-cutover rows” is **void**.
+
+### R3-9 — Pre-00115 drain: fail closed on DB-not-ready
+
+Drain MUST use a provenance-aware query. If the column (or 00115 objects) are absent → **NO PROVIDER DELIVERY**. Return:
+
+`{ "cut2_db_not_ready": true, "processed": 0, "sent": 0, "failed": 0 }`
+
+Short delivery pause is accepted. Do not fall back to `SELECT * WHERE status='queued'`.
+
+### R3-10 — Production missing-RPC: FAIL CLOSED / DO NOT ENQUEUE
+
+During the cutover window, if `enqueue_outbound_notification` is missing: **do not** raw-`INSERT` via `service_role`. Production adapter fails closed. Disposable/testing fallback (42883/PGRST202 matcher) is allowed **only** when explicitly marked non-production. Matcher **identity** stays frozen (do not reopen).
+
+### R3-11 — Pre-app-cutover queued inventory (READ-ONLY)
+
+`queued_count = COUNT(*) FROM notifications_queue WHERE status = 'queued'`. Prefer **0**. If `> 0`, wait for **natural drain** only. **No** force-send, DELETE, status rewrite, or requeue. If rows remain and founder does not accept them as post-cutover quarantine → **HOLD APP CUTOVER**.
+
+### R3-12 — Race
+
+A table INSERT that commits before 00115 receives **NULL** provenance when the column is added (no DEFAULT). That row is **never** trusted. No upgrade path (R3-15).
+
+### R3-13 — Worker / webhook UPDATE columns (verified from source on tip `1693b806`)
+
+**Drain** `src/app/api/cron/drain-notification-queue/route.ts`:
+
+| Site | Keys written |
+|------|----------------|
+| `sentPayload` L119–130 | `status`, `sent_at`, `error_message`, `data` |
+| persist-fail mark L148–152 | `status`, `attempts`, `error_message` |
+| max-retries fail L173–177 | `status`, `attempts`, `error_message` |
+| retry increment L184–187 | `attempts`, `error_message` |
+
+**Webhook** `src/lib/whatsapp-webhook-status.ts` L178–179: `{ data: nextData }` only.
+
+**GRANT UPDATE (exact):** `status`, `error_message`, `attempts`, `sent_at`, `data`.
+
+**MUST NOT UPDATE:** `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`.
+
+REVOKE broad `service_role` UPDATE; grant only the five columns above.
+
+### R3-14 — Forbidden UPDATE targets
+
+`cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at` must be omitted from column grants and rejected by the immutability trigger if present.
+
+### R3-15 — Provenance immutability
+
+Column-level grants (R3-13) **plus** optional trigger: `IF OLD.cut2_provenance_version IS DISTINCT FROM NEW.cut2_provenance_version THEN RAISE`. **No** upgrade path. **No** upgrade RPC. NULL cannot become 1. 1 cannot become NULL or any other value.
+
+### R3-16 / R3-17 — Trusted-only canonical index
+
+```sql
+CREATE UNIQUE INDEX idx_notifications_queue_cut2_semantic_idempotency_unique
+ON public.notifications_queue (channel, template, ((data ->> 'idempotencyKey')))
+WHERE cut2_provenance_version = 1
+  AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;
+```
+
+No status filter. Preserve all 17 live WhatsApp uniques. Legacy keys cannot poison the trusted index.
+
+### R3-18 — Post-00115 postcondition
+
+Report `legacy_quarantine_count` = `COUNT(*) WHERE status='queued' AND cut2_provenance_version IS NULL`. Ideal **0**. If `> 0`: **report only**. Do not process, send, clean, delete, upgrade, or requeue.
+
+### R3-19 — Production release order (exact, frozen)
+
+1. **READ-ONLY** `queued_count` (`status='queued'`). Prefer 0. If `> 0`, wait for natural drain only (R3-11). Else **HOLD APP CUTOVER**.
+2. **Deploy production app first** (Daybreak-qualified impl SHA): RPC-only enqueue (**FAIL CLOSED / DO NOT ENQUEUE** if RPC missing — R3-10); provenance-aware drain (**`cut2_db_not_ready`**, processed/sent/failed=0, no provider — R3-9); relays 410.
+3. Confirm deployed Vercel SHA **==** Daybreak-qualified impl SHA (`S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md`).
+4. **Then** founder applies **00115 atomically** (R3-3).
+5. **READ-ONLY** report `legacy_quarantine_count` (R3-18). If `> 0`, report; do not process/clean.
+6. Post-cutover drain delivers **only** `queued AND cut2_provenance_version=1` (R3-6). NULL rows stay quarantined (R3-7).
+
+Do **not** apply 00115 before step 2 is live. Insert-before-00115 races become NULL forever (R3-12).
+
+### R3-20 — Provenance tests A–L (founder brief; freeze)
+
+| ID | Assert |
+|----|--------|
+| **A** | RPC INSERT hardcodes `cut2_provenance_version=1`. No provenance argument. JSON/`data` cannot set it. |
+| **B** | Pre-00115 the column does not exist; INSERT of `provenance=1` is impossible. |
+| **C** | Post-00115 `anon` / `authenticated` / `service_role` table INSERT is DENY (cannot mint provenance=1). |
+| **D** | `service_role` UPDATE cannot change `cut2_provenance_version` (column grant + optional trigger). |
+| **E** | Drain after cutover selects/delivers only `queued AND cut2_provenance_version=1` via semantic renderers. |
+| **F** | NULL-provenance queued rows: no send/render/provider/UPDATE/DELETE/requeue/replace/copy/upgrade — untouched. |
+| **G** | After 00115, no legacy raw `data.message` / `template` / `components` path for NULL-provenance rows. |
+| **H** | Pre-00115 drain: DB not ready → `cut2_db_not_ready`, processed/sent/failed=0, zero provider calls. |
+| **I** | Production adapter missing-RPC → FAIL CLOSED / DO NOT ENQUEUE; no raw INSERT. |
+| **J** | Canonical unique index matches only `cut2_provenance_version=1`; a legacy key cannot poison it. |
+| **K** | Webhook UPDATE `data` only; cannot SET `cut2_provenance_version`, `channel`, `template`, `user_id`, `created_at`. |
+| **L** | No upgrade path/RPC NULL→1; postcondition reports `legacy_quarantine_count` read-only and does not clean. |
+
+### R3-21 — Added future CI names (do not rename R2-20)
+
+1. `scripts/test-s0-cut2-provenance-gate.mjs`
+2. `scripts/test-s0-cut2-legacy-quarantine.mjs`
+3. `scripts/test-s0-cut2-idempotency-provenance.mjs`
+4. `scripts/test-s0-cut2-worker-column-grants.mjs`
+
+Files are **not** authored in this PR.
+
+### R3-22 — Docs / evidence only
+
+This revision authors **no** `00115` SQL, **no** runtime, **no** CI script files, **no** production mutation.
 
 ---
 
@@ -727,21 +885,24 @@ Replacement table in R11. No remaining `{to,template,data}` path.
 | Per-type channel DEFAULT DENY | PASS — channel matrix |
 | Email source auth.users / invitations; proxy email DENY | PASS — R2-C |
 | Proxy actor ACTIVE owner/admin only | PASS — R2-D |
-| Canonical idempotencyKey + live pg_indexes | PASS — R2-E |
-| 00115 preconditions DB-only; CI/SHA outside SQL | PASS — R2-F / R2-20 (8 script names frozen) |
+| Canonical idempotencyKey + live pg_indexes | PASS — R2-E; index WHERE revised R3-16 |
+| 00115 preconditions DB-only; CI/SHA outside SQL | PASS — R2-F / R2-20 + R3-21 (12 script names) |
 | `/api/sms/send` 410 only | PASS — R2-G |
 | `/api/whatsapp/send` 410; Meta = drain only | PASS (do not reopen) |
-| App-first then 00115 | PASS — R28 |
+| App-first then 00115 | PASS — R3-19 (supersedes SR2 production INSERT fallback) |
+| Unforgeable provenance column; NULL = quarantine | PASS — R3-1–R3-8 |
+| Production missing-RPC: no raw INSERT | PASS — R3-10 |
+| Worker column UPDATE grants source-verified | PASS — R3-13 |
 | No SQL / no runtime in this PR | PASS |
 | PR #69/#70/Cut 3/Cut 1 | PASS — R30 |
 
 ### HOLD blockers
 
 **Open count: 0** for this contract.  
-Implementation-time aborts remain: missing expected WA unique index at apply; `notification_policies` present; service_role INSERT grant left on after 00115; app SHA ≠ Daybreak-qualified impl SHA at apply time.
+Implementation-time aborts remain: missing expected WA unique index at apply; `notification_policies` present; service_role INSERT grant left on after 00115; app SHA ≠ Daybreak-qualified impl SHA at apply time; production adapter still contains a raw INSERT path; drain still delivers NULL-provenance rows.
 
 ---
 
 ## Non-goals / STOP
 
-No implementation, no `00115` file, no prod write, no sends, no failed retry, no #69/#70/#71 merge, no Cut 3/M2/F3-06, no Cut 1 edit, no Layer A apply, no GRANT enqueue to `authenticated`, no re-open `/api/whatsapp/send` “just for typed”.
+No implementation, no `00115` file, no prod write, no sends, no failed retry, no #69/#70/#71 merge, no Cut 3/M2/F3-06, no Cut 1 edit, no Layer A apply, no GRANT enqueue to `authenticated`, no re-open `/api/whatsapp/send` “just for typed”, no provenance upgrade RPC, no production raw INSERT fallback.

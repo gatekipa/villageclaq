@@ -1,10 +1,11 @@
 {
   "artifact": "S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911",
   "date": "2026-09-11",
-  "status": "FROZEN_SECURITY_REVISION_2",
+  "status": "FROZEN_SECURITY_REVISION_3",
   "architecture": "LAYER_B_ONLY",
   "layer_a": "VOID_NOT_AN_IMPLEMENTATION_OPTION",
-  "daybreak_reviewed_tip": "d041bd10d67c660b7414d4f5db74f9e8985f5886",
+  "daybreak_reviewed_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
+  "provenance_quarantine_contract": "docs/evidence/S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911.json",
   "domain_matrix": "docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json",
   "purpose": "Read-only evidence for Cut 2 notification queue security contract freeze. Planning only. No production SQL was executed by this task. SECURITY REVISION 1 closes Daybreak R1\u2013R30: Layer B mandatory; no direct notifications_queue INSERT from anon, authenticated, platform staff, OR service_role application producers.",
   "production_mutation": "ZERO",
@@ -137,6 +138,15 @@
         "failed"
       ],
       "notification_queue_status_note": "NO processing/claim state"
+    },
+    "planned_00115_column_not_present_live": {
+      "name": "cut2_provenance_version",
+      "type": "smallint",
+      "default": null,
+      "trusted": 1,
+      "check": "NULL OR 1",
+      "live_today": false,
+      "note": "PLAN only. Column does not exist before 00115. Existing rows become NULL. Attacker cannot insert provenance=1 until the column exists, and after 00115 INSERT is revoked."
     },
     "policies": [
       {
@@ -541,11 +551,13 @@
       "ALL ON public.notifications_queue FROM anon",
       "INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM authenticated",
       "INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM service_role",
+      "broad UPDATE ON public.notifications_queue FROM service_role (replaced by column-level GRANT — R3-13)",
       "ALL ON enqueue_outbound_notification FROM PUBLIC, anon, authenticated"
     ],
     "GRANT": [
       "SELECT ON public.notifications_queue TO authenticated (staff SELECT policies only \u2014 no INSERT)",
-      "SELECT, UPDATE ON public.notifications_queue TO service_role (NO INSERT)",
+      "SELECT ON public.notifications_queue TO service_role (NO INSERT)",
+      "UPDATE (status, error_message, attempts, sent_at, data) ON public.notifications_queue TO service_role — SR3 column-level; MUST NOT UPDATE cut2_provenance_version, channel, template, user_id, created_at",
       "EXECUTE ON enqueue_outbound_notification TO service_role ONLY"
     ],
     "UNCHANGED": [
@@ -564,6 +576,9 @@
     },
     "dual_compatible_fallback": {
       "adapter_file_implementation_branch_only": "src/lib/enqueue-outbound-notification.ts",
+      "production_missing_rpc": "FAIL_CLOSED_DO_NOT_ENQUEUE",
+      "production_raw_service_role_insert_during_cutover": false,
+      "disposable_testing_fallback_only_if_explicitly_non_production": true,
       "fallback_allowed_only_when_all_match": {
         "postgres_sqlstate": "42883",
         "postgres_sqlstate_name": "undefined_function",
@@ -591,7 +606,7 @@
         "RPC result denied",
         "RPC result duplicate"
       ],
-      "release_order": "app adapter + close relays FIRST, then apply 00115"
+      "release_order": "SUPERSEDED_BY_R3_19 — queued_count READ-ONLY → app deploy fail-closed + cut2_db_not_ready drain → SHA confirm → 00115 atomic → legacy_quarantine_count report → deliver only provenance=1"
     }
   },
   "security_revision_1": {
@@ -615,7 +630,7 @@
       "42883",
       "PGRST202"
     ],
-    "release_order": "app first then 00115",
+    "release_order": "SUPERSEDED_BY_R3_19",
     "chief_interim_evidence_20260911": {
       "sms_send_generic": "410 GONE only \u2014 no remaining {to,template,data}",
       "whatsapp_send": "CLOSE typed + direct Meta + text + overflow; raw Meta after Cut 2 = drain only",
@@ -652,7 +667,7 @@
       {
         "id": "H7",
         "status": "LAYER_B_ABORT_IF_PRODUCERS_STILL_INSERT_OR_SERVICE_ROLE_INSERT_GRANT_LEFT_ON",
-        "detail": "After 00115, service_role must NOT have INSERT. produce* / sms-sender / whatsapp/send overflow must not .insert(). Adapter fallback is 42883/PGRST202 missing-function only."
+        "detail": "After 00115, service_role must NOT have INSERT. produce* / sms-sender / whatsapp/send overflow must not .insert(). PRODUCTION missing-RPC = FAIL CLOSED / DO NOT ENQUEUE (no raw INSERT). 42883/PGRST202 matcher identity remains for disposable/testing only."
       }
     ]
   },
@@ -688,6 +703,55 @@
       "scripts/test-s0-cut2-no-extra-provider-send.mjs"
     ],
     "release_gate_checklist_name": "docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md",
-    "release_gate_requires": "deployed Vercel SHA == Daybreak-qualified impl SHA"
+    "release_gate_requires": "deployed Vercel SHA == Daybreak-qualified impl SHA",
+    "drain_discriminator_sr2_superseded_by": "R3-5 — ONLY cut2_provenance_version=1 is trusted; envelope fields are NOT trust evidence"
+  },
+  "security_revision_3": {
+    "verdict_target": "READY_FOR_DAYBREAK_RE_REVIEW",
+    "parent_daybreak_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
+    "column": {
+      "name": "cut2_provenance_version",
+      "type": "smallint",
+      "default": null,
+      "trusted": 1,
+      "check": "NULL OR 1",
+      "pre_00115_exists": false
+    },
+    "only_trusted_discriminator": "cut2_provenance_version = 1",
+    "not_trust_evidence": [
+      "data.cut2Semantic",
+      "data.envelopeVersion",
+      "data.idempotencyKey",
+      "template"
+    ],
+    "rpc_hardcodes_provenance": 1,
+    "null_provenance": "LEGACY_UNTRUSTED_QUARANTINED_UNTOUCHED",
+    "production_missing_rpc": "FAIL_CLOSED_DO_NOT_ENQUEUE",
+    "production_raw_insert": false,
+    "pre_00115_drain": "cut2_db_not_ready; processed=sent=failed=0; no provider",
+    "worker_update_columns_source_verified": [
+      "status",
+      "error_message",
+      "attempts",
+      "sent_at",
+      "data"
+    ],
+    "must_not_update": [
+      "cut2_provenance_version",
+      "channel",
+      "template",
+      "user_id",
+      "created_at"
+    ],
+    "canonical_index_where": "cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL",
+    "legacy_quarantine_count": "queued AND provenance NULL; report only; do not process/clean",
+    "release_order": "R3-19",
+    "r3_21_future_ci_scripts_not_authored": [
+      "scripts/test-s0-cut2-provenance-gate.mjs",
+      "scripts/test-s0-cut2-legacy-quarantine.mjs",
+      "scripts/test-s0-cut2-idempotency-provenance.mjs",
+      "scripts/test-s0-cut2-worker-column-grants.mjs"
+    ],
+    "open_hold": 0
   }
 }

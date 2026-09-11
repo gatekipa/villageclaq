@@ -1,0 +1,474 @@
+{
+  "artifact": "S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911",
+  "date": "2026-09-11",
+  "purpose": "Read-only evidence for Cut 2 notification queue security contract freeze. Planning only. No production SQL was executed by this task.",
+  "production_mutation": "ZERO",
+  "messages_sent": "ZERO",
+  "failed_rows_retried": "ZERO",
+  "this_task_requery_of_live_db": false,
+  "pins": {
+    "repo": "gatekipa/villageclaq",
+    "planning_base_main_sha": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+    "master_prd_pr_71_freeze_sha": "050be86c9df3455c66b27bb5853eb786228b4009",
+    "cut1_closed_production": {
+      "version": "20260911183755",
+      "name": "s0_p0a_cut1_active_authorization",
+      "do_not_modify": true
+    },
+    "supabase_project": "llbnliixczcqfftxpsmb",
+    "pr_70_head_sha": "0f258726c9328ee0204f7b5dee9efceebe7265b9",
+    "pr_70_state": "CREATE-NOT-APPLY; do not merge or apply"
+  },
+  "live_production_inventory_chief_verbatim": {
+    "source": "Chief-verified live inventory 2026-09-11 — copied verbatim; this task did not re-query production",
+    "project": "llbnliixczcqfftxpsmb",
+    "table": "public.notifications_queue",
+    "rls": {
+      "enabled": true,
+      "forced": false
+    },
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()",
+        "constraints": "PK"
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "fk": "profiles(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "channel",
+        "type": "notification_channel",
+        "nullable": false
+      },
+      {
+        "name": "template",
+        "type": "text",
+        "nullable": false
+      },
+      {
+        "name": "data",
+        "type": "jsonb",
+        "nullable": false,
+        "default": "{}"
+      },
+      {
+        "name": "status",
+        "type": "notification_queue_status",
+        "nullable": false,
+        "default": "queued"
+      },
+      {
+        "name": "error_message",
+        "type": "text"
+      },
+      {
+        "name": "attempts",
+        "type": "int4",
+        "default": 0
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "default": "now()"
+      },
+      {
+        "name": "sent_at",
+        "type": "timestamptz"
+      }
+    ],
+    "enums": {
+      "notification_channel": ["email", "sms", "whatsapp", "push"],
+      "notification_queue_status": ["queued", "sent", "failed"],
+      "notification_queue_status_note": "NO processing/claim state"
+    },
+    "policies": [
+      {
+        "n": 1,
+        "command": "INSERT",
+        "name": "Authenticated users can queue notifications",
+        "permissive": true,
+        "roles": [],
+        "using": null,
+        "with_check": "auth.uid() IS NOT NULL"
+      },
+      {
+        "n": 2,
+        "command": "SELECT",
+        "name": "Platform staff can view all notifications_queue",
+        "using": "is_platform_staff()"
+      },
+      {
+        "n": 3,
+        "command": "SELECT",
+        "name": "Staff can view notification queue",
+        "using": "is_platform_staff()"
+      },
+      {
+        "n": 4,
+        "command": "UPDATE",
+        "name": "Staff can update notification queue",
+        "using": "is_platform_staff()"
+      }
+    ],
+    "grants": {
+      "roles": ["anon", "authenticated", "service_role", "postgres"],
+      "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"],
+      "note": "anon+authenticated+service_role+postgres all have SELECT/INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER"
+    },
+    "forge": {
+      "authenticated_direct_insert": "YES (only auth.uid() IS NOT NULL)",
+      "anon_effective_insert": "NO (WITH CHECK fails) but GRANT INSERT still present",
+      "arbitrary_template_channel_data": "YES",
+      "group_id_column_on_table": false
+    },
+    "idempotency_indexes_named_by_chief": [
+      "payment_receipt",
+      "payment_reminder",
+      "welcome",
+      "standing_changed",
+      "relief_*",
+      "remittance_*",
+      "hosting_*",
+      "event_reminder",
+      "loan_*",
+      "fine_issued",
+      "member_invitation",
+      "subscription_expiring"
+    ],
+    "user_triggers_on_table": "none found"
+  },
+  "repo_source_facts_not_live_requery": {
+    "tip_sha": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+    "note": "The following are confirmed from repository source at the planning tip. They are NOT additional live catalog rows. Do not treat as a fresh pg_policies dump.",
+    "cut1_migration_header_out_of_scope": {
+      "file": "supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql",
+      "quote": "Out of scope: notifications_queue, storage, F0/F3 apply, PR70, election_votes,"
+    },
+    "table_origin": "supabase/migrations/00012_notification_queue.sql",
+    "staff_update_origin": "supabase/migrations/00051_notification_queue_update_policy.sql",
+    "duplicate_staff_select_origin": "supabase/migrations/00070_admin_p1_fixes.sql",
+    "grant_all_authenticated_origin": "supabase/migrations/00048_rls_security_audit_fixes.sql",
+    "sql_insert_into_notifications_queue_in_migrations": false,
+    "supabase_edge_functions_dir": "absent",
+    "client_tsx_from_notifications_queue": false,
+    "s0a_20260910_queue_note": {
+      "source": "docs/S0_A_PRODUCTION_TRUTH_SNAPSHOT_20260910.md on PR #72 SHA 97388b34037589a21eae66e3a5a1668f71e3bb55",
+      "insert_policy": "Authenticated users can queue notifications WITH CHECK (auth.uid() IS NOT NULL) — CONFIRMED P0",
+      "select_update": "limited to is_platform_staff()",
+      "notification_policies_regclass": "NULL",
+      "s0b_queue_row_count_cited_in_cut1_plan": 2306,
+      "s0b_queue_row_count_requery_this_task": false
+    },
+    "s0a_applied_idempotency_versions_20260910": [
+      "00087_payment_receipt_notification_idempotency",
+      "00088_welcome_notification_idempotency",
+      "00089_relief_hosting_notification_idempotency",
+      "00090_payment_reminder_notification_idempotency",
+      "00091_standing_change_notification_idempotency",
+      "00093_money_path_notification_idempotency",
+      "00094_invitation_loan_overdue_idempotency",
+      "00096_remittance_notification_idempotency"
+    ],
+    "s0a_log_did_not_list_00097": {
+      "file": "supabase/migrations/00097_legacy_cron_reminder_idempotency.sql",
+      "creates": [
+        "idx_notifications_queue_whatsapp_hosting_reminder_unique",
+        "idx_notifications_queue_whatsapp_event_reminder_unique",
+        "idx_notifications_queue_whatsapp_subscription_expiring_unique"
+      ],
+      "live_apply_timestamp": "NOT RE-QUERIED — Chief inventory names hosting_*, event_reminder, subscription_expiring unique indexes as present"
+    },
+    "repo_unique_index_names": [
+      "idx_notifications_queue_whatsapp_payment_receipt_unique",
+      "idx_notifications_queue_whatsapp_welcome_unique",
+      "idx_notifications_queue_whatsapp_relief_enrollment_unique",
+      "idx_notifications_queue_whatsapp_hosting_assignment_unique",
+      "idx_notifications_queue_whatsapp_payment_reminder_unique",
+      "idx_notifications_queue_whatsapp_standing_changed_unique",
+      "idx_notifications_queue_whatsapp_fine_issued_unique",
+      "idx_notifications_queue_whatsapp_loan_approved_unique",
+      "idx_notifications_queue_whatsapp_claim_approved_unique",
+      "idx_notifications_queue_whatsapp_claim_denied_unique",
+      "idx_notifications_queue_whatsapp_member_invitation_unique",
+      "idx_notifications_queue_whatsapp_loan_overdue_unique",
+      "idx_notifications_queue_whatsapp_remittance_confirmed_unique",
+      "idx_notifications_queue_whatsapp_remittance_disputed_unique",
+      "idx_notifications_queue_whatsapp_hosting_reminder_unique",
+      "idx_notifications_queue_whatsapp_event_reminder_unique",
+      "idx_notifications_queue_whatsapp_subscription_expiring_unique"
+    ],
+    "preference_fail_closed": {
+      "file": "src/lib/notification-prefs.ts",
+      "behavior": "On preference-read ERROR for a real user, external channels false. Proxy userId null returns whatsapp-only defaults. in_app always true for real users."
+    },
+    "quiet_hours": {
+      "stored_at": "profiles.notification_preferences.quiet_hours",
+      "enforced_by_getEnabledChannels": false,
+      "source": "src/NOTIFICATION_CHANNEL_AUDIT.md Risk 2 + src/app/[locale]/(dashboard)/dashboard/settings/notifications/page.tsx"
+    },
+    "prefs_rpc": "supabase/migrations/00054_notification_prefs_rpc.sql — get_notification_preferences(p_user_id) SECURITY DEFINER GRANT authenticated",
+    "drain": {
+      "route": "src/app/api/cron/drain-notification-queue/route.ts",
+      "vercel_cron": "*/15 * * * *",
+      "auth": "Authorization Bearer CRON_SECRET",
+      "client": "supabase-js service_role",
+      "select": "status=queued oldest-first limit 50",
+      "retry": "increment attempts while queued; failed at attempts>=3; does not select failed",
+      "sms_africa_recheck": "isAfricanPhoneNumber(recipient) before AT; non-African returns success to stop retry"
+    }
+  },
+  "producer_inventory_from_source": {
+    "classification_vocabulary": [
+      "TRUSTED SERVER",
+      "BROWSER-INITIATED SERVER-AUTHORIZED",
+      "SERVICE/CRON",
+      "LEGACY DIRECT CLIENT",
+      "DORMANT",
+      "UNKNOWN — FAIL CLOSED"
+    ],
+    "named_producer_modules": [
+      {
+        "file": "src/lib/payment-receipt-producer.ts",
+        "template": "payment_receipt",
+        "caller": "src/app/api/payments/receipt-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role adminClient after JWT + recorded_by/active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/payment-reminder-producer.ts",
+        "template": "payment_reminder",
+        "caller": "src/app/api/cron/payment-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/welcome-producer.ts",
+        "template": "welcome",
+        "caller": "src/app/api/members/welcome-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + self-or-staff"
+      },
+      {
+        "file": "src/lib/standing-change-producer.ts",
+        "template": "standing_changed",
+        "caller": "src/app/api/members/standing-notifications/route.ts",
+        "browser_trigger": "src/lib/calculate-standing.ts postJson",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + member/active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/relief-enrollment-producer.ts",
+        "template": "relief_enrollment",
+        "caller": "src/app/api/relief/enrollment-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/relief-claim-decision-producer.ts",
+        "templates": ["relief_claim_approved", "relief_claim_denied"],
+        "caller": "src/app/api/relief/claim-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + same-group admin/staff"
+      },
+      {
+        "file": "src/lib/remittance-decision-producer.ts",
+        "templates": ["remittance_confirmed", "remittance_disputed"],
+        "caller": "src/app/api/relief/remittance-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + branch/HQ admin/staff"
+      },
+      {
+        "file": "src/lib/hosting-assignment-producer.ts",
+        "template": "hosting_assignment",
+        "caller": "src/app/api/hosting/assignment-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/hosting-reminder-producer.ts",
+        "template": "hosting_reminder",
+        "caller": "src/app/api/cron/hosting-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/event-reminder-producer.ts",
+        "template": "event_reminder",
+        "caller": "src/app/api/cron/event-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/loan-approved-producer.ts",
+        "template": "loan_approved",
+        "caller": "src/app/api/loans/approval-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + same-group admin/staff"
+      },
+      {
+        "file": "src/lib/loan-overdue-producer.ts",
+        "template": "loan_overdue",
+        "caller": "src/app/api/cron/loan-overdue-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/fine-issued-producer.ts",
+        "template": "fine_issued",
+        "caller": "src/app/api/fines/issued-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + same-group admin/staff"
+      },
+      {
+        "file": "src/lib/member-invitation-producer.ts",
+        "template": "member_invitation",
+        "caller": "src/app/api/invitations/whatsapp-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + inviter/active owner-admin/staff",
+        "prefs": "none — invitee has no account; user_id NULL"
+      },
+      {
+        "file": "src/lib/subscription-expiring-producer.ts",
+        "template": "subscription_expiring",
+        "caller": "src/app/api/cron/subscription-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/announcement-producer.ts",
+        "template": "announcement",
+        "caller": null,
+        "class": "DORMANT",
+        "note": "Build 8 prepared-not-cutover. Header forbids live wiring until 00106+00107. Not imported by any route/cron."
+      }
+    ],
+    "other_insert_call_sites": [
+      {
+        "file": "src/lib/notifications/sms-sender.ts",
+        "class": "TRUSTED SERVER with LEGACY authenticated insert",
+        "insert_client": "createClient() from @/lib/supabase/server (cookie + NEXT_PUBLIC_SUPABASE_ANON_KEY)",
+        "template_written": "generic",
+        "cut2_companion_required": true
+      },
+      {
+        "file": "src/app/api/whatsapp/send/route.ts",
+        "function": "queueWhatsAppMessage",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role",
+        "template_written": "body.type || body.template || generic",
+        "cut2_companion_required": true
+      }
+    ],
+    "workers_not_producers": [
+      {
+        "file": "src/app/api/cron/drain-notification-queue/route.ts",
+        "class": "SERVICE/CRON",
+        "ops": ["SELECT queued", "UPDATE sent/failed/attempts"]
+      },
+      {
+        "file": "src/lib/whatsapp-webhook-status.ts",
+        "caller": "src/app/api/webhooks/whatsapp/route.ts",
+        "class": "SERVICE/CRON",
+        "ops": ["SELECT by providerMessageId", "UPDATE data only"],
+        "auth": "x-hub-signature-256"
+      },
+      {
+        "file": "src/app/[locale]/admin/notifications/page.tsx",
+        "class": "platform staff browser SELECT only",
+        "ops": ["SELECT id,status,created_at"]
+      }
+    ],
+    "direct_dispatch_not_queue_producer": [
+      {
+        "file": "src/app/api/cron/send-scheduled-announcements/route.ts",
+        "class": "SERVICE/CRON",
+        "note": "Build 7 direct email/SMS/WhatsApp. Queue only via sms-sender fallback. Not announcement-producer."
+      }
+    ],
+    "counts": {
+      "named_producer_modules": 16,
+      "live_wired_named_producers": 15,
+      "dormant_named_producers": 1,
+      "browser_initiated_server_authorized_named": 10,
+      "service_cron_named": 5,
+      "legacy_direct_client_wired_ui": 0,
+      "trusted_server_legacy_insert_libraries": 1,
+      "other_browser_relay_inserts": 1,
+      "unknown_named": 0,
+      "workers": 2
+    }
+  },
+  "proposed_cut2_objects_names_only_not_created": {
+    "CREATE": [
+      "public.enqueue_outbound_notification(uuid, public.notification_channel, text, jsonb)",
+      "public.cut2_expect_queue_policy(text, text, text, text)",
+      "public.cut2_notification_template_allowed(text)"
+    ],
+    "REPLACE": [],
+    "REWRITE_DROP": [
+      "POLICY \"Authenticated users can queue notifications\"",
+      "POLICY \"Staff can update notification queue\""
+    ],
+    "REWRITE_OPTIONAL_CREATE": [
+      "POLICY \"notifications_queue_insert_deny_client\" FOR INSERT TO anon, authenticated WITH CHECK (false)"
+    ],
+    "REVOKE": [
+      "ALL ON public.notifications_queue FROM anon",
+      "INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM authenticated",
+      "INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM service_role",
+      "ALL ON enqueue_outbound_notification FROM PUBLIC, anon, authenticated"
+    ],
+    "GRANT": [
+      "SELECT ON public.notifications_queue TO authenticated",
+      "SELECT, UPDATE ON public.notifications_queue TO service_role",
+      "EXECUTE ON enqueue_outbound_notification TO service_role"
+    ],
+    "UNCHANGED": [
+      "POLICY \"Platform staff can view all notifications_queue\"",
+      "POLICY \"Staff can view notification queue\"",
+      "all listed unique WhatsApp indexes",
+      "notification_channel enum",
+      "notification_queue_status enum (no processing)",
+      "Cut 1 objects / 00114",
+      "PR #70 tables (remain absent)"
+    ],
+    "migration_filename_later_not_in_this_pr": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql"
+  },
+  "hold_blockers": {
+    "open_count": 0,
+    "items": [
+      {
+        "id": "H1",
+        "status": "CLOSED",
+        "detail": "No additional named INSERT call-site beyond inventory on tip 1693b806"
+      },
+      {
+        "id": "H3",
+        "status": "NAMED_COMPANION_NOT_HOLD",
+        "detail": "sms-sender.ts cookie/anon insert must switch to service_role+RPC on implementation branch"
+      },
+      {
+        "id": "H5",
+        "status": "OUT_OF_SCOPE",
+        "detail": "No processing/claim state; concurrent drain race remains P1"
+      },
+      {
+        "id": "H6",
+        "status": "FAIL_CLOSED_AT_APPLY",
+        "detail": "Missing expected unique index at implementation apply → CUT2_ABORT; do not invent 00097 apply time"
+      }
+    ]
+  },
+  "separations": {
+    "pr_70": "CREATE-NOT-APPLY; do not merge or apply",
+    "cut_3": "storage P0-C not started",
+    "m2_f3_06": "not started",
+    "cut_1": "CLOSED production 20260911183755; do not modify"
+  }
+}

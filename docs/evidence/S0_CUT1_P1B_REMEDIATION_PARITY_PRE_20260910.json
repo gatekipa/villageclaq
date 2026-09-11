@@ -1,0 +1,20 @@
+{
+  "captured_at_utc": "2026-09-11T00:34:24.419916Z",
+  "db": "s0p1b_disposable",
+  "scope": "PRE-00114 after reset_pre_00114.sh",
+  "public_policy_count": 375,
+  "helper_policy_count": 145,
+  "position_assignments_mismatch": 0,
+  "has_00114_helpers": false,
+  "fingerprints": {
+    "is_group_member": "b91a35aadb657fa2cd2c99e9313ca0f1",
+    "get_user_group_ids": "a9865ade7502badcd2b92a74429ac1d9",
+    "is_group_admin": "a606b2986f998e8cd6ec9f6f488f6172",
+    "is_group_admin_or_owner": "44e3246f8dab340bf65a9766c70baac2",
+    "is_group_owner": "b57b416768d1af85bd50f07bcb9c733f",
+    "has_group_permission": "9948d97decfc42d3159a34d3f04934b9",
+    "create_proxy_member": "10ab1a40d56ab1cc96fc3e59d23cd503"
+  },
+  "gate": "PRECUT_GATE_PASS 375/145/mismatch0/no_00114_helpers",
+  "verdict": "PASS"
+}

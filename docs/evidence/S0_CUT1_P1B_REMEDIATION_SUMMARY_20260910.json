@@ -1,0 +1,30 @@
+{
+  "overall_verdict": "PASS",
+  "implementation_sha": "eec8cab85cc77be73300af8048364797a25f59ed",
+  "migration_blob_sha": "95925d68047d41d501664b1ef2c30c2c0304eae8",
+  "rewrite_count": 100,
+  "three_bypass_remaining": 0,
+  "collision_operational_bypasses": 0,
+  "collision_unknown": 0,
+  "status_blind_operational_write_unknowns": 0,
+  "p1a": "8/8",
+  "production_mutation": "ZERO",
+  "actor_matrix": "PASS",
+  "three_bypass_actor_matrix": "PASS",
+  "postgrest": "CANNOT REPRODUCE LOCALLY",
+  "evidence_dir": "/workspace/s0p1b/evidence/remediation/",
+  "files": [
+    "THREE_BYPASS_BEFORE_AFTER.md",
+    "REHEARSAL.md",
+    "COLLISION_MATRIX.json",
+    "FINAL_REPORT_FIELDS.txt",
+    "parity_pre.json",
+    "apply_00114_revised.log",
+    "three_bypass_actor_matrix.log",
+    "actor_matrix_local.log",
+    "collision_rescan.log",
+    "collision_expect_zero.log",
+    "p1a_search_path.log",
+    "COMMIT_MESSAGE_DRAFT.txt"
+  ]
+}

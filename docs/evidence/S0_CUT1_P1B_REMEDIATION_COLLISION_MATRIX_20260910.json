@@ -1,0 +1,25 @@
+{
+  "migration_file": "/workspace/s0p1b/sql/00114_revised.sql",
+  "cut1_table_command_count": 132,
+  "evaluated": 132,
+  "bypass_count": 0,
+  "unknown_count": 0,
+  "bypasses": [],
+  "unknowns": [],
+  "target": "remaining operational bypasses = 0",
+  "verdict": "PASS",
+  "notes": [
+    "Cut1-affected table\u00d7command = commands covered by migration DROP/CREATE.",
+    "Permissive OR sibling policies without active gate counted as operational bypass.",
+    "Platform staff policies excluded as EXPECTED PLATFORM.",
+    "memberships_insert_pending excluded as intentional pending workflow."
+  ],
+  "operational_bypasses": 0,
+  "unknown": 0,
+  "status_blind_operational_write_unknowns": 0,
+  "three_bypass_remaining": 0,
+  "rewrite_drop_create": 100,
+  "implementation_sha": "eec8cab85cc77be73300af8048364797a25f59ed",
+  "migration_git_blob_sha": "95925d68047d41d501664b1ef2c30c2c0304eae8",
+  "migration_content_sha1": "b35e1bb1728feaf4235a42d2099cab6009b32511"
+}

@@ -35,7 +35,7 @@ This verdict means the requalification *package* is complete and evidence-backed
 | Pin | Required | Observed | Status |
 |---|---|---|---|
 | Current `origin/main` | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` | Exact match (PR #82 merge, M2) | **PASS** |
-| Production migrations | 32 (do not apply anything) | Chief pin recorded; this run did **not** query or mutate live DB. Source trail: Cut 2 live inventory 29 → Cut 3 pre-apply 30 → +`00116`+`00117` ⇒ 32 | **PIN ACCEPTED — Chief live confirm** |
+| Production migrations | 32 (do not apply anything) | **Chief live READ-ONLY confirm** on `llbnliixczcqfftxpsmb`: count **32**; latest includes S0 cuts + `m2_notification_policy_foundation` (`20260912174049`). **No `f3_*` names in prod history.** This agent did not query or mutate live DB. | **PASS — LIVE CONFIRMED** |
 | S0 | COMPLETE (Cuts 1–3) | `00114`, `00115`, `00116` on main | **PASS** |
 | M2 | CLOSED dormant (policy/trigger/occurrence rows 0) | `00117` on main; `docs/evidence/M2_DORMANCY_PROOF_20260912.json` | **PASS** |
 | Old F3 integration tip | `c7b4cd535d7125737eab2ec0fad27cae9432e8c3` | Exact match | **PASS** |
@@ -92,19 +92,27 @@ Full machine inventory: `docs/evidence/M3_CURRENT_FINANCIAL_ARCHITECTURE_2026091
 
 ---
 
-## R2 — Production financial object expectations
+## R2 — Production financial object inventory (Chief live READ-ONLY — CONFIRMED)
 
-This run inventories from **source + historical evidence**. Chief will run live read-only prod queries.
+Project `llbnliixczcqfftxpsmb`. This agent did **not** query or write production. Chief’s 2026-09-12 read-only inventory is now incorporated in `docs/evidence/M3_CURRENT_FINANCIAL_ARCHITECTURE_20260912.json` (`chief_live_readonly_production`).
 
-**Expected PRESENT in production (legacy subledger):**  
-`contribution_types`, `contribution_obligations`, `payments`, `payment_obligation_applications`, `group_payment_config`, loan/fine/relief/savings/transfer tables, `notifications` / `notifications_queue`, standing helpers.
+| Fact | Live result | Package expectation | Drift? |
+|---|---|---|---|
+| `migration_count` | **32** | 32 | **NO** |
+| Latest applied | S0 cuts + `m2_notification_policy_foundation` (`20260912174049`) | `00117` on main | **NO** |
+| `f3_*` names in prod history | **none** | none | **NO** |
+| `financial_events/postings/accounts/funds/categories/ledger_epochs` | **NULL / ABSENT** | ABSENT | **NO** |
+| `post_financial_command` / `post_opening_cash` / `reverse_financial_event` | **count 0** | ABSENT | **NO** |
+| M2 `notification_policies/triggers/occurrences` | **0 / 0 / 0** | 0 / 0 / 0 | **NO** |
+| Legacy finance tables | PRESENT (non-F3): obligations, types, fines, loans, payments, applications, payment_reminder_*, project_contributions, relief_*, savings_contributions, member_transfers, sub_group_transfers, … | PRESENT | **NO** |
 
-**Expected ABSENT in production (F3-01…05 objects — do not create this run):**  
-`financial_ledger_epochs`, `financial_private.*`, `financial_core.*`, `financial_accounts`, `financial_funds`, `financial_categories`, `financial_events`, `financial_postings`, `posting_command_payloads`, `correction_command_payloads`, `opening_provenances`, RPCs `post_financial_command`, `get_financial_projection_bundle`, `get_financial_cashbook`, `correct_financial_event`, `post_financial_opening_cash`, `apply_payment_command`.
+**`has_group_permission` on prod (Cut 1 floor):** observed overload `(gid uuid, perm_key text, uid uuid)` SECURITY DEFINER, owner `postgres`, `search_path=""`.
 
-**M2 if `00117` is among the 32 applied:** tables exist, **0 rows**, `enabled` default false, no enqueue/send path.
+Reconciliation vs 2-arg call sites: `00114` defines **one** 3-arg function with `uid uuid DEFAULT auth.uid()`. Postgres catalogs that as `(uuid, text, uuid)`. RLS/SQL that call `has_group_permission(group_id, 'settings.manage')` (e.g. `00116`, `00117`) hit the **same** overload via the default — they are **not** a second 2-arg function. `src/` has **zero** TS call sites. Old F3 uses explicit 3-arg `auth.uid()`.
 
-**If Chief’s live query finds any F3 ledger object or any policy/occurrence activation:** HOLD implementation — that is drift vs this package.
+**Forward rule:** keep the Cut 1 3-arg active-auth body. Do **not** add a 2-arg overload. Do **not** `CREATE OR REPLACE` the helper. Preserve `DEFAULT auth.uid()` so existing 2-arg SQL remains valid. F3 should keep calling with explicit `uid`.
+
+HOLD-if-F3-present clause is **not** triggered.
 
 ---
 
@@ -135,7 +143,7 @@ Full signatures, GRANTs, RLS, deps: `docs/evidence/M3_F3_MIGRATION_COLLISION_MAT
 
 **Forbid:** renaming old files, rewriting history, inserting timestamp versions behind `00117`, merging the old tip, applying old SQL to prod.
 
-**Required:** NEW forward migrations only, next free sequential number after `00117` (expected `00118+`), authored in a *future* implementation run — **not this run**.
+**Required:** NEW forward rematerialization only, next free sequential number after `00117` (expected `00118+`), authored in a *future* implementation run — **not this run**. Never rewrite `00114`–`00117`. Never insert old timestamp history behind them. Main ends at `00117`; old `20260906*`–`20260910*` files are **404 on main**. Chief-supplied SHA-256 for the seven listed old-tip files **match** this package; standing hotfix `20260908043912` remains old-tip-only candidate evidence.
 
 | Old artifact | Forward strategy |
 |---|---|
@@ -443,7 +451,7 @@ Then, only after that floor is qualified: `feat/m3-f3-06-account-fund-category-s
 | # | Field | Value |
 |---|---|---|
 | 1 | Current main SHA | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
-| 2 | Production migrations (pin) | 32 — not applied to / not mutated this run |
+| 2 | Production migrations | **32 LIVE CONFIRMED** (Chief READ-ONLY `llbnliixczcqfftxpsmb`; latest `m2_notification_policy_foundation` / `20260912174049`; no `f3_*` in history). This run applied nothing. |
 | 3 | S0 status | COMPLETE (Cuts 1–3 on main) |
 | 4 | M2 status | CLOSED dormant (0 policy/trigger/occurrence rows in proof) |
 | 5 | Old F3 tip | `c7b4cd535d7125737eab2ec0fad27cae9432e8c3` |
@@ -453,7 +461,7 @@ Then, only after that floor is qualified: `feat/m3-f3-06-account-fund-category-s
 | 9 | Historical unit PRs | #61 F3-01, #62 F3-02, #63 F3-03, #64 F3-04, #65 F3-05 — old line only |
 | 10 | Divergence | 61 (main not in F3) / 19 (F3 not in main) |
 | 11 | Merge-base | `ba479fb510343c37cdfa888f6e94aeb7ab07292f` |
-| 12 | F3 objects on main | **ABSENT** |
+| 12 | F3 objects on main **and prod** | **ABSENT** (Chief: tables NULL; posting/opening/reverse RPC counts 0) |
 | 13 | Old F3 migration count | 8 (3 pre-F3 + 5 ticket) |
 | 14 | Filename collision vs 00114–00117 | **NONE** |
 | 15 | Version collision vs 00114–00117 | **NONE** |
@@ -466,7 +474,7 @@ Then, only after that floor is qualified: `feat/m3-f3-06-account-fund-category-s
 | 22 | P0 epochs class | VALID WITH COMPATIBILITY ADAPTATION (required dep; do not blindly replay RPC replacements) |
 | 23 | P1 payment integrity class | SCHEMA COLLISION + SUPERSEDED in parts — **do not replay** |
 | 24 | Standing hotfix class | VALID WITH COMPATIBILITY ADAPTATION / possibly SUPERSEDED by money.ts+00104 intent |
-| 25 | Cut 1 compatibility | **SAFER OR UNCHANGED** |
+| 25 | Cut 1 compatibility | **SAFER OR UNCHANGED**. Prod helper is 3-arg SECURITY DEFINER postgres `search_path=""`. 2-arg SQL calls use `DEFAULT auth.uid()` on that same overload — do not add a 2-arg function. |
 | 26 | M2 isolation | **PASS** (no activation) |
 | 27 | Money/notification separation | **PASS** (no F3 RPC notify/queue) |
 | 28 | Cash-basis SoA | Contract frozen; **not implemented** on main |

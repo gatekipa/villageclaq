@@ -3,6 +3,12 @@
   "date": "2026-09-12",
   "this_run_executed_harness": false,
   "this_run_reason": "Optional disposable re-run only if safe/local. Skipped to keep production/live DB untouched and avoid applying old F3 SQL anywhere.",
+  "chief_live_prod_20260912": {
+    "migration_count": 32,
+    "f3_in_prod_history": false,
+    "f3_objects": "ABSENT",
+    "implication": "Historical PR harness PASS cannot be claimed as current-main/prod PASS. New disposable matrix against 00117 floor + NEW 00118+ rematerialization is still required before F3-06."
+  },
   "historical_results_old_chain_only": {
     "chain": [
       "20260906140228_financial_ledger_epochs_expand.sql",

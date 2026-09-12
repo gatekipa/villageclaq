@@ -126,8 +126,9 @@
   ],
   "preconditions_before_f3_06": [
     "Founder M3 authorization",
-    "Strategy C accepted; old tip merge = NO",
-    "New forward F3-01..05 + bounded epoch after 00117, disposable-qualified",
+      "Strategy C accepted; old tip merge = NO",
+      "NEW forward 00118+ rematerialization after 00117 — never rewrite 00114-00117 or insert old timestamp history",
+      "New forward F3-01..05 + bounded epoch after 00117, disposable-qualified",
     "Cut 1 SAFER OR UNCHANGED re-proven",
     "M2 still dormant; F3 RPCs have zero notification I/O",
     "ASTRA UX GATE accepted",

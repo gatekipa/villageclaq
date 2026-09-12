@@ -4,13 +4,74 @@
   "kind": "planning_evidence_only",
   "production_mutation": "ZERO",
   "financial_writes": "ZERO",
-  "live_db_queried": false,
+  "live_db_queried_by_this_agent": false,
+  "chief_live_readonly_incorporated": true,
   "pins": {
     "current_main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+    "production_project": "llbnliixczcqfftxpsmb",
     "production_migrations_pin": 32,
-    "production_migrations_note": "Chief pin. This run did not query supabase_migrations.schema_migrations. Historical evidence: Cut 2 live count 29; Cut 3 pre-apply count 30 (latest s0_p0b_cut2); +00116 +00117 expected 32.",
+    "production_migrations_status": "CHIEF_LIVE_CONFIRMED",
+    "production_migrations_note": "Chief live READ-ONLY 2026-09-12: migration_count=32; latest includes S0 cuts + m2_notification_policy_foundation (applied version 20260912174049). NO f3_* names in prod history. This agent did not query or mutate live DB.",
     "s0": "COMPLETE",
     "m2": "CLOSED_DORMANT"
+  },
+  "chief_live_readonly_production": {
+    "project": "llbnliixczcqfftxpsmb",
+    "mode": "READ_ONLY",
+    "applied_this_run": false,
+    "migration_count": 32,
+    "latest_includes": [
+      "s0 cuts (00114/00115/00116 lineage)",
+      "m2_notification_policy_foundation applied version 20260912174049"
+    ],
+    "f3_migration_names_in_prod_history": [],
+    "f3_ledger_objects": {
+      "financial_events": null,
+      "financial_postings": null,
+      "financial_accounts": null,
+      "financial_funds": null,
+      "financial_categories": null,
+      "financial_ledger_epochs": null
+    },
+    "f3_rpc_counts": {
+      "post_financial_command": 0,
+      "post_opening_cash": 0,
+      "post_financial_opening_cash": 0,
+      "reverse_financial_event": 0,
+      "correct_financial_event": 0
+    },
+    "m2_dormancy_rows": {
+      "notification_policies": 0,
+      "notification_policy_triggers": 0,
+      "notification_policy_occurrences": 0
+    },
+    "legacy_finance_tables_present_non_f3": [
+      "contribution_obligations",
+      "contribution_types",
+      "fine_types",
+      "fines",
+      "group_payment_config",
+      "loan_*",
+      "payments",
+      "payment_obligation_applications",
+      "payment_reminder_*",
+      "project_contributions",
+      "relief_*",
+      "savings_contributions",
+      "member_transfers",
+      "sub_group_transfers"
+    ],
+    "has_group_permission": {
+      "observed_identity": "has_group_permission(gid uuid, perm_key text, uid uuid)",
+      "prosecdef": true,
+      "owner": "postgres",
+      "search_path": "",
+      "source_00114_signature": "has_group_permission(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())",
+      "two_arg_call_sites": "RLS/SQL often call has_group_permission(group_id, perm_key). That is the SAME 3-arg overload via DEFAULT auth.uid() — not a second 2-arg function. Postgres pg_proc identity typically reports (uuid, text, uuid).",
+      "forward_rule": "Cut 1 3-arg active-auth body is the floor. Do not CREATE a 2-arg overload. Do not CREATE OR REPLACE the 3-arg body. F3 must CALL it (prefer explicit uid). 2-arg call sites remain valid only while DEFAULT auth.uid() is preserved.",
+      "old_f3_call_style": "financial_core.can_* uses 3-arg: has_group_permission(p_group_id, 'finances.manage'|'finances.view', auth.uid())"
+    },
+    "verdict_vs_package": "NO DRIFT — F3 absent; M2 0/0/0; migrations 32; legacy subledger present"
   },
   "canonical_money_engine": {
     "path": "src/lib/money.ts",
@@ -29,7 +90,9 @@
     "financial_ledger_epochs": "ABSENT",
     "post_financial_command": "ABSENT",
     "correct_financial_event": "ABSENT",
+    "reverse_financial_event": "ABSENT",
     "post_financial_opening_cash": "ABSENT",
+    "post_opening_cash": "ABSENT",
     "get_financial_projection_bundle": "ABSENT",
     "get_financial_cashbook": "ABSENT",
     "apply_payment_command": "ABSENT",
@@ -41,6 +104,9 @@
     { "name": "payments", "origin": "00002; status 00023; payment_date 00040; relief_plan_id 00045", "domain": "payments" },
     { "name": "payment_obligation_applications", "origin": "00079_standing_recalc_triggers.sql", "domain": "applications" },
     { "name": "group_payment_config", "origin": "00021_group_payment_config.sql", "domain": "payments" },
+    { "name": "payment_reminder_rules", "origin": "00010_stickiness_features.sql", "domain": "payments", "prod_present": true },
+    { "name": "payment_reminders_sent", "origin": "00010_stickiness_features.sql", "domain": "payments", "prod_present": true },
+    { "name": "project_contributions", "origin": "00010_stickiness_features.sql", "domain": "projects", "prod_present": true },
     { "name": "loan_configs", "origin": "00032_loans_module.sql", "domain": "loans" },
     { "name": "loans", "origin": "00032_loans_module.sql", "domain": "loans" },
     { "name": "loan_schedule", "origin": "00032_loans_module.sql", "domain": "loans" },
@@ -177,7 +243,8 @@
     "migration": "00114_s0_p0a_cut1_active_authorization.sql",
     "sha256": "abf4954d0c13ea03eae599b3c5416e7a97b52e8e57a430b2de66b3ba5c3c2a37",
     "helpers": ["is_active_group_member", "get_my_active_group_ids", "has_group_permission rewrite"],
-    "rule": "Active membership required; F3 must CALL has_group_permission never replace it"
+    "rule": "Active membership required; F3 must CALL has_group_permission never replace it",
+    "prod_observed": "3-arg (gid uuid, perm_key text, uid uuid) SECURITY DEFINER postgres search_path=\"\"; 2-arg call sites resolve via DEFAULT auth.uid() on the same overload"
   },
   "cut2": {
     "migration": "00115_s0_p0b_cut2_notification_queue.sql",
@@ -196,6 +263,7 @@
     "sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
     "dormant": true,
     "expected_rows": { "policies": 0, "triggers": 0, "occurrences": 0 },
+    "prod_rows_chief_live": { "policies": 0, "triggers": 0, "occurrences": 0 },
     "evidence": "docs/evidence/M2_DORMANCY_PROOF_20260912.json"
   },
   "finance_migrations_on_main": [
@@ -240,8 +308,9 @@
     "00117_m2_notification_policy_foundation.sql"
   ],
   "expected_production_objects_for_chief_readonly": {
-    "present_subledger": "See tables[] above (minus DROPPED fine_rules)",
-    "absent_f3": "See f3_ledger_objects_on_main",
-    "m2_if_00117_applied": "tables exist, zero rows, enabled default false"
+    "status": "CHIEF_LIVE_CONFIRMED_20260912",
+    "present_subledger": "Chief confirmed legacy finance tables PRESENT (non-F3). See chief_live_readonly_production.legacy_finance_tables_present_non_f3 plus tables[] (minus DROPPED fine_rules).",
+    "absent_f3": "Chief confirmed financial_events/postings/accounts/funds/categories/ledger_epochs NULL; posting/opening/reverse RPC counts 0",
+    "m2": "tables exist; rows 0/0/0"
   }
 }

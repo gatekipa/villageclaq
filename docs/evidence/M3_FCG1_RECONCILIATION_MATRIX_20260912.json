@@ -11,6 +11,7 @@
   },
   "placement": "F3-06 → F3-07 → FCG-1 → F3-08 → F3-09",
   "skip_fcg1": "FORBIDDEN",
+  "prod_note_chief_live_20260912": "Production has zero F3 ledger objects and zero F3 RPCs. FCG-1 proofs remain CONTRACT_ALIGNED / NEEDS_FCG1 — nothing to reconcile against a live F3 SoA yet.",
   "redesign_f3_01_05": "FORBIDDEN — gate is reconciliation, not license to reopen economics",
   "must_close_before": ["F3-08 canonical reporting freeze", "F3-09 acceptance freeze"],
   "proofs": [

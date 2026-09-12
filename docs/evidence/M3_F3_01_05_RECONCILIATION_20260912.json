@@ -198,13 +198,35 @@
   "r10_cut1": {
     "verdict": "SAFER OR UNCHANGED",
     "weaker": false,
-    "rule": "F3 must CALL has_group_permission; never CREATE OR REPLACE it; 00114/00117 pin body+ACL"
+    "rule": "F3 must CALL has_group_permission; never CREATE OR REPLACE it; 00114/00117 pin body+ACL",
+    "prod_observed": {
+      "identity": "(gid uuid, perm_key text, uid uuid)",
+      "security_definer": true,
+      "owner": "postgres",
+      "search_path": "",
+      "source_default": "uid uuid DEFAULT auth.uid() in 00114 — 2-arg RLS calls are the same overload, not a second function"
+    },
+    "two_arg_reconciliation": {
+      "app_ts_calls": "NONE in src/",
+      "sql_two_arg_examples": [
+        "00117 M2 RLS: has_group_permission(group_id, 'settings.manage')",
+        "00116 Cut 3: has_group_permission(v_gid, 'finances.record'|'finances.manage'|...)",
+        "00113/00075/00074/00073/00072 RLS and RPCs"
+      ],
+      "safe_iff": "DEFAULT auth.uid() remains on the single 3-arg function",
+      "forward_ban": "Do not add has_group_permission(uuid, text) as a separate overload. Old F3 3-arg explicit-uid calls stay preferred."
+    }
   },
   "r11_m2": {
     "verdict": "PASS_ISOLATED",
     "f3_creates_policy_tables": false,
     "f3_enqueues": false,
-    "f3_sends": false
+    "f3_sends": false,
+    "prod_rows_chief_live": { "policies": 0, "triggers": 0, "occurrences": 0 }
+  },
+  "prod_f3_objects_chief_live": {
+    "tables": "NULL/ABSENT",
+    "rpcs": { "post_financial_command": 0, "post_opening_cash": 0, "reverse_financial_event": 0 }
   },
   "r12_money_notification": {
     "verdict": "PASS",

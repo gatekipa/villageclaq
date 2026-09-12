@@ -63,7 +63,7 @@ Member: My Payments / My Loans / My Fines / My Relief.
 
 ## 3. Accounts / Funds / Categories mental model
 
-**On current main: ABSENT** as product objects. Officers have contribution *types*, payment *methods* (`group_payment_config`), and report *categories* (UI taxonomy). None of these are F2 Accounts/Funds/Categories.
+**On current main and production: ABSENT** as product objects (Chief live: `financial_accounts/funds/categories` NULL). Officers have contribution *types*, payment *methods* (`group_payment_config`), `project_contributions`, and report *categories* (UI taxonomy). None of these are F2 Accounts/Funds/Categories.
 
 F2 freeze (must teach in F3-06 copy):
 

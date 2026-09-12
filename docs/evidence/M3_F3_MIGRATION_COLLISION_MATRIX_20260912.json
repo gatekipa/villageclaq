@@ -9,16 +9,38 @@
   "hash_method": "sha256sum of `git show origin/codex/f3-core-ledger-foundation:<path>` bytes",
   "filename_collision_vs_00114_00117": false,
   "version_prefix_collision_vs_00114_00117": false,
+  "main_ends_at": "00117_m2_notification_policy_foundation.sql",
+  "old_timestamp_files_on_main": "404_NOT_PRESENT",
+  "chief_live_prod": {
+    "project": "llbnliixczcqfftxpsmb",
+    "migration_count": 32,
+    "f3_star_names_in_prod_history": [],
+    "latest_applied_includes": "m2_notification_policy_foundation (20260912174049)",
+    "hash_confirmation": "Chief-supplied SHA-256 for 7 files on c7b4cd53… MATCH this matrix (epochs, P1, F3-01..05). Standing hotfix 20260908043912 was not in Chief's listed set; still present on old tip only — hash unchanged below."
+  },
   "safe_forward": {
     "forbid": [
       "rename old timestamp files onto main history",
-      "insert behind 00117",
+      "insert old history behind 00117",
+      "rewrite 00114-00117",
       "rewrite migration history",
       "merge or rebase old tip",
       "apply any of these 8 files to production or any live DB"
     ],
-    "require": "NEW sequential migrations after 00117 (expected 00118+) in a future implementation run — none authored this run"
+    "require": "NEW sequential rematerialization after 00117 (expected 00118+) in a future implementation run — none authored this run. Never rewrite 00114-00117."
   },
+  "sha256_chief_confirmed_on_old_tip_not_on_main": [
+    { "file": "20260906140228_financial_ledger_epochs_expand.sql", "sha256": "524e46d943c825b90049f29a49709f8f2862c4e2cb28b60a50887d6d8d624bce", "match": true },
+    { "file": "20260906140229_financial_payment_integrity.sql", "sha256": "7b4cdc97b42f753b793dd109cfe8efd40753f15d2c75895a180d031501999e99", "match": true },
+    { "file": "20260908154824_f3_core_ledger_foundation.sql", "sha256": "51c5ba071a8f978c60e97356058e2bf4a2ed637aca1b06629913b0361af14103", "match": true },
+    { "file": "20260908215831_f3_secure_posting_idempotency.sql", "sha256": "9a4a53b7abb838b660198569a42fcfc8ac6ad606e8aeb7374451959fac8ae063", "match": true },
+    { "file": "20260909022633_f3_projection_read_proof.sql", "sha256": "a89e4ee9a12223be8eafd65d0fa1822fee2d69056fead7f99418079d4e2fce6e", "match": true },
+    { "file": "20260909054500_f3_correction_reversal.sql", "sha256": "e237f21fbfad2a4c34be68a7c7ad0ad1b51328ed46d02fb75e393b45de92541f", "match": true },
+    { "file": "20260910054713_f3_opening_cash.sql", "sha256": "2c0134dc5f10cd8609fb46a114e3b34d8ac8063136211551ca40173d7568aaae", "match": true }
+  ],
+  "sha256_old_tip_not_in_chief_list": [
+    { "file": "20260908043912_standing_confirmed_basis_parity.sql", "sha256": "c2ac61485e7ec50f86fc39fb6b38f8f0fa7959c08e519d53c499ad2b98b27f31", "on_main": false, "note": "Still on old tip; treat as candidate evidence; do not insert behind 00117" }
+  ],
   "migrations": [
     {
       "order": 1,

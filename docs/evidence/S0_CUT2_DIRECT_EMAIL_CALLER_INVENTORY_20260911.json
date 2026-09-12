@@ -32,7 +32,8 @@
       "template": "caller-controlled",
       "frozen_notification_type": null,
       "replacement_semantic_route_or_producer": "none — 410 GONE; no enqueue of arbitrary template/data",
-      "status": "closed_410"
+      "status": "closed_410",
+      "behavioral_proof": "scripts/test-s0-cut2-email-send-410.mjs invokes POST/GET; every hostile body 410; sendEmail=0 Resend=0 enqueue=0 queue=0 fetch=0"
     },
     {
       "file": "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx",

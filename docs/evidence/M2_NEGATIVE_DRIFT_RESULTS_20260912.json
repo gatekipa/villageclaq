@@ -1,0 +1,126 @@
+{
+  "artifact": "M2_NEGATIVE_DRIFT_RESULTS",
+  "date": "2026-09-12",
+  "functional_sha": "e47ddd6b8c06c2933e5a297f7b48f1076496da40",
+  "superseded_functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
+  "result": "21/21 PASS",
+  "pass": true,
+  "passed": 21,
+  "failed": 0,
+  "results": [
+    {
+      "id": "NEG_HGP_BODY",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_OWNER",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_PROSECDEF",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_SEARCH_PATH",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_EXTRA_EXECUTE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_GRANT_OPTION",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_OVERLOAD",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_BODY",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_RETURN",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_OWNER",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_PROSECDEF",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_SEARCH_PATH",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_AUTHENTICATED_EXECUTE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_PUBLIC_EXECUTE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_GRANT_OPTION",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_OVERLOAD",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_TABLE_UNEXPECTED_DML",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_SIXTH_UPDATE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_MISSING_ONE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_WRONG_GRANTOR",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_GRANT_OPTION",
+      "pass": true,
+      "detail": "M2_ABORT"
+    }
+  ]
+}

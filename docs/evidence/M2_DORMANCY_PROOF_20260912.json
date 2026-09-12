@@ -1,0 +1,66 @@
+{
+  "artifact": "M2_DORMANCY_PROOF_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "e47ddd6b8c06c2933e5a297f7b48f1076496da40",
+  "superseded_functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
+  "environment": "local PostgreSQL 17.11 port 5433 database m2_notification_policy_disposable",
+  "verdict": "DORMANT — migration inserts ZERO policy/trigger/occurrence rows; queue delta 0; provider calls 0",
+  "immediately_after_00117_commit": {
+    "notification_policies": 0,
+    "notification_policy_triggers": 0,
+    "notification_policy_occurrences": 0,
+    "notifications_queue": 0,
+    "notifications_queue_delta_from_migration": 0,
+    "source": "qualify-m2-disposable-schema.mjs cases MIGRATION_ZERO_POLICY_ROWS + QUEUE_DELTA_ZERO"
+  },
+  "after_synthetic_qualification_inserts_only": {
+    "note": "Rows below are test-only INSERT by the disposable harness (owner/manager RLS proofs). They are NOT created by 00117.",
+    "notification_policies": 2,
+    "notification_policy_triggers": 1,
+    "notification_policy_occurrences": 1,
+    "notifications_queue": 0,
+    "source": "post-qualify disposable catalog; FINAL_QUEUE_STILL_UNCHANGED"
+  },
+  "defaults_prove_row_existence_is_not_enablement": {
+    "enabled_default": false,
+    "channel_in_app_default": false,
+    "channel_email_default": false,
+    "channel_sms_default": false,
+    "channel_whatsapp_default": false,
+    "channel_push_default": false,
+    "channel_push_check": "channel_push = false",
+    "inserted_row_without_channel_overrides_all_false": true
+  },
+  "no_send_path_from_schema_alone": {
+    "triggers_on_notifications_queue_from_00117": [],
+    "triggers_on_policy_tables": [
+      "trg_notification_policies_updated_at — BEFORE UPDATE — notification_policy_set_updated_at()",
+      "trg_notification_policy_triggers_updated_at — BEFORE UPDATE — notification_policy_set_updated_at()",
+      "trg_notification_policy_occurrences_updated_at — BEFORE UPDATE — notification_policy_set_updated_at()"
+    ],
+    "updated_at_trigger_is_send_path": false,
+    "auto_backfill": false,
+    "auto_policy_rows": false,
+    "queue_insert_from_policy_ddl": false
+  },
+  "live_producers": {
+    "import_m2_policy_engine": false,
+    "announcement_producer_wired": false,
+    "payment_reminder_cron_changed": false,
+    "producer_cutover": false,
+    "occurrence_worker_activated": false
+  },
+  "sends": 0,
+  "provider_calls": 0,
+  "real_queue_inserts": 0,
+  "whatsapp_sms_email_push_dispatched": 0
+}

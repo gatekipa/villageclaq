@@ -1,0 +1,134 @@
+{
+  "artifact": "M2_IMPLEMENTATION_FILE_SCOPE_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "e47ddd6b8c06c2933e5a297f7b48f1076496da40",
+  "superseded_functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
+  "branch": "security/m2-notification-policy-foundation-20260912",
+  "created_from_exact_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "evidence_tip": "docs/evidence-only commit on top of functional_sha (this evidence set)",
+  "remediation_note": "Chief TABLE ACL supplement: fixture fail-closed to exact 10-row aclexplode set + five column UPDATE attacl. 00117 SHA-256 unchanged.",
+  "historical_migrations_00001_00116_modified": false,
+  "migration_00118_plus_created": false,
+  "old_timestamp_migration_20260910120000_copied": false,
+  "enqueue_outbound_notification_modified": false,
+  "notifications_queue_grants_modified": false,
+  "live_producers_crons_modified": false,
+  "bulk_receipt_p0_guard_modified": false,
+  "announcement_producer_wired": false,
+  "generic_relays_modified": false,
+  "ui_added": false,
+  "environment_variables_changed": false,
+  "security_definer_added_by_00117": false,
+  "file_hashes_functional": {
+    "src/lib/notification-policy.ts": "27de6a00b984f8565faca519494afef5746bafe4fbdee78eb4b8d9949db5309d",
+    "src/lib/notification-policy-contracts.ts": "51b147b0e6ebf8934c7eb5e6b9575e0ae1a56db0c30f9497e26c85a0df2d1747",
+    "supabase/migrations/00117_m2_notification_policy_foundation.sql": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+    "scripts/test-notification-policy.mjs": "ce2615642127805c99c39a6ea0994a552b2a387a0b1193a2f7998d8e974957b2",
+    "scripts/test-notification-policy-contracts.mjs": "06b266592cba0e16d555d2d30ec6c02ff8f6f15a05c6d027a2e6f71fc612c48d",
+    "scripts/test-m2-cut2-nonregression.mjs": "44920372021399d3df2eed73ecdc039aa39ce7adca72aab9b53f41d34b32d62f",
+    "scripts/test-m2-static-security.mjs": "459a88a5b25451f45d018a4169529aa99c2990c9c2532ebccaad3492b2efc90a",
+    "scripts/_m2_disposable_fixture.sql": "5d9245ee684f42cb97c61056e6c5cd8560bf969208bd89f48a3097da89fbbb68",
+    "scripts/_m2_apply_disposable_floor.mjs": "1ffde6054429f8ebff2990cc7002b82499014f7d1349112b7445ab8095af319c",
+    "scripts/qualify-m2-disposable-schema.mjs": "acee6b542c5645a5069ffb30936d9b2aa161ace60268ad0b0456924c27f55628",
+    "scripts/qualify-m2-negative-drift.mjs": "38cc5a139d7369cd026735139b53c0c4c5f226191841355174b72e38af962853"
+  },
+  "functional_files_vs_main": [
+    {
+      "status": "A",
+      "path": "src/lib/notification-policy.ts",
+      "role": "pure evaluator; ENQUEUE_ELIGIBLE trusted-producer consideration only"
+    },
+    {
+      "status": "A",
+      "path": "src/lib/notification-policy-contracts.ts",
+      "role": "pure contracts; Cut2 AND + push DENY + adapters; no send path; UI_POLICY_LABELS removed (OUT OF M2)"
+    },
+    {
+      "status": "A",
+      "path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+      "role": "dormant three-table schema + exact live-pin preflight/postconditions; DO NOT APPLY TO PRODUCTION"
+    },
+    {
+      "status": "A",
+      "path": "scripts/test-notification-policy.mjs",
+      "role": "pure evaluator suite (39)"
+    },
+    {
+      "status": "A",
+      "path": "scripts/test-notification-policy-contracts.mjs",
+      "role": "pure contracts suite (43)"
+    },
+    {
+      "status": "A",
+      "path": "scripts/test-m2-cut2-nonregression.mjs",
+      "role": "PR #81 M2-C2-01..20 (20)"
+    },
+    {
+      "status": "A",
+      "path": "scripts/test-m2-static-security.mjs",
+      "role": "static security FAIL-closed suite (9)"
+    },
+    {
+      "status": "A",
+      "path": "scripts/_m2_disposable_fixture.sql",
+      "role": "00116-era local disposable stub; not production"
+    },
+    {
+      "status": "A",
+      "path": "scripts/_m2_apply_disposable_floor.mjs",
+      "role": "applies live hgp hex + 00115 enqueue extract + postgres ACL floor"
+    },
+    {
+      "status": "A",
+      "path": "scripts/qualify-m2-disposable-schema.mjs",
+      "role": "local disposable qualify harness; occurrence DML behavioral; not production"
+    },
+    {
+      "status": "A",
+      "path": "scripts/qualify-m2-negative-drift.mjs",
+      "role": "R15 negative drift M2_ABORT suite; not production"
+    },
+    {
+      "status": "M",
+      "path": "package.json",
+      "change": "added test:m2* scripts only"
+    },
+    {
+      "status": "M",
+      "path": "tsconfig.json",
+      "change": "allowImportingTsExtensions true (noEmit already true)"
+    }
+  ],
+  "evidence_files": [
+    "docs/evidence/M2_IMPLEMENTATION_SUMMARY_20260912.md",
+    "docs/evidence/M2_CUT2_NONREGRESSION_RESULTS_20260912.json",
+    "docs/evidence/M2_DISPOSABLE_SCHEMA_RESULTS_20260912.json",
+    "docs/evidence/M2_IMPLEMENTATION_FILE_SCOPE_20260912.json",
+    "docs/evidence/M2_DORMANCY_PROOF_20260912.json",
+    "docs/evidence/M2_MIGRATION_SECURITY_FINGERPRINTS_20260912.json",
+    "docs/evidence/M2_ACL_TUPLES_20260912.json",
+    "docs/evidence/M2_OCCURRENCE_DML_BEHAVIORAL_20260912.json",
+    "docs/evidence/M2_NEGATIVE_DRIFT_RESULTS_20260912.json"
+  ],
+  "intentionally_untouched": [
+    "src/lib/announcement-producer.ts (not wired)",
+    "live payment-reminder cron/producer",
+    "live hosting/event producers",
+    "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx bulk receipt P0 guard",
+    "generic /api/{sms,whatsapp,email}/send 410 relays",
+    "enqueue_outbound_notification signature/grants/body",
+    "notifications_queue grants",
+    "supabase/migrations/00001 through 00116",
+    "FUTURE_PAYMENT_POLICY as a live producer",
+    "UI / F3-06 / M3"
+  ]
+}

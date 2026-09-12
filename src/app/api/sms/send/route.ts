@@ -1,149 +1,20 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { sendSmsNotification, type SmsTemplate } from "@/lib/send-sms-notification";
-import { smsRateLimit } from "@/lib/api-rate-limit";
-import { callerCanMessageTarget, isPlatformStaff } from "@/lib/api-recipient-guard";
-import { maskPhoneNumber } from "@/lib/mask-phone";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const RECIPIENT_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Mask a recipient for logs — never emit a raw phone number; shorten a UUID. */
-function maskRecipient(v: string): string {
-  return RECIPIENT_UUID.test(v) ? `${v.slice(0, 8)}…` : maskPhoneNumber(v);
-}
 
 /**
  * POST /api/sms/send
- * Send a template-based SMS notification.
- * Auth: Bearer token (user JWT) — validates caller is authenticated.
- *
- * Body: { to: string (phone in E.164), template: SmsTemplate, data: Record, locale?: "en"|"fr" }
- * If "to" is a user UUID, resolves phone from profiles table.
+ * Cut 2: generic SMS relay is closed. 410 GONE for every body.
+ * Domain producers enqueue via service_role RPC only.
  */
-export async function POST(request: Request) {
-  try {
-    // Verify caller is authenticated
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      console.log("[SMS DIAG] /api/sms/send — no auth header, returning 401");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export async function POST() {
+  return NextResponse.json(
+    { error: "gone", message: "POST /api/sms/send is closed. Use domain notification routes." },
+    { status: 410 },
+  );
+}
 
-    const token = authHeader.replace("Bearer ", "");
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseServiceKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    );
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      console.log("[SMS DIAG] /api/sms/send — invalid token, returning 401", authError?.message);
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    // Per-user rate limit: 30 SMS/hour
-    const rl = smsRateLimit(user.id);
-    if (!rl.allowed) {
-      return NextResponse.json(
-        { error: "rate_limited", retryAfterMs: rl.retryAfterMs },
-        { status: 429 },
-      );
-    }
-
-    const body = await request.json();
-    const { to, template, data, locale } = body;
-
-    // Recipient authorisation: must share a group with the target or
-    // be platform staff. Skipped for cron/service-role (no JWT).
-    if (supabaseServiceKey && to) {
-      const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-      const callerIsStaff = await isPlatformStaff(adminClient, user.id);
-      if (!callerIsStaff) {
-        const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const target = UUID.test(to) ? { userId: to as string } : { phone: to as string };
-        const allowed = await callerCanMessageTarget(adminClient, user.id, target);
-        if (!allowed.allowed) {
-          return NextResponse.json(
-            { error: "forbidden_recipient", reason: allowed.reason },
-            { status: 403 },
-          );
-        }
-      }
-    }
-    console.log("[SMS DIAG] /api/sms/send — received request", { to: maskRecipient(to), template, locale, dataKeys: Object.keys(data || {}) });
-
-    if (!to || !template) {
-      console.log("[SMS DIAG] /api/sms/send — missing required fields", { to: !!to, template: !!template });
-      return NextResponse.json(
-        { error: "Missing required fields: to, template" },
-        { status: 400 }
-      );
-    }
-
-    // If "to" is a UUID, resolve phone from profiles
-    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    let recipientPhone: string = to;
-
-    if (UUID_REGEX.test(to)) {
-      console.log("[SMS DIAG] /api/sms/send — 'to' is UUID, resolving phone from profiles", { userId: `${to.slice(0, 8)}…` });
-      if (!supabaseServiceKey) {
-        console.log("[SMS DIAG] /api/sms/send — SUPABASE_SERVICE_ROLE_KEY not configured, returning 500");
-        return NextResponse.json(
-          { success: false, error: "Service role key not configured" },
-          { status: 500 }
-        );
-      }
-
-      const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
-      const { data: profile, error: profileErr } = await serviceClient
-        .from("profiles")
-        .select("phone")
-        .eq("id", to)
-        .single();
-
-      if (profileErr || !profile?.phone) {
-        console.log("[SMS DIAG] /api/sms/send — no phone found for UUID", { userId: `${to.slice(0, 8)}…`, error: profileErr?.message, phone: maskPhoneNumber(profile?.phone) });
-        return NextResponse.json(
-          { success: false, error: `No phone number found for user ${to}` },
-          { status: 400 }
-        );
-      }
-
-      recipientPhone = profile.phone;
-      console.log("[SMS DIAG] /api/sms/send — resolved phone from UUID", { phone: maskPhoneNumber(recipientPhone) });
-    } else {
-      console.log("[SMS DIAG] /api/sms/send — 'to' is phone number directly", { phone: maskPhoneNumber(recipientPhone) });
-    }
-
-    console.log("[SMS DIAG] /api/sms/send — calling sendSmsNotification", { to: maskPhoneNumber(recipientPhone), template, locale: locale || "en" });
-    const result = await sendSmsNotification({
-      to: recipientPhone,
-      template: template as SmsTemplate,
-      data: data || {},
-      locale: locale || "en",
-    });
-
-    console.log("[SMS DIAG] /api/sms/send — sendSmsNotification result", result);
-
-    if (result.sent) {
-      return NextResponse.json({ success: true });
-    } else if (result.skipped) {
-      return NextResponse.json({ success: false, skipped: true, reason: result.error });
-    } else {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 500 }
-      );
-    }
-  } catch (err) {
-    console.error("[SMS DIAG] /api/sms/send — uncaught error", err instanceof Error ? err.message : err);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+  return NextResponse.json(
+    { error: "gone", message: "POST /api/sms/send is closed." },
+    { status: 410 },
+  );
 }

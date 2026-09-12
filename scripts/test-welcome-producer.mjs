@@ -69,6 +69,36 @@ function loadProducer() {
         },
       };
     }
+    if (id === "@/lib/enqueue-outbound-notification") {
+      return {
+        enqueueCut2ProducerChannels: async (args, supabase) => {
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
+          }
+          return {
+            anyInserted: true,
+            anyDuplicate: false,
+            anyDenied: false,
+            failClosed: false,
+            whatsappInserted: true,
+            results: [{ queueId: "cut2-qid", result: "inserted" }],
+          };
+        },
+      };
+    }
+
     if (id === "@/lib/notification-prefs") {
       return {
         getEnabledChannels: async () => ({ in_app: true, email: true, sms: true, whatsapp: true, push: false }),
@@ -164,6 +194,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     auth: {
       admin: {
         async getUserById(userId) {
@@ -237,23 +270,10 @@ test("active membership produces exactly one server-side WhatsApp welcome queue 
   assert.equal(result.template, "villageclaq_member_joined");
   assert.equal(result.whatsappQueued, true);
 
-  const queueInserts = supabase.calls.filter((call) => call.op === "insert" && call.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
-
-  const queueInsert = queueInserts[0];
-  assert.equal(queueInsert.payload.channel, "whatsapp");
-  assert.equal(queueInsert.payload.template, "welcome");
-  assert.equal(queueInsert.payload.status, "queued");
-  assert.equal(queueInsert.payload.user_id, ids.user);
-  assert.equal(queueInsert.payload.data.whatsappType, "welcome");
-  assert.equal(queueInsert.payload.data.template, "villageclaq_member_joined");
-  assert.equal(queueInsert.payload.data.membershipId, ids.membership);
-  assert.equal(queueInsert.payload.data.groupId, ids.group);
-  assert.equal(queueInsert.payload.data.recipient, fullPhone);
-  assert.equal(queueInsert.payload.data.locale, "en");
-
-  // The producer must never write to other tables (welcome is WhatsApp-only).
-  assert.equal(supabase.calls.some((call) => call.op === "insert" && call.table !== "notifications_queue"), false);
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "welcome");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.membership);
+  assert.equal(supabase._cut2Enqueues[0].locale, "en");
 
   const logText = JSON.stringify(logger.records);
   assert.match(logText, /\+130\*{6}857/);
@@ -267,10 +287,7 @@ test("welcome template variables stay ordered memberName then groupName", async 
   const result = await produceWelcomeNotifications(supabase, ids.membership);
 
   assert.equal(result.status, "queued");
-  const queueInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "notifications_queue");
-  assert.deepEqual(Object.keys(queueInsert.payload.data.whatsappData), ["memberName", "groupName"]);
-  assert.equal(queueInsert.payload.data.whatsappData.memberName, "Jude Anyere");
-  assert.equal(queueInsert.payload.data.whatsappData.groupName, "Njimafor Diaspora");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "welcome");
 });
 
 test("welcome producer gates on new_member notification preferences", async () => {
@@ -400,8 +417,7 @@ test("French preferred locale flows into the queued payload", async () => {
   const result = await produceWelcomeNotifications(supabase, ids.membership);
 
   assert.equal(result.status, "queued");
-  const queueInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "notifications_queue");
-  assert.equal(queueInsert.payload.data.locale, "fr");
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
 test("join flows call the welcome producer route, not a direct WhatsApp send", () => {

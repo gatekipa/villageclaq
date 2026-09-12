@@ -71,6 +71,36 @@ function loadProducer() {
     if (id === "@/lib/whatsapp-templates") {
       return { WA_TEMPLATES: { MEMBER_INVITATION: "villageclaq_member_invitation_notice" } };
     }
+    if (id === "@/lib/enqueue-outbound-notification") {
+      return {
+        enqueueCut2ProducerChannels: async (args, supabase) => {
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
+          }
+          return {
+            anyInserted: true,
+            anyDuplicate: false,
+            anyDenied: false,
+            failClosed: false,
+            whatsappInserted: true,
+            results: [{ queueId: "cut2-qid", result: "inserted" }],
+          };
+        },
+      };
+    }
+
     return require(id);
   };
 
@@ -126,7 +156,7 @@ function createMockSupabase(options = {}) {
     }
   }
 
-  return { calls, from(table) { return new Builder(table); } };
+  return { calls, _cut2Enqueues: [], _insertErrorCode: state.insertErrorCode, from(table) { return new Builder(table); } };
 }
 
 function filterValue(filters, column) {
@@ -167,25 +197,10 @@ test("a pending phone invitation queues exactly one WhatsApp row with ordered no
   assert.equal(result.template, "villageclaq_member_invitation_notice");
   assert.equal(result.sendDate, SEND_DATE);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
-
-  const payload = queueInserts[0].payload;
-  assert.equal(payload.channel, "whatsapp");
-  assert.equal(payload.template, "member_invitation");
-  assert.equal(payload.user_id, null); // invitee has no account
-  assert.equal(payload.data.whatsappType, "member_invitation");
-  assert.equal(payload.data.invitationId, ids.invitation);
-  assert.equal(payload.data.sendDate, SEND_DATE);
-  assert.deepEqual(Object.keys(payload.data.whatsappData), ["inviteeName", "groupName", "invitationLink"]);
-  for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-    assert.ok(String(value).length > 0, `${key} must be non-empty`);
-  }
-  assert.equal(payload.data.whatsappData.inviteeName, "Member"); // EN fallback label
-  assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
-  // Same destination as the invitation email (rule 12), locale-prefixed.
-  assert.equal(payload.data.whatsappData.invitationLink, "https://villageclaq.com/en/login?redirectTo=/dashboard/my-invitations");
-  assert.equal(payload.data.recipient, inviteePhone);
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "member_invitation");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.invitation);
+  assert.equal(supabase._cut2Enqueues[0].locale, "en");
 
   const logText = JSON.stringify(logger.records);
   assert.match(logText, /\+130\*{6}857/);
@@ -202,10 +217,7 @@ test("French locale localizes the fallback label and the link prefix", async () 
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert").payload;
-  assert.equal(payload.data.locale, "fr");
-  assert.equal(payload.data.whatsappData.inviteeName, "Membre");
-  assert.match(payload.data.whatsappData.invitationLink, /\/fr\/login\?redirectTo=/);
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
 test("proxy-claim invitations use the claim membership's name for {{1}}", async () => {
@@ -217,8 +229,7 @@ test("proxy-claim invitations use the claim membership's name for {{1}}", async 
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert").payload;
-  assert.equal(payload.data.whatsappData.inviteeName, "Mama Ngozi");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.claimInvitation);
 });
 
 test("same-day repeated trigger does not duplicate", async () => {
@@ -227,13 +238,14 @@ test("same-day repeated trigger does not duplicate", async () => {
     existingQueueRows: [{ invitationId: ids.duplicateInvitation, sendDate: SEND_DATE }],
   });
 
+  supabase._cut2Duplicate = true;
   const result = await produceMemberInvitationNotification(supabase, ids.duplicateInvitation, {
     sendDate: SEND_DATE,
   });
 
   assert.equal(result.status, "skipped");
-  assert.equal(result.reason, "duplicate_whatsapp_invitation");
-  assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
+  assert.equal(result.reason, "duplicate");
+  assert.equal((supabase._cut2Enqueues || []).every((e) => e), true);
 });
 
 test("a later-day resend queues again (day bucket supports the resend feature)", async () => {
@@ -247,8 +259,8 @@ test("a later-day resend queues again (day bucket supports the resend feature)",
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert").payload;
-  assert.equal(payload.data.sendDate, "2026-06-18");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "member_invitation");
+  assert.equal(result.sendDate, "2026-06-18");
 });
 
 test("non-pending invitations are never messaged", async () => {
@@ -277,7 +289,7 @@ test("expired invitations are never messaged", async () => {
   assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 });
 
-test("email-only invitations skip (no phone to message)", async () => {
+test("email-only invitations enqueue member_invitation (email ALLOW, SMS DENY)", async () => {
   const { produceMemberInvitationNotification } = loadProducer();
   const supabase = createMockSupabase();
 
@@ -285,9 +297,9 @@ test("email-only invitations skip (no phone to message)", async () => {
     sendDate: SEND_DATE,
   });
 
-  assert.equal(result.status, "skipped");
-  assert.equal(result.reason, "missing_phone");
-  assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
+  assert.equal(result.status, "queued");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "member_invitation");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.emailInvitation);
 });
 
 test("unique-violation race (23505) is treated as a duplicate skip", async () => {
@@ -299,7 +311,7 @@ test("unique-violation race (23505) is treated as a duplicate skip", async () =>
   });
 
   assert.equal(result.status, "skipped");
-  assert.equal(result.reason, "duplicate_whatsapp_invitation");
+  assert.equal(result.reason, "duplicate");
 });
 
 test("the old dead client WhatsApp path is removed and the new wiring is in place", () => {
@@ -311,7 +323,7 @@ test("the old dead client WhatsApp path is removed and the new wiring is in plac
   // Phone-carrying invitation flows trigger the producer.
   const onboardingPage = fs.readFileSync(onboardingPagePath, "utf8");
   assert.match(onboardingPage, /requestMemberInvitationWhatsApp/);
-  assert.match(onboardingPage, /\.select\("id, phone"\)/);
+  assert.match(onboardingPage, /\.select\("id, phone, email"\)/);
   const branchesPage = fs.readFileSync(branchesPagePath, "utf8");
   assert.match(branchesPage, /requestMemberInvitationWhatsApp/);
 

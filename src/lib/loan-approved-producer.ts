@@ -1,3 +1,4 @@
+import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAmount } from "@/lib/currencies";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
@@ -283,27 +284,13 @@ export async function produceLoanApprovedNotification(
     };
   }
 
-  const { error: queueError } = await supabase.from("notifications_queue").insert({
-    user_id: userId,
-    channel: "whatsapp",
-    template: "loan_approved",
-    status: "queued",
-    data: {
-      recipient: recipientPhone,
-      user_id: userId,
-      groupId: loan.group_id,
-      membershipId: membership.id,
-      loanId: loan.id,
-      whatsappType: "loan_approved",
-      whatsappData: {
-        memberName: memberName(membership, profile),
-        amount,
-        groupName,
-      },
-      template: WA_TEMPLATES.LOAN_APPROVED,
-      locale,
-    },
-  });
+  const enq = await enqueueCut2ProducerChannels({
+    notificationType: "loan_approved",
+    domainObjectId: loan.id,
+    locale,
+  }, supabase);
+  const queueError = cut2QueueError(enq);
+
 
   if (queueError) {
     if (queueError.code === "23505") {
@@ -342,3 +329,11 @@ export async function produceLoanApprovedNotification(
     whatsappQueued: true,
   };
 }
+
+function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; code: string } | null {
+  if (enq.failClosed) return { message: enq.results[0]?.error || "fail_closed", code: "CUT2" };
+  if (enq.anyDuplicate && !enq.anyInserted) return { message: "duplicate", code: "23505" };
+  if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
+  return null;
+}
+

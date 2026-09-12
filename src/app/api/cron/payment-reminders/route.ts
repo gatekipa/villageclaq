@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/send-email";
-import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { producePaymentReminderNotification } from "@/lib/payment-reminder-producer";
 import type { PaymentReminderProducerResult } from "@/lib/payment-reminder-producer";
 import { formatAmount } from "@/lib/currencies";
@@ -30,7 +28,8 @@ const CANDIDATE_CEILING = 500;
 /**
  * GET /api/cron/payment-reminders
  * Vercel Cron — runs daily at 08:00 UTC.
- * Sends payment reminder emails for overdue/pending obligations.
+ * Enqueues payment reminders via the producer (all ALLOW channels).
+ * No happy-path email/SMS provider send — drain is the only sender.
  */
 export async function GET(request: Request) {
   // ── Auth: verify CRON_SECRET ──
@@ -386,93 +385,23 @@ export async function GET(request: Request) {
       whatsappResults.push(...(await Promise.allSettled(batch)));
     }
 
-    // ── Send emails + SMS per member per overdue obligation ──
-    const emailPromises: Promise<{ userId: string; success: boolean; error?: string }>[] = [];
-    const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
+    // Cut 2: producer enqueues ALL ALLOW channels (email/SMS/WA). Cron must
+    // not also send. dryRun still previews wouldEmail/wouldSms without sending.
+    if (dryRun) {
+      for (const [userId, memberData] of byUser) {
+        const email = emailMap.get(userId);
+        const phoneInfo = phoneMap.get(userId);
+        const channels = prefsMap.get(userId) || { in_app: true, email: true, sms: true, whatsapp: true, push: false };
 
-    for (const [userId, memberData] of byUser) {
-      const email = emailMap.get(userId);
-      const phoneInfo = phoneMap.get(userId);
-      const channels = prefsMap.get(userId) || { in_app: true, email: true, sms: true, whatsapp: true, push: false };
-
-      if (!email && !phoneInfo) {
-        errors.push(`No email or phone found for user ${userId}`);
-        failed++;
-        continue;
-      }
-
-      // Send one email + one SMS per overdue obligation
-      for (const item of memberData.items) {
-        const templateData = {
-          memberName: memberData.memberName,
-          groupName: item.groupName,
-          amount: item.amount,
-          contributionType: item.contributionType,
-          dueDate: item.dueDate,
-          daysOverdue: item.daysOverdue,
-          paymentsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/my-payments`,
-        };
-
-        // Email (only if channel enabled). Build 14: dry-run counts, never sends.
-        if (email && channels.email) {
-          if (dryRun) {
-            wouldEmail++;
-          } else {
-            emailPromises.push(
-              sendEmail({
-                to: email,
-                template: "payment-reminder",
-                data: templateData,
-                locale: memberData.locale,
-              }).then((result) => ({
-                userId,
-                success: result.success,
-                error: result.error,
-              }))
-            );
-          }
+        if (!email && !phoneInfo) {
+          errors.push(`No email or phone found for user ${userId}`);
+          failed++;
+          continue;
         }
 
-        // SMS (only if channel enabled). Build 14: dry-run counts, never sends.
-        if (phoneInfo && channels.sms) {
-          if (dryRun) {
-            wouldSms++;
-          } else {
-            smsPromises.push(
-              sendSmsNotification({
-                to: phoneInfo.phone,
-                template: "payment-reminder",
-                data: templateData,
-                locale: (phoneInfo.locale || memberData.locale) as "en" | "fr",
-              })
-            );
-          }
-        }
-
-        // WhatsApp is handled by the queue-backed producer above — no
-        // direct provider sends from this cron.
+        if (email && channels.email) wouldEmail += memberData.items.length;
+        if (phoneInfo && channels.sms) wouldSms += memberData.items.length;
       }
-    }
-
-    // Wait for emails (primary channel)
-    const results = await Promise.allSettled(emailPromises);
-    for (const r of results) {
-      if (r.status === "fulfilled" && r.value.success) {
-        sent++;
-      } else {
-        failed++;
-        const errMsg = r.status === "fulfilled"
-          ? r.value.error || "Unknown"
-          : (r.reason as Error)?.message || "Unknown";
-        errors.push(errMsg);
-      }
-    }
-
-    // Wait for SMS (secondary channel — failures don't affect response)
-    const smsResults = await Promise.allSettled(smsPromises);
-    for (const r of smsResults) {
-      if (r.status === "fulfilled" && r.value.sent) smsSent++;
-      else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
     }
 
     for (const r of whatsappResults) {
@@ -494,7 +423,7 @@ export async function GET(request: Request) {
     }
 
     if (errors.length > 0) {
-      console.warn(`[Cron:PaymentReminders] ${sent} emails sent, ${failed} failed, ${smsSent} SMS sent, ${whatsappQueued} WhatsApp queued, ${whatsappSkipped} skipped, ${whatsappFailed} failed:`, errors.slice(0, 10));
+      console.warn(`[Cron:PaymentReminders] ${whatsappQueued} queued, ${whatsappSkipped} skipped, ${whatsappFailed} failed:`, errors.slice(0, 10));
     }
 
     return NextResponse.json({

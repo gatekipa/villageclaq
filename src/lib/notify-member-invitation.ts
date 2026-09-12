@@ -1,12 +1,12 @@
 /**
- * Client-side trigger for the server-side WhatsApp member-invitation
- * producer. Fire-and-forget: invite flows must never block on
- * notification delivery.
+ * Client-side trigger for the server-side member-invitation producer.
+ * Enqueues ALLOW channels (WhatsApp + email) from invitation-row authority
+ * only — invitations.email / invitations.phone. SMS remains DENY.
  *
  * The route (/api/invitations/whatsapp-notifications) authorizes the
  * caller (inviter, active group owner/admin, or platform staff), re-reads
- * the invitation row server-side, and enqueues at most one WhatsApp
- * notice per invitation per UTC day — so double-clicks dedupe while the
+ * the invitation row server-side, and enqueues at most one notice per
+ * channel per invitation per UTC day — so double-clicks dedupe while the
  * resend feature still re-delivers on a later day.
  */
 
@@ -16,15 +16,15 @@ export async function requestMemberInvitationWhatsApp(
   supabase: SupabaseClient,
   invitationId: string | null | undefined,
   locale?: string,
-): Promise<void> {
-  if (!invitationId) return;
+): Promise<boolean> {
+  if (!invitationId) return false;
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session?.access_token) return;
+    if (!session?.access_token) return false;
 
-    fetch("/api/invitations/whatsapp-notifications", {
+    const res = await fetch("/api/invitations/whatsapp-notifications", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -32,16 +32,14 @@ export async function requestMemberInvitationWhatsApp(
       },
       body: JSON.stringify({ invitationId, ...(locale ? { locale } : {}) }),
       keepalive: true,
-    })
-      .then((res) => {
-        if (!res.ok) {
-          console.warn("[WhatsApp] member invitation notification returned", res.status);
-        }
-      })
-      .catch((err) => {
-        console.warn("[WhatsApp] member invitation notification request failed:", err);
-      });
+    });
+    if (!res.ok) {
+      console.warn("[Invitation] member invitation notification returned", res.status);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.warn("[WhatsApp] member invitation notification request failed:", err);
+    console.warn("[Invitation] member invitation notification request failed:", err);
+    return false;
   }
 }

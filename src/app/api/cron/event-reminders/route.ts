@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/send-email";
-import { sendSmsNotification } from "@/lib/send-sms-notification";
 import { produceEventReminderNotification } from "@/lib/event-reminder-producer";
-import { getEnabledChannels } from "@/lib/notification-prefs";
-import type { EnabledChannels } from "@/lib/notification-prefs";
-import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -27,19 +22,15 @@ function shortId(id: unknown): string {
 /**
  * GET /api/cron/event-reminders
  * Vercel Cron — runs daily at 08:00 UTC.
- * Sends reminder emails for events starting within the next 48 hours.
+ * Enqueues event reminders via the producer (all ALLOW channels) for
+ * events starting within the next 48 hours. No happy-path email/SMS
+ * provider send — drain is the only sender.
  *
  * Uses a `reminder_sent_at` timestamp on the event row to prevent duplicates.
  * Only events where `reminder_sent_at IS NULL` are processed, and the flip
  * is gated on `reminder_sent_at IS NULL` so two runs cannot both flip it
- * or clobber the timestamp. Scope of that guarantee: WhatsApp is
- * exactly-once via the producer's per-(eventId, userId) queue idempotency;
- * email/SMS remain at-least-once under truly overlapping runs (both runs
- * can pass the candidate query before either flips — legacy parity).
- *
- * WhatsApp is queued exclusively via produceEventReminderNotification
- * (notifications_queue, drained by the queue cron) — no direct provider
- * sends from this route. Email and SMS remain direct.
+ * or clobber the timestamp. Queue channels are exactly-once via the
+ * producer's per-(eventId, userId) idempotency.
  */
 export async function GET(request: Request) {
   // ── Auth: verify CRON_SECRET ──
@@ -107,20 +98,8 @@ export async function GET(request: Request) {
       console.warn(`[Cron:EventReminders] candidate ceiling reached (${CANDIDATE_CEILING}) — remainder deferred to the next run`);
     }
 
-    // ── Process each event ──
+    // ── Process each event: producer enqueue + reminder_sent_at flip ──
     for (const event of events) {
-      const groupId = event.group_id as string;
-      const group = (Array.isArray(event.group) ? event.group[0] : event.group) as Record<string, unknown>;
-      const groupName = (group?.name as string) || "";
-      const groupLocale = ((group?.locale as string) || "en") as "en" | "fr";
-      const startsAt = new Date(event.starts_at as string);
-
-      // ── WhatsApp: queue-backed producer — one call per event ──
-      // The producer resolves recipients itself (active real members, so
-      // phone-but-no-email members are no longer skipped), re-validates
-      // preferences and phone per recipient, and enqueues into
-      // notifications_queue. Idempotency is strict once-per-event-per-user,
-      // so cron reruns are safe even before the reminder_sent_at flip lands.
       try {
         const waResult = await produceEventReminderNotification(supabase, event.id as string);
         whatsappQueued += waResult.whatsappQueued;
@@ -141,158 +120,6 @@ export async function GET(request: Request) {
         errors.push(`WhatsApp: ${err instanceof Error ? err.message : "Unknown WhatsApp failure"}`);
       }
 
-      // Get all non-proxy members + emails for this group
-      const { data: memberEmails, error: rpcErr } = await supabase
-        .rpc("get_member_emails", { p_group_id: groupId });
-
-      if (rpcErr) {
-        errors.push(`Group ${shortId(groupId)} emails: ${rpcErr.message}`);
-      }
-
-      // Build phone lookup: user_id → phone
-      const phoneMap = new Map<string, string>();
-      try {
-        const memberPhones = await fetchMemberDispatchContacts(supabase, groupId);
-        for (const row of memberPhones) {
-          if (row.userId && row.phone && !row.isProxy) {
-            phoneMap.set(row.userId, row.phone);
-          }
-        }
-      } catch (err) {
-        console.warn(`[Cron:EventReminders] member phone lookup failed for group ${shortId(groupId)}:`, err instanceof Error ? err.message : err);
-      }
-
-      const emailList = (memberEmails && Array.isArray(memberEmails))
-        ? memberEmails as Array<{ user_id: string; email: string; display_name: string; preferred_locale: string }>
-        : [];
-
-      if (emailList.length === 0 && phoneMap.size === 0) {
-        continue;
-      }
-
-      // ── Batch-fetch notification preferences for all members in this group ──
-      const prefsMap = new Map<string, EnabledChannels>();
-      for (const m of emailList.filter((m) => m.user_id)) {
-        try {
-          const channels = await getEnabledChannels(supabase, m.user_id, "event_reminders", groupId);
-          prefsMap.set(m.user_id, channels);
-        } catch (err) {
-          console.warn(`[Cron:EventReminders] preference lookup failed for user ${shortId(m.user_id)}:`, err instanceof Error ? err.message : err);
-          // Fail-open: allow defaults
-          prefsMap.set(m.user_id, { in_app: true, email: true, sms: true, whatsapp: true, push: false });
-        }
-      }
-
-      // Build and send emails + SMS
-      const emailPromises: Promise<{ success: boolean; error?: string }>[] = [];
-      const smsPromises: Promise<{ sent: boolean; skipped: boolean }>[] = [];
-
-      for (const m of emailList.filter((m) => m.user_id && m.email)) {
-        const email = m.email;
-        const memberName = m.display_name || "Member";
-        const preferredLocale = (m.preferred_locale || "en") as "en" | "fr";
-        const channels = prefsMap.get(m.user_id) || { in_app: true, email: true, sms: true, whatsapp: true, push: false };
-
-        const eventName = preferredLocale === "fr"
-          ? ((event.title_fr as string) || (event.title as string))
-          : (event.title as string);
-
-        const eventDate = startsAt.toLocaleDateString(
-          preferredLocale === "fr" ? "fr-FR" : "en-US",
-          { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-        );
-        const eventTime = startsAt.toLocaleTimeString(
-          preferredLocale === "fr" ? "fr-FR" : "en-US",
-          { hour: "2-digit", minute: "2-digit" }
-        );
-
-        const templateData = {
-          memberName,
-          groupName,
-          eventName,
-          eventDate,
-          eventTime,
-          eventLocation: (event.location as string) || undefined,
-          eventsUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com"}/dashboard/events`,
-        };
-
-        // Email (only if channel enabled)
-        if (channels.email) {
-          emailPromises.push(
-            sendEmail({
-              to: email,
-              template: "event-reminder",
-              data: templateData,
-              locale: preferredLocale,
-            }).then((result) => ({
-              success: result.success,
-              error: result.error,
-            }))
-          );
-        }
-
-        // SMS (if this member has a phone and channel enabled)
-        const phone = phoneMap.get(m.user_id);
-        if (phone && channels.sms) {
-          smsPromises.push(
-            sendSmsNotification({
-              to: phone,
-              template: "event-reminder",
-              data: templateData,
-              locale: preferredLocale,
-            })
-          );
-        }
-
-        // WhatsApp is handled by the queue-backed producer above — no
-        // direct provider sends from this cron.
-
-        // Remove from phoneMap so we don't double-send for proxy members below
-        if (phone) {
-          phoneMap.delete(m.user_id);
-        }
-      }
-
-      // Send SMS to any remaining phone-only members (proxy members with phones)
-      for (const [, phone] of phoneMap) {
-        smsPromises.push(
-          sendSmsNotification({
-            to: phone,
-            template: "event-reminder",
-            data: {
-              groupName,
-              eventName: event.title as string,
-              eventDate: startsAt.toLocaleDateString(groupLocale === "fr" ? "fr-FR" : "en-US", {
-                weekday: "long", year: "numeric", month: "long", day: "numeric",
-              }),
-              eventLocation: (event.location as string) || "",
-            },
-            locale: groupLocale,
-          })
-        );
-      }
-
-      // Await emails
-      const results = await Promise.allSettled(emailPromises);
-      for (const r of results) {
-        if (r.status === "fulfilled" && r.value.success) {
-          emailsSent++;
-        } else {
-          emailsFailed++;
-          const errMsg = r.status === "fulfilled"
-            ? r.value.error || "Unknown"
-            : (r.reason as Error)?.message || "Unknown";
-          errors.push(errMsg);
-        }
-      }
-
-      // Await SMS
-      const smsResults = await Promise.allSettled(smsPromises);
-      for (const r of smsResults) {
-        if (r.status === "fulfilled" && r.value.sent) smsSent++;
-        else if (r.status === "fulfilled" && r.value.skipped) smsSkipped++;
-      }
-
       // Mark event as reminded — gated on reminder_sent_at IS NULL so a
       // concurrent run can't double-flip or clobber an earlier timestamp.
       const { error: flipErr } = await supabase
@@ -308,7 +135,7 @@ export async function GET(request: Request) {
     }
 
     if (errors.length > 0) {
-      console.warn(`[Cron:EventReminders] ${eventsProcessed} events, ${emailsSent} emails, ${smsSent} SMS, ${whatsappQueued} WhatsApp queued, ${whatsappSkipped} skipped, ${whatsappFailed} failed:`, errors.slice(0, 10));
+      console.warn(`[Cron:EventReminders] ${eventsProcessed} events, ${whatsappQueued} queued, ${whatsappSkipped} skipped, ${whatsappFailed} failed:`, errors.slice(0, 10));
     }
 
     return NextResponse.json({

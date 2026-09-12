@@ -1,3 +1,4 @@
+import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
 import { getMemberName } from "@/lib/get-member-name";
@@ -408,29 +409,13 @@ export async function produceHostingReminderNotification(
     };
   }
 
-  const { error: queueError } = await supabase.from("notifications_queue").insert({
-    user_id: userId,
-    channel: "whatsapp",
-    template: "hosting_reminder",
-    status: "queued",
-    data: {
-      recipient: formattedPhone,
-      user_id: userId,
-      groupId: roster.group_id,
-      membershipId: membership.id,
-      assignmentId: assignment.id,
-      rosterId: roster.id,
-      assignedDate: assignment.assigned_date,
-      whatsappType: "hosting_reminder",
-      whatsappData: {
-        memberName: resolvedMemberName,
-        hostingDate,
-        groupName,
-      },
-      template: WA_TEMPLATES.HOSTING_REMINDER,
-      locale,
-    },
-  });
+  const enq = await enqueueCut2ProducerChannels({
+    notificationType: "hosting_reminder",
+    domainObjectId: assignment.id,
+    locale,
+  }, supabase);
+  const queueError = cut2QueueError(enq);
+
 
   if (queueError) {
     if (queueError.code === "23505") {
@@ -473,3 +458,11 @@ export async function produceHostingReminderNotification(
     whatsappQueued: true,
   };
 }
+
+function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; code: string } | null {
+  if (enq.failClosed) return { message: enq.results[0]?.error || "fail_closed", code: "CUT2" };
+  if (enq.anyDuplicate && !enq.anyInserted) return { message: "duplicate", code: "23505" };
+  if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
+  return null;
+}
+

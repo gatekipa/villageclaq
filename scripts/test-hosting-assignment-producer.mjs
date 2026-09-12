@@ -69,6 +69,36 @@ function loadProducer() {
         },
       };
     }
+    if (id === "@/lib/enqueue-outbound-notification") {
+      return {
+        enqueueCut2ProducerChannels: async (args, supabase) => {
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
+          }
+          return {
+            anyInserted: true,
+            anyDuplicate: false,
+            anyDenied: false,
+            failClosed: false,
+            whatsappInserted: true,
+            results: [{ queueId: "cut2-qid", result: "inserted" }],
+          };
+        },
+      };
+    }
+
     if (id === "@/lib/notification-prefs") {
       return {
         getEnabledChannels: async () => ({ in_app: true, email: true, sms: true, whatsapp: true, push: false }),
@@ -172,6 +202,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     auth: {
       admin: {
         async getUserById(userId) {
@@ -226,24 +259,12 @@ test("upcoming assignment queues exactly one WhatsApp row with non-empty variabl
   assert.equal(result.status, "queued");
   assert.equal(result.template, "villageclaq_hosting_reminder");
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
+  assert.equal(supabase._cut2Enqueues.length, 1, "expected one semantic enqueue");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "hosting_assignment");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.assignment);
+  assert.equal(supabase._cut2Enqueues[0].locale, "en");
 
-  const payload = queueInserts[0].payload;
-  assert.equal(payload.channel, "whatsapp");
-  assert.equal(payload.template, "hosting_assignment");
-  assert.equal(payload.data.whatsappType, "hosting_assignment");
-  assert.equal(payload.data.template, "villageclaq_hosting_reminder");
-  assert.equal(payload.data.assignmentId, ids.assignment);
-  assert.deepEqual(Object.keys(payload.data.whatsappData), ["memberName", "hostingDate", "groupName"]);
-  assert.ok(payload.data.whatsappData.memberName.length > 0, "memberName must be non-empty");
-  assert.ok(payload.data.whatsappData.hostingDate.length > 0, "hostingDate must be non-empty");
-  assert.ok(payload.data.whatsappData.groupName.length > 0, "groupName must be non-empty");
-  assert.equal(payload.data.whatsappData.hostingDate, "Jul 15, 2030");
-  assert.equal(payload.data.locale, "en");
-
-  // WhatsApp-only producer — no other table writes.
-  assert.equal(supabase.calls.some((c) => c.op === "insert" && c.table !== "notifications_queue"), false);
+  assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 
   const logText = JSON.stringify(logger.records);
   assert.match(logText, /\+130\*{6}857/);
@@ -260,9 +281,7 @@ test("recipient's French preferred locale wins over the admin's locale", async (
   const result = await produceHostingAssignmentNotifications(supabase, ids.assignment, { locale: "en" });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  assert.equal(payload.data.locale, "fr");
-  assert.match(payload.data.whatsappData.hostingDate, /juil/i);
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
 test("non-active membership never receives an assignment notice", async () => {
@@ -338,9 +357,8 @@ test("proxy member is queued via proxy phone", async () => {
   const result = await produceHostingAssignmentNotifications(supabase, ids.assignment);
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  assert.equal(payload.data.whatsappData.memberName, "Papa Mbarga");
-  assert.equal(payload.user_id, null);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "hosting_assignment");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.assignment);
 });
 
 test("non-upcoming assignment does not produce", async () => {
@@ -388,10 +406,10 @@ test("hosting_assignment maps to the approved villageclaq_hosting_reminder templ
 test("hosting page routes WhatsApp through the producer, never directly", () => {
   const source = fs.readFileSync(hostingPagePath, "utf8");
   assert.doesNotMatch(source, /whatsappType:\s*"hosting_assignment"/);
+  assert.doesNotMatch(source, /whatsappType:\s*"hosting_reminder"/);
   const triggerCount = source.split("requestHostingAssignmentWhatsApp(").length - 1;
   assert.ok(triggerCount >= 2, "publish and assign-dialog paths must both trigger the producer");
-  // The swap-flow hosting_reminder sends are intentionally untouched.
-  assert.match(source, /whatsappType:\s*"hosting_reminder"/);
+  assert.match(source, /requestHostingSwapNotifications/);
 });
 
 test("route authorizes group owners/admins and bounds the batch", () => {

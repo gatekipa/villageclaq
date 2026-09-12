@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/send-email";
-import { sendSmsNotification } from "@/lib/send-sms-notification";
-import { dispatchWhatsApp } from "@/lib/whatsapp-dispatcher";
 import { getEnabledChannels } from "@/lib/notification-prefs";
-import { fetchMemberDispatchContacts } from "@/lib/cron-member-contacts";
+import { enqueueCut2ProducerChannels } from "@/lib/enqueue-outbound-notification";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -17,36 +14,16 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
  * NOT been sent yet. For each such row we:
  *   1. Fetch recipients per the row's audience JSONB (all / roles /
  *      members), using the same targeting rules as the manual send
- *      flow (src/app/[locale]/(dashboard)/dashboard/announcements/
- *      page.tsx :: dispatchAnnouncementNotifications).
- *   2. Dispatch in-app + email + sms + whatsapp on ONLY the channels
- *      the admin saved in the row's channels array — and only to
- *      members whose per-channel preferences allow it.
+ *      flow.
+ *   2. Insert in-app notifications. SMS/WA are enqueued via
+ *      enqueueCut2ProducerChannels (announcement email is DENY).
+ *      No sendEmail / sendSmsNotification / dispatchWhatsApp.
+ *      announcement-producer.ts stays DORMANT.
  *   3. Flip sent_at on success. On failure, leave sent_at NULL so
  *      the next cron run retries the row.
  *
- * Idempotency (ROW-LEVEL ONLY — honest limitation, Build 7):
- *   The WHERE clause filters sent_at IS NULL and sent_at is written
- *   AFTER the per-recipient loop completes, so a fully-completed row is
- *   never re-fired. BUT there is NO per-recipient idempotency: if this
- *   handler crashes (or times out) mid-loop — after dispatching to some
- *   recipients but before flipping sent_at — the next 5-min tick re-sends
- *   email/SMS/WhatsApp to recipients already processed. The honest fix is
- *   producerization with a per-(announcementId,userId,channel) dispatch
- *   log (the existing-but-unwired `announcement_deliveries` table; see the
- *   created-not-applied migration 00106 and docs/announcements-whatsapp-
- *   strategy.md). That conversion must ALSO remove this route from the
- *   audit's direct-dispatch allowlist in the same change (audit enforces
- *   "allowlisted direct-dispatch OR producer-backed, never neither").
- *   Until then this route stays direct-dispatch + allowlisted.
- *
- * WhatsApp announcements use the MARKETING-categorized
- * villageclaq_announcement_v2 (not delivered to US +1 numbers, error
- * 131049 — silent at send). Composer discloses this; do not present
- * WhatsApp announcements as delivery-confirmed.
- *
- * Processes rows sequentially to avoid hammering SMS/WhatsApp rate
- * limits.
+ * Qualification/send is dormant (no real provider). Drain is the only
+ * sender for queued channels.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get("Authorization");
@@ -87,9 +64,6 @@ export async function GET(request: Request) {
     try {
       await dispatchScheduledAnnouncement(supabase, row as Record<string, unknown>);
 
-      // Mark sent only after dispatch completes. The UPDATE is also
-      // gated on sent_at IS NULL so a concurrent run cannot flip it
-      // twice.
       const { error: updateErr } = await supabase
         .from("announcements")
         .update({ sent_at: new Date().toISOString() })
@@ -125,10 +99,9 @@ export async function GET(request: Request) {
 }
 
 /**
- * Server-side equivalent of dispatchAnnouncementNotifications(). Reads
- * the row's audience + channels and dispatches each channel using the
- * existing lib helpers (sendEmail / sendSmsNotification / dispatchWhatsApp).
- * In-app notifications are inserted directly into the notifications table.
+ * In-app inserts + Cut 2 enqueue per recipient membership.
+ * Does not call sendEmail / sendSmsNotification / dispatchWhatsApp.
+ * Does not activate announcement-producer.ts.
  */
 async function dispatchScheduledAnnouncement(
   supabase: SupabaseClient,
@@ -144,21 +117,9 @@ async function dispatchScheduledAnnouncement(
   const audience = (row.audience as Record<string, unknown> | null) || { type: "all" };
   const audienceType = (audience.type as string) || "all";
 
-  // ── Resolve group name (used in email/sms/whatsapp copy) ──
-  let groupName = "";
-  {
-    const { data: groupRow } = await supabase
-      .from("groups")
-      .select("name")
-      .eq("id", groupId)
-      .maybeSingle();
-    groupName = ((groupRow as Record<string, unknown> | null)?.name as string) || "";
-  }
-
-  // ── Recipients per audience ──
   let query = supabase
     .from("memberships")
-    .select("id, user_id, role, is_proxy, standing")
+    .select("id, user_id, role, is_proxy, standing, profiles:profiles!memberships_user_id_fkey(preferred_locale)")
     .eq("group_id", groupId);
 
   if (audienceType === "roles") {
@@ -174,62 +135,36 @@ async function dispatchScheduledAnnouncement(
   const { data: memberRows, error: memErr } = await query;
   if (memErr) throw new Error(`membership query failed: ${memErr.message}`);
 
-  // Exclude proxies (no user account) and banned members
-  const candidateUserIds = (memberRows || [])
-    .filter((m) => {
-      const row = m as Record<string, unknown>;
-      return row.user_id && row.standing !== "banned";
-    })
-    .map((m) => (m as Record<string, unknown>).user_id as string);
+  const candidates = (memberRows || []).filter((m) => {
+    const rec = m as Record<string, unknown>;
+    return rec.user_id && rec.standing !== "banned";
+  }) as Array<Record<string, unknown>>;
 
-  if (candidateUserIds.length === 0) return;
+  if (candidates.length === 0) return;
 
-  // ── Resolve emails + phones once per group ──
-  const emailMap = new Map<string, { email: string; locale: string }>();
-  const phoneMap = new Map<string, { phone: string; locale: string }>();
-
-  const { data: emailRows } = await supabase.rpc("get_member_emails", { p_group_id: groupId });
-  if (Array.isArray(emailRows)) {
-    for (const r of emailRows as Array<Record<string, unknown>>) {
-      const uid = r.user_id as string | null;
-      const email = r.email as string | null;
-      const loc = (r.preferred_locale as string) || "en";
-      if (uid && email) emailMap.set(uid, { email, locale: loc });
-    }
-  }
-
-  try {
-    const phoneRows = await fetchMemberDispatchContacts(supabase, groupId);
-    for (const r of phoneRows) {
-      if (r.userId && r.phone && !r.isProxy) {
-        phoneMap.set(r.userId, { phone: r.phone, locale: r.locale });
-      }
-    }
-  } catch (err) {
-    console.warn(`[Cron:ScheduledAnnouncements] member phone lookup failed for group ${groupId}:`, err instanceof Error ? err.message : err);
-  }
-
-  // ── Per-recipient dispatch ──
   const wantInApp = activeChannels.includes("in_app");
-  const wantEmail = activeChannels.includes("email");
-  const wantSms = activeChannels.includes("sms");
-  const wantWhatsapp = activeChannels.includes("whatsapp");
-
-  // Batched in-app inserts. We resolve locale per recipient for the
-  // title/body text so members who prefer FR see the FR copy.
   const inAppRows: Array<Record<string, unknown>> = [];
 
-  for (const uid of candidateUserIds) {
-    const emailInfo = emailMap.get(uid);
-    const phoneInfo = phoneMap.get(uid);
-    const prefLocale = (emailInfo?.locale || phoneInfo?.locale || "en") as "en" | "fr";
+  for (const membership of candidates) {
+    const uid = membership.user_id as string;
+    const membershipId = membership.id as string;
+    const profiles = membership.profiles as
+      | Record<string, unknown>
+      | Array<Record<string, unknown>>
+      | null;
+    const profile = Array.isArray(profiles) ? profiles[0] : profiles;
+    const prefLocale = ((profile?.preferred_locale as string) || "en") === "fr" ? "fr" : "en";
     const title = prefLocale === "fr" && titleFr ? titleFr : titleEn;
     const body = (prefLocale === "fr" && contentFr ? contentFr : contentEn).slice(0, 200);
 
     let channels;
     try {
       channels = await getEnabledChannels(supabase, uid, "announcements", groupId);
-    } catch {
+    } catch (err) {
+      console.warn(
+        `[Cron:ScheduledAnnouncements] preference lookup failed for ${uid}:`,
+        err instanceof Error ? err.message : err,
+      );
       channels = { in_app: true, email: true, sms: true, whatsapp: true, push: false };
     }
 
@@ -245,56 +180,17 @@ async function dispatchScheduledAnnouncement(
       });
     }
 
-    if (wantEmail && channels.email && emailInfo?.email) {
-      try {
-        await sendEmail({
-          to: emailInfo.email,
-          template: "notification",
-          data: { title, body, groupName },
-          locale: (emailInfo.locale as "en" | "fr") || prefLocale,
-        });
-      } catch (err) {
-        console.warn(
-          `[Cron:ScheduledAnnouncements] email failed for ${uid}:`,
-          err instanceof Error ? err.message : err,
-        );
-      }
-    }
-
-    if (wantSms && channels.sms && phoneInfo?.phone) {
-      try {
-        await sendSmsNotification({
-          to: phoneInfo.phone,
-          template: "announcement",
-          data: { groupName, title },
-          locale: (phoneInfo.locale as "en" | "fr") || prefLocale,
-        });
-      } catch (err) {
-        console.warn(
-          `[Cron:ScheduledAnnouncements] sms failed for ${uid}:`,
-          err instanceof Error ? err.message : err,
-        );
-      }
-    }
-
-    if (wantWhatsapp && channels.whatsapp && phoneInfo?.phone) {
-      try {
-        await dispatchWhatsApp(
-          "announcement",
-          phoneInfo.phone,
-          (phoneInfo.locale as "en" | "fr") || prefLocale,
-          { groupName, title, body },
-        );
-      } catch (err) {
-        console.warn(
-          `[Cron:ScheduledAnnouncements] whatsapp failed for ${uid}:`,
-          err instanceof Error ? err.message : err,
-        );
-      }
-    }
+    await enqueueCut2ProducerChannels(
+      {
+        notificationType: "announcement",
+        domainObjectId: announcementId,
+        recipientMembershipId: membershipId,
+        locale: prefLocale,
+      },
+      supabase,
+    );
   }
 
-  // Flush in-app rows in 50-row batches
   if (inAppRows.length > 0) {
     for (let i = 0; i < inAppRows.length; i += 50) {
       const batch = inAppRows.slice(i, i + 50);

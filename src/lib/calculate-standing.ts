@@ -689,8 +689,7 @@ async function persistAndNotify(
     }
 
     // External channels — check preferences + get session for Bearer auth.
-    let sendEmail = true,
-      sendSms = true,
+    let sendSms = true,
       sendWhatsapp = true;
     try {
       const prefs = await getEnabledChannels(
@@ -699,7 +698,6 @@ async function persistAndNotify(
         "standing_changes",
         groupId,
       );
-      sendEmail = prefs.email;
       sendSms = prefs.sms;
       sendWhatsapp = prefs.whatsapp;
     } catch (err) {
@@ -709,7 +707,7 @@ async function persistAndNotify(
       );
     }
 
-    if (!sendEmail && !sendSms && !sendWhatsapp) {
+    if (!sendSms && !sendWhatsapp) {
       return;
     }
 
@@ -767,31 +765,9 @@ async function persistAndNotify(
       }
     }
 
-    // Email — localized title/body rendered above; notification template
-    // picks locale internally via the `locale` param.
-    if (sendEmail) {
-      postJson("/api/email/send", {
-        to: membership.user_id,
-        template: "notification",
-        data: { title, body, groupName, memberName },
-        locale,
-      });
-    }
-
-    // SMS — sms-templates.ts handles EN/FR internally via `t(locale, en, fr)`.
-    if (sendSms) {
-      postJson("/api/sms/send", {
-        to: membership.user_id,
-        template: "standing-changed",
-        data: { groupName, newStatus: standing },
-        locale,
-      });
-    }
-
-    // WhatsApp — server-side, queue-backed producer (exactly-once per
-    // membership/standing/day). The producer reads the authoritative
-    // standing from the DB and resolves the template variables itself.
-    if (sendWhatsapp) {
+    // standing_changed email is DENY. SMS + WhatsApp enqueue via the
+    // standing-notifications producer (ids only).
+    if (sendSms || sendWhatsapp) {
       postJson("/api/members/standing-notifications", {
         membershipId,
         locale,

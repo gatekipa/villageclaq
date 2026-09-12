@@ -1,0 +1,766 @@
+{
+  "artifact": "S0_CUT2_NOTIFICATION_QUEUE_LIVE_INVENTORY_20260911",
+  "date": "2026-09-11",
+  "status": "FROZEN_SECURITY_REVISION_3",
+  "architecture": "LAYER_B_ONLY",
+  "layer_a": "VOID_NOT_AN_IMPLEMENTATION_OPTION",
+  "daybreak_reviewed_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
+  "provenance_quarantine_contract": "docs/evidence/S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911.json",
+  "domain_matrix": "docs/evidence/S0_CUT2_DOMAIN_ENQUEUE_MATRIX_20260911.json",
+  "purpose": "Read-only evidence for Cut 2 notification queue security contract freeze. Planning only. No production SQL was executed by this task. SECURITY REVISION 1 closes Daybreak R1\u2013R30: Layer B mandatory; no direct notifications_queue INSERT from anon, authenticated, platform staff, OR service_role application producers.",
+  "production_mutation": "ZERO",
+  "messages_sent": "ZERO",
+  "failed_rows_retried": "ZERO",
+  "this_task_requery_of_live_db": false,
+  "pins": {
+    "repo": "gatekipa/villageclaq",
+    "planning_base_main_sha": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+    "master_prd_pr_71_freeze_sha": "050be86c9df3455c66b27bb5853eb786228b4009",
+    "cut1_closed_production": {
+      "version": "20260911183755",
+      "name": "s0_p0a_cut1_active_authorization",
+      "do_not_modify": true
+    },
+    "supabase_project": "llbnliixczcqfftxpsmb",
+    "pr_69_head_sha": "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+    "pr_69_state": "OPEN DRAFT; must stay untouched/unapplied",
+    "pr_70_head_sha": "0f258726c9328ee0204f7b5dee9efceebe7265b9",
+    "pr_70_state": "OPEN DRAFT CREATE-NOT-APPLY; must stay untouched/unapplied"
+  },
+  "live_prod_confirmation_chief_20260911_addendum": {
+    "project": "llbnliixczcqfftxpsmb",
+    "schema_migrations_count": 29,
+    "cut1_version": "20260911183755",
+    "cut1_name": "s0_p0a_cut1_active_authorization",
+    "insert_policy_name": "Authenticated users can queue notifications",
+    "insert_policy_with_check": "auth.uid() IS NOT NULL",
+    "grants_insert": [
+      "anon",
+      "authenticated",
+      "service_role"
+    ],
+    "group_id_column": false,
+    "status_enum": [
+      "queued",
+      "sent",
+      "failed"
+    ],
+    "status_enum_processing": false,
+    "note": "Chief-confirmed live facts folded 2026-09-11. This addendum does not invent extra catalog rows.",
+    "tenant_columns_readonly_mcp_sr1_followup": {
+      "payment_obligations_regclass": null,
+      "contribution_obligations_regclass": "public.contribution_obligations",
+      "hosting_assignments_group_id": false,
+      "hosting_assignments_roster_id": true,
+      "hosting_assignments_event_id": "nullable",
+      "relief_enrollments_collecting_group_id": "nullable_not_authz",
+      "relief_remittances_group_id": false,
+      "relief_remittances_hq_group_id": false,
+      "relief_remittances_branch_group_id": true,
+      "group_subscriptions_group_id": true,
+      "memberships_membership_status": true,
+      "proxy_claim_tokens": true
+    }
+  },
+  "live_production_inventory_chief_verbatim": {
+    "source": "Chief-verified live inventory 2026-09-11 \u2014 copied verbatim; this task did not re-query production",
+    "project": "llbnliixczcqfftxpsmb",
+    "table": "public.notifications_queue",
+    "rls": {
+      "enabled": true,
+      "forced": false
+    },
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "nullable": false,
+        "default": "gen_random_uuid()",
+        "constraints": "PK"
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "nullable": true,
+        "fk": "profiles(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "channel",
+        "type": "notification_channel",
+        "nullable": false
+      },
+      {
+        "name": "template",
+        "type": "text",
+        "nullable": false
+      },
+      {
+        "name": "data",
+        "type": "jsonb",
+        "nullable": false,
+        "default": "{}"
+      },
+      {
+        "name": "status",
+        "type": "notification_queue_status",
+        "nullable": false,
+        "default": "queued"
+      },
+      {
+        "name": "error_message",
+        "type": "text"
+      },
+      {
+        "name": "attempts",
+        "type": "int4",
+        "default": 0
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "default": "now()"
+      },
+      {
+        "name": "sent_at",
+        "type": "timestamptz"
+      }
+    ],
+    "enums": {
+      "notification_channel": [
+        "email",
+        "sms",
+        "whatsapp",
+        "push"
+      ],
+      "notification_queue_status": [
+        "queued",
+        "sent",
+        "failed"
+      ],
+      "notification_queue_status_note": "NO processing/claim state"
+    },
+    "planned_00115_column_not_present_live": {
+      "name": "cut2_provenance_version",
+      "type": "smallint",
+      "default": null,
+      "trusted": 1,
+      "check": "NULL OR 1",
+      "live_today": false,
+      "note": "PLAN only. Column does not exist before 00115. Existing rows become NULL. Attacker cannot insert provenance=1 until the column exists, and after 00115 INSERT is revoked."
+    },
+    "policies": [
+      {
+        "n": 1,
+        "command": "INSERT",
+        "name": "Authenticated users can queue notifications",
+        "permissive": true,
+        "roles": [],
+        "using": null,
+        "with_check": "auth.uid() IS NOT NULL"
+      },
+      {
+        "n": 2,
+        "command": "SELECT",
+        "name": "Platform staff can view all notifications_queue",
+        "using": "is_platform_staff()"
+      },
+      {
+        "n": 3,
+        "command": "SELECT",
+        "name": "Staff can view notification queue",
+        "using": "is_platform_staff()"
+      },
+      {
+        "n": 4,
+        "command": "UPDATE",
+        "name": "Staff can update notification queue",
+        "using": "is_platform_staff()"
+      }
+    ],
+    "grants": {
+      "roles": [
+        "anon",
+        "authenticated",
+        "service_role",
+        "postgres"
+      ],
+      "privileges": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "TRUNCATE",
+        "REFERENCES",
+        "TRIGGER"
+      ],
+      "note": "anon+authenticated+service_role+postgres all have SELECT/INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER"
+    },
+    "forge": {
+      "authenticated_direct_insert": "YES (only auth.uid() IS NOT NULL)",
+      "anon_effective_insert": "NO (WITH CHECK fails) but GRANT INSERT still present",
+      "arbitrary_template_channel_data": "YES",
+      "group_id_column_on_table": false,
+      "ui_from_notifications_queue_insert": 0,
+      "forge_surfaces": [
+        "PostgREST RLS policy Authenticated users can queue notifications + GRANT INSERT authenticated",
+        "sms-sender.ts cookie session + anon key path (depends on that policy)"
+      ]
+    },
+    "idempotency_indexes_named_by_chief": [
+      "payment_receipt",
+      "payment_reminder",
+      "welcome",
+      "standing_changed",
+      "relief_*",
+      "remittance_*",
+      "hosting_*",
+      "event_reminder",
+      "loan_*",
+      "fine_issued",
+      "member_invitation",
+      "subscription_expiring"
+    ],
+    "user_triggers_on_table": "none found"
+  },
+  "repo_source_facts_not_live_requery": {
+    "tip_sha": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+    "note": "The following are confirmed from repository source at the planning tip. They are NOT additional live catalog rows. Do not treat as a fresh pg_policies dump.",
+    "cut1_migration_header_out_of_scope": {
+      "file": "supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql",
+      "quote": "Out of scope: notifications_queue, storage, F0/F3 apply, PR70, election_votes,"
+    },
+    "table_origin": "supabase/migrations/00012_notification_queue.sql",
+    "staff_update_origin": "supabase/migrations/00051_notification_queue_update_policy.sql",
+    "duplicate_staff_select_origin": "supabase/migrations/00070_admin_p1_fixes.sql",
+    "grant_all_authenticated_origin": "supabase/migrations/00048_rls_security_audit_fixes.sql",
+    "sql_insert_into_notifications_queue_in_migrations": false,
+    "supabase_edge_functions_dir": "absent",
+    "client_tsx_from_notifications_queue": false,
+    "ui_from_notifications_queue_insert_call_sites": 0,
+    "forge_is": "PostgREST RLS + sms-sender session path; not a UI insert button",
+    "sms_sender_critical_compatibility": {
+      "file": "src/lib/notifications/sms-sender.ts",
+      "function": "queueNotification",
+      "client": "createClient() from @/lib/supabase/server (cookie session + NEXT_PUBLIC_SUPABASE_ANON_KEY)",
+      "depends_on_live_policy": "Authenticated users can queue notifications WITH CHECK (auth.uid() IS NOT NULL)",
+      "when": "AFRICASTALKING_API_KEY missing or AT SDK throws",
+      "insert_shape": {
+        "channel": "sms",
+        "template": "generic",
+        "data": "recipient + free-form message (arbitrary phone + arbitrary body)",
+        "status": "queued"
+      },
+      "forge_adjacent_risk": "HIGH if left on authenticated path \u2014 free-form message + arbitrary phone in data jsonb",
+      "cut2_hard_gate": "MUST stop cookie/anon INSERT before/with 00115. After Cut 2: no table INSERT at all (Layer B). Drain may call AT only. SQL-only first or leftover session INSERT = CUT2_ABORT."
+    },
+    "canonical_producers_and_layer_b": {
+      "layer_a": "VOID \u2014 not an implementation option after Daybreak HOLD",
+      "layer_b_required": "REVOKE INSERT from service_role; all produce* + whatsapp/send overflow + sms-sender stop table INSERT; service_role EXECUTE enqueue_outbound_notification only",
+      "reason": "After Cut 2, no application producer may INSERT notifications_queue \u2014 including service_role",
+      "cut2_abort_if": "service_role GRANT INSERT left on after 00115, OR produce* still .insert() after adapter deploy"
+    },
+    "s0a_20260910_queue_note": {
+      "source": "docs/S0_A_PRODUCTION_TRUTH_SNAPSHOT_20260910.md on PR #72 SHA 97388b34037589a21eae66e3a5a1668f71e3bb55",
+      "insert_policy": "Authenticated users can queue notifications WITH CHECK (auth.uid() IS NOT NULL) \u2014 CONFIRMED P0",
+      "select_update": "limited to is_platform_staff()",
+      "notification_policies_regclass": "NULL",
+      "s0b_queue_row_count_cited_in_cut1_plan": 2306,
+      "s0b_queue_row_count_requery_this_task": false
+    },
+    "s0a_applied_idempotency_versions_20260910": [
+      "00087_payment_receipt_notification_idempotency",
+      "00088_welcome_notification_idempotency",
+      "00089_relief_hosting_notification_idempotency",
+      "00090_payment_reminder_notification_idempotency",
+      "00091_standing_change_notification_idempotency",
+      "00093_money_path_notification_idempotency",
+      "00094_invitation_loan_overdue_idempotency",
+      "00096_remittance_notification_idempotency"
+    ],
+    "s0a_log_did_not_list_00097": {
+      "file": "supabase/migrations/00097_legacy_cron_reminder_idempotency.sql",
+      "creates": [
+        "idx_notifications_queue_whatsapp_hosting_reminder_unique",
+        "idx_notifications_queue_whatsapp_event_reminder_unique",
+        "idx_notifications_queue_whatsapp_subscription_expiring_unique"
+      ],
+      "live_apply_timestamp": "NOT RE-QUERIED \u2014 Chief inventory names hosting_*, event_reminder, subscription_expiring unique indexes as present"
+    },
+    "repo_unique_index_names": [
+      "idx_notifications_queue_whatsapp_payment_receipt_unique",
+      "idx_notifications_queue_whatsapp_welcome_unique",
+      "idx_notifications_queue_whatsapp_relief_enrollment_unique",
+      "idx_notifications_queue_whatsapp_hosting_assignment_unique",
+      "idx_notifications_queue_whatsapp_payment_reminder_unique",
+      "idx_notifications_queue_whatsapp_standing_changed_unique",
+      "idx_notifications_queue_whatsapp_fine_issued_unique",
+      "idx_notifications_queue_whatsapp_loan_approved_unique",
+      "idx_notifications_queue_whatsapp_claim_approved_unique",
+      "idx_notifications_queue_whatsapp_claim_denied_unique",
+      "idx_notifications_queue_whatsapp_member_invitation_unique",
+      "idx_notifications_queue_whatsapp_loan_overdue_unique",
+      "idx_notifications_queue_whatsapp_remittance_confirmed_unique",
+      "idx_notifications_queue_whatsapp_remittance_disputed_unique",
+      "idx_notifications_queue_whatsapp_hosting_reminder_unique",
+      "idx_notifications_queue_whatsapp_event_reminder_unique",
+      "idx_notifications_queue_whatsapp_subscription_expiring_unique"
+    ],
+    "preference_fail_closed": {
+      "file": "src/lib/notification-prefs.ts",
+      "behavior": "On preference-read ERROR for a real user, external channels false. Proxy userId null returns whatsapp-only defaults. in_app always true for real users."
+    },
+    "quiet_hours": {
+      "stored_at": "profiles.notification_preferences.quiet_hours",
+      "enforced_by_getEnabledChannels": false,
+      "source": "src/NOTIFICATION_CHANNEL_AUDIT.md Risk 2 + src/app/[locale]/(dashboard)/dashboard/settings/notifications/page.tsx"
+    },
+    "prefs_rpc": "supabase/migrations/00054_notification_prefs_rpc.sql \u2014 get_notification_preferences(p_user_id) SECURITY DEFINER GRANT authenticated",
+    "drain": {
+      "route": "src/app/api/cron/drain-notification-queue/route.ts",
+      "vercel_cron": "*/15 * * * *",
+      "auth": "Authorization Bearer CRON_SECRET",
+      "client": "supabase-js service_role",
+      "select": "status=queued oldest-first limit 50",
+      "retry": "increment attempts while queued; failed at attempts>=3; does not select failed",
+      "sms_africa_recheck": "isAfricanPhoneNumber(recipient) before AT; non-African returns success to stop retry"
+    }
+  },
+  "producer_inventory_from_source": {
+    "classification_vocabulary": [
+      "TRUSTED SERVER",
+      "BROWSER-INITIATED SERVER-AUTHORIZED",
+      "SERVICE/CRON",
+      "LEGACY DIRECT CLIENT",
+      "DORMANT",
+      "UNKNOWN \u2014 FAIL CLOSED"
+    ],
+    "named_producer_modules": [
+      {
+        "file": "src/lib/payment-receipt-producer.ts",
+        "template": "payment_receipt",
+        "caller": "src/app/api/payments/receipt-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role adminClient after JWT + recorded_by/active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/payment-reminder-producer.ts",
+        "template": "payment_reminder",
+        "caller": "src/app/api/cron/payment-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/welcome-producer.ts",
+        "template": "welcome",
+        "caller": "src/app/api/members/welcome-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + self-or-staff"
+      },
+      {
+        "file": "src/lib/standing-change-producer.ts",
+        "template": "standing_changed",
+        "caller": "src/app/api/members/standing-notifications/route.ts",
+        "browser_trigger": "src/lib/calculate-standing.ts postJson",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + member/active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/relief-enrollment-producer.ts",
+        "template": "relief_enrollment",
+        "caller": "src/app/api/relief/enrollment-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/relief-claim-decision-producer.ts",
+        "templates": [
+          "relief_claim_approved",
+          "relief_claim_denied"
+        ],
+        "caller": "src/app/api/relief/claim-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + same-group admin/staff"
+      },
+      {
+        "file": "src/lib/remittance-decision-producer.ts",
+        "templates": [
+          "remittance_confirmed",
+          "remittance_disputed"
+        ],
+        "caller": "src/app/api/relief/remittance-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + branch/HQ admin/staff"
+      },
+      {
+        "file": "src/lib/hosting-assignment-producer.ts",
+        "template": "hosting_assignment",
+        "caller": "src/app/api/hosting/assignment-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + active owner-admin/staff"
+      },
+      {
+        "file": "src/lib/hosting-reminder-producer.ts",
+        "template": "hosting_reminder",
+        "caller": "src/app/api/cron/hosting-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/event-reminder-producer.ts",
+        "template": "event_reminder",
+        "caller": "src/app/api/cron/event-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/loan-approved-producer.ts",
+        "template": "loan_approved",
+        "caller": "src/app/api/loans/approval-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + same-group admin/staff"
+      },
+      {
+        "file": "src/lib/loan-overdue-producer.ts",
+        "template": "loan_overdue",
+        "caller": "src/app/api/cron/loan-overdue-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/fine-issued-producer.ts",
+        "template": "fine_issued",
+        "caller": "src/app/api/fines/issued-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + same-group admin/staff"
+      },
+      {
+        "file": "src/lib/member-invitation-producer.ts",
+        "template": "member_invitation",
+        "caller": "src/app/api/invitations/whatsapp-notifications/route.ts",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role after JWT + inviter/active owner-admin/staff",
+        "prefs": "none \u2014 invitee has no account; user_id NULL"
+      },
+      {
+        "file": "src/lib/subscription-expiring-producer.ts",
+        "template": "subscription_expiring",
+        "caller": "src/app/api/cron/subscription-reminders/route.ts",
+        "class": "SERVICE/CRON",
+        "insert_client": "service_role after CRON_SECRET"
+      },
+      {
+        "file": "src/lib/announcement-producer.ts",
+        "template": "announcement",
+        "caller": null,
+        "class": "DORMANT",
+        "note": "Build 8 prepared-not-cutover. Header forbids live wiring until 00106+00107. Not imported by any route/cron."
+      }
+    ],
+    "other_insert_call_sites": [
+      {
+        "file": "src/lib/notifications/sms-sender.ts",
+        "class": "TRUSTED SERVER with LEGACY authenticated insert",
+        "insert_client": "createClient() from @/lib/supabase/server (cookie + NEXT_PUBLIC_SUPABASE_ANON_KEY)",
+        "template_written": "generic",
+        "payload": "free-form data.message + arbitrary recipient phone",
+        "depends_on_policy": "Authenticated users can queue notifications / auth.uid() IS NOT NULL",
+        "cut2_hard_gate_c1": "MUST stop cookie/anon INSERT before/with 00115. Layer B: no table INSERT remains",
+        "cut2_companion_required": true
+      },
+      {
+        "file": "src/app/api/whatsapp/send/route.ts",
+        "function": "queueWhatsAppMessage",
+        "class": "BROWSER-INITIATED SERVER-AUTHORIZED",
+        "insert_client": "service_role",
+        "template_written": "body.type || body.template || generic",
+        "cut2_companion_required": true
+      }
+    ],
+    "workers_not_producers": [
+      {
+        "file": "src/app/api/cron/drain-notification-queue/route.ts",
+        "class": "SERVICE/CRON",
+        "ops": [
+          "SELECT queued",
+          "UPDATE sent/failed/attempts"
+        ]
+      },
+      {
+        "file": "src/lib/whatsapp-webhook-status.ts",
+        "caller": "src/app/api/webhooks/whatsapp/route.ts",
+        "class": "SERVICE/CRON",
+        "ops": [
+          "SELECT by providerMessageId",
+          "UPDATE data only"
+        ],
+        "auth": "x-hub-signature-256"
+      },
+      {
+        "file": "src/app/[locale]/admin/notifications/page.tsx",
+        "class": "platform staff browser SELECT only",
+        "ops": [
+          "SELECT id,status,created_at"
+        ]
+      }
+    ],
+    "direct_dispatch_not_queue_producer": [
+      {
+        "file": "src/app/api/cron/send-scheduled-announcements/route.ts",
+        "class": "SERVICE/CRON",
+        "note": "Build 7 direct email/SMS/WhatsApp. Queue only via sms-sender fallback. Not announcement-producer."
+      }
+    ],
+    "counts": {
+      "named_producer_modules": 16,
+      "live_wired_named_producers": 15,
+      "dormant_named_producers": 1,
+      "browser_initiated_server_authorized_named": 10,
+      "service_cron_named": 5,
+      "legacy_direct_client_wired_ui": 0,
+      "trusted_server_legacy_insert_libraries": 1,
+      "other_browser_relay_inserts": 1,
+      "unknown_named": 0,
+      "workers": 2
+    }
+  },
+  "proposed_cut2_objects_names_only_not_created": {
+    "CREATE": [
+      "public.enqueue_outbound_notification(p_notification_type text, p_domain_object_id uuid, p_channel public.notification_channel, p_recipient_membership_id uuid DEFAULT NULL, p_locale text DEFAULT NULL) RETURNS TABLE (queue_id uuid, result text) SECURITY DEFINER SET search_path TO ''"
+    ],
+    "CREATE_MUST_NOT_ACCEPT": [
+      "phone",
+      "email",
+      "recipient text",
+      "free-form message",
+      "Meta components",
+      "groupId",
+      "template",
+      "data jsonb",
+      "status",
+      "user_id"
+    ],
+    "REPLACE": [],
+    "REWRITE_DROP": [
+      "POLICY \"Authenticated users can queue notifications\"",
+      "POLICY \"Staff can update notification queue\""
+    ],
+    "REWRITE_OPTIONAL_CREATE": [
+      "POLICY \"notifications_queue_insert_deny_client\" FOR INSERT TO anon, authenticated WITH CHECK (false)"
+    ],
+    "REVOKE": [
+      "ALL ON public.notifications_queue FROM anon",
+      "INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM authenticated",
+      "INSERT, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notifications_queue FROM service_role",
+      "broad UPDATE ON public.notifications_queue FROM service_role (replaced by column-level GRANT — R3-12)",
+      "ALL ON enqueue_outbound_notification FROM PUBLIC, anon, authenticated"
+    ],
+    "GRANT": [
+      "SELECT ON public.notifications_queue TO authenticated (staff SELECT policies only \u2014 no INSERT)",
+      "SELECT ON public.notifications_queue TO service_role (NO INSERT)",
+      "UPDATE (status, error_message, attempts, sent_at, data) ON public.notifications_queue TO service_role — R3-12 Chief-verified; MUST NOT UPDATE cut2_provenance_version, channel, template, user_id, created_at, id",
+      "EXECUTE ON enqueue_outbound_notification TO service_role ONLY"
+    ],
+    "UNCHANGED": [
+      "POLICY \"Platform staff can view all notifications_queue\"",
+      "POLICY \"Staff can view notification queue\"",
+      "all listed unique WhatsApp indexes from 00087\u201300097",
+      "notification_channel enum",
+      "notification_queue_status enum (no processing)",
+      "Cut 1 objects / 00114",
+      "PR #69 / #70 (remain OPEN DRAFT unapplied)"
+    ],
+    "migration_filename_later_not_in_this_pr": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
+    "layer_a_vs_layer_b": {
+      "layer_a": "VOID \u2014 removed as an implementation option (Daybreak HOLD / SECURITY REVISION 1)",
+      "layer_b_mandatory": "REVOKE INSERT from service_role; enqueue RPC only. App adapter first, then 00115."
+    },
+    "dual_compatible_fallback": {
+      "adapter_file_implementation_branch_only": "src/lib/enqueue-outbound-notification.ts",
+      "production_missing_rpc": "FAIL_CLOSED_DO_NOT_ENQUEUE",
+      "production_raw_service_role_insert_during_cutover": false,
+      "disposable_testing_fallback_only_if_explicitly_non_production": true,
+      "fallback_allowed_only_when_all_match": {
+        "postgres_sqlstate": "42883",
+        "postgres_sqlstate_name": "undefined_function",
+        "postgrest_or_supabase_error_code": [
+          "42883",
+          "PGRST202"
+        ],
+        "message_must_contain_case_insensitive": {
+          "function_name": "enqueue_outbound_notification",
+          "and_one_of": [
+            "does not exist",
+            "could not find the function"
+          ]
+        }
+      },
+      "never_fallback_on": [
+        "42501",
+        "23505",
+        "22P02",
+        "PGRST301",
+        "HTTP 401",
+        "HTTP 403",
+        "network",
+        "timeout",
+        "RPC result denied",
+        "RPC result duplicate"
+      ],
+      "release_order": "SUPERSEDED_BY_R3_19 — queued_count READ-ONLY → app deploy fail-closed + cut2_db_not_ready drain → SHA confirm → 00115 atomic → legacy_quarantine_count report → deliver only provenance=1"
+    }
+  },
+  "security_revision_1": {
+    "verdict_target": "READY_FOR_DAYBREAK_RE_REVIEW",
+    "layer_b_only": true,
+    "rpc_signature": "public.enqueue_outbound_notification(p_notification_type text, p_domain_object_id uuid, p_channel public.notification_channel, p_recipient_membership_id uuid DEFAULT NULL, p_locale text DEFAULT NULL) RETURNS TABLE (queue_id uuid, result text)",
+    "domain_matrix_counts": {
+      "live_named_producers": 15,
+      "dormant_named_producers": 1,
+      "types_from_15_live_producers": 17,
+      "extra_live_sms_whatsapp_paths": 5,
+      "total_rpc_types": 22,
+      "unknown_named_producers": 0,
+      "unknown_live_sms_whatsapp_paths": 0,
+      "unproven_schema_chain_holds": 0
+    },
+    "sms_disposition": "POST /api/sms/send \u2192 410 GONE only (no domain-bound conversion of this route). Callers move to *-notifications routes. Cron sendSmsNotification \u2192 RPC. sms-sender no INSERT.",
+    "whatsapp_disposition": "CLOSE /api/whatsapp/send ALL THREE branches (typed + direct Meta template+components + text) \u2192 410 including overflow INSERT",
+    "proxy_disposition": "Keep authz; enqueue proxy_claim via RPC; derive phone from membership; ignore request-body phone",
+    "dual_compat_fallback_error_codes": [
+      "42883",
+      "PGRST202"
+    ],
+    "release_order": "SUPERSEDED_BY_R3_19",
+    "chief_interim_evidence_20260911": {
+      "sms_send_generic": "410 GONE only \u2014 no remaining {to,template,data}",
+      "whatsapp_send": "CLOSE typed + direct Meta + text + overflow; raw Meta after Cut 2 = drain only",
+      "proxy_claim": "ACTIVE membership (Cut 1) + proxy_claim_tokens; no caller contact authority",
+      "sms_sender_chain": "send-sms-notification.ts \u2192 sms-sender.ts sendSMS({to,message}); private transport after Layer B",
+      "obligation_table": "contribution_obligations \u2014 payment_obligations ABSENT live",
+      "subscription_scope": "GROUP_SCOPED group_subscriptions.group_id",
+      "data_groupId": "never authorization source"
+    }
+  },
+  "hold_blockers": {
+    "open_count": 0,
+    "items": [
+      {
+        "id": "H1",
+        "status": "CLOSED",
+        "detail": "No additional named INSERT call-site beyond inventory on tip 1693b806; zero UI .insert sites"
+      },
+      {
+        "id": "H3",
+        "status": "HARD_GATE_C1_NOT_OPEN_HOLD",
+        "detail": "sms-sender.ts cookie/anon insert MUST stop before/with 00115. Layer B: no table INSERT remains (not a move-to-service_role-INSERT). SQL-only first or leftover session INSERT = CUT2_ABORT."
+      },
+      {
+        "id": "H5",
+        "status": "OUT_OF_SCOPE",
+        "detail": "No processing/claim state; concurrent drain race remains P1"
+      },
+      {
+        "id": "H6",
+        "status": "FAIL_CLOSED_AT_APPLY",
+        "detail": "Missing expected unique index at implementation apply \u2192 CUT2_ABORT; do not invent 00097 apply time"
+      },
+      {
+        "id": "H7",
+        "status": "LAYER_B_ABORT_IF_PRODUCERS_STILL_INSERT_OR_SERVICE_ROLE_INSERT_GRANT_LEFT_ON",
+        "detail": "After 00115, service_role must NOT have INSERT. produce* / sms-sender / whatsapp/send overflow must not .insert(). PRODUCTION missing-RPC = FAIL CLOSED / DO NOT ENQUEUE (no raw INSERT). 42883/PGRST202 matcher identity remains for disposable/testing only."
+      }
+    ]
+  },
+  "separations": {
+    "pr_69": "OPEN DRAFT a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7; do not merge or apply",
+    "pr_70": "OPEN DRAFT CREATE-NOT-APPLY 0f258726c9328ee0204f7b5dee9efceebe7265b9; do not merge or apply",
+    "cut_3": "storage P0-C not started",
+    "m2_f3_06": "not started",
+    "cut_1": "CLOSED production 20260911183755; do not modify"
+  },
+  "security_revision_2": {
+    "sql_renders": false,
+      "envelope": "cut2Semantic=true + envelopeVersion=2 + idempotencyKey; drain TypeScript renders; NEW rows MUST NOT use data.message",
+      "drain_discriminator": "data.cut2Semantic === true OR (non-empty data.idempotencyKey AND template in allowlist)",
+      "email_template_union": ["welcome", "payment-receipt", "payment-reminder", "event-reminder", "minutes-published", "invitation", "notification", "proxy-claim"],
+      "email_notification_generic": "DENY",
+    "channel_default_deny": true,
+    "email_registered": "memberships.user_id \u2192 auth.users.email",
+    "profiles_email_column": false,
+    "proxy_claim_email": "DENY",
+    "proxy_actor": "ACTIVE owner OR ACTIVE admin same group only",
+    "idempotency": "data.idempotencyKey + idx_notifications_queue_cut2_semantic_idempotency_unique (plan SQL only)",
+    "sql_preconditions": "DB-observable only",
+    "sms_send": "410_GONE",
+    "r2_20_future_ci_scripts_not_authored": [
+      "scripts/test-s0-cut2-sms-send-410.mjs",
+      "scripts/test-s0-cut2-whatsapp-send-410.mjs",
+      "scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs",
+      "scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs",
+      "scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs",
+      "scripts/test-s0-cut2-adapter-fallback-42883-only.mjs",
+      "scripts/test-s0-cut2-raw-meta-drain-only.mjs",
+      "scripts/test-s0-cut2-no-extra-provider-send.mjs"
+    ],
+    "release_gate_checklist_name": "docs/evidence/S0_CUT2_DB_CUTOVER_RELEASE_CHECKLIST_YYYYMMDD.md",
+    "release_gate_requires": "deployed Vercel SHA == Daybreak-qualified impl SHA",
+    "drain_discriminator_sr2_superseded_by": "R3-5 — ONLY cut2_provenance_version=1 is trusted; envelope fields are NOT trust evidence"
+  },
+  "security_revision_3": {
+    "verdict_target": "READY_FOR_DAYBREAK_RE_REVIEW",
+    "parent_daybreak_tip": "ca333b03c898cedf729e83166e27f642f034c6f1",
+    "column": {
+      "name": "cut2_provenance_version",
+      "type": "smallint",
+      "default": null,
+      "trusted": 1,
+      "check": "NULL OR 1",
+      "pre_00115_exists": false
+    },
+    "only_trusted_discriminator": "cut2_provenance_version = 1",
+    "not_trust_evidence": [
+      "data.cut2Semantic",
+      "data.envelopeVersion",
+      "data.idempotencyKey",
+      "template"
+    ],
+    "rpc_hardcodes_provenance": 1,
+    "null_provenance": "LEGACY_UNTRUSTED_QUARANTINED_UNTOUCHED",
+    "production_missing_rpc": "FAIL_CLOSED_DO_NOT_ENQUEUE",
+    "production_raw_insert": false,
+    "pre_00115_drain": "cut2_db_not_ready; processed=sent=failed=0; no provider",
+    "worker_update_columns_source_verified": [
+      "status",
+      "error_message",
+      "attempts",
+      "sent_at",
+      "data"
+    ],
+    "must_not_update": [
+      "cut2_provenance_version",
+      "channel",
+      "template",
+      "user_id",
+      "created_at",
+      "id"
+    ],
+    "chief_verified_r3_12": {
+      "tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+      "drain_updates_only": ["status", "sent_at", "error_message", "attempts", "data"],
+      "drain_data_note": "merge providerMessageId into jsonb",
+      "webhook_queue_updates_only": ["data"],
+      "webhook_lookup": "data.providerMessageId",
+      "webhook_also_inserts_whatsapp_message_status_events": "OUT_OF_CUT2_QUEUE_PRIVILEGE_SCOPE"
+    },
+    "canonical_index_where": "cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL",
+    "legacy_quarantine_count": "queued AND provenance NULL; report only; do not process/clean",
+    "release_order": "R3-19",
+    "r3_21_future_ci_scripts_not_authored": [
+      "scripts/test-s0-cut2-provenance-gate.mjs",
+      "scripts/test-s0-cut2-legacy-quarantine.mjs",
+      "scripts/test-s0-cut2-idempotency-provenance.mjs",
+      "scripts/test-s0-cut2-worker-column-grants.mjs"
+    ],
+    "open_hold": 0
+  }
+}

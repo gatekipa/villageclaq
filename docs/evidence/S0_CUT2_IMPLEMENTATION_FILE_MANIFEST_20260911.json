@@ -1,0 +1,357 @@
+{
+  "document": "S0_CUT2_IMPLEMENTATION_FILE_MANIFEST_20260911",
+  "branch": "security/s0-p0b-cut2-implementation-20260911",
+  "created_from": "5c3c1cce458cd13f9525eb21c6366f8877d3c51d",
+  "base_main": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+  "migration": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql",
+  "migration_sha256": "d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c",
+  "historical_migrations_00001_00114_modified": false,
+  "migration_00116_created": false,
+  "frozen_sr4_planning_files_modified": false,
+  "files": [
+    {
+      "status": "M",
+      "path": "package.json"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-event-reminder-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-fine-issued-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-hosting-assignment-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-hosting-reminder-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-loan-approved-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-loan-overdue-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-member-invitation-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-payment-receipt-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-payment-reminder-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-relief-claim-decision-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-relief-enrollment-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-remittance-decision-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-standing-change-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-subscription-expiring-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "scripts/test-welcome-producer.mjs"
+    },
+    {
+      "status": "M",
+      "path": "src/app/[locale]/(dashboard)/dashboard/announcements/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/app/[locale]/(dashboard)/dashboard/elections/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/app/[locale]/(dashboard)/dashboard/hosting/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/app/[locale]/(dashboard)/dashboard/minutes/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/app/[locale]/(dashboard)/dashboard/my-invitations/page.tsx"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/cron/drain-notification-queue/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/cron/event-reminders/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/cron/hosting-reminders/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/cron/payment-reminders/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/cron/send-scheduled-announcements/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/cron/subscription-reminders/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/proxy-claim/send/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/sms/send/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/app/api/whatsapp/send/route.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/calculate-standing.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/event-reminder-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/fine-issued-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/hosting-assignment-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/hosting-reminder-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/loan-approved-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/loan-overdue-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/member-invitation-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/notifications/sms-sender.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/notify-client.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/payment-receipt-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/payment-reminder-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/relief-claim-decision-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/relief-enrollment-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/remittance-decision-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/send-whatsapp.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/standing-change-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/subscription-expiring-producer.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/lib/welcome-producer.ts"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/S0_CUT2_17_WA_COLLISION_RESULTS_20260911.json"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/S0_CUT2_DISPOSABLE_REHEARSAL_20260911.md"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/S0_CUT2_IMPLEMENTATION_SUMMARY_20260911.md"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/S0_CUT2_SECURITY_TEST_RESULTS_20260911.json"
+    },
+    {
+      "status": "??",
+      "path": "scripts/_cut2_disposable_fixture.sql"
+    },
+    {
+      "status": "??",
+      "path": "scripts/_cut2_rehearsal.py"
+    },
+    {
+      "status": "??",
+      "path": "scripts/_cut2_test_helpers.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/_generate_00115_cut2.py"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-adapter-fallback-42883-only.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-duplicate-trusted-lookup.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-idempotency-provenance.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-legacy-quarantine.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-legacy-wa-index-provenance.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-no-extra-provider-send.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-producers-use-enqueue-adapter.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-provenance-gate.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-proxy-claim-active-owner-admin.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-raw-meta-drain-only.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-sms-send-410.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-sms-sender-no-queue-insert.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-whatsapp-send-410.mjs"
+    },
+    {
+      "status": "??",
+      "path": "scripts/test-s0-cut2-worker-column-grants.mjs"
+    },
+    {
+      "status": "??",
+      "path": "src/app/api/announcements/"
+    },
+    {
+      "status": "??",
+      "path": "src/app/api/elections/"
+    },
+    {
+      "status": "??",
+      "path": "src/app/api/hosting/swap-notifications/"
+    },
+    {
+      "status": "??",
+      "path": "src/app/api/minutes/"
+    },
+    {
+      "status": "??",
+      "path": "src/lib/cut2-channel-matrix.ts"
+    },
+    {
+      "status": "??",
+      "path": "src/lib/cut2-drain-render.ts"
+    },
+    {
+      "status": "??",
+      "path": "src/lib/enqueue-outbound-notification.ts"
+    },
+    {
+      "status": "??",
+      "path": "src/lib/notify-announcement-enqueue.ts"
+    },
+    {
+      "status": "??",
+      "path": "src/lib/notify-election-opened.ts"
+    },
+    {
+      "status": "??",
+      "path": "src/lib/notify-hosting-swap.ts"
+    },
+    {
+      "status": "??",
+      "path": "src/lib/notify-minutes-published.ts"
+    },
+    {
+      "status": "??",
+      "path": "supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql"
+    },
+    {
+      "status": "??",
+      "path": "docs/evidence/S0_CUT2_IMPLEMENTATION_FILE_MANIFEST_20260911.json"
+    }
+  ]
+}

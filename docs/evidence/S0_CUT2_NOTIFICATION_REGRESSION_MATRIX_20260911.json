@@ -1,0 +1,90 @@
+{
+  "document": "S0_CUT2_NOTIFICATION_REGRESSION_MATRIX_20260911",
+  "daybreak_snapshot": { "tests": 166, "pass": 103, "fail": 63, "verdict": "NOT acceptable" },
+  "remediation_first_run": { "tests": 178, "pass": 108, "fail": 70 },
+  "count_correction": {
+    "erroneous_prior_evidence": "186/186 was wrong and must not be reused",
+    "previous_baseline": { "tests": 182, "pass": 182, "fail": 0, "note": "15 producer files + 4 pre-existing drain-render tests" },
+    "drain_semantics_fold_total": { "tests": 190, "pass": 190, "fail": 0 },
+    "limit12_fold_tests_added": 2,
+    "new_final_total": { "tests": 192, "pass": 192, "fail": 0 }
+  },
+  "previous_baseline_suite": {
+    "tests": 182,
+    "pass": 182,
+    "fail": 0,
+    "obsolete_updated": 58,
+    "true_regressions_fixed": 12
+  },
+  "final_suite": {
+    "files": [
+      "scripts/test-event-reminder-producer.mjs",
+      "scripts/test-fine-issued-producer.mjs",
+      "scripts/test-hosting-assignment-producer.mjs",
+      "scripts/test-hosting-reminder-producer.mjs",
+      "scripts/test-loan-approved-producer.mjs",
+      "scripts/test-loan-overdue-producer.mjs",
+      "scripts/test-member-invitation-producer.mjs",
+      "scripts/test-payment-receipt-producer.mjs",
+      "scripts/test-payment-reminder-producer.mjs",
+      "scripts/test-relief-claim-decision-producer.mjs",
+      "scripts/test-relief-enrollment-producer.mjs",
+      "scripts/test-remittance-decision-producer.mjs",
+      "scripts/test-standing-change-producer.mjs",
+      "scripts/test-subscription-expiring-producer.mjs",
+      "scripts/test-welcome-producer.mjs",
+      "scripts/test-cut2-drain-render-regression.mjs"
+    ],
+    "tests": 192,
+    "pass": 192,
+    "fail": 0,
+    "previous_baseline": 182,
+    "drain_semantics_baseline": 190,
+    "new_behavioral_drain_tests": 10,
+    "limit12_fold_tests_added": 2,
+    "obsolete_updated": 58,
+    "true_regressions_fixed": 12
+  },
+  "new_drain_render_tests": [
+    { "name": "event_reminder drain localizes EN/FR date across SMS/EMAIL/WA and keeps location fallback", "result": "PASS" },
+    { "name": "event_reminder fail-closed when authoritative date is missing", "result": "PASS" },
+    { "name": "hosting assignment/reminder/swap drain localizes EN/FR dates and location fallback", "result": "PASS" },
+    { "name": "hosting fail-closed when assigned_date is missing", "result": "PASS" },
+    { "name": "loan_overdue drain quotes earliest outstanding installment amount and localized due date", "result": "PASS" },
+    { "name": "loan_overdue scans past twelve fully-paid eligible rows to the first outstanding", "result": "PASS" },
+    { "name": "loan_overdue skips stale zero-balance overdue and future-due positive balances", "result": "PASS" },
+    { "name": "loan_overdue excludes paid/settled rows and fail-closes when none outstanding", "result": "PASS" },
+    { "name": "subscription_expiring countdown uses trusted reminderDate, not drain wall-clock", "result": "PASS" },
+    { "name": "subscription_expiring fail-closed without trusted reminderDate", "result": "PASS" }
+  ],
+  "prior_drain_render_tests_preserved": [
+    { "name": "invitation drain uses invitations.email and locale-prefixed accept URL", "result": "PASS" },
+    { "name": "fine drain falls back reason and FR standing label is localized", "result": "PASS" },
+    { "name": "event and hosting location fallbacks are non-blank", "result": "PASS" },
+    { "name": "proxy membership email is empty; invitation email uses invitations.email", "result": "PASS" }
+  ],
+  "dispositions": [
+    { "assertion": "event reminder queue shape / one row per member / ordered variables", "kind": "obsolete", "disposition": "semantic enqueue event_reminder + drain location fallback" },
+    { "assertion": "event reminder second call / partial dedupe / 23505", "kind": "obsolete", "disposition": "adapter result=duplicate + same queue_id; no raw 23505" },
+    { "assertion": "event empty location blank", "kind": "true_regression", "disposition": "drain location TBA / lieu à confirmer" },
+    { "assertion": "event cron keeps email/SMS direct", "kind": "obsolete", "disposition": "deny /api/email/send and /api/sms/send; producer enqueue only" },
+    { "assertion": "event YYYY-MM-DD slice into renderer", "kind": "true_regression", "disposition": "trusted UTC calendar-day helper; localized EN/FR on SMS/EMAIL/WA" },
+    { "assertion": "fine issued queue shape / FR locale / reason '-' / proxy recipient / 23505", "kind": "obsolete+true", "disposition": "enqueue locale; drain reason fallback amende/fine; proxy enqueue without caller dest" },
+    { "assertion": "hosting assignment queue shape / FR / proxy / page wiring", "kind": "obsolete", "disposition": "semantic enqueue hosting_assignment" },
+    { "assertion": "hosting reminder queue shape / duplicate / 23505 / reschedule / proxy-null-user / prefs / FR date / cron", "kind": "obsolete", "disposition": "enqueue + day-bucket duplicate; later-day inserted; drain location fallback" },
+    { "assertion": "hosting raw assigned_date as provider-visible date", "kind": "true_regression", "disposition": "localize assigned_date at drain; domain date unchanged" },
+    { "assertion": "loan approved queue shape / FR / proxy / 23505", "kind": "obsolete", "disposition": "semantic enqueue loan_approved" },
+    { "assertion": "loan overdue earliest installment / FR / next-day / proxy / 23505", "kind": "obsolete+true", "disposition": "enqueue loan_overdue; drain quotes earliest outstanding installment; SMS remains DENY" },
+    { "assertion": "loan_overdue drain LIMIT 12 hid 13th outstanding behind twelve fully-paid eligible rows", "kind": "true_regression", "disposition": "removed .limit(12); scan all status-eligible due_date<reminderDate rows; first amount_due-amount_paid>0 wins; >12 fixture PASS" },
+    { "assertion": "member invitation queue shape / FR link / proxy name / same-day / later-day / email-only skip / 23505", "kind": "obsolete+true", "disposition": "email-only now enqueues; drain acceptUrl locale-prefixed; invitations.email; SMS DENY" },
+    { "assertion": "payment receipt direct queue-row asserts", "kind": "obsolete", "disposition": "semantic enqueue + in-app insert; no restored old payload" },
+    { "assertion": "payment reminder Node 20 import .ts crash", "kind": "true_regression", "disposition": "transpile money.ts in harness; suite executes and is green" },
+    { "assertion": "payment reminder queue shape / FR / same-day / next-day / 23505 / cron email-SMS", "kind": "obsolete", "disposition": "semantic enqueue payment_reminder" },
+    { "assertion": "relief claim approved/denied queue shape / FR plan / proxy / 23505", "kind": "obsolete+true", "disposition": "enqueue approved/denied; drain denied-reason fallback" },
+    { "assertion": "relief enrollment queue shape / locale / proxy", "kind": "obsolete", "disposition": "semantic enqueue relief_enrollment" },
+    { "assertion": "remittance confirmed/disputed payloads / 23505", "kind": "obsolete", "disposition": "preserve remittance_confirmed vs remittance_disputed types" },
+    { "assertion": "standing change queue shape / FR label / next-day / calculate-standing WA", "kind": "obsolete+true", "disposition": "enqueue standing_changed; drain FR standing label; email DENY kept" },
+    { "assertion": "subscription expiring queue shape / countdown / daily dedupe / 23505 / non-midnight / cron WA", "kind": "obsolete+true", "disposition": "semantic enqueue; drain countdown from trusted reminderDate; Date.now removed" },
+    { "assertion": "welcome producer queue-shape / variable order / FR locale", "kind": "obsolete", "disposition": "enqueue welcome; drain renders memberName then groupName" }
+  ]
+}

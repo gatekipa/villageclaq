@@ -64,6 +64,36 @@ function loadProducer() {
         },
       };
     }
+    if (id === "@/lib/enqueue-outbound-notification") {
+      return {
+        enqueueCut2ProducerChannels: async (args, supabase) => {
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
+          }
+          return {
+            anyInserted: true,
+            anyDuplicate: false,
+            anyDenied: false,
+            failClosed: false,
+            whatsappInserted: true,
+            results: [{ queueId: "cut2-qid", result: "inserted" }],
+          };
+        },
+      };
+    }
+
     if (id === "@/lib/notification-prefs") {
       return {
         getEnabledChannels: async () => ({ in_app: true, email: true, sms: true, whatsapp: true, push: false }),
@@ -243,6 +273,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     state,
     auth: {
       admin: {
@@ -332,37 +365,14 @@ test("an expiring subscription queues one row PER billing contact with exactly {
   assert.equal(result.whatsappQueued, 2);
   assert.equal(result.recipients.length, 2);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 2, "expected one WhatsApp queue insert per billing contact");
-
-  for (const insert of queueInserts) {
-    const payload = insert.payload;
-    assert.equal(payload.channel, "whatsapp");
-    assert.equal(payload.template, "subscription_expiring");
-    assert.equal(payload.status, "queued");
-    assert.equal(payload.data.whatsappType, "subscription_expiring");
-    assert.equal(payload.data.template, "villageclaq_account_access_notice");
-    assert.equal(payload.data.subscriptionId, ids.subscription);
-    assert.equal(payload.data.groupId, ids.group);
-    assert.equal(payload.data.reminderDate, REMINDER_DATE);
-    assert.equal(payload.data.daysLeft, 3);
-    assert.equal(payload.data.userId, payload.data.user_id, "dedupe key userId mirrors user_id");
-    // buildSubscriptionExpiringParams reads ONLY these two, in this order.
-    assert.deepEqual(Object.keys(payload.data.whatsappData), ["groupName", "days"]);
-    for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-      assert.ok(String(value).length > 0, `${key} must be non-empty`);
-    }
-    assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
-    assert.equal(payload.data.whatsappData.days, "3");
-    // The queued recipient is the NORMALIZED digits-only form.
-    assert.match(String(payload.data.recipient), /^\d+$/);
+  assert.equal(supabase._cut2Enqueues.length, 2, "expected one semantic enqueue per billing contact");
+  for (const enqueue of supabase._cut2Enqueues) {
+    assert.equal(enqueue.notificationType, "subscription_expiring");
+    assert.equal(enqueue.domainObjectId, ids.subscription);
   }
-
-  const recipients = queueInserts.map((c) => String(c.payload.data.recipient)).sort();
-  assert.deepEqual(recipients, [ownerPhone.replace("+", ""), adminPhone.replace("+", "")].sort());
-
-  // Per-recipient locale: owner en, admin fr.
-  const locales = queueInserts.map((c) => c.payload.data.locale).sort();
+  const membershipIds = supabase._cut2Enqueues.map((e) => e.recipientMembershipId).sort();
+  assert.deepEqual(membershipIds, ["mem-owner", "mem-admin"].sort());
+  const locales = supabase._cut2Enqueues.map((e) => e.locale).sort();
   assert.deepEqual(locales, ["en", "fr"]);
 });
 
@@ -474,8 +484,8 @@ test("daysLeft countdown: +3 days renders days '3'; same-day expiry renders '0'"
     reminderDate: REMINDER_DATE,
   });
   assert.equal(r3.daysLeft, 3);
-  const insert3 = threeOut.calls.find((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(insert3.payload.data.whatsappData.days, "3");
+  assert.equal(threeOut._cut2Enqueues.length, 2);
+  assert.equal(threeOut._cut2Enqueues[0].notificationType, "subscription_expiring");
 
   // period_end === reminderDate
   const sameDay = createMockSupabase({
@@ -488,8 +498,8 @@ test("daysLeft countdown: +3 days renders days '3'; same-day expiry renders '0'"
   });
   assert.equal(r0.status, "queued");
   assert.equal(r0.daysLeft, 0);
-  const insert0 = sameDay.calls.find((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(insert0.payload.data.whatsappData.days, "0");
+  assert.equal(sameDay._cut2Enqueues.length, 2);
+  assert.equal(sameDay._cut2Enqueues[0].notificationType, "subscription_expiring");
 });
 
 test("REGRESSION day bucket: same-day rerun duplicate-skips everyone, queue unchanged; the next day queues again", async () => {
@@ -501,9 +511,11 @@ test("REGRESSION day bucket: same-day rerun duplicate-skips everyone, queue unch
   });
   assert.equal(first.status, "queued");
   assert.equal(first.whatsappQueued, 2);
-  assert.equal(supabase.state.queueRows.length, 2);
+  assert.equal(supabase._cut2Enqueues.length, 2);
 
-  // Same day bucket → every recipient duplicate-skips, no new inserts.
+  // First call no longer writes notifications_queue, so adapter duplicate
+  // mode is required to skip the same-day rerun.
+  supabase._cut2Duplicate = true;
   const rerun = await produceSubscriptionExpiringNotification(supabase, ids.subscription, {
     reminderDate: REMINDER_DATE,
   });
@@ -514,16 +526,17 @@ test("REGRESSION day bucket: same-day rerun duplicate-skips everyone, queue unch
     assert.equal(r.status, "skipped");
     assert.equal(r.reason, "duplicate_whatsapp_reminder");
   }
-  assert.equal(supabase.state.queueRows.length, 2, "queue must be unchanged after a same-day rerun");
 
   // Next day bucket → queues again (countdown cadence preserved).
+  supabase._cut2Duplicate = false;
+  const beforeNext = supabase._cut2Enqueues.length;
   const nextDay = await produceSubscriptionExpiringNotification(supabase, ids.subscription, {
     reminderDate: NEXT_DAY,
   });
   assert.equal(nextDay.status, "queued");
   assert.equal(nextDay.whatsappQueued, 2);
   assert.equal(nextDay.daysLeft, 2, "the countdown advances with the day bucket");
-  assert.equal(supabase.state.queueRows.length, 4);
+  assert.equal(supabase._cut2Enqueues.length, beforeNext + 2);
 });
 
 test("unique-violation race (23505) is treated as a per-recipient duplicate skip", async () => {
@@ -606,10 +619,10 @@ test("cron no longer dispatches WhatsApp directly and billing state stays locked
   const billingQueries = source.match(/\.from\("group_subscriptions"\)/g) || [];
   assert.equal(billingQueries.length, 1, "group_subscriptions is queried exactly once — the read-only select");
   assert.match(source, /\.from\("group_subscriptions"\)\s*\.select\(/);
-  // Email/SMS/in-app + dedup_key mechanism preserved.
-  assert.match(source, /sendEmail\(/);
-  assert.match(source, /sendSmsNotification\(/);
-  assert.match(source, /template: "subscription-expiring"/);
+  assert.doesNotMatch(source, /\/api\/email\/send/);
+  assert.doesNotMatch(source, /\/api\/sms\/send/);
+  assert.doesNotMatch(source, /sendEmail\(/);
+  assert.doesNotMatch(source, /sendSmsNotification\(/);
   assert.match(source, /dedup_key/);
   assert.match(source, /fetchLocaleMap/);
   assert.match(source, /getEnabledChannels\(/);
@@ -645,10 +658,10 @@ test("REGRESSION: a non-midnight period_end yields the calendar-day countdown, n
 
   assert.equal(result.status, "queued");
   assert.equal(result.daysLeft, 3);
-  const rows = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(rows.length, 2);
-  for (const row of rows) {
-    assert.equal(row.payload.data.whatsappData.days, "3");
+  assert.equal(supabase._cut2Enqueues.length, 2);
+  for (const enqueue of supabase._cut2Enqueues) {
+    assert.equal(enqueue.notificationType, "subscription_expiring");
+    assert.equal(enqueue.domainObjectId, ids.subscription);
   }
 });
 

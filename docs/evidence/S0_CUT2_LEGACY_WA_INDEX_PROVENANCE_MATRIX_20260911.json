@@ -1,0 +1,981 @@
+{
+  "document": "S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911",
+  "status": "FROZEN_SECURITY_REVISION_4",
+  "authored_in_this_pr": true,
+  "implementation_in_this_pr": false,
+  "migration_file_in_this_pr": false,
+  "tbd_count": 0,
+  "parent_daybreak_tip": "a806c3403f0723bb8e316919d72154b9dd52c890",
+  "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+  "master_prd_pr_71_freeze_sha": "050be86c9df3455c66b27bb5853eb786228b4009",
+  "live_indexdef_source": "Chief READ-ONLY reconfirm 2026-09-11 pg_indexes on llbnliixczcqfftxpsmb \u2014 17 WhatsApp unique indexes, used VERBATIM as old_exact_indexdef",
+  "problem": "Unscoped WA unique indexes allow NULL-provenance forged pre-00115 rows to UNIQUE-block trusted provenance=1 inserts (availability/idempotency poisoning).",
+  "disposition_all_17": "PRESERVE name + key expressions + existing template/channel/data conditions including ::text casts and NULL-check asymmetry. ADD cut2_provenance_version = 1 INSIDE the WHERE: WHERE ((<exact existing WHERE body without outer parens>) AND cut2_provenance_version = 1). Atomic DROP INDEX public.<same_name>; CREATE UNIQUE INDEX <same_name> ... No CONCURRENTLY. No data mutation. No rename.",
+  "fingerprint_precondition": "00115 MUST compare pg_indexes.indexdef for each of the 17 names to old_exact_indexdef EXACTLY. Any drift \u2192 CUT2_ABORT before DROP.",
+  "count": 17,
+  "indexes": [
+    {
+      "short_name": "claim_approved",
+      "index_name": "idx_notifications_queue_whatsapp_claim_approved_unique",
+      "notification_type": "relief_claim_approved",
+      "template": "relief_claim_approved",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_approved_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_approved'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'claimId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_approved'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_approved'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_approved_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_approved'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_claim_approved_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_approved_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_approved'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "relief_claim_approved",
+        "data": {
+          "claimId": "aaaaaaaa-0000-4000-8000-000000000001"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "relief_claim_approved",
+        "p_domain_object_id": "aaaaaaaa-0000-4000-8000-000000000001",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "claimId": "aaaaaaaa-0000-4000-8000-000000000001"
+        },
+        "canonical_idempotencyKey": "aaaaaaaa-0000-4000-8000-000000000001"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_approved'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "claim_denied",
+      "index_name": "idx_notifications_queue_whatsapp_claim_denied_unique",
+      "notification_type": "relief_claim_denied",
+      "template": "relief_claim_denied",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_denied_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_denied'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'claimId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_denied'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_denied'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_denied_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_denied'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_claim_denied_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_denied_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_denied'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "relief_claim_denied",
+        "data": {
+          "claimId": "aaaaaaaa-0000-4000-8000-000000000002"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "relief_claim_denied",
+        "p_domain_object_id": "aaaaaaaa-0000-4000-8000-000000000002",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "claimId": "aaaaaaaa-0000-4000-8000-000000000002"
+        },
+        "canonical_idempotencyKey": "aaaaaaaa-0000-4000-8000-000000000002"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_denied'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "event_reminder",
+      "index_name": "idx_notifications_queue_whatsapp_event_reminder_unique",
+      "notification_type": "event_reminder",
+      "template": "event_reminder",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_event_reminder_unique ON public.notifications_queue USING btree (((data ->> 'eventId'::text)), ((data ->> 'userId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'event_reminder'::text) AND (data ? 'eventId'::text) AND (data ? 'userId'::text) AND ((data ->> 'eventId'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'eventId'::text)), ((data ->> 'userId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'event_reminder'::text) AND (data ? 'eventId'::text) AND (data ? 'userId'::text) AND ((data ->> 'eventId'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'event_reminder'::text) AND (data ? 'eventId'::text) AND (data ? 'userId'::text) AND ((data ->> 'eventId'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_event_reminder_unique ON public.notifications_queue USING btree (((data ->> 'eventId'::text)), ((data ->> 'userId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'event_reminder'::text) AND (data ? 'eventId'::text) AND (data ? 'userId'::text) AND ((data ->> 'eventId'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_event_reminder_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_event_reminder_unique ON public.notifications_queue USING btree (((data ->> 'eventId'::text)), ((data ->> 'userId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'event_reminder'::text) AND (data ? 'eventId'::text) AND (data ? 'userId'::text) AND ((data ->> 'eventId'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "event_reminder",
+        "data": {
+          "eventId": "bbbbbbbb-0000-4000-8000-000000000003",
+          "userId": "cccccccc-0000-4000-8000-000000000003"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "event_reminder",
+        "p_domain_object_id": "bbbbbbbb-0000-4000-8000-000000000003",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": "dddddddd-0000-4000-8000-000000000003",
+        "p_locale": "en",
+        "writes_data": {
+          "eventId": "bbbbbbbb-0000-4000-8000-000000000003",
+          "userId": "cccccccc-0000-4000-8000-000000000003"
+        },
+        "canonical_idempotencyKey": "bbbbbbbb-0000-4000-8000-000000000003:cccccccc-0000-4000-8000-000000000003"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'event_reminder'::text) AND (data ? 'eventId'::text) AND (data ? 'userId'::text) AND ((data ->> 'eventId'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "fine_issued",
+      "index_name": "idx_notifications_queue_whatsapp_fine_issued_unique",
+      "notification_type": "fine_issued",
+      "template": "fine_issued",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_fine_issued_unique ON public.notifications_queue USING btree (((data ->> 'fineId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'fine_issued'::text) AND (data ? 'fineId'::text) AND ((data ->> 'fineId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'fineId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'fine_issued'::text) AND (data ? 'fineId'::text) AND ((data ->> 'fineId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'fine_issued'::text) AND (data ? 'fineId'::text) AND ((data ->> 'fineId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_fine_issued_unique ON public.notifications_queue USING btree (((data ->> 'fineId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'fine_issued'::text) AND (data ? 'fineId'::text) AND ((data ->> 'fineId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_fine_issued_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_fine_issued_unique ON public.notifications_queue USING btree (((data ->> 'fineId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'fine_issued'::text) AND (data ? 'fineId'::text) AND ((data ->> 'fineId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "fine_issued",
+        "data": {
+          "fineId": "eeeeeeee-0000-4000-8000-000000000004"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "fine_issued",
+        "p_domain_object_id": "eeeeeeee-0000-4000-8000-000000000004",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "fineId": "eeeeeeee-0000-4000-8000-000000000004"
+        },
+        "canonical_idempotencyKey": "eeeeeeee-0000-4000-8000-000000000004"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'fine_issued'::text) AND (data ? 'fineId'::text) AND ((data ->> 'fineId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "hosting_assignment",
+      "index_name": "idx_notifications_queue_whatsapp_hosting_assignment_unique",
+      "notification_type": "hosting_assignment",
+      "template": "hosting_assignment",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_assignment_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_assignment'::text) AND (data ? 'assignmentId'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'assignmentId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_assignment'::text) AND (data ? 'assignmentId'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_assignment'::text) AND (data ? 'assignmentId'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_assignment_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_assignment'::text) AND (data ? 'assignmentId'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_hosting_assignment_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_assignment_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_assignment'::text) AND (data ? 'assignmentId'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "hosting_assignment",
+        "data": {
+          "assignmentId": "ffffffff-0000-4000-8000-000000000005"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "hosting_assignment",
+        "p_domain_object_id": "ffffffff-0000-4000-8000-000000000005",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "assignmentId": "ffffffff-0000-4000-8000-000000000005"
+        },
+        "canonical_idempotencyKey": "ffffffff-0000-4000-8000-000000000005"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'hosting_assignment'::text) AND (data ? 'assignmentId'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "hosting_reminder",
+      "index_name": "idx_notifications_queue_whatsapp_hosting_reminder_unique",
+      "notification_type": "hosting_reminder",
+      "template": "hosting_reminder",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_reminder_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text)), ((data ->> 'assignedDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_reminder'::text) AND (data ? 'assignmentId'::text) AND (data ? 'assignedDate'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL) AND ((data ->> 'assignedDate'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'assignmentId'::text)), ((data ->> 'assignedDate'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_reminder'::text) AND (data ? 'assignmentId'::text) AND (data ? 'assignedDate'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL) AND ((data ->> 'assignedDate'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_reminder'::text) AND (data ? 'assignmentId'::text) AND (data ? 'assignedDate'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL) AND ((data ->> 'assignedDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_reminder_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text)), ((data ->> 'assignedDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_reminder'::text) AND (data ? 'assignmentId'::text) AND (data ? 'assignedDate'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL) AND ((data ->> 'assignedDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_hosting_reminder_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_reminder_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text)), ((data ->> 'assignedDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_reminder'::text) AND (data ? 'assignmentId'::text) AND (data ? 'assignedDate'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL) AND ((data ->> 'assignedDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "hosting_reminder",
+        "data": {
+          "assignmentId": "11111111-0000-4000-8000-000000000006",
+          "assignedDate": "2026-09-11"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "hosting_reminder",
+        "p_domain_object_id": "11111111-0000-4000-8000-000000000006",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "assignmentId": "11111111-0000-4000-8000-000000000006",
+          "assignedDate": "2026-09-11"
+        },
+        "canonical_idempotencyKey": "11111111-0000-4000-8000-000000000006:2026-09-11"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'hosting_reminder'::text) AND (data ? 'assignmentId'::text) AND (data ? 'assignedDate'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL) AND ((data ->> 'assignedDate'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "loan_approved",
+      "index_name": "idx_notifications_queue_whatsapp_loan_approved_unique",
+      "notification_type": "loan_approved",
+      "template": "loan_approved",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_approved_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'loan_approved'::text) AND (data ? 'loanId'::text) AND ((data ->> 'loanId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'loanId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'loan_approved'::text) AND (data ? 'loanId'::text) AND ((data ->> 'loanId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'loan_approved'::text) AND (data ? 'loanId'::text) AND ((data ->> 'loanId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_approved_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'loan_approved'::text) AND (data ? 'loanId'::text) AND ((data ->> 'loanId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_loan_approved_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_approved_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'loan_approved'::text) AND (data ? 'loanId'::text) AND ((data ->> 'loanId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "loan_approved",
+        "data": {
+          "loanId": "22222222-0000-4000-8000-000000000007"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "loan_approved",
+        "p_domain_object_id": "22222222-0000-4000-8000-000000000007",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "loanId": "22222222-0000-4000-8000-000000000007"
+        },
+        "canonical_idempotencyKey": "22222222-0000-4000-8000-000000000007"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'loan_approved'::text) AND (data ? 'loanId'::text) AND ((data ->> 'loanId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "loan_overdue",
+      "index_name": "idx_notifications_queue_whatsapp_loan_overdue_unique",
+      "notification_type": "loan_overdue",
+      "template": "loan_overdue",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_overdue_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text)), ((data ->> 'reminderDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'loan_overdue'::text) AND (data ? 'loanId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'loanId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'loanId'::text)), ((data ->> 'reminderDate'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'loan_overdue'::text) AND (data ? 'loanId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'loanId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'loan_overdue'::text) AND (data ? 'loanId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'loanId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_overdue_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text)), ((data ->> 'reminderDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'loan_overdue'::text) AND (data ? 'loanId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'loanId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_loan_overdue_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_overdue_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text)), ((data ->> 'reminderDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'loan_overdue'::text) AND (data ? 'loanId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'loanId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "loan_overdue",
+        "data": {
+          "loanId": "33333333-0000-4000-8000-000000000008",
+          "reminderDate": "2026-09-11"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "loan_overdue",
+        "p_domain_object_id": "33333333-0000-4000-8000-000000000008",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "loanId": "33333333-0000-4000-8000-000000000008",
+          "reminderDate": "2026-09-11"
+        },
+        "canonical_idempotencyKey": "33333333-0000-4000-8000-000000000008:2026-09-11"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'loan_overdue'::text) AND (data ? 'loanId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'loanId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "member_invitation",
+      "index_name": "idx_notifications_queue_whatsapp_member_invitation_unique",
+      "notification_type": "member_invitation",
+      "template": "member_invitation",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_member_invitation_unique ON public.notifications_queue USING btree (((data ->> 'invitationId'::text)), ((data ->> 'sendDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'member_invitation'::text) AND (data ? 'invitationId'::text) AND (data ? 'sendDate'::text) AND ((data ->> 'invitationId'::text) IS NOT NULL) AND ((data ->> 'sendDate'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'invitationId'::text)), ((data ->> 'sendDate'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'member_invitation'::text) AND (data ? 'invitationId'::text) AND (data ? 'sendDate'::text) AND ((data ->> 'invitationId'::text) IS NOT NULL) AND ((data ->> 'sendDate'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'member_invitation'::text) AND (data ? 'invitationId'::text) AND (data ? 'sendDate'::text) AND ((data ->> 'invitationId'::text) IS NOT NULL) AND ((data ->> 'sendDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_member_invitation_unique ON public.notifications_queue USING btree (((data ->> 'invitationId'::text)), ((data ->> 'sendDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'member_invitation'::text) AND (data ? 'invitationId'::text) AND (data ? 'sendDate'::text) AND ((data ->> 'invitationId'::text) IS NOT NULL) AND ((data ->> 'sendDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_member_invitation_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_member_invitation_unique ON public.notifications_queue USING btree (((data ->> 'invitationId'::text)), ((data ->> 'sendDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'member_invitation'::text) AND (data ? 'invitationId'::text) AND (data ? 'sendDate'::text) AND ((data ->> 'invitationId'::text) IS NOT NULL) AND ((data ->> 'sendDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "member_invitation",
+        "data": {
+          "invitationId": "44444444-0000-4000-8000-000000000009",
+          "sendDate": "2026-09-11"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "member_invitation",
+        "p_domain_object_id": "44444444-0000-4000-8000-000000000009",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "invitationId": "44444444-0000-4000-8000-000000000009",
+          "sendDate": "2026-09-11"
+        },
+        "canonical_idempotencyKey": "44444444-0000-4000-8000-000000000009:2026-09-11"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'member_invitation'::text) AND (data ? 'invitationId'::text) AND (data ? 'sendDate'::text) AND ((data ->> 'invitationId'::text) IS NOT NULL) AND ((data ->> 'sendDate'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "payment_receipt",
+      "index_name": "idx_notifications_queue_whatsapp_payment_receipt_unique",
+      "notification_type": "payment_receipt",
+      "template": "payment_receipt",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_receipt_unique ON public.notifications_queue USING btree (((data ->> 'paymentId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'payment_receipt'::text) AND (data ? 'paymentId'::text))",
+      "indexed_expression": "((data ->> 'paymentId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'payment_receipt'::text) AND (data ? 'paymentId'::text))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'payment_receipt'::text) AND (data ? 'paymentId'::text)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_receipt_unique ON public.notifications_queue USING btree (((data ->> 'paymentId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'payment_receipt'::text) AND (data ? 'paymentId'::text)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_payment_receipt_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_receipt_unique ON public.notifications_queue USING btree (((data ->> 'paymentId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'payment_receipt'::text) AND (data ? 'paymentId'::text)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "payment_receipt",
+        "data": {
+          "paymentId": "55555555-0000-4000-8000-00000000000a"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "payment_receipt",
+        "p_domain_object_id": "55555555-0000-4000-8000-00000000000a",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "paymentId": "55555555-0000-4000-8000-00000000000a"
+        },
+        "canonical_idempotencyKey": "55555555-0000-4000-8000-00000000000a"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'payment_receipt'::text) AND (data ? 'paymentId'::text)",
+      "live_predicate_has_is_not_null": false,
+      "preserve_missing_is_not_null": true
+    },
+    {
+      "short_name": "payment_reminder",
+      "index_name": "idx_notifications_queue_whatsapp_payment_reminder_unique",
+      "notification_type": "payment_reminder",
+      "template": "payment_reminder",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_reminder_unique ON public.notifications_queue USING btree (((data ->> 'obligationId'::text)), ((data ->> 'reminderDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'payment_reminder'::text) AND (data ? 'obligationId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'obligationId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'obligationId'::text)), ((data ->> 'reminderDate'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'payment_reminder'::text) AND (data ? 'obligationId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'obligationId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'payment_reminder'::text) AND (data ? 'obligationId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'obligationId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_reminder_unique ON public.notifications_queue USING btree (((data ->> 'obligationId'::text)), ((data ->> 'reminderDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'payment_reminder'::text) AND (data ? 'obligationId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'obligationId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_payment_reminder_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_reminder_unique ON public.notifications_queue USING btree (((data ->> 'obligationId'::text)), ((data ->> 'reminderDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'payment_reminder'::text) AND (data ? 'obligationId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'obligationId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "payment_reminder",
+        "data": {
+          "obligationId": "66666666-0000-4000-8000-00000000000b",
+          "reminderDate": "2026-09-11"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "payment_reminder",
+        "p_domain_object_id": "66666666-0000-4000-8000-00000000000b",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "obligationId": "66666666-0000-4000-8000-00000000000b",
+          "reminderDate": "2026-09-11"
+        },
+        "canonical_idempotencyKey": "66666666-0000-4000-8000-00000000000b:2026-09-11"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'payment_reminder'::text) AND (data ? 'obligationId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'obligationId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "relief_enrollment",
+      "index_name": "idx_notifications_queue_whatsapp_relief_enrollment_unique",
+      "notification_type": "relief_enrollment",
+      "template": "relief_enrollment",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_relief_enrollment_unique ON public.notifications_queue USING btree (((data ->> 'enrollmentId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'relief_enrollment'::text) AND (data ? 'enrollmentId'::text) AND ((data ->> 'enrollmentId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'enrollmentId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'relief_enrollment'::text) AND (data ? 'enrollmentId'::text) AND ((data ->> 'enrollmentId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'relief_enrollment'::text) AND (data ? 'enrollmentId'::text) AND ((data ->> 'enrollmentId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_relief_enrollment_unique ON public.notifications_queue USING btree (((data ->> 'enrollmentId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'relief_enrollment'::text) AND (data ? 'enrollmentId'::text) AND ((data ->> 'enrollmentId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_relief_enrollment_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_relief_enrollment_unique ON public.notifications_queue USING btree (((data ->> 'enrollmentId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'relief_enrollment'::text) AND (data ? 'enrollmentId'::text) AND ((data ->> 'enrollmentId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "relief_enrollment",
+        "data": {
+          "enrollmentId": "77777777-0000-4000-8000-00000000000c"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "relief_enrollment",
+        "p_domain_object_id": "77777777-0000-4000-8000-00000000000c",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "enrollmentId": "77777777-0000-4000-8000-00000000000c"
+        },
+        "canonical_idempotencyKey": "77777777-0000-4000-8000-00000000000c"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'relief_enrollment'::text) AND (data ? 'enrollmentId'::text) AND ((data ->> 'enrollmentId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "remittance_confirmed",
+      "index_name": "idx_notifications_queue_whatsapp_remittance_confirmed_unique",
+      "notification_type": "remittance_confirmed",
+      "template": "remittance_confirmed",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_confirmed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_confirmed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_confirmed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_confirmed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_confirmed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_confirmed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_remittance_confirmed_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_confirmed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_confirmed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "remittance_confirmed",
+        "data": {
+          "remittanceId": "88888888-0000-4000-8000-00000000000d",
+          "recipientUserId": "99999999-0000-4000-8000-00000000000d"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "remittance_confirmed",
+        "p_domain_object_id": "88888888-0000-4000-8000-00000000000d",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": "aaaa1111-0000-4000-8000-00000000000d",
+        "p_locale": "en",
+        "writes_data": {
+          "remittanceId": "88888888-0000-4000-8000-00000000000d",
+          "recipientUserId": "99999999-0000-4000-8000-00000000000d"
+        },
+        "canonical_idempotencyKey": "88888888-0000-4000-8000-00000000000d:99999999-0000-4000-8000-00000000000d"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'remittance_confirmed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "remittance_disputed",
+      "index_name": "idx_notifications_queue_whatsapp_remittance_disputed_unique",
+      "notification_type": "remittance_disputed",
+      "template": "remittance_disputed",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_disputed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_disputed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_disputed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_disputed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_disputed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_disputed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_remittance_disputed_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_disputed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_disputed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "remittance_disputed",
+        "data": {
+          "remittanceId": "bbbb2222-0000-4000-8000-00000000000e",
+          "recipientUserId": "cccc3333-0000-4000-8000-00000000000e"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "remittance_disputed",
+        "p_domain_object_id": "bbbb2222-0000-4000-8000-00000000000e",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": "dddd4444-0000-4000-8000-00000000000e",
+        "p_locale": "en",
+        "writes_data": {
+          "remittanceId": "bbbb2222-0000-4000-8000-00000000000e",
+          "recipientUserId": "cccc3333-0000-4000-8000-00000000000e"
+        },
+        "canonical_idempotencyKey": "bbbb2222-0000-4000-8000-00000000000e:cccc3333-0000-4000-8000-00000000000e"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'remittance_disputed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "standing_changed",
+      "index_name": "idx_notifications_queue_whatsapp_standing_changed_unique",
+      "notification_type": "standing_changed",
+      "template": "standing_changed",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_standing_changed_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text)), ((data ->> 'newStanding'::text)), ((data ->> 'changeDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'standing_changed'::text) AND (data ? 'membershipId'::text) AND (data ? 'newStanding'::text) AND (data ? 'changeDate'::text) AND ((data ->> 'membershipId'::text) IS NOT NULL) AND ((data ->> 'newStanding'::text) IS NOT NULL) AND ((data ->> 'changeDate'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'membershipId'::text)), ((data ->> 'newStanding'::text)), ((data ->> 'changeDate'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'standing_changed'::text) AND (data ? 'membershipId'::text) AND (data ? 'newStanding'::text) AND (data ? 'changeDate'::text) AND ((data ->> 'membershipId'::text) IS NOT NULL) AND ((data ->> 'newStanding'::text) IS NOT NULL) AND ((data ->> 'changeDate'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'standing_changed'::text) AND (data ? 'membershipId'::text) AND (data ? 'newStanding'::text) AND (data ? 'changeDate'::text) AND ((data ->> 'membershipId'::text) IS NOT NULL) AND ((data ->> 'newStanding'::text) IS NOT NULL) AND ((data ->> 'changeDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_standing_changed_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text)), ((data ->> 'newStanding'::text)), ((data ->> 'changeDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'standing_changed'::text) AND (data ? 'membershipId'::text) AND (data ? 'newStanding'::text) AND (data ? 'changeDate'::text) AND ((data ->> 'membershipId'::text) IS NOT NULL) AND ((data ->> 'newStanding'::text) IS NOT NULL) AND ((data ->> 'changeDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_standing_changed_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_standing_changed_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text)), ((data ->> 'newStanding'::text)), ((data ->> 'changeDate'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'standing_changed'::text) AND (data ? 'membershipId'::text) AND (data ? 'newStanding'::text) AND (data ? 'changeDate'::text) AND ((data ->> 'membershipId'::text) IS NOT NULL) AND ((data ->> 'newStanding'::text) IS NOT NULL) AND ((data ->> 'changeDate'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "standing_changed",
+        "data": {
+          "membershipId": "eeee5555-0000-4000-8000-00000000000f",
+          "newStanding": "warning",
+          "changeDate": "2026-09-11"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "standing_changed",
+        "p_domain_object_id": "eeee5555-0000-4000-8000-00000000000f",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "membershipId": "eeee5555-0000-4000-8000-00000000000f",
+          "newStanding": "warning",
+          "changeDate": "2026-09-11"
+        },
+        "canonical_idempotencyKey": "eeee5555-0000-4000-8000-00000000000f:warning:2026-09-11"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'standing_changed'::text) AND (data ? 'membershipId'::text) AND (data ? 'newStanding'::text) AND (data ? 'changeDate'::text) AND ((data ->> 'membershipId'::text) IS NOT NULL) AND ((data ->> 'newStanding'::text) IS NOT NULL) AND ((data ->> 'changeDate'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "subscription_expiring",
+      "index_name": "idx_notifications_queue_whatsapp_subscription_expiring_unique",
+      "notification_type": "subscription_expiring",
+      "template": "subscription_expiring",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_subscription_expiring_unique ON public.notifications_queue USING btree (((data ->> 'subscriptionId'::text)), ((data ->> 'reminderDate'::text)), ((data ->> 'userId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'subscription_expiring'::text) AND (data ? 'subscriptionId'::text) AND (data ? 'reminderDate'::text) AND (data ? 'userId'::text) AND ((data ->> 'subscriptionId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL))",
+      "indexed_expression": "((data ->> 'subscriptionId'::text)), ((data ->> 'reminderDate'::text)), ((data ->> 'userId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'subscription_expiring'::text) AND (data ? 'subscriptionId'::text) AND (data ? 'reminderDate'::text) AND (data ? 'userId'::text) AND ((data ->> 'subscriptionId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'subscription_expiring'::text) AND (data ? 'subscriptionId'::text) AND (data ? 'reminderDate'::text) AND (data ? 'userId'::text) AND ((data ->> 'subscriptionId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_subscription_expiring_unique ON public.notifications_queue USING btree (((data ->> 'subscriptionId'::text)), ((data ->> 'reminderDate'::text)), ((data ->> 'userId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'subscription_expiring'::text) AND (data ? 'subscriptionId'::text) AND (data ? 'reminderDate'::text) AND (data ? 'userId'::text) AND ((data ->> 'subscriptionId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_subscription_expiring_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_subscription_expiring_unique ON public.notifications_queue USING btree (((data ->> 'subscriptionId'::text)), ((data ->> 'reminderDate'::text)), ((data ->> 'userId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'subscription_expiring'::text) AND (data ? 'subscriptionId'::text) AND (data ? 'reminderDate'::text) AND (data ? 'userId'::text) AND ((data ->> 'subscriptionId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "subscription_expiring",
+        "data": {
+          "subscriptionId": "ffff6666-0000-4000-8000-000000000010",
+          "reminderDate": "2026-09-11",
+          "userId": "aaaa7777-0000-4000-8000-000000000010"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "subscription_expiring",
+        "p_domain_object_id": "ffff6666-0000-4000-8000-000000000010",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": "bbbb8888-0000-4000-8000-000000000010",
+        "p_locale": "en",
+        "writes_data": {
+          "subscriptionId": "ffff6666-0000-4000-8000-000000000010",
+          "reminderDate": "2026-09-11",
+          "userId": "aaaa7777-0000-4000-8000-000000000010"
+        },
+        "canonical_idempotencyKey": "ffff6666-0000-4000-8000-000000000010:2026-09-11:aaaa7777-0000-4000-8000-000000000010"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'subscription_expiring'::text) AND (data ? 'subscriptionId'::text) AND (data ? 'reminderDate'::text) AND (data ? 'userId'::text) AND ((data ->> 'subscriptionId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL)",
+      "live_predicate_has_is_not_null": true
+    },
+    {
+      "short_name": "welcome",
+      "index_name": "idx_notifications_queue_whatsapp_welcome_unique",
+      "notification_type": "welcome",
+      "template": "welcome",
+      "old_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_welcome_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text))",
+      "indexed_expression": "((data ->> 'membershipId'::text))",
+      "old_predicate": "((channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text))",
+      "future_predicate": "(((channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text)) AND cut2_provenance_version = 1)",
+      "future_exact_indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_welcome_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text)) AND cut2_provenance_version = 1)",
+      "plan_rebuild_sql": [
+        "DROP INDEX public.idx_notifications_queue_whatsapp_welcome_unique;",
+        "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_welcome_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text))) WHERE (((channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text)) AND cut2_provenance_version = 1);"
+      ],
+      "no_concurrently": true,
+      "no_rename": true,
+      "no_data_mutation": true,
+      "legacy_poison_fixture": {
+        "status": "queued",
+        "cut2_provenance_version": null,
+        "channel": "whatsapp",
+        "template": "welcome",
+        "data": {
+          "membershipId": "cccc9999-0000-4000-8000-000000000011"
+        },
+        "note": "NULL-provenance forged/pre-00115 row occupying the unscoped WA unique key. Before R4 this UNIQUE-blocks a trusted provenance=1 insert with the same key. After R4 the row does not participate in the index."
+      },
+      "trusted_rpc_case": {
+        "p_notification_type": "welcome",
+        "p_domain_object_id": "cccc9999-0000-4000-8000-000000000011",
+        "p_channel": "whatsapp",
+        "p_recipient_membership_id": null,
+        "p_locale": "en",
+        "writes_data": {
+          "membershipId": "cccc9999-0000-4000-8000-000000000011"
+        },
+        "canonical_idempotencyKey": "cccc9999-0000-4000-8000-000000000011"
+      },
+      "expected_first_trusted_result": {
+        "result": "inserted",
+        "cut2_provenance_version": 1,
+        "queue_id": "NEW_TRUSTED_UUID",
+        "note": "First trusted RPC after provenance-scoped rebuild MUST insert. Legacy NULL row must not UNIQUE-block."
+      },
+      "expected_second_trusted_result": {
+        "result": "duplicate",
+        "queue_id": "SAME_AS_FIRST_TRUSTED",
+        "mutate_existing": false,
+        "note": "Second trusted RPC with same channel+template+canonical idempotencyKey returns existing trusted id. No UPDATE/REQUEUE/REPLACE. Legacy id is NEVER returned."
+      },
+      "legacy_row_unchanged": true,
+      "old_where_body_without_outer_parens": "(channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text)",
+      "live_predicate_has_is_not_null": false,
+      "preserve_missing_is_not_null": true
+    }
+  ],
+  "rpc_duplicate_contract": {
+    "on_unique_conflict": "no UPDATE / REQUEUE / REPLACE / convert legacy",
+    "duplicate_lookup": "ONLY cut2_provenance_version=1 AND channel AND template AND canonical data.idempotencyKey",
+    "null_legacy_never_returned_as_duplicate_or_queue_id": true,
+    "conflict_without_matching_trusted_canonical_row": "trusted_idempotency_conflict_mismatch (fail-closed, no mutation, queue_id NULL)",
+    "trusted_duplicate_queued_sent_or_failed": "existing trusted id + result=duplicate, no mutation"
+  },
+  "epoch": {
+    "new_trusted_idempotency_epoch": true,
+    "backfill_provenance_1": false,
+    "automatic_legacy_replay_or_reenqueue": false,
+    "legacy_rows": "stored / quarantined / inert",
+    "legacy_quarantine_count_gt_0": "SECURITY PASS if proven non-participating in ALL trusted indexes (17 scoped WA + canonical)"
+  },
+  "chief_reconfirmed_live_count": 17,
+  "chief_reconfirmed_project": "llbnliixczcqfftxpsmb",
+  "future_where_rule": "WHERE ((<exact existing WHERE body without one outer paren layer>) AND cut2_provenance_version = 1). Do not add IS NOT NULL where live defs omit it (payment_receipt, welcome).",
+  "predicate_asymmetry": {
+    "payment_receipt": "LIVE WHERE has data ? 'paymentId' only \u2014 NO ((data ->> 'paymentId'::text) IS NOT NULL). Preserve.",
+    "welcome": "LIVE WHERE has data ? 'membershipId' only \u2014 NO ((data ->> 'membershipId'::text) IS NOT NULL). Preserve."
+  }
+}

@@ -662,7 +662,7 @@ export default function GroupOnboardingPage() {
           role: "member" as const,
           token: crypto.randomUUID(),
         }))
-      ).select("id, phone");
+      ).select("id, phone, email");
       if (inviteErr) {
         // Non-fatal — onboarding continues. NEVER log recipient values. A
         // single unique-index collision atomically drops the whole batch, so
@@ -677,73 +677,25 @@ export default function GroupOnboardingPage() {
         );
       }
 
-      // Phone invitations are delivered via the server-side queue-backed
-      // WhatsApp producer (Utility invitation notice). This ENQUEUES the
-      // notice; the actual send happens later in the drain worker, so we
-      // report it honestly as "queued", never "sent".
+      // Email and phone invitations enqueue via the semantic producer
+      // (member_invitation). Drain sends later — report enqueue success
+      // as queued/sent counts, never a provider delivery.
       try {
-        const phoneInvites = (insertedInvites || []).filter((inv) => inv.phone);
-        if (phoneInvites.length > 0) {
-          const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
-          for (const inv of phoneInvites) {
-            requestMemberInvitationWhatsApp(supabase, inv.id as string, locale).catch((err) => {
-              console.warn("[Onboarding] invitation WhatsApp trigger failed:", err instanceof Error ? err.message : err);
-            });
+        const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
+        setSetupProgress(t("progressInvites"));
+        for (const inv of insertedInvites || []) {
+          const ok = await requestMemberInvitationWhatsApp(supabase, inv.id as string, locale);
+          if (inv.phone) {
+            if (ok) phoneQueued++;
           }
-          phoneQueued = phoneInvites.length;
+          if (inv.email) {
+            if (ok) emailSent++;
+            else emailFailed++;
+          }
         }
       } catch (err) {
-        console.warn("[Onboarding] invitation WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
-      }
-
-      // Send invitation emails for email-based invites. AWAIT and CHECK each
-      // send so a failure (e.g. Resend unconfigured / domain unverified /
-      // address rejected → HTTP 500) is COUNTED, not silently swallowed as it
-      // was when this was fire-and-forget. Gated only on the insert having
-      // succeeded (a failed insert would otherwise point recipients at an
-      // empty my-invitations page). The owner explicitly typed these
-      // addresses, so per-member channel prefs (which a non-member doesn't
-      // have) never gate them.
-      const emailInvites = inviteInsertFailed ? [] : validInvites.filter((inv) => inv.type === "email");
-      if (emailInvites.length > 0) {
-        setSetupProgress(t("progressInvites"));
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          const inviterName = user?.user_metadata?.full_name as string || user?.email || "";
-          const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
-          for (const inv of emailInvites) {
-            try {
-              const res = await fetch("/api/email/send", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  to: inv.value.trim(),
-                  template: "invitation",
-                  data: { groupName, inviterName, acceptUrl },
-                  locale,
-                }),
-              });
-              if (res.ok) {
-                emailSent++;
-              } else {
-                emailFailed++;
-                // Never log the recipient address — status only.
-                console.warn("[Onboarding] invitation email send failed:", res.status);
-              }
-            } catch (err) {
-              emailFailed++;
-              console.warn("[Onboarding] invitation email send error:", err instanceof Error ? err.message : err);
-            }
-          }
-        } else {
-          // No session token to authorize the send — count as failed (honest),
-          // never reported as delivered.
-          emailFailed += emailInvites.length;
-          console.warn("[Onboarding] invitation email skipped: no access token");
-        }
+        console.warn("[Onboarding] invitation enqueue failed:", err instanceof Error ? err.message : err);
+        emailFailed += (insertedInvites || []).filter((inv) => inv.email).length;
       }
     }
 

@@ -1,34 +1,9 @@
 import { NextResponse } from "next/server";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { lookupMemberLocale, type Locale } from "@/lib/cron-notify-helper";
+import { createClient } from "@supabase/supabase-js";
+import { renderCut2TrustedRow } from "@/lib/cut2-drain-render";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-/**
- * Resolve the locale for a queued payload.
- *
- * Precedence:
- *   1. Explicit `data.locale` — the enqueuer already made a decision.
- *   2. `member_locale(data.user_id)` — only when locale is absent.
- *   3. "en" fallback — keeps the channel working when neither exists.
- *
- * SMS payloads rendered at enqueue time (`data.message`) cannot be
- * re-localized — drain cannot know the original template or values.
- * This helper is for channels that still accept a locale parameter.
- */
-async function resolveLocale(
-  supabase: SupabaseClient,
-  data: Record<string, unknown>,
-): Promise<Locale> {
-  const explicit = data.locale;
-  if (explicit === "en" || explicit === "fr") return explicit;
-  const userId = typeof data.user_id === "string" ? data.user_id : null;
-  if (userId) {
-    return await lookupMemberLocale(supabase, userId);
-  }
-  return "en";
-}
 
 const MAX_RETRIES = 3;
 const BATCH_SIZE = 50;
@@ -40,15 +15,25 @@ interface ProcessResult {
   providerStatus?: string;
 }
 
+function isCut2DbNotReadyError(err: { message?: string; code?: string } | null): boolean {
+  if (!err) return false;
+  const msg = (err.message || "").toLowerCase();
+  const code = String(err.code || "");
+  return (
+    msg.includes("cut2_provenance_version") ||
+    msg.includes("column") && msg.includes("does not exist") ||
+    code === "42703" ||
+    code === "PGRST204"
+  );
+}
+
 /**
  * GET /api/cron/drain-notification-queue
- * Vercel Cron — runs every 15 minutes.
- * Processes pending messages in notifications_queue (SMS, email, WhatsApp).
- * Oldest first (FIFO). Max 50 per run to avoid timeout.
- * Retries up to 3 times, then marks as failed.
+ * After Cut 2: ONLY status=queued AND cut2_provenance_version=1.
+ * NULL provenance is never selected, rendered, sent, updated, or upgraded.
+ * Pre-00115: cut2_db_not_ready, processed=sent=failed=0, no provider calls.
  */
 export async function GET(request: Request) {
-  // ── Auth: verify CRON_SECRET ──
   const authHeader = request.headers.get("Authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
@@ -57,144 +42,156 @@ export async function GET(request: Request) {
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // ── Fetch pending items (oldest first, limit 50) ──
   const { data: pending, error: fetchError } = await supabase
     .from("notifications_queue")
-    .select("*")
+    .select("id,user_id,channel,template,data,status,attempts,cut2_provenance_version")
     .eq("status", "queued")
+    .eq("cut2_provenance_version", 1)
     .order("created_at", { ascending: true })
     .limit(BATCH_SIZE);
 
   if (fetchError) {
+    if (isCut2DbNotReadyError(fetchError)) {
+      return NextResponse.json({
+        cut2_db_not_ready: true,
+        processed: 0,
+        sent: 0,
+        failed: 0,
+      });
+    }
     console.error("[DrainQueue] Failed to fetch pending items:", fetchError.message);
     return NextResponse.json({ error: fetchError.message }, { status: 500 });
   }
 
   if (!pending || pending.length === 0) {
-    return NextResponse.json({ processed: 0, sent: 0, failed: 0, remaining: 0 });
+    const { count: remaining } = await supabase
+      .from("notifications_queue")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "queued")
+      .eq("cut2_provenance_version", 1);
+    return NextResponse.json({ processed: 0, sent: 0, failed: 0, remaining: remaining || 0 });
   }
+
+  const previousMetaContext = process.env.CUT2_RAW_META_CONTEXT;
+  process.env.CUT2_RAW_META_CONTEXT = "drain";
 
   let sent = 0;
   let failed = 0;
 
-  for (const item of pending) {
-    const channel = item.channel as string;
-    const data = item.data as Record<string, unknown>;
-    const recipient = (data.recipient as string) || "";
-    const attempts = (item.attempts as number) || 0;
-
-    let result: ProcessResult = { success: false };
-    let errorMsg = "";
-
-    try {
-      switch (channel) {
-        case "sms": {
-          // SMS payload is pre-rendered at enqueue time (see
-          // notifications/sms-sender.ts) — no locale re-resolution.
-          result = { success: await processSms(recipient, data) };
-          break;
-        }
-        case "email": {
-          const locale = await resolveLocale(supabase, data);
-          result = { success: await processEmail(recipient, data, locale) };
-          break;
-        }
-        case "whatsapp": {
-          const locale = await resolveLocale(supabase, data);
-          result = await processWhatsApp(recipient, data, locale);
-          break;
-        }
-        default: {
-          errorMsg = `Unknown channel: ${channel}`;
-          break;
-        }
-      }
-    } catch (err) {
-      errorMsg = err instanceof Error ? err.message : "Unknown error";
-    }
-
-    if (!errorMsg && result.error) errorMsg = result.error;
-
-    if (result.success) {
-      const sentPayload = {
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        error_message: null,
-        data: result.providerMessageId
-          ? {
-              ...data,
-              providerMessageId: result.providerMessageId,
-              providerStatus: result.providerStatus || "accepted",
-            }
-          : data,
-      };
-
-      const { data: sentRows, error: sentUpdateError } = await supabase
-        .from("notifications_queue")
-        .update(sentPayload)
-        .eq("id", item.id)
-        .select("id");
-
-      if (sentUpdateError || !sentRows || sentRows.length === 0) {
-        const persistenceError = sentUpdateError?.message || "No queue row was updated";
-        const failureMessage = `Provider accepted message but queue sent status was not persisted: ${persistenceError}`;
-        console.warn("[DrainQueue] Failed to persist sent queue item:", {
-          id: item.id,
-          error: persistenceError,
-        });
-
-        const { error: markFailedError } = await supabase
-          .from("notifications_queue")
-          .update({
-            status: "failed",
-            attempts: attempts + 1,
-            error_message: failureMessage,
-          })
-          .eq("id", item.id);
-
-        if (markFailedError) {
-          console.warn("[DrainQueue] Failed to mark queue item after sent persistence failure:", {
-            id: item.id,
-            error: markFailedError.message,
-          });
-        }
-
-        failed++;
+  try {
+    for (const item of pending) {
+      if (item.cut2_provenance_version !== 1 || item.status !== "queued") {
         continue;
       }
+      const data = (item.data as Record<string, unknown>) || {};
+      const attempts = (item.attempts as number) || 0;
+      let result: ProcessResult = { success: false };
+      let errorMsg = "";
 
-      sent++;
-    } else {
-      const newAttempts = attempts + 1;
-      if (newAttempts >= MAX_RETRIES) {
-        // Max retries exceeded — mark as failed
-        await supabase
-          .from("notifications_queue")
-          .update({
-            status: "failed",
-            attempts: newAttempts,
-            error_message: errorMsg || "Max retries exceeded",
-          })
-          .eq("id", item.id);
-        failed++;
-      } else {
-        // Increment attempts, leave as queued for next run
-        await supabase
-          .from("notifications_queue")
-          .update({
-            attempts: newAttempts,
-            error_message: errorMsg || "Send failed, will retry",
-          })
-          .eq("id", item.id);
+      try {
+        const rendered = await renderCut2TrustedRow(supabase, {
+          channel: item.channel as string,
+          template: item.template as string,
+          data,
+          cut2_provenance_version: item.cut2_provenance_version as number,
+        });
+        if (!rendered.ok) {
+          errorMsg = rendered.error;
+        } else if (rendered.channel === "sms") {
+          result = { success: await processSms(rendered.to, rendered.message) };
+        } else if (rendered.channel === "email") {
+          result = { success: await processEmail(rendered.to, rendered.template, rendered.data, data) };
+        } else if (rendered.channel === "whatsapp") {
+          result = await processWhatsApp(rendered.to, rendered.type, rendered.data);
+        }
+      } catch (err) {
+        errorMsg = err instanceof Error ? err.message : "Unknown error";
       }
+
+      if (!errorMsg && result.error) errorMsg = result.error;
+
+      if (result.success) {
+        const sentPayload = {
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          error_message: null,
+          data: result.providerMessageId
+            ? {
+                ...data,
+                providerMessageId: result.providerMessageId,
+                providerStatus: result.providerStatus || "accepted",
+              }
+            : data,
+        };
+
+        const { data: sentRows, error: sentUpdateError } = await supabase
+          .from("notifications_queue")
+          .update(sentPayload)
+          .eq("id", item.id)
+          .eq("cut2_provenance_version", 1)
+          .select("id");
+
+        if (sentUpdateError || !sentRows || sentRows.length === 0) {
+          const persistenceError = sentUpdateError?.message || "No queue row was updated";
+          const failureMessage = `Provider accepted message but queue sent status was not persisted: ${persistenceError}`;
+          console.warn("[DrainQueue] Failed to persist sent queue item:", {
+            id: item.id,
+            error: persistenceError,
+          });
+
+          await supabase
+            .from("notifications_queue")
+            .update({
+              status: "failed",
+              attempts: attempts + 1,
+              error_message: failureMessage,
+            })
+            .eq("id", item.id)
+            .eq("cut2_provenance_version", 1);
+
+          failed++;
+          continue;
+        }
+
+        sent++;
+      } else {
+        const newAttempts = attempts + 1;
+        if (newAttempts >= MAX_RETRIES) {
+          await supabase
+            .from("notifications_queue")
+            .update({
+              status: "failed",
+              attempts: newAttempts,
+              error_message: errorMsg || "Max retries exceeded",
+            })
+            .eq("id", item.id)
+            .eq("cut2_provenance_version", 1);
+          failed++;
+        } else {
+          await supabase
+            .from("notifications_queue")
+            .update({
+              attempts: newAttempts,
+              error_message: errorMsg || "Send failed, will retry",
+            })
+            .eq("id", item.id)
+            .eq("cut2_provenance_version", 1);
+        }
+      }
+    }
+  } finally {
+    if (previousMetaContext === undefined) {
+      delete process.env.CUT2_RAW_META_CONTEXT;
+    } else {
+      process.env.CUT2_RAW_META_CONTEXT = previousMetaContext;
     }
   }
 
-  // Count remaining pending items
   const { count: remaining } = await supabase
     .from("notifications_queue")
     .select("id", { count: "exact", head: true })
-    .eq("status", "queued");
+    .eq("status", "queued")
+    .eq("cut2_provenance_version", 1);
 
   return NextResponse.json({
     processed: pending.length,
@@ -204,49 +201,31 @@ export async function GET(request: Request) {
   });
 }
 
-// ─── Channel Processors ──────────────────────────────────────────────────────
-
-async function processSms(recipient: string, data: Record<string, unknown>): Promise<boolean> {
-  if (!recipient) return false;
-
-  // CRITICAL: Enforce African-only SMS — queued items must still pass the country check.
-  // Without this, non-African numbers queued on SDK failure would burn AT API credits.
+async function processSms(recipient: string, message: string): Promise<boolean> {
+  if (!recipient || !message) return false;
   const { isAfricanPhoneNumber } = await import("@/lib/is-african-phone");
   if (!isAfricanPhoneNumber(recipient)) {
     console.log(`[DrainQueue:SMS] Skipping non-African number: ${recipient.slice(0, 6)}***`);
-    return true; // Return true to mark as "sent" so it doesn't retry forever
+    return true;
   }
-
-  const apiKey = process.env.AFRICASTALKING_API_KEY;
-  if (!apiKey) return false; // AT still not configured — leave for next run
-
-  const username = process.env.AFRICASTALKING_USERNAME || "villageclaq";
-  const message = (data.message as string) || "";
-  if (!message) return false;
-
-  const AfricasTalking = (await import("africastalking")).default;
-  const at = AfricasTalking({ apiKey, username });
-  const senderId = process.env.AFRICASTALKING_SENDER_ID;
-  const smsPayload: { to: string[]; message: string; from?: string } = { to: [recipient], message };
-  if (senderId) smsPayload.from = senderId;
-  await at.SMS.send(smsPayload);
-  return true;
+  const { sendSMS } = await import("@/lib/notifications/sms-sender");
+  const result = await sendSMS({ to: recipient, message });
+  return result.sent;
 }
 
 async function processEmail(
   recipient: string,
-  data: Record<string, unknown>,
-  locale: Locale,
+  template: string,
+  emailData: Record<string, string>,
+  _envelope: Record<string, unknown>,
 ): Promise<boolean> {
   if (!recipient) return false;
-
+  const locale = emailData.locale === "fr" ? "fr" : "en";
   const { sendEmail } = await import("@/lib/send-email");
-  const template = (data.template as string) || "notification";
-
   const result = await sendEmail({
     to: recipient,
     template: template as Parameters<typeof sendEmail>[0]["template"],
-    data: (data.emailData as Record<string, unknown>) || data,
+    data: emailData,
     locale,
   });
   return result.success;
@@ -254,48 +233,22 @@ async function processEmail(
 
 async function processWhatsApp(
   recipient: string,
-  data: Record<string, unknown>,
-  locale: Locale,
+  waType: string,
+  waData: Record<string, string>,
 ): Promise<ProcessResult> {
   if (!recipient) return { success: false, error: "Missing recipient" };
-
-  const waType = data.whatsappType as string | undefined;
-  const waData = (data.whatsappData as Record<string, string>) || {};
-
-  if (waType) {
-    // Typed dispatch
-    const { dispatchWhatsAppWithResult } = await import("@/lib/whatsapp-dispatcher");
-    const result = await dispatchWhatsAppWithResult(
-      waType as Parameters<typeof dispatchWhatsAppWithResult>[0],
-      recipient,
-      locale,
-      waData,
-    );
-    return {
-      success: result.success,
-      error: result.error,
-      providerMessageId: result.messageId,
-      providerStatus: result.success ? "accepted" : undefined,
-    };
-  }
-
-  // Direct template
-  const template = data.template as string | undefined;
-  if (template) {
-    const { sendWhatsAppMessage } = await import("@/lib/send-whatsapp");
-    const result = await sendWhatsAppMessage({
-      to: recipient,
-      template,
-      language: locale,
-      components: (data.components as Parameters<typeof sendWhatsAppMessage>[0]["components"]) || undefined,
-    });
-    return {
-      success: result.success,
-      error: result.error,
-      providerMessageId: result.messageId,
-      providerStatus: result.success ? "accepted" : undefined,
-    };
-  }
-
-  return { success: false, error: "Missing WhatsApp type or template" };
+  const locale = waData.locale === "fr" ? "fr" : "en";
+  const { dispatchWhatsAppWithResult } = await import("@/lib/whatsapp-dispatcher");
+  const result = await dispatchWhatsAppWithResult(
+    waType as Parameters<typeof dispatchWhatsAppWithResult>[0],
+    recipient,
+    locale,
+    waData,
+  );
+  return {
+    success: result.success,
+    error: result.error,
+    providerMessageId: result.messageId,
+    providerStatus: result.success ? "accepted" : undefined,
+  };
 }

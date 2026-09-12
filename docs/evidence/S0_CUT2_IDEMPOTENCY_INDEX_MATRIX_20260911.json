@@ -1,0 +1,194 @@
+{
+  "document": "S0_CUT2_IDEMPOTENCY_INDEX_MATRIX_20260911",
+  "status": "FROZEN_SECURITY_REVISION_4",
+  "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+  "parent_daybreak_tip": "a806c3403f0723bb8e316919d72154b9dd52c890",
+  "legacy_wa_index_provenance_matrix": "docs/evidence/S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json",
+  "canonical_mechanism": "RPC computes data.idempotencyKey in SQL from domain columns. ONE canonical unique index across channels, TRUSTED-ONLY (cut2_provenance_version = 1). All 17 live WhatsApp unique indexes DROP+CREATE same name with AND cut2_provenance_version = 1 (R4). Duplicate lookup ONLY provenance=1 + channel + template + idempotencyKey. NULL legacy NEVER returned. Conflict without trusted canonical row → trusted_idempotency_conflict_mismatch. NO UPDATE/DELETE/REQUEUE/REPLACE including failed rows. idempotencyKey is idempotency only — NOT trust evidence.",
+  "future_index_sql_plan_only_not_a_migration_file": "CREATE UNIQUE INDEX idx_notifications_queue_cut2_semantic_idempotency_unique ON public.notifications_queue (channel, template, ((data ->> 'idempotencyKey'))) WHERE cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;",
+  "future_index_notes": [
+    "SR3 revise (canonical, unchanged): WHERE cut2_provenance_version = 1 so legacy/NULL keys cannot poison the trusted canonical index.",
+    "No status predicate — queued, sent, AND failed TRUSTED rows participate.",
+    "Empty or null/blank idempotencyKey is excluded; RPC MUST always write a non-empty key for inserted trusted rows.",
+    "SR4: the 17 WA uniques are NOT left unscoped. DROP INDEX public.<same_name>; CREATE UNIQUE INDEX <same_name> ... WHERE ((<exact existing WHERE body without one outer paren layer>) AND cut2_provenance_version = 1). payment_receipt and welcome KEEP missing IS NOT NULL. Fingerprint old_exact_indexdef (Chief-verbatim live) or CUT2_ABORT before DROP.",
+    "Do not author this SQL in this planning PR."
+  ],
+  "duplicate_behavior": {
+    "on_unique_violation_23505": "SELECT id FROM notifications_queue WHERE cut2_provenance_version = 1 AND channel = p_channel AND template = p_notification_type AND data->>'idempotencyKey' = v_key LIMIT 1; IF found RETURN (existing_id, 'duplicate'); ELSE RETURN (NULL, 'trusted_idempotency_conflict_mismatch')",
+    "mutate_existing": false,
+    "requeue_failed": false,
+    "replace_failed": false,
+    "convert_legacy": false,
+    "null_legacy_never_returned_as_duplicate_or_queue_id": true,
+    "trusted_duplicate_queued_sent_failed": "existing trusted id + duplicate"
+  },
+  "idempotency_key_expression_per_type": {
+    "payment_receipt": {
+      "sql": "p_domain_object_id::text",
+      "example": "<payments.id>",
+      "snapshot_parts": ["payments.id"]
+    },
+    "payment_reminder": {
+      "sql": "v_obligation.id::text || ':' || to_char((timezone('utc', now()))::date, 'YYYY-MM-DD')",
+      "example": "<obligationId>:<reminderDate UTC>",
+      "snapshot_parts": ["contribution_obligations.id", "reminderDate UTC date at enqueue"]
+    },
+    "welcome": {
+      "sql": "p_domain_object_id::text",
+      "example": "<memberships.id>",
+      "snapshot_parts": ["memberships.id"]
+    },
+    "standing_changed": {
+      "sql": "v_membership.id::text || ':' || v_membership.standing || ':' || to_char((timezone('utc', now()))::date, 'YYYY-MM-DD')",
+      "example": "<membershipId>:<newStanding>:<changeDate UTC>",
+      "snapshot_parts": ["memberships.id", "memberships.standing at enqueue", "changeDate UTC"]
+    },
+    "relief_enrollment": {
+      "sql": "p_domain_object_id::text",
+      "example": "<relief_enrollments.id>",
+      "snapshot_parts": ["relief_enrollments.id"]
+    },
+    "relief_claim_approved": {
+      "sql": "p_domain_object_id::text",
+      "example": "<relief_claims.id>",
+      "snapshot_parts": ["relief_claims.id"]
+    },
+    "relief_claim_denied": {
+      "sql": "p_domain_object_id::text",
+      "example": "<relief_claims.id>",
+      "snapshot_parts": ["relief_claims.id"]
+    },
+    "remittance_confirmed": {
+      "sql": "v_remittance.id::text || ':' || v_recipient.user_id::text",
+      "example": "<remittanceId>:<recipientUserId>",
+      "snapshot_parts": ["relief_remittances.id", "recipient memberships.user_id"]
+    },
+    "remittance_disputed": {
+      "sql": "v_remittance.id::text || ':' || v_recipient.user_id::text",
+      "example": "<remittanceId>:<recipientUserId>",
+      "snapshot_parts": ["relief_remittances.id", "recipient memberships.user_id"]
+    },
+    "hosting_assignment": {
+      "sql": "p_domain_object_id::text",
+      "example": "<hosting_assignments.id>",
+      "snapshot_parts": ["hosting_assignments.id"]
+    },
+    "hosting_reminder": {
+      "sql": "v_assignment.id::text || ':' || v_assignment.assigned_date::text",
+      "example": "<assignmentId>:<assignedDate>",
+      "snapshot_parts": ["hosting_assignments.id", "hosting_assignments.assigned_date"]
+    },
+    "event_reminder": {
+      "sql": "v_event.id::text || ':' || v_recipient.user_id::text",
+      "example": "<eventId>:<userId>",
+      "snapshot_parts": ["events.id", "recipient memberships.user_id"]
+    },
+    "loan_approved": {
+      "sql": "p_domain_object_id::text",
+      "example": "<loans.id>",
+      "snapshot_parts": ["loans.id"]
+    },
+    "loan_overdue": {
+      "sql": "v_loan.id::text || ':' || to_char((timezone('utc', now()))::date, 'YYYY-MM-DD')",
+      "example": "<loanId>:<reminderDate UTC>",
+      "snapshot_parts": ["loans.id", "reminderDate UTC at enqueue"]
+    },
+    "fine_issued": {
+      "sql": "p_domain_object_id::text",
+      "example": "<fines.id>",
+      "snapshot_parts": ["fines.id"]
+    },
+    "member_invitation": {
+      "sql": "v_invitation.id::text || ':' || to_char((timezone('utc', now()))::date, 'YYYY-MM-DD')",
+      "example": "<invitationId>:<sendDate UTC>",
+      "snapshot_parts": ["invitations.id", "sendDate UTC at enqueue"]
+    },
+    "subscription_expiring": {
+      "sql": "v_sub.id::text || ':' || to_char((timezone('utc', now()))::date, 'YYYY-MM-DD') || ':' || v_recipient.user_id::text",
+      "example": "<subscriptionId>:<reminderDate UTC>:<userId>",
+      "snapshot_parts": ["group_subscriptions.id", "reminderDate UTC", "recipient memberships.user_id"]
+    },
+    "minutes_published": {
+      "sql": "v_minutes.id::text || ':' || v_recipient.user_id::text",
+      "example": "<minutesId>:<userId>",
+      "snapshot_parts": ["meeting_minutes.id", "recipient memberships.user_id"]
+    },
+    "election_opened": {
+      "sql": "v_election.id::text || ':' || v_recipient.user_id::text",
+      "example": "<electionId>:<userId>",
+      "snapshot_parts": ["elections.id", "recipient memberships.user_id"]
+    },
+    "announcement": {
+      "sql": "v_announcement.id::text || ':' || v_recipient.user_id::text",
+      "example": "<announcementId>:<userId>",
+      "snapshot_parts": ["announcements.id", "recipient memberships.user_id"]
+    },
+    "proxy_claim": {
+      "sql": "p_domain_object_id::text",
+      "example": "<proxy memberships.id>",
+      "snapshot_parts": ["memberships.id"]
+    },
+    "hosting_swap": {
+      "sql": "v_swap.id::text || ':' || v_recipient.id::text || ':' || v_swap.status",
+      "example": "<swapRequestId>:<recipientMembershipId>:<pending|approved|rejected>",
+      "snapshot_parts": ["hosting_swap_requests.id", "recipient memberships.id", "hosting_swap_requests.status at enqueue"]
+    }
+  },
+  "chief_reconfirmed_live_wa_uniques_20260911": {
+    "project": "llbnliixczcqfftxpsmb",
+    "count": 17,
+    "indexdef": "VERBATIM pg_indexes — do not paraphrase",
+    "payment_receipt_and_welcome": "NO ((data ->> ...) IS NOT NULL) in live WHERE — preserve"
+  },
+  "live_pg_indexes_verbatim_mcp_20260911": [
+    {"indexname": "idx_notifications_queue_created", "indexdef": "CREATE INDEX idx_notifications_queue_created ON public.notifications_queue USING btree (created_at DESC)"},
+    {"indexname": "idx_notifications_queue_queued", "indexdef": "CREATE INDEX idx_notifications_queue_queued ON public.notifications_queue USING btree (status, created_at) WHERE (status = 'queued'::notification_queue_status)"},
+    {"indexname": "idx_notifications_queue_status", "indexdef": "CREATE INDEX idx_notifications_queue_status ON public.notifications_queue USING btree (status)"},
+    {"indexname": "idx_notifications_queue_user", "indexdef": "CREATE INDEX idx_notifications_queue_user ON public.notifications_queue USING btree (user_id)"},
+    {"indexname": "idx_notifications_queue_whatsapp_claim_approved_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_approved_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_approved'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_claim_denied_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_claim_denied_unique ON public.notifications_queue USING btree (((data ->> 'claimId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'relief_claim_denied'::text) AND (data ? 'claimId'::text) AND ((data ->> 'claimId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_event_reminder_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_event_reminder_unique ON public.notifications_queue USING btree (((data ->> 'eventId'::text)), ((data ->> 'userId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'event_reminder'::text) AND (data ? 'eventId'::text) AND (data ? 'userId'::text) AND ((data ->> 'eventId'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_fine_issued_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_fine_issued_unique ON public.notifications_queue USING btree (((data ->> 'fineId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'fine_issued'::text) AND (data ? 'fineId'::text) AND ((data ->> 'fineId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_hosting_assignment_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_assignment_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_assignment'::text) AND (data ? 'assignmentId'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_hosting_reminder_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_hosting_reminder_unique ON public.notifications_queue USING btree (((data ->> 'assignmentId'::text)), ((data ->> 'assignedDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'hosting_reminder'::text) AND (data ? 'assignmentId'::text) AND (data ? 'assignedDate'::text) AND ((data ->> 'assignmentId'::text) IS NOT NULL) AND ((data ->> 'assignedDate'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_loan_approved_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_approved_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'loan_approved'::text) AND (data ? 'loanId'::text) AND ((data ->> 'loanId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_loan_overdue_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_loan_overdue_unique ON public.notifications_queue USING btree (((data ->> 'loanId'::text)), ((data ->> 'reminderDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'loan_overdue'::text) AND (data ? 'loanId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'loanId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_member_invitation_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_member_invitation_unique ON public.notifications_queue USING btree (((data ->> 'invitationId'::text)), ((data ->> 'sendDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'member_invitation'::text) AND (data ? 'invitationId'::text) AND (data ? 'sendDate'::text) AND ((data ->> 'invitationId'::text) IS NOT NULL) AND ((data ->> 'sendDate'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_payment_receipt_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_receipt_unique ON public.notifications_queue USING btree (((data ->> 'paymentId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'payment_receipt'::text) AND (data ? 'paymentId'::text))"},
+    {"indexname": "idx_notifications_queue_whatsapp_payment_reminder_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_payment_reminder_unique ON public.notifications_queue USING btree (((data ->> 'obligationId'::text)), ((data ->> 'reminderDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'payment_reminder'::text) AND (data ? 'obligationId'::text) AND (data ? 'reminderDate'::text) AND ((data ->> 'obligationId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_relief_enrollment_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_relief_enrollment_unique ON public.notifications_queue USING btree (((data ->> 'enrollmentId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'relief_enrollment'::text) AND (data ? 'enrollmentId'::text) AND ((data ->> 'enrollmentId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_remittance_confirmed_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_confirmed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_confirmed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_remittance_disputed_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_remittance_disputed_unique ON public.notifications_queue USING btree (((data ->> 'remittanceId'::text)), ((data ->> 'recipientUserId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'remittance_disputed'::text) AND (data ? 'remittanceId'::text) AND (data ? 'recipientUserId'::text) AND ((data ->> 'remittanceId'::text) IS NOT NULL) AND ((data ->> 'recipientUserId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_standing_changed_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_standing_changed_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text)), ((data ->> 'newStanding'::text)), ((data ->> 'changeDate'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'standing_changed'::text) AND (data ? 'membershipId'::text) AND (data ? 'newStanding'::text) AND (data ? 'changeDate'::text) AND ((data ->> 'membershipId'::text) IS NOT NULL) AND ((data ->> 'newStanding'::text) IS NOT NULL) AND ((data ->> 'changeDate'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_subscription_expiring_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_subscription_expiring_unique ON public.notifications_queue USING btree (((data ->> 'subscriptionId'::text)), ((data ->> 'reminderDate'::text)), ((data ->> 'userId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'subscription_expiring'::text) AND (data ? 'subscriptionId'::text) AND (data ? 'reminderDate'::text) AND (data ? 'userId'::text) AND ((data ->> 'subscriptionId'::text) IS NOT NULL) AND ((data ->> 'reminderDate'::text) IS NOT NULL) AND ((data ->> 'userId'::text) IS NOT NULL))"},
+    {"indexname": "idx_notifications_queue_whatsapp_welcome_unique", "indexdef": "CREATE UNIQUE INDEX idx_notifications_queue_whatsapp_welcome_unique ON public.notifications_queue USING btree (((data ->> 'membershipId'::text))) WHERE ((channel = 'whatsapp'::notification_channel) AND (template = 'welcome'::text) AND (data ? 'membershipId'::text))"},
+    {"indexname": "notifications_queue_pkey", "indexdef": "CREATE UNIQUE INDEX notifications_queue_pkey ON public.notifications_queue USING btree (id)"}
+  ],
+  "no_unique_yet_covered_by_canonical_index": [
+    "minutes_published",
+    "election_opened",
+    "announcement",
+    "proxy_claim",
+    "hosting_swap"
+  ],
+  "preserve_existing_whatsapp_uniques": "NAMES_AND_KEY_EXPRESSIONS_ONLY — SR4 DROP+CREATE same name with provenance=1",
+  "do_not_rename": [
+    "idx_notifications_queue_whatsapp_payment_receipt_unique",
+    "idx_notifications_queue_whatsapp_welcome_unique",
+    "idx_notifications_queue_whatsapp_relief_enrollment_unique",
+    "idx_notifications_queue_whatsapp_hosting_assignment_unique",
+    "idx_notifications_queue_whatsapp_payment_reminder_unique",
+    "idx_notifications_queue_whatsapp_standing_changed_unique",
+    "idx_notifications_queue_whatsapp_fine_issued_unique",
+    "idx_notifications_queue_whatsapp_loan_approved_unique",
+    "idx_notifications_queue_whatsapp_claim_approved_unique",
+    "idx_notifications_queue_whatsapp_claim_denied_unique",
+    "idx_notifications_queue_whatsapp_member_invitation_unique",
+    "idx_notifications_queue_whatsapp_loan_overdue_unique",
+    "idx_notifications_queue_whatsapp_remittance_confirmed_unique",
+    "idx_notifications_queue_whatsapp_remittance_disputed_unique",
+    "idx_notifications_queue_whatsapp_hosting_reminder_unique",
+    "idx_notifications_queue_whatsapp_event_reminder_unique",
+    "idx_notifications_queue_whatsapp_subscription_expiring_unique"
+  ]
+}

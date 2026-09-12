@@ -112,14 +112,11 @@ test("subscription pre-loop dedup CHECK is preserved (no resend when marker exis
 
 // ── (3) Logging / rule-11 ───────────────────────────────────────────────────
 
-test("/api/email/send no longer has an empty catch and logs safely", () => {
-  assert.doesNotMatch(EMAIL, /\}\s*catch\s*\{\s*\n\s*return NextResponse/, "no empty catch");
-  assert.match(EMAIL, /catch \(err\) \{[\s\S]*console\.warn\("\[Email\] \/api\/email\/send internal error:"/);
-  // The console.warn statement itself must log only the error message, never
-  // the recipient email or payload (the surrounding comment may mention them).
-  const warnLine = EMAIL.split("\n").find((l) => l.includes('console.warn("[Email] /api/email/send internal error:'));
-  assert.ok(warnLine, "email error warn line present");
-  assert.doesNotMatch(warnLine, /recipientEmail|to:|\bdata\b/, "no recipient/payload in the error log");
+test("/api/email/send is 410 GONE and does not send", () => {
+  assert.match(EMAIL, /status:\s*410/);
+  assert.doesNotMatch(EMAIL, /sendEmail\(/);
+  assert.doesNotMatch(EMAIL, /getResendClient/);
+  assert.doesNotMatch(EMAIL, /resend\.emails/);
 });
 
 test("payment-receipt-producer phone-lookup catch logs and fails safe", () => {
@@ -127,17 +124,10 @@ test("payment-receipt-producer phone-lookup catch logs and fails safe", () => {
   assert.match(RECEIPT, /catch \(err\) \{[\s\S]*console\.warn\("\[PaymentReceipt\] auth phone lookup failed:"[\s\S]*return null;/);
 });
 
-test("/api/sms/send masks recipient phone in every log (no raw phone)", () => {
-  assert.match(SMS, /import \{ maskPhoneNumber \} from "@\/lib\/mask-phone"/);
-  assert.match(SMS, /function maskRecipient\(/, "recipient mask helper");
-  // No console line emits a raw phone/recipient value.
-  const consoleLines = SMS.split("\n").filter((l) => /console\.(log|warn|error)/.test(l));
-  for (const line of consoleLines) {
-    assert.doesNotMatch(line, /\bphone: recipientPhone\b/, `raw recipientPhone logged: ${line.trim()}`);
-    assert.doesNotMatch(line, /\bphone: profile\??\.phone\b/, `raw profile phone logged: ${line.trim()}`);
-    assert.doesNotMatch(line, /\bto: recipientPhone\b/, `raw recipientPhone in 'to' logged: ${line.trim()}`);
-    assert.doesNotMatch(line, /received request", \{ to,/, `raw 'to' logged: ${line.trim()}`);
-  }
+test("/api/sms/send is 410 GONE and does not send", () => {
+  assert.match(SMS, /status:\s*410/);
+  assert.doesNotMatch(SMS, /sendSmsNotification/);
+  assert.doesNotMatch(SMS, /recipientPhone/);
 });
 
 test("no raw phone/email/secret patterns added to the changed log lines", () => {

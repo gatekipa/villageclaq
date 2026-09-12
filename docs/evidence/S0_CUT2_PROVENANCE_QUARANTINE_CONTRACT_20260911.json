@@ -1,0 +1,253 @@
+{
+  "document": "S0_CUT2_PROVENANCE_QUARANTINE_CONTRACT_20260911",
+  "status": "FROZEN_SECURITY_REVISION_4",
+  "authored_in_this_pr": true,
+  "implementation_in_this_pr": false,
+  "migration_file_in_this_pr": false,
+  "parent_daybreak_tip": "a806c3403f0723bb8e316919d72154b9dd52c890",
+  "investigated_from_main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+  "master_prd_pr_71_freeze_sha": "050be86c9df3455c66b27bb5853eb786228b4009",
+  "purpose": "Unforgeable Cut 2 provenance column + pre-00115 legacy quarantine. ONLY cut2_provenance_version=1 is trusted. Envelope/JSON fields are NOT trust evidence.",
+  "do_not_reopen": [
+    "Layer B",
+    "RPC signature/args",
+    "domain/channel/renderer matrices",
+    "email/phone/tenant/recipient",
+    "proxy ACTIVE owner/admin",
+    "sms/whatsapp 410",
+    "Meta=drain only",
+    "canonical idempotency design (key expressions, failed no-retry, provenance=1 + non-empty idempotencyKey)",
+    "17 WA unique names + key expressions (predicates now provenance-scoped by R4)",
+    "00115 forward-only",
+    "app-first order",
+    "PR69/70/Cut3"
+  ],
+  "column": {
+    "table": "public.notifications_queue",
+    "name": "cut2_provenance_version",
+    "type": "smallint",
+    "default": null,
+    "default_explicitly_forbidden": true,
+    "existing_rows_after_add": null,
+    "trusted_value": 1,
+    "check": "cut2_provenance_version IS NULL OR cut2_provenance_version = 1",
+    "pre_00115_exists": false,
+    "pre_00115_attacker_cannot_insert_trusted": true
+  },
+  "only_trusted_discriminator": {
+    "trusted_iff": "cut2_provenance_version = 1",
+    "not_trust_evidence": [
+      "data.cut2Semantic",
+      "data.envelopeVersion",
+      "data.idempotencyKey",
+      "template",
+      "channel",
+      "user_id",
+      "status",
+      "any other JSON field"
+    ],
+    "idempotencyKey_role": "idempotency only"
+  },
+  "rpc": {
+    "signature_unchanged": "public.enqueue_outbound_notification(p_notification_type text, p_domain_object_id uuid, p_channel public.notification_channel, p_recipient_membership_id uuid DEFAULT NULL, p_locale text DEFAULT NULL)",
+    "hardcodes_insert": "cut2_provenance_version = 1",
+    "provenance_is_argument": false,
+    "provenance_from_json": false,
+    "do_not_add_parameter": "p_cut2_provenance_version"
+  },
+  "atomic_00115": [
+    "R4-21 SUPERSEDES R3-3 order",
+    "1. Validate fingerprints of all 17 WA indexdefs (CUT2_ABORT before DROP on drift)",
+    "2. ADD COLUMN cut2_provenance_version smallint WITHOUT DEFAULT + CHECK (NULL OR 1)",
+    "3. DROP/RECREATE all 17 WA uniques: WHERE ((<exact existing WHERE body>) AND cut2_provenance_version = 1); preserve payment_receipt/welcome missing IS NOT NULL",
+    "4. CREATE trusted-only canonical unique index",
+    "5. CREATE enqueue_outbound_notification (R2 signature; hardcodes provenance=1; R4 trusted-only duplicate lookup)",
+    "6. DROP unsafe INSERT/UPDATE policies",
+    "7. REVOKE INSERT from anon, authenticated, AND service_role",
+    "8. REVOKE broad UPDATE; GRANT UPDATE only on worker/webhook columns",
+    "9. provenance immutability (column grants + optional trigger)",
+    "10. postconditions (legacy_quarantine_count; prove trusted indexes exclude NULL)",
+    "11. COMMIT"
+  ],
+  "drain": {
+    "after_cutover_select": "status = 'queued' AND cut2_provenance_version = 1",
+    "after_cutover_path": "semantic renderers only",
+    "null_provenance": "LEGACY_UNTRUSTED_QUARANTINED",
+    "null_provenance_forbidden": [
+      "send",
+      "render",
+      "provider",
+      "update",
+      "attempts",
+      "error_message",
+      "delete",
+      "requeue",
+      "replace",
+      "copy",
+      "upgrade"
+    ],
+    "null_provenance_untouched": true,
+    "legacy_raw_path_after_00115_for_null": false,
+    "pre_00115_if_db_not_ready": {
+      "provider_delivery": false,
+      "response": {
+        "cut2_db_not_ready": true,
+        "processed": 0,
+        "sent": 0,
+        "failed": 0
+      },
+      "must_not_fallback_to_status_queued_only": true
+    }
+  },
+  "production_enqueue": {
+    "missing_rpc": "FAIL_CLOSED_DO_NOT_ENQUEUE",
+    "raw_service_role_insert_during_cutover": false,
+    "disposable_testing_fallback_42883_pgrst202": "allowed ONLY if explicitly marked non-production",
+    "matcher_identity_unchanged": ["42883", "PGRST202"]
+  },
+  "pre_app_cutover": {
+    "queued_count_query": "SELECT count(*) FROM public.notifications_queue WHERE status = 'queued'",
+    "prefer": 0,
+    "if_gt_0": "wait for natural drain only; no force; no DELETE; no status rewrite; no requeue",
+    "else": "HOLD APP CUTOVER"
+  },
+  "race": {
+    "insert_before_00115": "NULL provenance after column add (no DEFAULT)",
+    "never_trusted": true,
+    "upgrade_path": false
+  },
+  "privileges": {
+    "revoke_broad_service_role_update": true,
+    "grant_update_exact_columns_source_verified": [
+      "status",
+      "error_message",
+      "attempts",
+      "sent_at",
+      "data"
+    ],
+    "must_not_update": [
+      "cut2_provenance_version",
+      "channel",
+      "template",
+      "user_id",
+      "created_at",
+      "id"
+    ],
+    "folded_into": "R3-12",
+    "chief_verified_r3_12": {
+      "tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+      "grant_update_exact": ["status", "error_message", "attempts", "sent_at", "data"],
+      "drain_updates_only": [
+        "status",
+        "sent_at",
+        "error_message",
+        "attempts",
+        "data (merge providerMessageId into jsonb)"
+      ],
+      "webhook_queue_updates_only": [
+        "data (patch provider status fields; lookup by data.providerMessageId)"
+      ],
+      "webhook_also_inserts": {
+        "table": "whatsapp_message_status_events",
+        "cut2_queue_privilege_scope": false,
+        "note": "separate table — out of Cut 2 notifications_queue REVOKE/GRANT"
+      }
+    },
+    "source_verification": {
+      "main_tip": "1693b806beaf80d1c8101c8011874a2a2bcbb642",
+      "chief_verified": true,
+      "folded_into": "R3-12",
+      "drain_file": "src/app/api/cron/drain-notification-queue/route.ts",
+      "drain_updates": [
+        {
+          "site": "sentPayload L119-130",
+          "keys": ["status", "sent_at", "error_message", "data"],
+          "data_note": "merge providerMessageId into jsonb"
+        },
+        {
+          "site": "persist-fail mark L148-152",
+          "keys": ["status", "attempts", "error_message"]
+        },
+        {
+          "site": "max-retries fail L173-177",
+          "keys": ["status", "attempts", "error_message"]
+        },
+        {
+          "site": "retry increment L184-187",
+          "keys": ["attempts", "error_message"]
+        }
+      ],
+      "webhook_file": "src/lib/whatsapp-webhook-status.ts",
+      "webhook_queue_lookup": "channel=whatsapp AND data contains { providerMessageId }",
+      "webhook_updates": [
+        {
+          "site": "L178-179",
+          "keys": ["data"],
+          "data_note": "patch latestProviderStatus / latestProviderStatusAt / optional providerError*"
+        }
+      ],
+      "webhook_out_of_queue_scope": {
+        "table": "whatsapp_message_status_events",
+        "operation": "INSERT",
+        "site": "L147-158"
+      }
+    },
+    "immutability": {
+      "column_grants": true,
+      "optional_trigger_denies_old_new_change": true,
+      "upgrade_path": false,
+      "upgrade_rpc": false
+    }
+  },
+  "idempotency_index_plan_sql_only": "CREATE UNIQUE INDEX idx_notifications_queue_cut2_semantic_idempotency_unique ON public.notifications_queue (channel, template, ((data ->> 'idempotencyKey'))) WHERE cut2_provenance_version = 1 AND NULLIF(BTRIM(data ->> 'idempotencyKey'), '') IS NOT NULL;",
+  "idempotency_index_notes": [
+    "No status filter",
+    "Canonical index WHERE cut2_provenance_version = 1 AND non-empty idempotencyKey (unchanged)",
+    "SR4: 17 WA uniques DROP+CREATE same name with AND cut2_provenance_version = 1",
+    "Legacy keys cannot poison any trusted index"
+  ],
+  "rpc_duplicate_contract_r4": {
+    "on_unique_conflict": "no UPDATE / REQUEUE / REPLACE / convert legacy",
+    "duplicate_lookup": "ONLY cut2_provenance_version=1 AND channel AND template AND canonical idempotencyKey",
+    "null_legacy_never_returned_as_duplicate_or_queue_id": true,
+    "conflict_without_matching_trusted_canonical_row": "trusted_idempotency_conflict_mismatch",
+    "trusted_duplicate_queued_sent_or_failed": "existing trusted id + duplicate, no mutation"
+  },
+  "postcondition": {
+    "legacy_quarantine_count": "COUNT(*) WHERE status='queued' AND cut2_provenance_version IS NULL",
+    "ideal": 0,
+    "if_gt_0": "SECURITY PASS if proven non-participating in all trusted indexes (17 scoped WA + canonical); report only; do not process; do not clean"
+  },
+  "production_release_order_R3_19": [
+    "1. READ-ONLY queued_count (status=queued). Prefer 0. If >0 wait for natural drain only. Else HOLD APP CUTOVER.",
+    "2. Deploy production app first (Daybreak-qualified impl SHA): RPC-only enqueue FAIL CLOSED / DO NOT ENQUEUE if RPC missing; provenance-aware drain returns cut2_db_not_ready processed/sent/failed=0 no provider; relays 410.",
+    "3. Confirm deployed Vercel SHA == Daybreak-qualified impl SHA.",
+    "4. Founder applies 00115 atomically.",
+    "5. READ-ONLY report legacy_quarantine_count. If >0 report; do not process/clean.",
+    "6. Post-cutover drain delivers only queued AND cut2_provenance_version=1. NULL stays quarantined."
+  ],
+  "provenance_tests_A_L": {
+    "A": "RPC INSERT hardcodes cut2_provenance_version=1. No provenance argument. JSON/data cannot set it.",
+    "B": "Pre-00115 the column does not exist; INSERT of provenance=1 is impossible.",
+    "C": "Post-00115 anon/authenticated/service_role table INSERT is DENY (cannot mint provenance=1).",
+    "D": "service_role UPDATE cannot change cut2_provenance_version (column grant + optional trigger).",
+    "E": "Drain after cutover selects/delivers only queued AND cut2_provenance_version=1 via semantic renderers.",
+    "F": "NULL-provenance queued rows: no send/render/provider/UPDATE/DELETE/requeue/replace/copy/upgrade — untouched.",
+    "G": "After 00115, no legacy raw data.message/template/components path for NULL-provenance rows.",
+    "H": "Pre-00115 drain: DB not ready → cut2_db_not_ready, processed/sent/failed=0, zero provider calls.",
+    "I": "Production adapter missing-RPC → FAIL CLOSED / DO NOT ENQUEUE; no raw INSERT.",
+    "J": "Canonical unique index matches only cut2_provenance_version=1; a legacy key cannot poison it.",
+    "K": "Webhook UPDATE data only; cannot SET cut2_provenance_version, channel, template, user_id, created_at, id.",
+    "L": "No upgrade path/RPC NULL→1; postcondition reports legacy_quarantine_count read-only and does not clean."
+  },
+  "added_ci_script_names_not_authored": [
+    "scripts/test-s0-cut2-provenance-gate.mjs",
+    "scripts/test-s0-cut2-legacy-quarantine.mjs",
+    "scripts/test-s0-cut2-idempotency-provenance.mjs",
+    "scripts/test-s0-cut2-worker-column-grants.mjs",
+    "scripts/test-s0-cut2-legacy-wa-index-provenance.mjs",
+    "scripts/test-s0-cut2-duplicate-trusted-lookup.mjs",
+    "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs"
+  ],
+  "legacy_wa_index_provenance_matrix": "docs/evidence/S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json"
+}

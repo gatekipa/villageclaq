@@ -1,3 +1,4 @@
+import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAmount } from "@/lib/currencies";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
@@ -292,32 +293,13 @@ export async function produceFineIssuedNotification(
     };
   }
 
-  const { error: queueError } = await supabase.from("notifications_queue").insert({
-    user_id: userId,
-    channel: "whatsapp",
-    template: "fine_issued",
-    status: "queued",
-    data: {
-      recipient: recipientPhone,
-      user_id: userId,
-      groupId: fine.group_id,
-      membershipId: membership.id,
-      fineId: fine.id,
-      whatsappType: "fine_issued",
-      // Approved Meta body order: memberName, fineType, amount, groupName,
-      // reason (the dispatcher passes these by key; buildFineIssuedParams
-      // emits the positional order).
-      whatsappData: {
-        memberName: memberName(membership, profile),
-        fineType: fineTypeName,
-        amount,
-        groupName,
-        reason,
-      },
-      template: WA_TEMPLATES.FINE_ISSUED,
-      locale,
-    },
-  });
+  const enq = await enqueueCut2ProducerChannels({
+    notificationType: "fine_issued",
+    domainObjectId: fine.id,
+    locale,
+  }, supabase);
+  const queueError = cut2QueueError(enq);
+
 
   if (queueError) {
     if (queueError.code === "23505") {
@@ -356,3 +338,11 @@ export async function produceFineIssuedNotification(
     whatsappQueued: true,
   };
 }
+
+function cut2QueueError(enq: Cut2ProducerEnqueueSummary): { message: string; code: string } | null {
+  if (enq.failClosed) return { message: enq.results[0]?.error || "fail_closed", code: "CUT2" };
+  if (enq.anyDuplicate && !enq.anyInserted) return { message: "duplicate", code: "23505" };
+  if (!enq.anyInserted) return { message: "denied", code: "CUT2_DENIED" };
+  return null;
+}
+

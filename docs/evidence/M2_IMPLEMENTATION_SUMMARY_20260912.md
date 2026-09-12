@@ -14,7 +14,7 @@
 | Base main | `0c147f8e1e7aadbfd14583f6a9bef465c2217fe1` |
 | Branch | `security/m2-notification-policy-foundation-20260912` |
 | Draft PR | https://github.com/gatekipa/villageclaq/pull/82 |
-| Functional SHA | `cffdda852ab198ea6dfab4eefdb9e6a82bd8e03d` |
+| Functional SHA | `046cadcfac6e7b14f85e87d80f5025f8f3b493d4` |
 | 00117 path | `supabase/migrations/00117_m2_notification_policy_foundation.sql` |
 | 00117 SHA-256 | `6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42` |
 | Production project | `llbnliixczcqfftxpsmb` — **never mutated** |
@@ -24,7 +24,7 @@
 ## What shipped
 
 - Pure evaluator `src/lib/notification-policy.ts` — `ENQUEUE_ELIGIBLE` = trusted-producer enqueue consideration only (SEND_NOW retired)
-- Pure contracts `src/lib/notification-policy-contracts.ts` — Cut 2 AND + push DENY + adapters
+- Pure contracts `src/lib/notification-policy-contracts.ts` — Cut 2 AND + push DENY + adapters. **`UI_POLICY_LABELS` / `UiPolicyLabels` removed** (OUT OF M2 per PR #81; no UI copy in foundation).
 - Dormant 00117 three-table schema; `enabled` / all channel defaults `false`; domain `payment|hosting|event` only
 - RLS: `has_group_permission(group_id, 'settings.manage')` + ENABLE/FORCE RLS
 - Occurrences: authenticated SELECT-only; no authenticated mutation; no service_role DML grant
@@ -66,7 +66,11 @@ No producer import of the M2 engine. Live crons unchanged.
 - `docs/evidence/M2_DORMANCY_PROOF_20260912.json`
 - `docs/evidence/M2_MIGRATION_SECURITY_FINGERPRINTS_20260912.json`
 
-Evidence tip SHA is the docs/evidence-only commit on top of functional SHA `cffdda852ab198ea6dfab4eefdb9e6a82bd8e03d`.
+Evidence tip SHA is the docs/evidence-only commit on top of functional SHA `046cadcfac6e7b14f85e87d80f5025f8f3b493d4`.
+
+## Bounded remediation (Chief independent review)
+
+`UI_POLICY_LABELS` / `UiPolicyLabels` were salvage leftovers classified OUT OF M2 by planning PR #81. Removed from contracts + dependent test. 00117 SHA-256 unchanged. Evaluator / Cut 2 / adapters / producers / env unchanged.
 
 ## Left open / unmerged
 

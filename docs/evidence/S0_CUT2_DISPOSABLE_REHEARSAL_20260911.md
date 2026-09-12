@@ -37,6 +37,7 @@ Local PostgreSQL 16 cluster, database `s0p0b_cut2_disposable`. Transaction COMMI
 - Historical notification producer + drain render suite:
   - **Previous baseline (do not overwrite):** **182/182 PASS, 0 fail**
   - **Erroneous prior evidence 186/186:** discarded
-  - **New final total after 8 behavioral drain-render tests:** **190/190 PASS, 0 fail**
+  - **Drain-semantics fold:** **190/190 PASS, 0 fail**
+  - **LIMIT-12 fold (this update):** **192/192 PASS, 0 fail** (190 + 2 loan_overdue drain tests)
 - `npm run build` → **PASS**
-- Functional SHA for this drain-semantics fold: `3fccd4c18b77259f1f5bc3bb2997d353f43a64a5`
+- Functional SHA for this LIMIT-12 fold: `7428d2327fa8423e8ecc840792dea33e31f1e876`

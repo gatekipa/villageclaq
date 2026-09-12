@@ -2,9 +2,9 @@
 
 **Branch:** `security/s0-p0b-cut2-implementation-20260911` (same; PR #78 DRAFT only)  
 **Contract SHA (unreopened):** `5c3c1cce458cd13f9525eb21c6366f8877d3c51d`  
-**Prior held functional SHA:** `45d9b4d2ea74e387c509d96db493c21ee1d86a59`  
-**Prior evidence tip (erroneous 186/186 lived here):** `2a2b58f0599d0a438763873b4a61fe4d7c638c3a`  
-**New functional SHA (code+test):** `3fccd4c18b77259f1f5bc3bb2997d353f43a64a5`  
+**Prior held functional SHA:** `3fccd4c18b77259f1f5bc3bb2997d353f43a64a5`  
+**Prior evidence tip:** `e123830b7e7321110d82b9f406a797e957de4257`  
+**New functional SHA (code+test):** `7428d2327fa8423e8ecc840792dea33e31f1e876`  
 **00115 digest (unchanged):** `d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c`  
 **PR #77:** OPEN DRAFT UNMERGED — not altered.
 
@@ -20,8 +20,8 @@
 
 The prior docs-only tip incorrectly wrote **186/186**. That number was wrong.  
 **Authoritative previous baseline:** **182 PASS / 0 FAIL** (15 producer files + 4 pre-existing drain-render tests).  
-**This fold added 8 behavioral drain-render tests.**  
-**New historical suite total:** **190 PASS / 0 FAIL**.  
+**Drain-semantics fold added 8 behavioral drain-render tests → 190/190.**  
+**This LIMIT-12 fold added 2 loan_overdue drain tests → 192/192.**  
 Do not treat 186 as a baseline or a final total.
 
 ## This fold — trusted drain semantics
@@ -84,6 +84,8 @@ All in `scripts/test-cut2-drain-render-regression.mjs`:
 | hosting assignment/reminder/swap drain localizes EN/FR dates and location fallback | PASS |
 | hosting fail-closed when assigned_date is missing | PASS |
 | loan_overdue drain quotes earliest outstanding installment amount and localized due date | PASS |
+| loan_overdue scans past twelve fully-paid eligible rows to the first outstanding | PASS |
+| loan_overdue skips stale zero-balance overdue and future-due positive balances | PASS |
 | loan_overdue excludes paid/settled rows and fail-closes when none outstanding | PASS |
 | subscription_expiring countdown uses trusted reminderDate, not drain wall-clock | PASS |
 | subscription_expiring fail-closed without trusted reminderDate | PASS |
@@ -101,9 +103,17 @@ Prior four drain tests (invitation, fine/standing, location fallback, proxy emai
 ## Gates
 
 - `npm run test:s0-cut2` → **17/17 scripts PASS** (21 node:test cases; email-send-410 is behavioral + zero-side-effect).
-- Historical suite → **190/190 PASS, 0 FAIL** (prior 182 + 8 new drain tests).
+- Historical suite → **192/192 PASS, 0 FAIL** (prior drain-semantics baseline 190/190 + 2 loan_overdue LIMIT-12 tests).
 - `npm run build` → **PASS**.
 - Real sends = 0.
+
+## This fold — loan_overdue LIMIT 12 miss
+
+**Defect:** trusted drain queried `loan_schedule` with `.limit(12)` before outstanding-balance qualification. Twelve earlier status-eligible but fully-paid rows could hide a genuine 13th outstanding installment and return a false `cut2_loan_overdue_no_outstanding_installment`.
+
+**Fix:** removed `.limit(12)`. Drain reads every row for that loan with status IN (`pending`,`partial`,`overdue`) and `due_date < reminderDate`, ordered by `due_date` ASC, then selects the first row with `amount_due - amount_paid > 0`. No unsafe prequalification cap. No replacement fixed max.
+
+**>12 regression:** 12 fully-paid eligible rows + 13th outstanding (8500−1000) → PASS; renders `7,500 XAF` and localized `2026-06-01`; does not fail-closed; later outstanding and `due_date >= reminderDate` are not selected. Stale `status=overdue` with zero balance is skipped.
 
 ## Explicit non-actions
 
@@ -114,4 +124,4 @@ Prior four drain tests (invitation, fine/standing, location fallback, proxy emai
 
 ## Next gate
 
-Daybreak BLUE final read-only re-review at functional SHA `3fccd4c18b77259f1f5bc3bb2997d353f43a64a5`. Do not merge, deploy, or apply 00115.
+Daybreak BLUE final read-only re-review at functional SHA `7428d2327fa8423e8ecc840792dea33e31f1e876`. Do not merge, deploy, or apply 00115.

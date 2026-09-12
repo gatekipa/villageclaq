@@ -5,8 +5,9 @@
   "count_correction": {
     "erroneous_prior_evidence": "186/186 was wrong and must not be reused",
     "previous_baseline": { "tests": 182, "pass": 182, "fail": 0, "note": "15 producer files + 4 pre-existing drain-render tests" },
-    "new_drain_tests_added": 8,
-    "new_final_total": { "tests": 190, "pass": 190, "fail": 0 }
+    "drain_semantics_fold_total": { "tests": 190, "pass": 190, "fail": 0 },
+    "limit12_fold_tests_added": 2,
+    "new_final_total": { "tests": 192, "pass": 192, "fail": 0 }
   },
   "previous_baseline_suite": {
     "tests": 182,
@@ -34,11 +35,13 @@
       "scripts/test-welcome-producer.mjs",
       "scripts/test-cut2-drain-render-regression.mjs"
     ],
-    "tests": 190,
-    "pass": 190,
+    "tests": 192,
+    "pass": 192,
     "fail": 0,
     "previous_baseline": 182,
-    "new_behavioral_drain_tests": 8,
+    "drain_semantics_baseline": 190,
+    "new_behavioral_drain_tests": 10,
+    "limit12_fold_tests_added": 2,
     "obsolete_updated": 58,
     "true_regressions_fixed": 12
   },
@@ -48,6 +51,8 @@
     { "name": "hosting assignment/reminder/swap drain localizes EN/FR dates and location fallback", "result": "PASS" },
     { "name": "hosting fail-closed when assigned_date is missing", "result": "PASS" },
     { "name": "loan_overdue drain quotes earliest outstanding installment amount and localized due date", "result": "PASS" },
+    { "name": "loan_overdue scans past twelve fully-paid eligible rows to the first outstanding", "result": "PASS" },
+    { "name": "loan_overdue skips stale zero-balance overdue and future-due positive balances", "result": "PASS" },
     { "name": "loan_overdue excludes paid/settled rows and fail-closes when none outstanding", "result": "PASS" },
     { "name": "subscription_expiring countdown uses trusted reminderDate, not drain wall-clock", "result": "PASS" },
     { "name": "subscription_expiring fail-closed without trusted reminderDate", "result": "PASS" }
@@ -70,6 +75,7 @@
     { "assertion": "hosting raw assigned_date as provider-visible date", "kind": "true_regression", "disposition": "localize assigned_date at drain; domain date unchanged" },
     { "assertion": "loan approved queue shape / FR / proxy / 23505", "kind": "obsolete", "disposition": "semantic enqueue loan_approved" },
     { "assertion": "loan overdue earliest installment / FR / next-day / proxy / 23505", "kind": "obsolete+true", "disposition": "enqueue loan_overdue; drain quotes earliest outstanding installment; SMS remains DENY" },
+    { "assertion": "loan_overdue drain LIMIT 12 hid 13th outstanding behind twelve fully-paid eligible rows", "kind": "true_regression", "disposition": "removed .limit(12); scan all status-eligible due_date<reminderDate rows; first amount_due-amount_paid>0 wins; >12 fixture PASS" },
     { "assertion": "member invitation queue shape / FR link / proxy name / same-day / later-day / email-only skip / 23505", "kind": "obsolete+true", "disposition": "email-only now enqueues; drain acceptUrl locale-prefixed; invitations.email; SMS DENY" },
     { "assertion": "payment receipt direct queue-row asserts", "kind": "obsolete", "disposition": "semantic enqueue + in-app insert; no restored old payload" },
     { "assertion": "payment reminder Node 20 import .ts crash", "kind": "true_regression", "disposition": "transpile money.ts in harness; suite executes and is green" },

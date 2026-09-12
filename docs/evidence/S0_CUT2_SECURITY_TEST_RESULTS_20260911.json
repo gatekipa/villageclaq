@@ -4,10 +4,10 @@
   "real_sends": 0,
   "failed_rows_retried": 0,
   "cached_results": false,
-  "functional_sha": "3fccd4c18b77259f1f5bc3bb2997d353f43a64a5",
-  "previous_functional_sha": "45d9b4d2ea74e387c509d96db493c21ee1d86a59",
-  "previous_evidence_tip": "2a2b58f0599d0a438763873b4a61fe4d7c638c3a",
-  "evidence_fold_note": "docs-only commit after functional SHA 3fccd4c; report branch tip after push as NEW EVIDENCE TIP. Do not conflate with functional SHA.",
+  "functional_sha": "7428d2327fa8423e8ecc840792dea33e31f1e876",
+  "previous_functional_sha": "3fccd4c18b77259f1f5bc3bb2997d353f43a64a5",
+  "previous_evidence_tip": "e123830b7e7321110d82b9f406a797e957de4257",
+  "evidence_fold_note": "docs-only commit after functional SHA 7428d23; report branch tip after push as NEW EVIDENCE TIP. Do not conflate with functional SHA.",
   "erroneous_186_corrected": true,
   "frozen_ci_scripts": {
     "scripts/test-s0-cut2-sms-send-410.mjs": "PASS",
@@ -35,11 +35,13 @@
   "npm_run_build": "PASS",
   "historical_notification_suite": {
     "previous_baseline": { "tests": 182, "pass": 182, "fail": 0 },
+    "drain_semantics_baseline": { "tests": 190, "pass": 190, "fail": 0 },
     "erroneous_prior_claim": "186/186",
-    "tests": 190,
-    "pass": 190,
+    "tests": 192,
+    "pass": 192,
     "fail": 0,
-    "new_behavioral_drain_tests": 8,
+    "new_behavioral_drain_tests": 10,
+    "limit12_fold_tests_added": 2,
     "obsolete_updated": 58,
     "true_regressions_fixed": 12
   },
@@ -61,7 +63,8 @@
     "date_helper": "src/lib/cut2-drain-date.ts UTC calendar-day",
     "event_reminder": "localized EN/FR weekday+long; location TBA preserved",
     "hosting": "localized assigned_date short month EN/FR; location TBA preserved",
-    "loan_overdue": "earliest outstanding loan_schedule installment; fail-closed if none",
+    "loan_overdue": "earliest outstanding loan_schedule installment; no LIMIT 12 prequalification cap; fail-closed if none",
+    "loan_overdue_limit12_defect": "removed; >12 fully-paid prefix no longer hides later outstanding",
     "subscription_expiring": "days = calendar difference period_end vs envelope.reminderDate"
   }
 }

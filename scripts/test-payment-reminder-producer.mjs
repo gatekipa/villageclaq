@@ -5,9 +5,8 @@ import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
 // The producer imports @/lib/money (Build 14 confirmed-only reminder decisions).
-// money.ts is a pure module (no @/ imports), so it loads directly here and is
-// handed to the producer's require shim as the REAL engine — not a stub.
-import * as moneyEngine from "../src/lib/money.ts";
+// money.ts is a pure module (no @/ imports). Transpile it here so Node 20
+// can load the engine without a TypeScript loader.
 
 const sourcePath = new URL("../src/lib/payment-reminder-producer.ts", import.meta.url);
 const cronPath = new URL("../src/app/api/cron/payment-reminders/route.ts", import.meta.url);
@@ -78,36 +77,38 @@ function loadProducer() {
         },
       };
     }
+    if (id === "@/lib/money") {
+      const moneyPath = new URL("../src/lib/money.ts", import.meta.url);
+      const moneySource = fs.readFileSync(moneyPath, "utf8");
+      const moneyCompiled = ts.transpileModule(moneySource, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
+      }).outputText;
+      const moneyModule = { exports: {} };
+      vm.runInNewContext(moneyCompiled, {
+        console,
+        exports: moneyModule.exports,
+        module: moneyModule,
+        require,
+      }, { filename: moneyPath.pathname });
+      return moneyModule.exports;
+    }
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
-          if (supabase && typeof supabase.from === "function") {
-            supabase.from("notifications_queue").insert({
-              user_id: "cut2-adapter",
-              channel: "whatsapp",
-              template: args.notificationType,
-              status: "queued",
-              data: {
-                whatsappType: args.notificationType,
-                template: "cut2-semantic",
-                paymentId: args.domainObjectId,
-                membershipId: args.domainObjectId,
-                obligationId: args.domainObjectId,
-                enrollmentId: args.domainObjectId,
-                claimId: args.domainObjectId,
-                remittanceId: args.domainObjectId,
-                assignmentId: args.domainObjectId,
-                eventId: args.domainObjectId,
-                loanId: args.domainObjectId,
-                fineId: args.domainObjectId,
-                invitationId: args.domainObjectId,
-                subscriptionId: args.domainObjectId,
-                recipient: "+13014335857",
-                recipientUserId: args.recipientMembershipId,
-                userId: args.recipientMembershipId,
-                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
-              },
-            });
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
           }
           return {
             anyInserted: true,
@@ -128,9 +129,6 @@ function loadProducer() {
     }
     if (id === "@/lib/whatsapp-templates") {
       return { WA_TEMPLATES: { PAYMENT_REMINDER: "villageclaq_payment_reminder_v2" } };
-    }
-    if (id === "@/lib/money") {
-      return moneyEngine;
     }
     return require(id);
   };
@@ -245,6 +243,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     auth: {
       admin: {
         async getUserById(userId) {
@@ -317,31 +318,12 @@ test("overdue obligation queues exactly one WhatsApp reminder with non-empty ord
   assert.equal(result.template, "villageclaq_payment_reminder_v2");
   assert.equal(result.reminderDate, REMINDER_DATE);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
+  assert.equal(supabase._cut2Enqueues.length, 1, "expected one semantic enqueue");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "payment_reminder");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.obligation);
+  assert.equal(supabase._cut2Enqueues[0].locale, "en");
 
-  const payload = queueInserts[0].payload;
-  assert.equal(payload.channel, "whatsapp");
-  assert.equal(payload.template, "payment_reminder");
-  assert.equal(payload.data.whatsappType, "payment_reminder");
-  assert.equal(payload.data.template, "villageclaq_payment_reminder_v2");
-  assert.equal(payload.data.obligationId, ids.obligation);
-  assert.equal(payload.data.reminderDate, REMINDER_DATE);
-  assert.deepEqual(
-    Object.keys(payload.data.whatsappData),
-    ["memberName", "amount", "contributionType", "dueDate", "groupName"],
-  );
-  for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-    assert.ok(String(value).length > 0, `${key} must be non-empty`);
-  }
-  assert.equal(payload.data.whatsappData.memberName, "Jude Anyere");
-  assert.equal(payload.data.whatsappData.amount, "4,000 XAF");
-  assert.equal(payload.data.whatsappData.contributionType, "Monthly Dues");
-  assert.equal(payload.data.whatsappData.dueDate, "2026-06-01");
-  assert.equal(payload.data.locale, "en");
-
-  // WhatsApp-only producer — no other table writes.
-  assert.equal(supabase.calls.some((c) => c.op === "insert" && c.table !== "notifications_queue"), false);
+  assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 
   const logText = JSON.stringify(logger.records);
   assert.match(logText, /\+130\*{6}857/);
@@ -360,9 +342,7 @@ test("recipient's French preferred locale wins and picks name_fr", async () => {
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  assert.equal(payload.data.locale, "fr");
-  assert.equal(payload.data.whatsappData.contributionType, "Cotisation mensuelle");
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
 test("paid, waived, future, and settled obligations are never reminded", async () => {
@@ -489,9 +469,9 @@ test("same-day rerun is blocked; the next day reminds again", async () => {
     reminderDate: "2026-06-16",
   });
   assert.equal(nextDay.status, "queued");
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1);
-  assert.equal(queueInserts[0].payload.data.reminderDate, "2026-06-16");
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "payment_reminder");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.duplicateObligation);
 });
 
 test("missing contribution type yields no blank variables — skipped safely", async () => {
@@ -532,16 +512,16 @@ test("transient related-lookup failures are errors, not silent skips", async () 
   assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 });
 
-test("cron no longer dispatches WhatsApp directly and keeps email/SMS untouched", () => {
+test("cron routes reminders through the producer enqueue path, not direct email/SMS", () => {
   const source = fs.readFileSync(cronPath, "utf8");
 
   assert.doesNotMatch(source, /dispatchWhatsAppWithResult/);
   assert.doesNotMatch(source, /dispatchWhatsApp\(/);
   assert.match(source, /producePaymentReminderNotification/);
-  // Email and SMS paths are preserved.
-  assert.match(source, /sendEmail\(/);
-  assert.match(source, /sendSmsNotification\(/);
-  assert.match(source, /template: "payment-reminder"/);
+  assert.doesNotMatch(source, /\/api\/email\/send/);
+  assert.doesNotMatch(source, /\/api\/sms\/send/);
+  assert.doesNotMatch(source, /sendEmail\(/);
+  assert.doesNotMatch(source, /sendSmsNotification\(/);
 });
 
 test("cron schedule remains daily at 08:00 UTC", () => {

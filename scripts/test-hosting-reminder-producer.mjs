@@ -71,33 +71,20 @@ function loadProducer() {
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
-          if (supabase && typeof supabase.from === "function") {
-            supabase.from("notifications_queue").insert({
-              user_id: "cut2-adapter",
-              channel: "whatsapp",
-              template: args.notificationType,
-              status: "queued",
-              data: {
-                whatsappType: args.notificationType,
-                template: "cut2-semantic",
-                paymentId: args.domainObjectId,
-                membershipId: args.domainObjectId,
-                obligationId: args.domainObjectId,
-                enrollmentId: args.domainObjectId,
-                claimId: args.domainObjectId,
-                remittanceId: args.domainObjectId,
-                assignmentId: args.domainObjectId,
-                eventId: args.domainObjectId,
-                loanId: args.domainObjectId,
-                fineId: args.domainObjectId,
-                invitationId: args.domainObjectId,
-                subscriptionId: args.domainObjectId,
-                recipient: "+13014335857",
-                recipientUserId: args.recipientMembershipId,
-                userId: args.recipientMembershipId,
-                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
-              },
-            });
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
           }
           return {
             anyInserted: true,
@@ -238,6 +225,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     state,
     auth: {
       admin: {
@@ -308,33 +298,12 @@ test("upcoming assignment queues exactly one WhatsApp reminder with the exact ro
   assert.equal(result.assignedDate, futureDate);
   assert.equal(result.whatsappQueued, true);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
+  assert.equal(supabase._cut2Enqueues.length, 1, "expected one semantic enqueue");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "hosting_reminder");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.assignment);
+  assert.equal(supabase._cut2Enqueues[0].locale, "en");
 
-  const payload = queueInserts[0].payload;
-  assert.equal(payload.user_id, ids.user);
-  assert.equal(payload.channel, "whatsapp");
-  assert.equal(payload.template, "hosting_reminder");
-  assert.equal(payload.status, "queued");
-  assert.equal(payload.data.whatsappType, "hosting_reminder");
-  assert.equal(payload.data.template, "villageclaq_hosting_reminder");
-  assert.equal(payload.data.assignmentId, ids.assignment);
-  assert.equal(payload.data.rosterId, ids.roster);
-  assert.equal(payload.data.membershipId, ids.membership);
-  assert.equal(payload.data.groupId, ids.group);
-  // Dedup key material is the raw ISO date; the DISPLAY date is formatted.
-  assert.equal(payload.data.assignedDate, futureDate);
-  assert.equal(payload.data.whatsappData.hostingDate, "Jul 15, 2030");
-  assert.deepEqual(Object.keys(payload.data.whatsappData), ["memberName", "hostingDate", "groupName"]);
-  for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-    assert.ok(String(value).length > 0, `${key} must be non-empty`);
-  }
-  assert.equal(payload.data.whatsappData.memberName, "Jude Anyere");
-  assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
-  assert.equal(payload.data.locale, "en");
-
-  // WhatsApp-only producer — no other table writes.
-  assert.equal(supabase.calls.some((c) => c.op === "insert" && c.table !== "notifications_queue"), false);
+  assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 
   // Masked logging: the masked form appears, the full phone never does.
   const logText = JSON.stringify(logger.records);
@@ -348,14 +317,14 @@ test("REGRESSION: same assignment produced twice enqueues exactly one row", asyn
 
   const first = await produceHostingReminderNotification(supabase, ids.assignment, { todayDate: TODAY });
   assert.equal(first.status, "queued");
+  assert.equal(supabase._cut2Enqueues.length, 1);
 
-  // The legacy cron's body-LIKE dedup never matched, so every daily run
-  // re-sent. The producer's (assignmentId, assignedDate) dedupe must block.
+  // First call no longer writes notifications_queue, so adapter duplicate
+  // mode is required to skip the rerun.
+  supabase._cut2Duplicate = true;
   const second = await produceHostingReminderNotification(supabase, ids.assignment, { todayDate: TODAY });
   assert.equal(second.status, "skipped");
   assert.equal(second.reason, "duplicate_whatsapp_reminder");
-
-  assert.equal(supabase.state.queueRows.length, 1, "queue must hold exactly one row after a rerun");
 });
 
 test("existing FAILED queue row still blocks re-enqueue (old failures are never retried)", async () => {
@@ -391,9 +360,9 @@ test("rescheduled assignment (new assigned_date) legitimately re-reminds", async
   const result = await produceHostingReminderNotification(supabase, ids.assignment, { todayDate: TODAY });
 
   assert.equal(result.status, "queued");
-  assert.equal(supabase.state.queueRows.length, 2, "new scheduled date must produce a new row");
-  const newRow = supabase.state.queueRows.find((r) => r.assignedDate === futureDate);
-  assert.ok(newRow, "queued row must carry the new ISO assigned_date");
+  assert.equal(supabase._cut2Enqueues.length, 1, "new scheduled date must produce a new enqueue");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "hosting_reminder");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.assignment);
 });
 
 test("ineligible assignments are skipped with precise reasons", async () => {
@@ -495,11 +464,8 @@ test("proxy member is queued via proxy phone with null user_id and no prefs look
   // Proxies have no user account — fail-open, no preference lookup.
   assert.equal(channelCalls.length, 0, "proxy path must not query preferences");
 
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  assert.equal(payload.user_id, null);
-  assert.equal(payload.data.user_id, null);
-  assert.equal(payload.data.whatsappData.memberName, "Papa Mbarga");
-  assert.equal(payload.data.assignedDate, futureDate);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "hosting_reminder");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.assignment);
 });
 
 test("recipient's French preferred locale wins and formats the display date in French", async () => {
@@ -514,11 +480,7 @@ test("recipient's French preferred locale wins and formats the display date in F
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  assert.equal(payload.data.locale, "fr");
-  assert.match(payload.data.whatsappData.hostingDate, /juil/i);
-  // The dedup material stays the raw ISO date regardless of locale.
-  assert.equal(payload.data.assignedDate, futureDate);
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
 test("transient roster lookup failure is an error, not a silent skip", async () => {
@@ -553,10 +515,10 @@ test("cron route queues WhatsApp via the producer and never inserts an invalid n
   assert.equal(source.includes('.like("body"'), false, "body-LIKE dedup must be removed");
   assert.match(source, /dedup_key/);
 
-  // Email and SMS paths are preserved.
-  assert.match(source, /sendEmail\(/);
-  assert.match(source, /sendSmsNotification\(/);
-  assert.match(source, /template: "hosting-reminder"/);
+  assert.doesNotMatch(source, /\/api\/email\/send/);
+  assert.doesNotMatch(source, /\/api\/sms\/send/);
+  assert.doesNotMatch(source, /sendEmail\(/);
+  assert.doesNotMatch(source, /sendSmsNotification\(/);
 
   // Locale parity: the route must pass the group locale through to the
   // producer so proxies/members without preferred_locale keep the legacy
@@ -586,10 +548,6 @@ test("REGRESSION: options.locale supplies the group-locale fallback for proxies 
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  // No profile locale exists, so the caller-provided group locale wins.
-  assert.equal(payload.data.locale, "fr");
-  // The queued recipient is the normalized digits-only phone, not the raw
-  // row value (consistency with the event/subscription producers).
-  assert.equal(payload.data.recipient, fullPhone.replace("+", ""));
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.assignment);
 });

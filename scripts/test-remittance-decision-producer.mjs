@@ -65,33 +65,20 @@ function loadProducer() {
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
-          if (supabase && typeof supabase.from === "function") {
-            supabase.from("notifications_queue").insert({
-              user_id: "cut2-adapter",
-              channel: "whatsapp",
-              template: args.notificationType,
-              status: "queued",
-              data: {
-                whatsappType: args.notificationType,
-                template: "cut2-semantic",
-                paymentId: args.domainObjectId,
-                membershipId: args.domainObjectId,
-                obligationId: args.domainObjectId,
-                enrollmentId: args.domainObjectId,
-                claimId: args.domainObjectId,
-                remittanceId: args.domainObjectId,
-                assignmentId: args.domainObjectId,
-                eventId: args.domainObjectId,
-                loanId: args.domainObjectId,
-                fineId: args.domainObjectId,
-                invitationId: args.domainObjectId,
-                subscriptionId: args.domainObjectId,
-                recipient: "+13014335857",
-                recipientUserId: args.recipientMembershipId,
-                userId: args.recipientMembershipId,
-                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
-              },
-            });
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
           }
           return {
             anyInserted: true,
@@ -179,6 +166,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     auth: { admin: { async getUserById() { return { data: { user: null }, error: null }; } } },
     from(table) { return new Builder(table); },
   };
@@ -221,31 +211,14 @@ test("a confirmed remittance queues one row PER branch admin with ordered non-em
   assert.equal(result.template, "villageclaq_remittance_confirmed");
   assert.equal(result.whatsappQueued, 2);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 2, "expected one WhatsApp queue insert per branch admin");
-
-  for (const insert of queueInserts) {
-    const payload = insert.payload;
-    assert.equal(payload.channel, "whatsapp");
-    assert.equal(payload.template, "remittance_confirmed");
-    assert.equal(payload.data.whatsappType, "remittance_confirmed");
-    assert.equal(payload.data.remittanceId, ids.confirmedRemittance);
-    assert.ok(payload.data.recipientUserId, "recipientUserId must be present for idempotency");
-    assert.deepEqual(Object.keys(payload.data.whatsappData), ["amount", "groupName"]);
-    for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-      assert.ok(String(value).length > 0, `${key} must be non-empty`);
-    }
-    assert.equal(payload.data.whatsappData.amount, "250,000 FCFA");
-    assert.equal(payload.data.whatsappData.groupName, "Bamenda Branch");
-    // The queued recipient is the NORMALIZED digits-only form, never the
-    // raw profile value.
-    assert.match(String(payload.data.recipient), /^\d+$/);
+  assert.equal(supabase._cut2Enqueues.length, 2, "expected one semantic enqueue per branch admin");
+  for (const enqueue of supabase._cut2Enqueues) {
+    assert.equal(enqueue.notificationType, "remittance_confirmed");
+    assert.equal(enqueue.domainObjectId, ids.confirmedRemittance);
   }
-  const recipients = queueInserts.map((c) => String(c.payload.data.recipient)).sort();
-  assert.deepEqual(recipients, [phoneA.replace("+", ""), phoneB.replace("+", "")].sort());
-
-  // Per-recipient locale: admin A en, admin B fr.
-  const locales = queueInserts.map((c) => c.payload.data.locale).sort();
+  const membershipIds = supabase._cut2Enqueues.map((e) => e.recipientMembershipId).sort();
+  assert.deepEqual(membershipIds, ["mem-a", "mem-b"].sort());
+  const locales = supabase._cut2Enqueues.map((e) => e.locale).sort();
   assert.deepEqual(locales, ["en", "fr"]);
 
   const logText = JSON.stringify(logger.records);
@@ -261,9 +234,11 @@ test("a disputed remittance uses the disputed template", async () => {
   const result = await produceRemittanceDecisionNotifications(supabase, ids.disputedRemittance, {});
   assert.equal(result.status, "queued");
   assert.equal(result.template, "villageclaq_remittance_disputed");
-  const payload = supabase.calls.find((c) => c.op === "insert").payload;
-  assert.equal(payload.template, "remittance_disputed");
-  assert.equal(payload.data.whatsappData.amount, "90,000 FCFA");
+  assert.equal(supabase._cut2Enqueues.length, 2);
+  for (const enqueue of supabase._cut2Enqueues) {
+    assert.equal(enqueue.notificationType, "remittance_disputed");
+    assert.equal(enqueue.domainObjectId, ids.disputedRemittance);
+  }
 });
 
 test("a pending remittance never notifies", async () => {

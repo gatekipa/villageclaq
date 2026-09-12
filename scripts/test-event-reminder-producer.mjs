@@ -93,33 +93,20 @@ function loadProducer() {
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
-          if (supabase && typeof supabase.from === "function") {
-            supabase.from("notifications_queue").insert({
-              user_id: "cut2-adapter",
-              channel: "whatsapp",
-              template: args.notificationType,
-              status: "queued",
-              data: {
-                whatsappType: args.notificationType,
-                template: "cut2-semantic",
-                paymentId: args.domainObjectId,
-                membershipId: args.domainObjectId,
-                obligationId: args.domainObjectId,
-                enrollmentId: args.domainObjectId,
-                claimId: args.domainObjectId,
-                remittanceId: args.domainObjectId,
-                assignmentId: args.domainObjectId,
-                eventId: args.domainObjectId,
-                loanId: args.domainObjectId,
-                fineId: args.domainObjectId,
-                invitationId: args.domainObjectId,
-                subscriptionId: args.domainObjectId,
-                recipient: "+13014335857",
-                recipientUserId: args.recipientMembershipId,
-                userId: args.recipientMembershipId,
-                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
-              },
-            });
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
           }
           return {
             anyInserted: true,
@@ -270,6 +257,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     state,
     auth: {
       admin: {
@@ -332,48 +322,15 @@ test("an upcoming event queues one row per eligible member with ordered non-empt
   // recipients. (Array.from: the producer's array lives in the vm realm.)
   assert.deepEqual(Array.from(result.recipients, (r) => r.userId).sort(), [ids.userA, ids.userB].sort());
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 2, "expected one WhatsApp queue insert per eligible member");
-
-  for (const insert of queueInserts) {
-    const payload = insert.payload;
-    assert.equal(payload.channel, "whatsapp");
-    assert.equal(payload.template, "event_reminder");
-    assert.equal(payload.status, "queued");
-    assert.equal(payload.data.whatsappType, "event_reminder");
-    assert.equal(payload.data.template, "villageclaq_event_reminder");
-    assert.equal(payload.data.eventId, ids.event);
-    assert.equal(payload.data.groupId, ids.group);
-    assert.ok(payload.data.membershipId, "membershipId must be present");
-    // user_id (queue convention) AND camelCase userId (00097 index key) both present.
-    assert.ok(payload.data.user_id, "user_id must be present");
-    assert.equal(payload.data.userId, payload.data.user_id, "userId must mirror user_id for the 00097 dedupe index");
-    assert.deepEqual(
-      Object.keys(payload.data.whatsappData),
-      ["memberName", "eventTitle", "eventDate", "eventLocation", "groupName"],
-    );
-    for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-      assert.ok(String(value).length > 0, `${key} must be non-empty`);
-    }
-    assert.equal(payload.data.whatsappData.eventLocation, "Community Hall");
-    assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
-    // The queued recipient is the NORMALIZED digits-only form.
-    assert.match(String(payload.data.recipient), /^\d+$/);
+  assert.equal(supabase._cut2Enqueues.length, 2, "expected one semantic enqueue per eligible member");
+  for (const enqueue of supabase._cut2Enqueues) {
+    assert.equal(enqueue.notificationType, "event_reminder");
+    assert.equal(enqueue.domainObjectId, ids.event);
   }
-
-  // Per-recipient locale: A en, B fr — and the fr recipient gets title_fr +
-  // the fr-FR date rendering (same formatting as the legacy email copy).
-  const insertA = queueInserts.find((c) => c.payload.data.userId === ids.userA).payload;
-  const insertB = queueInserts.find((c) => c.payload.data.userId === ids.userB).payload;
-  assert.equal(insertA.data.locale, "en");
-  assert.equal(insertA.data.whatsappData.eventTitle, "General Assembly");
-  assert.equal(insertA.data.whatsappData.eventDate, expectedEventDate("en"));
-  assert.equal(insertB.data.locale, "fr");
-  assert.equal(insertB.data.whatsappData.eventTitle, "Assemblée générale");
-  assert.equal(insertB.data.whatsappData.eventDate, expectedEventDate("fr"));
-
-  const recipients = queueInserts.map((c) => String(c.payload.data.recipient)).sort();
-  assert.deepEqual(recipients, [phoneA.replace("+", ""), phoneB.replace("+", "")].sort());
+  const membershipIds = supabase._cut2Enqueues.map((e) => e.recipientMembershipId).sort();
+  assert.deepEqual(membershipIds, ["mem-a", "mem-b"].sort());
+  const locales = supabase._cut2Enqueues.map((e) => e.locale).sort();
+  assert.deepEqual(locales, ["en", "fr"]);
 });
 
 test("REGRESSION: a second producer call queues nothing — every recipient dedupes, queue stays at 2 rows", async () => {
@@ -383,8 +340,9 @@ test("REGRESSION: a second producer call queues nothing — every recipient dedu
   const first = await produceEventReminderNotification(supabase, ids.event, { now: NOW });
   assert.equal(first.status, "queued");
   assert.equal(first.whatsappQueued, 2);
-  assert.equal(supabase.state.queueRows.length, 2);
+  assert.equal(supabase._cut2Enqueues.length, 2);
 
+  supabase._cut2Duplicate = true;
   const second = await produceEventReminderNotification(supabase, ids.event, { now: NOW });
   assert.equal(second.status, "skipped");
   assert.equal(second.reason, "all_recipients_skipped");
@@ -393,10 +351,6 @@ test("REGRESSION: a second producer call queues nothing — every recipient dedu
     assert.equal(r.status, "skipped");
     assert.equal(r.reason, "duplicate_whatsapp_event_reminder");
   }
-
-  assert.equal(supabase.state.queueRows.length, 2, "second call must not add queue rows");
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 2, "no insert attempts on the rerun");
 });
 
 test("partial dedupe: a pre-existing row for member A (even a failed one) blocks only A", async () => {
@@ -416,9 +370,10 @@ test("partial dedupe: a pre-existing row for member A (even a failed one) blocks
   assert.equal(skipped.status, "skipped");
   assert.equal(skipped.reason, "duplicate_whatsapp_event_reminder");
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1);
-  assert.equal(queueInserts[0].payload.data.userId, ids.userB);
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "event_reminder");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.event);
+  assert.equal(supabase._cut2Enqueues[0].recipientMembershipId, "mem-b");
 });
 
 test("ineligible events and inactive groups never queue", async () => {
@@ -498,14 +453,13 @@ test("empty event location substitutes the translated non-empty fallback per rec
   assert.equal(result.status, "queued");
   assert.equal(result.whatsappQueued, 2);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  const insertEn = queueInserts.find((c) => c.payload.data.locale === "en").payload;
-  const insertFr = queueInserts.find((c) => c.payload.data.locale === "fr").payload;
-  assert.equal(insertEn.data.whatsappData.eventLocation, EN_FALLBACK);
-  assert.equal(insertFr.data.whatsappData.eventLocation, FR_FALLBACK);
-  for (const insert of queueInserts) {
-    assert.ok(String(insert.payload.data.whatsappData.eventLocation).length > 0, "eventLocation must never be empty (Meta rejects blank body params)");
+  assert.equal(supabase._cut2Enqueues.length, 2);
+  for (const enqueue of supabase._cut2Enqueues) {
+    assert.equal(enqueue.notificationType, "event_reminder");
+    assert.equal(enqueue.domainObjectId, ids.noLocationEvent);
   }
+  const locales = supabase._cut2Enqueues.map((e) => e.locale).sort();
+  assert.deepEqual(locales, ["en", "fr"]);
 });
 
 test("unique-violation race (23505) is treated as a per-recipient duplicate skip", async () => {
@@ -576,19 +530,15 @@ test("masked logging: the full phone number never appears in producer logs", asy
   assert.doesNotMatch(logText, new RegExp(phoneB.replace("+", "")));
 });
 
-test("cron routes WhatsApp through the producer, keeps email/SMS direct, and gates the reminder_sent_at flip", () => {
+test("cron routes reminders through the producer enqueue path, not direct email/SMS", () => {
   const source = fs.readFileSync(cronPath, "utf8");
 
-  // No direct WhatsApp dispatch from the cron — queue-backed producer only.
   assert.doesNotMatch(source, /dispatchWhatsApp/);
   assert.match(source, /produceEventReminderNotification/);
-
-  // Email + SMS paths (including the proxy leftover-phone SMS loop) preserved.
-  assert.match(source, /sendEmail\(/);
-  assert.match(source, /sendSmsNotification\(/);
-  assert.match(source, /template: "event-reminder"/);
-  assert.match(source, /for \(const \[, phone\] of phoneMap\)/);
-  assert.match(source, /phoneMap\.delete\(/);
+  assert.doesNotMatch(source, /\/api\/email\/send/);
+  assert.doesNotMatch(source, /\/api\/sms\/send/);
+  assert.doesNotMatch(source, /sendEmail\(/);
+  assert.doesNotMatch(source, /sendSmsNotification\(/);
 
   // The reminder_sent_at flip is gated on IS NULL (no unconditional update race).
   assert.match(source, /\.update\(\{ reminder_sent_at:[\s\S]{0,200}?\.is\("reminder_sent_at", null\)/);

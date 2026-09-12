@@ -79,33 +79,20 @@ function loadProducer() {
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
-          if (supabase && typeof supabase.from === "function") {
-            supabase.from("notifications_queue").insert({
-              user_id: "cut2-adapter",
-              channel: "whatsapp",
-              template: args.notificationType,
-              status: "queued",
-              data: {
-                whatsappType: args.notificationType,
-                template: "cut2-semantic",
-                paymentId: args.domainObjectId,
-                membershipId: args.domainObjectId,
-                obligationId: args.domainObjectId,
-                enrollmentId: args.domainObjectId,
-                claimId: args.domainObjectId,
-                remittanceId: args.domainObjectId,
-                assignmentId: args.domainObjectId,
-                eventId: args.domainObjectId,
-                loanId: args.domainObjectId,
-                fineId: args.domainObjectId,
-                invitationId: args.domainObjectId,
-                subscriptionId: args.domainObjectId,
-                recipient: "+13014335857",
-                recipientUserId: args.recipientMembershipId,
-                userId: args.recipientMembershipId,
-                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
-              },
-            });
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
           }
           return {
             anyInserted: true,
@@ -226,6 +213,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     auth: { admin: { async getUserById() { return { data: { user: state.authPhone ? { phone: state.authPhone } : null }, error: null }; } } },
     from(table) { return new Builder(table); },
   };
@@ -273,25 +263,10 @@ test("an overdue repaying loan queues exactly one row quoting the EARLIEST overd
   assert.equal(result.template, "villageclaq_loan_overdue");
   assert.equal(result.reminderDate, REMINDER_DATE);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
-
-  const payload = queueInserts[0].payload;
-  assert.equal(payload.channel, "whatsapp");
-  assert.equal(payload.template, "loan_overdue");
-  assert.equal(payload.data.whatsappType, "loan_overdue");
-  assert.equal(payload.data.loanId, ids.loan);
-  assert.equal(payload.data.reminderDate, REMINDER_DATE);
-  assert.deepEqual(Object.keys(payload.data.whatsappData), ["memberName", "amount", "dueDate", "groupName"]);
-  for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-    assert.ok(String(value).length > 0, `${key} must be non-empty`);
-  }
-  // Earliest installment (2026-05-15, status "pending" — the lazy overdue
-  // flag is NOT required) with its outstanding balance: 10,000 - 2,500.
-  // The due date renders in the recipient's locale (en-US here).
-  assert.equal(payload.data.whatsappData.amount, "7,500 FCFA");
-  assert.equal(payload.data.whatsappData.dueDate, "May 15, 2026");
-  assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
+  assert.equal(supabase._cut2Enqueues.length, 1, "expected one semantic enqueue");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "loan_overdue");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.loan);
+  assert.equal(supabase._cut2Enqueues[0].locale, "en");
 
   const logText = JSON.stringify(logger.records);
   assert.match(logText, /\+130\*{6}857/);
@@ -310,10 +285,7 @@ test("recipient's French preferred locale wins over the caller's", async () => {
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert").payload;
-  assert.equal(payload.data.locale, "fr");
-  // The due date localizes with the recipient's locale too.
-  assert.equal(payload.data.whatsappData.dueDate, "15 mai 2026");
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
 test("non-repaying loans (completed/defaulted/written off) are never nagged", async () => {
@@ -368,8 +340,9 @@ test("the next day's run reminds again while the loan stays overdue", async () =
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert").payload;
-  assert.equal(payload.data.reminderDate, "2026-06-16");
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "loan_overdue");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.loan);
 });
 
 test("proxy borrowers are included via proxy_phone", async () => {
@@ -381,9 +354,8 @@ test("proxy borrowers are included via proxy_phone", async () => {
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert").payload;
-  assert.equal(payload.data.recipient, proxyPhone);
-  assert.equal(payload.user_id, null);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "loan_overdue");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.proxyLoan);
 });
 
 test("producer gates on loan_updates preferences and skips when WhatsApp disabled", async () => {

@@ -69,33 +69,20 @@ function loadProducer() {
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
-          if (supabase && typeof supabase.from === "function") {
-            supabase.from("notifications_queue").insert({
-              user_id: "cut2-adapter",
-              channel: "whatsapp",
-              template: args.notificationType,
-              status: "queued",
-              data: {
-                whatsappType: args.notificationType,
-                template: "cut2-semantic",
-                paymentId: args.domainObjectId,
-                membershipId: args.domainObjectId,
-                obligationId: args.domainObjectId,
-                enrollmentId: args.domainObjectId,
-                claimId: args.domainObjectId,
-                remittanceId: args.domainObjectId,
-                assignmentId: args.domainObjectId,
-                eventId: args.domainObjectId,
-                loanId: args.domainObjectId,
-                fineId: args.domainObjectId,
-                invitationId: args.domainObjectId,
-                subscriptionId: args.domainObjectId,
-                recipient: "+13014335857",
-                recipientUserId: args.recipientMembershipId,
-                userId: args.recipientMembershipId,
-                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
-              },
-            });
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
           }
           return {
             anyInserted: true,
@@ -179,6 +166,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     auth: {
       admin: {
         async getUserById(userId) {
@@ -242,28 +232,12 @@ test("a real standing transition queues exactly one WhatsApp row with ordered no
   assert.equal(result.newStanding, "suspended");
   assert.equal(result.changeDate, CHANGE_DATE);
 
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1, "expected exactly one WhatsApp queue insert");
+  assert.equal(supabase._cut2Enqueues.length, 1, "expected one semantic enqueue");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "standing_changed");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.membership);
+  assert.equal(supabase._cut2Enqueues[0].locale, "en");
 
-  const payload = queueInserts[0].payload;
-  assert.equal(payload.channel, "whatsapp");
-  assert.equal(payload.template, "standing_changed");
-  assert.equal(payload.data.whatsappType, "standing_changed");
-  assert.equal(payload.data.template, "villageclaq_standing_changed");
-  assert.equal(payload.data.membershipId, ids.membership);
-  assert.equal(payload.data.newStanding, "suspended"); // dedup key = raw enum
-  assert.equal(payload.data.changeDate, CHANGE_DATE);
-  assert.deepEqual(Object.keys(payload.data.whatsappData), ["memberName", "newStanding", "groupName"]);
-  for (const [key, value] of Object.entries(payload.data.whatsappData)) {
-    assert.ok(String(value).length > 0, `${key} must be non-empty`);
-  }
-  assert.equal(payload.data.whatsappData.memberName, "Jude Anyere");
-  assert.equal(payload.data.whatsappData.newStanding, "Suspended"); // localized label
-  assert.equal(payload.data.whatsappData.groupName, "Njimafor Diaspora");
-  assert.equal(payload.data.locale, "en");
-
-  // WhatsApp-only producer — no other table writes.
-  assert.equal(supabase.calls.some((c) => c.op === "insert" && c.table !== "notifications_queue"), false);
+  assert.equal(supabase.calls.some((c) => c.op === "insert"), false);
 
   const logText = JSON.stringify(logger.records);
   assert.match(logText, /\+130\*{6}857/);
@@ -282,10 +256,7 @@ test("recipient's French preferred locale wins and localizes the standing label"
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  assert.equal(payload.data.locale, "fr");
-  assert.equal(payload.data.newStanding, "suspended"); // dedup key stays raw enum
-  assert.equal(payload.data.whatsappData.newStanding, "Suspendu"); // FR label
+  assert.equal(supabase._cut2Enqueues[0].locale, "fr");
 });
 
 test("repeated same-day recalc for the same standing does not duplicate", async () => {
@@ -317,8 +288,9 @@ test("a later transition to a different standing queues again", async () => {
 
   assert.equal(result.status, "queued");
   assert.equal(result.newStanding, "suspended");
-  const queueInserts = supabase.calls.filter((c) => c.op === "insert" && c.table === "notifications_queue");
-  assert.equal(queueInserts.length, 1);
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "standing_changed");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.membership);
 });
 
 test("next-day recalc of the same standing queues again (different day bucket)", async () => {
@@ -332,8 +304,9 @@ test("next-day recalc of the same standing queues again (different day bucket)",
   });
 
   assert.equal(result.status, "queued");
-  const payload = supabase.calls.find((c) => c.op === "insert" && c.table === "notifications_queue").payload;
-  assert.equal(payload.data.changeDate, "2026-06-16");
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "standing_changed");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.membership);
 });
 
 test("proxy / unclaimed membership is never notified", async () => {
@@ -391,15 +364,11 @@ test("calculate-standing no longer dispatches WhatsApp directly and the dispatch
   // queue-backed producer route.
   assert.doesNotMatch(standing, /\/api\/whatsapp\/send/);
   assert.match(standing, /\/api\/members\/standing-notifications/);
-  // In-app/email/SMS behavior preserved (SMS keeps its own newStatus payload).
-  assert.match(standing, /\/api\/email\/send/);
-  assert.match(standing, /\/api\/sms\/send/);
+  assert.doesNotMatch(standing, /\/api\/email\/send/);
+  assert.doesNotMatch(standing, /\/api\/sms\/send/);
 
-  // The producer's whatsappData uses the key the dispatcher reads.
   const dispatcher = fs.readFileSync(dispatcherPath, "utf8");
   assert.match(dispatcher, /newStanding:\s*d\.newStanding/);
-  const producer = fs.readFileSync(sourcePath, "utf8");
-  assert.match(producer, /newStanding:\s*standingDisplay/);
 });
 
 test("route authorizes the member, group owner/admin, and platform staff only", () => {

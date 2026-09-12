@@ -2,7 +2,8 @@
   "document": "S0_CUT2_DIRECT_EMAIL_CALLER_INVENTORY_20260911",
   "authority_freeze": {
     "contract_sha": "5c3c1cce458cd13f9525eb21c6366f8877d3c51d",
-    "previous_functional_sha": "2e22dfd888c86c6d1c66c206fe5a5b0f35c7ac65",
+    "previous_functional_sha": "45d9b4d2ea74e387c509d96db493c21ee1d86a59",
+    "functional_sha": "3fccd4c18b77259f1f5bc3bb2997d353f43a64a5",
     "migration_00115_sha256": "d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c"
   },
   "unknown_email_callers": 0,

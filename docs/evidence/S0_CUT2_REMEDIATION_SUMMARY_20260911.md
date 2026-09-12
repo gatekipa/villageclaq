@@ -1,45 +1,109 @@
-# S0 Cut 2 Bounded Remediation — 2026-09-11
+# S0 Cut 2 Bounded Remediation — 2026-09-11 / drain-semantics fold 2026-09-12
 
 **Branch:** `security/s0-p0b-cut2-implementation-20260911` (same; PR #78 DRAFT only)  
 **Contract SHA (unreopened):** `5c3c1cce458cd13f9525eb21c6366f8877d3c51d`  
-**Previous functional SHA under HOLD:** `2e22dfd888c86c6d1c66c206fe5a5b0f35c7ac65`  
-**New functional SHA:** `45d9b4d2ea74e387c509d96db493c21ee1d86a59` (code). Evidence fold is docs-only on the same branch tip.  
+**Prior held functional SHA:** `45d9b4d2ea74e387c509d96db493c21ee1d86a59`  
+**Prior evidence tip (erroneous 186/186 lived here):** `2a2b58f0599d0a438763873b4a61fe4d7c638c3a`  
+**New functional SHA (code+test):** `3fccd4c18b77259f1f5bc3bb2997d353f43a64a5`  
 **00115 digest (unchanged):** `d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c`  
 **PR #77:** OPEN DRAFT UNMERGED — not altered.
 
 ## Verdict
 
-**PASS** for the bounded remediation (A/B/C only).  
+**PASS** for the bounded trusted-drain semantics remediation (R1–R18 only).  
 **PRODUCTION DEPLOY NOT AUTHORIZED.**  
 **00115 PRODUCTION APPLY NOT AUTHORIZED.**  
 **NO REAL SENDS.**  
 **NO MERGE.**
 
-## A — Direct email provider bypass
+## Evidence count correction
 
-- `POST /api/email/send` → **410 GONE**. Does not send, invoke Resend, call `sendEmail`, accept caller recipient/template/data, or enqueue arbitrary payloads.
-- Every `/api/email/send` caller inventoried: `unknown_email_callers = 0`.
-- Legitimate email maps only to frozen ALLOW types: `payment_receipt`, `payment_reminder`, `welcome`, `event_reminder`, `member_invitation`, `minutes_published`.
-- Invitation email now semantic-enqueues `member_invitation` (recipient = `invitations.email`). Email-only invitations no longer skip.
-- Standing / notify-client generic emails removed (EMAIL DENY or no honest type).
-- Provider-level email send = **drain only**. Helpers: `src/lib/send-email.ts`, `src/lib/resend.ts`.
-- New scripts (original 15 untouched): `test-s0-cut2-email-send-410.mjs`, `test-s0-cut2-email-drain-only.mjs`. **17/17 PASS.**
+The prior docs-only tip incorrectly wrote **186/186**. That number was wrong.  
+**Authoritative previous baseline:** **182 PASS / 0 FAIL** (15 producer files + 4 pre-existing drain-render tests).  
+**This fold added 8 behavioral drain-render tests.**  
+**New historical suite total:** **190 PASS / 0 FAIL**.  
+Do not treat 186 as a baseline or a final total.
 
-## B — Notification regressions
+## This fold — trusted drain semantics
 
-- Historical suite (15 producer files + drain render): **186 tests, 186 PASS, 0 FAIL**.
-- Obsolete queue-shape / raw 23505 / “keep email-SMS direct” asserts replaced with semantic enqueue + trusted drain rendering.
-- True fixes: invitation email-only enqueue; drain locale + invitation acceptUrl + FR invitee/standing; reason/location fallbacks; payment-reminder Node 20 `.ts` transpile.
-- Duplicate: `result='duplicate'` + same trusted `queue_id`; no legacy NULL; mismatch unchanged.
-- Channel matrix not weakened: loan overdue / member invitation / election SMS stay DENY.
+### R1–R3 Email 410 behavioral proof
 
-## C — Disposable DB portability
+`scripts/test-s0-cut2-email-send-410.mjs` now **invokes** exported `POST` and `GET` from `src/app/api/email/send/route.ts` (transpiled handlers, no network).
 
-- `CUT2_DISPOSABLE_DATABASE_URL` first.
-- Else detect local `psql`.
-- Else fail with the exact export in `S0_CUT2_DISPOSABLE_REHEARSAL_20260911.md`.
-- No unconditional `sudo -u postgres`. Optional `sudo -n` only if already passwordless.
-- Production host rejected.
+- Multiple hostile bodies including `{to, template, data}` attacker payloads.
+- Every POST → HTTP 410. GET → HTTP 410.
+- Spies prove **zero side effects**: `sendEmail=0`, Resend=0, enqueue=0, queue write=0, `fetch=0`.
+- Source scan remains defense-in-depth only.
+- Route stays 410 GONE. Provider email = trusted drain only.
+
+### R4–R6 One date-rendering authority
+
+`src/lib/cut2-drain-date.ts` is the only trusted-drain date helper.
+
+- Accepts date or date-time + locale `en|fr`.
+- Calendar-day from ISO date prefix; formats with `timeZone: "UTC"` (no host local TZ).
+- **event_reminder:** localized weekday+long date on SMS/EMAIL/WA. Location TBA / lieu à confirmer preserved.
+- **hosting_assignment / hosting_reminder / hosting_swap:** raw `assigned_date` localized at drain (`short` month, matches historical `Jul 15, 2030` / `juil`). Location fallback preserved. Domain date unchanged.
+
+### R7–R9 loan_overdue authority
+
+Drain no longer uses `loans.amount_approved` / `amount_requested` or nonexistent `loans.next_due_date` / `due_date`.
+
+- Loads `loan_schedule` with producer unpaid statuses `pending|partial|overdue`, `due_date < envelope.reminderDate`, earliest due_date, first outstanding balance.
+- Amount = installment outstanding; due date = localized installment due date (EN+FR).
+- No outstanding installment, missing reminderDate, or blank required fields → **FAIL CLOSED** (`cut2_loan_overdue_*`). No provider call with blank/zero/misleading content.
+- SMS remains empty / matrix DENY.
+
+### R10–R12 subscription countdown
+
+`Date.now()` removed from final content.
+
+- `days` = calendar-day difference between `current_period_end` (date-only) and trusted envelope `reminderDate`.
+- Same-day later drain, delayed hour, and non-midnight period end keep the same count.
+- Missing `reminderDate` or period end → FAIL CLOSED.
+
+### R13–R14 Required nonblank (flagged paths only)
+
+Fail-closed when required authoritative values cannot be derived:
+
+- event: group / name / date (location keeps TBA fallback)
+- hosting: group / date (location keeps TBA fallback)
+- loan overdue: group / installment amount / due date
+- subscription: group / plan / countdown
+
+Existing frozen location fallbacks kept. No unrelated type rewrite.
+
+### R15–R16 New behavioral drain tests (real `renderCut2TrustedRow`)
+
+All in `scripts/test-cut2-drain-render-regression.mjs`:
+
+| Test | Result |
+| --- | --- |
+| event_reminder drain localizes EN/FR date across SMS/EMAIL/WA and keeps location fallback | PASS |
+| event_reminder fail-closed when authoritative date is missing | PASS |
+| hosting assignment/reminder/swap drain localizes EN/FR dates and location fallback | PASS |
+| hosting fail-closed when assigned_date is missing | PASS |
+| loan_overdue drain quotes earliest outstanding installment amount and localized due date | PASS |
+| loan_overdue excludes paid/settled rows and fail-closes when none outstanding | PASS |
+| subscription_expiring countdown uses trusted reminderDate, not drain wall-clock | PASS |
+| subscription_expiring fail-closed without trusted reminderDate | PASS |
+
+Prior four drain tests (invitation, fine/standing, location fallback, proxy email) remain PASS.
+
+## Prior A/B/C remediation (still in force)
+
+- `POST /api/email/send` → **410 GONE**.
+- Email ALLOW stays: `payment_receipt`, `payment_reminder`, `welcome`, `event_reminder`, `member_invitation`, `minutes_published`.
+- Provider-level email send = **drain only**.
+- Historical producer remaps to `_cut2Enqueues`. Prior baseline **182/182**.
+- Disposable harness: `CUT2_DISPOSABLE_DATABASE_URL` first; prod-ref reject; no unconditional sudo.
+
+## Gates
+
+- `npm run test:s0-cut2` → **17/17 scripts PASS** (21 node:test cases; email-send-410 is behavioral + zero-side-effect).
+- Historical suite → **190/190 PASS, 0 FAIL** (prior 182 + 8 new drain tests).
+- `npm run build` → **PASS**.
+- Real sends = 0.
 
 ## Explicit non-actions
 
@@ -50,4 +114,4 @@
 
 ## Next gate
 
-Daybreak BLUE re-review at the new functional SHA. Do not merge, deploy, or apply 00115.
+Daybreak BLUE final read-only re-review at functional SHA `3fccd4c18b77259f1f5bc3bb2997d353f43a64a5`. Do not merge, deploy, or apply 00115.

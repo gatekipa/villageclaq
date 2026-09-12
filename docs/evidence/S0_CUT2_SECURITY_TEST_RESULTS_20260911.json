@@ -4,8 +4,11 @@
   "real_sends": 0,
   "failed_rows_retried": 0,
   "cached_results": false,
-  "functional_sha": "45d9b4d2ea74e387c509d96db493c21ee1d86a59",
-  "evidence_fold_note": "docs-only commit after functional SHA; report branch tip after push",
+  "functional_sha": "3fccd4c18b77259f1f5bc3bb2997d353f43a64a5",
+  "previous_functional_sha": "45d9b4d2ea74e387c509d96db493c21ee1d86a59",
+  "previous_evidence_tip": "2a2b58f0599d0a438763873b4a61fe4d7c638c3a",
+  "evidence_fold_note": "docs-only commit after functional SHA 3fccd4c; report branch tip after push as NEW EVIDENCE TIP. Do not conflate with functional SHA.",
+  "erroneous_186_corrected": true,
   "frozen_ci_scripts": {
     "scripts/test-s0-cut2-sms-send-410.mjs": "PASS",
     "scripts/test-s0-cut2-whatsapp-send-410.mjs": "PASS",
@@ -22,21 +25,26 @@
     "scripts/test-s0-cut2-legacy-wa-index-provenance.mjs": "PASS",
     "scripts/test-s0-cut2-duplicate-trusted-lookup.mjs": "PASS",
     "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs": "PASS",
-    "scripts/test-s0-cut2-email-send-410.mjs": "PASS",
+    "scripts/test-s0-cut2-email-send-410.mjs": "PASS (behavioral POST/GET 410 + zero side-effect spies; source scan defense-in-depth only)",
     "scripts/test-s0-cut2-email-drain-only.mjs": "PASS"
   },
   "frozen_ci_script_count": 17,
   "frozen_ci_pass_count": "17/17",
+  "frozen_ci_node_test_cases": 21,
   "original_15_renamed_or_removed": false,
   "npm_run_build": "PASS",
   "historical_notification_suite": {
-    "tests": 182,
-    "pass": 182,
+    "previous_baseline": { "tests": 182, "pass": 182, "fail": 0 },
+    "erroneous_prior_claim": "186/186",
+    "tests": 190,
+    "pass": 190,
     "fail": 0,
+    "new_behavioral_drain_tests": 8,
     "obsolete_updated": 58,
     "true_regressions_fixed": 12
   },
   "email_send_route": "410 GONE",
+  "email_send_410_proof": "behavioral handler invocation + spies (provider=0 enqueue=0 queue=0 Resend=0 sendEmail=0 fetch=0)",
   "email_provider_boundary": "drain only",
   "direct_provider_email_outside_drain": 0,
   "real_sends_this_remediation": 0,
@@ -48,5 +56,12 @@
     "standing_changed_email": "denied",
     "proxy_claim_email": "denied",
     "push": "denied"
+  },
+  "drain_semantics": {
+    "date_helper": "src/lib/cut2-drain-date.ts UTC calendar-day",
+    "event_reminder": "localized EN/FR weekday+long; location TBA preserved",
+    "hosting": "localized assigned_date short month EN/FR; location TBA preserved",
+    "loan_overdue": "earliest outstanding loan_schedule installment; fail-closed if none",
+    "subscription_expiring": "days = calendar difference period_end vs envelope.reminderDate"
   }
 }

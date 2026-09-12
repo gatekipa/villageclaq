@@ -1,0 +1,348 @@
+{
+  "artifact": "S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912",
+  "date": "2026-09-12",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R3",
+  "status": "FROZEN_PLANNING_ONLY",
+  "previous_planning_sha": "c3eccaa63b63f3c1517306a12c6a2bd31aee7149",
+  "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "source": "Chief live catalog — embed verbatim. Do not reconstruct alternate predicates.",
+  "production_mutation": "ZERO",
+  "this_task_requery_of_live_db": false,
+  "cut2_pin": {
+    "version": "20260912033612",
+    "name": "s0_p0b_cut2_notification_queue",
+    "abort_rule": "If this version/name pair is absent OR unexpected drift vs this pin → CUT3_ABORT / requalify. Do not rely only on migrations count=30.",
+    "do_not_rely_only_on_count_30": true
+  },
+  "new_helpers_absent_live": {
+    "public.storage_group_documents_authorized(text,text)": null,
+    "public.storage_receipts_authorized(text,text)": null,
+    "abort_if_present_at_apply": true
+  },
+  "storage_objects_role_table_grants": {
+    "source": "information_schema.role_table_grants — Chief live",
+    "table": "storage.objects",
+    "rows": [
+      {
+        "grantee": "anon",
+        "privilege_type": "INSERT",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "anon",
+        "privilege_type": "SELECT",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "anon",
+        "privilege_type": "UPDATE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "anon",
+        "privilege_type": "DELETE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "anon",
+        "privilege_type": "REFERENCES",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "anon",
+        "privilege_type": "TRIGGER",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "anon",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege_type": "INSERT",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege_type": "SELECT",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege_type": "UPDATE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege_type": "DELETE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege_type": "REFERENCES",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege_type": "TRIGGER",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "authenticated",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "service_role",
+        "privilege_type": "INSERT",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "service_role",
+        "privilege_type": "SELECT",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "service_role",
+        "privilege_type": "UPDATE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "service_role",
+        "privilege_type": "DELETE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "service_role",
+        "privilege_type": "REFERENCES",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "service_role",
+        "privilege_type": "TRIGGER",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "service_role",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": "NO"
+      },
+      {
+        "grantee": "postgres",
+        "privilege_type": "INSERT",
+        "is_grantable": "YES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege_type": "SELECT",
+        "is_grantable": "YES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege_type": "UPDATE",
+        "is_grantable": "YES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege_type": "DELETE",
+        "is_grantable": "YES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege_type": "REFERENCES",
+        "is_grantable": "YES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege_type": "TRIGGER",
+        "is_grantable": "YES"
+      },
+      {
+        "grantee": "postgres",
+        "privilege_type": "TRUNCATE",
+        "is_grantable": "YES"
+      }
+    ],
+    "note": "Table grants do not bypass RLS for authenticated. anon/authenticated/service_role is_grantable NO; postgres all YES."
+  },
+  "eight_policies_pg_get_expr_exact": [
+    {
+      "polname": "gdocs_delete_group",
+      "cmd": "DELETE",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": "((bucket_id = 'group-documents'::text) AND ((storage_path_group_id(name) IS NULL) OR is_group_admin(storage_path_group_id(name))))",
+      "with_check_expr": null
+    },
+    {
+      "polname": "gdocs_insert_group",
+      "cmd": "INSERT",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": null,
+      "with_check_expr": "((bucket_id = 'group-documents'::text) AND (((storage_path_group_id(name) IS NOT NULL) AND is_group_member(storage_path_group_id(name))) OR (storage_path_group_id(name) IS NULL)))"
+    },
+    {
+      "polname": "gdocs_select_group",
+      "cmd": "SELECT",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": "((bucket_id = 'group-documents'::text) AND ((storage_path_group_id_v2(name) IS NULL) OR is_group_member(storage_path_group_id_v2(name))))",
+      "with_check_expr": null
+    },
+    {
+      "polname": "gdocs_update_group",
+      "cmd": "UPDATE",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": "((bucket_id = 'group-documents'::text) AND ((storage_path_group_id(name) IS NULL) OR is_group_member(storage_path_group_id(name))))",
+      "with_check_expr": null
+    },
+    {
+      "polname": "receipts_delete_group",
+      "cmd": "DELETE",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": "((bucket_id = 'receipts'::text) AND ((storage_path_group_id(name) IS NULL) OR is_group_admin(storage_path_group_id(name))))",
+      "with_check_expr": null
+    },
+    {
+      "polname": "receipts_insert_group",
+      "cmd": "INSERT",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": null,
+      "with_check_expr": "((bucket_id = 'receipts'::text) AND (((storage_path_group_id(name) IS NOT NULL) AND is_group_member(storage_path_group_id(name))) OR (storage_path_group_id(name) IS NULL)))"
+    },
+    {
+      "polname": "receipts_select_group",
+      "cmd": "SELECT",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": "((bucket_id = 'receipts'::text) AND ((storage_path_group_id_v2(name) IS NULL) OR is_group_member(storage_path_group_id_v2(name))))",
+      "with_check_expr": null
+    },
+    {
+      "polname": "receipts_update_group",
+      "cmd": "UPDATE",
+      "permissive": true,
+      "roles": [
+        "authenticated"
+      ],
+      "using_expr": "((bucket_id = 'receipts'::text) AND ((storage_path_group_id(name) IS NULL) OR is_group_member(storage_path_group_id(name))))",
+      "with_check_expr": null
+    }
+  ],
+  "functions_live": {
+    "public.storage_path_group_id": {
+      "md5_pg_get_functiondef": "fb6155e6e3c996ad857208f717d981a8",
+      "owner": "postgres",
+      "prosecdef": false,
+      "proconfig": [],
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "oid": 38662,
+      "pg_get_functiondef_exact": "CREATE OR REPLACE FUNCTION public.storage_path_group_id(p_name text)\n RETURNS uuid\n LANGUAGE sql\n IMMUTABLE\nAS $function$\r\n  SELECT CASE\n    WHEN (storage.foldername(p_name))[1] IN ('logos', 'relief-claims', 'constitutions', 'minutes', 'dispute-docs')\n      THEN NULLIF((storage.foldername(p_name))[2], '')::uuid\n    ELSE NULL\n  END;\n$function$\n",
+      "body_cr_note": "Chief dump: CRLF immediately after $function$ (AS $function$\\r then LF body). CUT3_ABORT compares live md5(pg_get_functiondef) to fb6155e6e3c996ad857208f717d981a8, not a chat-normalized rehash."
+    },
+    "public.storage_path_group_id_v2": {
+      "md5_pg_get_functiondef": "585e7bd017f5623aacf87407b1b11524",
+      "owner": "postgres",
+      "prosecdef": false,
+      "oid": 39616,
+      "acl": "PUBLIC/anon/authenticated/service_role EXECUTE (same pattern as v1)",
+      "line_endings": "LF only, no CR",
+      "pg_get_functiondef_exact": "CREATE OR REPLACE FUNCTION public.storage_path_group_id_v2(p_name text)\n RETURNS uuid\n LANGUAGE sql\n IMMUTABLE\nAS $function$\n  SELECT CASE\n    WHEN (storage.foldername(p_name))[1] IN ('logos', 'relief-claims', 'constitutions', 'minutes', 'dispute-docs')\n     AND (storage.foldername(p_name))[2] ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'\n      THEN (storage.foldername(p_name))[2]::uuid\n    WHEN (storage.foldername(p_name))[1] ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'\n      THEN (storage.foldername(p_name))[1]::uuid\n    ELSE NULL\n  END;\n$function$\n",
+      "md5_verified_of_embedded_utf8_lf": "585e7bd017f5623aacf87407b1b11524"
+    },
+    "public.is_active_group_member": {
+      "md5_pg_get_functiondef": "26c12399120587df3d066dd7819bdf5e",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path="
+      ],
+      "acl": "postgres/authenticated/service_role X (no PUBLIC, no anon)",
+      "pg_get_functiondef_note": "Chief supplied live md5+owner+prosecdef+proconfig+acl. Full CREATE text below is repo 00114 ancestry used to document body; CUT3_ABORT keys the LIVE md5 26c12399120587df3d066dd7819bdf5e, not a reconstructed hash.",
+      "repo_00114_create_ancestry": "CREATE OR REPLACE FUNCTION public.is_active_group_member(gid uuid)\nRETURNS boolean\nLANGUAGE sql\nSTABLE\nSECURITY DEFINER\nSET search_path TO ''\nAS $$\n  SELECT auth.uid() IS NOT NULL\n     AND EXISTS (\n       SELECT 1\n       FROM public.memberships m\n       WHERE m.group_id = gid\n         AND m.user_id = auth.uid()\n         AND m.membership_status = 'active'\n     );\n$$;",
+      "pg_get_functiondef_exact": "CREATE OR REPLACE FUNCTION public.is_active_group_member(gid uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT auth.uid() IS NOT NULL\n     AND EXISTS (\n       SELECT 1\n       FROM public.memberships m\n       WHERE m.group_id = gid\n         AND m.user_id = auth.uid()\n         AND m.membership_status = 'active'\n     );\n$function$\n",
+      "pg_get_functiondef_source": "Chief live inventory body matching Cut 1 / 00114 applied function; CUT3_ABORT keys md5 26c12399120587df3d066dd7819bdf5e"
+    },
+    "public.is_group_member": {
+      "md5_pg_get_functiondef": "4b1bbd54719c129ef12f0ebc53463686",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [],
+      "acl": "includes PUBLIC+anon EXECUTE",
+      "status_blind": true,
+      "search_path_pin": false,
+      "cut3_use": "SELECT historical reads only — never write floor",
+      "repo_ancestry_status_blind_body": "SELECT EXISTS ( SELECT 1 FROM public.memberships WHERE group_id = gid AND user_id = uid );",
+      "pg_get_functiondef_note": "CUT3_ABORT: live md5(pg_get_functiondef) must equal 4b1bbd54719c129ef12f0ebc53463686",
+      "pg_get_functiondef_exact": "CREATE OR REPLACE FUNCTION public.is_group_member(gid uuid, uid uuid DEFAULT auth.uid())\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\nAS $function$\r\n  SELECT EXISTS (\n    SELECT 1 FROM public.memberships WHERE group_id = gid AND user_id = uid\n  );\n$function$\n",
+      "pg_get_functiondef_source": "Chief live status-blind body (no search_path pin). CR after $function$ as in live dump style. CUT3_ABORT keys md5 4b1bbd54719c129ef12f0ebc53463686"
+    },
+    "public.is_group_admin": {
+      "md5_pg_get_functiondef": "d4090a33af3a873873223416c204c913",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path="
+      ],
+      "repo_00114_create_ancestry": "CREATE OR REPLACE FUNCTION public.is_group_admin(gid uuid, uid uuid DEFAULT auth.uid())\nRETURNS boolean\nLANGUAGE sql\nSTABLE\nSECURITY DEFINER\nSET search_path TO ''\nAS $$\n  SELECT (auth.uid() IS NULL OR uid IS NULL OR uid = auth.uid())\n     AND EXISTS (\n       SELECT 1\n       FROM public.memberships\n       WHERE group_id = gid\n         AND user_id = uid\n         AND role IN ('owner', 'admin')\n         AND membership_status = 'active'\n     );\n$$;",
+      "pg_get_functiondef_note": "CUT3_ABORT keys live md5 d4090a33af3a873873223416c204c913",
+      "pg_get_functiondef_exact": "CREATE OR REPLACE FUNCTION public.is_group_admin(gid uuid, uid uuid DEFAULT auth.uid())\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT (auth.uid() IS NULL OR uid IS NULL OR uid = auth.uid())\n     AND EXISTS (\n       SELECT 1\n       FROM public.memberships\n       WHERE group_id = gid\n         AND user_id = uid\n         AND role IN ('owner', 'admin')\n         AND membership_status = 'active'\n     );\n$function$\n",
+      "pg_get_functiondef_source": "Chief live inventory body matching Cut 1 / 00114; CUT3_ABORT keys md5 d4090a33af3a873873223416c204c913"
+    },
+    "public.has_group_permission": {
+      "md5_pg_get_functiondef": "695368464e97297fbf0f90ce7345162f",
+      "owner": "postgres",
+      "prosecdef": true,
+      "proconfig": [
+        "search_path="
+      ],
+      "repo_00114_create_ancestry": "see supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql L1069–1128",
+      "pg_get_functiondef_note": "CUT3_ABORT keys live md5 695368464e97297fbf0f90ce7345162f",
+      "pg_get_functiondef_exact": "CREATE OR REPLACE FUNCTION public.has_group_permission(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())\n RETURNS boolean\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE\n  v_membership_id uuid;\n  v_role text;\n  v_assignment_count int;\n  v_has_perm boolean;\nBEGIN\n  IF auth.uid() IS NOT NULL AND uid IS NOT NULL AND uid IS DISTINCT FROM auth.uid() THEN\n    RETURN false;\n  END IF;\n\n  SELECT m.id, m.role::text\n    INTO v_membership_id, v_role\n  FROM public.memberships m\n  WHERE m.group_id = gid\n    AND m.user_id = uid\n    AND m.membership_status = 'active'\n  LIMIT 1;\n\n  IF v_membership_id IS NULL THEN\n    RETURN false;\n  END IF;\n\n  IF v_role = 'owner' THEN\n    RETURN true;\n  END IF;\n\n  SELECT COUNT(*) INTO v_assignment_count\n  FROM public.position_assignments\n  WHERE membership_id = v_membership_id AND ended_at IS NULL;\n\n  IF v_role = 'admin' AND v_assignment_count = 0 THEN\n    RETURN true;\n  END IF;\n\n  SELECT EXISTS (\n    SELECT 1\n    FROM public.position_assignments pa\n    JOIN public.position_permissions pp ON pp.position_id = pa.position_id\n    JOIN public.group_positions gp\n      ON gp.id = pa.position_id\n     AND gp.group_id = gid\n    WHERE pa.membership_id = v_membership_id\n      AND pa.ended_at IS NULL\n      AND pp.permission = perm_key\n  ) INTO v_has_perm;\n\n  RETURN v_has_perm;\nEND;\n$function$\n",
+      "pg_get_functiondef_source": "Chief live inventory body matching Cut 1 / 00114 L1069–1128; CUT3_ABORT keys md5 695368464e97297fbf0f90ce7345162f"
+    }
+  },
+  "cut3_abort_must_compare": [
+    "cut2 version=20260912033612 AND name=s0_p0b_cut2_notification_queue",
+    "receipts.public=false AND group-documents.public=false",
+    "eight policy using_expr/with_check_expr exact strings above",
+    "v1 md5 fb6155e6e3c996ad857208f717d981a8",
+    "v2 md5 585e7bd017f5623aacf87407b1b11524",
+    "is_active_group_member md5 26c12399120587df3d066dd7819bdf5e",
+    "is_group_member md5 4b1bbd54719c129ef12f0ebc53463686",
+    "is_group_admin md5 d4090a33af3a873873223416c204c913",
+    "has_group_permission md5 695368464e97297fbf0f90ce7345162f",
+    "new helpers absent before create",
+    "projects.id + projects.group_id uuid NOT NULL"
+  ],
+  "logos_live_counts": {
+    "bucket": "group-documents",
+    "total_gdocs": 25,
+    "logos_prefix": 6,
+    "logos_canonical": 6,
+    "logos_canonical_shape": "3-seg, seg2 uuid",
+    "logos_other": 0,
+    "constitutions": 14,
+    "uuid_first": 5,
+    "identity": "25 = 6 logos + 14 constitutions + 5 uuid-first"
+  }
+}

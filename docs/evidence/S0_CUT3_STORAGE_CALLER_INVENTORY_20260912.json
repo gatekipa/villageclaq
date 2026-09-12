@@ -2,15 +2,21 @@
   "artifact": "S0_CUT3_STORAGE_CALLER_INVENTORY_20260912",
   "date": "2026-09-12",
   "status": "FROZEN_PLANNING_ONLY",
-  "revision": "DAYBREAK_HOLD_CLOSEOUT_R2",
-  "previous_planning_sha": "e8e79e8d2fda9bfdf29277dd2bca835610b2c366",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R3",
+  "previous_planning_sha": "c3eccaa63b63f3c1517306a12c6a2bd31aee7149",
   "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
   "unknown_signed_url_callers": 0,
   "method": "Repo-wide grep of storage.from / upload / update / move / remove / createSignedUrl / createSignedUrls / download / getPublicUrl / signedUrlFor / normaliseObjectPath across src/, scripts/, tests/, supabase/. Table .update() hits excluded.",
   "unknown_upload_callers": 0,
   "unknown_upload_caller_list": [],
   "hold": false,
-  "apis_with_zero_callers": ["createSignedUrls", "storage.move", "storage.copy", "storage.list", "storage.update (object replace)"],
+  "apis_with_zero_callers": [
+    "createSignedUrls",
+    "storage.move",
+    "storage.copy",
+    "storage.list",
+    "storage.update (object replace)"
+  ],
   "production_mutation": "ZERO",
   "counts": {
     "upload_call_sites": 12,
@@ -41,26 +47,36 @@
       "sql_helper_select": "is_group_member(gid)",
       "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
       "proposed_rls_not": "is_group_admin — would break ordinary members; is_group_member as write floor forbidden",
-      "evidence": "PayNowDialog; path = `${groupId}/${Date.now()}-${receiptFile.name}`"
+      "evidence": "PayNowDialog; path = `${groupId}/${Date.now()}-${receiptFile.name}`",
+      "class_a": "OLD/KEEP {groupId}/{ts}-{filename}",
+      "shared_with_u02": false
     },
     {
       "id": "U02",
       "file": "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx",
       "op": "upload",
       "bucket": "receipts",
-      "grammar_id": "G-RECEIPT-UUID-FIRST",
+      "grammar_id": "G-FINANCE-RECORD",
       "upsert": false,
       "ui_gate": "RequirePermission anyOf finances.record | finances.manage",
       "workflow": "officer records a payment with optional receipt",
       "client": "browser createClient()",
       "privileged": false,
       "active_required_write": true,
-      "permission_key": ["finances.record", "finances.manage"],
+      "permission_key": [
+        "finances.record",
+        "finances.manage"
+      ],
       "sql_helper_write": "has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')",
       "sql_helper_select": "is_group_member(gid)",
-      "proposed_rls_write": "INSERT: has_group_permission finances.record|manage — preserves UI floor (SAFER than active-member-only)",
-      "path_union_note": "Same UUID-first grammar as U01; helper insert union is active-member OR finances.* so Pay Now still works",
-      "evidence": "path = `${groupId}/${Date.now()}-${file.name}`"
+      "proposed_rls_write": "INSERT: has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')",
+      "path_union_note": "REVOKED. Shared UUID-first with U01 is NOT acceptable. Class A distinct grammar frozen.",
+      "evidence": "LIVE code path at 1f1221ee is UUID-first; contract freezes NEW path finance-record/{groupId}/{ts}-{file.name}",
+      "planning_path_freeze": "finance-record/{groupId}/{ts}-{filename}",
+      "implementation_later": "change U02 caller path only — not in this PR",
+      "current_code_path_at_main": "${groupId}/${Date.now()}-${file.name} — IDENTICAL to U01; must diverge at implementation",
+      "ordinary_active_member_insert": "DENY",
+      "upsert_without_finance": "DENY"
     },
     {
       "id": "U03",
@@ -75,11 +91,19 @@
       "privileged": false,
       "active_required_write": true,
       "permission_key": null,
-      "sql_helper_write": "is_active_group_member(gid)",
-      "sql_helper_select": "is_group_member(gid)",
-      "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
+      "sql_helper_write": "member-self binding (active) — mismatch DENY",
+      "sql_helper_select": "member-self binding where applicable",
+      "proposed_rls_write": "INSERT: self membership bind; same-group other membership DENY; cross-group DENY; nonexistent/malformed membershipId DENY",
       "follow_on_read": "createSignedUrl 3600 (S08)",
-      "evidence": "path = `dispute-docs/${groupId}/${currentMembership.id}/${Date.now()}-${file.name}`"
+      "evidence": "path = `dispute-docs/${groupId}/${currentMembership.id}/${Date.now()}-${file.name}`",
+      "membership_binding": "memberships.id = path.membershipId AND memberships.user_id = auth.uid() AND memberships.group_id = path.groupId AND writes membership_status='active'",
+      "proxy_admin_on_behalf": "NONE",
+      "rls_negatives": [
+        "U03-NEG-SAME-GROUP-OTHER-MID",
+        "U03-NEG-CROSS-GROUP",
+        "U03-NEG-NONEXISTENT-MID",
+        "U03-NEG-MALFORMED-MID"
+      ]
     },
     {
       "id": "U04",
@@ -152,11 +176,20 @@
       "privileged": false,
       "active_required_write": true,
       "permission_key": null,
-      "sql_helper_write": "is_active_group_member(gid)",
-      "sql_helper_select": "is_group_member(gid)",
-      "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
+      "sql_helper_write": "member-self binding (active) — mismatch DENY",
+      "sql_helper_select": "member-self binding where applicable",
+      "proposed_rls_write": "INSERT: self membership bind; same-group other membership DENY; cross-group DENY; nonexistent/malformed membershipId DENY",
       "follow_on_read": "createSignedUrl 3600 (S06)",
-      "evidence": "path = `relief-claims/${groupId}/${membershipId}/${Date.now()}-${file.name}`"
+      "evidence": "path = `relief-claims/${groupId}/${membershipId}/${Date.now()}-${file.name}`",
+      "membershipId_equals": "currentMembership.id",
+      "membership_binding": "memberships.id = path.membershipId AND memberships.user_id = auth.uid() AND memberships.group_id = path.groupId AND writes membership_status='active'",
+      "proxy_admin_on_behalf": "NONE",
+      "rls_negatives": [
+        "U07-NEG-SAME-GROUP-OTHER-MID",
+        "U07-NEG-CROSS-GROUP",
+        "U07-NEG-NONEXISTENT-MID",
+        "U07-NEG-MALFORMED-MID"
+      ]
     },
     {
       "id": "U08",
@@ -220,7 +253,8 @@
       "upsert": true,
       "ui_gate": "hasPermission('settings.manage')",
       "cut3_scope": "NOT_AFFECTED — avatars uid policy; R26 tracks pre-existing mismatch",
-      "evidence": "path = `group-logos/${groupId}/${Date.now()}-${file.name}`"
+      "evidence": "path = `group-logos/${groupId}/${Date.now()}-${file.name}`",
+      "not_gdocs_logos": "settings writes avatars group-logos/{groupId}/… — NOT group-documents logos/. Do not invent a gdocs logos writer."
     }
   ],
   "remove_callers": [
@@ -258,7 +292,10 @@
       "file": "src/app/[locale]/(dashboard)/dashboard/my-profile/page.tsx",
       "op": "remove",
       "bucket": "avatars",
-      "sites": ["handleRemovePhoto", "before replacement upload"],
+      "sites": [
+        "handleRemovePhoto",
+        "before replacement upload"
+      ],
       "cut3": "NOT_AFFECTED"
     },
     {
@@ -282,7 +319,10 @@
       "file": "src/lib/storage-urls.ts",
       "op": "createSignedUrl",
       "via": "signedUrlFor(supabase, bucket, path)",
-      "buckets": ["receipts", "group-documents"],
+      "buckets": [
+        "receipts",
+        "group-documents"
+      ],
       "cut3": "SELECT fail-closed via storage_*_authorized(name,'select'); consumers are browser JWT only (S01)"
     },
     {
@@ -302,7 +342,11 @@
     {
       "id": "S04",
       "file": "src/app/[locale]/(dashboard)/dashboard/documents/page.tsx",
-      "ops": ["createSignedUrl after upload", "download", "createSignedUrl download fallback"],
+      "ops": [
+        "createSignedUrl after upload",
+        "download",
+        "createSignedUrl download fallback"
+      ],
       "bucket": "group-documents",
       "cut3": "READ uses SELECT; write path separate"
     },
@@ -351,7 +395,10 @@
   "false_positives_excluded": [
     {
       "pattern": "SendReviewContext \"receipts\"",
-      "files": ["src/components/send-review-notice.tsx", "scripts/test-product-*.mjs"],
+      "files": [
+        "src/components/send-review-notice.tsx",
+        "scripts/test-product-*.mjs"
+      ],
       "reason": "notification review context enum, not storage.objects"
     },
     {
@@ -359,5 +406,12 @@
       "reason": "PostgREST row updates, not storage.update"
     }
   ],
-  "static_guardrail": "scripts/test-storage-buckets.mjs pins a subset of upload files; this inventory is the complete caller set and includes projects + settings + signedUrlFor displays that the script does not all list as uploads"
+  "static_guardrail": "scripts/test-storage-buckets.mjs pins a subset of upload files; this inventory is the complete caller set and includes projects + settings + signedUrlFor displays that the script does not all list as uploads",
+  "g_logos_no_writer": {
+    "bucket": "group-documents",
+    "grammar": "G-LOGOS",
+    "write_caller": "NO",
+    "delete_caller": "NO",
+    "select": "is_group_member — live 6 remain readable/signable"
+  }
 }

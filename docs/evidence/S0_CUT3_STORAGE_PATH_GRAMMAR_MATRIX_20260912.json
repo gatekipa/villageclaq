@@ -2,8 +2,8 @@
   "artifact": "S0_CUT3_STORAGE_PATH_GRAMMAR_MATRIX_20260912",
   "date": "2026-09-12",
   "status": "FROZEN_PLANNING_ONLY",
-  "revision": "DAYBREAK_HOLD_CLOSEOUT_R2",
-  "previous_planning_sha": "e8e79e8d2fda9bfdf29277dd2bca835610b2c366",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R3",
+  "previous_planning_sha": "c3eccaa63b63f3c1517306a12c6a2bd31aee7149",
   "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
   "rule": "Grammars frozen from actual caller source at this SHA. No invented prefixes. Parser allow-lists from Chief live v1 / repo v2 are recorded separately from caller grammars.",
   "production_mutation": "ZERO",
@@ -18,14 +18,38 @@
       "seg1": "group uuid",
       "seg2": "file token",
       "callers": [
-        "src/components/payments/pay-now-dialog.tsx",
-        "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx"
+        "src/components/payments/pay-now-dialog.tsx"
       ],
       "v1_parse": "NULL (first segment is uuid, not in category list)",
       "v2_parse": "group uuid from foldername[1] when regex-guarded",
       "live_objects_compatible_shape": "receipts 3/3 are 2-seg uuid-first",
       "cut3_canonical": true,
-      "fail_closed_must_accept_if_authorized": true
+      "fail_closed_must_accept_if_authorized": true,
+      "callers_note": "U01 OLD/KEEP only. U02 MUST NOT share this grammar after Cut 3 implementation.",
+      "insert_auth": "is_active_group_member(groupId)",
+      "select_auth": "is_group_member(groupId) — historical UUID-first objects stay; no rename/move"
+    },
+    {
+      "grammar_id": "G-FINANCE-RECORD",
+      "bucket": "receipts",
+      "pattern": "finance-record/{groupId}/{ts}-{filename}",
+      "segment_count": 3,
+      "seg1": "literal finance-record (exact lowercase)",
+      "seg2": "group uuid",
+      "seg3": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx"
+      ],
+      "live_objects_this_shape": 0,
+      "cut3_canonical": true,
+      "class_a_distinct": true,
+      "planning_freeze": "Later implementation changes U02 caller path only. Shared UUID-first with U01 is NOT acceptable.",
+      "insert_auth": "has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')",
+      "ordinary_active_member": "DENY",
+      "upsert_without_finance": "DENY",
+      "select_auth": "is_group_member(gid)",
+      "v1_parse": "NULL (finance-record not in v1 category list)",
+      "v2_parse": "NULL (finance-record not in v2 category list; first segment is not uuid)"
     },
     {
       "grammar_id": "G-DISPUTE-DOCS",
@@ -43,7 +67,20 @@
       "v2_parse": "foldername[2] when regex-guarded",
       "live_objects_compatible_shape": "no 4-seg receipts in Chief counts (0 live objects this shape)",
       "cut3_canonical": true,
-      "fail_closed_must_accept_if_authorized": true
+      "fail_closed_must_accept_if_authorized": true,
+      "membership_binding": {
+        "rule": "memberships.id = path.membershipId AND memberships.user_id = auth.uid() AND memberships.group_id = path.groupId AND (writes: membership_status='active')",
+        "proxy_admin_on_behalf": "NONE",
+        "same_group_other_membership": "DENY",
+        "cross_group": "DENY",
+        "nonexistent_or_malformed_membershipId": "DENY",
+        "applies_to": [
+          "INSERT",
+          "SELECT of those objects"
+        ]
+      },
+      "insert_auth": "member-self binding (active) — not group-wide is_active_group_member alone",
+      "select_auth": "member-self binding (no forced active) where applicable"
     },
     {
       "grammar_id": "G-GDOCS-UUID-FIRST",
@@ -110,7 +147,21 @@
       "v2_parse": "foldername[2] regex-guarded",
       "live_objects_compatible_shape": "no 4-seg group-documents in Chief counts",
       "cut3_canonical": true,
-      "fail_closed_must_accept_if_authorized": true
+      "fail_closed_must_accept_if_authorized": true,
+      "membership_binding": {
+        "rule": "memberships.id = path.membershipId AND memberships.user_id = auth.uid() AND memberships.group_id = path.groupId AND (writes: membership_status='active')",
+        "membershipId_source": "currentMembership.id",
+        "proxy_admin_on_behalf": "NONE",
+        "same_group_other_membership": "DENY",
+        "cross_group": "DENY",
+        "nonexistent_or_malformed_membershipId": "DENY",
+        "applies_to": [
+          "INSERT",
+          "SELECT of those objects"
+        ]
+      },
+      "insert_auth": "member-self binding (active)",
+      "select_auth": "member-self binding where applicable"
     },
     {
       "grammar_id": "G-PROJECTS",
@@ -133,6 +184,37 @@
       "cut3_canonical": true,
       "select_in_scope": true,
       "fail_closed_must_accept_if_authorized": true
+    },
+    {
+      "grammar_id": "G-LOGOS",
+      "bucket": "group-documents",
+      "pattern": "logos/{groupId}/{file}",
+      "segment_count": 3,
+      "seg1": "literal logos (exact lowercase)",
+      "seg2": "group uuid → groups.id",
+      "seg3": "file token",
+      "callers_write": [],
+      "callers_delete": [],
+      "write_caller": "NO — settings writes avatars group-logos/{groupId}/… NOT group-documents logos/",
+      "delete_caller": "NO",
+      "do_not_invent_write": true,
+      "do_not_require_object_mutation": true,
+      "live_objects": {
+        "logos_prefix": 6,
+        "logos_canonical": 6,
+        "logos_other": 0
+      },
+      "select_auth": "is_group_member(groupId)",
+      "insert_auth": "DENY all app roles — no writer invented",
+      "update_auth": "DENY — no writer invented",
+      "delete_auth": "DENY — no delete caller",
+      "cross_tenant_select": "DENY",
+      "null_malformed_unknown": "DENY",
+      "cut3_canonical": true,
+      "select_in_scope": true,
+      "live_6_must_remain_readable_signable": true,
+      "v1_parse": "foldername[2]::uuid when prefix logos",
+      "v2_parse": "foldername[2] regex-guarded"
     },
     {
       "grammar_id": "G-AVATAR-UID-FIRST",
@@ -172,10 +254,10 @@
   "parser_only_tokens_with_no_current_writer": [
     {
       "token": "logos",
-      "appears_in": ["public.storage_path_group_id v1", "public.storage_path_group_id_v2"],
-      "current_caller_writes": "NONE at SHA 1f1221e",
+      "superseded_by": "G-LOGOS — live proven 6 canonical objects on group-documents. Still NO write/delete caller. SELECT/signed-url in scope.",
+      "current_caller_writes": "NONE at SHA 1f1221e — settings writes avatars group-logos/",
       "do_not_invent_writer": true,
-      "cut3_fail_closed": "If a path is logos/{uuid}/… it is parser-recognized today. Extra/missing/non-uuid still DENY. Do not add LIKE 'logo%' (would collide with group-logos)."
+      "cut3_fail_closed_write": "INSERT/UPDATE/DELETE logos/… DENY. SELECT is_group_member."
     }
   ],
   "explicitly_not_grammars": [
@@ -192,11 +274,24 @@
     "extra_segment_beyond_frozen_arity": "DENY",
     "ambiguous_prefix": "DENY — exact foldername[1] equality only",
     "unknown_prefix": "DENY on all four commands (no authenticated fallback)",
-    "prefixes": "exact lowercase only (minutes, constitutions, relief-claims, dispute-docs, projects)",
-    "encoding_default": "DENY if stored literal cannot prove canonical (see plan R18)"
+    "prefixes": "exact lowercase only (minutes, constitutions, relief-claims, dispute-docs, projects, logos, finance-record)",
+    "encoding_default": "DENY if stored literal cannot prove canonical — individual IDs in S0_CUT3_STORAGE_ENCODING_TEST_MATRIX_20260912.json (no umbrella)"
   },
   "bucket_helper_grammar_isolation": {
-    "storage_receipts_authorized_allows_only": ["G-RECEIPT-UUID-FIRST", "G-DISPUTE-DOCS"],
-    "storage_group_documents_authorized_allows_only": ["G-GDOCS-UUID-FIRST", "G-MINUTES", "G-CONSTITUTIONS", "G-RELIEF-CLAIMS", "G-PROJECTS"]
+    "storage_receipts_authorized_allows_only": [
+      "G-RECEIPT-UUID-FIRST",
+      "G-FINANCE-RECORD",
+      "G-DISPUTE-DOCS"
+    ],
+    "storage_group_documents_authorized_allows_only": [
+      "G-GDOCS-UUID-FIRST",
+      "G-MINUTES",
+      "G-CONSTITUTIONS",
+      "G-RELIEF-CLAIMS",
+      "G-PROJECTS",
+      "G-LOGOS"
+    ],
+    "g_logos_write": "FALSE for insert/update/delete",
+    "g_finance_record_insert": "has_group_permission finances.record|manage — not is_active_group_member"
   }
 }

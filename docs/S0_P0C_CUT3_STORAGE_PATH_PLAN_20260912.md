@@ -1,12 +1,12 @@
 # S0 P0-C Cut 3 — Storage path fail-closed boundary (PLANNING ONLY)
 
 **Date:** 2026-09-12  
-**Revision:** **DAYBREAK HOLD CLOSEOUT — CONTRACT REVISION 2**  
+**Revision:** **CONTRACT REVISION 3** (closes Daybreak blockers A–G only)  
 **Status:** **PLANNING ONLY — READY FOR DAYBREAK RE-REVIEW**  
 **Implementation:** **NOT AUTHORIZED**. This PR must not be treated as permission to author or apply `00116`.  
 **This PR (#79):** docs / evidence only. **No** `00116` SQL. **No** application / test / migration code. **No** edits to `00001`–`00115`. **No** Cut 2 / `notifications_queue` files. **Keep DRAFT OPEN UNMERGED.**  
 **Production mutation:** **ZERO**. This task did not query live SQL, list objects, or sign/download private objects.  
-**Previous planning SHA (parent):** `e8e79e8d2fda9bfdf29277dd2bca835610b2c366`  
+**Previous planning SHA (parent — must be ancestor):** `c3eccaa63b63f3c1517306a12c6a2bd31aee7149`  
 **Base main:** `1f1221eeb9207b692a7e507ae95acfc9aabac113`
 
 **UI/UX EXCELLENCE TRACK: ACTIVE / DEFERRED BY S0 GATE, NOT CANCELLED.**  
@@ -14,7 +14,22 @@ Next UX gate: **ASTRA** fresh design-system + IA review. **No UI work now.**
 
 ---
 
-## Daybreak A–H closeout (this revision)
+## Contract Revision 3 — Daybreak A–G closeout (this revision)
+
+Rev 2 A–H architecture **stays passed**. This revision closes **only** A–G below. Do not reopen helpers, 8-policy scope, SELECT fail-closed, UPDATE USING+WITH CHECK, avatars OOS, or v1/v2 keep-but-deauthorize unless live evidence requires.
+
+| Blocker | Close |
+|---------|--------|
+| **A LOGOS** | Live proven on `group-documents`: `logos_prefix=6`, `logos_canonical=6` (3-seg, seg2 uuid), `logos_other=0`. Total gdocs `25 = 6 logos + 14 constitutions + 5 uuid-first`. Freeze **G-LOGOS** `logos/{groupId}/{file}`. Tenant: `groupId` → `groups.id`. SELECT/signed-url: `is_group_member(groupId)`; cross-tenant **DENY**; NULL/malformed/unknown **DENY**. WRITE caller: **NO** (settings writes avatars `group-logos/{groupId}/…`, not gdocs `logos/`). DELETE caller: **NO**. Do **not** invent write. Do **not** mutate objects. Live 6 remain readable/signable. Tests: `T-LOGOS-01..04`, `LOGOS-SIGN-01..03`. |
+| **B U02** | Chief code at `1f1221ee`: U01 and U02 share `${groupId}/${Date.now()}-{name}` on receipts. **Shared UUID-first is NOT acceptable.** Class A: U01 **OLD/KEEP** `{groupId}/{ts}-{filename}` → INSERT `is_active_group_member`. U02 **NEW** `finance-record/{groupId}/{ts}-{filename}` → INSERT `has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')`; ordinary active member **DENY**. Later implementation changes **U02 caller path only** (planning freeze now). Historical UUID-first: SELECT `is_group_member`; **no rename/move**. U02 upsert without finance perms **DENY** (`UPS-10`). |
+| **C U03/U07** | U03 `dispute-docs/{groupId}/{currentMembership.id}/{ts}-{file}` receipts. U07 `relief-claims/{groupId}/{membershipId}/{ts}-{file}` gdocs, `membershipId=currentMembership.id`. Binding for INSERT (and SELECT of those objects where applicable): `memberships.id = path.membershipId AND memberships.user_id = auth.uid() AND memberships.group_id = path.groupId AND (writes: membership_status='active')`. Proxy/admin-on-behalf: **NONE**. Same-group other membership **DENY**; cross-group **DENY**; nonexistent/malformed membershipId **DENY**. RLS negatives: `U03-NEG-*`, `U07-NEG-*`. |
+| **D Upsert** | Individual IDs `UPS-01`–`UPS-12`: authorized same-tenant ALLOW (U04/U06); cross-tenant existing/new **DENY**; malformed/unknown **DENY**; old-auth→new-unauthorized-tenant **DENY**; U02-path without finance **DENY**; membership-mismatch upsert **DENY**. |
+| **E Encoding** | Every class has its own behavioral test ID + bucket + operation + path + actor + expected DENY + reason in `S0_CUT3_STORAGE_ENCODING_TEST_MATRIX_20260912.json`. **No** umbrella “malformed encodings deny”. Classes: leading/trailing/double slash, empty middle, empty filename, literal backslash, `%2F`, `%2f`, encoded backslash, `.`, `..`, encoded dot, encoded dot-dot, percent-encoded UUID, mixed-case prefix, extra/missing/single segment, Unicode slash lookalikes, unknown prefix. |
+| **F/G Fingerprints** | Exact live `pg_get_expr` / `pg_get_functiondef` / md5 / ACL / grants / Cut 2 pin / helper absence embedded in `S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912.json`. v1 md5 **fb6155e6e3c996ad857208f717d981a8** oid 38662. v2 md5 **585e7bd017f5623aacf87407b1b11524** oid 39616. Auth helpers: `is_active_group_member` **26c12399…**, `is_group_member` **4b1bbd54…**, `is_group_admin` **d4090a33…**, `has_group_permission` **69536846…**. New helpers **absent** live — `CUT3_ABORT` if present at apply. Cut 2 pin: version **`20260912033612`** name **`s0_p0b_cut2_notification_queue`** — do **not** rely only on count=30. |
+
+---
+
+## Daybreak A–H closeout (Revision 2 — passed, not reopened)
 
 | Blocker | Close |
 |---------|--------|
@@ -34,12 +49,12 @@ Next UX gate: **ASTRA** fresh design-system + IA review. **No UI work now.**
 | Pin | Value |
 |-----|-------|
 | Planning base / `main` | `1f1221eeb9207b692a7e507ae95acfc9aabac113` |
-| Previous planning tip (must be ancestor) | `e8e79e8d2fda9bfdf29277dd2bca835610b2c366` |
+| Previous planning tip (must be ancestor) | `c3eccaa63b63f3c1517306a12c6a2bd31aee7149` |
 | Repo | `https://github.com/gatekipa/villageclaq` |
 | Planning branch / PR | `planning/s0-p0c-cut3-storage-insert-20260912` / DRAFT **#79** |
-| Live project | `llbnliixczcqfftxpsmb` — migrations **30** / Cut 2 live |
+| Live project | `llbnliixczcqfftxpsmb` |
 | Cut 1 CLOSED prod | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **DO NOT MODIFY** |
-| Cut 2 | `00115` + queue/drain — **DO NOT TOUCH** |
+| Cut 2 pin (exact) | version **`20260912033612`** name **`s0_p0b_cut2_notification_queue`**. If this pair is absent OR unexpected drift vs pin → **CUT3_ABORT / requalify**. Do **not** rely only on migrations count=30. `00115` + queue/drain — **DO NOT TOUCH** |
 | Future migration **name only** | `00116_s0_p0c_cut3_storage_path_fail_closed.sql` — **DO NOT CREATE IN THIS PR** |
 | `projects.group_id` | `uuid NOT NULL` (Chief + `00010`) |
 | Trusted DEFINER helpers | `is_active_group_member`, `is_group_admin`, `has_group_permission` — **owner = postgres**, `search_path ''` |
@@ -52,7 +67,9 @@ Next UX gate: **ASTRA** fresh design-system + IA review. **No UI work now.**
 - `docs/evidence/S0_CUT3_STORAGE_PATH_GRAMMAR_MATRIX_20260912.json`
 - `docs/evidence/S0_CUT3_STORAGE_CALLER_INVENTORY_20260912.json`
 - `docs/evidence/S0_CUT3_STORAGE_TRUTH_TABLE_20260912.json`
-- `docs/evidence/S0_CUT3_STORAGE_SIGNED_URL_MATRIX_20260912.json` **(new)**
+- `docs/evidence/S0_CUT3_STORAGE_SIGNED_URL_MATRIX_20260912.json`
+- `docs/evidence/S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912.json` **(Rev 3)**
+- `docs/evidence/S0_CUT3_STORAGE_ENCODING_TEST_MATRIX_20260912.json` **(Rev 3)**
 
 Unknown upload callers: **0**. Unknown signed-URL callers: **0**. No HOLD.
 
@@ -159,14 +176,20 @@ USING (bucket_id = '<bucket>' AND public.storage_<bucket>_authorized(name, 'dele
 - **REMOVE** from affected policy authority (none of the eight policies may call v1 or v2).
 - CUT3_ABORT fingerprints v1+v2 exact `pg_get_functiondef` / md5 **before** replace (R23).
 
-Planning-time reconstructed hashes (from Chief CASE body + repo `00112` v2 text — **not** a live `pg_get_functiondef` dump; apply-time must read live catalog):
+**Rev 3 — fingerprints FROZEN NOW** (not deferred). Apply **must** `CUT3_ABORT` if live `md5(pg_get_functiondef)` disagrees with these pins (do **not** rehash chat-normalized text):
 
-| Object | Reconstruction source | md5 (utf8 of frozen text in evidence JSON) |
-|--------|----------------------|---------------------------------------------|
-| v1 CASE body (Chief verbatim) | live inventory | `becf78352e26a5da61cf3347ffb87cae` |
-| v2 `00112` `CREATE FUNCTION` text | repo at `1f1221e` | `84b5a5ad1f29a3250132e496e5752ae8` |
+| Object | Live md5(`pg_get_functiondef`) | oid / notes |
+|--------|-------------------------------|-------------|
+| `storage_path_group_id` | **`fb6155e6e3c996ad857208f717d981a8`** | oid **38662**; owner postgres; not DEFINER; proconfig empty; EXECUTE PUBLIC/anon/authenticated/service_role. Chief dump has CR after `$function$`. |
+| `storage_path_group_id_v2` | **`585e7bd017f5623aacf87407b1b11524`** | oid **39616**; LF only, no CR. |
+| `is_active_group_member` | **`26c12399120587df3d066dd7819bdf5e`** | DEFINER; `search_path ''`; acl postgres/authenticated/service_role X |
+| `is_group_member` | **`4b1bbd54719c129ef12f0ebc53463686`** | DEFINER; **no** search_path pin; acl includes PUBLIC+anon |
+| `is_group_admin` | **`d4090a33af3a873873223416c204c913`** | DEFINER; `search_path ''` |
+| `has_group_permission` | **`695368464e97297fbf0f90ce7345162f`** | DEFINER; `search_path ''` |
 
-Apply **must** `CUT3_ABORT` if live `pg_get_functiondef` / `md5(prosrc)` disagrees with the live snapshot captured in the implementation rehearsal (do not silently accept reconstruct-only hashes).
+Full `pg_get_functiondef` text + exact 8-policy `using_expr`/`with_check_expr` + `storage.objects` grants: `S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912.json`.
+
+Reconstructed CASE-only md5 `becf7835…` / repo `00112` md5 `84b5a5ad…` are **ancestry only** — not abort keys.
 
 ---
 
@@ -187,21 +210,23 @@ Do **not** rewrite `is_group_member`.
 
 | ID | Bucket | Pattern | Tenant source |
 |----|--------|---------|---------------|
-| G-RECEIPT-UUID-FIRST | receipts | `{groupId}/{file}` (arity 2) | seg1 uuid |
-| G-DISPUTE-DOCS | receipts | `dispute-docs/{groupId}/{membershipId}/{file}` (arity 4) | seg2 uuid |
+| G-RECEIPT-UUID-FIRST | receipts | `{groupId}/{file}` (arity 2) | seg1 uuid — **U01 KEEP only** |
+| G-FINANCE-RECORD | receipts | `finance-record/{groupId}/{file}` (arity 3) | seg2 uuid — **U02 NEW** |
+| G-DISPUTE-DOCS | receipts | `dispute-docs/{groupId}/{membershipId}/{file}` (arity 4) | seg2 uuid + **member-self bind** |
 | G-GDOCS-UUID-FIRST | group-documents | `{groupId}/{file}` (arity 2) | seg1 uuid |
 | G-MINUTES | group-documents | `minutes/{groupId}/{file}` (arity 3) | seg2 |
 | G-CONSTITUTIONS | group-documents | `constitutions/{groupId}/{file}` (arity 3) | seg2 |
-| G-RELIEF-CLAIMS | group-documents | `relief-claims/{groupId}/{membershipId}/{file}` (arity 4) | seg2 |
+| G-RELIEF-CLAIMS | group-documents | `relief-claims/{groupId}/{membershipId}/{file}` (arity 4) | seg2 + **member-self bind** |
 | G-PROJECTS | group-documents | `projects/{projectId}/{file-or-approved-subpath}` | **`projects.id` = projectId → `projects.group_id`** |
+| G-LOGOS | group-documents | `logos/{groupId}/{file}` (arity 3) | seg2 uuid → `groups.id` — **SELECT only** |
 | G-AVATAR-UID-FIRST | avatars | `{userId}/{file}` | out of scope |
 | G-GROUP-LOGOS-ON-AVATARS | avatars | `group-logos/{groupId}/{file}` | out of scope |
 
 **Approved projects subpath (from code, do not invent):** exactly one final file token: `{Date.now()}-{filename}` as written by `projects/page.tsx`. **No** extra folders (`projects/{id}/a/b` → DENY). File token must be non-empty and must not be `.` / `..`.
 
-**Parser-only token `logos`:** in v1/v2, **no current writer**. After Cut 3, `logos/…` is **not** a receipts grammar and is **not** a gdocs writer grammar unless a live 3-seg object proves that prefix at apply-time **without logging names**. Default: **DENY** writes/selects of `logos/…` on both private buckets (unknown grammar). If rehearsal finds live `logos/` objects, Daybreak must re-open a SELECT exception — do not invent one now.
+**G-LOGOS (Rev 3 — live proven, not invented):** `group-documents` has **6** canonical `logos/{groupId}/{file}` objects (3-seg, seg2 uuid), `logos_other=0`. SELECT/signed-url: `is_group_member(groupId)`. INSERT/UPDATE/DELETE: **DENY** (no writer, no delete caller — settings writes avatars `group-logos/`, not this prefix). Do not invent write. Do not rename/move the live 6.
 
-Prefixes are **exact lowercase** as in source: `minutes`, `constitutions`, `relief-claims`, `dispute-docs`, `projects`. Mixed-case → **DENY**.
+Prefixes are **exact lowercase** as in source: `minutes`, `constitutions`, `relief-claims`, `dispute-docs`, `projects`, `logos`, `finance-record`. Mixed-case → **DENY**.
 
 ---
 
@@ -254,13 +279,13 @@ OLD and NEW `name` must each be canonical + authorized. Rename to another tenant
 
 | ID | File | Bucket / grammar | UI / code floor | Browser vs server | RLS write freeze |
 |----|------|------------------|-----------------|-------------------|------------------|
-| U01 | `pay-now-dialog.tsx` | receipts / UUID-first | any member; no PermissionGate | browser | INSERT: `is_active_group_member(gid)` |
-| U02 | `contributions/record/page.tsx` | receipts / UUID-first | `RequirePermission` `finances.record` \| `finances.manage` | browser | INSERT: `has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')` — **preserves UI floor** (not mere active member) |
-| U03 | `my-fines/page.tsx` | receipts / dispute-docs | any member | browser | INSERT: `is_active_group_member(gid)` |
+| U01 | `pay-now-dialog.tsx` | receipts / UUID-first **KEEP** | any member; no PermissionGate | browser | INSERT: `is_active_group_member(gid)` |
+| U02 | `contributions/record/page.tsx` | receipts / **`finance-record/{gid}/{ts}-{file}` NEW** (code at main still UUID-first — path change is implementation-only later) | `RequirePermission` `finances.record` \| `finances.manage` | browser | INSERT: `has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')` — ordinary active member **DENY** |
+| U03 | `my-fines/page.tsx` | receipts / dispute-docs | any member **self** | browser | INSERT: **member-self bind** (active). Same-group other membership / cross-group / bad mid → **DENY** |
 | U04 | `documents/page.tsx` | gdocs / UUID-first; **upsert** | `hasPermission('documents.manage')` | browser | INSERT+UPDATE: `has_group_permission(gid,'documents.manage')` |
 | U05 | `minutes/page.tsx` | gdocs / minutes | `hasPermission('minutes.manage')` | browser | INSERT: `has_group_permission(gid,'minutes.manage')` |
 | U06 | `constitution/page.tsx` | gdocs / constitutions; **upsert** | `useGroup().isAdmin` (role owner/admin) | browser | INSERT+UPDATE: `is_group_admin(gid)` |
-| U07 | `relief/my/page.tsx` | gdocs / relief-claims | any member | browser | INSERT: `is_active_group_member(gid)` |
+| U07 | `relief/my/page.tsx` | gdocs / relief-claims (`membershipId=currentMembership.id`) | any member **self** | browser | INSERT: **member-self bind** (active). Same-group other membership / cross-group / bad mid → **DENY** |
 | U08 | `projects/page.tsx` | gdocs / projects | `useGroup().isAdmin` | browser | INSERT: lookup project → `is_group_admin(projects.group_id)` |
 | U09–U11 | profile + onboarding ×2 | avatars / uid-first | self | browser | **OUT OF SCOPE** |
 | U12 | `settings/page.tsx` | avatars / group-logos | `settings.manage` | browser | **OUT OF SCOPE** |
@@ -296,15 +321,19 @@ Unknown signed-URL callers: **0**.
 
 | Grammar | select | insert / update | delete |
 |---------|--------|-----------------|--------|
-| UUID-first receipts | `is_group_member` | **cannot distinguish U01 vs U02 from path alone** — freeze **union**: `is_active_group_member OR has_group_permission(finances.record) OR has_group_permission(finances.manage)`. Both U01 and U02 satisfy this. Cross-tenant still DENY. |
-| dispute-docs | `is_group_member` | `is_active_group_member` | `is_group_admin` |
+| UUID-first receipts (U01) | `is_group_member` | `is_active_group_member` only | `is_group_admin` |
+| `finance-record/` (U02) | `is_group_member` | `has_group_permission(finances.record) OR has_group_permission(finances.manage)` — ordinary active member **DENY**; upsert without finance **DENY** | `is_group_admin` |
+| dispute-docs (U03) | **member-self bind** (no forced active) | **member-self bind + active** | `is_group_admin` |
 | UUID-first gdocs | `is_group_member` | `has_group_permission(documents.manage)` | `is_group_admin` |
 | minutes | `is_group_member` | `has_group_permission(minutes.manage)` | `is_group_admin` |
 | constitutions | `is_group_member` | `is_group_admin` | `is_group_admin` |
-| relief-claims | `is_group_member` | `is_active_group_member` | `is_group_admin` |
+| relief-claims (U07) | **member-self bind** (no forced active) | **member-self bind + active** | `is_group_admin` |
 | projects | `is_group_member(projects.group_id)` | `is_group_admin(projects.group_id)` | `is_group_admin(projects.group_id)` |
+| logos (G-LOGOS) | `is_group_member(groupId)` | **DENY** (no writer invented) | **DENY** (no delete caller) |
 
-Receipts UUID-first INSERT union is **SAFER** than live fail-open and **does not weaken** U02’s UI (officer still needs `finances.*` in the page). A non-officer active member **can** INSERT a UUID-first receipt (Pay Now). That is required by U01.
+**Member-self bind:** `memberships.id = path.membershipId AND memberships.user_id = auth.uid() AND memberships.group_id = path.groupId`. Writes also require `membership_status='active'`. Proxy/admin-on-behalf: **NONE**.
+
+U01 and U02 are **Class A distinct grammars**. Shared UUID-first is **not** acceptable. Historical UUID-first objects stay put; SELECT remains `is_group_member`.
 
 ---
 
@@ -349,9 +378,11 @@ Later (not this PR):
 
 ## R13 — Live object shapes (sanitized)
 
-Unchanged Chief counts: avatars 6 (2-seg uuid); gdocs 25 (5×2-seg uuid-first, 20×3-seg non-uuid-first); receipts 3 (2-seg uuid-first). No names.
+Chief counts **refined (Rev 3):** avatars 6 (2-seg uuid); gdocs **25 = 6 logos + 14 constitutions + 5 uuid-first** (`logos_canonical=6`, `logos_other=0`); receipts 3 (2-seg uuid-first). No names.
 
-After SELECT fail-closed: unparsed 3-seg prefixes among the 20 become **unreadable** unless they match `minutes` / `constitutions` / `projects` (with live project row). Rehearsal must classify **prefix tokens only** (no filenames). If an unknown prefix exists, **CUT3_ABORT or Daybreak HOLD** before prod apply — do not invent a fallback.
+The 6 live logos are **G-LOGOS** — remain **readable/signable** for `is_group_member` after fail-closed SELECT. Do **not** rename/move them. Constitutions stay G-CONSTITUTIONS. UUID-first stay G-GDOCS-UUID-FIRST / G-RECEIPT-UUID-FIRST.
+
+After SELECT fail-closed: unknown 3-seg prefixes (if any appear later) are **unreadable**. Rehearsal must classify **prefix tokens only** (no filenames). If an unknown prefix exists beyond logos/constitutions, **CUT3_ABORT or Daybreak HOLD** before prod apply — do not invent a fallback.
 
 ---
 
@@ -376,7 +407,7 @@ See `S0_CUT3_STORAGE_SIGNED_URL_MATRIX_20260912.json`.
 
 ## R16 — Invalid UUID / arity
 
-Same as before: regex-guard; no `::uuid` exception. Extra/missing segments **DENY**. Membership UUID in relief/dispute: shape-check only; tenant is **group** (or project→group).
+Same as before: regex-guard; no `::uuid` exception. Extra/missing segments **DENY**. Membership UUID in relief/dispute: **not** shape-check only — **member-self bind** (Rev 3 C). Tenant groupId must match `memberships.group_id`.
 
 ---
 
@@ -421,11 +452,15 @@ Evaluate the **stored `storage.objects.name` literal** (what RLS sees). If it ca
 | `.` or `..` as a segment or filename | **DENY** | |
 | Unicode slash lookalikes (U+2215, U+2044, U+FF0F, …) | **DENY** | not ASCII `/` separators |
 | Backslash `\` | **DENY** | not a foldername separator we trust |
-| `logos/…` on either private bucket | **DENY** | no current writer; not receipts grammar |
+| `logos/{groupId}/{file}` on **group-documents** (canonical 3-seg) | SELECT **VALID** if `is_group_member`; INSERT/UPDATE/DELETE **DENY** | G-LOGOS live 6 |
+| `logos/…` on **receipts** | **DENY** | not a receipts grammar |
 | `group-logos/…` on private buckets | **DENY** | avatars-only caller; exact token ≠ `logos` |
+| `finance-record/…` | INSERT **VALID** only with finances.record\|manage | U02 Class A |
 | `LIKE '%uuid%'` / `LIKE 'minutes%'` | **FORBIDDEN in SQL** | R18 collision |
 
 No `LIKE` / substring prefix match.
+
+**Individual encoding tests (Rev 3):** do **not** treat this table as an umbrella. Apply-time disposable RLS must execute each `ENC-*` ID in `S0_CUT3_STORAGE_ENCODING_TEST_MATRIX_20260912.json` (bucket + operation + path + actor + expected DENY + reason).
 
 ---
 
@@ -435,9 +470,9 @@ No `LIKE` / substring prefix match.
 
 Keep D01–D24 from revision 1 **except**:
 
-- D02 record-payment path: officer A with `finances.record` ALLOW; active member **without** that permission ALLOW only as Pay Now (same UUID-first grammar — cannot path-distinguish; accept union).
+- D02 record-payment: officer A with `finances.record` ALLOW on **`finance-record/{G1}/…` only**. Active member **without** that permission **DENY** on `finance-record/` (`T-U02-02`). Pay Now remains UUID-first (`T-U01-01`).
 - D08 minutes: require `minutes.manage` (or owner / unassigned admin).
-- D18 documents upsert: require `documents.manage`.
+- D18 documents upsert: require `documents.manage` (`UPS-01`).
 - **D18-neg:** active member without `documents.manage` upsert UUID-first gdocs → **DENY**.
 
 Add Daybreak cases:
@@ -458,8 +493,15 @@ Add Daybreak cases:
 | D36 | UPDATE: OLD canonical G1, NEW `{G2}/{file}` | **DENY** (WITH CHECK) |
 | D37 | UPDATE: OLD garbage, NEW canonical | **DENY** (USING) |
 | D38 | UPDATE: both canonical same group, actor authorized for update | **ALLOW** |
-| D39 | Encoding rows from R18 (leading slash, `%2F`, `Minutes/`, `..`) INSERT | **DENY** each |
+| D39 | **Superseded umbrella** — execute every `ENC-*` ID (not a 4-row sample) | **DENY** each |
 | D40 | service_role EXECUTE of new helpers | **denied** (no grant) |
+| D41 | `T-LOGOS-01` member G1 SELECT/sign `logos/{G1}/{file}` | **ALLOW** |
+| D42 | `T-LOGOS-02` / `LOGOS-SIGN-02` member G2 SELECT/sign `logos/{G1}/{file}` | **DENY** |
+| D43 | `T-LOGOS-04` any role INSERT/UPDATE/DELETE `logos/…` | **DENY** |
+| D44 | `T-U02-01` finance officer INSERT `finance-record/{G1}/…` | **ALLOW** |
+| D45 | `T-U02-02` ordinary active member INSERT `finance-record/{G1}/…` | **DENY** |
+| D46 | `U03-NEG-*` / `U07-NEG-*` membership mismatches | **DENY** |
+| D47 | `UPS-01`–`UPS-12` upsert matrix | ALLOW/DENY per ID |
 
 ---
 
@@ -477,6 +519,9 @@ Add Daybreak cases:
 | R08 | Avatars public SELECT / uid write | **unchanged** |
 | R09 | Confirm none of the eight policies reference v1/v2 | pass |
 | R10 | Confirm v1/v2 functions still **exist** | pass |
+| R11 | Member G1 `createSignedUrl` `logos/{G1}/{file}` (`LOGOS-SIGN-01`) | ALLOW |
+| R12 | Member G2 `createSignedUrl` `logos/{G1}/{file}` (`LOGOS-SIGN-02`) | DENY |
+| R13 | Authenticated sign malformed/unknown logos path (`LOGOS-SIGN-03`) | DENY |
 
 ---
 
@@ -499,14 +544,15 @@ No `p_uid` argument.
 
 Before replacing policies, **one** preflight. Any mismatch → `RAISE EXCEPTION 'CUT3_ABORT: …'` (not NOTICE+skip).
 
-1. Cut 2 present: `schema_migrations` contains `00115_s0_p0b_cut2_notification_queue` (or live version name equivalent — **30** migrations, Cut 2 live per Chief).
+1. Cut 2 present as **exact pair** version **`20260912033612`** name **`s0_p0b_cut2_notification_queue`**. If absent **or** unexpected drift vs this pin → **CUT3_ABORT / requalify**. Do **not** treat `count=30` as sufficient (later founder-auth migrations must not hide a missing/renamed Cut 2).
 2. `storage.buckets`: `receipts.public = false` AND `group-documents.public = false`.
-3. All **eight** policy names exist on `storage.objects` with exact **cmd**, **roles = {authenticated}**, **permissive**, and exact live **USING / WITH CHECK** as R1 (UPDATE WITH CHECK null/absent).
-4. `public.storage_path_group_id` and `public.storage_path_group_id_v2` exist; owner **postgres**; **not** DEFINER; `pg_get_functiondef` / prosrc md5 equals the **live** snapshot taken at rehearsal (planning reconstructed hashes are **not** sufficient alone).
-5. `is_active_group_member`, `is_group_admin`, `has_group_permission` exist; owner **postgres**; DEFINER; `search_path` includes `''`.
-6. New helpers **`storage_group_documents_authorized`** and **`storage_receipts_authorized` absent** before create (or replace only after abort checks).
+3. All **eight** policy names exist on `storage.objects` with exact **cmd**, **roles = {authenticated}**, **permissive**, and exact live **`using_expr` / `with_check_expr`** strings in the catalog fingerprints JSON (UPDATE WITH CHECK **null** preserved).
+4. `public.storage_path_group_id` md5 **`fb6155e6e3c996ad857208f717d981a8`**; `public.storage_path_group_id_v2` md5 **`585e7bd017f5623aacf87407b1b11524`**; owner **postgres**; **not** DEFINER. Compare live `md5(pg_get_functiondef)` to these pins — not a reconstructed hash.
+5. `is_active_group_member` md5 **`26c12399120587df3d066dd7819bdf5e`**; `is_group_member` md5 **`4b1bbd54719c129ef12f0ebc53463686`**; `is_group_admin` md5 **`d4090a33af3a873873223416c204c913`**; `has_group_permission` md5 **`695368464e97297fbf0f90ce7345162f`**. Owner **postgres**. First/third/fourth: DEFINER + `search_path ''`. `is_group_member`: DEFINER, **no** search_path pin.
+6. New helpers **`storage_group_documents_authorized(text,text)`** and **`storage_receipts_authorized(text,text)`** are **null / absent**. If present at apply → **CUT3_ABORT**.
 7. `public.projects.id` uuid PK exists; `public.projects.group_id` uuid **NOT NULL**.
 8. Avatars write policies still uid-first (regression pin).
+9. `storage.objects` role_table_grants match the exact rows in the catalog fingerprints JSON (anon+authenticated+service_role INSERT/SELECT/UPDATE/DELETE/REFERENCES/TRIGGER/TRUNCATE `is_grantable=NO`; postgres all `YES`).
 
 Then **atomic one-transaction** replace of **all eight** policies. Partial apply is a defect.
 
@@ -549,7 +595,7 @@ Functional non-loss (security gate, not visual polish):
 | Relief | Active INSERT; member SELECT | Kept |
 | Projects attach/sign/delete | lookup + admin write / member SELECT | Kept; **non-members lose** world-readable project files (intended) |
 | History / my-payments viewers | `signedUrlFor` + member SELECT | Kept for members |
-| Avatars / settings logo | unchanged | Tracked pre-existing logo mismatch |
+| Avatars / settings logo | unchanged (avatars `group-logos/`) | Tracked pre-existing avatars mismatch. Live gdocs **G-LOGOS** SELECT/sign kept for members; no gdocs write invented |
 | ASTRA visual / IA | **Deferred, not cancelled** | — |
 
 ---
@@ -568,10 +614,9 @@ Functional non-loss (security gate, not visual polish):
 
 ## Success criteria (this revision)
 
-- [x] Docs-only on PR **#79**, draft stays open  
-- [x] Parent `e8e79e8…`  
-- [x] A–H closed  
-- [x] Helpers named, owner `postgres`, grants frozen (`service_role` **NO**)  
-- [x] Signed-URL unknown = 0  
-- [x] Eight policy names frozen  
-- [x] No 00116 / app code  
+- [x] Docs-only on PR **#79**, draft stays open unmerged  
+- [x] Parent `c3eccaa63b63f3c1517306a12c6a2bd31aee7149`  
+- [x] Blockers A–G closed (Rev 2 A–H not reopened)  
+- [x] G-LOGOS / U02 Class A / U03–U07 bind / UPS-* / ENC-* / live fingerprints frozen  
+- [x] Signed-URL unknown = 0; privileged = 0; logos SELECT auth tests added  
+- [x] No 00116 / app / test / SQL code  

@@ -1,7 +1,7 @@
 {
   "artifact": "S0_CUT3_STORAGE_SIGNED_URL_MATRIX_20260912",
   "date": "2026-09-12",
-  "revision": "DAYBREAK_HOLD_CLOSEOUT_R2",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R3",
   "status": "FROZEN_PLANNING_ONLY",
   "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
   "production_mutation": "ZERO",
@@ -16,7 +16,10 @@
       "file": "src/lib/storage-urls.ts",
       "fn": "signedUrlFor",
       "op": "createSignedUrl",
-      "buckets": ["receipts", "group-documents"],
+      "buckets": [
+        "receipts",
+        "group-documents"
+      ],
       "client": "caller-supplied SupabaseClient — all in-repo consumers pass browser createClient()",
       "privileged": false,
       "service_role": false,
@@ -128,13 +131,51 @@
       "authority": "SELECT RLS"
     }
   ],
-  "unused_exports": ["EXPORT_EXPIRY_SECONDS"],
+  "unused_exports": [
+    "EXPORT_EXPIRY_SECONDS"
+  ],
   "createSignedUrls_plural": 0,
   "if_future_service_role_sign": "FORBIDDEN until server-side authz (not browser path) is frozen in a later contract. Not this cut.",
   "counts": {
     "direct_createSignedUrl": 8,
     "signedUrlFor_consumers": 2,
     "unknown": 0,
-    "privileged": 0
+    "privileged": 0,
+    "logos_select_auth_tests": 3,
+    "new_privileged_signers": 0
+  },
+  "previous_planning_sha": "c3eccaa63b63f3c1517306a12c6a2bd31aee7149",
+  "logos_select_auth": {
+    "grammar": "G-LOGOS logos/{groupId}/{file} on group-documents",
+    "no_new_caller": true,
+    "authority": "fail-closed SELECT is_group_member(groupId)",
+    "live_6_remain_signable": true,
+    "tests": [
+      {
+        "id": "LOGOS-SIGN-01",
+        "op": "createSignedUrl",
+        "bucket": "group-documents",
+        "path": "logos/{G1}/{file}",
+        "actor": "is_group_member G1",
+        "expected": "ALLOW"
+      },
+      {
+        "id": "LOGOS-SIGN-02",
+        "op": "createSignedUrl",
+        "bucket": "group-documents",
+        "path": "logos/{G1}/{file}",
+        "actor": "member G2 only",
+        "expected": "DENY",
+        "reason": "cross-tenant"
+      },
+      {
+        "id": "LOGOS-SIGN-03",
+        "op": "createSignedUrl",
+        "bucket": "group-documents",
+        "path": "logos/malformed-or-unknown",
+        "actor": "authenticated",
+        "expected": "DENY"
+      }
+    ]
   }
 }

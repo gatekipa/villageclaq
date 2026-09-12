@@ -1,0 +1,72 @@
+{
+  "artifact": "M2_SCOPE_BOUNDARY_20260912",
+  "date": "2026-09-12",
+  "fresh_implementation_base": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "proposed_future_implementation_branch_DO_NOT_CREATE_NOW": "security/m2-notification-policy-foundation-20260912",
+  "planning_branch_this_pr": "planning/m2-notification-policy-requalification-20260912",
+  "disposition": {
+    "code": "A_SUPERSEDE_BOTH",
+    "text": "Supersede PR #69 and PR #70. Do not merge. Do not rebase as the implementation vehicle. Fresh M2 branch from current main only after founder implementation decision.",
+    "evidence_against_merge": [
+      "merge-base 0559b758 is 47 commits behind 0c147f8 (Cut1 apply + Cut2 + Cut3 + docs)",
+      "main has no policy engine files; PRs would add pre-S0 defaults (push true, enabled true)",
+      "PR70 SQL filename and grants conflict with Cut 2 trusted-write floor",
+      "GitHub baseRefName=main is stale SHA, not current tip"
+    ]
+  },
+  "IN_M2": [
+    "Re-author pure evaluator (quiet hours, identity, generateScheduledOccurrences, evaluateDisposition) on current main",
+    "Adapt SEND_NOW → enqueue-eligible only; AND Cut 2 channel matrix",
+    "Re-author adapter contracts (precedence, Payment/Hosting/Event adapters, supersession, prefs fail-closed)",
+    "CREATE-NOT-APPLY (then founder-gated apply) schema as 00117_* — dormant-by-default",
+    "RLS: settings.manage + Cut 1 active membership; no notifications.manage",
+    "Occurrences authenticated SELECT-only; writers later via SECURITY DEFINER",
+    "Unit tests for evaluator/contracts + Cut 2 non-regression docs/tests (no real send)",
+    "Honesty pins: LEGACY_PAYMENT_CRON_CONTRACT; PAYMENT_REMINDER_CONFIRMED_BASIS default OFF; bulk receipt guard untouched"
+  ],
+  "DEFERRED_PRODUCER_WIRING": [
+    "PC-PAYMENT live cron cutover from overdue-daily to policy occurrences",
+    "PC-HOSTING producer/cron read of policy tables",
+    "PC-EVENTS producer/cron read of policy tables",
+    "Dual-run / shadow compare vs live crons",
+    "Quiet-hours DEFER_UNTIL enforcement at occurrence worker (evaluator may exist in M2; wiring later)",
+    "Writing notification_policy_occurrences rows",
+    "Any change to enqueue_outbound_notification signature"
+  ],
+  "DEFER_M11": {
+    "named_module_on_current_main": false,
+    "working_definition": "Later product-consistency module after M2 foundation: remaining domains beyond payment/hosting/event, policy UI, announcement policy, any drain-side quiet-hours hold that is not part of the dormant foundation.",
+    "items": [
+      "Officer UI for editing policies (UI/UX Excellence Track — do not start)",
+      "Announcement domain / F3-06 / M3 activation",
+      "Additional domains (standing, relief, loans, fines, invitations, minutes, elections, proxy, swap, subscription)",
+      "Push channel (remains DENY unless a later security cut invents a trusted push path — not planned)"
+    ]
+  },
+  "OUT": [
+    "Merge or rebase PR #69 or PR #70",
+    "Apply 20260910120000_notification_policy_schema.sql",
+    "Author applyable 00117 SQL in this planning PR",
+    "Prod DDL / queue INSERT / real send / provider call / env change",
+    "M3 / F3-06 / announcement policy activation / UI implementation",
+    "Opening /api/sms/send /whatsapp/send /email/send",
+    "Direct notifications_queue INSERT (including wiring src/lib/announcement-producer.ts)",
+    "Layer A / browser enqueue",
+    "GRANT EXECUTE enqueue_outbound_notification TO authenticated or anon",
+    "Modifying Cut 1 / Cut 2 / Cut 3 live functions as part of M2 planning",
+    "Inventing notifications.manage",
+    "Treating FUTURE_PAYMENT_POLICY as live",
+    "Auto-sending bulk payment receipts"
+  ],
+  "r28": {
+    "fresh_base": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+    "proposed_implementation_branch": "security/m2-notification-policy-foundation-20260912",
+    "create_implementation_branch_now": false
+  },
+  "r30": {
+    "ui_ux_excellence_track": "ACTIVE",
+    "s0": "COMPLETE (Cut1+Cut2+Cut3 CLOSED)",
+    "upcoming_module_gate": "ASTRA fresh design-system + IA review (from Cut 3 planning pin). No UI work in M2 foundation.",
+    "source": "docs/S0_P0C_CUT3_STORAGE_PATH_PLAN_20260912.md header pin"
+  }
+}

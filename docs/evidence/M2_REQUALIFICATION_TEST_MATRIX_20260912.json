@@ -1,0 +1,125 @@
+{
+  "artifact": "M2_REQUALIFICATION_TEST_MATRIX_20260912",
+  "date": "2026-09-12",
+  "docs_only": true,
+  "no_ci_scripts_authored": true,
+  "no_sends": true,
+  "historical_baselines": {
+    "pr69": {
+      "sha": "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+      "file": "scripts/test-notification-policy.mjs",
+      "claimed": "34/34",
+      "isolated_rerun": {
+        "date": "2026-09-12",
+        "result": "34/34 PASS",
+        "sends": 0,
+        "note": "Runnable in isolation from copied sources under /tmp/m2-iso-tests. Not committed."
+      }
+    },
+    "pr70": {
+      "sha": "0f258726c9328ee0204f7b5dee9efceebe7265b9",
+      "files": [
+        "scripts/test-notification-policy.mjs",
+        "scripts/test-notification-policy-contracts.mjs"
+      ],
+      "claimed": "72/72",
+      "isolated_rerun": {
+        "date": "2026-09-12",
+        "result": "72/72 PASS",
+        "sends": 0
+      }
+    }
+  },
+  "proposed_cut2_non_regression_matrix_docs_only": {
+    "purpose": "Any future M2 implementation branch must keep Cut 2 floor. These are proposed test names/assertions only — do not author product CI in this planning PR.",
+    "cases": [
+      {
+        "id": "M2-C2-01",
+        "assert": "enqueue_outbound_notification identity args unchanged (text, uuid, notification_channel, uuid, text) RETURNS TABLE(queue_id uuid, result text)"
+      },
+      {
+        "id": "M2-C2-02",
+        "assert": "EXECUTE granted to service_role only; anon/authenticated denied"
+      },
+      {
+        "id": "M2-C2-03",
+        "assert": "22 types exactly; unknown type → denied; no 23rd type"
+      },
+      {
+        "id": "M2-C2-04",
+        "assert": "WA ALLOW all 22; SMS DENY loan_overdue/member_invitation/election_opened; email DENY proxy_claim; push DENY all"
+      },
+      {
+        "id": "M2-C2-05",
+        "assert": "RPC rejects phone/email/message/components/groupId/template/data/status/user_id/provenance args (signature has none of these)"
+      },
+      {
+        "id": "M2-C2-06",
+        "assert": "Inserted rows have cut2_provenance_version=1 hardcoded"
+      },
+      {
+        "id": "M2-C2-07",
+        "assert": "Drain select predicate remains status=queued AND cut2_provenance_version=1; NULL provenance never selected"
+      },
+      {
+        "id": "M2-C2-08",
+        "assert": "/api/sms/send /api/whatsapp/send /api/email/send remain 410 GET+POST"
+      },
+      {
+        "id": "M2-C2-09",
+        "assert": "service_role has no INSERT/DELETE/TRUNCATE on notifications_queue; column UPDATE limited to status,error_message,attempts,sent_at,data"
+      },
+      {
+        "id": "M2-C2-10",
+        "assert": "Policy evaluator SEND_NOW does not call sendSMS/dispatchWhatsApp/sendEmail or insert notifications_queue"
+      },
+      {
+        "id": "M2-C2-11",
+        "assert": "ChannelIntersection AND Cut 2 matrix: hosting email false even if policy channel_email true"
+      },
+      {
+        "id": "M2-C2-12",
+        "assert": "Prefs fail-closed map still blocks external channels on real-user prefs error"
+      },
+      {
+        "id": "M2-C2-13",
+        "assert": "LEGACY_PAYMENT_CRON_CONTRACT.live === true and notARelativeTriggerOffsetHours === null"
+      },
+      {
+        "id": "M2-C2-14",
+        "assert": "PAYMENT_REMINDER_CONFIRMED_BASIS default path still uses legacy selection unless env/dryRun"
+      },
+      {
+        "id": "M2-C2-15",
+        "assert": "contributions/record bulkSendReceipts default false + reconfirm guard still present"
+      },
+      {
+        "id": "M2-C2-16",
+        "assert": "announcement-producer.ts remains unimported by routes/crons; live announcement path uses enqueueCut2ProducerChannels only"
+      },
+      {
+        "id": "M2-C2-17",
+        "assert": "Future 00117 does not replace enqueue_outbound_notification"
+      },
+      {
+        "id": "M2-C2-18",
+        "assert": "Policy tables enabled default false; no producer SELECT required for current crons to keep working"
+      },
+      {
+        "id": "M2-C2-19",
+        "assert": "settings.manage still the policy-admin key; notifications.manage absent from ALL_PERMISSION_KEYS"
+      },
+      {
+        "id": "M2-C2-20",
+        "assert": "Quiet-hours DEFER_UNTIL reuses occurrence identity; does not mint a new key; does not mark reminder sent"
+      }
+    ]
+  },
+  "out_of_scope_tests": [
+    "Production exploit tests",
+    "Real provider sends",
+    "Queue inserts from planning",
+    "UI screenshot tests",
+    "Announcement activation E2E"
+  ]
+}

@@ -1,0 +1,394 @@
+{
+  "artifact": "M2_CURRENT_NOTIFICATION_ARCHITECTURE_20260912",
+  "date": "2026-09-12",
+  "investigated_from_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "production_query_mode": "SELECT_ONLY",
+  "production_mutation": "ZERO",
+  "messages_sent": "ZERO",
+  "s0_status": "COMPLETE",
+  "cuts": {
+    "cut1": {
+      "version": "20260911183755",
+      "name": "s0_p0a_cut1_active_authorization",
+      "status": "LIVE"
+    },
+    "cut2": {
+      "version": "20260912033612",
+      "name": "s0_p0b_cut2_notification_queue",
+      "status": "LIVE"
+    },
+    "cut3": {
+      "version": "20260912134123",
+      "name": "s0_p0c_cut3_storage_path_fail_closed",
+      "status": "LIVE"
+    }
+  },
+  "production_schema_migrations_count": 31,
+  "layer_b_path": "BROWSER/CRON → authorized domain route → producer → service_role EXECUTE enqueue_outbound_notification → notifications_queue (queued, provenance=1) → trusted drain (CRON_SECRET) → provider",
+  "rpc": {
+    "name": "public.enqueue_outbound_notification",
+    "exists_production": true,
+    "security_definer": true,
+    "search_path": "",
+    "identity_args": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text",
+    "defaults": {
+      "p_recipient_membership_id": "NULL",
+      "p_locale": "NULL"
+    },
+    "returns": "TABLE(queue_id uuid, result text)",
+    "result_values_live": [
+      "inserted",
+      "duplicate",
+      "denied",
+      "trusted_idempotency_conflict_mismatch"
+    ],
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "execute_grants": ["service_role"],
+    "rejected_parameters": [
+      "phone",
+      "email",
+      "free-form message",
+      "Meta components",
+      "groupId",
+      "template",
+      "data jsonb",
+      "status",
+      "user_id",
+      "cut2_provenance_version"
+    ],
+    "provenance_hardcoded": 1,
+    "adapter_ts": "src/lib/enqueue-outbound-notification.ts",
+    "adapter_returns": [
+      "inserted",
+      "duplicate",
+      "denied",
+      "trusted_idempotency_conflict_mismatch",
+      "fail_closed"
+    ]
+  },
+  "queue": {
+    "table": "public.notifications_queue",
+    "live_columns": [
+      "id",
+      "user_id",
+      "channel",
+      "template",
+      "data",
+      "status",
+      "error_message",
+      "attempts",
+      "created_at",
+      "sent_at",
+      "cut2_provenance_version"
+    ],
+    "table_acl": "{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=r/postgres}",
+    "privileges": {
+      "anon": "NONE",
+      "authenticated": "SELECT",
+      "service_role_table": "SELECT",
+      "service_role_column_update": [
+        "status",
+        "error_message",
+        "attempts",
+        "sent_at",
+        "data"
+      ],
+      "service_role_insert": false,
+      "service_role_delete": false,
+      "service_role_truncate": false
+    },
+    "rls_policies_live": [
+      {
+        "name": "Staff can view notification queue",
+        "cmd": "SELECT",
+        "qual": "is_platform_staff()"
+      },
+      {
+        "name": "Platform staff can view all notifications_queue",
+        "cmd": "SELECT",
+        "qual": "is_platform_staff()"
+      }
+    ],
+    "provenance_live_counts_20260912_select_only": {
+      "provenance_1": 72,
+      "provenance_null": 2330,
+      "provenance_other": 0,
+      "total": 2402,
+      "note": "NULL rows are legacy quarantine. Drain selects ONLY cut2_provenance_version=1."
+    }
+  },
+  "internal_helpers_execute_postgres_only": [
+    "cut2_internal_channel_allowed(p_type text, p_channel notification_channel)",
+    "cut2_internal_channel_pref_allows(p_user_id uuid, p_prefs_key text, p_channel text, p_group_id uuid, p_skip boolean)",
+    "cut2_internal_resolve_phone(p_membership_id uuid, p_mode text)",
+    "cut2_internal_resolve_email(p_membership_id uuid)",
+    "cut2_protect_queue_immutables()"
+  ],
+  "twenty_two_types": [
+    "payment_receipt",
+    "payment_reminder",
+    "welcome",
+    "standing_changed",
+    "relief_enrollment",
+    "relief_claim_approved",
+    "relief_claim_denied",
+    "remittance_confirmed",
+    "remittance_disputed",
+    "hosting_assignment",
+    "hosting_reminder",
+    "event_reminder",
+    "loan_approved",
+    "loan_overdue",
+    "fine_issued",
+    "member_invitation",
+    "subscription_expiring",
+    "minutes_published",
+    "election_opened",
+    "announcement",
+    "proxy_claim",
+    "hosting_swap"
+  ],
+  "channel_matrix_source": "src/lib/cut2-channel-matrix.ts",
+  "channel_matrix_summary": {
+    "whatsapp_allow": 22,
+    "sms_allow": 19,
+    "sms_deny": ["loan_overdue", "member_invitation", "election_opened"],
+    "email_allow": [
+      "payment_receipt",
+      "payment_reminder",
+      "welcome",
+      "event_reminder",
+      "member_invitation",
+      "minutes_published"
+    ],
+    "proxy_claim_email": "DENY",
+    "push": "DENY_ALL_22"
+  },
+  "relays_410": [
+    {
+      "path": "src/app/api/sms/send/route.ts",
+      "methods": ["GET", "POST"],
+      "status": 410
+    },
+    {
+      "path": "src/app/api/whatsapp/send/route.ts",
+      "methods": ["GET", "POST"],
+      "status": 410
+    },
+    {
+      "path": "src/app/api/email/send/route.ts",
+      "methods": ["GET", "POST"],
+      "status": 410
+    }
+  ],
+  "drain": {
+    "route": "src/app/api/cron/drain-notification-queue/route.ts",
+    "vercel_schedule": "*/15 * * * *",
+    "auth": "Authorization Bearer CRON_SECRET",
+    "select": "status=queued AND cut2_provenance_version=1",
+    "renderer": "src/lib/cut2-drain-render.ts renderCut2TrustedRow",
+    "sms_transport": "src/lib/notifications/sms-sender.ts (transport only; MUST NOT INSERT queue)",
+    "wa": "src/lib/whatsapp-dispatcher.ts after CUT2_RAW_META_CONTEXT=drain",
+    "email": "src/lib/send-email.ts"
+  },
+  "preferences": {
+    "ts": "src/lib/notification-prefs.ts getEnabledChannels",
+    "rpc": "public.get_notification_preferences(p_user_id uuid) EXISTS live",
+    "fail_closed_real_user_error": true,
+    "proxy_default_external": "whatsapp only",
+    "in_app_cannot_opt_out": true,
+    "invitation_and_proxy_claim_skip_prefs_in_rpc": true
+  },
+  "renderers": {
+    "sms_templates": "src/lib/notifications/sms-templates.ts",
+    "sms_switch": "src/lib/send-sms-notification.ts",
+    "email_templates": "src/lib/email-templates/notification.ts",
+    "wa_templates": "src/lib/whatsapp-templates.ts",
+    "drain_owns_render": true
+  },
+  "crons_vercel_json": [
+    { "path": "/api/cron/payment-reminders", "schedule": "0 8 * * *", "producer": "producePaymentReminderNotification" },
+    { "path": "/api/cron/loan-overdue-reminders", "schedule": "0 10 * * *", "producer": "loan-overdue-producer" },
+    { "path": "/api/cron/event-reminders", "schedule": "0 8 * * *", "producer": "event-reminder-producer" },
+    { "path": "/api/cron/relief-sync", "schedule": "0 2 * * *", "note": "relief sync, not a Cut 2 enqueue type by itself" },
+    { "path": "/api/cron/subscription-reminders", "schedule": "0 9 * * *", "producer": "subscription-expiring-producer" },
+    { "path": "/api/cron/drain-notification-queue", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/hosting-reminders", "schedule": "0 7 * * *", "producer": "hosting-reminder-producer" },
+    { "path": "/api/cron/send-scheduled-announcements", "schedule": "*/5 * * * *", "enqueue": "enqueueCut2ProducerChannels(announcement)" },
+    { "path": "/api/cron/expire-impersonation-sessions", "schedule": "*/15 * * * *", "note": "not a notification producer" }
+  ],
+  "producers": {
+    "payment_receipt": {
+      "producer": "src/lib/payment-receipt-producer.ts",
+      "route": "src/app/api/payments/receipt-notifications/route.ts",
+      "ui": "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "bulk_receipt_guard": "P0 default-OFF bulkSendReceipts + second money-received reconfirm; record page must keep guard",
+      "domain": "public.payments"
+    },
+    "payment_reminder": {
+      "producer": "src/lib/payment-reminder-producer.ts",
+      "cron": "src/app/api/cron/payment-reminders/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "live_selection": "overdue_daily due_date < today UTC; proxy skipped",
+      "confirmed_basis_env": "PAYMENT_REMINDER_CONFIRMED_BASIS (default unset/false; dryRun=true previews confirmed and queues nothing)",
+      "domain": "public.contribution_obligations"
+    },
+    "welcome": {
+      "producer": "src/lib/welcome-producer.ts",
+      "route": "src/app/api/members/welcome-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "domain": "public.memberships"
+    },
+    "standing_changed": {
+      "producer": "src/lib/standing-change-producer.ts",
+      "route": "src/app/api/members/standing-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "domain": "public.memberships"
+    },
+    "relief_enrollment": {
+      "producer": "src/lib/relief-enrollment-producer.ts",
+      "route": "src/app/api/relief/enrollment-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "domain": "public.relief_enrollments → relief_plans.group_id"
+    },
+    "relief_claim_approved_denied": {
+      "producer": "src/lib/relief-claim-decision-producer.ts",
+      "route": "src/app/api/relief/claim-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "domain": "public.relief_claims"
+    },
+    "remittance_confirmed_disputed": {
+      "producer": "src/lib/remittance-decision-producer.ts",
+      "route": "src/app/api/relief/remittance-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "fanout": true,
+      "domain": "public.relief_remittances.branch_group_id"
+    },
+    "hosting_assignment": {
+      "producer": "src/lib/hosting-assignment-producer.ts",
+      "route": "src/app/api/hosting/assignment-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "domain": "public.hosting_assignments → hosting_rosters.group_id"
+    },
+    "hosting_reminder": {
+      "producer": "src/lib/hosting-reminder-producer.ts",
+      "cron": "src/app/api/cron/hosting-reminders/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels"
+    },
+    "event_reminder": {
+      "producer": "src/lib/event-reminder-producer.ts",
+      "cron": "src/app/api/cron/event-reminders/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "fanout": true,
+      "domain": "public.events"
+    },
+    "loan_approved": {
+      "producer": "src/lib/loan-approved-producer.ts",
+      "route": "src/app/api/loans/approval-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels"
+    },
+    "loan_overdue": {
+      "producer": "src/lib/loan-overdue-producer.ts",
+      "cron": "src/app/api/cron/loan-overdue-reminders/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "channels": ["whatsapp"]
+    },
+    "fine_issued": {
+      "producer": "src/lib/fine-issued-producer.ts",
+      "route": "src/app/api/fines/issued-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels"
+    },
+    "member_invitation": {
+      "producer": "src/lib/member-invitation-producer.ts",
+      "route": "src/app/api/invitations/whatsapp-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "channels": ["whatsapp", "email"],
+      "prefs": "SKIP"
+    },
+    "minutes_published": {
+      "route_inline": "src/app/api/minutes/published-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "fanout": true
+    },
+    "election_opened": {
+      "route_inline": "src/app/api/elections/opened-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "channels": ["whatsapp"],
+      "fanout": true
+    },
+    "announcement": {
+      "live_route": "src/app/api/announcements/enqueue/route.ts",
+      "live_cron": "src/app/api/cron/send-scheduled-announcements/route.ts",
+      "client_trigger": "src/lib/notify-announcement-enqueue.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "channels": ["whatsapp", "sms"],
+      "email": "DENY",
+      "policy_engine": "DORMANT — do not add announcement domain to M2 schema",
+      "stale_dormant_producer": {
+        "file": "src/lib/announcement-producer.ts",
+        "status": "DORMANT_NOT_IMPORTED_BY_ROUTES",
+        "security_conflict_if_wired": "contains supabase.from('notifications_queue').insert — FORBIDDEN after Cut 2",
+        "note": "public.announcement_deliveries EXISTS in production (to_regclass non-null). Comment in file about missing 00106/00107 is stale. Still must not wire this producer."
+      }
+    },
+    "proxy_claim": {
+      "route": "src/app/api/proxy-claim/send/route.ts",
+      "enqueue": "enqueueOutboundNotification (per allowed channel)",
+      "email": "DENY",
+      "prefs": "SKIP"
+    },
+    "hosting_swap": {
+      "route": "src/app/api/hosting/swap-notifications/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "fanout": true,
+      "domain": "public.hosting_swap_requests"
+    },
+    "subscription_expiring": {
+      "producer": "src/lib/subscription-expiring-producer.ts",
+      "cron": "src/app/api/cron/subscription-reminders/route.ts",
+      "enqueue": "enqueueCut2ProducerChannels",
+      "fanout": true
+    }
+  },
+  "in_app_notifications_table": {
+    "table": "public.notifications",
+    "note": "Separate from notifications_queue. enum notification_type is invitation/contribution_due/… — NOT the 22 Cut 2 queue templates.",
+    "enum_live": [
+      "invitation",
+      "contribution_due",
+      "contribution_received",
+      "meeting_scheduled",
+      "event_reminder",
+      "role_changed",
+      "member_joined",
+      "member_left",
+      "announcement",
+      "system",
+      "meeting_minutes"
+    ]
+  },
+  "policy_engine_on_main": {
+    "src/lib/notification-policy.ts": false,
+    "src/lib/notification-policy-contracts.ts": false,
+    "policy_tables": false
+  },
+  "settings_manage_after_cut1": {
+    "helper": "public.has_group_permission(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())",
+    "live_body_source": "supabase/migrations/00114_s0_p0a_cut1_active_authorization.sql",
+    "owner_bypass": true,
+    "admin_without_assignments_bypass": true,
+    "requires_membership_status_active": true,
+    "jwt_uid_must_match_uid": true,
+    "do_not_invent": "notifications.manage",
+    "existing_related_key": "notifications.send (send-time, NOT policy-admin)",
+    "ui_keys": "src/lib/hooks/use-permissions.ts ALL_PERMISSION_KEYS includes settings.manage and notifications.send",
+    "assessment": "KEEP settings.manage as tenant authority for future policy CRUD. Compatible with Cut 1."
+  },
+  "is_group_member_live": {
+    "signature": "is_group_member(gid uuid, uid uuid DEFAULT auth.uid())",
+    "body": "EXISTS memberships WHERE group_id=gid AND user_id=uid — does NOT filter membership_status=active",
+    "implication_for_pr70_rls": "PR70 comment 'is_group_member excludes exited' is FALSE on live prod. has_group_permission DOES require active. Future 00117 should not rely on is_group_member alone."
+  }
+}

@@ -515,6 +515,65 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def extract_marked_sql(src: str, begin: str, end: str) -> str:
+    i = src.find(begin)
+    j = src.find(end)
+    if i < 0 or j < 0 or j <= i:
+        raise RuntimeError(f"00116 missing ACL markers {begin} / {end}")
+    return src[i + len(begin):j].strip()
+
+
+def acl_do_block(kind: str) -> str:
+    src = MIGRATION.read_text(encoding="utf-8")
+    if kind == "pre":
+        body = extract_marked_sql(src, "-- <<<CUT3_ACL_PRE>>>", "-- <<<CUT3_ACL_PRE_END>>>")
+    elif kind == "post":
+        body = extract_marked_sql(src, "-- <<<CUT3_ACL_POST>>>", "-- <<<CUT3_ACL_POST_END>>>")
+    else:
+        raise ValueError(kind)
+    return f"DO $cut3_acl$\nBEGIN\n{body}\nEND\n$cut3_acl$;\n"
+
+
+def run_acl_probe(kind: str, mutate_sql: str | None = None) -> tuple[bool, str]:
+    """Run the exact 00116 ACL IF-block after optional mutate; always ROLLBACK."""
+    parts = ["BEGIN;"]
+    if mutate_sql:
+        parts.append(mutate_sql.rstrip().rstrip(";") + ";")
+    parts.append(acl_do_block(kind))
+    parts.append("ROLLBACK;")
+    script = Path(f"/tmp/cut3_acl_{kind}_probe.sql")
+    script.write_text("\n".join(parts), encoding="utf-8")
+    res = psql_file(script)
+    err = (res.stderr or "") + (res.stdout or "")
+    return res.returncode == 0, err
+
+
+def record_acl_case(results: list, test_id: str, ok: bool, err: str, expect_abort: bool) -> None:
+    aborted = (not ok) and ("CUT3_ABORT" in err)
+    if expect_abort:
+        passed = aborted
+        actual = "CUT3_ABORT" if aborted else ("PASS_NO_ABORT" if ok else "ERROR")
+        expected = "CUT3_ABORT"
+    else:
+        passed = ok
+        actual = "PASS" if ok else ("CUT3_ABORT" if aborted else "ERROR")
+        expected = "PASS"
+    results.append({
+        "id": test_id,
+        "test_id": test_id,
+        "operation": "ACL_PREFLIGHT" if test_id.startswith("ACL-PRE") else "ACL_POSTCONDITION",
+        "expected_result": expected,
+        "actual_result": actual,
+        "denial_mechanism": "CUT3_ABORT" if aborted else None,
+        "SQLSTATE": None,
+        "unexpected_exception": (not ok) and (not aborted),
+        "pass": passed and not ((not ok) and (not aborted)),
+        "status": "PASS" if passed else "FAIL",
+    })
+    if not passed:
+        print(f"FAIL {test_id}: expected={expected} actual={actual}\n{err[-1500:]}")
+
+
 def main() -> int:
     fp = load_json(FINGERPRINTS)
     enc = load_json(ENCODING)
@@ -569,6 +628,57 @@ def main() -> int:
     if any(not v["match"] for v in pre.values()) or not pol_ok:
         raise SystemExit("HOLD: disposable pre-state fingerprints did not match contract; 00116 not applied")
 
+    acl_results: list[dict] = []
+    must(psql("""
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cut3_acl_forger') THEN
+        CREATE ROLE cut3_acl_forger SUPERUSER LOGIN;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cut3_acl_extra') THEN
+        CREATE ROLE cut3_acl_extra NOLOGIN;
+      END IF;
+    END$$;
+    """), "acl disposable roles")
+
+    ok, err = run_acl_probe("pre")
+    record_acl_case(acl_results, "ACL-PRE-A", ok, err, expect_abort=False)
+
+    ok, err = run_acl_probe("pre",
+        "GRANT EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) TO authenticated WITH GRANT OPTION")
+    record_acl_case(acl_results, "ACL-PRE-B", ok, err, expect_abort=True)
+
+    must(psql(
+        "GRANT EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) "
+        "TO authenticated WITH GRANT OPTION"
+    ), "acl-pre-b-file mutate")
+    apply_b = psql_file(MIGRATION)
+    err_b = (apply_b.stderr or "") + (apply_b.stdout or "")
+    record_acl_case(acl_results, "ACL-PRE-B-FILE", apply_b.returncode == 0, err_b, expect_abort=True)
+    must(psql("""
+    REVOKE EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) FROM authenticated;
+    GRANT EXECUTE ON FUNCTION public.is_group_member(uuid, uuid)
+      TO PUBLIC, anon, authenticated, service_role;
+    """), "restore is_group_member EXECUTE after B-FILE")
+
+    ok, err = run_acl_probe("pre", """
+    REVOKE EXECUTE ON FUNCTION public.storage_path_group_id(text) FROM authenticated;
+    SET ROLE cut3_acl_forger;
+    GRANT EXECUTE ON FUNCTION public.storage_path_group_id(text) TO authenticated;
+    RESET ROLE
+    """)
+    record_acl_case(acl_results, "ACL-PRE-C", ok, err, expect_abort=True)
+
+    ok, err = run_acl_probe("pre",
+        "GRANT EXECUTE ON FUNCTION public.is_active_group_member(uuid) TO anon")
+    record_acl_case(acl_results, "ACL-PRE-D", ok, err, expect_abort=True)
+
+    ok, err = run_acl_probe("pre",
+        "REVOKE EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) FROM anon")
+    record_acl_case(acl_results, "ACL-PRE-E", ok, err, expect_abort=True)
+
+    if any(x.get("status") != "PASS" for x in acl_results):
+        raise SystemExit("HOLD: premigration ACL negative fixtures failed; 00116 not applied")
+
     apply = psql_file(MIGRATION)
     if apply.returncode != 0:
         print(apply.stdout)
@@ -589,7 +699,33 @@ def main() -> int:
         "'receipts_select_group','receipts_insert_group','receipts_update_group','receipts_delete_group');"
     ), "policy count").strip()
 
-    results = []
+    ok, err = run_acl_probe("post")
+    record_acl_case(acl_results, "ACL-POST-BASELINE", ok, err, expect_abort=False)
+    ok, err = run_acl_probe("post",
+        "GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) "
+        "TO authenticated WITH GRANT OPTION")
+    record_acl_case(acl_results, "ACL-POST-AUTH-WGO", ok, err, expect_abort=True)
+    ok, err = run_acl_probe("post",
+        "GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) TO PUBLIC")
+    record_acl_case(acl_results, "ACL-POST-PUBLIC", ok, err, expect_abort=True)
+    ok, err = run_acl_probe("post",
+        "GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) TO anon")
+    record_acl_case(acl_results, "ACL-POST-ANON", ok, err, expect_abort=True)
+    ok, err = run_acl_probe("post",
+        "GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) TO service_role")
+    record_acl_case(acl_results, "ACL-POST-SERVICE-ROLE", ok, err, expect_abort=True)
+    ok, err = run_acl_probe("post", """
+    REVOKE EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) FROM authenticated;
+    SET ROLE cut3_acl_forger;
+    GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) TO authenticated;
+    RESET ROLE
+    """)
+    record_acl_case(acl_results, "ACL-POST-WRONG-GRANTOR", ok, err, expect_abort=True)
+    ok, err = run_acl_probe("post",
+        "GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) TO cut3_acl_extra")
+    record_acl_case(acl_results, "ACL-POST-EXTRA-GRANTEE", ok, err, expect_abort=True)
+
+    results = list(acl_results)
 
     def rec(case_id: str, **kwargs):
         kwargs.pop("test_id", None)
@@ -922,6 +1058,8 @@ def main() -> int:
         "precondition_md5s": pre,
         "core_results": core,
         "core_fail_ids": core_fail,
+        "acl_negative_ids": [x["id"] for x in acl_results],
+        "acl_negative_fail_ids": [x["id"] for x in acl_results if x.get("status") != "PASS"],
         "encoding_pass": enc_pass,
         "encoding_total": len(enc_results),
         "encoding_fail_ids": enc_fail,
@@ -951,6 +1089,7 @@ def main() -> int:
         "helper_count": helper_count,
         "policy_count": policy_count,
         "core_fail": core_fail,
+        "acl_fail": [x["id"] for x in acl_results if x.get("status") != "PASS"],
         "encoding_pass": enc_pass,
         "encoding_total": len(enc_results),
         "encoding_fail": enc_fail[:20],

@@ -25,7 +25,6 @@ import {
   POLICY_ADMIN_PERMISSION,
   PaymentAdapter,
   PolicyPrecedence,
-  UI_POLICY_LABELS,
   assertLegacyEventParity,
   assertLegacyHostingParity,
   assertLegacyPaymentCronParity,
@@ -468,13 +467,7 @@ test("legacy payment cron is NOT a +24h relative trigger", () => {
   assert.equal(FUTURE_PAYMENT_POLICY.__label, "NOT_LIVE_WIRED_EXAMPLE");
 });
 
-// ── Docs + helpers (not UI implementation) ──────────────────────────────────
-
-test("POLICY_ADMIN_PERMISSION / UI labels document settings.manage only", () => {
-  const blob = JSON.stringify(UI_POLICY_LABELS);
-  assert.equal(/rrule/i.test(blob), false);
-  assert.equal(UI_POLICY_LABELS.permission.key, "settings.manage");
-  assert.equal(UI_POLICY_LABELS.permission.notInvented, "notifications.manage");
+test("POLICY_ADMIN_PERMISSION is settings.manage only (no notifications.manage)", () => {
   assert.equal(POLICY_ADMIN_PERMISSION.key, "settings.manage");
   assert.equal(POLICY_ADMIN_PERMISSION.notInvented, "notifications.manage");
 });

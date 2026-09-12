@@ -553,63 +553,6 @@ export function assertLegacyPaymentCronParity(): boolean {
   );
 }
 
-/**
- * Documentation labels only — not a UI implementation.
- * UI/UX Excellence Track is ACTIVE; M2 foundation does not ship an editor.
- */
-export const UI_POLICY_LABELS = {
-  domains: {
-    payment: "Payment reminders",
-    hosting: "Hosting reminders",
-    event: "Event reminders",
-  },
-  layers: {
-    system_legacy: "System default",
-    group_domain: "Group default",
-    object_override: "This item only",
-  },
-  fields: {
-    enabled: "Reminders on",
-    timezone: "Time zone",
-    triggers: "When to remind",
-    repeatIntervalHours: "Repeat every (hours)",
-    maxOccurrences: "Maximum reminders",
-    stopWhenResolved: "Stop when resolved",
-    stopAfterHours: "Stop after (hours from due/start)",
-    quietHours: "Quiet hours",
-    channels: "Channels allowed by group",
-  },
-  triggerHints: {
-    before: "Before",
-    after: "After",
-    hours: "hours",
-    days: "days",
-  },
-  channels: {
-    in_app: "In-app",
-    email: "Email",
-    sms: "SMS",
-    whatsapp: "WhatsApp",
-    push: "Push (denied)",
-  },
-  permission: {
-    key: "settings.manage",
-    writeRequires: "settings.manage",
-    readRequires: "settings.manage (owner / admin / officers with settings.manage)",
-    notInvented: "notifications.manage",
-  },
-  honesty: {
-    noRecurrenceJargon: "Use simple before/after offsets — do not expose calendar recurrence-rule jargon in UI.",
-    paymentLegacy:
-      "Payment reminders currently run as a daily overdue check until a later cutover.",
-    dormantOccurrences: "Occurrence history is not live yet.",
-    enqueueEligible:
-      "ENQUEUE_ELIGIBLE means a trusted producer may consider enqueue_outbound_notification — never a send.",
-  },
-} as const;
-
-export type UiPolicyLabels = typeof UI_POLICY_LABELS;
-
 export const POLICY_ADMIN_PERMISSION = {
   key: "settings.manage",
   notInvented: "notifications.manage",

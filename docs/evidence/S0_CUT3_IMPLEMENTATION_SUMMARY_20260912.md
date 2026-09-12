@@ -1,6 +1,6 @@
-# S0 Cut 3 Implementation Summary — 2026-09-12
+# S0 Cut 3 Implementation Summary — 2026-09-12 (Daybreak HOLD remediation)
 
-**Verdict for Chief: PASS (implementation / disposable qualification).**  
+**Verdict for Chief: PASS (implementation / disposable qualification after remediation).**  
 **PRODUCTION APPLY NOT AUTHORIZED. PRODUCTION DEPLOY NOT AUTHORIZED.**  
 **This PR stays OPEN / DRAFT / UNMERGED.**  
 **Do not merge PR #79. Do not merge this PR. Do not apply 00116 to production.**
@@ -11,93 +11,72 @@
 |-----|-------|
 | Branch | `security/s0-p0c-cut3-implementation-20260912` |
 | Planning contract ancestor | `b85d4164b9b10c87597e34de74b527a12bc571af` — **is ancestor** |
-| `main` at start (no drift) | `1f1221eeb9207b692a7e507ae95acfc9aabac113` |
+| `main` | `1f1221eeb9207b692a7e507ae95acfc9aabac113` |
 | Draft PR | https://github.com/gatekipa/villageclaq/pull/80 |
-| Migration | `supabase/migrations/00116_s0_p0c_cut3_storage_path_fail_closed.sql` |
-| **00116 SHA-256** | `f24cf5c65b34497cf8c4abff80cfcdc3bf746d16a0cc8cca7ff1a04da649d4e7` |
-| Helpers created | **2** (`storage_group_documents_authorized`, `storage_receipts_authorized`) |
-| Policies replaced | **8** (gdocs + receipts × SELECT/INSERT/UPDATE/DELETE) |
-| Build | `npx tsc --noEmit` + `npm run build` **PASS** |
+| Prior functional (superseded) | `af3a14b21db577ae136868f11a291572e02d9fc6` |
+| Prior 00116 SHA-256 (superseded) | `f24cf5c65b34497cf8c4abff80cfcdc3bf746d16a0cc8cca7ff1a04da649d4e7` |
+| **00116 SHA-256 (current)** | `4b3588e81977adab1b29d80aa87f02c21bcfbab98ec1357a89c2e9586799e630` |
+| 00116 frozen at | `f3254eaf6fcfccd30877b846ebda74ab518c1051` |
+| **Executable / functional tip** | `61b349b4af368e331969b45bf7774a5a3f1baeef` (harness-only after 00116 freeze) |
+| Dual hashes in 00116 | **REMOVED** (`5b535da3…` and `756c2202…` not accepted) |
+| Helpers created (disposable) | **2** |
+| Policies replaced (disposable) | **8** |
+| Build | `npx tsc --noEmit` **PASS** + `npm run build` **PASS** |
 
-00116 was not edited after this SHA was recorded and the disposable suite was re-run against that exact file.
+Harness changed after the 00116 freeze (`abc7c06`, `61b349b`). Treat the executable tip as functional. The evidence commit after qualification is **docs/evidence only**.
 
-## What landed
+## Remediation (R1–R15)
 
-1. **Exactly one new migration** — atomic `BEGIN` → `CUT3_ABORT` preconditions → create two bucket-bound helpers → owner/grants → replace exactly eight policies → postconditions → `COMMIT`. Failure rolls back. No NOTICE+continue. No `00117`. No edits to `00001`–`00115`, Cut 2, or `notifications_queue`.
-2. **U02 caller only** — `src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx` path is now `finance-record/{groupId}/{ts}-{filename}`. U01 / U03 / U07 grammars unchanged.
-3. **Disposable REAL `storage.objects` RLS** — local PostgreSQL 16 database `s0p0c_cut3_disposable`. Authenticated `SET ROLE` actors executed real SELECT/INSERT/UPDATE/DELETE/UPSERT. Not helper-only. Zero production writes.
+1. **Exact-hash-only** — CUT3_ABORT accepts only live md5 pins. Disposable hex fixture (`scripts/_cut3_live_functiondef_hex.json`) reproduces those fingerprints **before** unmodified 00116 bytes apply. 00116 was not weakened for disposable serialization.
+2. **proconfig** — raw `pg_proc.proconfig`, no COALESCE. `NULL` (v1, v2, `is_group_member`) ≠ empty array ≠ `search_path=` ≠ `search_path=""`. Cut-2 helpers and new helpers accept only `ARRAY['search_path=""']`.
+3. **EXECUTE ACL** — `aclexplode` role/privilege tuples, both EXCEPT directions empty.
+4. **storage.objects grants** — exact 28-row set equality, not count-only.
+5. **projects PK** — `pg_index` / `pg_attribute`: PRIMARY KEY key columns exactly (`id`).
+6. **Overloads** — before: zero `storage_*_authorized` names in `public`. After: only `(p_name text, p_operation text)` × 2.
+7. **Four new real RLS cases** (storage.objects DML):
+
+| ID | Result |
+|----|--------|
+| T-U02-04-MANAGE-ONLY | ALLOW (active actor, `finances.manage` only) |
+| T-U02-05-CROSS-GROUP-FINANCE | DENY (`RLS_DENY` / 42501) |
+| U03-NEG-INACTIVE-OWN-MID | DENY (`RLS_DENY` / 42501) |
+| U07-NEG-INACTIVE-OWN-MID | DENY (`RLS_DENY` / 42501) |
+
+8. **Anon / negative harness** — DENY PASS only via `RLS_DENY`, `PERMISSION_DENIED`, or `ZERO_ROWS`. Unexpected exceptions → `unexpected_exception=true` and `pass=false`. Result schema: `test_id, operation, expected_result, actual_result, denial_mechanism, SQLSTATE, unexpected_exception, pass`. R05 anon SELECT = `ZERO_ROWS` DENY PASS. Harness probe 42883 is unexpected (schema `pass=false`, meta PASS).
+
+See `docs/evidence/S0_CUT3_IMPLEMENTATION_REMEDIATION_20260912.json`.
+
+## Suites
+
+| Suite | Result |
+|-------|--------|
+| Core RLS (prior + 4 new + UPS-01..12 + D40/R05 + harness) | **56 / 56 recorded PASS** (0 fail IDs) |
+| Encoding | **740 / 740 DENY**, no unexpected exceptions |
+| Live shape rehearsal | **25 = 6 logos + 14 constitutions + 5 uuid-first**; unknown **0** |
+| Helpers / policies | 2 / 8 |
 
 ## DB-first release (documented — not executed)
 
 | Phase | Rule |
 |-------|------|
-| **Phase A (future, separately authorized)** | Apply this exact `00116` while the **production** app still emits UUID-first U02. Verify helpers/policies/postconditions. Ordinary active member on `finance-record` → DENY; `finances.record`\|`manage` → ALLOW. NULL-ALLOW closed. |
-| **APP-FIRST** | **FORBIDDEN / `CUT3_RELEASE_ABORT`**. Emitting `finance-record` before 00116 would hit live NULL-ALLOW. |
-| **Phase B (future, after Phase A PASS only)** | Deploy the U02 caller change only. No U01/U03/U07 grammar drift. No object migration. |
-| **CLOSED** | Only when Phase A PASS **and** Phase B PASS. DB-only is TRANSITION, not closed. |
-| **This PR** | Stays unmerged until Phase A prod PASS later. Shipping the U02 source change on this branch is **not** Phase B activation. |
+| **Phase A (future, separately authorized)** | Apply this exact `00116` while the **production** app still emits UUID-first U02. |
+| **APP-FIRST** | **FORBIDDEN**. |
+| **Phase B (future, after Phase A PASS only)** | Deploy the U02 caller change only. |
+| **This PR** | Stays unmerged until Phase A prod PASS later. |
 
-## Helpers
+## Production (read-only confirm)
 
-Both `SECURITY DEFINER`, `OWNER postgres`, `SET search_path TO ''`, fully qualified refs. `REVOKE` PUBLIC. EXECUTE: anon **NO**, authenticated **YES**, service_role **NO**. `p_operation` only `select\|insert\|update\|delete` else FALSE. No uid arg. No browser bucket arg. Fail-closed: NULL / invalid UUID / unknown / missing / extra / encoding → FALSE. No unguarded `::uuid` (no `22P02`).
-
-| Helper | Grammars |
-|--------|----------|
-| `storage_group_documents_authorized` | UUID-first, minutes, constitutions, relief-claims (member-self), projects (`projectId` → `projects.group_id`), logos (SELECT `is_group_member`; INSERT/UPDATE/DELETE DENY) |
-| `storage_receipts_authorized` | UUID-first U01 (`is_active_group_member` insert), finance-record U02 (`finances.record`\|`manage`), dispute-docs (member-self) |
-
-Stronger gates preserved: `documents.manage`, `minutes.manage`, `is_group_admin` where frozen.
-
-## Policies
-
-Each: `bucket_id` literal **AND** helper(`name`, op). UPDATE has **both** USING and WITH CHECK. SELECT: no NULL-OR. v1/v2 definitions kept; removed from policy authority.
-
-## Disposable RLS (key results)
-
-Environment: local PG 16, role `postgres` (elevated) for policy apply — same class as Dashboard SQL Editor. `storage.objects` RLS DML as `authenticated`.
-
-| ID | Result |
-|----|--------|
-| T-U01-01 ordinary active INSERT UUID-first receipts | ALLOW |
-| T-U02-01 finance INSERT `finance-record/` | ALLOW |
-| T-U02-02 ordinary member INSERT `finance-record/` | DENY |
-| T-U02-03 historical UUID-first SELECT | ALLOW |
-| T-U03-01 / U03-NEG-* | ALLOW self; DENY other-mid / cross / missing / malformed (no 22P02) |
-| T-U07-01 / U07-NEG-* | same polarity on gdocs relief-claims |
-| T-LOGOS-01..04 | G1 SELECT ALLOW; G2 DENY; writes DENY including admin |
-| Projects lookup | admin INSERT ALLOW; member SELECT ALLOW; cross/missing/non-admin write DENY |
-| D31–D34 inactive writes | DENY |
-| D35 pending SELECT | ALLOW (`is_group_member`) |
-| D36–D38 UPDATE transitions | cross-tenant DENY; old garbage DENY; same-tenant authorized ALLOW |
-| UPS-01..12 | 2 ALLOW / 10 DENY as frozen |
-| D40 service_role EXECUTE helpers | DENY |
-| R05 anon SELECT private object | DENY |
-| ENC-* | **740 / 740 DENY**, `raised_22p02=false`, per-class IDs recorded |
-| Live shape rehearsal | gdocs **25 = 6 logos + 14 constitutions + 5 uuid-first**; receipts uuid-first shapes; all AUTHORIZED or EXPLICITLY DENIED; unknown prefixes **0** |
-
-Signed-URL authority = fail-closed SELECT. Disposable qualified SELECT RLS, not Storage HTTP signing.
-
-## CUT3_ABORT disposable notes
-
-Preconditions used exact Cut 2 pair `20260912033612` / `s0_p0b_cut2_notification_queue` (not count-only), exact eight live policy `pg_get_expr` strings, exact v2 + Cut 1 helper md5s, new helpers absent, private buckets, `projects.id` + `projects.group_id` uuid NOT NULL, avatars uid-first, 28 `storage.objects` grant rows.
-
-CR-bearing v1 / `is_group_member`: Chief live abort pins `fb6155e6…` / `4b1bbd54…` remain accepted. Byte-identical embedded `pg_get_functiondef_exact` on disposable PG16 hashes `5b535da3…` / `756c2202…`. 00116 accepts **only those pairs**. Any other hash → `CUT3_ABORT`. Production live pin is unchanged.
-
-`proconfig` for `SET search_path TO ''`: live catalog form `search_path=` and PG16 stored form `search_path=""` both accepted. md5 of `pg_get_functiondef` still keys the live Cut 1 pins.
-
-**No production SQL, storage, policy, or bucket mutation was performed.**
+- `supabase_migrations.schema_migrations` count **30**; latest `s0_p0b_cut2_notification_queue` / `20260912033612`
+- `00116` **not** applied
+- `storage_group_documents_authorized` / `storage_receipts_authorized` **absent**
+- Eight live policies still NULL-ALLOW (`gdocs_select_group` still uses `storage_path_group_id_v2(name) IS NULL`)
+- No storage mutation from this work
 
 ## Explicit non-actions
 
 - PR #79 left OPEN DRAFT UNMERGED
-- `00116` not applied to `llbnliixczcqfftxpsmb`
 - No Vercel production deploy
 - No merge to `main`
-- No Cut 2 / M2 / F3-06 / UI rebuild
+- No Cut 2 / `00001`–`00115` / `00117` edits
 - No avatars policy change
 - No object rename/move
-
-## Next gate
-
-Daybreak review of exact functional SHA + 00116 SHA-256 + evidence tip.  
-Founder Phase A DB auth is a **later** step. Do not apply, merge, or deploy from this PR.

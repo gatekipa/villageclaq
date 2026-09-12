@@ -1,0 +1,173 @@
+{
+  "artifact": "S0_CUT3_IMPLEMENTATION_REMEDIATION_20260912",
+  "date": "2026-09-12",
+  "verdict": "PASS",
+  "production_mutation": "ZERO",
+  "do_not_merge": true,
+  "do_not_apply_00116": true,
+  "branch": "security/s0-p0c-cut3-implementation-20260912",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/80",
+  "contract_sha": "b85d4164b9b10c87597e34de74b527a12bc571af",
+  "main_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "prior_functional_superseded": "af3a14b21db577ae136868f11a291572e02d9fc6",
+  "prior_00116_sha256_superseded": "f24cf5c65b34497cf8c4abff80cfcdc3bf746d16a0cc8cca7ff1a04da649d4e7",
+  "new_00116_sha256": "4b3588e81977adab1b29d80aa87f02c21bcfbab98ec1357a89c2e9586799e630",
+  "00116_frozen_at_commit": "f3254eaf6fcfccd30877b846ebda74ab518c1051",
+  "executable_functional_tip": "61b349b4af368e331969b45bf7774a5a3f1baeef",
+  "executable_tip_is_functional": true,
+  "docs_only_evidence_tip_expected_after_this_file": true,
+  "note_on_tip": "00116 bytes frozen at f3254ea. Subsequent abc7c06/61b349b are harness-only after that freeze; treat 61b349b as executable/functional tip. Evidence commit after this JSON is docs/evidence only.",
+  "R1_R2_exact_hash_only": {
+    "dual_hashes_removed": true,
+    "removed_alternates": [
+      "5b535da3e44a85fe1871912b44e70160",
+      "756c2202f0b4b681194dcc2079ec920b"
+    ],
+    "accepted_only": {
+      "storage_path_group_id(p_name text)": "fb6155e6e3c996ad857208f717d981a8",
+      "storage_path_group_id_v2(p_name text)": "585e7bd017f5623aacf87407b1b11524",
+      "is_active_group_member(gid uuid)": "26c12399120587df3d066dd7819bdf5e",
+      "is_group_member(gid uuid, uid uuid)": "4b1bbd54719c129ef12f0ebc53463686",
+      "is_group_admin(gid uuid, uid uuid)": "d4090a33af3a873873223416c204c913",
+      "has_group_permission(gid uuid, perm_key text, uid uuid)": "695368464e97297fbf0f90ce7345162f"
+    },
+    "disposable_pre_00116_match": true
+  },
+  "R3_disposable_fixtures_outside_prod_migration": {
+    "hex_fixture": "scripts/_cut3_live_functiondef_hex.json",
+    "method": "decode(hex) of live pg_get_functiondef then CREATE before unmodified 00116 bytes",
+    "00116_not_weakened_for_disposable_serialization": true
+  },
+  "R4_proconfig_normalization": {
+    "rule": "Raw pg_proc.proconfig with no COALESCE. NULL (no SET clause) is distinct from ARRAY[]::text[]. SET search_path TO '' stores exactly one text element search_path=\"\" (15 chars). search_path= (unquoted) is rejected. Empty array is rejected.",
+    "live_and_disposable_after_hex_create": {
+      "storage_path_group_id": null,
+      "storage_path_group_id_v2": null,
+      "is_group_member": null,
+      "is_active_group_member": ["search_path=\"\""],
+      "is_group_admin": ["search_path=\"\""],
+      "has_group_permission": ["search_path=\"\""]
+    },
+    "new_helpers_after_00116": {
+      "storage_group_documents_authorized": ["search_path=\"\""],
+      "storage_receipts_authorized": ["search_path=\"\""]
+    },
+    "fingerprints_json_search_path_equals_was_chat_normalized": true
+  },
+  "R5_function_acl_execute": {
+    "normalization": "aclexplode(COALESCE(proacl, acldefault('f', proowner))) → (proname, COALESCE(rolname,'PUBLIC'), privilege_type='EXECUTE'). actual EXCEPT expected AND expected EXCEPT actual must both be empty.",
+    "live_helpers_expected": {
+      "storage_path_group_id": ["PUBLIC", "postgres", "anon", "authenticated", "service_role"],
+      "storage_path_group_id_v2": ["PUBLIC", "postgres", "anon", "authenticated", "service_role"],
+      "is_group_member": ["PUBLIC", "postgres", "anon", "authenticated", "service_role"],
+      "is_active_group_member": ["postgres", "authenticated", "service_role"],
+      "is_group_admin": ["postgres", "authenticated", "service_role"],
+      "has_group_permission": ["postgres", "authenticated", "service_role"]
+    },
+    "new_helpers_expected": {
+      "storage_group_documents_authorized": ["postgres", "authenticated"],
+      "storage_receipts_authorized": ["postgres", "authenticated"]
+    },
+    "disposable_set_equality": "PASS"
+  },
+  "R6_storage_objects_grants": {
+    "rule": "information_schema.role_table_grants (grantee, privilege_type, is_grantable) set equality, not count-only",
+    "expected_rows": 28,
+    "actual_except_expected_empty": true,
+    "expected_except_actual_empty": true,
+    "disposable_set_equality": "PASS"
+  },
+  "R7_projects_pk": {
+    "verified_via": "pg_index + pg_attribute",
+    "indisprimary": true,
+    "key_columns": ["id"],
+    "not_null_alone_insufficient": true,
+    "disposable": "PASS"
+  },
+  "R8_overload_rejection": {
+    "before_00116": "ZERO functions named storage_group_documents_authorized or storage_receipts_authorized in public (any signature)",
+    "after_00116": "exactly 2 functions; identity arguments only p_name text, p_operation text",
+    "disposable_after": [
+      {"name": "storage_group_documents_authorized", "args": "p_name text, p_operation text"},
+      {"name": "storage_receipts_authorized", "args": "p_name text, p_operation text"}
+    ]
+  },
+  "R9_R12_new_real_rls": [
+    {
+      "test_id": "T-U02-04-MANAGE-ONLY",
+      "operation": "INSERT",
+      "expected_result": "ALLOW",
+      "actual_result": "ALLOW",
+      "denial_mechanism": null,
+      "SQLSTATE": null,
+      "unexpected_exception": false,
+      "pass": true
+    },
+    {
+      "test_id": "T-U02-05-CROSS-GROUP-FINANCE",
+      "operation": "INSERT",
+      "expected_result": "DENY",
+      "actual_result": "DENY",
+      "denial_mechanism": "RLS_DENY",
+      "SQLSTATE": "42501",
+      "unexpected_exception": false,
+      "pass": true
+    },
+    {
+      "test_id": "U03-NEG-INACTIVE-OWN-MID",
+      "operation": "INSERT",
+      "expected_result": "DENY",
+      "actual_result": "DENY",
+      "denial_mechanism": "RLS_DENY",
+      "SQLSTATE": "42501",
+      "unexpected_exception": false,
+      "pass": true
+    },
+    {
+      "test_id": "U07-NEG-INACTIVE-OWN-MID",
+      "operation": "INSERT",
+      "expected_result": "DENY",
+      "actual_result": "DENY",
+      "denial_mechanism": "RLS_DENY",
+      "SQLSTATE": "42501",
+      "unexpected_exception": false,
+      "pass": true
+    }
+  ],
+  "R13_R15_anon_unexpected_exception": {
+    "deny_pass_mechanisms_only": ["RLS_DENY", "PERMISSION_DENIED", "ZERO_ROWS"],
+    "unexpected_exception_implies_pass_false": true,
+    "broad_except_exception_to_deny_pass_removed": true,
+    "R05-ANON-SELECT": {
+      "actual_result": "DENY",
+      "denial_mechanism": "ZERO_ROWS",
+      "unexpected_exception": false,
+      "pass": true
+    },
+    "HARNESS-UNEXPECTED-EXCEPTION": {
+      "SQLSTATE": "42883",
+      "actual_result": "ERROR",
+      "unexpected_exception": true,
+      "schema_pass": false,
+      "meta_status": "PASS"
+    }
+  },
+  "R16_R19_full_suites": {
+    "core_rls_plus_new_plus_harness": 56,
+    "core_fail": 0,
+    "ups": "UPS-01..12 included in core",
+    "encoding": "740/740",
+    "live_shape": "25=6+14+5 unknown=0 PASS"
+  },
+  "R25_build": {
+    "tsc_noEmit": "PASS",
+    "npm_run_build": "PASS"
+  },
+  "R26_prod_readonly": {
+    "migrations": 30,
+    "00116_applied": false,
+    "new_helpers_present": false,
+    "eight_policies_still_live_null_allow": true,
+    "storage_mutation": "ZERO"
+  }
+}

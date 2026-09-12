@@ -1,0 +1,204 @@
+{
+  "artifact": "M2_MIGRATION_SECURITY_FINGERPRINTS_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "cffdda852ab198ea6dfab4eefdb9e6a82bd8e03d",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "fingerprint_source": "local disposable PostgreSQL 16 after exact 00117 apply on 00116-era fixture (NOT production)",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "SECURITY_DEFINER_ADDED_BY_00117": false,
+  "SECURITY_DEFINER_FLAG": {
+    "prominence": "NONE ADDED BY 00117",
+    "new_functions": {
+      "public.m2_is_valid_iana_timezone(tz text)": {
+        "prosecdef": false,
+        "volatility": "STABLE",
+        "language": "sql",
+        "search_path": "",
+        "grants_intended": "REVOKE ALL FROM PUBLIC, anon; GRANT EXECUTE TO authenticated"
+      },
+      "public.notification_policy_set_updated_at()": {
+        "prosecdef": false,
+        "volatility": "VOLATILE",
+        "language": "plpgsql",
+        "search_path": "",
+        "security": "INVOKER (default)",
+        "grants_intended": "REVOKE ALL FROM PUBLIC, anon; GRANT EXECUTE TO authenticated"
+      }
+    },
+    "preexisting_not_modified_by_00117": {
+      "public.enqueue_outbound_notification(...)": {
+        "prosecdef": true,
+        "note": "PRE-EXISTING Cut 2 SECURITY DEFINER. 00117 does not CREATE/REPLACE/regrant. Identity args unchanged. Disposable fixture owner ubuntu is a local artifact.",
+        "identity_args": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text",
+        "disposable_proacl": "{ubuntu=X/ubuntu,service_role=X/ubuntu}"
+      }
+    },
+    "occurrence_writer_security_definer": "NOT CREATED — dormant foundation does not require one; writers remain a later ticket"
+  },
+  "tables": {
+    "notification_policies": {
+      "columns": "id uuid DEFAULT gen_random_uuid() NOT NULL, group_id uuid NOT NULL, domain text NOT NULL, object_id uuid, enabled boolean DEFAULT false NOT NULL, timezone text DEFAULT 'UTC'::text NOT NULL, repeat_interval_hours integer, max_occurrences integer, stop_when_resolved boolean DEFAULT true NOT NULL, stop_after_hours integer, quiet_start_minute integer, quiet_end_minute integer, channel_in_app boolean DEFAULT false NOT NULL, channel_email boolean DEFAULT false NOT NULL, channel_sms boolean DEFAULT false NOT NULL, channel_whatsapp boolean DEFAULT false NOT NULL, channel_push boolean DEFAULT false NOT NULL, created_by uuid, updated_by uuid, created_at timestamptz DEFAULT now() NOT NULL, updated_at timestamptz DEFAULT now() NOT NULL",
+      "rls": true,
+      "force_rls": true
+    },
+    "notification_policy_triggers": {
+      "columns": "id uuid DEFAULT gen_random_uuid() NOT NULL, policy_id uuid NOT NULL, offset_hours integer NOT NULL, created_at timestamptz DEFAULT now() NOT NULL, updated_at timestamptz DEFAULT now() NOT NULL",
+      "rls": true,
+      "force_rls": true
+    },
+    "notification_policy_occurrences": {
+      "columns": "id uuid DEFAULT gen_random_uuid() NOT NULL, group_id uuid NOT NULL, domain text NOT NULL, object_id uuid NOT NULL, anchor_at timestamptz NOT NULL, trigger_offset_hours integer NOT NULL, occurrence_index integer NOT NULL, identity_key text NOT NULL, status text DEFAULT 'scheduled'::text NOT NULL, eligible_at timestamptz NOT NULL, deferred_until timestamptz, superseded_by uuid, created_at timestamptz DEFAULT now() NOT NULL, updated_at timestamptz DEFAULT now() NOT NULL",
+      "rls": true,
+      "force_rls": true
+    }
+  },
+  "indexes": [
+    "UNIQUE notification_policies_pkey (id)",
+    "UNIQUE notification_policies_group_domain_object_unique (group_id, domain, object_id) NULLS NOT DISTINCT",
+    "INDEX notification_policies_group_domain_idx (group_id, domain)",
+    "UNIQUE notification_policy_triggers_pkey (id)",
+    "UNIQUE notification_policy_triggers_policy_offset_unique (policy_id, offset_hours)",
+    "INDEX notification_policy_triggers_policy_id_idx (policy_id)",
+    "UNIQUE notification_policy_occurrences_pkey (id)",
+    "UNIQUE notification_policy_occurrences_identity_unique (identity_key)",
+    "UNIQUE notification_policy_occurrences_natural_unique (group_id, domain, object_id, anchor_at, trigger_offset_hours, occurrence_index)",
+    "INDEX notification_policy_occurrences_due_idx (group_id, domain, status, eligible_at)",
+    "INDEX notification_policy_occurrences_object_idx (group_id, domain, object_id)"
+  ],
+  "constraints": [
+    "notification_policies_domain_check CHECK (domain = ANY (ARRAY['payment','hosting','event']))",
+    "notification_policies_push_denied CHECK (channel_push = false)",
+    "notification_policies_hosting_email_denied CHECK ((domain <> 'hosting') OR (channel_email = false))",
+    "notification_policies_timezone_iana CHECK (m2_is_valid_iana_timezone(timezone))",
+    "notification_policies_repeat_requires_max CHECK ((repeat_interval_hours IS NULL) OR (max_occurrences IS NOT NULL))",
+    "notification_policies_repeat_interval_positive CHECK ((repeat_interval_hours IS NULL) OR (repeat_interval_hours > 0))",
+    "notification_policies_max_occurrences_positive CHECK ((max_occurrences IS NULL) OR (max_occurrences > 0))",
+    "notification_policies_stop_after_positive CHECK ((stop_after_hours IS NULL) OR (stop_after_hours > 0))",
+    "notification_policies_quiet_pair CHECK (both quiet minutes NULL or both NOT NULL)",
+    "notification_policies_quiet_start_range CHECK (0..1439)",
+    "notification_policies_quiet_end_range CHECK (0..1439)",
+    "notification_policies_group_id_fkey FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE",
+    "notification_policy_triggers_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES notification_policies(id) ON DELETE CASCADE",
+    "notification_policy_occurrences_domain_check CHECK (domain = ANY (ARRAY['payment','hosting','event']))",
+    "notification_policy_occurrences_status_check CHECK (status IN scheduled|deferred|sent|skipped|superseded|cancelled|stop_resolved|stop_policy)",
+    "notification_policy_occurrences_index_nonneg CHECK (occurrence_index >= 0)",
+    "notification_policy_occurrences_group_id_fkey FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE",
+    "notification_policy_occurrences_superseded_by_fkey FOREIGN KEY (superseded_by) REFERENCES notification_policy_occurrences(id)"
+  ],
+  "rls_policies": [
+    {
+      "table": "notification_policies",
+      "name": "m2_np_select",
+      "cmd": "SELECT",
+      "roles": ["authenticated"],
+      "using": "has_group_permission(group_id, 'settings.manage')"
+    },
+    {
+      "table": "notification_policies",
+      "name": "m2_np_insert",
+      "cmd": "INSERT",
+      "roles": ["authenticated"],
+      "with_check": "has_group_permission(group_id, 'settings.manage')"
+    },
+    {
+      "table": "notification_policies",
+      "name": "m2_np_update",
+      "cmd": "UPDATE",
+      "roles": ["authenticated"],
+      "using": "has_group_permission(group_id, 'settings.manage')",
+      "with_check": "has_group_permission(group_id, 'settings.manage')"
+    },
+    {
+      "table": "notification_policies",
+      "name": "m2_np_delete",
+      "cmd": "DELETE",
+      "roles": ["authenticated"],
+      "using": "has_group_permission(group_id, 'settings.manage')"
+    },
+    {
+      "table": "notification_policy_triggers",
+      "name": "m2_npt_select",
+      "cmd": "SELECT",
+      "roles": ["authenticated"],
+      "using": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
+    },
+    {
+      "table": "notification_policy_triggers",
+      "name": "m2_npt_insert",
+      "cmd": "INSERT",
+      "roles": ["authenticated"],
+      "with_check": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
+    },
+    {
+      "table": "notification_policy_triggers",
+      "name": "m2_npt_update",
+      "cmd": "UPDATE",
+      "roles": ["authenticated"],
+      "using": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))",
+      "with_check": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
+    },
+    {
+      "table": "notification_policy_triggers",
+      "name": "m2_npt_delete",
+      "cmd": "DELETE",
+      "roles": ["authenticated"],
+      "using": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
+    },
+    {
+      "table": "notification_policy_occurrences",
+      "name": "m2_npo_select",
+      "cmd": "SELECT",
+      "roles": ["authenticated"],
+      "using": "has_group_permission(group_id, 'settings.manage')"
+    }
+  ],
+  "occurrence_mutation_policies": "NONE — authenticated SELECT-only; no INSERT/UPDATE/DELETE policies",
+  "grants_intended_by_00117": {
+    "notification_policies": {
+      "authenticated": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+      "service_role": ["SELECT"],
+      "anon": [],
+      "PUBLIC": []
+    },
+    "notification_policy_triggers": {
+      "authenticated": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+      "service_role": ["SELECT"],
+      "anon": [],
+      "PUBLIC": []
+    },
+    "notification_policy_occurrences": {
+      "authenticated": ["SELECT"],
+      "service_role": ["SELECT"],
+      "anon": [],
+      "PUBLIC": []
+    },
+    "notifications_queue": "UNCHANGED — 00117 adds ZERO grants; disposable observed authenticated SELECT + service_role SELECT only (fixture Cut 2 floor)"
+  },
+  "grants_observed_disposable_app_roles": [
+    "notification_policies | authenticated | DELETE,INSERT,SELECT,UPDATE",
+    "notification_policies | service_role | SELECT",
+    "notification_policy_triggers | authenticated | DELETE,INSERT,SELECT,UPDATE",
+    "notification_policy_triggers | service_role | SELECT",
+    "notification_policy_occurrences | authenticated | SELECT",
+    "notification_policy_occurrences | service_role | SELECT"
+  ],
+  "disposable_owner_note": "Local table owner role ubuntu appears in proacl/table ACLs as grantor. That is a disposable artifact, not a production grant.",
+  "function_definitions": {
+    "m2_is_valid_iana_timezone": "CREATE OR REPLACE FUNCTION public.m2_is_valid_iana_timezone(tz text)\n RETURNS boolean\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n  SELECT tz IS NOT NULL\n     AND btrim(tz) <> ''\n     AND EXISTS (\n       SELECT 1\n       FROM pg_catalog.pg_timezone_names z\n       WHERE z.name = tz\n     );\n$function$",
+    "notification_policy_set_updated_at": "CREATE OR REPLACE FUNCTION public.notification_policy_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  NEW.updated_at = now();\n  RETURN NEW;\nEND;\n$function$"
+  },
+  "triggers": [
+    "notification_policies.trg_notification_policies_updated_at BEFORE UPDATE EXECUTE FUNCTION notification_policy_set_updated_at()",
+    "notification_policy_triggers.trg_notification_policy_triggers_updated_at BEFORE UPDATE EXECUTE FUNCTION notification_policy_set_updated_at()",
+    "notification_policy_occurrences.trg_notification_policy_occurrences_updated_at BEFORE UPDATE EXECUTE FUNCTION notification_policy_set_updated_at()"
+  ],
+  "notifications_queue_triggers_from_00117": [],
+  "rls_predicate_notes": {
+    "permission": "settings.manage",
+    "notifications_manage_invented": false,
+    "is_group_member_used_as_exited_gate": false,
+    "cut1_active_membership": "has_group_permission already requires membership_status='active'"
+  }
+}

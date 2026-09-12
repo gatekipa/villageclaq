@@ -406,10 +406,10 @@ test("hosting_assignment maps to the approved villageclaq_hosting_reminder templ
 test("hosting page routes WhatsApp through the producer, never directly", () => {
   const source = fs.readFileSync(hostingPagePath, "utf8");
   assert.doesNotMatch(source, /whatsappType:\s*"hosting_assignment"/);
+  assert.doesNotMatch(source, /whatsappType:\s*"hosting_reminder"/);
   const triggerCount = source.split("requestHostingAssignmentWhatsApp(").length - 1;
   assert.ok(triggerCount >= 2, "publish and assign-dialog paths must both trigger the producer");
-  // The swap-flow hosting_reminder sends are intentionally untouched.
-  assert.match(source, /whatsappType:\s*"hosting_reminder"/);
+  assert.match(source, /requestHostingSwapNotifications/);
 });
 
 test("route authorizes group owners/admins and bounds the batch", () => {

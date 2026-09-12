@@ -677,8 +677,16 @@ def main() -> int:
     """)
     record_acl_case(acl_results, "ACL-PRE-C", ok, err, expect_abort=True)
 
-    ok, err = run_acl_probe("pre",
-        "GRANT EXECUTE ON FUNCTION public.is_active_group_member(uuid) TO anon")
+    ok, err = run_acl_probe("pre", """
+    UPDATE pg_proc p
+       SET proacl = COALESCE(p.proacl, acldefault('f', p.proowner))
+                    || makeaclitem('anon'::regrole, 'postgres'::regrole, 'EXECUTE', false)
+      FROM pg_namespace n
+     WHERE n.oid = p.pronamespace
+       AND n.nspname = 'public'
+       AND p.proname = 'is_active_group_member'
+       AND pg_get_function_identity_arguments(p.oid) = 'gid uuid'
+    """)
     record_acl_case(acl_results, "ACL-PRE-D", ok, err, expect_abort=True)
 
     ok, err = run_acl_probe("pre",

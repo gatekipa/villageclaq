@@ -238,40 +238,40 @@ BEGIN
   -- Grantee OID 0 → PUBLIC. Grantor OID 0 is NOT PUBLIC; grantor must be postgres.
   -- Every expected row: grantor_name='postgres', is_grantable=false.
   -- <<<CUT3_ACL_PRE>>>
-  IF EXISTS (
+  IF (
     WITH expected(fn, role_name, privilege, grantor_name, is_grantable) AS (
       VALUES
-        ('storage_path_group_id', 'PUBLIC', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id', 'postgres', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id', 'anon', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id', 'authenticated', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id', 'service_role', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id_v2', 'PUBLIC', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id_v2', 'postgres', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id_v2', 'anon', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id_v2', 'authenticated', 'EXECUTE', 'postgres', false),
-        ('storage_path_group_id_v2', 'service_role', 'EXECUTE', 'postgres', false),
-        ('is_group_member', 'PUBLIC', 'EXECUTE', 'postgres', false),
-        ('is_group_member', 'postgres', 'EXECUTE', 'postgres', false),
-        ('is_group_member', 'anon', 'EXECUTE', 'postgres', false),
-        ('is_group_member', 'authenticated', 'EXECUTE', 'postgres', false),
-        ('is_group_member', 'service_role', 'EXECUTE', 'postgres', false),
-        ('is_active_group_member', 'postgres', 'EXECUTE', 'postgres', false),
-        ('is_active_group_member', 'authenticated', 'EXECUTE', 'postgres', false),
-        ('is_active_group_member', 'service_role', 'EXECUTE', 'postgres', false),
-        ('is_group_admin', 'postgres', 'EXECUTE', 'postgres', false),
-        ('is_group_admin', 'authenticated', 'EXECUTE', 'postgres', false),
-        ('is_group_admin', 'service_role', 'EXECUTE', 'postgres', false),
-        ('has_group_permission', 'postgres', 'EXECUTE', 'postgres', false),
-        ('has_group_permission', 'authenticated', 'EXECUTE', 'postgres', false),
-        ('has_group_permission', 'service_role', 'EXECUTE', 'postgres', false)
+        ('storage_path_group_id'::text, 'PUBLIC'::text, 'EXECUTE'::text, 'postgres'::text, 'false'::text),
+        ('storage_path_group_id', 'postgres', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id', 'anon', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id', 'authenticated', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id', 'service_role', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id_v2', 'PUBLIC', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id_v2', 'postgres', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id_v2', 'anon', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id_v2', 'authenticated', 'EXECUTE', 'postgres', 'false'),
+        ('storage_path_group_id_v2', 'service_role', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_member', 'PUBLIC', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_member', 'postgres', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_member', 'anon', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_member', 'authenticated', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_member', 'service_role', 'EXECUTE', 'postgres', 'false'),
+        ('is_active_group_member', 'postgres', 'EXECUTE', 'postgres', 'false'),
+        ('is_active_group_member', 'authenticated', 'EXECUTE', 'postgres', 'false'),
+        ('is_active_group_member', 'service_role', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_admin', 'postgres', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_admin', 'authenticated', 'EXECUTE', 'postgres', 'false'),
+        ('is_group_admin', 'service_role', 'EXECUTE', 'postgres', 'false'),
+        ('has_group_permission', 'postgres', 'EXECUTE', 'postgres', 'false'),
+        ('has_group_permission', 'authenticated', 'EXECUTE', 'postgres', 'false'),
+        ('has_group_permission', 'service_role', 'EXECUTE', 'postgres', 'false')
     ),
     actual(fn, role_name, privilege, grantor_name, is_grantable) AS (
       SELECT p.proname::text,
              CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
              a.privilege_type::text,
              go.rolname::text,
-             a.is_grantable
+             CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
         CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
@@ -288,12 +288,20 @@ BEGIN
          )
          AND a.privilege_type = 'EXECUTE'
     )
-    SELECT 1 FROM (
-      SELECT * FROM actual EXCEPT SELECT * FROM expected
+    SELECT COUNT(*) FROM (
+      (
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM actual
+        EXCEPT
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM expected
+      )
       UNION ALL
-      SELECT * FROM expected EXCEPT SELECT * FROM actual
+      (
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM expected
+        EXCEPT
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM actual
+      )
     ) drift
-  ) THEN
+  ) <> 0 THEN
     RAISE EXCEPTION 'CUT3_ABORT: live helper EXECUTE ACL set mismatch';
   END IF;
   -- <<<CUT3_ACL_PRE_END>>>
@@ -776,20 +784,20 @@ BEGIN
   END IF;
 
   -- <<<CUT3_ACL_POST>>>
-  IF EXISTS (
+  IF (
     WITH expected(fn, role_name, privilege, grantor_name, is_grantable) AS (
       VALUES
-        ('storage_group_documents_authorized', 'postgres', 'EXECUTE', 'postgres', false),
-        ('storage_group_documents_authorized', 'authenticated', 'EXECUTE', 'postgres', false),
-        ('storage_receipts_authorized', 'postgres', 'EXECUTE', 'postgres', false),
-        ('storage_receipts_authorized', 'authenticated', 'EXECUTE', 'postgres', false)
+        ('storage_group_documents_authorized'::text, 'postgres'::text, 'EXECUTE'::text, 'postgres'::text, 'false'::text),
+        ('storage_group_documents_authorized', 'authenticated', 'EXECUTE', 'postgres', 'false'),
+        ('storage_receipts_authorized', 'postgres', 'EXECUTE', 'postgres', 'false'),
+        ('storage_receipts_authorized', 'authenticated', 'EXECUTE', 'postgres', 'false')
     ),
     actual(fn, role_name, privilege, grantor_name, is_grantable) AS (
       SELECT p.proname::text,
              CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
              a.privilege_type::text,
              go.rolname::text,
-             a.is_grantable
+             CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
         CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
@@ -800,12 +808,20 @@ BEGIN
          AND pg_get_function_identity_arguments(p.oid) = 'p_name text, p_operation text'
          AND a.privilege_type = 'EXECUTE'
     )
-    SELECT 1 FROM (
-      SELECT * FROM actual EXCEPT SELECT * FROM expected
+    SELECT COUNT(*) FROM (
+      (
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM actual
+        EXCEPT
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM expected
+      )
       UNION ALL
-      SELECT * FROM expected EXCEPT SELECT * FROM actual
+      (
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM expected
+        EXCEPT
+        SELECT concat_ws('|', fn, role_name, privilege, grantor_name, is_grantable) FROM actual
+      )
     ) drift
-  ) THEN
+  ) <> 0 THEN
     RAISE EXCEPTION 'CUT3_ABORT: new helper EXECUTE ACL set mismatch';
   END IF;
   -- <<<CUT3_ACL_POST_END>>>

@@ -1,16 +1,31 @@
 # S0 P0-C Cut 3 — Storage path fail-closed boundary (PLANNING ONLY)
 
 **Date:** 2026-09-12  
-**Status:** **PLANNING ONLY — READY FOR DAYBREAK REVIEW**  
+**Revision:** **DAYBREAK HOLD CLOSEOUT — CONTRACT REVISION 2**  
+**Status:** **PLANNING ONLY — READY FOR DAYBREAK RE-REVIEW**  
 **Implementation:** **NOT AUTHORIZED**. This PR must not be treated as permission to author or apply `00116`.  
-**This PR:** docs / evidence only. **No** `00116` SQL. **No** application code. **No** edits to `00001`–`00115`. **No** Cut 2 / `notifications_queue` files.  
-**Production mutation:** **ZERO**. This task did not query live SQL, list objects, or touch Storage.  
-**Overall recommended verdict (planning):** **PASS to implement later on a dedicated branch only**, after Daybreak review. PASS here authorizes **implementation planning acceptance**, **NOT** production apply.
+**This PR (#79):** docs / evidence only. **No** `00116` SQL. **No** application / test / migration code. **No** edits to `00001`–`00115`. **No** Cut 2 / `notifications_queue` files. **Keep DRAFT OPEN UNMERGED.**  
+**Production mutation:** **ZERO**. This task did not query live SQL, list objects, or sign/download private objects.  
+**Previous planning SHA (parent):** `e8e79e8d2fda9bfdf29277dd2bca835610b2c366`  
+**Base main:** `1f1221eeb9207b692a7e507ae95acfc9aabac113`
 
-**Primary question (answered):** Are `group-documents` / `receipts` **INSERT** (and the same-boundary **UPDATE** / **DELETE**) fail-open when the path parser returns NULL?  
-**Answer:** **YES — CONFIRMED.** Live write policies allow the row when `storage_path_group_id(name) IS NULL`. UUID-first paths (the live receipts majority and a live group-documents minority) are unparsed by v1. Invalid UUID under a listed prefix raises `22P02` instead of FALSE.
+**UI/UX EXCELLENCE TRACK: ACTIVE / DEFERRED BY S0 GATE, NOT CANCELLED.**  
+Next UX gate: **ASTRA** fresh design-system + IA review. **No UI work now.**
 
-**Chosen parser strategy:** **B** — single boolean helper: valid frozen grammar **AND** authorized. Invalid / NULL / extra / ambiguous / exception ⇒ **FALSE**. Justify in R3.
+---
+
+## Daybreak A–H closeout (this revision)
+
+| Blocker | Close |
+|---------|--------|
+| **A** Scope | Cut 3 = **8** private policies: `group-documents` + `receipts` × SELECT/INSERT/UPDATE/DELETE. **No** `NULL` authorization on any of the eight. Signed-URL authority = SELECT. |
+| **B** Projects | Canonical `projects/{projectId}/{file-or-approved-subpath}`. Security id = **project id** → `public.projects.id` → `projects.group_id` (uuid **NOT NULL**) → actor auth in **that** group. Never treat `projectId` as `groupId`. Missing project → **DENY**. |
+| **C** Helpers | Unbound `(p_name, p_op)` **rejected**. Two **bucket-bound** helpers (R3). v1/v2 **kept**, **removed from policy authority**. |
+| **D** Per-workflow | Exact auth for 12 uploads + 6 removes + 8 `createSignedUrl` sites. **SAFER-OR-UNCHANGED.** Writes = active-equivalent. SELECT does **not** silently force active-only. |
+| **E** UPDATE | **USING (OLD) and WITH CHECK (NEW)** both fail-closed on both buckets. |
+| **F** Signed URL | All signers inventoried. **Unknown = 0.** No privileged / `service_role` signing. Browser JWT + fail-closed SELECT is the authority. |
+| **G** Encoding | Complete matrix (R18). Default **DENY** if the stored literal cannot prove canonical. Prefixes = exact lowercase. |
+| **H** Tests / abort / UX / avatars | Disposable RLS as authenticated A/B on `storage.objects`. `CUT3_ABORT` fingerprints. UX track deferred, not cancelled. Avatars out of scope with proof. |
 
 ---
 
@@ -18,537 +33,545 @@
 
 | Pin | Value |
 |-----|-------|
-| Planning base / branch HEAD | `1f1221eeb9207b692a7e507ae95acfc9aabac113` (ancestor/tip of `main`; PR #78 Cut 2 merge) |
+| Planning base / `main` | `1f1221eeb9207b692a7e507ae95acfc9aabac113` |
+| Previous planning tip (must be ancestor) | `e8e79e8d2fda9bfdf29277dd2bca835610b2c366` |
 | Repo | `https://github.com/gatekipa/villageclaq` |
-| Planning branch | `planning/s0-p0c-cut3-storage-insert-20260912` |
-| Live project | `llbnliixczcqfftxpsmb` — migrations **30** |
+| Planning branch / PR | `planning/s0-p0c-cut3-storage-insert-20260912` / DRAFT **#79** |
+| Live project | `llbnliixczcqfftxpsmb` — migrations **30** / Cut 2 live |
 | Cut 1 CLOSED prod | version `20260911183755` name `s0_p0a_cut1_active_authorization` — **DO NOT MODIFY** |
-| Cut 2 | `00115_s0_p0b_cut2_notification_queue.sql` + queue/drain — **DO NOT TOUCH** |
+| Cut 2 | `00115` + queue/drain — **DO NOT TOUCH** |
 | Future migration **name only** | `00116_s0_p0c_cut3_storage_path_fail_closed.sql` — **DO NOT CREATE IN THIS PR** |
-| Authoritative live predicates | Chief inventory below — **do not invent different live SQL** |
-| Storage schema apply path | Dashboard-only (same constraint as `00112`) — MCP/service role cannot modify `storage` |
+| `projects.group_id` | `uuid NOT NULL` (Chief + `00010`) |
+| Trusted DEFINER helpers | `is_active_group_member`, `is_group_admin`, `has_group_permission` — **owner = postgres**, `search_path ''` |
+| `is_group_member` | Legacy: SECURITY DEFINER, **status-blind**, **no** `search_path` pin — **SELECT historical reads only**; **never write floor** |
 
-### Evidence (this PR)
+### Evidence
 
 - `docs/evidence/S0_CUT3_STORAGE_LIVE_POLICY_INVENTORY_20260912.json`
 - `docs/evidence/S0_CUT3_STORAGE_BUCKET_MATRIX_20260912.json`
 - `docs/evidence/S0_CUT3_STORAGE_PATH_GRAMMAR_MATRIX_20260912.json`
 - `docs/evidence/S0_CUT3_STORAGE_CALLER_INVENTORY_20260912.json`
 - `docs/evidence/S0_CUT3_STORAGE_TRUTH_TABLE_20260912.json`
+- `docs/evidence/S0_CUT3_STORAGE_SIGNED_URL_MATRIX_20260912.json` **(new)**
 
-Unknown **upload** callers: **0**. No HOLD.
-
----
-
-## R1 — Primary question and proven fail-open
-
-Cut 3 exists because write RLS on the two private group buckets is **fail-open on parse miss**.
-
-Chief-confirmed INSERT `WITH CHECK` for `gdocs_insert_group` and `receipts_insert_group`:
-
-```
-((storage_path_group_id(name) IS NOT NULL) AND is_group_member(storage_path_group_id(name)))
-OR (storage_path_group_id(name) IS NULL)
-```
-
-**NULL parse ⇒ ALLOW INSERT for any `authenticated` user.**
-
-That is not a theoretical gap:
-
-1. Live v1 only returns a UUID when `foldername[1]` is one of `logos`, `relief-claims`, `constitutions`, `minutes`, `dispute-docs`.
-2. Live receipts objects: **3 / 3** are **2-seg UUID-first** → v1 **NULL** → INSERT/UPDATE/DELETE fail-open.
-3. Live group-documents: **5 / 25** are **2-seg UUID-first** → same.
-4. Caller code at `1f1221e` **intentionally writes** those UUID-first keys (`pay-now-dialog`, `contributions/record`, `documents` vault).
-5. Prefix `projects/` is not in the v1 list → v1 **NULL** → fail-open for project attachments.
-
-Repo ancestry `00078` used `storage.path_group_id` with the same `OR IS NULL` fallback, documented as “legacy / projects / authenticated-only.” **Live** helper name is `public.storage_path_group_id`. Chief is authoritative for the live name and body.
+Unknown upload callers: **0**. Unknown signed-URL callers: **0**. No HOLD.
 
 ---
 
-## R2 — Target: FAIL CLOSED
+## R1 — Proven fail-open (writes **and** private SELECT)
 
-After Cut 3, for `receipts` and `group-documents` **INSERT / UPDATE / DELETE**:
+Chief-reconfirmed **eight** live policies (all `PERMISSIVE`, `TO authenticated`):
+
+| # | Name | Cmd | Live predicate (abbrev) | Fail-open |
+|---|------|-----|-------------------------|-----------|
+| 1 | `gdocs_select_group` | SELECT | `bucket='group-documents' AND (v2 IS NULL OR is_group_member(v2))` | **YES** — v2 NULL ⇒ any authenticated **read / sign** |
+| 2 | `receipts_select_group` | SELECT | same, `receipts` + v2 | **YES** |
+| 3 | `gdocs_insert_group` | INSERT | `bucket AND ((v1 IS NOT NULL AND is_group_member(v1)) OR v1 IS NULL)` | **YES** |
+| 4 | `receipts_insert_group` | INSERT | same | **YES** |
+| 5 | `gdocs_update_group` | UPDATE | **USING** `bucket AND (v1 IS NULL OR is_group_member(v1))`; **WITH CHECK currently NULL/absent** | **YES** + missing NEW check |
+| 6 | `receipts_update_group` | UPDATE | same | **YES** + missing NEW check |
+| 7 | `gdocs_delete_group` | DELETE | `bucket AND (v1 IS NULL OR is_group_admin(v1))` | **YES** |
+| 8 | `receipts_delete_group` | DELETE | same | **YES** |
+
+v1 = `storage_path_group_id(name)` (unguarded `::uuid`, category-only).  
+v2 = `storage_path_group_id_v2(name)` (regex-guarded; UUID-first + five prefixes).  
+Both **owner = postgres**, **not** SECURITY DEFINER.
+
+UUID-first live objects (receipts 3/3, gdocs 5/25) are **NULL on v1** → write fail-open. They **parse on v2** → SELECT already membership-scoped when the UUID is well-formed. `projects/{projectId}/…` is **NULL on both** → SELECT **and** writes fail-open today.
+
+`createSignedUrl` is a SELECT. Fail-closed SELECT is therefore **signed-URL authority**.
+
+---
+
+## R2 — Target: FAIL CLOSED on all eight
+
+After Cut 3, for **both** private buckets and **all four** commands:
 
 | Condition | Decision |
 |-----------|----------|
-| Parser / grammar miss (NULL) | **DENY** |
-| Segment is not a regex-guarded UUID where a UUID is required | **DENY** as **FALSE** — never `::uuid` exception (`22P02`) |
-| Missing segment vs frozen arity | **DENY** |
-| Extra segment vs frozen arity | **DENY** |
-| Ambiguous / unknown prefix | **DENY** (exact `foldername[1]` equality only) |
-| Canonical grammar + authorized | **ALLOW** |
-| Unauthenticated | **DENY** (policies stay `TO authenticated`) |
+| NULL / unknown / malformed / ambiguous path | **DENY** |
+| Invalid UUID | **DENY FALSE** — never `22P02` |
+| Missing / extra segment vs frozen arity | **DENY** |
+| Encoding that cannot prove canonical (R18) | **DENY** |
+| Canonical grammar + authorized for that op | **ALLOW** |
+| Unauthenticated | **DENY** (`TO authenticated`) |
 
-**No** `OR parse IS NULL` on write policies.  
-**No** “any authenticated” write fallback for `projects/` or garbage keys.
+**No** `OR parse IS NULL` on SELECT, INSERT, UPDATE USING, UPDATE WITH CHECK, or DELETE.
 
 ---
 
-## R3 — Parser strategy (choose B)
+## R3 — Bucket-bound helpers (unbound Strategy B **rejected**)
 
-### Strategy A (rejected as the *policy* shape)
+Daybreak rejected a single `storage_group_object_write_allowed(p_name, p_op)` used for both buckets.
 
-```
-storage_path_group_id_safe(name) IS NOT NULL
-AND <auth>(storage_path_group_id_safe(name))
-```
-
-Correct **if** the parser never throws and policies never re-add `OR IS NULL`. History is exactly that fallback. A is acceptable **inside** a helper, not as six copy-pasted policy clauses.
-
-### Strategy B (FROZEN)
-
-One (or two, by op) **boolean** helper(s), `SECURITY DEFINER`, `SET search_path TO ''`:
+### Frozen names and signatures (do not rename without repo-forced evidence)
 
 ```
-public.storage_group_object_write_allowed(p_name text, p_op text) RETURNS boolean
+public.storage_group_documents_authorized(p_name text, p_operation text) RETURNS boolean
+public.storage_receipts_authorized(p_name text, p_operation text) RETURNS boolean
 ```
 
-`p_op` ∈ `{insert, update, delete}`.  
+| Property | Freeze |
+|----------|--------|
+| SECURITY DEFINER | **YES** |
+| OWNER | **exactly `postgres`** (matches live Cut 1 DEFINER helpers) |
+| `SET search_path` | `TO ''` |
+| Qualifiers | all `public.*` and `storage.*` refs fully qualified |
+| `p_operation` | only `'select'`, `'insert'`, `'update'`, `'delete'` — else **FALSE** |
+| `p_uid` / browser bucket arg | **FORBIDDEN** |
+| Grammar | **that bucket only** — receipts helper must **FALSE** on `minutes/…`, `projects/…`, `constitutions/…`, `relief-claims/…`, `logos/…`; gdocs helper must **FALSE** on `dispute-docs/…` |
+| Policies bind bucket | `bucket_id = 'group-documents'` or `'receipts'` as a **literal** in every policy. Helpers assume they are called only from the matching policy. Helpers **do not** take a browser-supplied bucket string. |
+| EXECUTE PUBLIC | **REVOKE** |
+| EXECUTE anon | **NO** |
+| EXECUTE authenticated | **YES** |
+| EXECUTE postgres | **YES** (owner) |
+| EXECUTE service_role | **NO** — helpers exist only for RLS evaluated as `authenticated` Storage API. `service_role` bypasses RLS and must not become a boolean-oracle grant. No current signer uses service_role (R15). |
+
 Returns **TRUE** only when:
 
-1. `p_name` matches **exactly one** frozen grammar (R5) with regex-guarded UUIDs and exact arity; **and**
-2. The resolved `group_id` is authorized for that op (R8).
+1. `p_name` is a **canonical literal** for **that** bucket (R5 + R18); **and**
+2. The resolved tenant (`group_id`, or `projects.group_id` for the projects grammar) is authorized for `p_operation` (R9).
 
 Otherwise **FALSE**. Never raises.
 
-**Why B**
+### Target policy shape
 
-- Fail-closed is the default return, not an afterthought `IS NOT NULL`.
-- Invalid UUID cannot throw inside a policy (v1 `22P02` is proven).
-- `projects/{projectId}/…` can resolve `group_id` from `public.projects` without pretending `projectId` is `groupId`.
-- Six policies become `bucket_id = '…' AND storage_group_object_write_allowed(name, 'insert'|'update'|'delete')` — no place to re-insert `OR IS NULL`.
-- SELECT keeps using **v2 + existing predicate** (R7). Do **not** reuse a write boolean for SELECT in this cut.
+```
+-- SELECT
+USING (bucket_id = '<bucket>' AND public.storage_<bucket>_authorized(name, 'select'))
 
-Internal implementation may parse-then-auth (A-inside-B). The **policy contract** is B.
+-- INSERT
+WITH CHECK (bucket_id = '<bucket>' AND public.storage_<bucket>_authorized(name, 'insert'))
+
+-- UPDATE (BOTH required)
+USING      (bucket_id = '<bucket>' AND public.storage_<bucket>_authorized(name, 'update'))
+WITH CHECK (bucket_id = '<bucket>' AND public.storage_<bucket>_authorized(name, 'update'))
+
+-- DELETE
+USING (bucket_id = '<bucket>' AND public.storage_<bucket>_authorized(name, 'delete'))
+```
+
+`<bucket>` is the literal `group-documents` or `receipts`. Function name matches the bucket (`storage_group_documents_authorized` / `storage_receipts_authorized`).
+
+### v1 / v2 disposition
+
+- **KEEP** function definitions (do **not** `DROP` in 00116 by default).
+- **REMOVE** from affected policy authority (none of the eight policies may call v1 or v2).
+- CUT3_ABORT fingerprints v1+v2 exact `pg_get_functiondef` / md5 **before** replace (R23).
+
+Planning-time reconstructed hashes (from Chief CASE body + repo `00112` v2 text — **not** a live `pg_get_functiondef` dump; apply-time must read live catalog):
+
+| Object | Reconstruction source | md5 (utf8 of frozen text in evidence JSON) |
+|--------|----------------------|---------------------------------------------|
+| v1 CASE body (Chief verbatim) | live inventory | `becf78352e26a5da61cf3347ffb87cae` |
+| v2 `00112` `CREATE FUNCTION` text | repo at `1f1221e` | `84b5a5ad1f29a3250132e496e5752ae8` |
+
+Apply **must** `CUT3_ABORT` if live `pg_get_functiondef` / `md5(prosrc)` disagrees with the live snapshot captured in the implementation rehearsal (do not silently accept reconstruct-only hashes).
 
 ---
 
-## R4 — Live helpers (Chief — do not invent)
+## R4 — Live membership helpers (Chief)
 
-### `public.storage_path_group_id(p_name text) RETURNS uuid`
+| Helper | Live | Cut 3 use |
+|--------|------|-----------|
+| `is_group_member(gid, uid default auth.uid())` | DEFINER, **status-blind**, **no** `search_path` pin | **SELECT only** (historical / existing read posture). **Never** write floor. |
+| `is_active_group_member(gid)` | DEFINER, owner **postgres**, `search_path ''`, active-only | Member **writes** with no stronger UI permission |
+| `is_group_admin(gid, uid default auth.uid())` | DEFINER, owner **postgres**, `search_path ''`, active owner/admin | Admin-only writes/deletes where UI is `isAdmin` / live delete already admin |
+| `has_group_permission(gid, perm_key, uid default auth.uid())` | DEFINER, owner **postgres**, `search_path ''`, **active** membership + owner/admin-without-assignments/position key (mirrors `usePermissions()`) | Writes whose UI already uses that permission key |
 
-- `IMMUTABLE` SQL. **Not** security definer. **No** `search_path` pin.
-- Body (Chief verbatim):
-
-```
-CASE WHEN (storage.foldername(p_name))[1] IN
-  ('logos','relief-claims','constitutions','minutes','dispute-docs')
-THEN NULLIF((storage.foldername(p_name))[2], '')::uuid
-ELSE NULL END
-```
-
-- UUID-first paths → **NULL**.
-- `logos/…/not-a-uuid` → **ERROR 22P02** (proven).
-
-### `public.storage_path_group_id_v2`
-
-- Regex-guards UUID; also accepts UUID-first segment.
-- **SELECT only** today.
-- Repo definition: `00112_storage_select_policy_hardening.sql` at this SHA. Cut 3 must not invent a different live v2.
-
-### Stock
-
-`storage.foldername` / `filename` / `extension` — do not reimplement.
-
-### Membership
-
-| Helper | Live (Chief) | Cut 3 use |
-|--------|----------------|-----------|
-| `is_group_member(gid, uid default auth.uid())` | SECURITY DEFINER, **status-blind** (any membership row), **no** empty `search_path` pin | **Keep for SELECT only.** Do not rewrite the body (Cut 1 freeze). |
-| `is_active_group_member(gid)` | Cut 1, active-only, `search_path ''` | **Preferred for member writes** |
-| `is_group_admin` | Active owner/admin only, `search_path ''` | **Deletes** (already live when parse works) + admin-only workflows (constitution, projects) |
+Do **not** rewrite `is_group_member`.
 
 ---
 
-## R5 — Canonical path grammars (from code — do not invent)
+## R5 — Canonical path grammars (from code)
 
-Frozen at SHA `1f1221e`. Machine copy: `S0_CUT3_STORAGE_PATH_GRAMMAR_MATRIX_20260912.json`.
+| ID | Bucket | Pattern | Tenant source |
+|----|--------|---------|---------------|
+| G-RECEIPT-UUID-FIRST | receipts | `{groupId}/{file}` (arity 2) | seg1 uuid |
+| G-DISPUTE-DOCS | receipts | `dispute-docs/{groupId}/{membershipId}/{file}` (arity 4) | seg2 uuid |
+| G-GDOCS-UUID-FIRST | group-documents | `{groupId}/{file}` (arity 2) | seg1 uuid |
+| G-MINUTES | group-documents | `minutes/{groupId}/{file}` (arity 3) | seg2 |
+| G-CONSTITUTIONS | group-documents | `constitutions/{groupId}/{file}` (arity 3) | seg2 |
+| G-RELIEF-CLAIMS | group-documents | `relief-claims/{groupId}/{membershipId}/{file}` (arity 4) | seg2 |
+| G-PROJECTS | group-documents | `projects/{projectId}/{file-or-approved-subpath}` | **`projects.id` = projectId → `projects.group_id`** |
+| G-AVATAR-UID-FIRST | avatars | `{userId}/{file}` | out of scope |
+| G-GROUP-LOGOS-ON-AVATARS | avatars | `group-logos/{groupId}/{file}` | out of scope |
 
-| ID | Bucket | Pattern (arity) | Group id source |
-|----|--------|-----------------|-----------------|
-| G-RECEIPT-UUID-FIRST | receipts | `{groupId}/{ts}-{filename}` (2) | seg1 |
-| G-DISPUTE-DOCS | receipts | `dispute-docs/{groupId}/{membershipId}/{ts}-{filename}` (4) | seg2 |
-| G-GDOCS-UUID-FIRST | group-documents | `{groupId}/{ts}-{filename}` (2) | seg1 |
-| G-MINUTES | group-documents | `minutes/{groupId}/{ts}-{filename}` (3) | seg2 |
-| G-CONSTITUTIONS | group-documents | `constitutions/{groupId}/{ts}-{filename}` (3) | seg2 |
-| G-RELIEF-CLAIMS | group-documents | `relief-claims/{groupId}/{membershipId}/{ts}-{filename}` (4) | seg2 |
-| G-PROJECTS-PROJECTID-FIRST | group-documents | `projects/{projectId}/{ts}-{filename}` (3) | **`projects.group_id` lookup** — `projectId` ≠ `groupId` |
-| G-AVATAR-UID-FIRST | avatars | `{userId}/{ts}.{ext}` (2) | n/a (uid policy) |
-| G-GROUP-LOGOS-ON-AVATARS | avatars | `group-logos/{groupId}/{ts}-{filename}` (3) | n/a (avatars; **not** v1 token `logos`) |
+**Approved projects subpath (from code, do not invent):** exactly one final file token: `{Date.now()}-{filename}` as written by `projects/page.tsx`. **No** extra folders (`projects/{id}/a/b` → DENY). File token must be non-empty and must not be `.` / `..`.
 
-**Parser-only token `logos`:** listed in v1/v2. **No current caller** writes `logos/{groupId}/…`. Do not invent a writer. Do not `LIKE 'logo%'` (would collide with `group-logos`).
+**Parser-only token `logos`:** in v1/v2, **no current writer**. After Cut 3, `logos/…` is **not** a receipts grammar and is **not** a gdocs writer grammar unless a live 3-seg object proves that prefix at apply-time **without logging names**. Default: **DENY** writes/selects of `logos/…` on both private buckets (unknown grammar). If rehearsal finds live `logos/` objects, Daybreak must re-open a SELECT exception — do not invent one now.
 
-**Projects:** table `public.projects.group_id` exists (`00010_stickiness_features.sql`). Fail-closed without this lookup **breaks** admin project uploads (R26). Looking up the existing path is **not** a new grammar and **not** an object rename (R14).
+Prefixes are **exact lowercase** as in source: `minutes`, `constitutions`, `relief-claims`, `dispute-docs`, `projects`. Mixed-case → **DENY**.
 
 ---
 
 ## R6 — Bucket matrix
 
-| Bucket | public | size | mime | Cut 3 writes |
-|--------|--------|------|------|----------------|
-| avatars | true | 2 MiB | jpeg/png/webp | **NOT AFFECTED** (inventory only) |
-| group-documents | false | 10 MiB | null | **IN SCOPE** INSERT/UPDATE/DELETE |
-| receipts | false | 5 MiB | jpeg/png/webp/pdf | **IN SCOPE** INSERT/UPDATE/DELETE |
-
-No other buckets in Chief inventory or repo callers.
-
-Do not flip `public`, mime, or size in Cut 3.
+| Bucket | public | Cut 3 |
+|--------|--------|-------|
+| avatars | true | **OUT OF SCOPE** (R26 proof) |
+| group-documents | **false** (CUT3_ABORT if not) | 4 policies fail-closed |
+| receipts | **false** (CUT3_ABORT if not) | 4 policies fail-closed |
 
 ---
 
-## R7 — SELECT posture (do not broaden; do not fail-close reads here)
+## R7 — SELECT + signed-URL (IN SCOPE)
 
-Live SELECT (`receipts_select_group`, `gdocs_select_group`):
+SELECT is **in** Cut 3. Target: same helpers, `p_operation = 'select'`.
 
-- Parser: **v2**
-- Predicate: `(storage_path_group_id_v2(name) IS NULL) OR is_group_member(v2(name))`
-- Role: `TO authenticated`
+**Read visibility freeze (do not silently force active-only):**
 
-This still allows any authenticated read of **unparsed** keys (`projects/…`, garbage). That is the **existing read posture**. Cut 3 **must not**:
+- Canonical group-path SELECT: **`is_group_member(resolved_group_id)`** — matches today’s v2-success branch; preserves historical reads for non-active rows that still have a membership.
+- Projects SELECT: **`is_group_member(projects.group_id)`** after lookup. Missing project → **DENY** (closes today’s any-authenticated read of `projects/…`).
+- Pending / exited / suspended / archived: **SELECT may still succeed** if `is_group_member` is true. **Writes DENY** (active-equivalent).
 
-- switch SELECT to fail-closed (would break project attachment preview unless SELECT also gained the lookup — out of this cut);
-- widen SELECT (no anon, no `OR true`);
-- change avatars `"Anyone can view avatars"`.
+This is **safer** than live NULL-OR for unparsed keys, and **unchanged** for already-parsed member reads.
 
-**Write-hardening must be safer-or-unchanged for legitimate canonical reads.**  
-UUID-first receipts/docs already parse on v2 — members who can read them today still can. Signing (`createSignedUrl` / `signedUrlFor`) stays on SELECT.
+`createSignedUrl` / `signedUrlFor` / `download` succeed only if SELECT allows. After Cut 3, signing a garbage or cross-tenant key **DENY**.
 
 ---
 
-## R8 — UPDATE and DELETE are the same security boundary (IN SCOPE)
+## R8 — UPDATE USING + WITH CHECK
 
-Chief: **INCLUDE in Cut 3**.
+Live UPDATE **WITH CHECK is NULL/absent**. Target **both**:
 
-| Command | Live boundary | Fail-open when |
-|---------|---------------|----------------|
-| UPDATE | `NULL OR is_group_member(v1)` | v1 NULL |
-| DELETE | `NULL OR is_group_admin(v1)` | v1 NULL |
+```
+USING      (bucket_id = '<b>' AND storage_*_authorized(name, 'update'))
+WITH CHECK (bucket_id = '<b>' AND storage_*_authorized(name, 'update'))
+```
 
-Callers that need UPDATE: **upsert** on documents vault and constitution (`upsert: true`). Supabase upsert requires INSERT + SELECT + UPDATE.
-
-Callers that DELETE objects: documents vault, projects attachments. Avatars removes are out of group-path scope.
-
-After Cut 3, UUID-first DELETE is no longer available to every authenticated user — only `is_group_admin` of the parsed group (or project’s group).
+OLD and NEW `name` must each be canonical + authorized. Rename to another tenant or to an unknown grammar → **DENY**. Upsert (documents, constitution) needs INSERT + UPDATE + SELECT — all fail-closed independently.
 
 ---
 
-## R9 — Active membership: per-workflow freeze
+## R9 — Per-workflow matrix (SAFER-OR-UNCHANGED)
 
-Do **not** blindly replace every `is_group_member` with `is_group_admin`. UI uses **position permissions**; many writers are not owner/admin.
+**Writes:** pending / suspended / exited / archived → **DENY**. Use `is_active_group_member` / `is_group_admin` / `has_group_permission` only.  
+**SELECT:** `is_group_member` after canonical resolve (R7).  
+**Client:** all listed callers use **browser** `createClient()` (`@/lib/supabase/client`). **No** server `service_role` storage I/O.
 
-| Workflow | UI evidence | Write RLS freeze |
-|----------|-------------|------------------|
-| Pay Now receipt (U01) | Any member; no PermissionGate | INSERT: **`is_active_group_member`**. Admin-only would break payers. |
-| Record payment receipt (U02) | `finances.record` \| `finances.manage` | INSERT: **`is_active_group_member`**. Treasurer may not be owner/admin. |
-| Dispute docs (U03) | Any member on My Fines | INSERT: **`is_active_group_member`** |
-| Document vault (U04) | `documents.manage` | INSERT/UPDATE: **`is_active_group_member`** (RLS **floor**). UI stays `documents.manage`. Not `is_group_admin` (secretaries). DELETE: **`is_group_admin`** (already live when parse works). Non-admin `documents.manage` delete may fail — **R26**. |
-| Minutes (U05) | `minutes.manage` | INSERT: **`is_active_group_member`** floor |
-| Constitution (U06) | `useGroup().isAdmin` | INSERT/UPDATE: **`is_group_admin`** |
-| Relief claim (U07) | Any member on My Relief | INSERT: **`is_active_group_member`** |
-| Projects (U08/R02) | `isAdmin` | INSERT/DELETE: **`is_group_admin(projects.group_id)`** after lookup |
-| Avatars (U09–U12, R03–R05) | self / `settings.manage` | **Unchanged uid policies** |
+### 12 uploads
 
-**Do not rewrite `is_group_member`.** SELECT continues to use it (status-blind), matching live SELECT.
+| ID | File | Bucket / grammar | UI / code floor | Browser vs server | RLS write freeze |
+|----|------|------------------|-----------------|-------------------|------------------|
+| U01 | `pay-now-dialog.tsx` | receipts / UUID-first | any member; no PermissionGate | browser | INSERT: `is_active_group_member(gid)` |
+| U02 | `contributions/record/page.tsx` | receipts / UUID-first | `RequirePermission` `finances.record` \| `finances.manage` | browser | INSERT: `has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')` — **preserves UI floor** (not mere active member) |
+| U03 | `my-fines/page.tsx` | receipts / dispute-docs | any member | browser | INSERT: `is_active_group_member(gid)` |
+| U04 | `documents/page.tsx` | gdocs / UUID-first; **upsert** | `hasPermission('documents.manage')` | browser | INSERT+UPDATE: `has_group_permission(gid,'documents.manage')` |
+| U05 | `minutes/page.tsx` | gdocs / minutes | `hasPermission('minutes.manage')` | browser | INSERT: `has_group_permission(gid,'minutes.manage')` |
+| U06 | `constitution/page.tsx` | gdocs / constitutions; **upsert** | `useGroup().isAdmin` (role owner/admin) | browser | INSERT+UPDATE: `is_group_admin(gid)` |
+| U07 | `relief/my/page.tsx` | gdocs / relief-claims | any member | browser | INSERT: `is_active_group_member(gid)` |
+| U08 | `projects/page.tsx` | gdocs / projects | `useGroup().isAdmin` | browser | INSERT: lookup project → `is_group_admin(projects.group_id)` |
+| U09–U11 | profile + onboarding ×2 | avatars / uid-first | self | browser | **OUT OF SCOPE** |
+| U12 | `settings/page.tsx` | avatars / group-logos | `settings.manage` | browser | **OUT OF SCOPE** |
 
-Pending / exited users lose **writes** they only had via fail-open or status-blind member checks. That is intended alignment with Cut 1 for **operational writes**.
+### 6 removes
+
+| ID | File | RLS delete freeze |
+|----|------|-------------------|
+| R01 | `documents/page.tsx` (`documents.manage` UI) | `is_group_admin(gid)` — **live parsed DELETE already admin**; safer than widening to `documents.manage`. Non-admin officers: **R26 tracked**. |
+| R02 | `projects/page.tsx` (`isAdmin` UI) | lookup → `is_group_admin(projects.group_id)` |
+| R03–R05 | avatars (profile ×2 sites, onboarding member, onboarding group) | **OUT OF SCOPE** (uid policy) |
+
+R03 counts as two `remove` sites in one file (photo remove + replace). Inventory still **6** remove **call sites**.
+
+### 8 direct `createSignedUrl` + helper consumers
+
+| ID | File | Bucket | Privileged? | Auth before sign |
+|----|------|--------|-------------|------------------|
+| S01 | `storage-urls.ts` `signedUrlFor` | typed receipts \| gdocs | **NO** — browser client passed in | Fail-closed **SELECT** RLS. Callers: `history/page.tsx` (UI `finances.manage` for *actions*, but **any member** can open a receipt), `my-payments/page.tsx` (own payments). SELECT freeze: `is_group_member` on canonical path. |
+| S02 | `documents/page.tsx` after upload | gdocs | NO | SELECT after INSERT |
+| S03 | `documents/page.tsx` download fallback | gdocs | NO | SELECT; `documents.manage` not required to download |
+| S04 | `minutes/page.tsx` | gdocs | NO | SELECT |
+| S05 | `constitution/page.tsx` | gdocs | NO | SELECT |
+| S06 | `relief/my/page.tsx` | gdocs | NO | SELECT |
+| S07 | `projects/page.tsx` | gdocs | NO | SELECT via **project lookup** + `is_group_member(projects.group_id)` |
+| S08 | `my-fines/page.tsx` | receipts | NO | SELECT |
+
+**Privileged / service_role signing: none found.** If a later path adds service-role sign, it is **forbidden** until a server-side authz check (not browser path alone) is frozen. Not in this cut.
+
+Unknown signed-URL callers: **0**.
+
+### Helper op mapping (inside bucket helpers)
+
+| Grammar | select | insert / update | delete |
+|---------|--------|-----------------|--------|
+| UUID-first receipts | `is_group_member` | **cannot distinguish U01 vs U02 from path alone** — freeze **union**: `is_active_group_member OR has_group_permission(finances.record) OR has_group_permission(finances.manage)`. Both U01 and U02 satisfy this. Cross-tenant still DENY. |
+| dispute-docs | `is_group_member` | `is_active_group_member` | `is_group_admin` |
+| UUID-first gdocs | `is_group_member` | `has_group_permission(documents.manage)` | `is_group_admin` |
+| minutes | `is_group_member` | `has_group_permission(minutes.manage)` | `is_group_admin` |
+| constitutions | `is_group_member` | `is_group_admin` | `is_group_admin` |
+| relief-claims | `is_group_member` | `is_active_group_member` | `is_group_admin` |
+| projects | `is_group_member(projects.group_id)` | `is_group_admin(projects.group_id)` | `is_group_admin(projects.group_id)` |
+
+Receipts UUID-first INSERT union is **SAFER** than live fail-open and **does not weaken** U02’s UI (officer still needs `finances.*` in the page). A non-officer active member **can** INSERT a UUID-first receipt (Pay Now). That is required by U01.
 
 ---
 
-## R10 — Caller inventory complete
-
-See `S0_CUT3_STORAGE_CALLER_INVENTORY_20260912.json`.
+## R10 — Caller counts
 
 | Class | Count | Unknown |
 |-------|-------|---------|
-| Upload call sites | 12 | **0** |
-| Remove call sites | 6 | **0** |
+| Upload | 12 | **0** |
+| Remove | 6 | **0** |
 | Direct `createSignedUrl` | 8 | **0** |
-| `signedUrlFor` displays | 2 | **0** |
+| `signedUrlFor` consumers | 2 (via S01) | **0** |
 | `download` | 1 | **0** |
-| `getPublicUrl` (avatars only) | 4 | **0** |
+| Privileged signers | 0 | **0** |
 | `createSignedUrls` / `move` / `copy` / `list` / storage `.update` | 0 | n/a |
 
-**HOLD:** none.  
-False positives excluded: `SendReviewContext "receipts"`; PostgREST `.update()`.
+---
+
+## R11 — Avatars **OUT OF SCOPE** (proof)
+
+- Write policies: `foldername[1] = auth.uid()::text` — **no** v1/v2, **no** `NULL OR`.
+- SELECT: `"Anyone can view avatars"` / public bucket — not group-path.
+- Live objects: 6 × 2-seg uuid-first.
+- Cut 3 **must not** alter avatars policies, helpers, or grants.
 
 ---
 
-## R11 — Avatars classification
+## R12 — Future 00116 (name only — do not author)
 
-Write policies: `foldername[1] = auth.uid()::text`.  
-Live objects: 6, all 2-seg, seg1 uuid-shaped.
+`00116_s0_p0c_cut3_storage_path_fail_closed.sql`
 
-**NOT AFFECTED** by group-path fail-open. Still inventoried.
+Later (not this PR):
 
-`group-logos/{groupId}/…` (settings) does **not** satisfy the uid first-segment rule. Chief counts show **no** 3-seg avatar objects. Pre-existing caller/policy mismatch — **R26**. Cut 3 must **not** open avatars or rewrite this to `logos/` on `group-documents`.
-
----
-
-## R12 — Future migration (name only)
-
-**Filename (do not create now):** `00116_s0_p0c_cut3_storage_path_fail_closed.sql`
-
-Expected **later** contents (planning, not authored):
-
-1. Create `storage_group_object_write_allowed` (B) with regex-guarded grammars + projects lookup + `search_path ''`.
-2. `DROP POLICY` / `CREATE POLICY` for the six gdocs/receipts write policies — fail-closed B predicate; `TO authenticated`.
-3. **Do not** replace SELECT policies.
-4. **Do not** replace avatars policies.
-5. **Do not** `CREATE OR REPLACE` `is_group_member`.
-6. **Do not** touch `notifications_queue` / `enqueue_outbound_notification` / `00115`.
-7. Dashboard-only header (storage schema), re-runnable `DROP POLICY IF EXISTS` before each `CREATE POLICY` (same lesson as `00112`).
-8. No `UPDATE storage.objects`. No bucket `public` flips.
+1. `CUT3_ABORT` preflight (R23).
+2. Create both bucket helpers (R3).
+3. **One transaction:** drop+create **all eight** policies to the target shape.
+4. Keep v1/v2 functions; stop calling them from these policies.
+5. No avatars / queue / `00001`–`00115` edits.
+6. Dashboard-only (storage schema).
+7. No object rewrite (R14).
 
 ---
 
 ## R13 — Live object shapes (sanitized)
 
-| Bucket | n | Shapes |
-|--------|---|--------|
-| avatars | 6 | all 2-seg, seg1 uuid-shaped |
-| group-documents | 25 | 5× 2-seg uuid-first; 20× 3-seg non-uuid-first |
-| receipts | 3 | all 2-seg uuid-first |
+Unchanged Chief counts: avatars 6 (2-seg uuid); gdocs 25 (5×2-seg uuid-first, 20×3-seg non-uuid-first); receipts 3 (2-seg uuid-first). No names.
 
-No names, no filenames. Prefix breakdown of the 20× 3-seg gdocs objects was **not** provided — do not invent (`minutes` / `constitutions` / `projects` / `logos` are all 3-seg compatible). Implementation rehearsal classifies prefixes without logging object names.
+After SELECT fail-closed: unparsed 3-seg prefixes among the 20 become **unreadable** unless they match `minutes` / `constitutions` / `projects` (with live project row). Rehearsal must classify **prefix tokens only** (no filenames). If an unknown prefix exists, **CUT3_ABORT or Daybreak HOLD** before prod apply — do not invent a fallback.
 
 ---
 
 ## R14 — No data cleanup / rename / move
 
-Cut 3 **must not**:
-
-- rename, move, or delete existing objects;
-- backfill paths to a new grammar;
-- “fix” UUID-first objects by rewriting them to `category/{groupId}/…`.
-
-Existing UUID-first keys become **correctly authorized** once B accepts that grammar. Existing `projects/{projectId}/…` objects stay; **writes** use lookup; **reads** stay on current SELECT.
+Unchanged. Existing UUID-first keys stay; they become correctly authorized. Existing `projects/{id}/…` stay; SELECT/writes use lookup.
 
 ---
 
-## R15 — Invalid UUID is FALSE, not exception
+## R15 — Signed URL contract
 
-v1 `NULLIF(seg,'')::uuid` is unsafe. Cut 3 write helper **must** regex-guard (same spirit as v2):
+See `S0_CUT3_STORAGE_SIGNED_URL_MATRIX_20260912.json`.
+
+- Authority: **fail-closed SELECT** on the private bucket.
+- All current signers: **browser JWT** via `createClient()`.
+- `signedUrlFor` accepts a caller-supplied `SupabaseClient` but every consumer passes the browser client.
+- `EXPORT_EXPIRY_SECONDS` is unused by app callers (helper export only).
+- `normaliseObjectPath` strips `/object/public/{bucket}/` and `/object/sign/{bucket}/` — after strip, the remainder must still be a canonical **literal** (R18). A normalised garbage key **DENY**.
+- **No real private object was signed in this planning task.**
+
+---
+
+## R16 — Invalid UUID / arity
+
+Same as before: regex-guard; no `::uuid` exception. Extra/missing segments **DENY**. Membership UUID in relief/dispute: shape-check only; tenant is **group** (or project→group).
+
+---
+
+## R17 — Projects lookup
 
 ```
-^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+foldername[1] = 'projects'                    -- exact lowercase
+foldername[2] ~ uuid-regex
+foldername[3] IS NULL                         -- file is storage.filename, not a third folder
+filename non-empty and not '.' / '..'
+EXISTS (
+  SELECT 1 FROM public.projects p
+  WHERE p.id = foldername[2]::uuid            -- only after regex
+    AND p.group_id IS NOT NULL                -- column is NOT NULL
+    AND <auth>(p.group_id)                    -- per op (R9)
+)
 ```
 
-Guard and cast in the **same** branch. Disposable test: `logos/not-a-uuid/x` ⇒ policy **DENY**, SQLSTATE **not** `22P02`.
+Missing project → **FALSE**. Do **not** add `projects` to v1’s unguarded cast list.
 
 ---
 
-## R16 — Missing / extra / ambiguous segments
+## R18 — Encoding / collision matrix (complete)
 
-Arity is part of the grammar, not “best effort”:
+Evaluate the **stored `storage.objects.name` literal** (what RLS sees). If it cannot be proven canonical **without decoding to a different segment tree**, **DENY**.
 
-- `minutes/{uuid}` with no file token → DENY  
-- `minutes/{uuid}/a/b` → DENY  
-- First segment both “looks like” a prefix via substring → DENY (equality only)
+| Input class | Decision | Reason |
+|-------------|----------|--------|
+| Exact frozen grammar, lowercase prefix, regex UUID, correct arity, non-empty file | **VALID CANONICAL** | Code writers |
+| Leading `/` | **DENY** | empty first segment |
+| Trailing `/` | **DENY** | empty filename |
+| Double `//` | **DENY** | empty segment |
+| Empty segment (`minutes//file`) | **DENY** | |
+| Empty filename | **DENY** | |
+| Single segment (`{uuid}` or `minutes`) | **DENY** | no frozen 1-seg grammar |
+| Extra folders beyond frozen arity | **DENY** | |
+| Literal `%2F` or `%2f` in a segment | **DENY** | cannot prove it is not a hidden slash; default DENY |
+| Encoded backslash (`%5C`) | **DENY** | |
+| Encoded dot / uuid percent-escapes that are not a literal regex UUID | **DENY** | UUID segment must match regex on the **literal** |
+| Mixed-case prefixes (`Minutes`, `PROJECTS`) | **DENY** | code uses lowercase only |
+| UUID hex mixed case | **VALID** if regex `[0-9a-fA-F]` matches (v2 already allows) | |
+| `.` or `..` as a segment or filename | **DENY** | |
+| Unicode slash lookalikes (U+2215, U+2044, U+FF0F, …) | **DENY** | not ASCII `/` separators |
+| Backslash `\` | **DENY** | not a foldername separator we trust |
+| `logos/…` on either private bucket | **DENY** | no current writer; not receipts grammar |
+| `group-logos/…` on private buckets | **DENY** | avatars-only caller; exact token ≠ `logos` |
+| `LIKE '%uuid%'` / `LIKE 'minutes%'` | **FORBIDDEN in SQL** | R18 collision |
 
-Membership UUID in relief/dispute paths is **shape-checked** (regex UUID). Cut 3 does **not** require `memberships.id` ownership match in RLS unless Daybreak adds it; UI already binds `currentMembership.id`. Cross-tenant attack is stopped by **group** authorization on seg2.
-
----
-
-## R17 — Projects lookup (existing path, not a new path)
-
-`projects/{projectId}/{file}` cannot use v1/v2 group parse.
-
-B helper branch (frozen):
-
-1. `foldername[1] = 'projects'` (exact);
-2. `foldername[2]` regex UUID;
-3. no extra folder segment;
-4. `EXISTS (SELECT 1 FROM public.projects p WHERE p.id = <uuid> AND <auth>(p.group_id))`;
-5. missing project → **FALSE**.
-
-Do not add `projects` to v1’s unguarded `::uuid` list (would treat project id as group id — wrong allow or wrong deny).
-
----
-
-## R18 — Collision / prefix safety
-
-**Forbidden in 00116:**
-
-- `name LIKE '%uuid%'`
-- `name LIKE 'minutes%'` / `logo%` / `project%`
-- `position('@' || name)` hacks
-- Casting any segment that failed the regex
-
-**Required:** `storage.foldername(p_name)[1] = '<token>'` or `IN (exact list)`.  
-`logos` ≠ `group-logos`. `projects` ≠ `project`.
+No `LIKE` / substring prefix match.
 
 ---
 
-## R19 — Disposable RLS test matrix (writes)
+## R19 — Disposable RLS (writes) — authenticated A/B on `storage.objects`
 
-Rehearse on a **disposable** project/branch DB. Never first-apply on prod. No real member names/files in logs.
+**Not** helper-only unit tests. Two authenticated JWTs (A = G1 actor, B = G2 or non-member). Exercise real `storage.from().upload/update/remove`.
 
-Roles to seed: anon; authenticated no membership; active member G1; pending/exited G1; active owner/admin G1; active member G2; treasurer-equivalent active member (not admin) G1.
+Keep D01–D24 from revision 1 **except**:
+
+- D02 record-payment path: officer A with `finances.record` ALLOW; active member **without** that permission ALLOW only as Pay Now (same UUID-first grammar — cannot path-distinguish; accept union).
+- D08 minutes: require `minutes.manage` (or owner / unassigned admin).
+- D18 documents upsert: require `documents.manage`.
+- **D18-neg:** active member without `documents.manage` upsert UUID-first gdocs → **DENY**.
+
+Add Daybreak cases:
 
 | # | Case | Expect |
 |---|------|--------|
-| D01 | Non-member INSERT `{G1}/{file}` on receipts | DENY |
-| D02 | Active member G1 INSERT `{G1}/{file}` receipts | ALLOW |
-| D03 | Active member G1 INSERT `{G2}/{file}` receipts | DENY |
-| D04 | Pending/exited G1 INSERT `{G1}/{file}` | DENY |
-| D05 | Anon INSERT any | DENY |
-| D06 | INSERT `logos/not-a-uuid/x` | DENY, no `22P02` |
-| D07 | INSERT `garbage/foo` | DENY |
-| D08 | INSERT `minutes/{G1}/{file}` as active member | ALLOW |
-| D09 | INSERT `minutes/{G1}/a/b` | DENY |
-| D10 | INSERT `constitutions/{G1}/{file}` as non-admin member | DENY |
-| D11 | INSERT `constitutions/{G1}/{file}` as admin | ALLOW |
-| D12 | INSERT `relief-claims/{G1}/{mem}/{file}` active member | ALLOW |
-| D13 | INSERT `dispute-docs/{G1}/{mem}/{file}` active member | ALLOW |
-| D14 | INSERT `projects/{randomUuid}/{file}` | DENY |
-| D15 | INSERT `projects/{existingProjectG1}/{file}` as admin G1 | ALLOW |
-| D16 | Same as D15 as non-admin member G1 | DENY |
-| D17 | UPDATE `{G1}/{file}` as non-member | DENY |
-| D18 | UPDATE `{G1}/{file}` as active member (vault upsert) | ALLOW |
-| D19 | DELETE `{G1}/{file}` as non-admin | DENY |
-| D20 | DELETE `{G1}/{file}` as admin G1 | ALLOW |
-| D21 | DELETE v1-NULL garbage path as authenticated | DENY (closes live fail-open delete) |
-| D22 | Avatars INSERT `{ownUid}/x` | ALLOW (regression) |
-| D23 | Avatars INSERT `{otherUid}/x` | DENY (regression) |
-| D24 | Empty name INSERT | DENY |
+| D25 | B SELECT/sign `{G1}/{file}` receipts | **DENY** |
+| D26 | B SELECT/sign `projects/{P1}/{file}` (P1 in G1) | **DENY** |
+| D27 | A (member G1) SELECT `projects/{P1}/{file}` | **ALLOW** (`is_group_member`) |
+| D28 | Authenticated SELECT `garbage/foo` | **DENY** (NULL parse gone) |
+| D29 | Authenticated SELECT unknown grammar | **DENY** |
+| D30 | INSERT/SELECT `minutes/not-a-uuid/x` | **DENY**, no `22P02` |
+| D31 | Pending G1 INSERT `{G1}/{file}` | **DENY** |
+| D32 | Suspended G1 INSERT | **DENY** |
+| D33 | Exited G1 INSERT | **DENY** |
+| D34 | Archived G1 INSERT | **DENY** |
+| D35 | Pending G1 SELECT `{G1}/{file}` if membership row exists | **ALLOW** (`is_group_member`) |
+| D36 | UPDATE: OLD canonical G1, NEW `{G2}/{file}` | **DENY** (WITH CHECK) |
+| D37 | UPDATE: OLD garbage, NEW canonical | **DENY** (USING) |
+| D38 | UPDATE: both canonical same group, actor authorized for update | **ALLOW** |
+| D39 | Encoding rows from R18 (leading slash, `%2F`, `Minutes/`, `..`) INSERT | **DENY** each |
+| D40 | service_role EXECUTE of new helpers | **denied** (no grant) |
 
 ---
 
-## R20 — Disposable RLS test matrix (reads + upsert coupling)
+## R20 — Disposable RLS (SELECT / sign / upsert)
 
 | # | Case | Expect |
 |---|------|--------|
-| R01 | Active member G1 `createSignedUrl` on `{G1}/{file}` receipts | ALLOW (SELECT unchanged / v2) |
-| R02 | Non-member `createSignedUrl` on `{G1}/{file}` | DENY if v2 parses (unchanged) |
-| R03 | Authenticated `createSignedUrl` on `projects/{id}/{file}` | **Unchanged** — v2 NULL still allows authenticated SELECT |
-| R04 | Anon SELECT private buckets | DENY (unchanged) |
-| R05 | Constitution upsert (INSERT then UPDATE same key) as admin | both succeed |
-| R06 | Documents upsert as active member | INSERT+UPDATE succeed; SELECT for sign succeeds |
-| R07 | Avatars public SELECT | unchanged |
-| R08 | Confirm SELECT policies still named `receipts_select_group` / `gdocs_select_group` with v2 + NULL OR member | no drift |
-
-R03 is **not** a Cut 3 write bug. Closing project **reads** is a later cut.
-
----
-
-## R21 — Helper / grant hygiene
-
-Write helper(s):
-
-- `SECURITY DEFINER`
-- `SET search_path TO ''`
-- Qualify `public.memberships`, `public.projects`, `storage.foldername`
-- `REVOKE ALL FROM PUBLIC, anon`
-- `GRANT EXECUTE TO authenticated` (policies run as invoker but call the helper)
-- Do **not** grant to `anon`
-- Do **not** put the helper in a shape that browsers can use to enumerate groups (boolean on a caller-supplied path only)
-
-Do not change grants on `is_group_member` / Cut 1 helpers except to **call** them.
+| R01 | A `createSignedUrl` `{G1}/{file}` receipts | ALLOW |
+| R02 | B `createSignedUrl` `{G1}/{file}` | DENY |
+| R03 | A `createSignedUrl` `projects/{P1}/{file}` | ALLOW |
+| R04 | B `createSignedUrl` `projects/{P1}/{file}` | DENY |
+| R05 | Anon SELECT / sign | DENY |
+| R06 | Constitution upsert as admin (INSERT+UPDATE+SELECT) | ALLOW |
+| R07 | Documents upsert without `documents.manage` | DENY |
+| R08 | Avatars public SELECT / uid write | **unchanged** |
+| R09 | Confirm none of the eight policies reference v1/v2 | pass |
+| R10 | Confirm v1/v2 functions still **exist** | pass |
 
 ---
 
-## R22 — Exception path is a defect
+## R21 — Grants (repeat)
 
-Any write policy that can surface `22P02` (or other cast errors) **fails Cut 3**. Disposable D06 is mandatory. Implementation must wrap the helper so unexpected errors are not required for deny (helper itself must not raise on bad text).
-
----
-
-## R23 — Existing objects after apply
-
-| Shape | Write after Cut 3 | Read after Cut 3 |
-|-------|-------------------|------------------|
-| UUID-first receipts/gdocs | member/admin per R8–R9 (no longer world-writable) | unchanged v2 member read |
-| 3-seg category (`minutes` / `constitutions` / …) | same as today when v1 parsed, plus active/admin freeze | unchanged |
-| `projects/{projectId}/…` | admin of looked-up group only | unchanged authenticated fallback |
-| Unknown 3-seg prefix among the 20 | new writes DENY; UPDATE/DELETE DENY | unchanged if v2 NULL |
-| Avatars 2-seg uid | unchanged | unchanged |
-
-No cleanup job.
+`REVOKE ALL ON FUNCTION … FROM PUBLIC, anon, service_role;`  
+`GRANT EXECUTE … TO authenticated;`  
+Owner `postgres` retains execute.  
+No `p_uid` argument.
 
 ---
 
-## R24 — Rollout sequence
+## R22 — Exceptions
 
-1. **This PR:** Daybreak review of R1–R26. Docs only.
-2. **After PASS:** dedicated implementation branch from latest `main` (not this planning branch).
-3. Author `00116_s0_p0c_cut3_storage_path_fail_closed.sql` as **dashboard-only** reference SQL (do not `apply_migration` to prod from MCP).
-4. Disposable DB: apply 00116, run R19–R20, record sanitized results.
-5. Daybreak implementation PASS.
-6. Operator pastes 00116 into **prod Dashboard SQL Editor** (storage schema).
-7. Smoke: Pay Now, record payment, documents upsert, minutes, constitution, relief, project attach/delete, avatar upload, receipt `signedUrlFor`, Cut 2 drain still healthy.
-8. **No** app path rewrite in the same change-set unless Daybreak rejects projects lookup (then a **separate** app PR — not a silent rename of live objects).
+`22P02` or any raise inside the helpers **fails Cut 3**. Helpers catch nothing by swallowing security errors into TRUE. Invalid input → **FALSE** only.
 
-Cut 3 SQL-only is sufficient **if** B includes the projects lookup. That is the frozen default (R17) so UI is not lost (R26).
+---
+
+## R23 — `CUT3_ABORT` preflight (exact)
+
+Before replacing policies, **one** preflight. Any mismatch → `RAISE EXCEPTION 'CUT3_ABORT: …'` (not NOTICE+skip).
+
+1. Cut 2 present: `schema_migrations` contains `00115_s0_p0b_cut2_notification_queue` (or live version name equivalent — **30** migrations, Cut 2 live per Chief).
+2. `storage.buckets`: `receipts.public = false` AND `group-documents.public = false`.
+3. All **eight** policy names exist on `storage.objects` with exact **cmd**, **roles = {authenticated}**, **permissive**, and exact live **USING / WITH CHECK** as R1 (UPDATE WITH CHECK null/absent).
+4. `public.storage_path_group_id` and `public.storage_path_group_id_v2` exist; owner **postgres**; **not** DEFINER; `pg_get_functiondef` / prosrc md5 equals the **live** snapshot taken at rehearsal (planning reconstructed hashes are **not** sufficient alone).
+5. `is_active_group_member`, `is_group_admin`, `has_group_permission` exist; owner **postgres**; DEFINER; `search_path` includes `''`.
+6. New helpers **`storage_group_documents_authorized`** and **`storage_receipts_authorized` absent** before create (or replace only after abort checks).
+7. `public.projects.id` uuid PK exists; `public.projects.group_id` uuid **NOT NULL**.
+8. Avatars write policies still uid-first (regression pin).
+
+Then **atomic one-transaction** replace of **all eight** policies. Partial apply is a defect.
+
+---
+
+## R24 — Rollout
+
+1. Daybreak PASS this revision (docs only).  
+2. Later implementation branch; author 00116; disposable A/B RLS; Daybreak implementation PASS.  
+3. Dashboard paste, one transaction.  
+4. Smoke: Pay Now, record payment, vault, minutes, constitution, relief, projects attach/sign/delete, history/my-payments `signedUrlFor`, avatars, Cut 2 drain.  
+5. No ASTRA / UI work in Cut 3.
 
 ---
 
 ## R25 — Cut 2 non-regression
 
-`00116` / Cut 3 implementation **must not**:
-
-- edit `00115` or any `00001`–`00115` file;
-- alter `notifications_queue`, `enqueue_outbound_notification`, drain cron, channel routers;
-- change invitation `redirectTo` / onboarding redirect / SMS Africa-only rules.
-
-Static proof later: `git diff` file list ⊆ new `00116` + optional later tests. This planning PR already touches **only** `docs/**`.
+Unchanged: no edits to `00115`, queue, drain, producers, invitation/onboarding/SMS rules.
 
 ---
 
-## R26 — UI / UX TRACKED / NOT LOST
+## R26 — UI/UX EXCELLENCE TRACK
 
-Every current storage UX is listed. Cut 3 must not drop a workflow without an explicit Daybreak exception.
+**State exactly:** **UI/UX EXCELLENCE TRACK: ACTIVE / DEFERRED BY S0 GATE, NOT CANCELLED.**  
+**Next UX gate:** ASTRA fresh design-system + IA review.  
+**No UI work now.**
 
-| UX | After fail-closed writes | Lost? |
-|----|--------------------------|-------|
-| Member Pay Now receipt | Active member, UUID-first grammar | **Kept** |
-| Officer record-payment receipt | Active member floor; `finances.*` UI | **Kept** (not admin-only RLS) |
-| Dispute attachment | Active member, `dispute-docs/…` | **Kept** |
-| Document vault upload/upsert | Active member floor; `documents.manage` UI | **Kept** |
-| Document vault delete | `is_group_admin` (already live when parsed) | **Tracked:** `documents.manage` non-admin may already fail object delete; fail-open UUID-first delete **closes** |
-| Document download / sign | SELECT unchanged | **Kept** |
-| Minutes attachment | Active member floor; `minutes.manage` UI | **Kept** |
-| Constitution file + upsert | `is_group_admin` | **Kept** for admins; **tighter** than live member-parse (UI was already admin) |
-| Relief claim doc | Active member | **Kept** |
-| Project attach/delete | Lookup + `is_group_admin` | **Kept** for admins; **not** lost if R17 ships in 00116 |
-| Receipt history / my-payments viewers | `signedUrlFor` + SELECT | **Kept** |
-| Avatar photo upload/remove | Unchanged | **Kept** |
-| Group logo in settings | Unchanged avatars policy; path `group-logos/…` already mismatches uid rule; **0** live 3-seg avatar objects | **Tracked pre-existing** — not a Cut 3 regression; do not “fix” by opening group-path writes |
-| Translated `uploadFailed` | Storage RLS deny still maps to existing client errors | **Kept** (no raw SQL in UI) |
+Functional non-loss (security gate, not visual polish):
 
-If Daybreak rejects the projects lookup, project upload/delete becomes a **known break** and this R26 row must be re-opened as HOLD before apply.
-
----
-
-## Out of scope (explicit)
-
-- Cut 2 / notification queue / `00115`
-- Cut 1 helper body of `is_group_member`
-- SELECT fail-closed / cross-tenant read of unparsed keys
-- Avatars policy redesign / group-logo path repair
-- Object migration, filename normalization, MIME/size changes
-- App code path rewrites
-- Authoring or applying `00116`
-- Production SQL / Storage API
+| UX | After fail-closed 8 policies | Lost? |
+|----|------------------------------|-------|
+| Pay Now receipt | Active member INSERT; member SELECT | Kept |
+| Record-payment receipt | `finances.record`\|`manage` INSERT | Kept (stronger than rev1 floor) |
+| Dispute attach + sign | Active INSERT; member SELECT | Kept |
+| Vault upload/upsert | `documents.manage` | Kept |
+| Vault delete | `is_group_admin` | Tracked: `documents.manage` non-admin |
+| Vault download / sign | member SELECT | Kept for members; **non-members lose** unparsed-key reads |
+| Minutes attach | `minutes.manage` INSERT; member SELECT | Kept |
+| Constitution | `is_group_admin` write; member SELECT | Kept |
+| Relief | Active INSERT; member SELECT | Kept |
+| Projects attach/sign/delete | lookup + admin write / member SELECT | Kept; **non-members lose** world-readable project files (intended) |
+| History / my-payments viewers | `signedUrlFor` + member SELECT | Kept for members |
+| Avatars / settings logo | unchanged | Tracked pre-existing logo mismatch |
+| ASTRA visual / IA | **Deferred, not cancelled** | — |
 
 ---
 
-## Success criteria for **this** PR
+## Out of scope
 
-- [x] Branch from `1f1221eeb9207b692a7e507ae95acfc9aabac113`
-- [x] Docs + evidence only
-- [x] Full R1–R26
-- [x] Unknown upload callers = 0
-- [x] UPDATE/DELETE included as same boundary
-- [x] Strategy B frozen
-- [x] Draft PR: PLANNING ONLY; NO IMPLEMENTATION; NO 00116; production mutation ZERO; Daybreak review next
+- Authoring / applying `00116`
+- App / test / SQL under `src/`, `scripts/`, `supabase/migrations/`
+- Cut 2 / Cut 1 `is_group_member` rewrite
+- Avatars policy redesign
+- Object moves
+- ASTRA UI
+- Production Storage API / real signing
 
 ---
 
-## Recommended Daybreak checklist
+## Success criteria (this revision)
 
-1. Confirm fail-open INSERT/UPDATE/DELETE as stated (Chief).  
-2. Accept Strategy B + projects lookup (or formally HOLD projects UX).  
-3. Accept per-workflow active-member vs admin table (R9).  
-4. Confirm SELECT left alone.  
-5. Confirm avatars out of write scope.  
-6. Authorize a **later** implementation PR to create `00116` — not this PR.
+- [x] Docs-only on PR **#79**, draft stays open  
+- [x] Parent `e8e79e8…`  
+- [x] A–H closed  
+- [x] Helpers named, owner `postgres`, grants frozen (`service_role` **NO**)  
+- [x] Signed-URL unknown = 0  
+- [x] Eight policy names frozen  
+- [x] No 00116 / app code  

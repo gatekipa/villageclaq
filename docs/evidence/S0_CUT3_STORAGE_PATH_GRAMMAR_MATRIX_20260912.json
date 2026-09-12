@@ -2,6 +2,8 @@
   "artifact": "S0_CUT3_STORAGE_PATH_GRAMMAR_MATRIX_20260912",
   "date": "2026-09-12",
   "status": "FROZEN_PLANNING_ONLY",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R2",
+  "previous_planning_sha": "e8e79e8d2fda9bfdf29277dd2bca835610b2c366",
   "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
   "rule": "Grammars frozen from actual caller source at this SHA. No invented prefixes. Parser allow-lists from Chief live v1 / repo v2 are recorded separately from caller grammars.",
   "production_mutation": "ZERO",
@@ -111,24 +113,26 @@
       "fail_closed_must_accept_if_authorized": true
     },
     {
-      "grammar_id": "G-PROJECTS-PROJECTID-FIRST",
+      "grammar_id": "G-PROJECTS",
       "bucket": "group-documents",
-      "pattern": "projects/{projectId}/{ts}-{filename}",
+      "pattern": "projects/{projectId}/{file-or-approved-subpath}",
+      "approved_subpath_from_code": "exactly one file token `{ts}-{filename}` — no extra folders",
       "segment_count": 3,
-      "seg1": "literal projects",
-      "seg2": "project uuid (NOT group uuid)",
-      "seg3": "file token",
+      "seg1": "literal projects (exact lowercase)",
+      "seg2": "project uuid (NOT group uuid) — security id",
+      "seg3": "file token (storage.filename)",
       "callers": [
         "src/app/[locale]/(dashboard)/dashboard/projects/page.tsx"
       ],
       "v1_parse": "NULL (projects not in v1 category list)",
       "v2_parse": "NULL (projects not in v2 category list; first segment is not uuid)",
       "group_id_in_path": false,
-      "group_id_resolution": "MUST look up public.projects.group_id WHERE projects.id = projectId. Do not treat projectId as groupId.",
-      "table_evidence": "supabase/migrations/00010_stickiness_features.sql — projects.group_id UUID NOT NULL",
+      "security_id": "PROJECT ID",
+      "group_id_resolution": "public.projects.id = projectId → projects.group_id (uuid NOT NULL) → actor auth in THAT group. Never treat projectId as groupId. Missing project → DENY.",
+      "table_evidence": "Chief: projects.group_id uuid NOT NULL. Repo 00010_stickiness_features.sql.",
       "cut3_canonical": true,
-      "fail_closed_must_accept_if_authorized": true,
-      "notes": "Fail-closed NULL-deny without a projects lookup would break this caller. Cut 3 must authorize via project row → group_id, not by inventing a new path or renaming objects (R14)."
+      "select_in_scope": true,
+      "fail_closed_must_accept_if_authorized": true
     },
     {
       "grammar_id": "G-AVATAR-UID-FIRST",
@@ -182,11 +186,17 @@
     "avatars paths as group-path writes"
   ],
   "fail_closed_segment_rules": {
-    "null_parse": "DENY",
+    "null_parse": "DENY on SELECT/INSERT/UPDATE/DELETE",
     "invalid_uuid": "DENY via regex-guard FALSE — never ::uuid exception",
     "missing_segment": "DENY",
     "extra_segment_beyond_frozen_arity": "DENY",
     "ambiguous_prefix": "DENY — exact foldername[1] equality only",
-    "unknown_prefix": "DENY on writes (no authenticated fallback)"
+    "unknown_prefix": "DENY on all four commands (no authenticated fallback)",
+    "prefixes": "exact lowercase only (minutes, constitutions, relief-claims, dispute-docs, projects)",
+    "encoding_default": "DENY if stored literal cannot prove canonical (see plan R18)"
+  },
+  "bucket_helper_grammar_isolation": {
+    "storage_receipts_authorized_allows_only": ["G-RECEIPT-UUID-FIRST", "G-DISPUTE-DOCS"],
+    "storage_group_documents_authorized_allows_only": ["G-GDOCS-UUID-FIRST", "G-MINUTES", "G-CONSTITUTIONS", "G-RELIEF-CLAIMS", "G-PROJECTS"]
   }
 }

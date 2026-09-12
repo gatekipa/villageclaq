@@ -2,7 +2,10 @@
   "artifact": "S0_CUT3_STORAGE_CALLER_INVENTORY_20260912",
   "date": "2026-09-12",
   "status": "FROZEN_PLANNING_ONLY",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R2",
+  "previous_planning_sha": "e8e79e8d2fda9bfdf29277dd2bca835610b2c366",
   "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "unknown_signed_url_callers": 0,
   "method": "Repo-wide grep of storage.from / upload / update / move / remove / createSignedUrl / createSignedUrls / download / getPublicUrl / signedUrlFor / normaliseObjectPath across src/, scripts/, tests/, supabase/. Table .update() hits excluded.",
   "unknown_upload_callers": 0,
   "unknown_upload_caller_list": [],
@@ -29,8 +32,15 @@
       "upsert": false,
       "ui_gate": "any authenticated member using Pay Now on an open obligation (no PermissionGate)",
       "workflow": "member self-serve payment proof",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": null,
+      "role_floor": null,
+      "sql_helper_write": "is_active_group_member(gid)",
+      "sql_helper_select": "is_group_member(gid)",
       "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
-      "proposed_rls_not": "is_group_admin — would break ordinary members",
+      "proposed_rls_not": "is_group_admin — would break ordinary members; is_group_member as write floor forbidden",
       "evidence": "PayNowDialog; path = `${groupId}/${Date.now()}-${receiptFile.name}`"
     },
     {
@@ -42,8 +52,14 @@
       "upsert": false,
       "ui_gate": "RequirePermission anyOf finances.record | finances.manage",
       "workflow": "officer records a payment with optional receipt",
-      "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
-      "proposed_rls_not": "is_group_admin — treasurers with finances.record may not be owner/admin",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": ["finances.record", "finances.manage"],
+      "sql_helper_write": "has_group_permission(gid,'finances.record') OR has_group_permission(gid,'finances.manage')",
+      "sql_helper_select": "is_group_member(gid)",
+      "proposed_rls_write": "INSERT: has_group_permission finances.record|manage — preserves UI floor (SAFER than active-member-only)",
+      "path_union_note": "Same UUID-first grammar as U01; helper insert union is active-member OR finances.* so Pay Now still works",
       "evidence": "path = `${groupId}/${Date.now()}-${file.name}`"
     },
     {
@@ -55,8 +71,14 @@
       "upsert": false,
       "ui_gate": "any member on My Fines / dispute dialog (no PermissionGate)",
       "workflow": "member attaches a dispute document",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": null,
+      "sql_helper_write": "is_active_group_member(gid)",
+      "sql_helper_select": "is_group_member(gid)",
       "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
-      "follow_on_read": "createSignedUrl 3600",
+      "follow_on_read": "createSignedUrl 3600 (S08)",
       "evidence": "path = `dispute-docs/${groupId}/${currentMembership.id}/${Date.now()}-${file.name}`"
     },
     {
@@ -68,8 +90,14 @@
       "upsert": true,
       "ui_gate": "hasPermission('documents.manage') — upload button hidden otherwise",
       "workflow": "document vault upload",
-      "proposed_rls_write": "INSERT+UPDATE: is_active_group_member (RLS floor). UI remains documents.manage. Do not require is_group_admin (position officers).",
-      "follow_on_read": "createSignedUrl 3600",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": "documents.manage",
+      "sql_helper_write": "has_group_permission(gid,'documents.manage')",
+      "sql_helper_select": "is_group_member(gid)",
+      "proposed_rls_write": "INSERT+UPDATE: has_group_permission(documents.manage) — preserves UI floor",
+      "follow_on_read": "createSignedUrl 3600 (S02)",
       "evidence": "filePath = `${groupId}/${Date.now()}-${selectedFile.name}`; upsert: true"
     },
     {
@@ -81,8 +109,14 @@
       "upsert": false,
       "ui_gate": "hasPermission('minutes.manage') — editor/save gated",
       "workflow": "minutes attachment on save/publish",
-      "proposed_rls_write": "INSERT: is_active_group_member (RLS floor). UI remains minutes.manage.",
-      "follow_on_read": "createSignedUrl 3600",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": "minutes.manage",
+      "sql_helper_write": "has_group_permission(gid,'minutes.manage')",
+      "sql_helper_select": "is_group_member(gid)",
+      "proposed_rls_write": "INSERT: has_group_permission(minutes.manage) — preserves UI floor",
+      "follow_on_read": "createSignedUrl 3600 (S04)",
       "evidence": "path = `minutes/${groupId}/${Date.now()}-${uploadedFile.name}`"
     },
     {
@@ -94,8 +128,15 @@
       "upsert": true,
       "ui_gate": "useGroup().isAdmin (owner/admin role)",
       "workflow": "constitution file upload",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": null,
+      "role_floor": "owner|admin via is_group_admin",
+      "sql_helper_write": "is_group_admin(gid)",
+      "sql_helper_select": "is_group_member(gid)",
       "proposed_rls_write": "INSERT+UPDATE: is_group_admin(path group id) — matches UI isAdmin",
-      "follow_on_read": "createSignedUrl 3600",
+      "follow_on_read": "createSignedUrl 3600 (S05)",
       "evidence": "path = `constitutions/${groupId}/${Date.now()}-${file.name}`; upsert: true"
     },
     {
@@ -107,8 +148,14 @@
       "upsert": false,
       "ui_gate": "any member on My Relief claim dialog (no PermissionGate)",
       "workflow": "member attaches relief claim evidence",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": null,
+      "sql_helper_write": "is_active_group_member(gid)",
+      "sql_helper_select": "is_group_member(gid)",
       "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
-      "follow_on_read": "createSignedUrl 3600",
+      "follow_on_read": "createSignedUrl 3600 (S06)",
       "evidence": "path = `relief-claims/${groupId}/${membershipId}/${Date.now()}-${file.name}`"
     },
     {
@@ -116,12 +163,19 @@
       "file": "src/app/[locale]/(dashboard)/dashboard/projects/page.tsx",
       "op": "upload",
       "bucket": "group-documents",
-      "grammar_id": "G-PROJECTS-PROJECTID-FIRST",
+      "grammar_id": "G-PROJECTS",
       "upsert": false,
       "ui_gate": "useGroup().isAdmin — upload button on ProjectDocuments",
       "workflow": "project attachment",
-      "proposed_rls_write": "INSERT: is_group_admin(projects.group_id) after lookup by projectId. Never cast projectId as groupId.",
-      "follow_on_read": "createSignedUrl 3600",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key": null,
+      "role_floor": "owner|admin via is_group_admin(projects.group_id)",
+      "sql_helper_write": "lookup projects.id → is_group_admin(projects.group_id)",
+      "sql_helper_select": "lookup projects.id → is_group_member(projects.group_id)",
+      "proposed_rls_write": "INSERT: is_group_admin(projects.group_id) after lookup. Never treat projectId as groupId. Missing project DENY.",
+      "follow_on_read": "createSignedUrl 3600 (S07)",
       "evidence": "path = `projects/${project.id}/${Date.now()}-${file.name}`"
     },
     {
@@ -176,8 +230,13 @@
       "op": "remove",
       "bucket": "group-documents",
       "ui_gate": "documents.manage",
+      "client": "browser createClient()",
+      "privileged": false,
+      "active_required_write": true,
+      "permission_key_ui": "documents.manage",
+      "sql_helper_write": "is_group_admin(gid)",
       "path_recovery": "splits legacy public URL marker /storage/v1/object/public/group-documents/ — may no-op on signed URLs (pre-existing)",
-      "proposed_rls": "DELETE: is_group_admin(path group id) — same as live when parse succeeds",
+      "proposed_rls": "DELETE: is_group_admin(path group id) — live parsed DELETE already admin (safer than widening to documents.manage)",
       "cut3": "IN_SCOPE"
     },
     {
@@ -186,8 +245,12 @@
       "op": "remove",
       "bucket": "group-documents",
       "ui_gate": "isAdmin",
+      "client": "browser createClient()",
+      "privileged": false,
+      "grammar_id": "G-PROJECTS",
+      "sql_helper_write": "lookup projects.id → is_group_admin(projects.group_id)",
       "path_recovery": "substring after /group-documents/ on stored signed/public URL",
-      "proposed_rls": "DELETE: is_group_admin(projects.group_id) after lookup",
+      "proposed_rls": "DELETE: is_group_admin(projects.group_id) after lookup; missing project DENY",
       "cut3": "IN_SCOPE"
     },
     {
@@ -220,7 +283,7 @@
       "op": "createSignedUrl",
       "via": "signedUrlFor(supabase, bucket, path)",
       "buckets": ["receipts", "group-documents"],
-      "cut3": "SELECT posture unchanged — write hardening must remain safer-or-unchanged for legitimate canonical reads"
+      "cut3": "SELECT fail-closed via storage_*_authorized(name,'select'); consumers are browser JWT only (S01)"
     },
     {
       "id": "S02",
@@ -269,7 +332,7 @@
       "file": "src/app/[locale]/(dashboard)/dashboard/projects/page.tsx",
       "op": "createSignedUrl",
       "bucket": "group-documents",
-      "cut3": "READ — v2 NULL today; do not fail-close SELECT in Cut 3"
+      "cut3": "READ IN SCOPE — project lookup + is_group_member(projects.group_id); unknown/missing project DENY"
     },
     {
       "id": "S09",

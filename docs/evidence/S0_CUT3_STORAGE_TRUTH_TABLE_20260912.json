@@ -2,15 +2,21 @@
   "artifact": "S0_CUT3_STORAGE_TRUTH_TABLE_20260912",
   "date": "2026-09-12",
   "status": "FROZEN_PLANNING_ONLY",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R2",
+  "previous_planning_sha": "e8e79e8d2fda9bfdf29277dd2bca835610b2c366",
   "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
-  "strategy": "B",
+  "strategy": "BUCKET_BOUND_HELPERS",
+  "helpers": [
+    "public.storage_group_documents_authorized(p_name text, p_operation text)",
+    "public.storage_receipts_authorized(p_name text, p_operation text)"
+  ],
   "production_mutation": "ZERO",
   "legend": {
-    "LIVE_INSERT": "gdocs/receipts INSERT WITH CHECK: (parse_v1 IS NOT NULL AND is_group_member(parse_v1)) OR parse_v1 IS NULL",
-    "LIVE_UPDATE": "NULL OR is_group_member(parse_v1)",
-    "LIVE_DELETE": "NULL OR is_group_admin(parse_v1)",
-    "LIVE_SELECT": "parse_v2 IS NULL OR is_group_member(parse_v2) — UNCHANGED in Cut 3",
-    "CUT3": "Strategy B boolean: valid frozen grammar AND authorized; NULL/invalid/extra/ambiguous ⇒ FALSE"
+    "LIVE_SELECT": "v2 IS NULL OR is_group_member(v2) — FAIL OPEN",
+    "LIVE_INSERT": "(v1 IS NOT NULL AND is_group_member(v1)) OR v1 IS NULL",
+    "LIVE_UPDATE": "USING (v1 IS NULL OR is_group_member(v1)); WITH CHECK absent",
+    "LIVE_DELETE": "v1 IS NULL OR is_group_admin(v1)",
+    "CUT3": "bucket_id literal AND storage_*_authorized(name, op); NULL/unknown/malformed/ambiguous ⇒ FALSE on select|insert|update|delete"
   },
   "rows": [
     {
@@ -20,9 +26,9 @@
       "actor": "authenticated non-member",
       "live_insert": "ALLOW (v1 NULL fail-open)",
       "cut3_insert": "DENY",
-      "live_select": "DENY if v2 parses group and actor not member; ALLOW if somehow unparsed",
-      "cut3_select": "UNCHANGED",
-      "notes": "Primary proven hole. Live receipts 3/3 and gdocs 5/25 are this shape."
+      "live_select": "DENY if v2 parses group and actor not member; ALLOW if unparsed",
+      "cut3_select": "DENY",
+      "notes": "Primary proven hole. Live receipts 3/3 and gdocs 5/25 are this shape. SELECT now fail-closed."
     },
     {
       "id": "T02",
@@ -33,7 +39,7 @@
       "cut3_insert": "ALLOW (canonical + is_active_group_member)",
       "cut3_update": "ALLOW if workflow freeze says member-write",
       "cut3_delete": "DENY unless is_group_admin",
-      "cut3_select": "UNCHANGED — v2 already parses; member can read"
+      "cut3_select": "ALLOW (is_group_member — historical read, not forced active-only)"
     },
     {
       "id": "T03",
@@ -41,8 +47,9 @@
       "bucket": "receipts|group-documents",
       "actor": "inactive / pending / exited membership row only",
       "live_insert": "ALLOW (fail-open) or ALLOW if v1 parsed and is_group_member status-blind",
-      "cut3_insert": "DENY (is_active_group_member)",
-      "notes": "Per-workflow freeze: member writes align to Cut 1 active helper"
+      "cut3_insert": "DENY (active-equivalent write)",
+      "cut3_select": "ALLOW if is_group_member (historical read — do not force active-only)",
+      "notes": "Writes DENY pending/suspended/exited/archived; SELECT may still succeed"
     },
     {
       "id": "T04",
@@ -51,7 +58,7 @@
       "actor": "authenticated non-member",
       "live_insert": "DENY if v1 returns uuid and is_group_member false; EXCEPTION if group segment not uuid (22P02)",
       "cut3_insert": "DENY (FALSE, no exception)",
-      "cut3_select": "UNCHANGED"
+      "cut3_select": "DENY"
     },
     {
       "id": "T05",
@@ -59,8 +66,9 @@
       "bucket": "group-documents",
       "actor": "active member (UI minutes.manage)",
       "live_insert": "ALLOW if v1 parses",
-      "cut3_insert": "ALLOW (canonical + is_active_group_member)",
-      "notes": "RLS floor is active member; UI remains minutes.manage"
+      "cut3_insert": "ALLOW only if has_group_permission(minutes.manage) — UI floor",
+      "cut3_select": "ALLOW (is_group_member)",
+      "notes": "Write preserves minutes.manage; SELECT not forced active-only"
     },
     {
       "id": "T06",
@@ -69,7 +77,7 @@
       "actor": "active member who is not owner/admin",
       "live_insert": "ALLOW if v1 parses (is_group_member)",
       "cut3_insert": "DENY (workflow freeze: is_group_admin to match UI isAdmin)",
-      "cut3_select": "UNCHANGED — member can still read if SELECT membership holds"
+      "cut3_select": "ALLOW (is_group_member — historical read)"
     },
     {
       "id": "T07",
@@ -104,7 +112,7 @@
       "actor": "authenticated any (no project row)",
       "live_insert": "ALLOW (v1 NULL)",
       "cut3_insert": "DENY (lookup miss ⇒ FALSE)",
-      "cut3_select": "UNCHANGED — v2 NULL still allows authenticated read (existing posture)"
+      "cut3_select": "DENY (missing project)"
     },
     {
       "id": "T11",
@@ -113,6 +121,7 @@
       "actor": "active owner/admin of projects.group_id",
       "live_insert": "ALLOW (fail-open)",
       "cut3_insert": "ALLOW via project lookup + is_group_admin",
+      "cut3_select": "ALLOW (is_group_member of projects.group_id)",
       "cut3_delete": "ALLOW same",
       "notes": "Do not treat projectUuid as groupUuid"
     },
@@ -122,7 +131,7 @@
       "bucket": "group-documents",
       "actor": "active member non-admin of that group",
       "cut3_insert": "DENY (UI isAdmin; freeze is_group_admin)",
-      "cut3_select": "UNCHANGED"
+      "cut3_select": "ALLOW (is_group_member of looked-up projects.group_id)"
     },
     {
       "id": "T13",
@@ -131,7 +140,7 @@
       "actor": "authenticated",
       "live_insert": "ERROR 22P02 (proven) — unsafe exception",
       "cut3_insert": "DENY FALSE — no exception",
-      "cut3_select": "UNCHANGED (v2 already regex-guards)"
+      "cut3_select": "DENY (malformed UUID / unknown grammar)"
     },
     {
       "id": "T14",
@@ -142,7 +151,7 @@
       "cut3_insert": "DENY",
       "cut3_update": "DENY",
       "cut3_delete": "DENY",
-      "cut3_select": "UNCHANGED (v2 NULL ⇒ authenticated read still possible)"
+      "cut3_select": "DENY (unknown grammar / NULL parse)"
     },
     {
       "id": "T15",
@@ -150,6 +159,7 @@
       "bucket": "group-documents",
       "actor": "active member",
       "cut3_insert": "DENY extra segment",
+      "cut3_select": "DENY extra segment",
       "notes": "Arity frozen per grammar"
     },
     {
@@ -157,7 +167,8 @@
       "path_shape": "minutes/",
       "bucket": "group-documents",
       "actor": "authenticated",
-      "cut3_insert": "DENY missing segments"
+      "cut3_insert": "DENY missing segments",
+      "cut3_select": "DENY missing segments"
     },
     {
       "id": "T17",
@@ -166,6 +177,7 @@
       "actor": "authenticated",
       "live_insert": "ALLOW (v1 NULL — token is group-logos not logos)",
       "cut3_insert": "DENY unknown prefix on group buckets",
+      "cut3_select": "DENY",
       "notes": "Collision safety: do not LIKE 'logo%'"
     },
     {
@@ -220,13 +232,62 @@
       "bucket": "group-documents",
       "actor": "authenticated non-member",
       "live_update": "ALLOW (NULL OR member)",
-      "cut3_update": "DENY",
-      "notes": "documents and constitution use upsert:true — need INSERT+UPDATE+SELECT. SELECT unchanged."
+      "cut3_update": "DENY USING and WITH CHECK",
+      "cut3_select": "DENY",
+      "notes": "documents and constitution use upsert:true — need INSERT+UPDATE+SELECT. All fail-closed."
     },
     {
       "id": "T24",
       "path_shape": "empty or NULL name",
-      "cut3_any_write": "DENY"
+      "cut3_any_command": "DENY"
+    },
+    {
+      "id": "T25",
+      "op": "UPDATE transition",
+      "old": "{G1}/{file}",
+      "new": "{G2}/{file}",
+      "actor": "admin G1",
+      "cut3": "DENY (WITH CHECK NEW fail-closed)"
+    },
+    {
+      "id": "T26",
+      "op": "UPDATE transition",
+      "old": "garbage/foo",
+      "new": "{G1}/{file}",
+      "actor": "authorized G1",
+      "cut3": "DENY (USING OLD fail-closed)"
+    },
+    {
+      "id": "T27",
+      "path_shape": "leading/trailing/double slash",
+      "cut3_any_command": "DENY"
+    },
+    {
+      "id": "T28",
+      "path_shape": "literal %2F or %2f in a segment",
+      "cut3_any_command": "DENY (cannot prove canonical)"
+    },
+    {
+      "id": "T29",
+      "path_shape": "Minutes/{uuid}/{file} mixed-case prefix",
+      "cut3_any_command": "DENY (exact lowercase only)"
+    },
+    {
+      "id": "T30",
+      "path_shape": ". or .. segment/filename",
+      "cut3_any_command": "DENY"
+    },
+    {
+      "id": "T31",
+      "path_shape": "unicode slash lookalike or backslash",
+      "cut3_any_command": "DENY"
+    },
+    {
+      "id": "T32",
+      "op": "SELECT/sign",
+      "path_shape": "projects/{P1}/{file}",
+      "actor": "member of other group",
+      "cut3_select": "DENY (cross-tenant signed-url)"
     }
   ]
 }

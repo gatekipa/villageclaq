@@ -1,65 +1,159 @@
 {
   "artifact": "S0_CUT3_STORAGE_LIVE_POLICY_INVENTORY_20260912",
   "date": "2026-09-12",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R2",
   "status": "FROZEN_PLANNING_ONLY",
-  "purpose": "Chief-verified live production inventory for S0 P0-C Cut 3 storage path fail-closed planning. This task did not re-query production. No production SQL was executed. No storage objects were listed, downloaded, uploaded, moved, or deleted.",
+  "previous_planning_sha": "e8e79e8d2fda9bfdf29277dd2bca835610b2c366",
+  "purpose": "Chief-verified live production inventory for S0 P0-C Cut 3. This task did not re-query production. No storage objects were listed, downloaded, uploaded, moved, deleted, or signed.",
   "production_mutation": "ZERO",
   "this_task_requery_of_live_db": false,
-  "source": "CHIEF LIVE PRODUCTION INVENTORY (READ-ONLY, proven) — copied as authoritative; do not invent different live predicates",
+  "source": "CHIEF LIVE PRODUCTION INVENTORY (READ-ONLY, proven) + Daybreak reconfirmation of 8 policy predicates",
   "pins": {
     "repo": "gatekipa/villageclaq",
     "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
-    "planning_base_is_main_tip_or_ancestor": true,
     "supabase_project": "llbnliixczcqfftxpsmb",
     "schema_migrations_count": 30,
+    "cut2_live": true,
     "future_migration_name_only_do_not_author": "00116_s0_p0c_cut3_storage_path_fail_closed.sql",
     "do_not_modify_migrations": "00001–00115",
-    "cut2_notifications_queue": "DO_NOT_TOUCH"
+    "projects_group_id": "uuid NOT NULL"
   },
-  "buckets_live": [
+  "policies_in_cut3_scope": 8,
+  "eight_live_policies_chief_reconfirmed": [
     {
-      "id": "avatars",
-      "public": true,
-      "file_size_limit_bytes": 2097152,
-      "allowed_mime_types": ["image/jpeg", "image/png", "image/webp"],
-      "cut3_group_path_fail_open": "NOT_AFFECTED",
-      "reason_not_affected": "Write policies are user-scoped: foldername[1] = auth.uid(). Group-path parser NULL OR-member predicate is not used."
+      "n": 1,
+      "name": "gdocs_select_group",
+      "cmd": "SELECT",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "using": "(bucket_id = 'group-documents' AND (storage_path_group_id_v2(name) IS NULL OR is_group_member(storage_path_group_id_v2(name))))",
+      "with_check": null,
+      "fail_open": true,
+      "cut3_target": "USING (bucket_id = 'group-documents' AND public.storage_group_documents_authorized(name, 'select'))"
     },
     {
-      "id": "group-documents",
-      "public": false,
-      "file_size_limit_bytes": 10485760,
-      "allowed_mime_types": null,
-      "cut3_group_path_fail_open": "AFFECTED_CONFIRMED"
+      "n": 2,
+      "name": "receipts_select_group",
+      "cmd": "SELECT",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "using": "(bucket_id = 'receipts' AND (storage_path_group_id_v2(name) IS NULL OR is_group_member(storage_path_group_id_v2(name))))",
+      "with_check": null,
+      "fail_open": true,
+      "cut3_target": "USING (bucket_id = 'receipts' AND public.storage_receipts_authorized(name, 'select'))"
     },
     {
-      "id": "receipts",
-      "public": false,
-      "file_size_limit_bytes": 5242880,
-      "allowed_mime_types": ["image/jpeg", "image/png", "image/webp", "application/pdf"],
-      "cut3_group_path_fail_open": "AFFECTED_CONFIRMED"
+      "n": 3,
+      "name": "gdocs_insert_group",
+      "cmd": "INSERT",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "using": null,
+      "with_check": "(bucket_id = 'group-documents' AND ((storage_path_group_id(name) IS NOT NULL AND is_group_member(storage_path_group_id(name))) OR storage_path_group_id(name) IS NULL))",
+      "fail_open": true,
+      "cut3_target": "WITH CHECK (bucket_id = 'group-documents' AND public.storage_group_documents_authorized(name, 'insert'))"
+    },
+    {
+      "n": 4,
+      "name": "receipts_insert_group",
+      "cmd": "INSERT",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "with_check": "(bucket_id = 'receipts' AND ((storage_path_group_id(name) IS NOT NULL AND is_group_member(storage_path_group_id(name))) OR storage_path_group_id(name) IS NULL))",
+      "fail_open": true,
+      "cut3_target": "WITH CHECK (bucket_id = 'receipts' AND public.storage_receipts_authorized(name, 'insert'))"
+    },
+    {
+      "n": 5,
+      "name": "gdocs_update_group",
+      "cmd": "UPDATE",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "using": "(bucket_id = 'group-documents' AND (storage_path_group_id(name) IS NULL OR is_group_member(storage_path_group_id(name))))",
+      "with_check": null,
+      "with_check_note": "Chief: WITH CHECK currently NULL/absent — MUST freeze BOTH USING+WITH CHECK fail-closed",
+      "fail_open": true,
+      "cut3_target_using": "USING (bucket_id = 'group-documents' AND public.storage_group_documents_authorized(name, 'update'))",
+      "cut3_target_with_check": "WITH CHECK (bucket_id = 'group-documents' AND public.storage_group_documents_authorized(name, 'update'))"
+    },
+    {
+      "n": 6,
+      "name": "receipts_update_group",
+      "cmd": "UPDATE",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "using": "(bucket_id = 'receipts' AND (storage_path_group_id(name) IS NULL OR is_group_member(storage_path_group_id(name))))",
+      "with_check": null,
+      "fail_open": true,
+      "cut3_target_using": "USING (bucket_id = 'receipts' AND public.storage_receipts_authorized(name, 'update'))",
+      "cut3_target_with_check": "WITH CHECK (bucket_id = 'receipts' AND public.storage_receipts_authorized(name, 'update'))"
+    },
+    {
+      "n": 7,
+      "name": "gdocs_delete_group",
+      "cmd": "DELETE",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "using": "(bucket_id = 'group-documents' AND (storage_path_group_id(name) IS NULL OR is_group_admin(storage_path_group_id(name))))",
+      "fail_open": true,
+      "cut3_target": "USING (bucket_id = 'group-documents' AND public.storage_group_documents_authorized(name, 'delete'))"
+    },
+    {
+      "n": 8,
+      "name": "receipts_delete_group",
+      "cmd": "DELETE",
+      "roles": ["authenticated"],
+      "permissive": true,
+      "using": "(bucket_id = 'receipts' AND (storage_path_group_id(name) IS NULL OR is_group_admin(storage_path_group_id(name))))",
+      "fail_open": true,
+      "cut3_target": "USING (bucket_id = 'receipts' AND public.storage_receipts_authorized(name, 'delete'))"
     }
   ],
-  "object_shape_counts_sanitized": {
-    "note": "Counts and segment-shape only. No object names, no filenames, no URLs, no PII.",
-    "avatars": {
-      "object_count": 6,
-      "all_2_seg": true,
-      "seg1_uuid_shaped": true,
-      "other_shapes": 0
-    },
-    "group-documents": {
-      "object_count": 25,
-      "shape_2_seg_uuid_first": 5,
-      "shape_3_seg_non_uuid_first": 20,
-      "other_shapes": 0
-    },
-    "receipts": {
-      "object_count": 3,
-      "all_2_seg": true,
-      "all_uuid_first": true,
-      "other_shapes": 0
-    }
+  "new_helpers_frozen": {
+    "unbound_strategy_b_rejected": "public.storage_group_object_write_allowed(p_name, p_op) MUST NOT be used",
+    "functions": [
+      {
+        "name": "public.storage_group_documents_authorized",
+        "signature": "public.storage_group_documents_authorized(p_name text, p_operation text) RETURNS boolean",
+        "security_definer": true,
+        "owner": "postgres",
+        "search_path": "",
+        "p_operation_allowlist": ["select", "insert", "update", "delete"],
+        "other_p_operation": false,
+        "takes_uid": false,
+        "takes_bucket_arg": false,
+        "policy_binds_bucket_literal": "group-documents",
+        "grants": {
+          "PUBLIC": "REVOKE",
+          "anon": "NO",
+          "authenticated": "YES",
+          "postgres": "YES",
+          "service_role": "NO",
+          "service_role_rationale": "Helpers are only invoked from RLS as authenticated Storage API. service_role bypasses RLS; granting EXECUTE would create a boolean oracle. No current signer uses service_role."
+        }
+      },
+      {
+        "name": "public.storage_receipts_authorized",
+        "signature": "public.storage_receipts_authorized(p_name text, p_operation text) RETURNS boolean",
+        "security_definer": true,
+        "owner": "postgres",
+        "search_path": "",
+        "p_operation_allowlist": ["select", "insert", "update", "delete"],
+        "other_p_operation": false,
+        "takes_uid": false,
+        "takes_bucket_arg": false,
+        "policy_binds_bucket_literal": "receipts",
+        "grants": {
+          "PUBLIC": "REVOKE",
+          "anon": "NO",
+          "authenticated": "YES",
+          "postgres": "YES",
+          "service_role": "NO",
+          "service_role_rationale": "Same as storage_group_documents_authorized."
+        }
+      }
+    ],
+    "v1_v2_disposition": "KEEP definitions; REMOVE from the 8 policy predicates. Do not DROP in 00116 by default."
   },
   "helpers_live": {
     "public.storage_path_group_id": {
@@ -67,121 +161,63 @@
       "language": "sql",
       "volatility": "IMMUTABLE",
       "security_definer": false,
+      "owner": "postgres",
       "search_path_pin": false,
-      "body_verbatim": "CASE WHEN (storage.foldername(p_name))[1] IN ('logos','relief-claims','constitutions','minutes','dispute-docs') THEN NULLIF((storage.foldername(p_name))[2], '')::uuid ELSE NULL END",
-      "used_by": ["gdocs_insert_group", "receipts_insert_group", "gdocs_update_group", "receipts_update_group", "gdocs_delete_group", "receipts_delete_group"],
-      "proven_behaviors": [
-        "UUID-first paths (typical receipts <group>/<file>) return NULL → fail-open on write policies",
-        "logos/.../not-a-uuid triggers ERROR 22P02 on ::uuid (proven) — unsafe exception path",
-        "First-segment tokens not in the five-name list return NULL (includes projects/, group-logos/, bare UUID, empty, garbage)"
-      ]
+      "body_verbatim_chief": "CASE WHEN (storage.foldername(p_name))[1] IN ('logos','relief-claims','constitutions','minutes','dispute-docs') THEN NULLIF((storage.foldername(p_name))[2], '')::uuid ELSE NULL END",
+      "body_verbatim_md5_utf8": "becf78352e26a5da61cf3347ffb87cae",
+      "pg_get_functiondef_note": "Chief did not supply live pg_get_functiondef text. Apply-time CUT3_ABORT must hash live pg_get_functiondef / prosrc, not this reconstructed CASE-only md5 alone.",
+      "used_by_today": ["gdocs_insert_group", "receipts_insert_group", "gdocs_update_group", "receipts_update_group", "gdocs_delete_group", "receipts_delete_group"]
     },
     "public.storage_path_group_id_v2": {
-      "used_by": ["receipts_select_group", "gdocs_select_group"],
-      "used_by_writes_today": false,
-      "behavior": "regex-guards UUID before cast; also accepts UUID-first segment; returns NULL (not exception) for non-matching segments",
-      "repo_definition_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+      "security_definer": false,
+      "owner": "postgres",
+      "used_by_today": ["receipts_select_group", "gdocs_select_group"],
       "repo_file": "supabase/migrations/00112_storage_select_policy_hardening.sql",
-      "repo_body_note": "Repo 00112 is the version-controlled definition. Chief confirms v2 is live and used by SELECT only. Cut 3 must not invent a different live v2 predicate."
+      "repo_create_function_md5_utf8": "84b5a5ad1f29a3250132e496e5752ae8",
+      "pg_get_functiondef_note": "Repo 00112 text is version-controlled ancestry. Apply-time must compare live catalog, not repo md5 alone."
     },
-    "storage.foldername": { "kind": "stock_storage_helper", "do_not_reimplement" : true },
-    "storage.filename": { "kind": "stock_storage_helper", "do_not_reimplement" : true },
-    "storage.extension": { "kind": "stock_storage_helper", "do_not_reimplement" : true },
     "public.is_group_member": {
-      "signature": "is_group_member(gid uuid, uid uuid DEFAULT auth.uid())",
       "security_definer": true,
-      "status_predicate": "STATUS_BLIND — any membership row",
+      "status_predicate": "STATUS_BLIND",
       "search_path_pin": false,
-      "cut1_note": "00114 explicitly did not rewrite is_group_member body (status-blind freeze). Cut 3 must not silently rewrite it."
+      "cut3_use": "SELECT historical reads only — never write floor"
     },
     "public.is_active_group_member": {
-      "signature": "is_active_group_member(gid uuid)",
-      "origin": "Cut 1 / 00114",
       "security_definer": true,
-      "status_predicate": "active-only (membership_status = 'active')",
-      "search_path_pin": "''",
-      "preferred_for_member_writes": true
+      "owner": "postgres",
+      "search_path_pin": "",
+      "cut3_use": "member writes with no stronger UI permission"
     },
     "public.is_group_admin": {
-      "signature": "is_group_admin(gid uuid, uid uuid DEFAULT auth.uid())",
       "security_definer": true,
-      "status_predicate": "active owner/admin only",
-      "search_path_pin": "''",
-      "preferred_for_admin_deletes": true
+      "owner": "postgres",
+      "search_path_pin": "",
+      "cut3_use": "admin writes/deletes"
+    },
+    "public.has_group_permission": {
+      "signature": "has_group_permission(gid uuid, perm_key text, uid uuid DEFAULT auth.uid())",
+      "security_definer": true,
+      "owner": "postgres",
+      "search_path_pin": "",
+      "mirrors": "usePermissions() — owner bypass; admin with zero assignments bypass; else position_permissions",
+      "active_only": true,
+      "cut3_use": "documents.manage / minutes.manage / finances.record|manage write floors"
     }
   },
-  "policies_live_write_fail_open_confirmed": {
-    "receipts_insert_group": {
-      "command": "INSERT",
-      "bucket": "receipts",
-      "with_check_verbatim": "((storage_path_group_id(name) IS NOT NULL) AND is_group_member(storage_path_group_id(name))) OR (storage_path_group_id(name) IS NULL)",
-      "fail_open": true,
-      "fail_open_reason": "parser NULL ⇒ ALLOW INSERT for any authenticated user"
-    },
-    "gdocs_insert_group": {
-      "command": "INSERT",
-      "bucket": "group-documents",
-      "with_check_verbatim": "((storage_path_group_id(name) IS NOT NULL) AND is_group_member(storage_path_group_id(name))) OR (storage_path_group_id(name) IS NULL)",
-      "fail_open": true,
-      "fail_open_reason": "parser NULL ⇒ ALLOW INSERT for any authenticated user"
-    },
-    "receipts_update_group": {
-      "command": "UPDATE",
-      "bucket": "receipts",
-      "boundary": "NULL OR is_group_member(storage_path_group_id(name))",
-      "fail_open": true,
-      "include_in_cut3": "CONFIRMED_SAME_SECURITY_BOUNDARY"
-    },
-    "gdocs_update_group": {
-      "command": "UPDATE",
-      "bucket": "group-documents",
-      "boundary": "NULL OR is_group_member(storage_path_group_id(name))",
-      "fail_open": true,
-      "include_in_cut3": "CONFIRMED_SAME_SECURITY_BOUNDARY"
-    },
-    "receipts_delete_group": {
-      "command": "DELETE",
-      "bucket": "receipts",
-      "boundary": "NULL OR is_group_admin(storage_path_group_id(name))",
-      "fail_open": true,
-      "include_in_cut3": "CONFIRMED_SAME_SECURITY_BOUNDARY"
-    },
-    "gdocs_delete_group": {
-      "command": "DELETE",
-      "bucket": "group-documents",
-      "boundary": "NULL OR is_group_admin(storage_path_group_id(name))",
-      "fail_open": true,
-      "include_in_cut3": "CONFIRMED_SAME_SECURITY_BOUNDARY"
-    }
+  "object_shape_counts_sanitized": {
+    "avatars": { "object_count": 6, "all_2_seg": true, "seg1_uuid_shaped": true },
+    "group-documents": { "object_count": 25, "shape_2_seg_uuid_first": 5, "shape_3_seg_non_uuid_first": 20 },
+    "receipts": { "object_count": 3, "all_2_seg_uuid_first": true }
   },
-  "policies_live_select_do_not_broaden": {
-    "receipts_select_group": {
-      "command": "SELECT",
-      "parser": "storage_path_group_id_v2",
-      "using": "(NULL OR is_group_member(storage_path_group_id_v2(name)))",
-      "cut3_action": "DOCUMENT_EXISTING_READ_POSTURE_ONLY — do not tighten or broaden in Cut 3 writes"
-    },
-    "gdocs_select_group": {
-      "command": "SELECT",
-      "parser": "storage_path_group_id_v2",
-      "using": "(NULL OR is_group_member(storage_path_group_id_v2(name)))",
-      "cut3_action": "DOCUMENT_EXISTING_READ_POSTURE_ONLY — do not tighten or broaden in Cut 3 writes"
-    }
-  },
-  "policies_avatars_not_affected": {
+  "policies_avatars_out_of_scope_proof": {
     "write_predicate": "(storage.foldername(name))[1] = auth.uid()::text",
-    "cut3_group_path_scope": "NOT_AFFECTED",
-    "still_inventory": true,
-    "note": "User-scoped. group-logos/{groupId}/… first segment is the literal token group-logos, not auth.uid(); that is a separate pre-existing caller/policy mismatch, not the group-path fail-open."
-  },
-  "repo_vs_live_parser_name": {
-    "repo_00078_created": "storage.path_group_id(p_name text)",
-    "live_write_helper": "public.storage_path_group_id(p_name text)",
-    "authoritative_for_cut3": "LIVE public.storage_path_group_id as given by Chief",
-    "do_not_invent_from_00078_schema_qualification_alone": true
+    "uses_v1_or_v2": false,
+    "uses_null_or": false,
+    "uses_group_parser": false,
+    "cut3_must_not_alter": true
   },
   "primary_question_answer": {
-    "question": "Are group-documents / receipts INSERT (and same-boundary UPDATE/DELETE) fail-open when the path parser returns NULL?",
-    "answer": "YES — CONFIRMED. WITH CHECK / USING contains OR (storage_path_group_id(name) IS NULL). UUID-first live object majority on receipts (3/3) and a live minority on group-documents (5/25) are unparsed by v1 and therefore writable by any authenticated user. Category-unknown prefixes (projects/) are also unparsed. Invalid UUID under a listed prefix raises 22P02 instead of FALSE."
+    "question": "Are the 8 private-bucket policies fail-open on NULL parse?",
+    "answer": "YES — CONFIRMED for SELECT (v2 NULL OR member), INSERT (v1 NULL OR member), UPDATE USING (v1 NULL OR member) with WITH CHECK absent, DELETE (v1 NULL OR admin)."
   }
 }

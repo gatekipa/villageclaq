@@ -2,6 +2,8 @@
   "artifact": "S0_CUT3_LIVE_SHAPE_REHEARSAL_20260912",
   "date": "2026-09-12",
   "production_mutation": "ZERO",
+  "migration_sha256": "ba55d1f6f0f2f05d681fdc60386513580267ddc81892d79c05a7893ef43afd33",
+  "executable_functional_tip": "ba8d75455ac04ebfd998eee6fafcb54abb73da8d",
   "environment": "local disposable Postgres 16 \u2014 synthetic prefix-token objects only",
   "identity": "25 = 6 logos + 14 constitutions + 5 uuid-first",
   "counts": {

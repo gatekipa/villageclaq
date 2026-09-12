@@ -9,14 +9,21 @@
   "draft_pr": "https://github.com/gatekipa/villageclaq/pull/80",
   "contract_sha": "b85d4164b9b10c87597e34de74b527a12bc571af",
   "main_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
-  "prior_functional_superseded": "af3a14b21db577ae136868f11a291572e02d9fc6",
-  "prior_00116_sha256_superseded": "f24cf5c65b34497cf8c4abff80cfcdc3bf746d16a0cc8cca7ff1a04da649d4e7",
-  "new_00116_sha256": "4b3588e81977adab1b29d80aa87f02c21bcfbab98ec1357a89c2e9586799e630",
-  "00116_frozen_at_commit": "f3254eaf6fcfccd30877b846ebda74ab518c1051",
-  "executable_functional_tip": "61b349b4af368e331969b45bf7774a5a3f1baeef",
+  "prior_functional_superseded": [
+    "af3a14b21db577ae136868f11a291572e02d9fc6",
+    "61b349b4af368e331969b45bf7774a5a3f1baeef",
+    "ded2f875fceddcdaabfd3211fa091efd8d57eb61",
+    "cd1f01e0ca49a13a4414dd24d750ef66685e1ee9"
+  ],
+  "prior_00116_sha256_superseded": [
+    "f24cf5c65b34497cf8c4abff80cfcdc3bf746d16a0cc8cca7ff1a04da649d4e7",
+    "4b3588e81977adab1b29d80aa87f02c21bcfbab98ec1357a89c2e9586799e630"
+  ],
+  "new_00116_sha256": "ba55d1f6f0f2f05d681fdc60386513580267ddc81892d79c05a7893ef43afd33",
+  "executable_functional_tip": "ba8d75455ac04ebfd998eee6fafcb54abb73da8d",
   "executable_tip_is_functional": true,
   "docs_only_evidence_tip_expected_after_this_file": true,
-  "note_on_tip": "00116 bytes frozen at f3254ea. Subsequent abc7c06/61b349b are harness-only after that freeze; treat 61b349b as executable/functional tip. Evidence commit after this JSON is docs/evidence only.",
+  "note_on_tip": "Functional SHA is ba8d754 (00116 ACL 5-tuple + parenthesized EXCEPT both directions + harness ACL fixtures). Evidence commit after this JSON is docs/evidence only. Ded2/cd1f01e intermediate ACL SHAs superseded by ba8d754.",
   "R1_R2_exact_hash_only": {
     "dual_hashes_removed": true,
     "removed_alternates": [
@@ -55,8 +62,13 @@
     "fingerprints_json_search_path_equals_was_chat_normalized": true
   },
   "R5_function_acl_execute": {
-    "normalization": "aclexplode(COALESCE(proacl, acldefault('f', proowner))) → (proname, COALESCE(rolname,'PUBLIC'), privilege_type='EXECUTE'). actual EXCEPT expected AND expected EXCEPT actual must both be empty.",
-    "live_helpers_expected": {
+    "tuple": "(function_name, role_name, privilege_type, grantor_name, is_grantable)",
+    "normalization": "aclexplode(COALESCE(proacl, acldefault('f', proowner))). Grantee OID 0 → PUBLIC. Grantor OID 0 is NOT PUBLIC; grantor must resolve via pg_roles to postgres. is_grantable compared as text true/false. Set equality is parenthesized concat_ws('|') EXCEPT in BOTH directions (unparenthesized UNION ALL/EXCEPT binds so extras vanish).",
+    "every_expected_execute_row": {
+      "grantor_name": "postgres",
+      "is_grantable": "false"
+    },
+    "live_helpers_expected_grantees": {
       "storage_path_group_id": ["PUBLIC", "postgres", "anon", "authenticated", "service_role"],
       "storage_path_group_id_v2": ["PUBLIC", "postgres", "anon", "authenticated", "service_role"],
       "is_group_member": ["PUBLIC", "postgres", "anon", "authenticated", "service_role"],
@@ -64,11 +76,34 @@
       "is_group_admin": ["postgres", "authenticated", "service_role"],
       "has_group_permission": ["postgres", "authenticated", "service_role"]
     },
-    "new_helpers_expected": {
+    "new_helpers_expected_grantees": {
       "storage_group_documents_authorized": ["postgres", "authenticated"],
       "storage_receipts_authorized": ["postgres", "authenticated"]
     },
-    "disposable_set_equality": "PASS"
+    "new_helpers_no_execute": ["PUBLIC", "anon", "service_role"],
+    "disposable_set_equality": "PASS",
+    "grantor_and_is_grantable_in_premigration": true,
+    "grantor_and_is_grantable_in_postmigration": true
+  },
+  "ACL_EXACTNESS_NEGATIVES": {
+    "never_production": true,
+    "wrong_grantor_method": "UPDATE pg_proc.proacl via makeaclitem; SET ROLE as superuser still records grantor=postgres",
+    "results": {
+      "ACL-PRE-A": "PASS",
+      "ACL-PRE-B": "CUT3_ABORT",
+      "ACL-PRE-B-FILE": "CUT3_ABORT",
+      "ACL-PRE-C": "CUT3_ABORT",
+      "ACL-PRE-D": "CUT3_ABORT",
+      "ACL-PRE-E": "CUT3_ABORT",
+      "ACL-POST-BASELINE": "PASS",
+      "ACL-POST-AUTH-WGO": "CUT3_ABORT",
+      "ACL-POST-PUBLIC": "CUT3_ABORT",
+      "ACL-POST-ANON": "CUT3_ABORT",
+      "ACL-POST-SERVICE-ROLE": "CUT3_ABORT",
+      "ACL-POST-WRONG-GRANTOR": "CUT3_ABORT",
+      "ACL-POST-EXTRA-GRANTEE": "CUT3_ABORT"
+    },
+    "all_pass": true
   },
   "R6_storage_objects_grants": {
     "rule": "information_schema.role_table_grants (grantee, privilege_type, is_grantable) set equality, not count-only",
@@ -153,11 +188,12 @@
     }
   },
   "R16_R19_full_suites": {
-    "core_rls_plus_new_plus_harness": 56,
+    "core_recorded_including_13_acl": 69,
     "core_fail": 0,
     "ups": "UPS-01..12 included in core",
     "encoding": "740/740",
-    "live_shape": "25=6+14+5 unknown=0 PASS"
+    "live_shape": "25=6+14+5 unknown=0 PASS",
+    "unexpected_exception_implies_pass_false": true
   },
   "R25_build": {
     "tsc_noEmit": "PASS",

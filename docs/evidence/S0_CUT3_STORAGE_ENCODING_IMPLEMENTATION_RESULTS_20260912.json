@@ -2,6 +2,8 @@
   "artifact": "S0_CUT3_STORAGE_ENCODING_IMPLEMENTATION_RESULTS_20260912",
   "date": "2026-09-12",
   "production_mutation": "ZERO",
+  "migration_sha256": "ba55d1f6f0f2f05d681fdc60386513580267ddc81892d79c05a7893ef43afd33",
+  "executable_functional_tip": "ba8d75455ac04ebfd998eee6fafcb54abb73da8d",
   "contract_test_count": 740,
   "executed_count": 740,
   "pass_count": 740,

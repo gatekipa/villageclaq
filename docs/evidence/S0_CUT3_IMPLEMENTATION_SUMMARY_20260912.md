@@ -1,6 +1,6 @@
-# S0 Cut 3 Implementation Summary — 2026-09-12 (Daybreak HOLD remediation)
+# S0 Cut 3 Implementation Summary — 2026-09-12 (Daybreak HOLD — FUNCTION ACL EXACTNESS)
 
-**Verdict for Chief: PASS (implementation / disposable qualification after remediation).**  
+**Verdict for Chief: PASS (implementation / disposable qualification after ACL exactness).**  
 **PRODUCTION APPLY NOT AUTHORIZED. PRODUCTION DEPLOY NOT AUTHORIZED.**  
 **This PR stays OPEN / DRAFT / UNMERGED.**  
 **Do not merge PR #79. Do not merge this PR. Do not apply 00116 to production.**
@@ -13,17 +13,47 @@
 | Planning contract ancestor | `b85d4164b9b10c87597e34de74b527a12bc571af` — **is ancestor** |
 | `main` | `1f1221eeb9207b692a7e507ae95acfc9aabac113` |
 | Draft PR | https://github.com/gatekipa/villageclaq/pull/80 |
-| Prior functional (superseded) | `af3a14b21db577ae136868f11a291572e02d9fc6` |
-| Prior 00116 SHA-256 (superseded) | `f24cf5c65b34497cf8c4abff80cfcdc3bf746d16a0cc8cca7ff1a04da649d4e7` |
-| **00116 SHA-256 (current)** | `4b3588e81977adab1b29d80aa87f02c21bcfbab98ec1357a89c2e9586799e630` |
-| 00116 frozen at | `f3254eaf6fcfccd30877b846ebda74ab518c1051` |
-| **Executable / functional tip** | `61b349b4af368e331969b45bf7774a5a3f1baeef` (harness-only after 00116 freeze) |
+| Prior functional (superseded) | `61b349b4af368e331969b45bf7774a5a3f1baeef` |
+| Prior 00116 SHA-256 (superseded) | `4b3588e81977adab1b29d80aa87f02c21bcfbab98ec1357a89c2e9586799e630` |
+| **00116 SHA-256 (current)** | `ba55d1f6f0f2f05d681fdc60386513580267ddc81892d79c05a7893ef43afd33` |
+| **Executable / functional tip** | `ba8d75455ac04ebfd998eee6fafcb54abb73da8d` |
 | Dual hashes in 00116 | **REMOVED** (`5b535da3…` and `756c2202…` not accepted) |
 | Helpers created (disposable) | **2** |
 | Policies replaced (disposable) | **8** |
 | Build | `npx tsc --noEmit` **PASS** + `npm run build` **PASS** |
 
-Harness changed after the 00116 freeze (`abc7c06`, `61b349b`). Treat the executable tip as functional. The evidence commit after qualification is **docs/evidence only**.
+The evidence commit after this qualification is **docs/evidence only**. If any later executable change lands, that SHA becomes functional and requalification is required.
+
+## FUNCTION ACL EXACTNESS (this hold)
+
+ACL tuple is now `(function_name, role_name, privilege_type, grantor_name, is_grantable)`.
+
+- Source: `aclexplode(COALESCE(proacl, acldefault('f', proowner)))`
+- Grantee OID 0 → `PUBLIC`. Grantor OID 0 is **not** treated as PUBLIC; grantor must resolve via `pg_roles` to `postgres`.
+- Every expected EXECUTE row: `grantor_name='postgres'`, `is_grantable=false` (compared as text `'false'`).
+- Set equality uses **parenthesized** `concat_ws('|', …)` EXCEPT in **both** directions. Unparenthesized `UNION ALL`/`EXCEPT` binds so extras can vanish.
+- Premigration: exact 5-tuple equality for v1, v2, `is_active_group_member`, `is_group_member`, `is_group_admin`, `has_group_permission`.
+- Postmigration: exact 5-tuple equality for `storage_group_documents_authorized(text,text)` and `storage_receipts_authorized(text,text)` — authenticated + postgres EXECUTE, grantor postgres, `is_grantable=false`; PUBLIC / anon / service_role **NO**.
+
+### Disposable ACL negatives (never production)
+
+| ID | Expected | Actual | pass |
+|----|----------|--------|------|
+| ACL-PRE-A | PASS | PASS | true |
+| ACL-PRE-B | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-PRE-B-FILE | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-PRE-C | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-PRE-D | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-PRE-E | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-POST-BASELINE | PASS | PASS | true |
+| ACL-POST-AUTH-WGO | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-POST-PUBLIC | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-POST-ANON | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-POST-SERVICE-ROLE | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-POST-WRONG-GRANTOR | CUT3_ABORT | CUT3_ABORT | true |
+| ACL-POST-EXTRA-GRANTEE | CUT3_ABORT | CUT3_ABORT | true |
+
+PRE-B proves `WITH GRANT OPTION` on an otherwise expected role aborts. PRE-C proves a non-postgres grantor aborts (via disposable `makeaclitem` rewrite — `SET ROLE` as superuser still records grantor postgres). PRE-D/E prove extra and missing rows abort. POST-* prove the same for the new helpers.
 
 ## Remediation (R1–R15)
 
@@ -50,7 +80,7 @@ See `docs/evidence/S0_CUT3_IMPLEMENTATION_REMEDIATION_20260912.json`.
 
 | Suite | Result |
 |-------|--------|
-| Core RLS (prior + 4 new + UPS-01..12 + D40/R05 + harness) | **56 / 56 recorded PASS** (0 fail IDs) |
+| Core recorded (prior + 4 new + UPS-01..12 + D40/R05 + harness + 13 ACL) | **69 / 69 PASS** (0 fail IDs) |
 | Encoding | **740 / 740 DENY**, no unexpected exceptions |
 | Live shape rehearsal | **25 = 6 logos + 14 constitutions + 5 uuid-first**; unknown **0** |
 | Helpers / policies | 2 / 8 |

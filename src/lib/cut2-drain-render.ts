@@ -429,8 +429,7 @@ async function loadTypeFields(
       .eq("loan_id", loan.id)
       .in("status", LOAN_UNPAID_STATUSES)
       .lt("due_date", reminderDate)
-      .order("due_date", { ascending: true })
-      .limit(12);
+      .order("due_date", { ascending: true });
     if (installmentError) return { ok: false, error: "cut2_loan_overdue_installment_lookup_failed" };
     const overdueInstallment = ((installments || []) as Array<{
       due_date: string;

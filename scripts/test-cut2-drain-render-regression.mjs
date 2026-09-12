@@ -467,6 +467,78 @@ test("loan_overdue drain quotes earliest outstanding installment amount and loca
   assert.equal(fr.data.dueDate, expectedFr);
 });
 
+test("loan_overdue scans past twelve fully-paid eligible rows to the first outstanding", async () => {
+  const { renderCut2TrustedRow, formatTrustedDrainDate } = loadRenderer();
+  const reminderDate = "2026-06-15";
+  const row13Due = "2026-06-01";
+  const expectedDue = formatTrustedDrainDate(row13Due, "en", "long");
+  const paidPrefix = Array.from({ length: 12 }, (_, i) => ({
+    id: `paid-${i + 1}`,
+    due_date: `2026-04-${String(i + 1).padStart(2, "0")}`,
+    amount_due: 10000,
+    amount_paid: 10000,
+    status: i % 3 === 0 ? "pending" : i % 3 === 1 ? "partial" : "overdue",
+  }));
+  const laterOutstanding = {
+    id: "later-out",
+    due_date: "2026-06-10",
+    amount_due: 9000,
+    amount_paid: 0,
+    status: "pending",
+  };
+  const afterReminder = {
+    id: "future",
+    due_date: "2026-06-15",
+    amount_due: 4000,
+    amount_paid: 0,
+    status: "pending",
+  };
+  const row13 = {
+    id: "inst-13",
+    due_date: row13Due,
+    amount_due: 8500,
+    amount_paid: 1000,
+    status: "partial",
+  };
+  const rendered = await renderCut2TrustedRow(loanDb([
+    ...paidPrefix,
+    row13,
+    laterOutstanding,
+    afterReminder,
+  ]), {
+    channel: "whatsapp",
+    template: "loan_overdue",
+    cut2_provenance_version: 1,
+    data: { domain_object_id: "loan-1", recipient_membership_id: "m1", locale: "en", reminderDate },
+  });
+  assert.equal(rendered.ok, true);
+  assert.notEqual(rendered.error, "cut2_loan_overdue_no_outstanding_installment");
+  assert.equal(rendered.data.amount, "7,500 XAF");
+  assert.equal(rendered.data.dueDate, expectedDue);
+  assert.equal(rendered.data.groupName, "Njimafor Diaspora");
+  assert.notEqual(rendered.data.amount, "120,000 XAF");
+  assert.notEqual(rendered.data.amount, "9,000 XAF");
+  assert.notEqual(rendered.data.dueDate, formatTrustedDrainDate("2026-06-10", "en", "long"));
+});
+
+test("loan_overdue skips stale zero-balance overdue and future-due positive balances", async () => {
+  const { renderCut2TrustedRow } = loadRenderer();
+  const reminderDate = "2026-06-15";
+  const none = await renderCut2TrustedRow(loanDb([
+    { id: "stale", due_date: "2026-05-01", amount_due: 100, amount_paid: 100, status: "overdue" },
+    { id: "future", due_date: "2026-06-15", amount_due: 4000, amount_paid: 0, status: "pending" },
+    { id: "later", due_date: "2026-07-01", amount_due: 4000, amount_paid: 0, status: "partial" },
+  ]), {
+    channel: "whatsapp",
+    template: "loan_overdue",
+    cut2_provenance_version: 1,
+    data: { domain_object_id: "loan-1", recipient_membership_id: "m1", locale: "en", reminderDate },
+  });
+  assert.equal(none.ok, false);
+  assert.equal(none.error, "cut2_loan_overdue_no_outstanding_installment");
+  assert.equal(none.data, undefined);
+});
+
 test("loan_overdue excludes paid/settled rows and fail-closes when none outstanding", async () => {
   const { renderCut2TrustedRow } = loadRenderer();
   const settled = await renderCut2TrustedRow(loanDb([

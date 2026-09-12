@@ -1,0 +1,64 @@
+{
+  "artifact": "M3_F3_POST_S0_REGRESSION_20260912",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "suite": "scripts/test-financial-f3-post-s0-regression.mjs",
+  "result": "14/14 PASS",
+  "static_companion": {
+    "test-m2-static-security": "9/9 PASS",
+    "test-s0-cut1-active-authorization": "11/11 PASS",
+    "test-storage-buckets": "11/11 PASS",
+    "test-m2-cut2-nonregression": "20/20 PASS",
+    "tsc": "PASS",
+    "next_build": "PASS (dummy non-prod env only)"
+  },
+  "cut1": {
+    "has_group_permission": "unchanged live pin 69536846… / 96a296df…",
+    "overload_count": 1,
+    "no_2arg_function": true,
+    "verdict": "SAFER OR UNCHANGED"
+  },
+  "cut2": {
+    "enqueue_pin": "unchanged dbdb16cd… / 3fa76af5…",
+    "queue_table_acl": "LIVE pin unchanged",
+    "queue_column_acl": "LIVE pin unchanged",
+    "f3_queue_insert": false
+  },
+  "cut3": {
+    "storage_helpers_created_by_f3": false,
+    "storage_receipts_authorized_token_in_f3_ddl": false,
+    "test_storage_buckets": "11/11 PASS"
+  },
+  "m2": {
+    "policy_tables_after_00117_plus_f3": "present",
+    "rows": { "policies": 0, "triggers": 0, "occurrences": 0 },
+    "enabled_default": false,
+    "closed_status": "CLOSED dormant 0/0/0 — F3 did not enable or enqueue"
+  },
+  "legacy_finance": {
+    "payments": "survives",
+    "contribution_obligations": "survives",
+    "payment_obligation_applications": "survives",
+    "relief_*": "survives",
+    "member_transfers": "survives",
+    "request_member_transfer": "S0-008 stub body unchanged (00082 RPCs not replaced)",
+    "execute_member_transfer": "S0-008 stub body unchanged",
+    "compute_member_standing": "stub status-path unchanged; NO standing migration in this batch"
+  },
+  "greenfield_00001_00117_replay": {
+    "attempted": true,
+    "result": "NOT CLEAN on disposable greenfield",
+    "first_historical_blockers": [
+      "00030 unnest(get_user_group_ids()) while 00014 returns SETOF uuid (shimmed)",
+      "00061 cannot change name of input parameter is_group_admin_or_owner"
+    ],
+    "justification": "Historical apply-order artifacts; 00001-00117 bytes not modified. F3 qualification uses stub + live HGP/enqueue pins + real 00117, matching S0/M2 disposable method. F3 is not the cause of greenfield replay failure."
+  },
+  "standing_hotfix_20260908043912": {
+    "replayed": false,
+    "reason": "App-side confirmed-basis already in money.ts / calculate-standing.ts. SQL compute_member_standing remains pre-existing status-path. Hotfix depends on ledger_epoch_id columns this batch does not add. Gap documented; not an F3-01..05 HOLD."
+  },
+  "payment_integrity_20260906140229": {
+    "replayed": false,
+    "reason": "SCHEMA COLLISION with 00104 / Cut 3 storage"
+  }
+}

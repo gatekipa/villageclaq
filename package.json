@@ -74,7 +74,20 @@
     "test:m2-notification-policy-contracts": "node --experimental-strip-types --test scripts/test-notification-policy-contracts.mjs",
     "test:m2-cut2-nonregression": "node --experimental-strip-types --test scripts/test-m2-cut2-nonregression.mjs",
     "test:m2-static-security": "node --experimental-strip-types --test scripts/test-m2-static-security.mjs",
-    "test:m2": "node --experimental-strip-types --test scripts/test-notification-policy.mjs scripts/test-notification-policy-contracts.mjs scripts/test-m2-cut2-nonregression.mjs scripts/test-m2-static-security.mjs"
+    "test:m2": "node --experimental-strip-types --test scripts/test-notification-policy.mjs scripts/test-notification-policy-contracts.mjs scripts/test-m2-cut2-nonregression.mjs scripts/test-m2-static-security.mjs",
+    "test:f3-01-db": "node --test scripts/test-financial-f3-foundation-db.mjs",
+    "test:f3-02-db": "node --test scripts/test-financial-f3-posting-db.mjs",
+    "test:f3-02-oracle": "node --test tests/finance/f3-02/oracle.test.mjs",
+    "test:f3-03-db": "node --test scripts/test-financial-f3-projection-db.mjs",
+    "test:f3-03-oracle": "node --test tests/finance/f3-03/projection-oracle.test.mjs",
+    "test:f3-04-db": "node --test scripts/test-financial-f3-correction-db.mjs",
+    "test:f3-04-oracle": "node --test tests/finance/f3-04/correction-oracle.test.mjs",
+    "test:f3-05-db": "node --test scripts/test-financial-f3-opening-db.mjs",
+    "test:f3-05-oracle": "node --test tests/finance/f3-05/opening-oracle.test.mjs",
+    "test:f3-oracles": "node --test tests/finance/f3-02/oracle.test.mjs tests/finance/f3-03/projection-oracle.test.mjs tests/finance/f3-04/correction-oracle.test.mjs tests/finance/f3-05/opening-oracle.test.mjs",
+    "test:f3-db": "node --test scripts/test-financial-f3-foundation-db.mjs scripts/test-financial-f3-posting-db.mjs scripts/test-financial-f3-projection-db.mjs scripts/test-financial-f3-correction-db.mjs scripts/test-financial-f3-opening-db.mjs",
+    "test:f3-regression": "node --test scripts/test-financial-f3-post-s0-regression.mjs",
+    "test:f3": "node --test tests/finance/f3-02/oracle.test.mjs tests/finance/f3-03/projection-oracle.test.mjs tests/finance/f3-04/correction-oracle.test.mjs tests/finance/f3-05/opening-oracle.test.mjs scripts/test-financial-f3-foundation-db.mjs scripts/test-financial-f3-posting-db.mjs scripts/test-financial-f3-projection-db.mjs scripts/test-financial-f3-correction-db.mjs scripts/test-financial-f3-opening-db.mjs scripts/test-financial-f3-post-s0-regression.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

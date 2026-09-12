@@ -1,0 +1,26 @@
+{
+  "artifact": "M3_F3_02_RESULTS_20260912",
+  "ticket": "F3-02",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "migration": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql",
+  "db_suite": "scripts/test-financial-f3-posting-db.mjs",
+  "db_result": "158/158 PASS",
+  "astra_suite": "tests/finance/f3-02/oracle.test.mjs",
+  "astra_result": "167/167 PASS",
+  "expected_change": "none",
+  "covered": [
+    "balanced postings",
+    "tenant isolation",
+    "exact decimals",
+    "same-currency transfer",
+    "cross-currency DENY",
+    "identical replay returns original after CURRENT auth revalidation",
+    "same identity + changed economics CONFLICT",
+    "revoked-auth DENY",
+    "lock-wait recheck",
+    "concurrent retry",
+    "rollback",
+    "no direct truth writes",
+    "recognition gate (pending/rejected/voided/relief-misapplied/dues assessment/opening arrears/refundable/njangi/unconfirmed not SoA income)"
+  ]
+}

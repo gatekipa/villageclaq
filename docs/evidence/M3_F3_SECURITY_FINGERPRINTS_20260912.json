@@ -1,0 +1,76 @@
+{
+  "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "disposable": {
+    "postgres": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+    "production_url_used": false,
+    "floor": "stub current-main objects + live Cut 2 HGP/enqueue/queue pins + real 00117 + NEW 00118-00123"
+  },
+  "has_group_permission": {
+    "overload_count": 1,
+    "identity": "gid uuid, perm_key text, uid uuid",
+    "owner": "postgres",
+    "security_definer": true,
+    "search_path": "",
+    "def_md5": "695368464e97297fbf0f90ce7345162f",
+    "src_md5": "96a296dfd541c7fc75ec68c4da1d92ff",
+    "execute_acl": ["authenticated", "postgres", "service_role"],
+    "unchanged_by_f3": true
+  },
+  "enqueue_outbound_notification": {
+    "def_md5": "dbdb16cdced6cae9cbdbfb6a6a9f421f",
+    "src_md5": "3fa76af51e431ccbd31eb033dcff0b80",
+    "unchanged_by_f3": true
+  },
+  "public_command_rpcs": {
+    "post_financial_command(jsonb)": {
+      "owner": "postgres",
+      "security_definer": true,
+      "search_path": "",
+      "def_md5": "60adcdfae275ebefad522f8283cb3db4",
+      "src_md5": "5ff842caf18e784fbfd36a08bf9c0c82",
+      "execute": { "authenticated": true, "anon": false, "service_role": false, "PUBLIC": false },
+      "grantor": "postgres"
+    },
+    "correct_financial_event(jsonb)": {
+      "owner": "postgres",
+      "security_definer": true,
+      "search_path": "",
+      "def_md5": "eb565bab4f5f095b72ca51ed2778d200",
+      "src_md5": "29d5505e601f829568f0fb7d6ac94ea2",
+      "execute": { "authenticated": true, "anon": false, "service_role": false, "PUBLIC": false },
+      "grantor": "postgres"
+    },
+    "post_financial_opening_cash(jsonb)": {
+      "owner": "postgres",
+      "security_definer": true,
+      "search_path": "",
+      "def_md5": "3303b34410aa5b76bb292f17afcc97ea",
+      "src_md5": "f0babb77743b31ae81f4c52eb9197969",
+      "execute": { "authenticated": true, "anon": false, "service_role": false, "PUBLIC": false },
+      "grantor": "postgres"
+    }
+  },
+  "definer_owner_drift_excluding_hgp_enqueue": "",
+  "posted_truth_rls_deny": {
+    "financial_events": {
+      "rls": true,
+      "force_rls": true,
+      "authenticated_select": false,
+      "authenticated_insert": false,
+      "authenticated_update": false,
+      "authenticated_delete": false
+    },
+    "financial_postings": {
+      "rls": true,
+      "force_rls": true,
+      "authenticated_select": false,
+      "authenticated_insert": false,
+      "authenticated_update": false,
+      "authenticated_delete": false
+    },
+    "note": "Canonical posted truth is RPC-only. Dimension tables (accounts/funds/categories) retain GRANT + FORCE RLS manage/view gates."
+  },
+  "raw": "see collected key_functions in this file's companion run; values above are the review surface"
+}

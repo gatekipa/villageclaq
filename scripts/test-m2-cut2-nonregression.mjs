@@ -245,7 +245,11 @@ test("M2-C2-16 announcement-producer.ts remains unimported by live routes/crons"
 test("M2-C2-17 00117 does not replace enqueue_outbound_notification", () => {
   const m2 = read(MIG_117);
   assert.doesNotMatch(m2, /CREATE OR REPLACE FUNCTION public\.enqueue_outbound_notification/);
-  assert.match(m2, /enqueue_outbound_notification identity args drifted/);
+  assert.match(m2, /M2_ABORT: enqueue_outbound_notification live pin mismatch/);
+  assert.match(
+    m2,
+    /enqueue_outbound_notification identity\/return\/owner\/DEFINER\/proconfig\/body\/ACL fingerprint changed/,
+  );
   const adapter = read(ENQUEUE_TS);
   assert.match(adapter, /enqueue_outbound_notification/);
 });

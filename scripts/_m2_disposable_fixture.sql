@@ -1,6 +1,10 @@
 -- M2 disposable 00116-era stub. NOT a migration. NOT for production.
--- Synthetic UUIDs only. Zero provider sends. Zero queue rows from this file
--- except the empty notifications_queue table itself.
+-- Reproduces EXACT production security floor for:
+--   has_group_permission, enqueue_outbound_notification,
+--   notifications_queue table ACL, notifications_queue column attacl.
+-- Functions are applied by scripts/_m2_apply_disposable_floor.mjs
+-- (live has_group_permission hex + 00115 enqueue extract) so 00117
+-- bytes see postgres-owned live fingerprints. ZERO production writes.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -81,6 +85,26 @@ CREATE TABLE public.position_permissions (
   permission text NOT NULL
 );
 
+-- ROWTYPE stubs required so live enqueue CREATE can bind composites.
+-- Not a send path. Not production shape beyond existence.
+CREATE TABLE public.payments (id uuid);
+CREATE TABLE public.contribution_obligations (id uuid);
+CREATE TABLE public.relief_enrollments (id uuid);
+CREATE TABLE public.relief_plans (id uuid);
+CREATE TABLE public.relief_claims (id uuid);
+CREATE TABLE public.relief_remittances (id uuid);
+CREATE TABLE public.hosting_assignments (id uuid);
+CREATE TABLE public.hosting_rosters (id uuid);
+CREATE TABLE public.events (id uuid);
+CREATE TABLE public.loans (id uuid);
+CREATE TABLE public.fines (id uuid);
+CREATE TABLE public.invitations (id uuid);
+CREATE TABLE public.group_subscriptions (id uuid);
+CREATE TABLE public.meeting_minutes (id uuid);
+CREATE TABLE public.elections (id uuid);
+CREATE TABLE public.announcements (id uuid);
+CREATE TABLE public.hosting_swap_requests (id uuid);
+
 CREATE TABLE public.notifications_queue (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -89,110 +113,13 @@ CREATE TABLE public.notifications_queue (
   data jsonb NOT NULL DEFAULT '{}'::jsonb,
   status text NOT NULL DEFAULT 'queued',
   error_message text,
-  attempts integer DEFAULT 0,
-  created_at timestamptz DEFAULT now(),
+  attempts integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
   sent_at timestamptz,
   cut2_provenance_version smallint
 );
 
--- Cut 1 active has_group_permission (00114 body, disposable copy)
-CREATE FUNCTION public.has_group_permission(
-  gid uuid,
-  perm_key text,
-  uid uuid DEFAULT auth.uid()
-)
-RETURNS boolean
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path TO ''
-AS $$
-DECLARE
-  v_membership_id uuid;
-  v_role text;
-  v_assignment_count int;
-  v_has_perm boolean;
-BEGIN
-  IF auth.uid() IS NOT NULL AND uid IS NOT NULL AND uid IS DISTINCT FROM auth.uid() THEN
-    RETURN false;
-  END IF;
-
-  SELECT m.id, m.role::text
-    INTO v_membership_id, v_role
-  FROM public.memberships m
-  WHERE m.group_id = gid
-    AND m.user_id = uid
-    AND m.membership_status = 'active'
-  LIMIT 1;
-
-  IF v_membership_id IS NULL THEN
-    RETURN false;
-  END IF;
-
-  IF v_role = 'owner' THEN
-    RETURN true;
-  END IF;
-
-  SELECT COUNT(*) INTO v_assignment_count
-  FROM public.position_assignments
-  WHERE membership_id = v_membership_id AND ended_at IS NULL;
-
-  IF v_role = 'admin' AND v_assignment_count = 0 THEN
-    RETURN true;
-  END IF;
-
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.position_assignments pa
-    JOIN public.position_permissions pp ON pp.position_id = pa.position_id
-    JOIN public.group_positions gp
-      ON gp.id = pa.position_id
-     AND gp.group_id = gid
-    WHERE pa.membership_id = v_membership_id
-      AND pa.ended_at IS NULL
-      AND pp.permission = perm_key
-  ) INTO v_has_perm;
-
-  RETURN v_has_perm;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.has_group_permission(uuid, text, uuid) TO authenticated;
-
--- Cut 2 enqueue identity (stub body — 00117 must not replace)
-CREATE FUNCTION public.enqueue_outbound_notification(
-  p_notification_type text,
-  p_domain_object_id uuid,
-  p_channel public.notification_channel,
-  p_recipient_membership_id uuid DEFAULT NULL,
-  p_locale text DEFAULT NULL
-)
-RETURNS TABLE (queue_id uuid, result text)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO ''
-AS $$
-BEGIN
-  queue_id := NULL;
-  result := 'denied';
-  RETURN NEXT;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.enqueue_outbound_notification(text, uuid, public.notification_channel, uuid, text)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.enqueue_outbound_notification(text, uuid, public.notification_channel, uuid, text)
-  TO service_role;
-
-REVOKE ALL ON TABLE public.notifications_queue FROM PUBLIC;
-REVOKE ALL ON TABLE public.notifications_queue FROM anon;
-REVOKE ALL ON TABLE public.notifications_queue FROM authenticated;
-REVOKE ALL ON TABLE public.notifications_queue FROM service_role;
-GRANT SELECT ON TABLE public.notifications_queue TO authenticated;
-GRANT SELECT ON TABLE public.notifications_queue TO service_role;
-GRANT UPDATE (status, error_message, attempts, sent_at, data)
-  ON TABLE public.notifications_queue TO service_role;
+ALTER TABLE public.notifications_queue OWNER TO postgres;
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.groups TO authenticated;

@@ -1,48 +1,24 @@
 /**
  * Disposable-only qualification for 00117.
  * NEVER point at production llbnliixczcqfftxpsmb.
+ * Requires PostgreSQL 17 (MAINTAIN in live queue table ACL).
  */
 import { spawnSync } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  applyDisposableFloor,
+  assertNotProduction,
+  defaultDisposableUrl,
+  psqlFile,
+  psqlUrl,
+  recreateDisposableDatabase,
+} from "./_m2_apply_disposable_floor.mjs";
+import { runNegativeDriftSuite } from "./qualify-m2-negative-drift.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const DEFAULT_URL = "postgresql://postgres@127.0.0.1:5432/m2_notification_policy_disposable";
-const url = process.env.M2_DISPOSABLE_DATABASE_URL || DEFAULT_URL;
-
-if (/llbnliixczcqfftxpsmb/i.test(url)) {
-  console.error("REFUSE: disposable URL must not target production.");
-  process.exit(2);
-}
-
-function psql(sql, opts = {}) {
-  const res = spawnSync("psql", ["-d", url, "-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A", "-c", sql], {
-    encoding: "utf8",
-    env: { ...process.env, PGPASSWORD: process.env.PGPASSWORD || "" },
-  });
-  if (res.status !== 0 && !opts.allowFail) {
-    throw new Error((res.stderr || res.stdout || "psql failed").trim());
-  }
-  return {
-    ok: res.status === 0,
-    out: (res.stdout || "").trim(),
-    err: (res.stderr || "").trim(),
-    status: res.status,
-  };
-}
-
-function psqlFile(rel) {
-  const abs = path.join(root, rel);
-  const res = spawnSync("psql", ["-d", url, "-v", "ON_ERROR_STOP=1", "-X", "-q", "-f", abs], {
-    encoding: "utf8",
-    env: { ...process.env, PGPASSWORD: process.env.PGPASSWORD || "" },
-  });
-  if (res.status !== 0) {
-    throw new Error(`${rel} failed:\n${res.stderr || res.stdout}`);
-  }
-  return (res.stdout || "").trim();
-}
+const url = defaultDisposableUrl();
+assertNotProduction(url);
 
 const G1 = "11111111-1111-4111-8111-111111111111";
 const G2 = "22222222-2222-4222-8222-222222222222";
@@ -60,35 +36,128 @@ const M_EXITED = "30000000-0000-4000-8000-000000000003";
 const M_G2 = "30000000-0000-4000-8000-000000000004";
 const M_OFFICER = "30000000-0000-4000-8000-000000000005";
 const M_NOKEY = "30000000-0000-4000-8000-000000000006";
+const OCC_ID = "40000000-0000-4000-8000-000000000001";
 
 const results = [];
+const occurrenceDml = [];
 
 function record(id, pass, detail) {
   results.push({ id, pass, detail });
-  const mark = pass ? "PASS" : "FAIL";
-  console.log(`${mark} ${id}${detail ? ` — ${detail}` : ""}`);
+  console.log(`${pass ? "PASS" : "FAIL"} ${id}${detail ? ` — ${detail}` : ""}`);
+}
+
+function psql(sql, opts = {}) {
+  const res = psqlUrl(url, sql, { onErrorStop: opts.allowFail ? false : true, verbosity: opts.verbosity });
+  if (!res.ok && !opts.allowFail) {
+    throw new Error(res.err || res.out || "psql failed");
+  }
+  return res;
+}
+
+function classifyDenial(res) {
+  const blob = `${res.err}\n${res.out}`;
+  const stateMatch = blob.match(/ERROR:\s+(\d{5}):/) || blob.match(/SQLSTATE:\s+(\d{5})/i);
+  const sqlstate = stateMatch ? stateMatch[1] : null;
+  if (/row-level security/i.test(blob)) {
+    return { mechanism: "RLS_VIOLATION", sqlstate: sqlstate || "42501" };
+  }
+  if (sqlstate === "42501" || /permission denied/i.test(blob)) {
+    return { mechanism: "PERMISSION_DENIED", sqlstate: sqlstate || "42501" };
+  }
+  if (!res.ok) {
+    return { mechanism: "UNEXPECTED_ERROR", sqlstate };
+  }
+  const lines = res.out.split("\n").filter((l) => l && !/^[A-F0-9-]{8}-[A-F0-9-]{4}-/i.test(l) ? true : true);
+  void lines;
+  if (res.out === "") {
+    return { mechanism: "ZERO_ROW_SUCCESS", sqlstate: null };
+  }
+  return { mechanism: "SUCCESS", sqlstate: null };
+}
+
+function runRoleSql({ operation, role, uid, sql, expected }) {
+  const wrapped = `
+    SET ROLE ${role};
+    ${uid ? `SELECT set_config('m2.uid', '${uid}', true);` : ""}
+    ${sql}
+    RESET ROLE;
+    SELECT set_config('m2.uid', '', true);
+  `;
+  const res = psqlUrl(url, wrapped, { onErrorStop: false, verbosity: "verbose" });
+  const cls = classifyDenial(res);
+  let pass = false;
+  if (expected === "PERMISSION_DENIED") {
+    pass = cls.mechanism === "PERMISSION_DENIED" || cls.mechanism === "RLS_VIOLATION";
+  } else if (expected === "ALLOW") {
+    pass = res.ok && cls.mechanism === "SUCCESS";
+  } else if (expected === "DENY") {
+    if (cls.mechanism === "PERMISSION_DENIED" || cls.mechanism === "RLS_VIOLATION") pass = true;
+    else if (cls.mechanism === "ZERO_ROW_SUCCESS") pass = true;
+    else pass = false;
+  }
+  if (expected === "DENY" && cls.mechanism === "ZERO_ROW_SUCCESS" && /UPDATE|DELETE/.test(operation)) {
+    // Caller must prove unchanged separately; this is an allowed deny mechanism.
+    pass = true;
+  }
+  const row = {
+    operation,
+    role,
+    expected_mechanism: expected,
+    actual_mechanism: cls.mechanism,
+    error: res.err || null,
+    sqlstate: cls.sqlstate,
+    out: res.out,
+    pass,
+  };
+  occurrenceDml.push(row);
+  return row;
 }
 
 function asUser(uid, sql) {
-  return psql(`
+  return psqlUrl(
+    url,
+    `
     SET ROLE authenticated;
     SELECT set_config('m2.uid', '${uid}', true);
     ${sql}
     RESET ROLE;
     SELECT set_config('m2.uid', '', true);
-  `, { allowFail: true });
+  `,
+    { onErrorStop: false },
+  );
+}
+
+function snapshotOccurrence() {
+  return psql(`
+    SELECT id::text || '|' || group_id::text || '|' || domain || '|' || object_id::text
+      || '|' || status || '|' || identity_key
+      || '|' || created_at::text || '|' || updated_at::text
+    FROM public.notification_policy_occurrences
+    WHERE id='${OCC_ID}'
+  `).out;
 }
 
 try {
-  const ping = psql("select 1");
-  if (!ping.ok || ping.out !== "1") {
-    throw new Error("psql cannot connect to disposable DB. Set M2_DISPOSABLE_DATABASE_URL.");
-  }
+  const adminUrl =
+    process.env.M2_DISPOSABLE_ADMIN_URL ||
+    "postgresql://ubuntu@/postgres?host=/var/run/postgresql&port=5433";
+  recreateDisposableDatabase({ adminUrl, dbName: "m2_notification_policy_disposable" });
+  applyDisposableFloor(url);
+
+  const pgMajor = psql("SHOW server_version_num").out;
+  record("PG17_REQUIRED", Number(pgMajor) >= 170000, pgMajor);
 
   const preQueue = psql("SELECT count(*) FROM public.notifications_queue").out;
 
-  psqlFile("supabase/migrations/00117_m2_notification_policy_foundation.sql");
-  record("APPLY_00117", true, "applied after 00116-era fixture");
+  const apply = spawnSync(
+    "psql",
+    ["-d", url, "-v", "ON_ERROR_STOP=1", "-X", "-q", "-f", path.join(root, "supabase/migrations/00117_m2_notification_policy_foundation.sql")],
+    { encoding: "utf8", env: { ...process.env, PGPASSWORD: process.env.PGPASSWORD || "" } },
+  );
+  record("APPLY_00117", apply.status === 0, apply.status === 0 ? "applied after exact live floor" : (apply.stderr || apply.stdout));
+  if (apply.status !== 0) {
+    throw new Error(apply.stderr || apply.stdout || "00117 failed");
+  }
 
   const tables = psql(`
     SELECT string_agg(relname, ',' ORDER BY relname)
@@ -207,7 +276,11 @@ try {
     INSERT INTO public.notification_policies (group_id, domain)
     VALUES ('${G1}', 'hosting');
   `);
-  record("NON_MANAGER_INSERT_DENY", !memberIns.ok || memberIns.out === "", memberIns.err || memberIns.out);
+  record(
+    "NON_MANAGER_INSERT_DENY",
+    ["PERMISSION_DENIED", "RLS_VIOLATION"].includes(classifyDenial(memberIns).mechanism),
+    `${classifyDenial(memberIns).mechanism} ${memberIns.err || memberIns.out}`,
+  );
 
   const memberSel = asUser(U_MEMBER, `SELECT count(*) FROM public.notification_policies;`);
   record("NON_MANAGER_SELECT_DENY", memberSel.ok && memberSel.out.split("\n").pop() === "0", memberSel.out);
@@ -219,7 +292,11 @@ try {
     INSERT INTO public.notification_policies (group_id, domain)
     VALUES ('${G1}', 'payment');
   `);
-  record("CROSS_TENANT_INSERT_DENY", !crossIns.ok || crossIns.out === "", crossIns.err || crossIns.out);
+  record(
+    "CROSS_TENANT_INSERT_DENY",
+    ["PERMISSION_DENIED", "RLS_VIOLATION"].includes(classifyDenial(crossIns).mechanism),
+    `${classifyDenial(crossIns).mechanism} ${crossIns.err || crossIns.out}`,
+  );
 
   const crossSel = asUser(U_G2, `SELECT count(*) FROM public.notification_policies;`);
   record("CROSS_TENANT_SELECT_DENY", crossSel.ok && crossSel.out.split("\n").pop() === "0", crossSel.out);
@@ -257,18 +334,19 @@ try {
   `, { allowFail: true });
   record("REPEAT_REQUIRES_MAX", !repeatNoMax.ok, repeatNoMax.err);
 
-  const occId = "40000000-0000-4000-8000-000000000001";
   psql(`
     INSERT INTO public.notification_policy_occurrences (
       id, group_id, domain, object_id, anchor_at, trigger_offset_hours,
       occurrence_index, identity_key, eligible_at
     ) VALUES (
-      '${occId}', '${G1}', 'event', '55555555-5555-4555-8555-555555555555',
+      '${OCC_ID}', '${G1}', 'event', '55555555-5555-4555-8555-555555555555',
       '2026-10-01T12:00:00Z', -48, 0,
       'event:55555555-5555-4555-8555-555555555555:2026-10-01T12:00:00.000Z:-48:0',
       '2026-09-29T12:00:00Z'
     );
   `);
+
+  const beforeOcc = snapshotOccurrence();
 
   const ownerOccSel = asUser(U_OWNER, `SELECT count(*) FROM public.notification_policy_occurrences;`);
   record("OCCURRENCES_SELECT_MANAGER", ownerOccSel.ok && ownerOccSel.out.split("\n").pop() === "1", ownerOccSel.out);
@@ -276,28 +354,113 @@ try {
   const memberOccSel = asUser(U_MEMBER, `SELECT count(*) FROM public.notification_policy_occurrences;`);
   record("OCCURRENCES_SELECT_NON_MANAGER_DENY", memberOccSel.ok && memberOccSel.out.split("\n").pop() === "0", memberOccSel.out);
 
-  const ownerOccIns = asUser(U_OWNER, `
-    INSERT INTO public.notification_policy_occurrences (
-      group_id, domain, object_id, anchor_at, trigger_offset_hours,
-      occurrence_index, identity_key, eligible_at
-    ) VALUES (
-      '${G1}', 'event', '66666666-6666-4666-8666-666666666666',
-      '2026-10-02T12:00:00Z', -48, 0,
-      'event:66666666-6666-4666-8666-666666666666:2026-10-02T12:00:00.000Z:-48:0',
-      '2026-09-30T12:00:00Z'
-    );
-  `);
-  record("OCCURRENCES_AUTH_INSERT_DENY", !ownerOccIns.ok, ownerOccIns.err || ownerOccIns.out);
+  const authIns = runRoleSql({
+    operation: "INSERT",
+    role: "authenticated",
+    uid: U_OWNER,
+    expected: "PERMISSION_DENIED",
+    sql: `
+      INSERT INTO public.notification_policy_occurrences (
+        group_id, domain, object_id, anchor_at, trigger_offset_hours,
+        occurrence_index, identity_key, eligible_at
+      ) VALUES (
+        '${G1}', 'event', '66666666-6666-4666-8666-666666666666',
+        '2026-10-02T12:00:00Z', -48, 0,
+        'event:66666666-6666-4666-8666-666666666666:2026-10-02T12:00:00.000Z:-48:0',
+        '2026-09-30T12:00:00Z'
+      ) RETURNING id;
+    `,
+  });
+  record("OCCURRENCES_AUTH_INSERT_DENY", authIns.pass, `${authIns.actual_mechanism} ${authIns.sqlstate || ""}`.trim());
 
-  const ownerOccUpd = asUser(U_OWNER, `
-    UPDATE public.notification_policy_occurrences SET status='cancelled' WHERE id='${occId}';
-  `);
-  record("OCCURRENCES_AUTH_UPDATE_DENY", !ownerOccUpd.ok || ownerOccUpd.out === "", ownerOccUpd.err || ownerOccUpd.out);
+  const authUpd = runRoleSql({
+    operation: "UPDATE",
+    role: "authenticated",
+    uid: U_OWNER,
+    expected: "DENY",
+    sql: `UPDATE public.notification_policy_occurrences SET status='cancelled' WHERE id='${OCC_ID}' RETURNING id;`,
+  });
+  let authUpdPass = authUpd.pass;
+  if (authUpd.actual_mechanism === "ZERO_ROW_SUCCESS") {
+    const after = snapshotOccurrence();
+    authUpdPass = after === beforeOcc && !authUpd.out.includes(OCC_ID);
+  } else if (authUpd.actual_mechanism !== "PERMISSION_DENIED") {
+    authUpdPass = false;
+  }
+  authUpd.pass = authUpdPass;
+  record("OCCURRENCES_AUTH_UPDATE_DENY", authUpdPass, `${authUpd.actual_mechanism} ${authUpd.sqlstate || ""}`.trim());
 
-  const ownerOccDel = asUser(U_OWNER, `
-    DELETE FROM public.notification_policy_occurrences WHERE id='${occId}';
-  `);
-  record("OCCURRENCES_AUTH_DELETE_DENY", !ownerOccDel.ok || ownerOccDel.out === "", ownerOccDel.err || ownerOccDel.out);
+  const authDel = runRoleSql({
+    operation: "DELETE",
+    role: "authenticated",
+    uid: U_OWNER,
+    expected: "DENY",
+    sql: `DELETE FROM public.notification_policy_occurrences WHERE id='${OCC_ID}' RETURNING id;`,
+  });
+  let authDelPass = authDel.pass;
+  if (authDel.actual_mechanism === "ZERO_ROW_SUCCESS") {
+    const after = snapshotOccurrence();
+    authDelPass = after === beforeOcc && !authDel.out.includes(OCC_ID);
+  } else if (authDel.actual_mechanism !== "PERMISSION_DENIED") {
+    authDelPass = false;
+  }
+  authDel.pass = authDelPass;
+  record("OCCURRENCES_AUTH_DELETE_DENY", authDelPass, `${authDel.actual_mechanism} ${authDel.sqlstate || ""}`.trim());
+
+  const srSel = runRoleSql({
+    operation: "SELECT",
+    role: "service_role",
+    expected: "ALLOW",
+    sql: `SELECT count(*) FROM public.notification_policy_occurrences;`,
+  });
+  record("OCCURRENCES_SERVICE_ROLE_SELECT_ALLOW", srSel.pass && /1/.test(srSel.out), `${srSel.actual_mechanism} ${srSel.out}`);
+
+  const srIns = runRoleSql({
+    operation: "INSERT",
+    role: "service_role",
+    expected: "PERMISSION_DENIED",
+    sql: `
+      INSERT INTO public.notification_policy_occurrences (
+        group_id, domain, object_id, anchor_at, trigger_offset_hours,
+        occurrence_index, identity_key, eligible_at
+      ) VALUES (
+        '${G1}', 'event', '77777777-7777-4777-8777-777777777777',
+        '2026-10-03T12:00:00Z', -48, 0,
+        'event:77777777-7777-4777-8777-777777777777:2026-10-03T12:00:00.000Z:-48:0',
+        '2026-10-01T12:00:00Z'
+      ) RETURNING id;
+    `,
+  });
+  record("OCCURRENCES_SERVICE_ROLE_INSERT_DENY", srIns.pass, `${srIns.actual_mechanism} ${srIns.sqlstate || ""}`.trim());
+
+  const srUpd = runRoleSql({
+    operation: "UPDATE",
+    role: "service_role",
+    expected: "DENY",
+    sql: `UPDATE public.notification_policy_occurrences SET status='cancelled' WHERE id='${OCC_ID}' RETURNING id;`,
+  });
+  let srUpdPass = srUpd.actual_mechanism === "PERMISSION_DENIED";
+  if (srUpd.actual_mechanism === "ZERO_ROW_SUCCESS") {
+    srUpdPass = snapshotOccurrence() === beforeOcc;
+  }
+  srUpd.pass = srUpdPass;
+  record("OCCURRENCES_SERVICE_ROLE_UPDATE_DENY", srUpdPass, `${srUpd.actual_mechanism} ${srUpd.sqlstate || ""}`.trim());
+
+  const srDel = runRoleSql({
+    operation: "DELETE",
+    role: "service_role",
+    expected: "DENY",
+    sql: `DELETE FROM public.notification_policy_occurrences WHERE id='${OCC_ID}' RETURNING id;`,
+  });
+  let srDelPass = srDel.actual_mechanism === "PERMISSION_DENIED";
+  if (srDel.actual_mechanism === "ZERO_ROW_SUCCESS") {
+    srDelPass = snapshotOccurrence() === beforeOcc;
+  }
+  srDel.pass = srDelPass;
+  record("OCCURRENCES_SERVICE_ROLE_DELETE_DENY", srDelPass, `${srDel.actual_mechanism} ${srDel.sqlstate || ""}`.trim());
+
+  const afterAllDml = snapshotOccurrence();
+  record("OCCURRENCE_INTEGRITY_AFTER_DENIED_DML", afterAllDml === beforeOcc, afterAllDml === beforeOcc ? "unchanged" : afterAllDml);
 
   const remainingOcc = psql(`SELECT count(*) FROM public.notification_policy_occurrences`).out;
   record("OCCURRENCE_STILL_ONE_AFTER_DENIED_MUTATION", remainingOcc === "1", remainingOcc);
@@ -322,6 +485,17 @@ try {
   const finalQueue = psql("SELECT count(*) FROM public.notifications_queue").out;
   record("FINAL_QUEUE_STILL_UNCHANGED", finalQueue === preQueue, finalQueue);
 
+  const emptyStdoutBanned = occurrenceDml.every((row) => {
+    if (row.expected_mechanism === "ALLOW") return true;
+    if (row.actual_mechanism === "SUCCESS" && (row.out === "" || !row.out)) return false;
+    if (row.operation === "INSERT" && row.actual_mechanism === "ZERO_ROW_SUCCESS") return false;
+    return ["PERMISSION_DENIED", "RLS_VIOLATION", "ZERO_ROW_SUCCESS"].includes(row.actual_mechanism);
+  });
+  record("NO_EMPTY_STDOUT_DENIAL_SHORTCUT", emptyStdoutBanned, "R25: denials use permission/RLS/zero-row+integrity, never empty-stdout");
+
+  const negatives = runNegativeDriftSuite({ adminUrl });
+  for (const n of negatives.results) record(n.id, n.pass, n.detail);
+
   const pass = results.every((r) => r.pass);
   const summary = {
     artifact: "M2_DISPOSABLE_SCHEMA_RESULTS_RUNTIME",
@@ -330,6 +504,8 @@ try {
     pass,
     passed: results.filter((r) => r.pass).length,
     failed: results.filter((r) => !r.pass).length,
+    occurrence_dml: occurrenceDml,
+    negative_drift: negatives,
     results,
   };
   console.log(JSON.stringify(summary, null, 2));

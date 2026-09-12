@@ -31,20 +31,41 @@
 -- NO grants on notifications_queue.
 -- NO enqueue_outbound_notification signature/grants/body change.
 -- NO Cut 2 helper/renderer/drain privilege changes.
+--
+-- Live pins (Chief-confirmed production llbnliixczcqfftxpsmb, SELECT-only):
+--   has_group_permission def MD5 695368464e97297fbf0f90ce7345162f
+--   has_group_permission prosrc MD5 96a296dfd541c7fc75ec68c4da1d92ff
+--   enqueue_outbound_notification def MD5 dbdb16cdced6cae9cbdbfb6a6a9f421f
+--   enqueue_outbound_notification prosrc MD5 3fa76af51e431ccbd31eb033dcff0b80
+-- ACL compared via aclexplode + role resolution; NOT raw ACL text order.
+-- Do NOT accept alternate hashes to make a fixture easier.
 -- =============================================================================
 
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- A) Preconditions — fail closed if 00116-era assumptions differ
+-- A) Preconditions — exact live floor, then snapshot
 -- ---------------------------------------------------------------------------
 DO $m2_pre$
 DECLARE
-  v_enqueue_args text;
-  v_enqueue_count int;
-  v_queue_insert_auth boolean;
-  v_queue_insert_service boolean;
-  v_has_perm oid;
+  v_hgp_count int;
+  v_hgp_ident text;
+  v_hgp_result text;
+  v_hgp_owner text;
+  v_hgp_definer boolean;
+  v_hgp_cfg text[];
+  v_hgp_def_md5 text;
+  v_hgp_src_md5 text;
+  v_enq_count int;
+  v_enq_ident text;
+  v_enq_result text;
+  v_enq_owner text;
+  v_enq_definer boolean;
+  v_enq_cfg text[];
+  v_enq_def_md5 text;
+  v_enq_src_md5 text;
+  v_acl_drift bigint;
+  v_sr_upd text[];
 BEGIN
   IF to_regclass('public.groups') IS NULL THEN
     RAISE EXCEPTION 'M2_ABORT: public.groups missing (00116-era schema required)';
@@ -62,61 +83,394 @@ BEGIN
     RAISE EXCEPTION 'M2_ABORT: policy tables already exist — refuse to collide';
   END IF;
 
-  SELECT p.oid INTO v_has_perm
-  FROM pg_proc p
-  JOIN pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public'
-    AND p.proname = 'has_group_permission'
-    AND pg_get_function_identity_arguments(p.oid) = 'gid uuid, perm_key text, uid uuid';
-  IF v_has_perm IS NULL THEN
-    RAISE EXCEPTION 'M2_ABORT: has_group_permission(gid uuid, perm_key text, uid uuid) missing';
+  -- R1–R4 has_group_permission exact live pin
+  SELECT count(*) INTO v_hgp_count
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND p.proname = 'has_group_permission';
+  IF v_hgp_count IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'M2_ABORT: has_group_permission overload count=% (expected 1)', v_hgp_count;
   END IF;
 
-  SELECT count(*), min(pg_get_function_identity_arguments(p.oid))
-    INTO v_enqueue_count, v_enqueue_args
-  FROM pg_proc p
-  JOIN pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public'
-    AND p.proname = 'enqueue_outbound_notification';
-  IF v_enqueue_count <> 1 THEN
-    RAISE EXCEPTION 'M2_ABORT: enqueue_outbound_notification overload count=% (expected 1)',
-      v_enqueue_count;
-  END IF;
-  IF v_enqueue_args IS DISTINCT FROM
-       'p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text' THEN
-    RAISE EXCEPTION 'M2_ABORT: enqueue_outbound_notification identity args drifted: %',
-      v_enqueue_args;
+  SELECT pg_get_function_identity_arguments(p.oid),
+         pg_get_function_result(p.oid),
+         pg_get_userbyid(p.proowner),
+         p.prosecdef,
+         p.proconfig,
+         md5(pg_get_functiondef(p.oid)),
+         md5(p.prosrc)
+    INTO v_hgp_ident, v_hgp_result, v_hgp_owner, v_hgp_definer, v_hgp_cfg,
+         v_hgp_def_md5, v_hgp_src_md5
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND p.proname = 'has_group_permission';
+
+  IF v_hgp_ident IS DISTINCT FROM 'gid uuid, perm_key text, uid uuid'
+     OR v_hgp_result IS DISTINCT FROM 'boolean'
+     OR v_hgp_owner IS DISTINCT FROM 'postgres'
+     OR v_hgp_definer IS NOT TRUE
+     OR v_hgp_cfg IS DISTINCT FROM ARRAY['search_path=""']::text[]
+     OR v_hgp_def_md5 IS DISTINCT FROM '695368464e97297fbf0f90ce7345162f'
+     OR v_hgp_src_md5 IS DISTINCT FROM '96a296dfd541c7fc75ec68c4da1d92ff' THEN
+    RAISE EXCEPTION
+      'M2_ABORT: has_group_permission live pin mismatch ident=% result=% owner=% definer=% cfg=% def_md5=% src_md5=%',
+      v_hgp_ident, v_hgp_result, v_hgp_owner, v_hgp_definer, v_hgp_cfg,
+      v_hgp_def_md5, v_hgp_src_md5;
   END IF;
 
-  SELECT has_table_privilege('authenticated', 'public.notifications_queue', 'INSERT')
-    INTO v_queue_insert_auth;
-  SELECT has_table_privilege('service_role', 'public.notifications_queue', 'INSERT')
-    INTO v_queue_insert_service;
-  IF v_queue_insert_auth OR v_queue_insert_service THEN
-    RAISE EXCEPTION 'M2_ABORT: notifications_queue INSERT already granted (Cut 2 floor broken before 00117)';
+  SELECT COUNT(*) INTO v_acl_drift FROM (
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND p.proname = 'has_group_permission'
+          AND a.privilege_type = 'EXECUTE'
+      ) actual
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('authenticated'::text, 'EXECUTE'::text, 'postgres'::text, 'false'::text),
+          ('postgres', 'EXECUTE', 'postgres', 'false'),
+          ('service_role', 'EXECUTE', 'postgres', 'false')
+      ) AS expected(role_name, privilege, grantor_name, is_grantable)
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('authenticated'::text, 'EXECUTE'::text, 'postgres'::text, 'false'::text),
+          ('postgres', 'EXECUTE', 'postgres', 'false'),
+          ('service_role', 'EXECUTE', 'postgres', 'false')
+      ) AS expected(role_name, privilege, grantor_name, is_grantable)
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND p.proname = 'has_group_permission'
+          AND a.privilege_type = 'EXECUTE'
+      ) actual
+    )
+  ) drift;
+  IF v_acl_drift <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: has_group_permission EXECUTE ACL set mismatch (drift=%)', v_acl_drift;
+  END IF;
+
+  -- R5–R8 enqueue_outbound_notification exact live pin
+  SELECT count(*) INTO v_enq_count
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification';
+  IF v_enq_count IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'M2_ABORT: enqueue_outbound_notification overload count=% (expected 1)', v_enq_count;
+  END IF;
+
+  SELECT pg_get_function_identity_arguments(p.oid),
+         pg_get_function_result(p.oid),
+         pg_get_userbyid(p.proowner),
+         p.prosecdef,
+         p.proconfig,
+         md5(pg_get_functiondef(p.oid)),
+         md5(p.prosrc)
+    INTO v_enq_ident, v_enq_result, v_enq_owner, v_enq_definer, v_enq_cfg,
+         v_enq_def_md5, v_enq_src_md5
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification';
+
+  IF v_enq_ident IS DISTINCT FROM
+       'p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text'
+     OR v_enq_result IS DISTINCT FROM 'TABLE(queue_id uuid, result text)'
+     OR v_enq_owner IS DISTINCT FROM 'postgres'
+     OR v_enq_definer IS NOT TRUE
+     OR v_enq_cfg IS DISTINCT FROM ARRAY['search_path=""']::text[]
+     OR v_enq_def_md5 IS DISTINCT FROM 'dbdb16cdced6cae9cbdbfb6a6a9f421f'
+     OR v_enq_src_md5 IS DISTINCT FROM '3fa76af51e431ccbd31eb033dcff0b80' THEN
+    RAISE EXCEPTION
+      'M2_ABORT: enqueue_outbound_notification live pin mismatch ident=% result=% owner=% definer=% cfg=% def_md5=% src_md5=%',
+      v_enq_ident, v_enq_result, v_enq_owner, v_enq_definer, v_enq_cfg,
+      v_enq_def_md5, v_enq_src_md5;
+  END IF;
+
+  SELECT COUNT(*) INTO v_acl_drift FROM (
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification'
+          AND a.privilege_type = 'EXECUTE'
+      ) actual
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('postgres'::text, 'EXECUTE'::text, 'postgres'::text, 'false'::text),
+          ('service_role', 'EXECUTE', 'postgres', 'false')
+      ) AS expected(role_name, privilege, grantor_name, is_grantable)
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('postgres'::text, 'EXECUTE'::text, 'postgres'::text, 'false'::text),
+          ('service_role', 'EXECUTE', 'postgres', 'false')
+      ) AS expected(role_name, privilege, grantor_name, is_grantable)
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification'
+          AND a.privilege_type = 'EXECUTE'
+      ) actual
+    )
+  ) drift;
+  IF v_acl_drift <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: enqueue_outbound_notification EXECUTE ACL set mismatch (drift=%)', v_acl_drift;
+  END IF;
+
+  -- R9 queue TABLE ACL exact live set
+  SELECT COUNT(*) INTO v_acl_drift FROM (
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) AS a
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+      ) actual
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('authenticated'::text, 'SELECT'::text, 'postgres'::text, 'false'::text),
+          ('postgres', 'DELETE', 'postgres', 'false'),
+          ('postgres', 'INSERT', 'postgres', 'false'),
+          ('postgres', 'MAINTAIN', 'postgres', 'false'),
+          ('postgres', 'REFERENCES', 'postgres', 'false'),
+          ('postgres', 'SELECT', 'postgres', 'false'),
+          ('postgres', 'TRIGGER', 'postgres', 'false'),
+          ('postgres', 'TRUNCATE', 'postgres', 'false'),
+          ('postgres', 'UPDATE', 'postgres', 'false'),
+          ('service_role', 'SELECT', 'postgres', 'false')
+      ) AS expected(role_name, privilege, grantor_name, is_grantable)
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('authenticated'::text, 'SELECT'::text, 'postgres'::text, 'false'::text),
+          ('postgres', 'DELETE', 'postgres', 'false'),
+          ('postgres', 'INSERT', 'postgres', 'false'),
+          ('postgres', 'MAINTAIN', 'postgres', 'false'),
+          ('postgres', 'REFERENCES', 'postgres', 'false'),
+          ('postgres', 'SELECT', 'postgres', 'false'),
+          ('postgres', 'TRIGGER', 'postgres', 'false'),
+          ('postgres', 'TRUNCATE', 'postgres', 'false'),
+          ('postgres', 'UPDATE', 'postgres', 'false'),
+          ('service_role', 'SELECT', 'postgres', 'false')
+      ) AS expected(role_name, privilege, grantor_name, is_grantable)
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) AS a
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+      ) actual
+    )
+  ) drift;
+  IF v_acl_drift <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: notifications_queue TABLE ACL set mismatch (drift=%)', v_acl_drift;
+  END IF;
+
+  -- R10–R13 exact five column UPDATE attacl rows
+  SELECT COUNT(*) INTO v_acl_drift FROM (
+    (
+      SELECT concat_ws('|', attname, role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT att.attname::text AS attname,
+               CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_attribute att
+        JOIN pg_class c ON c.oid = att.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN LATERAL aclexplode(att.attacl) AS a ON att.attacl IS NOT NULL
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+          AND att.attnum > 0 AND NOT att.attisdropped AND att.attacl IS NOT NULL
+      ) actual
+      EXCEPT
+      SELECT concat_ws('|', attname, role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('attempts'::text, 'service_role'::text, 'UPDATE'::text, 'postgres'::text, 'false'::text),
+          ('data', 'service_role', 'UPDATE', 'postgres', 'false'),
+          ('error_message', 'service_role', 'UPDATE', 'postgres', 'false'),
+          ('sent_at', 'service_role', 'UPDATE', 'postgres', 'false'),
+          ('status', 'service_role', 'UPDATE', 'postgres', 'false')
+      ) AS expected(attname, role_name, privilege, grantor_name, is_grantable)
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|', attname, role_name, privilege, grantor_name, is_grantable) FROM (
+        VALUES
+          ('attempts'::text, 'service_role'::text, 'UPDATE'::text, 'postgres'::text, 'false'::text),
+          ('data', 'service_role', 'UPDATE', 'postgres', 'false'),
+          ('error_message', 'service_role', 'UPDATE', 'postgres', 'false'),
+          ('sent_at', 'service_role', 'UPDATE', 'postgres', 'false'),
+          ('status', 'service_role', 'UPDATE', 'postgres', 'false')
+      ) AS expected(attname, role_name, privilege, grantor_name, is_grantable)
+      EXCEPT
+      SELECT concat_ws('|', attname, role_name, privilege, grantor_name, is_grantable) FROM (
+        SELECT att.attname::text AS attname,
+               CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+               a.privilege_type::text AS privilege,
+               go.rolname::text AS grantor_name,
+               CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+        FROM pg_attribute att
+        JOIN pg_class c ON c.oid = att.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        JOIN LATERAL aclexplode(att.attacl) AS a ON att.attacl IS NOT NULL
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+        LEFT JOIN pg_roles go ON go.oid = a.grantor
+        WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+          AND att.attnum > 0 AND NOT att.attisdropped AND att.attacl IS NOT NULL
+      ) actual
+    )
+  ) drift;
+  IF v_acl_drift <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: notifications_queue COLUMN attacl set mismatch (drift=%)', v_acl_drift;
+  END IF;
+
+  SELECT array_agg(att.attname::text ORDER BY att.attname)
+    INTO v_sr_upd
+  FROM pg_attribute att
+  JOIN pg_class c ON c.oid = att.attrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN LATERAL aclexplode(att.attacl) AS a ON att.attacl IS NOT NULL
+  LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+  WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+    AND att.attnum > 0 AND NOT att.attisdropped
+    AND a.privilege_type = 'UPDATE'
+    AND gr.rolname = 'service_role';
+  IF v_sr_upd IS DISTINCT FROM ARRAY['attempts','data','error_message','sent_at','status']::text[] THEN
+    RAISE EXCEPTION 'M2_ABORT: service_role UPDATE columns=% (expected attempts,data,error_message,sent_at,status)',
+      v_sr_upd;
   END IF;
 END
 $m2_pre$;
 
--- Snapshot Cut 2 floor (compared again in postconditions)
+-- Snapshot only AFTER qualified pins pass
+CREATE TEMP TABLE m2_pre_hgp AS
+SELECT
+  p.oid,
+  pg_get_function_identity_arguments(p.oid) AS identity_args,
+  pg_get_function_result(p.oid) AS result_type,
+  pg_get_userbyid(p.proowner) AS owner,
+  p.prosecdef,
+  p.proconfig,
+  md5(pg_get_functiondef(p.oid)) AS def_md5,
+  md5(p.prosrc) AS src_md5
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.proname = 'has_group_permission';
+
+CREATE TEMP TABLE m2_pre_hgp_acl AS
+SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+       a.privilege_type::text AS privilege,
+       go.rolname::text AS grantor_name,
+       CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+LEFT JOIN pg_roles go ON go.oid = a.grantor
+WHERE n.nspname = 'public' AND p.proname = 'has_group_permission';
+
 CREATE TEMP TABLE m2_pre_enqueue AS
 SELECT
   p.oid,
   pg_get_function_identity_arguments(p.oid) AS identity_args,
   pg_get_function_result(p.oid) AS result_type,
+  pg_get_userbyid(p.proowner) AS owner,
   p.prosecdef,
-  md5(p.prosrc) AS src_md5,
-  COALESCE(p.proacl::text, '') AS proacl
+  p.proconfig,
+  md5(pg_get_functiondef(p.oid)) AS def_md5,
+  md5(p.prosrc) AS src_md5
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname = 'enqueue_outbound_notification';
+WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification';
+
+CREATE TEMP TABLE m2_pre_enqueue_acl AS
+SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+       a.privilege_type::text AS privilege,
+       go.rolname::text AS grantor_name,
+       CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+LEFT JOIN pg_roles go ON go.oid = a.grantor
+WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification';
 
 CREATE TEMP TABLE m2_pre_queue_acl AS
-SELECT c.relacl::text AS relacl
+SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+       a.privilege_type::text AS privilege,
+       go.rolname::text AS grantor_name,
+       CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
+CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) AS a
+LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+LEFT JOIN pg_roles go ON go.oid = a.grantor
 WHERE n.nspname = 'public' AND c.relname = 'notifications_queue';
+
+CREATE TEMP TABLE m2_pre_queue_col_acl AS
+SELECT att.attname::text AS attname,
+       CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END AS role_name,
+       a.privilege_type::text AS privilege,
+       go.rolname::text AS grantor_name,
+       CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END AS is_grantable
+FROM pg_attribute att
+JOIN pg_class c ON c.oid = att.attrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+JOIN LATERAL aclexplode(att.attacl) AS a ON att.attacl IS NOT NULL
+LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+LEFT JOIN pg_roles go ON go.oid = a.grantor
+WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+  AND att.attnum > 0 AND NOT att.attisdropped AND att.attacl IS NOT NULL;
 
 CREATE TEMP TABLE m2_pre_queue_count AS
 SELECT count(*)::bigint AS n FROM public.notifications_queue;
@@ -513,6 +867,66 @@ BEGIN
       v_queue_delta;
   END IF;
 
+  -- R4 / R8 / R11: fingerprints + ACL unchanged vs snapshot AND vs live pin
+  SELECT count(*) INTO v_enqueue_changed
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  CROSS JOIN m2_pre_hgp pre
+  WHERE n.nspname = 'public'
+    AND p.proname = 'has_group_permission'
+    AND (
+      pg_get_function_identity_arguments(p.oid) IS DISTINCT FROM pre.identity_args
+      OR pg_get_function_result(p.oid) IS DISTINCT FROM pre.result_type
+      OR pg_get_userbyid(p.proowner) IS DISTINCT FROM pre.owner
+      OR p.prosecdef IS DISTINCT FROM pre.prosecdef
+      OR p.proconfig IS DISTINCT FROM pre.proconfig
+      OR md5(pg_get_functiondef(p.oid)) IS DISTINCT FROM pre.def_md5
+      OR md5(p.prosrc) IS DISTINCT FROM pre.src_md5
+      OR md5(pg_get_functiondef(p.oid)) IS DISTINCT FROM '695368464e97297fbf0f90ce7345162f'
+      OR md5(p.prosrc) IS DISTINCT FROM '96a296dfd541c7fc75ec68c4da1d92ff'
+    );
+  IF v_enqueue_changed <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: has_group_permission fingerprint changed after 00117 DDL';
+  END IF;
+
+  SELECT count(*) INTO v_queue_acl_changed
+  FROM (
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM m2_pre_hgp_acl
+      EXCEPT
+      SELECT concat_ws('|',
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND p.proname = 'has_group_permission'
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|',
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND p.proname = 'has_group_permission'
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM m2_pre_hgp_acl
+    )
+  ) d;
+  IF v_queue_acl_changed <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: has_group_permission ACL changed after 00117 DDL';
+  END IF;
+
   SELECT count(*) INTO v_enqueue_changed
   FROM pg_proc p
   JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -522,23 +936,152 @@ BEGIN
     AND (
       pg_get_function_identity_arguments(p.oid) IS DISTINCT FROM pre.identity_args
       OR pg_get_function_result(p.oid) IS DISTINCT FROM pre.result_type
+      OR pg_get_userbyid(p.proowner) IS DISTINCT FROM pre.owner
       OR p.prosecdef IS DISTINCT FROM pre.prosecdef
+      OR p.proconfig IS DISTINCT FROM pre.proconfig
+      OR md5(pg_get_functiondef(p.oid)) IS DISTINCT FROM pre.def_md5
       OR md5(p.prosrc) IS DISTINCT FROM pre.src_md5
-      OR COALESCE(p.proacl::text, '') IS DISTINCT FROM pre.proacl
+      OR md5(pg_get_functiondef(p.oid)) IS DISTINCT FROM 'dbdb16cdced6cae9cbdbfb6a6a9f421f'
+      OR md5(p.prosrc) IS DISTINCT FROM '3fa76af51e431ccbd31eb033dcff0b80'
     );
   IF v_enqueue_changed <> 0 THEN
-    RAISE EXCEPTION 'M2_ABORT: enqueue_outbound_notification signature/body/ACL changed';
+    RAISE EXCEPTION 'M2_ABORT: enqueue_outbound_notification identity/return/owner/DEFINER/proconfig/body/ACL fingerprint changed';
   END IF;
 
   SELECT count(*) INTO v_queue_acl_changed
-  FROM pg_class c
-  JOIN pg_namespace n ON n.oid = c.relnamespace
-  CROSS JOIN m2_pre_queue_acl pre
-  WHERE n.nspname = 'public'
-    AND c.relname = 'notifications_queue'
-    AND c.relacl::text IS DISTINCT FROM pre.relacl;
+  FROM (
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM m2_pre_enqueue_acl
+      EXCEPT
+      SELECT concat_ws('|',
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification'
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|',
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification'
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM m2_pre_enqueue_acl
+    )
+  ) d;
   IF v_queue_acl_changed <> 0 THEN
-    RAISE EXCEPTION 'M2_ABORT: notifications_queue ACL changed';
+    RAISE EXCEPTION 'M2_ABORT: enqueue_outbound_notification ACL changed after 00117 DDL';
+  END IF;
+
+  SELECT count(*) INTO v_queue_acl_changed
+  FROM (
+    (
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM m2_pre_queue_acl
+      EXCEPT
+      SELECT concat_ws('|',
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) AS a
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|',
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) AS a
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+      EXCEPT
+      SELECT concat_ws('|', role_name, privilege, grantor_name, is_grantable) FROM m2_pre_queue_acl
+    )
+  ) d;
+  IF v_queue_acl_changed <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: notifications_queue TABLE ACL changed after 00117 DDL';
+  END IF;
+
+  SELECT count(*) INTO v_queue_acl_changed
+  FROM (
+    (
+      SELECT concat_ws('|', attname, role_name, privilege, grantor_name, is_grantable) FROM m2_pre_queue_col_acl
+      EXCEPT
+      SELECT concat_ws('|',
+        att.attname::text,
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_attribute att
+      JOIN pg_class c ON c.oid = att.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN LATERAL aclexplode(att.attacl) AS a ON att.attacl IS NOT NULL
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+        AND att.attnum > 0 AND NOT att.attisdropped AND att.attacl IS NOT NULL
+    )
+    UNION ALL
+    (
+      SELECT concat_ws('|',
+        att.attname::text,
+        CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+        a.privilege_type::text,
+        go.rolname::text,
+        CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+      FROM pg_attribute att
+      JOIN pg_class c ON c.oid = att.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN LATERAL aclexplode(att.attacl) AS a ON att.attacl IS NOT NULL
+      LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+      LEFT JOIN pg_roles go ON go.oid = a.grantor
+      WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+        AND att.attnum > 0 AND NOT att.attisdropped AND att.attacl IS NOT NULL
+      EXCEPT
+      SELECT concat_ws('|', attname, role_name, privilege, grantor_name, is_grantable) FROM m2_pre_queue_col_acl
+    )
+  ) d;
+  IF v_queue_acl_changed <> 0 THEN
+    RAISE EXCEPTION 'M2_ABORT: notifications_queue COLUMN attacl changed after 00117 DDL';
+  END IF;
+
+  -- R13 post: service_role UPDATE columns exactly the five live columns
+  IF (
+    SELECT array_agg(att.attname::text ORDER BY att.attname)
+    FROM pg_attribute att
+    JOIN pg_class c ON c.oid = att.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN LATERAL aclexplode(att.attacl) AS a ON att.attacl IS NOT NULL
+    LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+    WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+      AND att.attnum > 0 AND NOT att.attisdropped
+      AND a.privilege_type = 'UPDATE'
+      AND gr.rolname = 'service_role'
+  ) IS DISTINCT FROM ARRAY['attempts','data','error_message','sent_at','status']::text[] THEN
+    RAISE EXCEPTION 'M2_ABORT: service_role UPDATE column set drifted after 00117 DDL';
   END IF;
 
   SELECT has_table_privilege('authenticated', 'public.notification_policy_occurrences', 'INSERT')

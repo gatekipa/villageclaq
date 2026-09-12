@@ -1,0 +1,44 @@
+{
+  "artifact": "M3_F3_FORWARD_MIGRATION_MANIFEST_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "superseded_functional_sha": "90cae96593e223ba6a7001349c214bfbbc9c0bba",
+  "base_main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "planning_pr": 83,
+  "planning_sha": "a178068384290b37ec6c17b02428b399d52ddd10",
+  "do_not_apply_to_production": true,
+  "bytes_00001_00117_unchanged": true,
+  "timestamp_f3_history_absent": true,
+  "migrations": [
+    {
+      "file": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql",
+      "sha256": "e382fb033cf7f51a321cb2c84590d9375b49ec49d400f763ea4e08fe9d9d6697",
+      "bytes": 12148
+    },
+    {
+      "file": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql",
+      "sha256": "be20b1197ea5e971888357f05127ee8e4358af69ef6d63169b4c0fd560ad6269",
+      "bytes": 34877
+    },
+    {
+      "file": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql",
+      "sha256": "de8359d1d289933cf4d4f7d5970b2126e4e49373fe35b8fdfc7bbf89964bd499",
+      "bytes": 32316
+    },
+    {
+      "file": "supabase/migrations/00121_f3_03_projection_read_proof.sql",
+      "sha256": "620f807c6119cc1ea14ef586b0b624350410bb513ef2c87fa96ec32bd0b29195",
+      "bytes": 35290
+    },
+    {
+      "file": "supabase/migrations/00122_f3_04_correction_reversal.sql",
+      "sha256": "ea5daf5031170badc407aecbbc71af51b16b6dd38d08aee9caca7ec9f259b2e8",
+      "bytes": 48434
+    },
+    {
+      "file": "supabase/migrations/00123_f3_05_opening_cash_command.sql",
+      "sha256": "f710844800794a5afaa9ae8adb7a143d14b0abc10d458b33947c87bbacae3191",
+      "bytes": 19027
+    }
+  ]
+}

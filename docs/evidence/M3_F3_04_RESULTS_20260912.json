@@ -1,0 +1,21 @@
+{
+  "artifact": "M3_F3_04_RESULTS_20260912",
+  "ticket": "F3-04",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "migration": "supabase/migrations/00122_f3_04_correction_reversal.sql",
+  "db_suite": "scripts/test-financial-f3-correction-db.mjs",
+  "db_result": "23/23 PASS",
+  "astra_suite": "tests/finance/f3-04/correction-oracle.test.mjs",
+  "astra_result": "168/168 PASS",
+  "expected_change": "none",
+  "covered": [
+    "finances.manage",
+    "reason/actor/timestamp/linkage",
+    "immutable original",
+    "exact reversal",
+    "optional replacement",
+    "at most one reversal",
+    "concurrent second DENY (S-T target races: exactly one success)",
+    "no client update of posted rows"
+  ]
+}

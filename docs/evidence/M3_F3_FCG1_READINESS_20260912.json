@@ -1,0 +1,97 @@
+{
+  "artifact": "M3_F3_FCG1_READINESS_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "fcg1_closed": false,
+  "skip_fcg1": "FORBIDDEN",
+  "placement": "F3-06 → F3-07 → FCG-1 → F3-08 → F3-09",
+  "authority": {
+    "planning": "PR #83 docs/evidence/M3_FCG1_RECONCILIATION_MATRIX_20260912.json @ a178068384290b37ec6c17b02428b399d52ddd10",
+    "master_prd": "PR #71 head 050be86c9df3455c66b27bb5853eb786228b4009"
+  },
+  "shared_occurrence_invariant": {
+    "p1b_natural_key": "(group_id, source_module, source_record_id, effect_kind, ledger_epoch)",
+    "manual_f3_on_disposable_after_00120": "PRESENT — unique + advisory lock + identical replay / changed-payload CONFLICT",
+    "shared_manual_plus_module": "MISSING / NEEDS_FCG1",
+    "dues_payment_id": "PRESENT as payments.id on current-main — not yet an F3 source tuple",
+    "confirmation_and_allocation_same_receipt": "NEEDS_FCG1"
+  },
+  "proofs": [
+    {
+      "id": "FCG1-01",
+      "status_now": "CONTRACT_ALIGNED_FOUNDATION_PRESENT",
+      "progress": "F3-03 disposable 25/25 + Astra 80/80 re-qual on post-S0 floor",
+      "still_open": "F3-08 cash-basis label / canonical reporting freeze"
+    },
+    {
+      "id": "FCG1-02",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "progress": "F3-01..05 do not post on obligation INSERT",
+      "still_open": "Explicit non-post test after F3-07 Record Transaction"
+    },
+    {
+      "id": "FCG1-03",
+      "status_now": "NEEDS_FCG1",
+      "progress": "F3-02 recognition gate forbids dues assessment / unconfirmed as SoA income",
+      "still_open": "Fixture: confirm 500 unapplied → one income 500 + custody 500; later allocate 300 → zero new income/custody/occurrence"
+    },
+    {
+      "id": "FCG1-04",
+      "status_now": "NEEDS_FCG1",
+      "still_open": "Shared receipt/source identity across confirmation and allocation"
+    },
+    {
+      "id": "FCG1-05",
+      "status_now": "NEEDS_FCG1",
+      "progress": "Frozen cash-basis: refundable = liability",
+      "still_open": "F3-02/F3-07 template tests distinguishing refundable vs non-refundable"
+    },
+    {
+      "id": "FCG1-06",
+      "status_now": "CONTRACT_ALIGNED",
+      "still_open": "Documented mapping in FCG-1 packet after F3-07; adapters M5/M6"
+    },
+    {
+      "id": "FCG1-07",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "progress": "Recognition gate: loan principal never income/expense",
+      "still_open": "F3-07 taxonomy + negative test"
+    },
+    {
+      "id": "FCG1-08",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "progress": "Recognition gate: Njangi contribution not SoA income",
+      "still_open": "F3-07 classification ban; N-010 is M8"
+    },
+    {
+      "id": "FCG1-09",
+      "status_now": "NEEDS_FCG1",
+      "progress": "Recognition gate: relief restricted income once; remittance no second income",
+      "still_open": "Documented occurrence identity for owner receipt vs remittance settlement"
+    },
+    {
+      "id": "FCG1-10",
+      "status_now": "PRESENT_ON_FORWARD_F3",
+      "progress": "00118 + F3-02 same-currency transfer / cross-currency DENY; 158/158 + 167/167",
+      "still_open": "none for foundation; qualified FX workflow remains out of scope"
+    },
+    {
+      "id": "FCG1-11",
+      "status_now": "NEEDS_FCG1",
+      "progress": "Manual natural key PRESENT after 00120",
+      "still_open": "Shared source-link invariant across manual + module adapters before F3-08/09"
+    },
+    {
+      "id": "FCG1-12",
+      "status_now": "NEEDS_FCG1",
+      "still_open": "F3-08 projections + dues reports 1-4 labeled as subledger; bridge fixture"
+    }
+  ],
+  "gaps_blocking_fcg1_close": [
+    "F3-06 UI not started",
+    "F3-07 Record Transaction not started",
+    "Shared occurrence identity across manual + module adapters not specified/tested",
+    "Dues confirmation/allocation goldens not run against live templates",
+    "F3-08 / F3-09 not started"
+  ]
+}

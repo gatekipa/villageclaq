@@ -14,6 +14,9 @@ import sys
 import traceback
 from pathlib import Path
 
+import psycopg2
+import psycopg2.extensions
+
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase/migrations/00116_s0_p0c_cut3_storage_path_fail_closed.sql"
 FINGERPRINTS = ROOT / "docs/evidence/S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912.json"
@@ -65,8 +68,15 @@ def must(res: subprocess.CompletedProcess, ctx: str) -> str:
 
 
 def recreate_db() -> None:
+    subprocess.run(["sudo", "-u", "postgres", "psql", "-c",
+                    "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='ubuntu') THEN CREATE ROLE ubuntu SUPERUSER LOGIN; END IF; END $$;"],
+                   check=True, capture_output=True, text=True)
     subprocess.run(["sudo", "-u", "postgres", "psql", "-c", f"DROP DATABASE IF EXISTS {DB};"], check=True, capture_output=True, text=True)
-    subprocess.run(["sudo", "-u", "postgres", "psql", "-c", f"CREATE DATABASE {DB};"], check=True, capture_output=True, text=True)
+    subprocess.run(["sudo", "-u", "postgres", "psql", "-c", f"CREATE DATABASE {DB} OWNER ubuntu;"], check=True, capture_output=True, text=True)
+
+
+def connect():
+    return psycopg2.connect(dbname=DB, user="ubuntu", host="/var/run/postgresql")
 
 
 def load_json(path: Path):
@@ -320,135 +330,124 @@ INSERT INTO public.position_permissions(position_id, permission) VALUES
 """
 
 
-def set_actor_sql(uid: str | None) -> str:
-    if uid is None:
-        return "RESET ROLE; SELECT set_config('request.jwt.claim.sub', '', true);"
-    return (
-        "RESET ROLE; "
-        f"SELECT set_config('request.jwt.claim.sub', '{uid}', true); "
-        "SET ROLE authenticated;"
-    )
+CONN = None
 
 
-def classify_sql_error(stderr: str, stdout: str) -> tuple[str, bool]:
-    text = (stderr or "") + "\n" + (stdout or "")
-    if "22P02" in text or "invalid input syntax for type uuid" in text:
+def classify_exc(exc: Exception) -> tuple[str, bool]:
+    text = str(exc)
+    pgcode = getattr(exc, "pgcode", None)
+    if pgcode == "22P02" or "invalid input syntax for type uuid" in text:
         return "ERROR_22P02", True
-    if "42501" in text or "permission denied" in text:
+    if pgcode == "42501" or "permission denied" in text:
         return "PERMISSION_DENIED", False
     if "row-level security policy" in text:
         return "RLS_DENY", False
-    if "CUT3_ABORT" in text:
-        return "CUT3_ABORT", False
-    return text.strip().splitlines()[-1] if text.strip() else "UNKNOWN", False
+    return text.splitlines()[-1] if text else "UNKNOWN", False
 
 
-def run_as(uid: str | None, sql: str) -> tuple[bool, str, str]:
-    wrapped = set_actor_sql(uid) + "\n" + sql
-    res = psql(wrapped)
-    return res.returncode == 0, res.stdout.strip(), (res.stderr or "") + ("" if res.returncode == 0 else res.stdout)
-
-
-def count_as(uid: str | None, sql: str) -> tuple[int | None, str]:
-    ok, out, err = run_as(uid, sql)
-    if not ok:
-        return None, err
+def as_actor(uid: str | None):
+    cur = CONN.cursor()
     try:
-        return int(out.splitlines()[-1]), ""
+        cur.execute("RESET ROLE")
     except Exception:
-        return None, out or err
+        CONN.rollback()
+        cur = CONN.cursor()
+        cur.execute("RESET ROLE")
+    if uid:
+        cur.execute("SELECT set_config('request.jwt.claim.sub', %s, true)", (uid,))
+        cur.execute("SET ROLE authenticated")
+    else:
+        cur.execute("SELECT set_config('request.jwt.claim.sub', '', true)")
+    return cur
 
 
 def insert_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
-    sql = (
-        "INSERT INTO storage.objects(bucket_id, name) "
-        f"VALUES ({_lit(bucket)}, {_lit(name)});"
-    )
-    ok, out, err = run_as(uid, sql)
-    if ok:
+    try:
+        cur = as_actor(uid)
+        cur.execute("INSERT INTO storage.objects(bucket_id, name) VALUES (%s, %s)", (bucket, name))
+        CONN.commit()
         return "ALLOW", False
-    kind, raised_22 = classify_sql_error(err, out)
-    return "DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind, raised_22
+    except Exception as exc:
+        CONN.rollback()
+        kind, raised_22 = classify_exc(exc)
+        return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
 
 
 def select_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
-    sql = (
-        "SELECT COUNT(*) FROM storage.objects "
-        f"WHERE bucket_id = {_lit(bucket)} AND name = {_lit(name)};"
-    )
-    n, err = count_as(uid, sql)
-    if n is None:
-        kind, raised_22 = classify_sql_error(err, "")
+    try:
+        cur = as_actor(uid)
+        cur.execute("SELECT COUNT(*) FROM storage.objects WHERE bucket_id = %s AND name = %s", (bucket, name))
+        n = cur.fetchone()[0]
+        CONN.commit()
+        return ("ALLOW" if n > 0 else "DENY"), False
+    except Exception as exc:
+        CONN.rollback()
+        kind, raised_22 = classify_exc(exc)
         return kind, raised_22
-    return ("ALLOW" if n > 0 else "DENY"), False
 
 
 def update_obj(uid: str | None, bucket: str, old: str, new: str) -> tuple[str, bool]:
-    sql = (
-        "UPDATE storage.objects SET name = "
-        f"{_lit(new)}, updated_at = now() "
-        f"WHERE bucket_id = {_lit(bucket)} AND name = {_lit(old)};"
-    )
-    ok, out, err = run_as(uid, sql)
-    if ok:
-        n, err2 = count_as(None, f"SELECT COUNT(*) FROM storage.objects WHERE bucket_id = {_lit(bucket)} AND name = {_lit(new)};")
-        # After RESET ROLE the count is as postgres. Check rowcount via GET DIAGNOSTICS instead.
-        n2, _ = count_as(uid, f"SELECT COUNT(*) FROM storage.objects WHERE bucket_id = {_lit(bucket)} AND name = {_lit(new)};")
-        if n2 and n2 > 0:
-            return "ALLOW", False
-        # UPDATE succeeded with 0 rows (USING failed silently)
-        return "DENY", False
-    kind, raised_22 = classify_sql_error(err, out)
-    return "DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind, raised_22
+    try:
+        cur = as_actor(uid)
+        cur.execute(
+            "UPDATE storage.objects SET name = %s, updated_at = now() WHERE bucket_id = %s AND name = %s",
+            (new, bucket, old),
+        )
+        n = cur.rowcount
+        CONN.commit()
+        return ("ALLOW" if n > 0 else "DENY"), False
+    except Exception as exc:
+        CONN.rollback()
+        kind, raised_22 = classify_exc(exc)
+        return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
 
 
 def delete_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
-    sql = (
-        f"DELETE FROM storage.objects WHERE bucket_id = {_lit(bucket)} AND name = {_lit(name)};"
-    )
-    # Capture rows via CTE
-    sql = (
-        "WITH d AS ("
-        f"DELETE FROM storage.objects WHERE bucket_id = {_lit(bucket)} AND name = {_lit(name)} RETURNING 1"
-        ") SELECT COUNT(*) FROM d;"
-    )
-    n, err = count_as(uid, sql)
-    if n is None:
-        kind, raised_22 = classify_sql_error(err, "")
+    try:
+        cur = as_actor(uid)
+        cur.execute("DELETE FROM storage.objects WHERE bucket_id = %s AND name = %s", (bucket, name))
+        n = cur.rowcount
+        CONN.commit()
+        return ("ALLOW" if n > 0 else "DENY"), False
+    except Exception as exc:
+        CONN.rollback()
+        kind, raised_22 = classify_exc(exc)
         return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
-    return ("ALLOW" if n > 0 else "DENY"), False
 
 
 def upsert_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
-    sql = (
-        "INSERT INTO storage.objects(bucket_id, name) "
-        f"VALUES ({_lit(bucket)}, {_lit(name)}) "
-        "ON CONFLICT (bucket_id, name) DO UPDATE SET updated_at = now();"
-    )
-    ok, out, err = run_as(uid, sql)
-    if ok:
+    try:
+        cur = as_actor(uid)
+        cur.execute(
+            "INSERT INTO storage.objects(bucket_id, name) VALUES (%s, %s) "
+            "ON CONFLICT (bucket_id, name) DO UPDATE SET updated_at = now()",
+            (bucket, name),
+        )
+        CONN.commit()
         return "ALLOW", False
-    kind, raised_22 = classify_sql_error(err, out)
-    return "DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind, raised_22
+    except Exception as exc:
+        CONN.rollback()
+        kind, raised_22 = classify_exc(exc)
+        return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
+
+
+def seed_as_postgres(bucket: str, name: str) -> None:
+    cur = as_actor(None)
+    cur.execute(
+        "INSERT INTO storage.objects(bucket_id, name) VALUES (%s, %s) ON CONFLICT (bucket_id, name) DO NOTHING",
+        (bucket, name),
+    )
+    CONN.commit()
+
+
+def delete_as_postgres(bucket: str, name: str) -> None:
+    cur = as_actor(None)
+    cur.execute("DELETE FROM storage.objects WHERE bucket_id = %s AND name = %s", (bucket, name))
+    CONN.commit()
 
 
 def _lit(s: str) -> str:
     return "'" + s.replace("'", "''") + "'"
-
-
-def seed_as_postgres(bucket: str, name: str) -> None:
-    must(psql(
-        "RESET ROLE; "
-        f"INSERT INTO storage.objects(bucket_id, name) VALUES ({_lit(bucket)}, {_lit(name)}) "
-        "ON CONFLICT (bucket_id, name) DO NOTHING;"
-    ), f"seed {bucket}/{name}")
-
-
-def delete_as_postgres(bucket: str, name: str) -> None:
-    psql(
-        "RESET ROLE; "
-        f"DELETE FROM storage.objects WHERE bucket_id = {_lit(bucket)} AND name = {_lit(name)};"
-    )
 
 
 def sha256_file(path: Path) -> str:
@@ -521,6 +520,9 @@ def main() -> int:
         print(apply.stdout)
         print(apply.stderr, file=sys.stderr)
         raise SystemExit("HOLD: 00116 apply failed (CUT3_ABORT or SQL error)")
+
+    global CONN
+    CONN = connect()
 
     helper_count = must(psql(
         "SELECT COUNT(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
@@ -686,23 +688,31 @@ def main() -> int:
     expect("UPS-12", got, "DENY", r22)
 
     # service_role EXECUTE deny
-    sr = psql(
-        "RESET ROLE; SET ROLE service_role; "
-        "SELECT public.storage_receipts_authorized('x','select');"
-    )
-    sr_kind, _ = classify_sql_error(sr.stderr, sr.stdout)
-    expect("D40-SERVICE-ROLE-EXECUTE", "DENY" if sr.returncode != 0 else "ALLOW", "DENY")
+    try:
+        cur = as_actor(None)
+        cur.execute("SET ROLE service_role")
+        cur.execute("SELECT public.storage_receipts_authorized('x','select')")
+        CONN.commit()
+        expect("D40-SERVICE-ROLE-EXECUTE", "ALLOW", "DENY")
+    except Exception as exc:
+        CONN.rollback()
+        kind, _ = classify_exc(exc)
+        expect("D40-SERVICE-ROLE-EXECUTE", "DENY" if kind in {"PERMISSION_DENIED", "RLS_DENY"} else kind, "DENY")
 
-    # Anon SELECT deny
-    anon = psql(
-        "RESET ROLE; SET ROLE anon; "
-        f"SELECT COUNT(*) FROM storage.objects WHERE bucket_id='receipts' AND name={_lit(G1 + '/historical.pdf')};"
-    )
-    if anon.returncode != 0:
-        expect("R05-ANON-SELECT", "DENY", "DENY")
-    else:
-        n = int(anon.stdout.strip() or "0")
+    # Anon SELECT deny (private bucket)
+    try:
+        cur = as_actor(None)
+        cur.execute("SET ROLE anon")
+        cur.execute(
+            "SELECT COUNT(*) FROM storage.objects WHERE bucket_id=%s AND name=%s",
+            ("receipts", f"{G1}/historical.pdf"),
+        )
+        n = cur.fetchone()[0]
+        CONN.commit()
         expect("R05-ANON-SELECT", "ALLOW" if n else "DENY", "DENY")
+    except Exception:
+        CONN.rollback()
+        expect("R05-ANON-SELECT", "DENY", "DENY")
 
     # Encoding matrix — every ENC-* ID against real storage.objects
     strongest = U_OWNER

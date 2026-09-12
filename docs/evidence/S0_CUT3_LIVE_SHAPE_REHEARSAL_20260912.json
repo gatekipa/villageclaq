@@ -1,0 +1,202 @@
+{
+  "artifact": "S0_CUT3_LIVE_SHAPE_REHEARSAL_20260912",
+  "date": "2026-09-12",
+  "production_mutation": "ZERO",
+  "environment": "local disposable Postgres 16 \u2014 synthetic prefix-token objects only",
+  "identity": "25 = 6 logos + 14 constitutions + 5 uuid-first",
+  "counts": {
+    "logos": 6,
+    "constitutions": 14,
+    "uuid_first": 5,
+    "gdocs_total": 25,
+    "receipts_uuid_first": 3
+  },
+  "unknown_prefixes": 0,
+  "all_authorized_or_explicitly_denied": true,
+  "g1_member_select_all_allow": true,
+  "g2_member_select_all_deny": true,
+  "logos_writes_denied": true,
+  "status": "PASS",
+  "rows": {
+    "gdocs": [
+      {
+        "shape": "logos",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "write_g1_admin": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "logos",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "write_g1_admin": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "logos",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "write_g1_admin": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "logos",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "write_g1_admin": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "logos",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "write_g1_admin": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "logos",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "write_g1_admin": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "constitutions",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      }
+    ],
+    "receipts": [
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      },
+      {
+        "shape": "uuid-first",
+        "select_g1": "ALLOW",
+        "select_g2": "DENY",
+        "classification": "AUTHORIZED"
+      }
+    ],
+    "unknown": 0
+  },
+  "signed_url_note": "createSignedUrl authority is fail-closed SELECT; disposable qualified SELECT RLS, not Storage HTTP signing."
+}

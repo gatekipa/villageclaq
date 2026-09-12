@@ -1,0 +1,300 @@
+{
+  "artifact": "S0_CUT3_STORAGE_CALLER_INVENTORY_20260912",
+  "date": "2026-09-12",
+  "status": "FROZEN_PLANNING_ONLY",
+  "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "method": "Repo-wide grep of storage.from / upload / update / move / remove / createSignedUrl / createSignedUrls / download / getPublicUrl / signedUrlFor / normaliseObjectPath across src/, scripts/, tests/, supabase/. Table .update() hits excluded.",
+  "unknown_upload_callers": 0,
+  "unknown_upload_caller_list": [],
+  "hold": false,
+  "apis_with_zero_callers": ["createSignedUrls", "storage.move", "storage.copy", "storage.list", "storage.update (object replace)"],
+  "production_mutation": "ZERO",
+  "counts": {
+    "upload_call_sites": 12,
+    "remove_call_sites": 6,
+    "createSignedUrl_direct_call_sites": 8,
+    "signedUrlFor_display_call_sites": 2,
+    "download_call_sites": 1,
+    "getPublicUrl_call_sites": 4,
+    "helper_modules": 1,
+    "unique_source_files_with_storage_io": 15
+  },
+  "upload_callers": [
+    {
+      "id": "U01",
+      "file": "src/components/payments/pay-now-dialog.tsx",
+      "op": "upload",
+      "bucket": "receipts",
+      "grammar_id": "G-RECEIPT-UUID-FIRST",
+      "upsert": false,
+      "ui_gate": "any authenticated member using Pay Now on an open obligation (no PermissionGate)",
+      "workflow": "member self-serve payment proof",
+      "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
+      "proposed_rls_not": "is_group_admin — would break ordinary members",
+      "evidence": "PayNowDialog; path = `${groupId}/${Date.now()}-${receiptFile.name}`"
+    },
+    {
+      "id": "U02",
+      "file": "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx",
+      "op": "upload",
+      "bucket": "receipts",
+      "grammar_id": "G-RECEIPT-UUID-FIRST",
+      "upsert": false,
+      "ui_gate": "RequirePermission anyOf finances.record | finances.manage",
+      "workflow": "officer records a payment with optional receipt",
+      "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
+      "proposed_rls_not": "is_group_admin — treasurers with finances.record may not be owner/admin",
+      "evidence": "path = `${groupId}/${Date.now()}-${file.name}`"
+    },
+    {
+      "id": "U03",
+      "file": "src/app/[locale]/(dashboard)/dashboard/my-fines/page.tsx",
+      "op": "upload",
+      "bucket": "receipts",
+      "grammar_id": "G-DISPUTE-DOCS",
+      "upsert": false,
+      "ui_gate": "any member on My Fines / dispute dialog (no PermissionGate)",
+      "workflow": "member attaches a dispute document",
+      "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
+      "follow_on_read": "createSignedUrl 3600",
+      "evidence": "path = `dispute-docs/${groupId}/${currentMembership.id}/${Date.now()}-${file.name}`"
+    },
+    {
+      "id": "U04",
+      "file": "src/app/[locale]/(dashboard)/dashboard/documents/page.tsx",
+      "op": "upload",
+      "bucket": "group-documents",
+      "grammar_id": "G-GDOCS-UUID-FIRST",
+      "upsert": true,
+      "ui_gate": "hasPermission('documents.manage') — upload button hidden otherwise",
+      "workflow": "document vault upload",
+      "proposed_rls_write": "INSERT+UPDATE: is_active_group_member (RLS floor). UI remains documents.manage. Do not require is_group_admin (position officers).",
+      "follow_on_read": "createSignedUrl 3600",
+      "evidence": "filePath = `${groupId}/${Date.now()}-${selectedFile.name}`; upsert: true"
+    },
+    {
+      "id": "U05",
+      "file": "src/app/[locale]/(dashboard)/dashboard/minutes/page.tsx",
+      "op": "upload",
+      "bucket": "group-documents",
+      "grammar_id": "G-MINUTES",
+      "upsert": false,
+      "ui_gate": "hasPermission('minutes.manage') — editor/save gated",
+      "workflow": "minutes attachment on save/publish",
+      "proposed_rls_write": "INSERT: is_active_group_member (RLS floor). UI remains minutes.manage.",
+      "follow_on_read": "createSignedUrl 3600",
+      "evidence": "path = `minutes/${groupId}/${Date.now()}-${uploadedFile.name}`"
+    },
+    {
+      "id": "U06",
+      "file": "src/app/[locale]/(dashboard)/dashboard/constitution/page.tsx",
+      "op": "upload",
+      "bucket": "group-documents",
+      "grammar_id": "G-CONSTITUTIONS",
+      "upsert": true,
+      "ui_gate": "useGroup().isAdmin (owner/admin role)",
+      "workflow": "constitution file upload",
+      "proposed_rls_write": "INSERT+UPDATE: is_group_admin(path group id) — matches UI isAdmin",
+      "follow_on_read": "createSignedUrl 3600",
+      "evidence": "path = `constitutions/${groupId}/${Date.now()}-${file.name}`; upsert: true"
+    },
+    {
+      "id": "U07",
+      "file": "src/app/[locale]/(dashboard)/dashboard/relief/my/page.tsx",
+      "op": "upload",
+      "bucket": "group-documents",
+      "grammar_id": "G-RELIEF-CLAIMS",
+      "upsert": false,
+      "ui_gate": "any member on My Relief claim dialog (no PermissionGate)",
+      "workflow": "member attaches relief claim evidence",
+      "proposed_rls_write": "INSERT: is_active_group_member(path group id)",
+      "follow_on_read": "createSignedUrl 3600",
+      "evidence": "path = `relief-claims/${groupId}/${membershipId}/${Date.now()}-${file.name}`"
+    },
+    {
+      "id": "U08",
+      "file": "src/app/[locale]/(dashboard)/dashboard/projects/page.tsx",
+      "op": "upload",
+      "bucket": "group-documents",
+      "grammar_id": "G-PROJECTS-PROJECTID-FIRST",
+      "upsert": false,
+      "ui_gate": "useGroup().isAdmin — upload button on ProjectDocuments",
+      "workflow": "project attachment",
+      "proposed_rls_write": "INSERT: is_group_admin(projects.group_id) after lookup by projectId. Never cast projectId as groupId.",
+      "follow_on_read": "createSignedUrl 3600",
+      "evidence": "path = `projects/${project.id}/${Date.now()}-${file.name}`"
+    },
+    {
+      "id": "U09",
+      "file": "src/app/[locale]/(dashboard)/dashboard/my-profile/page.tsx",
+      "op": "upload",
+      "bucket": "avatars",
+      "grammar_id": "G-AVATAR-UID-FIRST",
+      "upsert": true,
+      "ui_gate": "self",
+      "cut3_scope": "NOT_AFFECTED",
+      "evidence": "path = `${user.id}/${Date.now()}.${ext}`"
+    },
+    {
+      "id": "U10",
+      "file": "src/app/[locale]/(dashboard)/dashboard/onboarding/member/page.tsx",
+      "op": "upload",
+      "bucket": "avatars",
+      "grammar_id": "G-AVATAR-UID-FIRST",
+      "upsert": true,
+      "ui_gate": "self during onboarding",
+      "cut3_scope": "NOT_AFFECTED",
+      "evidence": "path = `${userId}/${Date.now()}.${ext}`"
+    },
+    {
+      "id": "U11",
+      "file": "src/app/[locale]/(dashboard)/dashboard/onboarding/group/page.tsx",
+      "op": "upload",
+      "bucket": "avatars",
+      "grammar_id": "G-AVATAR-UID-FIRST",
+      "upsert": true,
+      "ui_gate": "self during group onboarding (profile photo, not group logo)",
+      "cut3_scope": "NOT_AFFECTED",
+      "evidence": "path = `${authUser.id}/${Date.now()}.${ext}`"
+    },
+    {
+      "id": "U12",
+      "file": "src/app/[locale]/(dashboard)/dashboard/settings/page.tsx",
+      "op": "upload",
+      "bucket": "avatars",
+      "grammar_id": "G-GROUP-LOGOS-ON-AVATARS",
+      "upsert": true,
+      "ui_gate": "hasPermission('settings.manage')",
+      "cut3_scope": "NOT_AFFECTED — avatars uid policy; R26 tracks pre-existing mismatch",
+      "evidence": "path = `group-logos/${groupId}/${Date.now()}-${file.name}`"
+    }
+  ],
+  "remove_callers": [
+    {
+      "id": "R01",
+      "file": "src/app/[locale]/(dashboard)/dashboard/documents/page.tsx",
+      "op": "remove",
+      "bucket": "group-documents",
+      "ui_gate": "documents.manage",
+      "path_recovery": "splits legacy public URL marker /storage/v1/object/public/group-documents/ — may no-op on signed URLs (pre-existing)",
+      "proposed_rls": "DELETE: is_group_admin(path group id) — same as live when parse succeeds",
+      "cut3": "IN_SCOPE"
+    },
+    {
+      "id": "R02",
+      "file": "src/app/[locale]/(dashboard)/dashboard/projects/page.tsx",
+      "op": "remove",
+      "bucket": "group-documents",
+      "ui_gate": "isAdmin",
+      "path_recovery": "substring after /group-documents/ on stored signed/public URL",
+      "proposed_rls": "DELETE: is_group_admin(projects.group_id) after lookup",
+      "cut3": "IN_SCOPE"
+    },
+    {
+      "id": "R03",
+      "file": "src/app/[locale]/(dashboard)/dashboard/my-profile/page.tsx",
+      "op": "remove",
+      "bucket": "avatars",
+      "sites": ["handleRemovePhoto", "before replacement upload"],
+      "cut3": "NOT_AFFECTED"
+    },
+    {
+      "id": "R04",
+      "file": "src/app/[locale]/(dashboard)/dashboard/onboarding/member/page.tsx",
+      "op": "remove",
+      "bucket": "avatars",
+      "cut3": "NOT_AFFECTED"
+    },
+    {
+      "id": "R05",
+      "file": "src/app/[locale]/(dashboard)/dashboard/onboarding/group/page.tsx",
+      "op": "remove",
+      "bucket": "avatars",
+      "cut3": "NOT_AFFECTED"
+    }
+  ],
+  "read_sign_download_callers": [
+    {
+      "id": "S01",
+      "file": "src/lib/storage-urls.ts",
+      "op": "createSignedUrl",
+      "via": "signedUrlFor(supabase, bucket, path)",
+      "buckets": ["receipts", "group-documents"],
+      "cut3": "SELECT posture unchanged — write hardening must remain safer-or-unchanged for legitimate canonical reads"
+    },
+    {
+      "id": "S02",
+      "file": "src/app/[locale]/(dashboard)/dashboard/contributions/history/page.tsx",
+      "op": "signedUrlFor",
+      "bucket": "receipts",
+      "cut3": "READ_ONLY"
+    },
+    {
+      "id": "S03",
+      "file": "src/app/[locale]/(dashboard)/dashboard/my-payments/page.tsx",
+      "op": "signedUrlFor",
+      "bucket": "receipts",
+      "cut3": "READ_ONLY"
+    },
+    {
+      "id": "S04",
+      "file": "src/app/[locale]/(dashboard)/dashboard/documents/page.tsx",
+      "ops": ["createSignedUrl after upload", "download", "createSignedUrl download fallback"],
+      "bucket": "group-documents",
+      "cut3": "READ uses SELECT; write path separate"
+    },
+    {
+      "id": "S05",
+      "file": "src/app/[locale]/(dashboard)/dashboard/minutes/page.tsx",
+      "op": "createSignedUrl",
+      "bucket": "group-documents",
+      "cut3": "READ"
+    },
+    {
+      "id": "S06",
+      "file": "src/app/[locale]/(dashboard)/dashboard/constitution/page.tsx",
+      "op": "createSignedUrl",
+      "bucket": "group-documents",
+      "cut3": "READ"
+    },
+    {
+      "id": "S07",
+      "file": "src/app/[locale]/(dashboard)/dashboard/relief/my/page.tsx",
+      "op": "createSignedUrl",
+      "bucket": "group-documents",
+      "cut3": "READ"
+    },
+    {
+      "id": "S08",
+      "file": "src/app/[locale]/(dashboard)/dashboard/projects/page.tsx",
+      "op": "createSignedUrl",
+      "bucket": "group-documents",
+      "cut3": "READ — v2 NULL today; do not fail-close SELECT in Cut 3"
+    },
+    {
+      "id": "S09",
+      "file": "src/app/[locale]/(dashboard)/dashboard/my-fines/page.tsx",
+      "op": "createSignedUrl",
+      "bucket": "receipts",
+      "cut3": "READ"
+    }
+  ],
+  "getPublicUrl_callers_avatars_only": [
+    "src/app/[locale]/(dashboard)/dashboard/my-profile/page.tsx",
+    "src/app/[locale]/(dashboard)/dashboard/onboarding/member/page.tsx",
+    "src/app/[locale]/(dashboard)/dashboard/onboarding/group/page.tsx",
+    "src/app/[locale]/(dashboard)/dashboard/settings/page.tsx"
+  ],
+  "false_positives_excluded": [
+    {
+      "pattern": "SendReviewContext \"receipts\"",
+      "files": ["src/components/send-review-notice.tsx", "scripts/test-product-*.mjs"],
+      "reason": "notification review context enum, not storage.objects"
+    },
+    {
+      "pattern": "table .update()",
+      "reason": "PostgREST row updates, not storage.update"
+    }
+  ],
+  "static_guardrail": "scripts/test-storage-buckets.mjs pins a subset of upload files; this inventory is the complete caller set and includes projects + settings + signedUrlFor displays that the script does not all list as uploads"
+}

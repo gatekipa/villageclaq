@@ -1,0 +1,192 @@
+{
+  "artifact": "S0_CUT3_STORAGE_PATH_GRAMMAR_MATRIX_20260912",
+  "date": "2026-09-12",
+  "status": "FROZEN_PLANNING_ONLY",
+  "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "rule": "Grammars frozen from actual caller source at this SHA. No invented prefixes. Parser allow-lists from Chief live v1 / repo v2 are recorded separately from caller grammars.",
+  "production_mutation": "ZERO",
+  "sanitized": true,
+  "filename_token": "{ts}-{originalName} or {ts}.{ext} — originalName/ext are caller-supplied; evidence never records live filenames",
+  "grammars_from_code": [
+    {
+      "grammar_id": "G-RECEIPT-UUID-FIRST",
+      "bucket": "receipts",
+      "pattern": "{groupId}/{ts}-{filename}",
+      "segment_count": 2,
+      "seg1": "group uuid",
+      "seg2": "file token",
+      "callers": [
+        "src/components/payments/pay-now-dialog.tsx",
+        "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx"
+      ],
+      "v1_parse": "NULL (first segment is uuid, not in category list)",
+      "v2_parse": "group uuid from foldername[1] when regex-guarded",
+      "live_objects_compatible_shape": "receipts 3/3 are 2-seg uuid-first",
+      "cut3_canonical": true,
+      "fail_closed_must_accept_if_authorized": true
+    },
+    {
+      "grammar_id": "G-DISPUTE-DOCS",
+      "bucket": "receipts",
+      "pattern": "dispute-docs/{groupId}/{membershipId}/{ts}-{filename}",
+      "segment_count": 4,
+      "seg1": "literal dispute-docs",
+      "seg2": "group uuid",
+      "seg3": "membership uuid",
+      "seg4": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/my-fines/page.tsx"
+      ],
+      "v1_parse": "foldername[2]::uuid when prefix in v1 list (unguarded cast)",
+      "v2_parse": "foldername[2] when regex-guarded",
+      "live_objects_compatible_shape": "no 4-seg receipts in Chief counts (0 live objects this shape)",
+      "cut3_canonical": true,
+      "fail_closed_must_accept_if_authorized": true
+    },
+    {
+      "grammar_id": "G-GDOCS-UUID-FIRST",
+      "bucket": "group-documents",
+      "pattern": "{groupId}/{ts}-{filename}",
+      "segment_count": 2,
+      "seg1": "group uuid",
+      "seg2": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/documents/page.tsx"
+      ],
+      "v1_parse": "NULL",
+      "v2_parse": "group uuid from foldername[1] when regex-guarded",
+      "live_objects_compatible_shape": "group-documents 5/25 are 2-seg uuid-first",
+      "cut3_canonical": true,
+      "fail_closed_must_accept_if_authorized": true
+    },
+    {
+      "grammar_id": "G-MINUTES",
+      "bucket": "group-documents",
+      "pattern": "minutes/{groupId}/{ts}-{filename}",
+      "segment_count": 3,
+      "seg1": "literal minutes",
+      "seg2": "group uuid",
+      "seg3": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/minutes/page.tsx"
+      ],
+      "v1_parse": "foldername[2]::uuid (unguarded)",
+      "v2_parse": "foldername[2] regex-guarded",
+      "live_objects_compatible_shape": "compatible with 20× 3-seg non-uuid-first (prefix not enumerated in Chief counts)",
+      "cut3_canonical": true,
+      "fail_closed_must_accept_if_authorized": true
+    },
+    {
+      "grammar_id": "G-CONSTITUTIONS",
+      "bucket": "group-documents",
+      "pattern": "constitutions/{groupId}/{ts}-{filename}",
+      "segment_count": 3,
+      "seg1": "literal constitutions",
+      "seg2": "group uuid",
+      "seg3": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/constitution/page.tsx"
+      ],
+      "v1_parse": "foldername[2]::uuid (unguarded)",
+      "v2_parse": "foldername[2] regex-guarded",
+      "cut3_canonical": true,
+      "fail_closed_must_accept_if_authorized": true
+    },
+    {
+      "grammar_id": "G-RELIEF-CLAIMS",
+      "bucket": "group-documents",
+      "pattern": "relief-claims/{groupId}/{membershipId}/{ts}-{filename}",
+      "segment_count": 4,
+      "seg1": "literal relief-claims",
+      "seg2": "group uuid",
+      "seg3": "membership uuid",
+      "seg4": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/relief/my/page.tsx"
+      ],
+      "v1_parse": "foldername[2]::uuid (unguarded)",
+      "v2_parse": "foldername[2] regex-guarded",
+      "live_objects_compatible_shape": "no 4-seg group-documents in Chief counts",
+      "cut3_canonical": true,
+      "fail_closed_must_accept_if_authorized": true
+    },
+    {
+      "grammar_id": "G-PROJECTS-PROJECTID-FIRST",
+      "bucket": "group-documents",
+      "pattern": "projects/{projectId}/{ts}-{filename}",
+      "segment_count": 3,
+      "seg1": "literal projects",
+      "seg2": "project uuid (NOT group uuid)",
+      "seg3": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/projects/page.tsx"
+      ],
+      "v1_parse": "NULL (projects not in v1 category list)",
+      "v2_parse": "NULL (projects not in v2 category list; first segment is not uuid)",
+      "group_id_in_path": false,
+      "group_id_resolution": "MUST look up public.projects.group_id WHERE projects.id = projectId. Do not treat projectId as groupId.",
+      "table_evidence": "supabase/migrations/00010_stickiness_features.sql — projects.group_id UUID NOT NULL",
+      "cut3_canonical": true,
+      "fail_closed_must_accept_if_authorized": true,
+      "notes": "Fail-closed NULL-deny without a projects lookup would break this caller. Cut 3 must authorize via project row → group_id, not by inventing a new path or renaming objects (R14)."
+    },
+    {
+      "grammar_id": "G-AVATAR-UID-FIRST",
+      "bucket": "avatars",
+      "pattern": "{userId}/{ts}.{ext}",
+      "segment_count": 2,
+      "seg1": "auth user uuid",
+      "seg2": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/my-profile/page.tsx",
+        "src/app/[locale]/(dashboard)/dashboard/onboarding/member/page.tsx",
+        "src/app/[locale]/(dashboard)/dashboard/onboarding/group/page.tsx"
+      ],
+      "live_policy": "foldername[1] = auth.uid()::text",
+      "live_objects_compatible_shape": "avatars 6/6 are 2-seg uuid-shaped",
+      "cut3_canonical_for_group_path": false,
+      "cut3_scope": "INVENTORY_ONLY_NOT_AFFECTED"
+    },
+    {
+      "grammar_id": "G-GROUP-LOGOS-ON-AVATARS",
+      "bucket": "avatars",
+      "pattern": "group-logos/{groupId}/{ts}-{filename}",
+      "segment_count": 3,
+      "seg1": "literal group-logos",
+      "seg2": "group uuid",
+      "seg3": "file token",
+      "callers": [
+        "src/app/[locale]/(dashboard)/dashboard/settings/page.tsx"
+      ],
+      "v1_v2_category_token": "NOT the live v1 token logos — live/repo parsers list logos, not group-logos",
+      "live_avatars_write_policy": "foldername[1] = auth.uid()::text — first segment group-logos does not equal uid",
+      "live_objects_this_shape": "none in Chief counts (0 three-seg avatars)",
+      "cut3_scope": "INVENTORY_ONLY_NOT_AFFECTED — pre-existing caller/policy mismatch; R26 tracks UX; Cut 3 must not open avatars or invent a logos/ rewrite",
+      "do_not_invent": "Do not treat this as logos/{groupId}/… . That token exists only in parsers, not in current callers."
+    }
+  ],
+  "parser_only_tokens_with_no_current_writer": [
+    {
+      "token": "logos",
+      "appears_in": ["public.storage_path_group_id v1", "public.storage_path_group_id_v2"],
+      "current_caller_writes": "NONE at SHA 1f1221e",
+      "do_not_invent_writer": true,
+      "cut3_fail_closed": "If a path is logos/{uuid}/… it is parser-recognized today. Extra/missing/non-uuid still DENY. Do not add LIKE 'logo%' (would collide with group-logos)."
+    }
+  ],
+  "explicitly_not_grammars": [
+    "LIKE '%uuid%'",
+    "substring match on minutes/constitutions/etc",
+    "treating projectId as groupId",
+    "group-logos as a group-documents prefix",
+    "avatars paths as group-path writes"
+  ],
+  "fail_closed_segment_rules": {
+    "null_parse": "DENY",
+    "invalid_uuid": "DENY via regex-guard FALSE — never ::uuid exception",
+    "missing_segment": "DENY",
+    "extra_segment_beyond_frozen_arity": "DENY",
+    "ambiguous_prefix": "DENY — exact foldername[1] equality only",
+    "unknown_prefix": "DENY on writes (no authenticated fallback)"
+  }
+}

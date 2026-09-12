@@ -8,10 +8,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   applyDisposableFloor,
+  assertLiveQueueAcl,
   assertNotProduction,
   defaultDisposableUrl,
-  psqlFile,
+  LIVE_QUEUE_COL_ACL,
+  LIVE_QUEUE_TABLE_ACL,
   psqlUrl,
+  readQueueColumnAcl,
+  readQueueTableAcl,
   recreateDisposableDatabase,
 } from "./_m2_apply_disposable_floor.mjs";
 import { runNegativeDriftSuite } from "./qualify-m2-negative-drift.mjs";
@@ -147,6 +151,25 @@ try {
   const pgMajor = psql("SHOW server_version_num").out;
   record("PG17_REQUIRED", Number(pgMajor) >= 170000, pgMajor);
 
+  let floorAcl;
+  try {
+    floorAcl = assertLiveQueueAcl(url);
+    record(
+      "FLOOR_QUEUE_TABLE_ACL_EXACT",
+      JSON.stringify(floorAcl.table) === JSON.stringify(LIVE_QUEUE_TABLE_ACL),
+      floorAcl.table.join(","),
+    );
+    record(
+      "FLOOR_QUEUE_COL_ACL_EXACT",
+      JSON.stringify(floorAcl.cols) === JSON.stringify(LIVE_QUEUE_COL_ACL),
+      floorAcl.cols.join(","),
+    );
+  } catch (aclErr) {
+    record("FLOOR_QUEUE_TABLE_ACL_EXACT", false, String(aclErr.message || aclErr));
+    record("FLOOR_QUEUE_COL_ACL_EXACT", false, String(aclErr.message || aclErr));
+    throw aclErr;
+  }
+
   const preQueue = psql("SELECT count(*) FROM public.notifications_queue").out;
 
   const apply = spawnSync(
@@ -158,6 +181,25 @@ try {
   if (apply.status !== 0) {
     throw new Error(apply.stderr || apply.stdout || "00117 failed");
   }
+
+  const postTableAcl = readQueueTableAcl(url);
+  const postColAcl = readQueueColumnAcl(url);
+  record(
+    "POST_00117_QUEUE_TABLE_ACL_UNCHANGED",
+    JSON.stringify(postTableAcl) === JSON.stringify(LIVE_QUEUE_TABLE_ACL),
+    postTableAcl.join(","),
+  );
+  record(
+    "POST_00117_QUEUE_COL_ACL_UNCHANGED",
+    JSON.stringify(postColAcl) === JSON.stringify(LIVE_QUEUE_COL_ACL),
+    postColAcl.join(","),
+  );
+  const noAnonPublic = !postTableAcl.some((t) => t.startsWith("PUBLIC|") || t.startsWith("anon|"));
+  const noAppDml = !postTableAcl.some((t) =>
+    /^(authenticated|service_role)\|(INSERT|UPDATE|DELETE)\|/.test(t),
+  );
+  record("QUEUE_TABLE_NO_ANON_PUBLIC", noAnonPublic, postTableAcl.filter((t) => /PUBLIC|anon/.test(t)).join(",") || "none");
+  record("QUEUE_TABLE_NO_APP_DML", noAppDml, "authenticated/service_role table INSERT/UPDATE/DELETE absent");
 
   const tables = psql(`
     SELECT string_agg(relname, ',' ORDER BY relname)

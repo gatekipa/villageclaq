@@ -14,6 +14,29 @@ export const LIVE_HGP_SRC_MD5 = "96a296dfd541c7fc75ec68c4da1d92ff";
 export const LIVE_ENQ_DEF_MD5 = "dbdb16cdced6cae9cbdbfb6a6a9f421f";
 export const LIVE_ENQ_SRC_MD5 = "3fa76af51e431ccbd31eb033dcff0b80";
 
+/** Chief-confirmed production notifications_queue TABLE ACL (aclexplode). */
+export const LIVE_QUEUE_TABLE_ACL = [
+  "authenticated|SELECT|postgres|false",
+  "postgres|DELETE|postgres|false",
+  "postgres|INSERT|postgres|false",
+  "postgres|MAINTAIN|postgres|false",
+  "postgres|REFERENCES|postgres|false",
+  "postgres|SELECT|postgres|false",
+  "postgres|TRIGGER|postgres|false",
+  "postgres|TRUNCATE|postgres|false",
+  "postgres|UPDATE|postgres|false",
+  "service_role|SELECT|postgres|false",
+].sort();
+
+/** Chief-confirmed production notifications_queue COLUMN attacl (exactly five). */
+export const LIVE_QUEUE_COL_ACL = [
+  "attempts|service_role|UPDATE|postgres|false",
+  "data|service_role|UPDATE|postgres|false",
+  "error_message|service_role|UPDATE|postgres|false",
+  "sent_at|service_role|UPDATE|postgres|false",
+  "status|service_role|UPDATE|postgres|false",
+].sort();
+
 function pinPg17Port(url) {
   // Live queue TABLE ACL includes MAINTAIN (PG 17). A URL without an
   // explicit port follows libpq default 5432 (PG 16 in this environment).
@@ -99,6 +122,8 @@ export function applyFloorFunctions(url) {
 }
 
 export function applyFloorOwnershipAndAcl(url) {
+  // Queue grants as postgres so grantor=postgres. After REVOKE ALL + GRANT
+  // SELECT, PG17 owner defaults include MAINTAIN — matching live TABLE ACL.
   const sql = `
 ALTER FUNCTION public.has_group_permission(uuid, text, uuid) OWNER TO postgres;
 ALTER FUNCTION public.enqueue_outbound_notification(text, uuid, public.notification_channel, uuid, text) OWNER TO postgres;
@@ -125,11 +150,65 @@ RESET ROLE;
   if (!r.ok) throw new Error(`floor ACL failed: ${r.err || r.out}`);
 }
 
+export function readQueueTableAcl(url) {
+  const r = psqlUrl(
+    url,
+    `SELECT concat_ws('|',
+         CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname END,
+         a.privilege_type, go.rolname,
+         CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+       FROM pg_class c
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) a
+       LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+       LEFT JOIN pg_roles go ON go.oid = a.grantor
+       WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+       ORDER BY 1`,
+  );
+  if (!r.ok) throw new Error(`queue table ACL read failed: ${r.err}`);
+  return r.out.split("\n").filter(Boolean).sort();
+}
+
+export function readQueueColumnAcl(url) {
+  const r = psqlUrl(
+    url,
+    `SELECT concat_ws('|', att.attname,
+         CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname END,
+         a.privilege_type, go.rolname,
+         CASE WHEN a.is_grantable THEN 'true' ELSE 'false' END)
+       FROM pg_attribute att
+       JOIN pg_class c ON c.oid = att.attrelid
+       JOIN pg_namespace n ON n.oid = c.relnamespace
+       JOIN LATERAL aclexplode(att.attacl) a ON att.attacl IS NOT NULL
+       LEFT JOIN pg_roles gr ON gr.oid = a.grantee
+       LEFT JOIN pg_roles go ON go.oid = a.grantor
+       WHERE n.nspname = 'public' AND c.relname = 'notifications_queue'
+         AND att.attnum > 0 AND NOT att.attisdropped AND att.attacl IS NOT NULL
+       ORDER BY 1`,
+  );
+  if (!r.ok) throw new Error(`queue column ACL read failed: ${r.err}`);
+  return r.out.split("\n").filter(Boolean).sort();
+}
+
+export function assertLiveQueueAcl(url) {
+  const table = readQueueTableAcl(url);
+  const cols = readQueueColumnAcl(url);
+  const tableOk = JSON.stringify(table) === JSON.stringify(LIVE_QUEUE_TABLE_ACL);
+  const colOk = JSON.stringify(cols) === JSON.stringify(LIVE_QUEUE_COL_ACL);
+  if (!tableOk || !colOk) {
+    throw new Error(
+      `disposable queue ACL does not match Chief production pin\nTABLE actual:\n${table.join("\n")}\nTABLE expected:\n${LIVE_QUEUE_TABLE_ACL.join("\n")}\nCOL actual:\n${cols.join("\n")}\nCOL expected:\n${LIVE_QUEUE_COL_ACL.join("\n")}`,
+    );
+  }
+  return { table, cols };
+}
+
 export function applyDisposableFloor(url) {
   assertNotProduction(url);
   psqlFile(url, "scripts/_m2_disposable_fixture.sql");
   applyFloorFunctions(url);
   applyFloorOwnershipAndAcl(url);
+  assertLiveQueueAcl(url);
 }
 
 export function recreateDisposableDatabase({

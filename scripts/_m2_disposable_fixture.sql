@@ -2,9 +2,26 @@
 -- Reproduces EXACT production security floor for:
 --   has_group_permission, enqueue_outbound_notification,
 --   notifications_queue table ACL, notifications_queue column attacl.
--- Functions are applied by scripts/_m2_apply_disposable_floor.mjs
--- (live has_group_permission hex + 00115 enqueue extract) so 00117
--- bytes see postgres-owned live fingerprints. ZERO production writes.
+-- Functions + postgres-owned ACLs are applied by
+-- scripts/_m2_apply_disposable_floor.mjs (live has_group_permission hex
+-- + 00115 enqueue extract). ZERO production writes.
+--
+-- Chief-confirmed production notifications_queue TABLE ACL (aclexplode):
+--   authenticated | SELECT     | postgres | false
+--   postgres      | DELETE     | postgres | false
+--   postgres      | INSERT     | postgres | false
+--   postgres      | MAINTAIN   | postgres | false
+--   postgres      | REFERENCES | postgres | false
+--   postgres      | SELECT     | postgres | false
+--   postgres      | TRIGGER    | postgres | false
+--   postgres      | TRUNCATE   | postgres | false
+--   postgres      | UPDATE     | postgres | false
+--   service_role  | SELECT     | postgres | false
+-- No anon/PUBLIC. No authenticated/service_role table INSERT/UPDATE/DELETE.
+--
+-- Chief-confirmed COLUMN attacl (exactly five service_role UPDATE rows):
+--   attempts | data | error_message | sent_at | status
+--   grantee service_role, privilege UPDATE, grantor postgres, is_grantable false
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

@@ -1,0 +1,126 @@
+{
+  "artifact": "M3_FCG1_RECONCILIATION_MATRIX_20260912",
+  "date": "2026-09-12",
+  "authority": {
+    "master_prd": "PR #71 docs/VILLAGECLAQ_MASTER_REBUILD_PRD_V1.md §10 FCG-1",
+    "prd_head": "050be86c9df3455c66b27bb5853eb786228b4009",
+    "security_revision_1": "1430d1c52f10edf690b50304ec536f8f019e0372",
+    "security_revision_2": "docs/VILLAGECLAQ_MASTER_REBUILD_PRD_V1_SECURITY_REVISION_2.md on PR #71 branch",
+    "f3_freeze_pr60": "FCG-1 NOT present — introduced only by Master PRD",
+    "f2": "a13b5e6c482e5e68ba2c92c41ae14b411668ae88"
+  },
+  "placement": "F3-06 → F3-07 → FCG-1 → F3-08 → F3-09",
+  "skip_fcg1": "FORBIDDEN",
+  "prod_note_chief_live_20260912": "Production has zero F3 ledger objects and zero F3 RPCs. FCG-1 proofs remain CONTRACT_ALIGNED / NEEDS_FCG1 — nothing to reconcile against a live F3 SoA yet.",
+  "redesign_f3_01_05": "FORBIDDEN — gate is reconciliation, not license to reopen economics",
+  "must_close_before": ["F3-08 canonical reporting freeze", "F3-09 acceptance freeze"],
+  "proofs": [
+    {
+      "id": "FCG1-01",
+      "requirement": "D-002 cash-basis recognition matches frozen F2/F3 semantics",
+      "f2_anchor": "Model A — cash-basis SoA + separate receivable/dues subledger",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "on_current_main": "No SoA ledger exists; money.ts is dues-position only",
+      "on_old_f3": "F3-03 SoA-lite designed to this rule; historical 80/80 not current-main proof",
+      "closes_when": "F3-03 re-qual on current-main floor + F3-08 cash-basis label"
+    },
+    {
+      "id": "FCG1-02",
+      "requirement": "Dues assessment does not create journal income/receivable in v1",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "on_current_main": "Obligation create writes contribution_obligations only — no journal (journal absent)",
+      "forward_risk": "F3-07 must not post Money In on obligation generate",
+      "closes_when": "Explicit non-post test on contribution_types/obligation INSERT after F3-01..03 forward"
+    },
+    {
+      "id": "FCG1-03",
+      "requirement": "Confirmed non-refundable dues cash = income once at confirmation; unapplied = allocation credit only (not liability, not second income)",
+      "rev2": "Normative override of Rev 1 F4-002 ambiguity",
+      "status_now": "NEEDS_FCG1",
+      "on_current_main": "App tracks creditRemaining as allocation remainder; does not post income/liability (no ledger)",
+      "on_old_f3": "Oracles assume income-once; must re-prove templates do not emit liability for non-refundable unapplied",
+      "closes_when": "Fixture: confirm 500 unapplied → one income 500 + custody 500; allocate 300 later → zero new income/custody/occurrence"
+    },
+    {
+      "id": "FCG1-04",
+      "requirement": "Later allocation of already-confirmed amount creates no second income, custody, or canonical occurrence",
+      "status_now": "NEEDS_FCG1",
+      "shared_identity": "Confirmation and allocation must share the same receipt/source identity",
+      "closes_when": "FCG-1 + F4-007 documented even if F4 adapter is M5"
+    },
+    {
+      "id": "FCG1-05",
+      "requirement": "Refundable/conditional unapplied remains liability until recognized or refunded",
+      "status_now": "NEEDS_FCG1",
+      "closes_when": "F3-02 template + tests distinguish refundable vs non-refundable"
+    },
+    {
+      "id": "FCG1-06",
+      "requirement": "F4/F5 posting templates do not require reopening F3 cash-basis SoA",
+      "status_now": "CONTRACT_ALIGNED",
+      "closes_when": "Documented mapping in FCG-1 packet after F3-07; adapters themselves are M5/M6"
+    },
+    {
+      "id": "FCG1-07",
+      "requirement": "Loan principal is receivable↔custody, never income/expense",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "on_current_main": "Loans module is operational subledger only",
+      "forward_risk": "F3-07 must not let treasurers book loan principal as Money In/Out income/expense",
+      "closes_when": "Taxonomy + negative test; F5-001 later owns adapter"
+    },
+    {
+      "id": "FCG1-08",
+      "requirement": "Njangi member money is custody/liability unless separately earned",
+      "status_now": "CONTRACT_ALIGNED_NOT_IMPLEMENTED",
+      "on_current_main": "savings_* operational only; report5 is cycle ops not SoA",
+      "closes_when": "F3-07 classification ban + FCG-1 note; N-010 is M8"
+    },
+    {
+      "id": "FCG1-09",
+      "requirement": "Relief recognition follows R-009; remittance does not recognize income twice",
+      "status_now": "NEEDS_FCG1",
+      "on_current_main": "payments.relief_plan_id + remittances operational; no ledger",
+      "closes_when": "Documented occurrence identity for owner receipt vs remittance settlement"
+    },
+    {
+      "id": "FCG1-10",
+      "requirement": "Mixed-currency events and ordinary cross-currency transfers rejected unless qualified FX workflow",
+      "status_now": "PRESENT_ON_OLD_F3",
+      "on_old_f3": "F3-02 same-currency templates; test J",
+      "on_current_main": "MISSING (no posting command)",
+      "closes_when": "F3-02 forward re-qual"
+    },
+    {
+      "id": "FCG1-11",
+      "requirement": "One economic occurrence cannot be posted once manually and again through a module adapter",
+      "status_now": "NEEDS_FCG1",
+      "economic_occurrence_identity": {
+        "manual_f3_on_main": "MISSING",
+        "manual_f3_on_old_tip": "PRESENT — (group_id, source_module, source_record_id, effect_kind) unique + epoch bind",
+        "shared_manual_plus_module": "MISSING / NEEDS FCG-1",
+        "dues_payment_id": "PRESENT as payments.id — not yet an F3 source tuple"
+      },
+      "closes_when": "Shared source-link invariant specified and tested before F3-08/09 freeze (adapter implementation may remain M5/M6)"
+    },
+    {
+      "id": "FCG1-12",
+      "requirement": "Reporting reconciliation: C&D allocation/arrears views reconcile to cash-basis ledger without treating unallocated non-refundable confirmed cash as unrecognized revenue",
+      "status_now": "NEEDS_FCG1",
+      "closes_when": "F3-08 projections + dues reports 1-4 labeled as subledger; bridge fixture"
+    }
+  ],
+  "rev2_six_explicit_proofs": [
+    "Non-refundable unapplied dues advance: income once at confirmation; unapplied = allocation credit",
+    "Later allocation: no new income, custody, or duplicate occurrence",
+    "Refundable/conditional credit: liability until condition met or refunded",
+    "Shared occurrence identity: confirmation and allocation linked to same receipt/source",
+    "Correction/refund: lineage preserves original effect (not unrelated compensating receipt)",
+    "C&D views reconcile without treating unallocated non-refundable confirmed cash as unrecognized revenue"
+  ],
+  "r15_occurrence_identity_summary": {
+    "p1b_key": "(group_id, source_module, source_record_id, effect_kind, ledger_epoch)",
+    "current_main": "MISSING",
+    "old_f3_manual": "PRESENT",
+    "shared_across_manual_and_modules": "NEEDS_FCG1"
+  }
+}

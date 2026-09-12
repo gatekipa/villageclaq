@@ -58,10 +58,29 @@ test("00117 exists with dormant defaults; old timestamp filename absent", () => 
   assert.match(sql, /FORCE ROW LEVEL SECURITY/);
 });
 
-test("no 00118+ migration authored", () => {
+test("00118-00123 are the F3 forward batch; no 00124+ and no timestamp F3 history", () => {
   const dir = path.join(root, "supabase/migrations");
-  const extras = fs.readdirSync(dir).filter((f) => /^0011[89]|^001[2-9]/.test(f));
-  assert.deepEqual(extras, []);
+  const files = fs.readdirSync(dir);
+  const allowed = [
+    "00118_f3_bounded_financial_epoch_foundation.sql",
+    "00119_f3_01_core_ledger_foundation.sql",
+    "00120_f3_02_secure_posting_idempotency.sql",
+    "00121_f3_03_projection_read_proof.sql",
+    "00122_f3_04_correction_reversal.sql",
+    "00123_f3_05_opening_cash_command.sql",
+  ];
+  const extras = files.filter((f) => /^0011[89]|^001[2-9]/.test(f));
+  assert.deepEqual(extras.sort(), allowed.sort());
+  const timestamped = files.filter((f) => /^2026090[6-9]|^20260910/.test(f));
+  assert.deepEqual(timestamped, []);
+  for (const name of allowed) {
+    const src = read(`supabase/migrations/${name}`);
+    const ddl = src.replace(/--[^\n]*/g, "");
+    assert.doesNotMatch(src, /CREATE OR REPLACE FUNCTION public\.has_group_permission/);
+    assert.doesNotMatch(ddl, /enqueue_outbound_notification/);
+    assert.doesNotMatch(ddl, /notifications_queue/);
+    assert.doesNotMatch(src, /storage_receipts_authorized/);
+  }
 });
 
 test("generic send routes remain 410 — no resurrection", () => {

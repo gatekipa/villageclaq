@@ -1,35 +1,124 @@
 {
   "artifact": "M2_CUT2_NONREGRESSION_RESULTS_20260912",
   "date": "2026-09-12",
+  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
   "planning_matrix": "docs/evidence/M2_REQUALIFICATION_TEST_MATRIX_20260912.json (PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5)",
-  "functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
-  "remediation_note": "UI_POLICY_LABELS / UiPolicyLabels removed as OUT OF M2; Cut 2 matrix and this 20/20 suite unchanged",
   "command": "node --experimental-strip-types --test scripts/test-m2-cut2-nonregression.mjs",
   "sends": 0,
   "provider_calls": 0,
   "queue_inserts": 0,
-  "production_mutation": "ZERO",
   "result": "20/20 PASS",
+  "remediation_note": "M2-C2-17 abort text updated to new live-pin postcondition; enqueue still not CREATE/REPLACE'd by 00117",
   "cases": [
-    {"id": "M2-C2-01", "pass": true, "assert": "enqueue_outbound_notification identity args unchanged; 00117 does not CREATE it"},
-    {"id": "M2-C2-02", "pass": true, "assert": "EXECUTE service_role only in Cut 2 SQL; 00117 does not regrant"},
-    {"id": "M2-C2-03", "pass": true, "assert": "22 types exactly; no 23rd"},
-    {"id": "M2-C2-04", "pass": true, "assert": "WA ALLOW 22; SMS DENY loan_overdue/member_invitation/election_opened; email DENY proxy_claim; push DENY all"},
-    {"id": "M2-C2-05", "pass": true, "assert": "RPC signature has no phone/email/message/components/groupId/template/data/status/user_id/provenance args"},
-    {"id": "M2-C2-06", "pass": true, "assert": "Cut 2 INSERT hardcodes cut2_provenance_version=1; 00117 does not INSERT queue"},
-    {"id": "M2-C2-07", "pass": true, "assert": "Drain select remains queued AND cut2_provenance_version=1"},
-    {"id": "M2-C2-08", "pass": true, "assert": "/api/sms/send /whatsapp/send /email/send remain 410 GET+POST"},
-    {"id": "M2-C2-09", "pass": true, "assert": "service_role no INSERT/DELETE/TRUNCATE on notifications_queue; 00117 adds no queue grants"},
-    {"id": "M2-C2-10", "pass": true, "assert": "ENQUEUE_ELIGIBLE does not call sendSMS/dispatchWhatsApp/sendEmail or insert queue"},
-    {"id": "M2-C2-11", "pass": true, "assert": "ChannelIntersection AND Cut 2: hosting email false even if policy email true"},
-    {"id": "M2-C2-12", "pass": true, "assert": "FAIL_CLOSED_PREFS_ON_ERROR blocks external channels"},
-    {"id": "M2-C2-13", "pass": true, "assert": "LEGACY_PAYMENT_CRON_CONTRACT.live === true and notARelativeTriggerOffsetHours === null"},
-    {"id": "M2-C2-14", "pass": true, "assert": "PAYMENT_REMINDER_CONFIRMED_BASIS still env === true || dryRun; dryRun=searchParams true"},
-    {"id": "M2-C2-15", "pass": true, "assert": "bulkSendReceipts useState(false) + reconfirm guard present"},
-    {"id": "M2-C2-16", "pass": true, "assert": "announcement-producer.ts unimported by live routes; live path enqueueCut2ProducerChannels"},
-    {"id": "M2-C2-17", "pass": true, "assert": "00117 does not replace enqueue_outbound_notification"},
-    {"id": "M2-C2-18", "pass": true, "assert": "enabled DEFAULT false; live producers do not import M2 policy engine"},
-    {"id": "M2-C2-19", "pass": true, "assert": "settings.manage is policy-admin; notifications.manage absent from ALL_PERMISSION_KEYS and RLS"},
-    {"id": "M2-C2-20", "pass": true, "assert": "Quiet-hours DEFER_UNTIL reuses occurrence identity; not ENQUEUE_ELIGIBLE"}
+    {
+      "id": "M2-C2-01",
+      "pass": true,
+      "assert": "enqueue_outbound_notification identity args unchanged; 00117 does not CREATE it"
+    },
+    {
+      "id": "M2-C2-02",
+      "pass": true,
+      "assert": "EXECUTE service_role only in Cut 2 SQL; 00117 does not regrant"
+    },
+    {
+      "id": "M2-C2-03",
+      "pass": true,
+      "assert": "22 types exactly; no 23rd"
+    },
+    {
+      "id": "M2-C2-04",
+      "pass": true,
+      "assert": "WA ALLOW 22; SMS DENY loan_overdue/member_invitation/election_opened; email DENY proxy_claim; push DENY all"
+    },
+    {
+      "id": "M2-C2-05",
+      "pass": true,
+      "assert": "RPC signature has no phone/email/message/components/groupId/template/data/status/user_id/provenance args"
+    },
+    {
+      "id": "M2-C2-06",
+      "pass": true,
+      "assert": "Cut 2 INSERT hardcodes cut2_provenance_version=1; 00117 does not INSERT queue"
+    },
+    {
+      "id": "M2-C2-07",
+      "pass": true,
+      "assert": "Drain select remains queued AND cut2_provenance_version=1"
+    },
+    {
+      "id": "M2-C2-08",
+      "pass": true,
+      "assert": "/api/sms/send /whatsapp/send /email/send remain 410 GET+POST"
+    },
+    {
+      "id": "M2-C2-09",
+      "pass": true,
+      "assert": "service_role no INSERT/DELETE/TRUNCATE on notifications_queue; 00117 adds no queue grants"
+    },
+    {
+      "id": "M2-C2-10",
+      "pass": true,
+      "assert": "ENQUEUE_ELIGIBLE does not call sendSMS/dispatchWhatsApp/sendEmail or insert queue"
+    },
+    {
+      "id": "M2-C2-11",
+      "pass": true,
+      "assert": "ChannelIntersection AND Cut 2: hosting email false even if policy email true"
+    },
+    {
+      "id": "M2-C2-12",
+      "pass": true,
+      "assert": "FAIL_CLOSED_PREFS_ON_ERROR blocks external channels"
+    },
+    {
+      "id": "M2-C2-13",
+      "pass": true,
+      "assert": "LEGACY_PAYMENT_CRON_CONTRACT.live === true and notARelativeTriggerOffsetHours === null"
+    },
+    {
+      "id": "M2-C2-14",
+      "pass": true,
+      "assert": "PAYMENT_REMINDER_CONFIRMED_BASIS still env === true || dryRun; dryRun=searchParams true"
+    },
+    {
+      "id": "M2-C2-15",
+      "pass": true,
+      "assert": "bulkSendReceipts useState(false) + reconfirm guard present"
+    },
+    {
+      "id": "M2-C2-16",
+      "pass": true,
+      "assert": "announcement-producer.ts unimported by live routes; live path enqueueCut2ProducerChannels"
+    },
+    {
+      "id": "M2-C2-17",
+      "pass": true,
+      "assert": "00117 does not replace enqueue; live-pin + identity/return/owner/DEFINER/proconfig/body/ACL abort present"
+    },
+    {
+      "id": "M2-C2-18",
+      "pass": true,
+      "assert": "enabled DEFAULT false; live producers do not import M2 policy engine"
+    },
+    {
+      "id": "M2-C2-19",
+      "pass": true,
+      "assert": "settings.manage is policy-admin; notifications.manage absent from ALL_PERMISSION_KEYS and RLS"
+    },
+    {
+      "id": "M2-C2-20",
+      "pass": true,
+      "assert": "Quiet-hours DEFER_UNTIL reuses occurrence identity; not ENQUEUE_ELIGIBLE"
+    }
   ]
 }

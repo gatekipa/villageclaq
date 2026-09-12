@@ -1,11 +1,11 @@
 {
   "artifact": "M2_MIGRATION_SECURITY_FINGERPRINTS_20260912",
   "date": "2026-09-12",
-  "functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
-  "remediation_note": "UI_POLICY_LABELS / UiPolicyLabels removed as OUT OF M2; 00117 SQL/RLS/fingerprint bytes unchanged",
+  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "remediation_note": "00117 preflight/postconditions rewritten to exact Chief-confirmed production live pins (aclexplode set equality). Disposable floor reproduces those pins on PG17. DDL/RLS/grants of the three policy tables unchanged in business semantics.",
   "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
-  "migration_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
-  "fingerprint_source": "local disposable PostgreSQL 16 after exact 00117 apply on 00116-era fixture (NOT production)",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "fingerprint_source": "local disposable PostgreSQL 17.11 port 5433 after exact 00117 apply on live-pin floor (NOT production)",
   "production_mutation": "ZERO",
   "production_project": "llbnliixczcqfftxpsmb",
   "SECURITY_DEFINER_ADDED_BY_00117": false,
@@ -28,15 +28,31 @@
         "grants_intended": "REVOKE ALL FROM PUBLIC, anon; GRANT EXECUTE TO authenticated"
       }
     },
+    "occurrence_writer_security_definer": "NOT CREATED — dormant foundation does not require one; writers remain a later ticket",
     "preexisting_not_modified_by_00117": {
+      "public.has_group_permission(gid uuid, perm_key text, uid uuid)": {
+        "prosecdef": true,
+        "owner": "postgres",
+        "proconfig": [
+          "search_path=\"\""
+        ],
+        "pg_get_functiondef_md5": "695368464e97297fbf0f90ce7345162f",
+        "prosrc_md5": "96a296dfd541c7fc75ec68c4da1d92ff",
+        "note": "PRE-EXISTING. 00117 does not CREATE/REPLACE/regrant. Exact live pin required before and after DDL."
+      },
       "public.enqueue_outbound_notification(...)": {
         "prosecdef": true,
-        "note": "PRE-EXISTING Cut 2 SECURITY DEFINER. 00117 does not CREATE/REPLACE/regrant. Identity args unchanged. Disposable fixture owner ubuntu is a local artifact.",
+        "owner": "postgres",
+        "proconfig": [
+          "search_path=\"\""
+        ],
         "identity_args": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text",
-        "disposable_proacl": "{ubuntu=X/ubuntu,service_role=X/ubuntu}"
+        "result": "TABLE(queue_id uuid, result text)",
+        "pg_get_functiondef_md5": "dbdb16cdced6cae9cbdbfb6a6a9f421f",
+        "prosrc_md5": "3fa76af51e431ccbd31eb033dcff0b80",
+        "note": "PRE-EXISTING Cut 2 SECURITY DEFINER. 00117 does not CREATE/REPLACE/regrant. Postcompare includes owner/proconfig."
       }
-    },
-    "occurrence_writer_security_definer": "NOT CREATED — dormant foundation does not require one; writers remain a later ticket"
+    }
   },
   "tables": {
     "notification_policies": {
@@ -93,21 +109,27 @@
       "table": "notification_policies",
       "name": "m2_np_select",
       "cmd": "SELECT",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "using": "has_group_permission(group_id, 'settings.manage')"
     },
     {
       "table": "notification_policies",
       "name": "m2_np_insert",
       "cmd": "INSERT",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "with_check": "has_group_permission(group_id, 'settings.manage')"
     },
     {
       "table": "notification_policies",
       "name": "m2_np_update",
       "cmd": "UPDATE",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "using": "has_group_permission(group_id, 'settings.manage')",
       "with_check": "has_group_permission(group_id, 'settings.manage')"
     },
@@ -115,28 +137,36 @@
       "table": "notification_policies",
       "name": "m2_np_delete",
       "cmd": "DELETE",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "using": "has_group_permission(group_id, 'settings.manage')"
     },
     {
       "table": "notification_policy_triggers",
       "name": "m2_npt_select",
       "cmd": "SELECT",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "using": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
     },
     {
       "table": "notification_policy_triggers",
       "name": "m2_npt_insert",
       "cmd": "INSERT",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "with_check": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
     },
     {
       "table": "notification_policy_triggers",
       "name": "m2_npt_update",
       "cmd": "UPDATE",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "using": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))",
       "with_check": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
     },
@@ -144,38 +174,60 @@
       "table": "notification_policy_triggers",
       "name": "m2_npt_delete",
       "cmd": "DELETE",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "using": "EXISTS (SELECT 1 FROM notification_policies p WHERE p.id = policy_id AND has_group_permission(p.group_id, 'settings.manage'))"
     },
     {
       "table": "notification_policy_occurrences",
       "name": "m2_npo_select",
       "cmd": "SELECT",
-      "roles": ["authenticated"],
+      "roles": [
+        "authenticated"
+      ],
       "using": "has_group_permission(group_id, 'settings.manage')"
     }
   ],
   "occurrence_mutation_policies": "NONE — authenticated SELECT-only; no INSERT/UPDATE/DELETE policies",
   "grants_intended_by_00117": {
     "notification_policies": {
-      "authenticated": ["SELECT", "INSERT", "UPDATE", "DELETE"],
-      "service_role": ["SELECT"],
+      "authenticated": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "service_role": [
+        "SELECT"
+      ],
       "anon": [],
       "PUBLIC": []
     },
     "notification_policy_triggers": {
-      "authenticated": ["SELECT", "INSERT", "UPDATE", "DELETE"],
-      "service_role": ["SELECT"],
+      "authenticated": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "service_role": [
+        "SELECT"
+      ],
       "anon": [],
       "PUBLIC": []
     },
     "notification_policy_occurrences": {
-      "authenticated": ["SELECT"],
-      "service_role": ["SELECT"],
+      "authenticated": [
+        "SELECT"
+      ],
+      "service_role": [
+        "SELECT"
+      ],
       "anon": [],
       "PUBLIC": []
     },
-    "notifications_queue": "UNCHANGED — 00117 adds ZERO grants; disposable observed authenticated SELECT + service_role SELECT only (fixture Cut 2 floor)"
+    "notifications_queue": "UNCHANGED — 00117 adds ZERO grants; live table ACL + five column UPDATE attacl snapshotted and recompared"
   },
   "grants_observed_disposable_app_roles": [
     "notification_policies | authenticated | DELETE,INSERT,SELECT,UPDATE",
@@ -185,7 +237,6 @@
     "notification_policy_occurrences | authenticated | SELECT",
     "notification_policy_occurrences | service_role | SELECT"
   ],
-  "disposable_owner_note": "Local table owner role ubuntu appears in proacl/table ACLs as grantor. That is a disposable artifact, not a production grant.",
   "function_definitions": {
     "m2_is_valid_iana_timezone": "CREATE OR REPLACE FUNCTION public.m2_is_valid_iana_timezone(tz text)\n RETURNS boolean\n LANGUAGE sql\n STABLE\n SET search_path TO ''\nAS $function$\n  SELECT tz IS NOT NULL\n     AND btrim(tz) <> ''\n     AND EXISTS (\n       SELECT 1\n       FROM pg_catalog.pg_timezone_names z\n       WHERE z.name = tz\n     );\n$function$",
     "notification_policy_set_updated_at": "CREATE OR REPLACE FUNCTION public.notification_policy_set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO ''\nAS $function$\nBEGIN\n  NEW.updated_at = now();\n  RETURN NEW;\nEND;\n$function$"
@@ -201,5 +252,171 @@
     "notifications_manage_invented": false,
     "is_group_member_used_as_exited_gate": false,
     "cut1_active_membership": "has_group_permission already requires membership_status='active'"
+  },
+  "preexisting_not_modified_by_00117": {
+    "public.has_group_permission(gid uuid, perm_key text, uid uuid)": {
+      "prosecdef": true,
+      "owner": "postgres",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "pg_get_functiondef_md5": "695368464e97297fbf0f90ce7345162f",
+      "prosrc_md5": "96a296dfd541c7fc75ec68c4da1d92ff",
+      "note": "PRE-EXISTING. 00117 does not CREATE/REPLACE/regrant. Exact live pin required before and after DDL."
+    },
+    "public.enqueue_outbound_notification(...)": {
+      "prosecdef": true,
+      "owner": "postgres",
+      "proconfig": [
+        "search_path=\"\""
+      ],
+      "identity_args": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text",
+      "result": "TABLE(queue_id uuid, result text)",
+      "pg_get_functiondef_md5": "dbdb16cdced6cae9cbdbfb6a6a9f421f",
+      "prosrc_md5": "3fa76af51e431ccbd31eb033dcff0b80",
+      "note": "PRE-EXISTING Cut 2 SECURITY DEFINER. 00117 does not CREATE/REPLACE/regrant. Postcompare includes owner/proconfig."
+    }
+  },
+  "live_floor_acl": {
+    "has_group_permission_execute": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      }
+    ],
+    "enqueue_execute": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      }
+    ],
+    "notifications_queue_table": [
+      {
+        "grantee": "authenticated",
+        "privilege": "SELECT",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "DELETE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "INSERT",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "MAINTAIN",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "REFERENCES",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "SELECT",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRIGGER",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "TRUNCATE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "UPDATE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "SELECT",
+        "grantor": "postgres",
+        "is_grantable": false
+      }
+    ],
+    "notifications_queue_column_attacl": [
+      {
+        "attname": "attempts",
+        "grantee": "service_role",
+        "privilege": "UPDATE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "attname": "data",
+        "grantee": "service_role",
+        "privilege": "UPDATE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "attname": "error_message",
+        "grantee": "service_role",
+        "privilege": "UPDATE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "attname": "sent_at",
+        "grantee": "service_role",
+        "privilege": "UPDATE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "attname": "status",
+        "grantee": "service_role",
+        "privilege": "UPDATE",
+        "grantor": "postgres",
+        "is_grantable": false
+      }
+    ],
+    "service_role_update_columns": [
+      "attempts",
+      "data",
+      "error_message",
+      "sent_at",
+      "status"
+    ]
   }
 }

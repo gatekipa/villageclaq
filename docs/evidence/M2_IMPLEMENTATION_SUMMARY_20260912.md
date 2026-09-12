@@ -1,6 +1,6 @@
-# M2 Implementation Summary — 2026-09-12
+# M2 Implementation Summary — 2026-09-12 (Daybreak HOLD remediation)
 
-**OVERALL VERDICT: PASS — M2 IMPLEMENTATION COMPLETE; DISPOSABLE QUALIFICATION PASS; READY FOR DAYBREAK IMPLEMENTATION SECURITY REVIEW**
+**OVERALL VERDICT: PASS — M2 IMPLEMENTATION REMEDIATED; FULL DISPOSABLE SECURITY REQUALIFICATION PASS; READY FOR DAYBREAK RE-REVIEW**
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00117 TO PRODUCTION.**  
@@ -14,24 +14,29 @@
 | Base main | `0c147f8e1e7aadbfd14583f6a9bef465c2217fe1` |
 | Branch | `security/m2-notification-policy-foundation-20260912` |
 | Draft PR | https://github.com/gatekipa/villageclaq/pull/82 |
-| Functional SHA | `046cadcfac6e7b14f85e87d80f5025f8f3b493d4` |
+| **NEW functional SHA** | `a9a48447b4e48f9c800f4115bacf47a9e67c9ceb` |
+| Superseded functional SHA | `046cadcfac6e7b14f85e87d80f5025f8f3b493d4` |
+| Superseded evidence tip | `b7d41d387ec48e6c9d8e88521dddbd23b47d8994` |
 | 00117 path | `supabase/migrations/00117_m2_notification_policy_foundation.sql` |
-| 00117 SHA-256 | `6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42` |
+| **NEW 00117 SHA-256** | `aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02` |
+| Superseded 00117 SHA-256 | `6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42` |
 | Production project | `llbnliixczcqfftxpsmb` — **never mutated** |
 | Production migrations | remain **31** |
 | SECURITY DEFINER added | **NONE** |
 
-## What shipped
+## What this remediation changed
 
-- Pure evaluator `src/lib/notification-policy.ts` — `ENQUEUE_ELIGIBLE` = trusted-producer enqueue consideration only (SEND_NOW retired)
-- Pure contracts `src/lib/notification-policy-contracts.ts` — Cut 2 AND + push DENY + adapters. **`UI_POLICY_LABELS` / `UiPolicyLabels` removed** (OUT OF M2 per PR #81; no UI copy in foundation).
-- Dormant 00117 three-table schema; `enabled` / all channel defaults `false`; domain `payment|hosting|event` only
-- RLS: `has_group_permission(group_id, 'settings.manage')` + ENABLE/FORCE RLS
-- Occurrences: authenticated SELECT-only; no authenticated mutation; no service_role DML grant
-- No `notifications_queue` grants; no `enqueue_outbound_notification` change
-- No occurrence writer (SECURITY DEFINER not required for dormant foundation)
+- **00117 preflight/postconditions only** (same path): exact ONE `has_group_permission` and ONE `enqueue_outbound_notification`; pin identity/result/owner/`prosecdef`/`proconfig`/def MD5/prosrc MD5 + ACL set equality both EXCEPT directions **before** DDL; snapshot only after pins pass; after DDL recompare fingerprint+ACL including enqueue owner/`proconfig`.
+- Queue **TABLE** ACL exact live set (postgres owner/full including `MAINTAIN`; authenticated SELECT; service_role SELECT; no authenticated/service_role table INSERT/UPDATE/DELETE; no anon/PUBLIC).
+- Queue **COLUMN** `attacl` exact five UPDATE rows: `status`, `error_message`, `attempts`, `sent_at`, `data` — grantor postgres, no grant option. Postcondition set `{attempts,data,error_message,sent_at,status}`.
+- ACL via `aclexplode` + role resolution; **not** raw ACL text order.
+- Disposable floor adapted **outside** 00117 to reproduce the exact production security floor (PG 17 required for `MAINTAIN`).
+- Occurrence DML evidence: AUTH INSERT/UPDATE/DELETE → `PERMISSION_DENIED` / `42501`; service_role SELECT ALLOW; service_role INSERT/UPDATE/DELETE DENY `42501`; seeded occurrence unchanged. Empty-stdout denial shortcut banned (R25).
+- Negative drift (R15): 21/21 `M2_ABORT` (hgp body/owner/prosecdef/search_path/extra EXECUTE/grant option/overload; enqueue body/return/owner/prosecdef/search_path/authenticated EXECUTE/PUBLIC EXECUTE/grant option/overload; queue table unexpected DML; column sixth UPDATE / missing one / wrong grantor / WITH GRANT OPTION).
 
-## Tests
+Unchanged in business semantics: evaluator, contracts, settings.manage RLS, dormant defaults, no new SECURITY DEFINER, no queue grants, no enqueue modify, no producer wiring, no UI.
+
+## Tests (R28)
 
 | Suite | Result |
 |-------|--------|
@@ -39,17 +44,33 @@
 | `scripts/test-notification-policy-contracts.mjs` | **43/43 PASS** |
 | `scripts/test-m2-cut2-nonregression.mjs` (M2-C2-01..20) | **20/20 PASS** |
 | `scripts/test-m2-static-security.mjs` | **9/9 PASS** |
-| Combined | **111/111 PASS** |
-| Disposable schema qualify | **32/32 PASS** |
+| Combined `npm run test:m2` | **111/111 PASS** |
+| Disposable schema qualify (PG 17.11 :5433) | **60/60 PASS** |
+| Negative drift | **21/21 PASS** |
+| AUTH occurrence INSERT/UPDATE/DELETE | **PERMISSION_DENIED 42501** |
+| service_role SELECT / INSERT / UPDATE / DELETE | **ALLOW / DENY 42501 / DENY 42501 / DENY 42501** |
+| Occurrence integrity after denied DML | **unchanged** |
 | `npx tsc --noEmit` | **PASS** |
 | `npm run build` | **PASS** |
 
-## Disposable qualification
+## Live pins reproduced on disposable (and required by 00117)
 
-Local PostgreSQL 16, database `m2_notification_policy_disposable`.  
-Fixture: `scripts/_m2_disposable_fixture.sql` (00116-era stub).  
-Apply: exact `00117_m2_notification_policy_foundation.sql`.  
-**Not production.** Synthetic tenants only. Provider calls = 0.
+### has_group_permission
+- overload 1; `gid uuid, perm_key text, uid uuid` → boolean
+- owner postgres; SECURITY DEFINER; `ARRAY['search_path=""']`
+- def MD5 `695368464e97297fbf0f90ce7345162f`; prosrc MD5 `96a296dfd541c7fc75ec68c4da1d92ff`
+- ACL only: authenticated / postgres / service_role EXECUTE, grantor postgres, no grant option
+
+### enqueue_outbound_notification
+- overload 1; identity `p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text`
+- `TABLE(queue_id uuid, result text)`
+- owner postgres; SECURITY DEFINER; `ARRAY['search_path=""']`
+- def MD5 `dbdb16cdced6cae9cbdbfb6a6a9f421f`; prosrc MD5 `3fa76af51e431ccbd31eb033dcff0b80`
+- ACL only: postgres / service_role EXECUTE, grantor postgres, no grant option
+
+### notifications_queue
+- Table ACL: postgres owner/full (incl. MAINTAIN); authenticated SELECT; service_role SELECT
+- Column attacl: exactly five `service_role` UPDATE rows on `attempts`, `data`, `error_message`, `sent_at`, `status`
 
 ## Dormancy
 
@@ -65,12 +86,13 @@ No producer import of the M2 engine. Live crons unchanged.
 - `docs/evidence/M2_IMPLEMENTATION_FILE_SCOPE_20260912.json`
 - `docs/evidence/M2_DORMANCY_PROOF_20260912.json`
 - `docs/evidence/M2_MIGRATION_SECURITY_FINGERPRINTS_20260912.json`
+- `docs/evidence/M2_ACL_TUPLES_20260912.json` (new)
+- `docs/evidence/M2_OCCURRENCE_DML_BEHAVIORAL_20260912.json` (new)
+- `docs/evidence/M2_NEGATIVE_DRIFT_RESULTS_20260912.json` (new)
 
-Evidence tip SHA is the docs/evidence-only commit on top of functional SHA `046cadcfac6e7b14f85e87d80f5025f8f3b493d4`.
+## Production
 
-## Bounded remediation (Chief independent review)
-
-`UI_POLICY_LABELS` / `UiPolicyLabels` were salvage leftovers classified OUT OF M2 by planning PR #81. Removed from contracts + dependent test. 00117 SHA-256 unchanged. Evaluator / Cut 2 / adapters / producers / env unchanged.
+**ZERO writes** to `llbnliixczcqfftxpsmb`. Live fingerprints were read-only confirmed earlier and pinned exactly. Fixture was adapted outside 00117. No deploy, no merge, no sends, no env changes.
 
 ## Left open / unmerged
 
@@ -81,4 +103,4 @@ Evidence tip SHA is the docs/evidence-only commit on top of functional SHA `046c
 ## Writer authority
 
 No SECURITY DEFINER occurrence writer was added. Foundation does not require one.  
-**Not HOLD — M2 WRITER AUTHORITY NOT FROZEN.** Writers remain a later ticket.
+Writers remain a later ticket.

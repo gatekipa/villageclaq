@@ -1,0 +1,106 @@
+{
+  "artifact": "M2_OCCURRENCE_DML_BEHAVIORAL_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
+  "r25_empty_stdout_banned": true,
+  "seeded_occurrence_integrity": {
+    "before_equals_after": true,
+    "fields": [
+      "id",
+      "group_id",
+      "domain",
+      "object_id",
+      "status",
+      "identity_key",
+      "created_at",
+      "updated_at"
+    ],
+    "remaining_count": 1,
+    "qualify_cases": [
+      "OCCURRENCE_INTEGRITY_AFTER_DENIED_DML",
+      "OCCURRENCE_STILL_ONE_AFTER_DENIED_MUTATION"
+    ]
+  },
+  "results": [
+    {
+      "operation": "INSERT",
+      "role": "authenticated",
+      "expected_mechanism": "PERMISSION_DENIED",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "pass": true,
+      "stdout_note": "set_config(m2.uid) echo only; not a RETURNING success"
+    },
+    {
+      "operation": "UPDATE",
+      "role": "authenticated",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "pass": true,
+      "stdout_note": "set_config(m2.uid) echo only; not a RETURNING success"
+    },
+    {
+      "operation": "DELETE",
+      "role": "authenticated",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "pass": true,
+      "stdout_note": "set_config(m2.uid) echo only; not a RETURNING success"
+    },
+    {
+      "operation": "SELECT",
+      "role": "service_role",
+      "expected_mechanism": "ALLOW",
+      "actual_mechanism": "SUCCESS",
+      "error": null,
+      "sqlstate": null,
+      "pass": true,
+      "stdout_note": "1"
+    },
+    {
+      "operation": "INSERT",
+      "role": "service_role",
+      "expected_mechanism": "PERMISSION_DENIED",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "pass": true,
+      "stdout_note": ""
+    },
+    {
+      "operation": "UPDATE",
+      "role": "service_role",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "pass": true,
+      "stdout_note": ""
+    },
+    {
+      "operation": "DELETE",
+      "role": "service_role",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "pass": true,
+      "stdout_note": ""
+    }
+  ]
+}

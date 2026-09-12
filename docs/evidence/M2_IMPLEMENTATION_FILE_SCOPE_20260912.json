@@ -1,16 +1,21 @@
 {
   "artifact": "M2_IMPLEMENTATION_FILE_SCOPE_20260912",
   "date": "2026-09-12",
+  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
   "branch": "security/m2-notification-policy-foundation-20260912",
   "created_from_exact_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
-  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
-  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
-  "functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
-  "prior_functional_sha": "cffdda852ab198ea6dfab4eefdb9e6a82bd8e03d",
   "evidence_tip": "docs/evidence-only commit on top of functional_sha (this evidence set)",
-  "remediation_note": "UI_POLICY_LABELS / UiPolicyLabels removed as OUT OF M2 (PR #81). No UI copy in M2 foundation. POLICY_ADMIN_PERMISSION retained.",
-  "migration": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
-  "migration_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "remediation_note": "DAYBREAK HOLD remediation: 00117 preflight/postconditions + disposable live-pin floor + occurrence DML behavioral evidence + negative drift. Evaluator/contracts/RLS business semantics unchanged.",
   "historical_migrations_00001_00116_modified": false,
   "migration_00118_plus_created": false,
   "old_timestamp_migration_20260910120000_copied": false,
@@ -22,19 +27,19 @@
   "generic_relays_modified": false,
   "ui_added": false,
   "environment_variables_changed": false,
-  "production_mutation": "ZERO",
-  "production_project": "llbnliixczcqfftxpsmb",
   "security_definer_added_by_00117": false,
   "file_hashes_functional": {
     "src/lib/notification-policy.ts": "27de6a00b984f8565faca519494afef5746bafe4fbdee78eb4b8d9949db5309d",
     "src/lib/notification-policy-contracts.ts": "51b147b0e6ebf8934c7eb5e6b9575e0ae1a56db0c30f9497e26c85a0df2d1747",
-    "supabase/migrations/00117_m2_notification_policy_foundation.sql": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+    "supabase/migrations/00117_m2_notification_policy_foundation.sql": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
     "scripts/test-notification-policy.mjs": "ce2615642127805c99c39a6ea0994a552b2a387a0b1193a2f7998d8e974957b2",
     "scripts/test-notification-policy-contracts.mjs": "06b266592cba0e16d555d2d30ec6c02ff8f6f15a05c6d027a2e6f71fc612c48d",
-    "scripts/test-m2-cut2-nonregression.mjs": "47c6fdec64c16b5f256c9a4b1038c948b712006fe40896c7c9233d5311711b5e",
+    "scripts/test-m2-cut2-nonregression.mjs": "44920372021399d3df2eed73ecdc039aa39ce7adca72aab9b53f41d34b32d62f",
     "scripts/test-m2-static-security.mjs": "459a88a5b25451f45d018a4169529aa99c2990c9c2532ebccaad3492b2efc90a",
-    "scripts/_m2_disposable_fixture.sql": "124802f6db2221c0baa25e396311e023bb1a644831ee0b04aa223e477d57bc0c",
-    "scripts/qualify-m2-disposable-schema.mjs": "542bb8f70f2a89e4827cbf467b990154060e054411d42af8a3ded2dcbd96021e"
+    "scripts/_m2_disposable_fixture.sql": "9d0f0105c4b55f12407bfa64c1d828021359a93edb2282f5d4bd3600bc3ceeaf",
+    "scripts/_m2_apply_disposable_floor.mjs": "67c97c87563cfe544fe9b21fabe9dc36ffcee14573986d75f3f63115a9d3e244",
+    "scripts/qualify-m2-disposable-schema.mjs": "0a4b98c5ffb25773ff0e0b65853d6936912cf6967b7ed31b29f8f3198ea3b92b",
+    "scripts/qualify-m2-negative-drift.mjs": "38cc5a139d7369cd026735139b53c0c4c5f226191841355174b72e38af962853"
   },
   "functional_files_vs_main": [
     {
@@ -50,7 +55,7 @@
     {
       "status": "A",
       "path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
-      "role": "dormant three-table schema; DO NOT APPLY TO PRODUCTION"
+      "role": "dormant three-table schema + exact live-pin preflight/postconditions; DO NOT APPLY TO PRODUCTION"
     },
     {
       "status": "A",
@@ -79,8 +84,18 @@
     },
     {
       "status": "A",
+      "path": "scripts/_m2_apply_disposable_floor.mjs",
+      "role": "applies live hgp hex + 00115 enqueue extract + postgres ACL floor"
+    },
+    {
+      "status": "A",
       "path": "scripts/qualify-m2-disposable-schema.mjs",
-      "role": "local disposable qualify harness; not production"
+      "role": "local disposable qualify harness; occurrence DML behavioral; not production"
+    },
+    {
+      "status": "A",
+      "path": "scripts/qualify-m2-negative-drift.mjs",
+      "role": "R15 negative drift M2_ABORT suite; not production"
     },
     {
       "status": "M",
@@ -90,7 +105,7 @@
     {
       "status": "M",
       "path": "tsconfig.json",
-      "change": "allowImportingTsExtensions true (noEmit already true) so node strip-types .ts imports typecheck"
+      "change": "allowImportingTsExtensions true (noEmit already true)"
     }
   ],
   "evidence_files": [
@@ -99,7 +114,10 @@
     "docs/evidence/M2_DISPOSABLE_SCHEMA_RESULTS_20260912.json",
     "docs/evidence/M2_IMPLEMENTATION_FILE_SCOPE_20260912.json",
     "docs/evidence/M2_DORMANCY_PROOF_20260912.json",
-    "docs/evidence/M2_MIGRATION_SECURITY_FINGERPRINTS_20260912.json"
+    "docs/evidence/M2_MIGRATION_SECURITY_FINGERPRINTS_20260912.json",
+    "docs/evidence/M2_ACL_TUPLES_20260912.json",
+    "docs/evidence/M2_OCCURRENCE_DML_BEHAVIORAL_20260912.json",
+    "docs/evidence/M2_NEGATIVE_DRIFT_RESULTS_20260912.json"
   ],
   "intentionally_untouched": [
     "src/lib/announcement-producer.ts (not wired)",

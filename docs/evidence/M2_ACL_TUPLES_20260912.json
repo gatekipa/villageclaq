@@ -1,0 +1,194 @@
+{
+  "artifact": "M2_ACL_TUPLES_20260912",
+  "date": "2026-09-12",
+  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+  "production_mutation": "ZERO",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
+  "comparison_method": "aclexplode(COALESCE(acl, acldefault(...))) + pg_roles resolution; NOT raw ACL text order; both EXCEPT directions empty",
+  "fingerprint_source": "local PostgreSQL 17.11 port 5433 disposable after exact live-floor apply; pins are Chief-confirmed production live values; production never mutated",
+  "has_group_permission": {
+    "overload_count": 1,
+    "identity": "gid uuid, perm_key text, uid uuid",
+    "result": "boolean",
+    "owner": "postgres",
+    "prosecdef": true,
+    "proconfig": [
+      "search_path=\"\""
+    ],
+    "pg_get_functiondef_md5": "695368464e97297fbf0f90ce7345162f",
+    "prosrc_md5": "96a296dfd541c7fc75ec68c4da1d92ff",
+    "execute_acl_exact": [
+      {
+        "grantee": "authenticated",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      }
+    ],
+    "public_anon_grant_option": false,
+    "both_except_directions": "empty"
+  },
+  "enqueue_outbound_notification": {
+    "overload_count": 1,
+    "identity": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text",
+    "result": "TABLE(queue_id uuid, result text)",
+    "owner": "postgres",
+    "prosecdef": true,
+    "proconfig": [
+      "search_path=\"\""
+    ],
+    "pg_get_functiondef_md5": "dbdb16cdced6cae9cbdbfb6a6a9f421f",
+    "prosrc_md5": "3fa76af51e431ccbd31eb033dcff0b80",
+    "execute_acl_exact": [
+      {
+        "grantee": "postgres",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      },
+      {
+        "grantee": "service_role",
+        "privilege": "EXECUTE",
+        "grantor": "postgres",
+        "is_grantable": false
+      }
+    ],
+    "authenticated_public_anon": false,
+    "grant_option": false
+  },
+  "notifications_queue_table_acl_exact": [
+    {
+      "grantee": "authenticated",
+      "privilege": "SELECT",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "DELETE",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "INSERT",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "MAINTAIN",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "REFERENCES",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "SELECT",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "TRIGGER",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "TRUNCATE",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "postgres",
+      "privilege": "UPDATE",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "grantee": "service_role",
+      "privilege": "SELECT",
+      "grantor": "postgres",
+      "is_grantable": false
+    }
+  ],
+  "notifications_queue_column_attacl_exact": [
+    {
+      "attname": "attempts",
+      "grantee": "service_role",
+      "privilege": "UPDATE",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "attname": "data",
+      "grantee": "service_role",
+      "privilege": "UPDATE",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "attname": "error_message",
+      "grantee": "service_role",
+      "privilege": "UPDATE",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "attname": "sent_at",
+      "grantee": "service_role",
+      "privilege": "UPDATE",
+      "grantor": "postgres",
+      "is_grantable": false
+    },
+    {
+      "attname": "status",
+      "grantee": "service_role",
+      "privilege": "UPDATE",
+      "grantor": "postgres",
+      "is_grantable": false
+    }
+  ],
+  "service_role_update_columns_exact": [
+    "attempts",
+    "data",
+    "error_message",
+    "sent_at",
+    "status"
+  ],
+  "no_update_on": [
+    "id",
+    "user_id",
+    "channel",
+    "template",
+    "created_at",
+    "cut2_provenance_version"
+  ],
+  "post_00117": "unchanged vs preflight snapshot and vs live pins"
+}

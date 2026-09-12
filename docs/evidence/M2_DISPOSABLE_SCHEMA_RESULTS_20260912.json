@@ -1,50 +1,510 @@
 {
   "artifact": "M2_DISPOSABLE_SCHEMA_RESULTS_20260912",
   "date": "2026-09-12",
+  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
+  "superseded_functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
+  "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
+  "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
+  "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
+  "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
   "production_mutation": "ZERO",
   "production_project": "llbnliixczcqfftxpsmb",
-  "environment": "local PostgreSQL 16 database m2_notification_policy_disposable",
-  "database_url_used": "postgresql://ubuntu@/m2_notification_policy_disposable?host=/var/run/postgresql",
-  "fixture": "scripts/_m2_disposable_fixture.sql",
+  "planning_authority": "PR #81 @ dc35c39a5b94b354c02e3f0f091271e74b8e93e5",
+  "base_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/82",
+  "environment": "local PostgreSQL 17.11 port 5433 database m2_notification_policy_disposable",
+  "database_url_used": "postgresql://ubuntu@/m2_notification_policy_disposable?host=/var/run/postgresql&port=5433",
+  "fixture": "scripts/_m2_disposable_fixture.sql + scripts/_m2_apply_disposable_floor.mjs (Cut3 hgp hex + 00115 enqueue extract + postgres-owned live ACL)",
   "migration_applied": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
-  "migration_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
-  "functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
-  "remediation_note": "UI_POLICY_LABELS removal is TypeScript-only; 00117 SHA-256 unchanged; disposable 32/32 not re-applied",
   "sends": 0,
   "provider_calls": 0,
-  "result": "32/32 PASS",
+  "result": "60/60 PASS",
   "cases": [
-    {"id": "APPLY_00117", "pass": true, "detail": "applied after 00116-era fixture"},
-    {"id": "THREE_TABLES", "pass": true, "detail": "notification_policies,notification_policy_occurrences,notification_policy_triggers"},
-    {"id": "FORCE_RLS", "pass": true, "detail": "relrowsecurity AND relforcerowsecurity true on all three tables"},
-    {"id": "DORMANT_DEFAULTS", "pass": true, "detail": "enabled DEFAULT false; channel_push DEFAULT false"},
-    {"id": "MIGRATION_ZERO_POLICY_ROWS", "pass": true, "detail": "0,0,0 immediately after apply"},
-    {"id": "QUEUE_DELTA_ZERO", "pass": true, "detail": "notifications_queue count unchanged by 00117"},
-    {"id": "ENQUEUE_IDENTITY_UNCHANGED", "pass": true, "detail": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text"},
-    {"id": "NO_QUEUE_INSERT_GRANT", "pass": true, "detail": "authenticated INSERT false; service_role INSERT false"},
-    {"id": "OCCURRENCES_NO_MUTATION_GRANTS", "pass": true, "detail": "authenticated INSERT/UPDATE/DELETE false; service_role INSERT false"},
-    {"id": "NO_NEW_SECURITY_DEFINER", "pass": true, "detail": "m2_is_valid_iana_timezone and notification_policy_set_updated_at prosecdef=false"},
-    {"id": "OWNER_INSERT_ALLOW", "pass": true, "detail": "active owner may INSERT policies"},
-    {"id": "SETTINGS_MANAGE_OFFICER_TRIGGER_ALLOW", "pass": true, "detail": "assigned officer with settings.manage may INSERT triggers"},
-    {"id": "NON_MANAGER_INSERT_DENY", "pass": true, "detail": "RLS deny ordinary member INSERT"},
-    {"id": "NON_MANAGER_SELECT_DENY", "pass": true, "detail": "ordinary member SELECT count=0"},
-    {"id": "EXITED_OWNER_SELECT_DENY", "pass": true, "detail": "exited owner (role owner, membership_status=exited) SELECT count=0 — Cut 1 active gate, not is_group_member"},
-    {"id": "CROSS_TENANT_INSERT_DENY", "pass": true, "detail": "G2 owner cannot INSERT into G1"},
-    {"id": "CROSS_TENANT_SELECT_DENY", "pass": true, "detail": "G2 owner SELECT G1 count=0"},
-    {"id": "OFFICER_WITHOUT_SETTINGS_MANAGE_DENY", "pass": true, "detail": "hosting.manage officer SELECT count=0"},
-    {"id": "ANNOUNCEMENT_DOMAIN_REJECT", "pass": true, "detail": "CHECK notification_policies_domain_check"},
-    {"id": "CHANNEL_PUSH_TRUE_REJECT", "pass": true, "detail": "CHECK notification_policies_push_denied"},
-    {"id": "HOSTING_EMAIL_TRUE_REJECT", "pass": true, "detail": "CHECK notification_policies_hosting_email_denied"},
-    {"id": "INVALID_TZ_REJECT", "pass": true, "detail": "CHECK notification_policies_timezone_iana"},
-    {"id": "REPEAT_REQUIRES_MAX", "pass": true, "detail": "CHECK notification_policies_repeat_requires_max"},
-    {"id": "OCCURRENCES_SELECT_MANAGER", "pass": true, "detail": "owner SELECT synthetic occurrence count=1"},
-    {"id": "OCCURRENCES_SELECT_NON_MANAGER_DENY", "pass": true, "detail": "member SELECT count=0"},
-    {"id": "OCCURRENCES_AUTH_INSERT_DENY", "pass": true, "detail": "permission denied for table notification_policy_occurrences"},
-    {"id": "OCCURRENCES_AUTH_UPDATE_DENY", "pass": true, "detail": "permission denied"},
-    {"id": "OCCURRENCES_AUTH_DELETE_DENY", "pass": true, "detail": "permission denied"},
-    {"id": "OCCURRENCE_STILL_ONE_AFTER_DENIED_MUTATION", "pass": true, "detail": "1"},
-    {"id": "INSERTED_ROW_DORMANT", "pass": true, "detail": "enabled and all channel_* false on insert-defaults"},
-    {"id": "UNIQUE_GROUP_DOMAIN_NULL_OBJECT", "pass": true, "detail": "UNIQUE NULLS NOT DISTINCT (group_id, domain, object_id)"},
-    {"id": "FINAL_QUEUE_STILL_UNCHANGED", "pass": true, "detail": "notifications_queue still 0 after synthetic policy/occurrence inserts"}
-  ]
+    {
+      "id": "PG17_REQUIRED",
+      "pass": true,
+      "detail": "170011"
+    },
+    {
+      "id": "APPLY_00117",
+      "pass": true,
+      "detail": "applied after exact live floor"
+    },
+    {
+      "id": "THREE_TABLES",
+      "pass": true,
+      "detail": "notification_policies,notification_policy_occurrences,notification_policy_triggers"
+    },
+    {
+      "id": "FORCE_RLS",
+      "pass": true,
+      "detail": "t"
+    },
+    {
+      "id": "DORMANT_DEFAULTS",
+      "pass": true,
+      "detail": "false,false"
+    },
+    {
+      "id": "MIGRATION_ZERO_POLICY_ROWS",
+      "pass": true,
+      "detail": "0,0,0"
+    },
+    {
+      "id": "QUEUE_DELTA_ZERO",
+      "pass": true,
+      "detail": "pre=0 post=0"
+    },
+    {
+      "id": "ENQUEUE_IDENTITY_UNCHANGED",
+      "pass": true,
+      "detail": "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text"
+    },
+    {
+      "id": "NO_QUEUE_INSERT_GRANT",
+      "pass": true,
+      "detail": "false,false"
+    },
+    {
+      "id": "OCCURRENCES_NO_MUTATION_GRANTS",
+      "pass": true,
+      "detail": "false,false,false,false"
+    },
+    {
+      "id": "NO_NEW_SECURITY_DEFINER",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "id": "OWNER_INSERT_ALLOW",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000001\n144e2055-4f5e-4a06-b478-2f51730d5516"
+    },
+    {
+      "id": "SETTINGS_MANAGE_OFFICER_TRIGGER_ALLOW",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000005\nb1a8b3c7-9f08-4272-84a6-daf3af98923e"
+    },
+    {
+      "id": "NON_MANAGER_INSERT_DENY",
+      "pass": true,
+      "detail": "RLS_VIOLATION ERROR:  new row violates row-level security policy for table \"notification_policies\""
+    },
+    {
+      "id": "NON_MANAGER_SELECT_DENY",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000002\n0"
+    },
+    {
+      "id": "EXITED_OWNER_SELECT_DENY",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000003\n0"
+    },
+    {
+      "id": "CROSS_TENANT_INSERT_DENY",
+      "pass": true,
+      "detail": "RLS_VIOLATION ERROR:  new row violates row-level security policy for table \"notification_policies\""
+    },
+    {
+      "id": "CROSS_TENANT_SELECT_DENY",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000004\n0"
+    },
+    {
+      "id": "OFFICER_WITHOUT_SETTINGS_MANAGE_DENY",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000006\n0"
+    },
+    {
+      "id": "ANNOUNCEMENT_DOMAIN_REJECT",
+      "pass": true,
+      "detail": "ERROR:  new row for relation \"notification_policies\" violates check constraint \"notification_policies_domain_check\"\nDETAIL:  Failing row contains (f21ca59a-5e73-4858-ac75-da60f89d0cb5, 11111111-1111-4111-8111-111111111111, announcement, null, f, UTC, null, null, t, null, null, null, f, f, f, f, f, null, null, 2026-09-12 16:55:16.019812+00, 2026-09-12 16:55:16.019812+00)."
+    },
+    {
+      "id": "CHANNEL_PUSH_TRUE_REJECT",
+      "pass": true,
+      "detail": "ERROR:  new row for relation \"notification_policies\" violates check constraint \"notification_policies_push_denied\"\nDETAIL:  Failing row contains (08695d77-5b3c-4e2b-a355-0a6fab0462d1, 11111111-1111-4111-8111-111111111111, event, null, f, UTC, null, null, t, null, null, null, f, f, f, f, t, null, null, 2026-09-12 16:55:16.041593+00, 2026-09-12 16:55:16.041593+00)."
+    },
+    {
+      "id": "HOSTING_EMAIL_TRUE_REJECT",
+      "pass": true,
+      "detail": "ERROR:  new row for relation \"notification_policies\" violates check constraint \"notification_policies_hosting_email_denied\"\nDETAIL:  Failing row contains (5399184a-e1e2-4d47-9df1-cda8b48fdea1, 11111111-1111-4111-8111-111111111111, hosting, null, f, UTC, null, null, t, null, null, null, f, t, f, f, f, null, null, 2026-09-12 16:55:16.063249+00, 2026-09-12 16:55:16.063249+00)."
+    },
+    {
+      "id": "INVALID_TZ_REJECT",
+      "pass": true,
+      "detail": "ERROR:  new row for relation \"notification_policies\" violates check constraint \"notification_policies_timezone_iana\"\nDETAIL:  Failing row contains (654c3816-493e-4c96-9095-f694cc69656d, 11111111-1111-4111-8111-111111111111, event, null, f, Not/A_Zone, null, null, t, null, null, null, f, f, f, f, f, null, null, 2026-09-12 16:55:16.08426+00, 2026-09-12 16:55:16.08426+00)."
+    },
+    {
+      "id": "REPEAT_REQUIRES_MAX",
+      "pass": true,
+      "detail": "ERROR:  new row for relation \"notification_policies\" violates check constraint \"notification_policies_repeat_requires_max\"\nDETAIL:  Failing row contains (0e706735-58c1-4889-be5c-0f930e67d6c6, 11111111-1111-4111-8111-111111111111, event, null, f, UTC, 24, null, t, null, null, null, f, f, f, f, f, null, null, 2026-09-12 16:55:16.112215+00, 2026-09-12 16:55:16.112215+00)."
+    },
+    {
+      "id": "OCCURRENCES_SELECT_MANAGER",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000001\n1"
+    },
+    {
+      "id": "OCCURRENCES_SELECT_NON_MANAGER_DENY",
+      "pass": true,
+      "detail": "10000000-0000-4000-8000-000000000002\n0"
+    },
+    {
+      "id": "OCCURRENCES_AUTH_INSERT_DENY",
+      "pass": true,
+      "detail": "PERMISSION_DENIED 42501"
+    },
+    {
+      "id": "OCCURRENCES_AUTH_UPDATE_DENY",
+      "pass": true,
+      "detail": "PERMISSION_DENIED 42501"
+    },
+    {
+      "id": "OCCURRENCES_AUTH_DELETE_DENY",
+      "pass": true,
+      "detail": "PERMISSION_DENIED 42501"
+    },
+    {
+      "id": "OCCURRENCES_SERVICE_ROLE_SELECT_ALLOW",
+      "pass": true,
+      "detail": "SUCCESS 1"
+    },
+    {
+      "id": "OCCURRENCES_SERVICE_ROLE_INSERT_DENY",
+      "pass": true,
+      "detail": "PERMISSION_DENIED 42501"
+    },
+    {
+      "id": "OCCURRENCES_SERVICE_ROLE_UPDATE_DENY",
+      "pass": true,
+      "detail": "PERMISSION_DENIED 42501"
+    },
+    {
+      "id": "OCCURRENCES_SERVICE_ROLE_DELETE_DENY",
+      "pass": true,
+      "detail": "PERMISSION_DENIED 42501"
+    },
+    {
+      "id": "OCCURRENCE_INTEGRITY_AFTER_DENIED_DML",
+      "pass": true,
+      "detail": "unchanged"
+    },
+    {
+      "id": "OCCURRENCE_STILL_ONE_AFTER_DENIED_MUTATION",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "id": "INSERTED_ROW_DORMANT",
+      "pass": true,
+      "detail": "f|f|f|f|f|f"
+    },
+    {
+      "id": "UNIQUE_GROUP_DOMAIN_NULL_OBJECT",
+      "pass": true,
+      "detail": "ERROR:  duplicate key value violates unique constraint \"notification_policies_group_domain_object_unique\"\nDETAIL:  Key (group_id, domain, object_id)=(11111111-1111-4111-8111-111111111111, event, null) already exists."
+    },
+    {
+      "id": "FINAL_QUEUE_STILL_UNCHANGED",
+      "pass": true,
+      "detail": "0"
+    },
+    {
+      "id": "NO_EMPTY_STDOUT_DENIAL_SHORTCUT",
+      "pass": true,
+      "detail": "R25: denials use permission/RLS/zero-row+integrity, never empty-stdout"
+    },
+    {
+      "id": "NEG_HGP_BODY",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_OWNER",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_PROSECDEF",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_SEARCH_PATH",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_EXTRA_EXECUTE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_GRANT_OPTION",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_HGP_OVERLOAD",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_BODY",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_RETURN",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_OWNER",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_PROSECDEF",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_SEARCH_PATH",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_AUTHENTICATED_EXECUTE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_PUBLIC_EXECUTE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_GRANT_OPTION",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_ENQ_OVERLOAD",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_TABLE_UNEXPECTED_DML",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_SIXTH_UPDATE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_MISSING_ONE",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_WRONG_GRANTOR",
+      "pass": true,
+      "detail": "M2_ABORT"
+    },
+    {
+      "id": "NEG_QUEUE_COL_GRANT_OPTION",
+      "pass": true,
+      "detail": "M2_ABORT"
+    }
+  ],
+  "occurrence_dml": [
+    {
+      "operation": "INSERT",
+      "role": "authenticated",
+      "expected_mechanism": "PERMISSION_DENIED",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "out": "10000000-0000-4000-8000-000000000001",
+      "pass": true
+    },
+    {
+      "operation": "UPDATE",
+      "role": "authenticated",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "out": "10000000-0000-4000-8000-000000000001",
+      "pass": true
+    },
+    {
+      "operation": "DELETE",
+      "role": "authenticated",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "out": "10000000-0000-4000-8000-000000000001",
+      "pass": true
+    },
+    {
+      "operation": "SELECT",
+      "role": "service_role",
+      "expected_mechanism": "ALLOW",
+      "actual_mechanism": "SUCCESS",
+      "error": null,
+      "sqlstate": null,
+      "out": "1",
+      "pass": true
+    },
+    {
+      "operation": "INSERT",
+      "role": "service_role",
+      "expected_mechanism": "PERMISSION_DENIED",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "out": "",
+      "pass": true
+    },
+    {
+      "operation": "UPDATE",
+      "role": "service_role",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "out": "",
+      "pass": true
+    },
+    {
+      "operation": "DELETE",
+      "role": "service_role",
+      "expected_mechanism": "DENY",
+      "actual_mechanism": "PERMISSION_DENIED",
+      "error": "ERROR:  42501: permission denied for table notification_policy_occurrences\nLOCATION:  aclcheck_error, aclchk.c:2843",
+      "sqlstate": "42501",
+      "out": "",
+      "pass": true
+    }
+  ],
+  "negative_drift": {
+    "artifact": "M2_NEGATIVE_DRIFT_RESULTS",
+    "production_mutation": "ZERO",
+    "pass": true,
+    "passed": 21,
+    "failed": 0,
+    "results": [
+      {
+        "id": "NEG_HGP_BODY",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_HGP_OWNER",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_HGP_PROSECDEF",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_HGP_SEARCH_PATH",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_HGP_EXTRA_EXECUTE",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_HGP_GRANT_OPTION",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_HGP_OVERLOAD",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_BODY",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_RETURN",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_OWNER",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_PROSECDEF",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_SEARCH_PATH",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_AUTHENTICATED_EXECUTE",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_PUBLIC_EXECUTE",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_GRANT_OPTION",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_ENQ_OVERLOAD",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_QUEUE_TABLE_UNEXPECTED_DML",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_QUEUE_COL_SIXTH_UPDATE",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_QUEUE_COL_MISSING_ONE",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_QUEUE_COL_WRONG_GRANTOR",
+        "pass": true,
+        "detail": "M2_ABORT"
+      },
+      {
+        "id": "NEG_QUEUE_COL_GRANT_OPTION",
+        "pass": true,
+        "detail": "M2_ABORT"
+      }
+    ]
+  }
 }

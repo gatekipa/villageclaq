@@ -592,6 +592,7 @@ def main() -> int:
     results = []
 
     def rec(test_id: str, **kwargs):
+        kwargs.pop("test_id", None)
         results.append({"id": test_id, **kwargs})
 
     def expect(test_id: str, result: DmlResult, exp: str, op: str, **extra):

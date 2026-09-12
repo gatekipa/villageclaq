@@ -265,12 +265,12 @@ BEGIN
     ),
     actual(fn, role_name, privilege) AS (
       SELECT p.proname,
-             COALESCE(r.rolname, 'PUBLIC'),
+             COALESCE(gr.rolname, 'PUBLIC'),
              a.privilege_type
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
         CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
-        LEFT JOIN pg_roles r ON r.oid = a.grantee
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
        WHERE n.nspname = 'public'
          AND (
            (p.proname = 'storage_path_group_id' AND pg_get_function_identity_arguments(p.oid) = 'p_name text')
@@ -778,12 +778,12 @@ BEGIN
     ),
     actual(fn, role_name, privilege) AS (
       SELECT p.proname,
-             COALESCE(r.rolname, 'PUBLIC'),
+             COALESCE(gr.rolname, 'PUBLIC'),
              a.privilege_type
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
         CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
-        LEFT JOIN pg_roles r ON r.oid = a.grantee
+        LEFT JOIN pg_roles gr ON gr.oid = a.grantee
        WHERE n.nspname = 'public'
          AND p.proname IN ('storage_group_documents_authorized', 'storage_receipts_authorized')
          AND pg_get_function_identity_arguments(p.oid) = 'p_name text, p_operation text'

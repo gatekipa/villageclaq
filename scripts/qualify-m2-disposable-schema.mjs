@@ -138,19 +138,20 @@ try {
     enqueueArgs,
   );
 
+  const falsy = (s) => /^f(alse)?(,f(alse)?)*$/i.test(String(s).replace(/\s/g, ""));
   const queueInsert = psql(`
-    SELECT has_table_privilege('authenticated','public.notifications_queue','INSERT') || ',' ||
-           has_table_privilege('service_role','public.notifications_queue','INSERT')
+    SELECT has_table_privilege('authenticated','public.notifications_queue','INSERT')::text || ',' ||
+           has_table_privilege('service_role','public.notifications_queue','INSERT')::text
   `).out;
-  record("NO_QUEUE_INSERT_GRANT", queueInsert === "f,f", queueInsert);
+  record("NO_QUEUE_INSERT_GRANT", falsy(queueInsert), queueInsert);
 
   const occMut = psql(`
-    SELECT has_table_privilege('authenticated','public.notification_policy_occurrences','INSERT') || ',' ||
-           has_table_privilege('authenticated','public.notification_policy_occurrences','UPDATE') || ',' ||
-           has_table_privilege('authenticated','public.notification_policy_occurrences','DELETE') || ',' ||
-           has_table_privilege('service_role','public.notification_policy_occurrences','INSERT')
+    SELECT has_table_privilege('authenticated','public.notification_policy_occurrences','INSERT')::text || ',' ||
+           has_table_privilege('authenticated','public.notification_policy_occurrences','UPDATE')::text || ',' ||
+           has_table_privilege('authenticated','public.notification_policy_occurrences','DELETE')::text || ',' ||
+           has_table_privilege('service_role','public.notification_policy_occurrences','INSERT')::text
   `).out;
-  record("OCCURRENCES_NO_MUTATION_GRANTS", occMut === "f,f,f,f", occMut);
+  record("OCCURRENCES_NO_MUTATION_GRANTS", falsy(occMut), occMut);
 
   const definer = psql(`
     SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
@@ -189,7 +190,11 @@ try {
   `);
   record("OWNER_INSERT_ALLOW", ownerIns.ok && /[0-9a-f-]{36}/i.test(ownerIns.out), ownerIns.err || ownerIns.out);
 
-  const policyId = (ownerIns.out.match(/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}/i) || [])[0];
+  const policyId = psql(`
+    SELECT id::text FROM public.notification_policies
+    WHERE group_id='${G1}' AND domain='event' AND object_id IS NULL
+    LIMIT 1
+  `).out;
 
   const officerIns = asUser(U_OFFICER, `
     INSERT INTO public.notification_policy_triggers (policy_id, offset_hours)

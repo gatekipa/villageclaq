@@ -150,13 +150,13 @@ export function ChannelIntersection(input: {
   memberPref: ChannelFlags;
   failClosedPrefs: ChannelFlags;
 }): ChannelFlags {
-  const out = {
+  const out: ChannelFlags = {
     in_app: false,
     email: false,
     sms: false,
     whatsapp: false,
     push: false,
-  } satisfies ChannelFlags;
+  };
 
   if (!isCut2NotificationType(input.notificationType)) {
     return out;

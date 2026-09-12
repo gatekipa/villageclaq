@@ -661,10 +661,19 @@ def main() -> int:
     """), "restore is_group_member EXECUTE after B-FILE")
 
     ok, err = run_acl_probe("pre", """
-    REVOKE EXECUTE ON FUNCTION public.storage_path_group_id(text) FROM authenticated;
-    SET ROLE cut3_acl_forger;
-    GRANT EXECUTE ON FUNCTION public.storage_path_group_id(text) TO authenticated;
-    RESET ROLE
+    UPDATE pg_proc p
+       SET proacl = ARRAY[
+             makeaclitem(0, 'postgres'::regrole, 'EXECUTE', false),
+             makeaclitem('postgres'::regrole, 'postgres'::regrole, 'EXECUTE', false),
+             makeaclitem('anon'::regrole, 'postgres'::regrole, 'EXECUTE', false),
+             makeaclitem('authenticated'::regrole, 'cut3_acl_forger'::regrole, 'EXECUTE', false),
+             makeaclitem('service_role'::regrole, 'postgres'::regrole, 'EXECUTE', false)
+           ]::aclitem[]
+      FROM pg_namespace n
+     WHERE n.oid = p.pronamespace
+       AND n.nspname = 'public'
+       AND p.proname = 'storage_path_group_id'
+       AND pg_get_function_identity_arguments(p.oid) = 'p_name text'
     """)
     record_acl_case(acl_results, "ACL-PRE-C", ok, err, expect_abort=True)
 
@@ -715,10 +724,16 @@ def main() -> int:
         "GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) TO service_role")
     record_acl_case(acl_results, "ACL-POST-SERVICE-ROLE", ok, err, expect_abort=True)
     ok, err = run_acl_probe("post", """
-    REVOKE EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) FROM authenticated;
-    SET ROLE cut3_acl_forger;
-    GRANT EXECUTE ON FUNCTION public.storage_receipts_authorized(text, text) TO authenticated;
-    RESET ROLE
+    UPDATE pg_proc p
+       SET proacl = ARRAY[
+             makeaclitem('postgres'::regrole, 'postgres'::regrole, 'EXECUTE', false),
+             makeaclitem('authenticated'::regrole, 'cut3_acl_forger'::regrole, 'EXECUTE', false)
+           ]::aclitem[]
+      FROM pg_namespace n
+     WHERE n.oid = p.pronamespace
+       AND n.nspname = 'public'
+       AND p.proname = 'storage_receipts_authorized'
+       AND pg_get_function_identity_arguments(p.oid) = 'p_name text, p_operation text'
     """)
     record_acl_case(acl_results, "ACL-POST-WRONG-GRANTOR", ok, err, expect_abort=True)
     ok, err = run_acl_probe("post",

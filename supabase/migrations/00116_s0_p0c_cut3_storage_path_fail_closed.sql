@@ -267,10 +267,10 @@ BEGIN
         ('has_group_permission', 'service_role', 'EXECUTE', 'postgres', false)
     ),
     actual(fn, role_name, privilege, grantor_name, is_grantable) AS (
-      SELECT p.proname,
-             CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname END,
-             a.privilege_type,
-             go.rolname,
+      SELECT p.proname::text,
+             CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+             a.privilege_type::text,
+             go.rolname::text,
              a.is_grantable
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -785,10 +785,10 @@ BEGIN
         ('storage_receipts_authorized', 'authenticated', 'EXECUTE', 'postgres', false)
     ),
     actual(fn, role_name, privilege, grantor_name, is_grantable) AS (
-      SELECT p.proname,
-             CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname END,
-             a.privilege_type,
-             go.rolname,
+      SELECT p.proname::text,
+             CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE gr.rolname::text END,
+             a.privilege_type::text,
+             go.rolname::text,
              a.is_grantable
         FROM pg_proc p
         JOIN pg_namespace n ON n.oid = p.pronamespace

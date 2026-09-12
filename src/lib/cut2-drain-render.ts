@@ -9,11 +9,24 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import {
+  formatTrustedDrainDate,
+  trustedCalendarDaysBetween,
+} from "@/lib/cut2-drain-date";
+
+export {
+  formatTrustedDrainDate,
+  trustedCalendarDay,
+  trustedCalendarDaysBetween,
+} from "@/lib/cut2-drain-date";
+import {
   CUT2_EMAIL_TEMPLATE,
   CUT2_WA_DISPATCH_TYPE,
   type Cut2NotificationType,
   type Cut2QueueChannel,
 } from "@/lib/cut2-channel-matrix";
+
+/** Same unpaid states as loan-overdue-producer. Do not require lazy `overdue`. */
+const LOAN_UNPAID_STATUSES = ["pending", "partial", "overdue"];
 
 export type DrainRender =
   | { ok: true; channel: "sms"; to: string; message: string }
@@ -142,7 +155,7 @@ export async function renderCut2TrustedRow(
     locale = asLocale(profile.preferred_locale);
   }
 
-  const fields = await loadTypeFields(supabase, type, domainId, membership, profile, locale);
+  const fields = await loadTypeFields(supabase, type, domainId, membership, profile, locale, envelope);
   if (!fields.ok) return fields;
   fields.emailData = { ...fields.emailData, locale };
   fields.waData = { ...fields.waData, locale };
@@ -193,6 +206,7 @@ async function loadTypeFields(
   membership: Record<string, unknown> | null,
   profile: Record<string, unknown> | null,
   locale: Locale,
+  envelope: Record<string, unknown>,
 ): Promise<TypeFields> {
   const sms = await import("@/lib/notifications/sms-templates");
   const name = memberDisplay(membership, profile);
@@ -330,29 +344,35 @@ async function loadTypeFields(
         ? await supabase.from("hosting_rosters").select("group_id").eq("id", assignment.roster_id).maybeSingle()
         : { data: null };
       const g = await groupName(supabase, roster?.group_id || null);
-      const date = String(assignment?.assigned_date || "");
+      const date = formatTrustedDrainDate(assignment?.assigned_date, locale, "short");
+      const location = String(assignment?.location || assignment?.venue || "").trim()
+        || (locale === "fr" ? "lieu à confirmer" : "location TBA");
+      if (!g) return { ok: false, error: "cut2_hosting_group_missing" };
+      if (!date) return { ok: false, error: "cut2_hosting_date_missing" };
       return {
         ok: true,
-        smsMessage: sms.hostingReminderSms({ groupName: g, date, location: "", locale }),
-        smsData: { groupName: g, date, hostingDate: date },
-        emailData: { memberName: name, hostingDate: date, groupName: g },
-        waData: { memberName: name, hostingDate: date, groupName: g },
+        smsMessage: sms.hostingReminderSms({ groupName: g, date, location, locale }),
+        smsData: { groupName: g, date, hostingDate: date, location },
+        emailData: { memberName: name, hostingDate: date, groupName: g, location },
+        waData: { memberName: name, hostingDate: date, groupName: g, location },
       };
     }
     const { data: assignment } = await supabase.from("hosting_assignments").select("*").eq("id", domainId).maybeSingle();
     if (!assignment) return { ok: false, error: "domain_not_found" };
     const { data: roster } = await supabase.from("hosting_rosters").select("group_id").eq("id", assignment.roster_id).maybeSingle();
     const g = await groupName(supabase, roster?.group_id || null);
-    const date = String(assignment.assigned_date || "");
+    const date = formatTrustedDrainDate(assignment.assigned_date, locale, "short");
     const location = String(assignment.location || assignment.venue || "").trim()
       || (locale === "fr" ? "lieu à confirmer" : "location TBA");
+    if (!g) return { ok: false, error: "cut2_hosting_group_missing" };
+    if (!date) return { ok: false, error: "cut2_hosting_date_missing" };
     if (type === "hosting_assignment") {
       return {
         ok: true,
         smsMessage: sms.hostingAssignmentSms({ groupName: g, date, locale }),
-        smsData: { groupName: g, date, hostingDate: date },
-        emailData: { memberName: name, hostingDate: date, groupName: g },
-        waData: { memberName: name, hostingDate: date, groupName: g },
+        smsData: { groupName: g, date, hostingDate: date, location },
+        emailData: { memberName: name, hostingDate: date, groupName: g, location },
+        waData: { memberName: name, hostingDate: date, groupName: g, location },
       };
     }
     return {
@@ -368,10 +388,13 @@ async function loadTypeFields(
     const { data: ev } = await supabase.from("events").select("*").eq("id", domainId).maybeSingle();
     if (!ev) return { ok: false, error: "domain_not_found" };
     const g = await groupName(supabase, ev.group_id);
-    const eventName = ev.title || ev.name || "";
-    const date = String(ev.starts_at || ev.start_at || ev.event_date || "").slice(0, 10);
+    const eventName = String(ev.title || ev.name || "").trim();
+    const date = formatTrustedDrainDate(ev.starts_at || ev.start_at || ev.event_date, locale, "weekday");
     const location = String(ev.location || ev.venue || "").trim()
       || (locale === "fr" ? "lieu à confirmer" : "location TBA");
+    if (!g) return { ok: false, error: "cut2_event_group_missing" };
+    if (!eventName) return { ok: false, error: "cut2_event_name_missing" };
+    if (!date) return { ok: false, error: "cut2_event_date_missing" };
     return {
       ok: true,
       smsMessage: sms.eventReminderSms({ groupName: g, eventName, date, location, locale }),
@@ -381,21 +404,51 @@ async function loadTypeFields(
     };
   }
 
-  if (type === "loan_approved" || type === "loan_overdue") {
+  if (type === "loan_approved") {
     const { data: loan } = await supabase.from("loans").select("*").eq("id", domainId).maybeSingle();
     if (!loan) return { ok: false, error: "domain_not_found" };
     const g = await groupName(supabase, loan.group_id);
     const amount = formatAmount(loan.amount_approved ?? loan.amount_requested ?? 0, loan.currency || "XAF");
-    const dueDate = String(loan.next_due_date || loan.due_date || "").slice(0, 10);
-    if (type === "loan_approved") {
-      return {
-        ok: true,
-        smsMessage: sms.loanApprovedSms({ groupName: g, amount, locale }),
-        smsData: { groupName: g, amount },
-        emailData: { memberName: name, amount, groupName: g },
-        waData: { memberName: name, amount, groupName: g },
-      };
+    return {
+      ok: true,
+      smsMessage: sms.loanApprovedSms({ groupName: g, amount, locale }),
+      smsData: { groupName: g, amount },
+      emailData: { memberName: name, amount, groupName: g },
+      waData: { memberName: name, amount, groupName: g },
+    };
+  }
+
+  if (type === "loan_overdue") {
+    const { data: loan } = await supabase.from("loans").select("*").eq("id", domainId).maybeSingle();
+    if (!loan) return { ok: false, error: "domain_not_found" };
+    const reminderDate = typeof envelope.reminderDate === "string" ? envelope.reminderDate.trim() : "";
+    if (!reminderDate) return { ok: false, error: "cut2_loan_overdue_reminder_date_missing" };
+    const { data: installments, error: installmentError } = await supabase
+      .from("loan_schedule")
+      .select("id,due_date,amount_due,amount_paid,status")
+      .eq("loan_id", loan.id)
+      .in("status", LOAN_UNPAID_STATUSES)
+      .lt("due_date", reminderDate)
+      .order("due_date", { ascending: true })
+      .limit(12);
+    if (installmentError) return { ok: false, error: "cut2_loan_overdue_installment_lookup_failed" };
+    const overdueInstallment = ((installments || []) as Array<{
+      due_date: string;
+      amount_due: number | string | null;
+      amount_paid: number | string | null;
+      status: string | null;
+    }>).find((row) => Number(row.amount_due || 0) - Number(row.amount_paid || 0) > 0);
+    if (!overdueInstallment) {
+      return { ok: false, error: "cut2_loan_overdue_no_outstanding_installment" };
     }
+    const outstanding =
+      Number(overdueInstallment.amount_due || 0) - Number(overdueInstallment.amount_paid || 0);
+    const g = await groupName(supabase, loan.group_id);
+    const amount = outstanding > 0 ? formatAmount(outstanding, loan.currency || "XAF") : "";
+    const dueDate = formatTrustedDrainDate(overdueInstallment.due_date, locale, "long");
+    if (!g) return { ok: false, error: "cut2_loan_overdue_group_missing" };
+    if (!amount) return { ok: false, error: "cut2_loan_overdue_amount_missing" };
+    if (!dueDate) return { ok: false, error: "cut2_loan_overdue_due_date_missing" };
     return {
       ok: true,
       smsMessage: "",
@@ -454,15 +507,22 @@ async function loadTypeFields(
   if (type === "subscription_expiring") {
     const { data: sub } = await supabase.from("group_subscriptions").select("*").eq("id", domainId).maybeSingle();
     if (!sub) return { ok: false, error: "domain_not_found" };
+    const reminderDate = typeof envelope.reminderDate === "string" ? envelope.reminderDate.trim() : "";
+    if (!reminderDate) return { ok: false, error: "cut2_subscription_reminder_date_missing" };
+    if (!sub.current_period_end) return { ok: false, error: "cut2_subscription_period_end_missing" };
+    const daysLeft = trustedCalendarDaysBetween(String(sub.current_period_end), reminderDate);
+    if (daysLeft == null) return { ok: false, error: "cut2_subscription_countdown_missing" };
+    const days = String(daysLeft);
     const g = await groupName(supabase, sub.group_id);
-    const end = sub.current_period_end ? new Date(sub.current_period_end) : new Date();
-    const days = String(Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86400000)));
+    const planName = String(sub.tier || "").trim() || g;
+    if (!g) return { ok: false, error: "cut2_subscription_group_missing" };
+    if (!planName) return { ok: false, error: "cut2_subscription_plan_missing" };
     return {
       ok: true,
-      smsMessage: sms.subscriptionExpiringSms({ planName: g, days, locale }),
-      smsData: { planName: g, days },
-      emailData: { groupName: g, days },
-      waData: { groupName: g, days },
+      smsMessage: sms.subscriptionExpiringSms({ planName, days, locale }),
+      smsData: { planName, days },
+      emailData: { groupName: g, planName, days },
+      waData: { groupName: g, planName, days },
     };
   }
 

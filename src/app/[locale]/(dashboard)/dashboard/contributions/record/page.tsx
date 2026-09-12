@@ -941,7 +941,7 @@ export default function RecordPaymentPage() {
                       setReceiptError(null);
                       try {
                         const supabase = createClient();
-                        const path = `${groupId}/${Date.now()}-${file.name}`;
+                        const path = `finance-record/${groupId}/${Date.now()}-${file.name}`;
                         const { error: uploadErr } = await supabase.storage
                           .from("receipts")
                           .upload(path, file);

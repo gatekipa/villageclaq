@@ -1,0 +1,586 @@
+{
+  "artifact": "S0_CUT3_STORAGE_TRUTH_TABLE_20260912",
+  "date": "2026-09-12",
+  "status": "FROZEN_PLANNING_ONLY",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R3",
+  "previous_planning_sha": "c3eccaa63b63f3c1517306a12c6a2bd31aee7149",
+  "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "strategy": "BUCKET_BOUND_HELPERS",
+  "helpers": [
+    "public.storage_group_documents_authorized(p_name text, p_operation text)",
+    "public.storage_receipts_authorized(p_name text, p_operation text)"
+  ],
+  "production_mutation": "ZERO",
+  "legend": {
+    "LIVE_SELECT": "v2 IS NULL OR is_group_member(v2) — FAIL OPEN",
+    "LIVE_INSERT": "(v1 IS NOT NULL AND is_group_member(v1)) OR v1 IS NULL",
+    "LIVE_UPDATE": "USING (v1 IS NULL OR is_group_member(v1)); WITH CHECK absent",
+    "LIVE_DELETE": "v1 IS NULL OR is_group_admin(v1)",
+    "CUT3": "bucket_id literal AND storage_*_authorized(name, op); NULL/unknown/malformed/ambiguous ⇒ FALSE on select|insert|update|delete"
+  },
+  "rows": [
+    {
+      "id": "T01",
+      "path_shape": "{groupUuid}/{file}",
+      "bucket": "receipts|group-documents",
+      "actor": "authenticated non-member",
+      "live_insert": "ALLOW (v1 NULL fail-open)",
+      "cut3_insert": "DENY",
+      "live_select": "DENY if v2 parses group and actor not member; ALLOW if unparsed",
+      "cut3_select": "DENY",
+      "notes": "Primary proven hole. Live receipts 3/3 and gdocs 5/25 are this shape. SELECT now fail-closed."
+    },
+    {
+      "id": "T02",
+      "path_shape": "{groupUuid}/{file}",
+      "bucket": "receipts|group-documents",
+      "actor": "active member of that group",
+      "live_insert": "ALLOW (fail-open, not because of membership)",
+      "cut3_insert": "ALLOW (canonical + is_active_group_member)",
+      "cut3_update": "ALLOW if workflow freeze says member-write",
+      "cut3_delete": "DENY unless is_group_admin",
+      "cut3_select": "ALLOW (is_group_member — historical read, not forced active-only)",
+      "notes": "Receipts UUID-first INSERT = U01 is_active_group_member only. Gdocs UUID-first INSERT still documents.manage. U02 no longer shares receipts UUID-first."
+    },
+    {
+      "id": "T03",
+      "path_shape": "{groupUuid}/{file}",
+      "bucket": "receipts|group-documents",
+      "actor": "inactive / pending / exited membership row only",
+      "live_insert": "ALLOW (fail-open) or ALLOW if v1 parsed and is_group_member status-blind",
+      "cut3_insert": "DENY (active-equivalent write)",
+      "cut3_select": "ALLOW if is_group_member (historical read — do not force active-only)",
+      "notes": "Writes DENY pending/suspended/exited/archived; SELECT may still succeed"
+    },
+    {
+      "id": "T04",
+      "path_shape": "minutes/{groupUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "authenticated non-member",
+      "live_insert": "DENY if v1 returns uuid and is_group_member false; EXCEPTION if group segment not uuid (22P02)",
+      "cut3_insert": "DENY (FALSE, no exception)",
+      "cut3_select": "DENY"
+    },
+    {
+      "id": "T05",
+      "path_shape": "minutes/{groupUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "active member (UI minutes.manage)",
+      "live_insert": "ALLOW if v1 parses",
+      "cut3_insert": "ALLOW only if has_group_permission(minutes.manage) — UI floor",
+      "cut3_select": "ALLOW (is_group_member)",
+      "notes": "Write preserves minutes.manage; SELECT not forced active-only"
+    },
+    {
+      "id": "T06",
+      "path_shape": "constitutions/{groupUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "active member who is not owner/admin",
+      "live_insert": "ALLOW if v1 parses (is_group_member)",
+      "cut3_insert": "DENY (workflow freeze: is_group_admin to match UI isAdmin)",
+      "cut3_select": "ALLOW (is_group_member — historical read)"
+    },
+    {
+      "id": "T07",
+      "path_shape": "constitutions/{groupUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "active owner/admin",
+      "cut3_insert": "ALLOW",
+      "cut3_update": "ALLOW (upsert)",
+      "cut3_delete": "ALLOW (is_group_admin)"
+    },
+    {
+      "id": "T08",
+      "path_shape": "relief-claims/{groupUuid}/{membershipUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "active member of group",
+      "cut3_insert": "ALLOW only if member-self binding (active). Same-group other membership DENY.",
+      "actor_non_member": "DENY",
+      "extra_or_missing_seg": "DENY",
+      "select_auth": "member-self binding where applicable",
+      "rls_negatives": [
+        "U07-NEG-SAME-GROUP-OTHER-MID",
+        "U07-NEG-CROSS-GROUP",
+        "U07-NEG-NONEXISTENT-MID",
+        "U07-NEG-MALFORMED-MID"
+      ]
+    },
+    {
+      "id": "T09",
+      "path_shape": "dispute-docs/{groupUuid}/{membershipUuid}/{file}",
+      "bucket": "receipts",
+      "actor": "active member of group",
+      "cut3_insert": "ALLOW only if member-self binding (active). Same-group other membership DENY.",
+      "actor_non_member": "DENY",
+      "select_auth": "member-self binding where applicable",
+      "rls_negatives": [
+        "U03-NEG-SAME-GROUP-OTHER-MID",
+        "U03-NEG-CROSS-GROUP",
+        "U03-NEG-NONEXISTENT-MID",
+        "U03-NEG-MALFORMED-MID"
+      ]
+    },
+    {
+      "id": "T10",
+      "path_shape": "projects/{projectUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "authenticated any (no project row)",
+      "live_insert": "ALLOW (v1 NULL)",
+      "cut3_insert": "DENY (lookup miss ⇒ FALSE)",
+      "cut3_select": "DENY (missing project)"
+    },
+    {
+      "id": "T11",
+      "path_shape": "projects/{projectUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "active owner/admin of projects.group_id",
+      "live_insert": "ALLOW (fail-open)",
+      "cut3_insert": "ALLOW via project lookup + is_group_admin",
+      "cut3_select": "ALLOW (is_group_member of projects.group_id)",
+      "cut3_delete": "ALLOW same",
+      "notes": "Do not treat projectUuid as groupUuid"
+    },
+    {
+      "id": "T12",
+      "path_shape": "projects/{projectUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "active member non-admin of that group",
+      "cut3_insert": "DENY (UI isAdmin; freeze is_group_admin)",
+      "cut3_select": "ALLOW (is_group_member of looked-up projects.group_id)"
+    },
+    {
+      "id": "T13",
+      "path_shape": "logos/not-a-uuid/file",
+      "bucket": "receipts|group-documents",
+      "actor": "authenticated",
+      "live_insert": "ERROR 22P02 (proven) — unsafe exception",
+      "cut3_insert": "DENY FALSE — no exception",
+      "cut3_select": "DENY (malformed UUID / unknown grammar)",
+      "notes": "Malformed logos UUID still DENY. Canonical logos/{G1}/{file} SELECT is G-LOGOS / T-LOGOS-* — not this row."
+    },
+    {
+      "id": "T14",
+      "path_shape": "garbage/foo",
+      "bucket": "receipts|group-documents",
+      "actor": "authenticated",
+      "live_insert": "ALLOW (v1 NULL)",
+      "cut3_insert": "DENY",
+      "cut3_update": "DENY",
+      "cut3_delete": "DENY",
+      "cut3_select": "DENY (unknown grammar / NULL parse)"
+    },
+    {
+      "id": "T15",
+      "path_shape": "minutes/{groupUuid}/{extra}/{file}",
+      "bucket": "group-documents",
+      "actor": "active member",
+      "cut3_insert": "DENY extra segment",
+      "cut3_select": "DENY extra segment",
+      "notes": "Arity frozen per grammar"
+    },
+    {
+      "id": "T16",
+      "path_shape": "minutes/",
+      "bucket": "group-documents",
+      "actor": "authenticated",
+      "cut3_insert": "DENY missing segments",
+      "cut3_select": "DENY missing segments"
+    },
+    {
+      "id": "T17",
+      "path_shape": "group-logos/{groupUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "authenticated",
+      "live_insert": "ALLOW (v1 NULL — token is group-logos not logos)",
+      "cut3_insert": "DENY unknown prefix on group buckets",
+      "cut3_select": "DENY",
+      "notes": "Collision safety: do not LIKE 'logo%'"
+    },
+    {
+      "id": "T18",
+      "path_shape": "group-logos/{groupUuid}/{file}",
+      "bucket": "avatars",
+      "actor": "settings.manage user",
+      "live_insert": "DENY under foldername[1]=auth.uid() (pre-existing mismatch)",
+      "cut3_insert": "UNCHANGED — avatars out of group-path scope",
+      "r26": "TRACKED"
+    },
+    {
+      "id": "T19",
+      "path_shape": "{authUid}/{file}",
+      "bucket": "avatars",
+      "actor": "that user",
+      "live_insert": "ALLOW",
+      "cut3_insert": "UNCHANGED ALLOW",
+      "actor_other_user": "DENY both live and cut3"
+    },
+    {
+      "id": "T20",
+      "path_shape": "any",
+      "bucket": "receipts|group-documents",
+      "actor": "anon / unauthenticated",
+      "live_insert": "DENY (TO authenticated)",
+      "cut3_insert": "DENY",
+      "cut3_select": "UNCHANGED (SELECT already TO authenticated)"
+    },
+    {
+      "id": "T21",
+      "path_shape": "{otherGroupUuid}/{file}",
+      "bucket": "receipts",
+      "actor": "active member of group A writing group B path",
+      "live_insert": "ALLOW (v1 NULL fail-open)",
+      "cut3_insert": "DENY"
+    },
+    {
+      "id": "T22",
+      "op": "DELETE",
+      "path_shape": "{groupUuid}/{file}",
+      "bucket": "receipts|group-documents",
+      "actor": "authenticated non-admin",
+      "live_delete": "ALLOW (v1 NULL fail-open)",
+      "cut3_delete": "DENY",
+      "actor_active_owner_admin": "ALLOW after parse"
+    },
+    {
+      "id": "T23",
+      "op": "UPDATE/upsert",
+      "path_shape": "{groupUuid}/{file}",
+      "bucket": "group-documents",
+      "actor": "authenticated non-member",
+      "live_update": "ALLOW (NULL OR member)",
+      "cut3_update": "DENY USING and WITH CHECK",
+      "cut3_select": "DENY",
+      "notes": "documents and constitution use upsert:true — need INSERT+UPDATE+SELECT. All fail-closed."
+    },
+    {
+      "id": "T24",
+      "path_shape": "empty or NULL name",
+      "cut3_any_command": "DENY"
+    },
+    {
+      "id": "T25",
+      "op": "UPDATE transition",
+      "old": "{G1}/{file}",
+      "new": "{G2}/{file}",
+      "actor": "admin G1",
+      "cut3": "DENY (WITH CHECK NEW fail-closed)"
+    },
+    {
+      "id": "T26",
+      "op": "UPDATE transition",
+      "old": "garbage/foo",
+      "new": "{G1}/{file}",
+      "actor": "authorized G1",
+      "cut3": "DENY (USING OLD fail-closed)"
+    },
+    {
+      "id": "T27",
+      "path_shape": "leading/trailing/double slash",
+      "cut3_any_command": "DENY",
+      "superseded_by": "ENC-* individual IDs in encoding matrix — do not treat this umbrella as the apply-time test",
+      "status": "SUPERSEDED_UMBRELLA_R3"
+    },
+    {
+      "id": "T28",
+      "path_shape": "literal %2F or %2f in a segment",
+      "cut3_any_command": "DENY (cannot prove canonical)",
+      "superseded_by": "ENC-* individual IDs in encoding matrix — do not treat this umbrella as the apply-time test",
+      "status": "SUPERSEDED_UMBRELLA_R3"
+    },
+    {
+      "id": "T29",
+      "path_shape": "Minutes/{uuid}/{file} mixed-case prefix",
+      "cut3_any_command": "DENY (exact lowercase only)",
+      "superseded_by": "ENC-* individual IDs in encoding matrix — do not treat this umbrella as the apply-time test",
+      "status": "SUPERSEDED_UMBRELLA_R3"
+    },
+    {
+      "id": "T30",
+      "path_shape": ". or .. segment/filename",
+      "cut3_any_command": "DENY",
+      "superseded_by": "ENC-* individual IDs in encoding matrix — do not treat this umbrella as the apply-time test",
+      "status": "SUPERSEDED_UMBRELLA_R3"
+    },
+    {
+      "id": "T31",
+      "path_shape": "unicode slash lookalike or backslash",
+      "cut3_any_command": "DENY",
+      "superseded_by": "ENC-* individual IDs in encoding matrix — do not treat this umbrella as the apply-time test",
+      "status": "SUPERSEDED_UMBRELLA_R3"
+    },
+    {
+      "id": "T32",
+      "op": "SELECT/sign",
+      "path_shape": "projects/{P1}/{file}",
+      "actor": "member of other group",
+      "cut3_select": "DENY (cross-tenant signed-url)"
+    },
+    {
+      "id": "T-LOGOS-01",
+      "op": "SELECT",
+      "path_shape": "logos/{G1}/{file}",
+      "bucket": "group-documents",
+      "actor": "is_group_member G1",
+      "cut3_select": "ALLOW",
+      "cut3_signed_url": "ALLOW",
+      "notes": "Live 6 canonical logos must remain readable/signable. No object mutation."
+    },
+    {
+      "id": "T-LOGOS-02",
+      "op": "SELECT",
+      "path_shape": "logos/{G1}/{file}",
+      "bucket": "group-documents",
+      "actor": "member of G2 only",
+      "cut3_select": "DENY",
+      "cut3_signed_url": "DENY",
+      "reason": "cross-tenant"
+    },
+    {
+      "id": "T-LOGOS-03",
+      "op": "SELECT",
+      "path_shape": "logos/NULL-or-malformed-or-unknown",
+      "bucket": "group-documents",
+      "actor": "authenticated",
+      "cut3_select": "DENY",
+      "reason": "NULL/malformed/unknown DENY"
+    },
+    {
+      "id": "T-LOGOS-04",
+      "op": "INSERT|UPDATE|DELETE",
+      "path_shape": "logos/{G1}/{file}",
+      "bucket": "group-documents",
+      "actor": "any app role including admin",
+      "cut3": "DENY",
+      "reason": "No write/delete caller. Do not invent write."
+    },
+    {
+      "id": "T-U01-01",
+      "op": "INSERT",
+      "path_shape": "{G1}/{ts}-{filename}",
+      "bucket": "receipts",
+      "grammar": "G-RECEIPT-UUID-FIRST",
+      "actor": "active member G1",
+      "cut3_insert": "ALLOW (is_active_group_member)",
+      "class_a": "U01 OLD/KEEP"
+    },
+    {
+      "id": "T-U02-01",
+      "op": "INSERT",
+      "path_shape": "finance-record/{G1}/{ts}-{filename}",
+      "bucket": "receipts",
+      "grammar": "G-FINANCE-RECORD",
+      "actor": "has_group_permission finances.record|manage",
+      "cut3_insert": "ALLOW",
+      "class_a": "U02 NEW"
+    },
+    {
+      "id": "T-U02-02",
+      "op": "INSERT",
+      "path_shape": "finance-record/{G1}/{ts}-{filename}",
+      "bucket": "receipts",
+      "actor": "ordinary active member without finances.record|manage",
+      "cut3_insert": "DENY"
+    },
+    {
+      "id": "T-U02-03",
+      "op": "SELECT",
+      "path_shape": "{G1}/{historical-file}",
+      "bucket": "receipts",
+      "actor": "is_group_member G1",
+      "cut3_select": "ALLOW",
+      "notes": "Historical UUID-first objects: SELECT remains is_group_member; no rename/move"
+    },
+    {
+      "id": "T-U03-01",
+      "op": "INSERT",
+      "path_shape": "dispute-docs/{G1}/{M_self}/{ts}-{file}",
+      "bucket": "receipts",
+      "actor": "active self membership M_self in G1",
+      "cut3_insert": "ALLOW"
+    },
+    {
+      "id": "U03-NEG-SAME-GROUP-OTHER-MID",
+      "op": "INSERT",
+      "path_shape": "dispute-docs/{G1}/{M_other}/{ts}-{file}",
+      "bucket": "receipts",
+      "actor": "active member G1 whose memberships.id != M_other",
+      "cut3_insert": "DENY",
+      "reason": "same-group other membership; no proxy/admin-on-behalf"
+    },
+    {
+      "id": "U03-NEG-CROSS-GROUP",
+      "op": "INSERT",
+      "path_shape": "dispute-docs/{G2}/{M_self_or_other}/{ts}-{file}",
+      "bucket": "receipts",
+      "actor": "active member G1",
+      "cut3_insert": "DENY",
+      "reason": "cross-group"
+    },
+    {
+      "id": "U03-NEG-NONEXISTENT-MID",
+      "op": "INSERT",
+      "path_shape": "dispute-docs/{G1}/{unknown-uuid}/{ts}-{file}",
+      "bucket": "receipts",
+      "actor": "active member G1",
+      "cut3_insert": "DENY",
+      "reason": "nonexistent membershipId"
+    },
+    {
+      "id": "U03-NEG-MALFORMED-MID",
+      "op": "INSERT",
+      "path_shape": "dispute-docs/{G1}/{not-a-uuid}/{ts}-{file}",
+      "bucket": "receipts",
+      "actor": "active member G1",
+      "cut3_insert": "DENY",
+      "reason": "malformed membershipId — FALSE no 22P02"
+    },
+    {
+      "id": "T-U07-01",
+      "op": "INSERT",
+      "path_shape": "relief-claims/{G1}/{M_self}/{ts}-{file}",
+      "bucket": "group-documents",
+      "actor": "active self membership M_self in G1 (currentMembership.id)",
+      "cut3_insert": "ALLOW"
+    },
+    {
+      "id": "U07-NEG-SAME-GROUP-OTHER-MID",
+      "op": "INSERT",
+      "path_shape": "relief-claims/{G1}/{M_other}/{ts}-{file}",
+      "bucket": "group-documents",
+      "actor": "active member G1 whose memberships.id != M_other",
+      "cut3_insert": "DENY",
+      "reason": "same-group other membership; no proxy/admin-on-behalf"
+    },
+    {
+      "id": "U07-NEG-CROSS-GROUP",
+      "op": "INSERT",
+      "path_shape": "relief-claims/{G2}/{M}/{ts}-{file}",
+      "bucket": "group-documents",
+      "actor": "active member G1",
+      "cut3_insert": "DENY",
+      "reason": "cross-group"
+    },
+    {
+      "id": "U07-NEG-NONEXISTENT-MID",
+      "op": "INSERT",
+      "path_shape": "relief-claims/{G1}/{unknown-uuid}/{ts}-{file}",
+      "bucket": "group-documents",
+      "actor": "active member G1",
+      "cut3_insert": "DENY",
+      "reason": "nonexistent membershipId"
+    },
+    {
+      "id": "U07-NEG-MALFORMED-MID",
+      "op": "INSERT",
+      "path_shape": "relief-claims/{G1}/{not-a-uuid}/{ts}-{file}",
+      "bucket": "group-documents",
+      "actor": "active member G1",
+      "cut3_insert": "DENY",
+      "reason": "malformed membershipId — FALSE no 22P02"
+    },
+    {
+      "id": "UPS-01",
+      "op": "UPSERT",
+      "path_shape": "{G1}/{file}",
+      "bucket": "group-documents",
+      "workflow": "U04 documents",
+      "actor": "has_group_permission documents.manage on G1",
+      "cut3": "ALLOW (authorized same-tenant upsert)"
+    },
+    {
+      "id": "UPS-02",
+      "op": "UPSERT",
+      "path_shape": "constitutions/{G1}/{file}",
+      "bucket": "group-documents",
+      "workflow": "U06 constitution",
+      "actor": "is_group_admin G1",
+      "cut3": "ALLOW (authorized same-tenant upsert)"
+    },
+    {
+      "id": "UPS-03",
+      "op": "UPSERT",
+      "path_shape": "{G1}/{existing-file}",
+      "bucket": "group-documents",
+      "workflow": "U04",
+      "actor": "authorized on G2 only",
+      "cut3": "DENY (cross-tenant existing)"
+    },
+    {
+      "id": "UPS-04",
+      "op": "UPSERT",
+      "path_shape": "{G2}/{new-file}",
+      "bucket": "group-documents",
+      "workflow": "U04",
+      "actor": "authorized on G1 only",
+      "cut3": "DENY (cross-tenant new)"
+    },
+    {
+      "id": "UPS-05",
+      "op": "UPSERT",
+      "path_shape": "constitutions/{G1}/{existing-file}",
+      "bucket": "group-documents",
+      "workflow": "U06",
+      "actor": "admin G2 only",
+      "cut3": "DENY (cross-tenant existing)"
+    },
+    {
+      "id": "UPS-06",
+      "op": "UPSERT",
+      "path_shape": "constitutions/{G2}/{new-file}",
+      "bucket": "group-documents",
+      "workflow": "U06",
+      "actor": "admin G1 only",
+      "cut3": "DENY (cross-tenant new)"
+    },
+    {
+      "id": "UPS-07",
+      "op": "UPSERT",
+      "path_shape": "malformed / leading-slash / %2F",
+      "bucket": "group-documents|receipts",
+      "actor": "otherwise-authorized",
+      "cut3": "DENY (malformed) — also ENC-* IDs"
+    },
+    {
+      "id": "UPS-08",
+      "op": "UPSERT",
+      "path_shape": "unknown-prefix/{G1}/{file}",
+      "bucket": "group-documents|receipts",
+      "actor": "otherwise-authorized",
+      "cut3": "DENY (unknown)"
+    },
+    {
+      "id": "UPS-09",
+      "op": "UPSERT/UPDATE",
+      "old": "{G1}/{file} authorized",
+      "new": "{G2}/{file} unauthorized tenant",
+      "actor": "authorized on G1 only",
+      "cut3": "DENY (old auth → new unauthorized tenant)"
+    },
+    {
+      "id": "UPS-10",
+      "op": "UPSERT",
+      "path_shape": "finance-record/{G1}/{file}",
+      "bucket": "receipts",
+      "actor": "ordinary active member without finances.record|manage",
+      "cut3": "DENY (U02-path without finance)"
+    },
+    {
+      "id": "UPS-11",
+      "op": "UPSERT",
+      "path_shape": "dispute-docs/{G1}/{M_other}/{file}",
+      "bucket": "receipts",
+      "actor": "active self M_self != M_other",
+      "cut3": "DENY (membership mismatch upsert)"
+    },
+    {
+      "id": "UPS-12",
+      "op": "UPSERT",
+      "path_shape": "relief-claims/{G1}/{M_other}/{file}",
+      "bucket": "group-documents",
+      "actor": "active self M_self != M_other",
+      "cut3": "DENY (membership mismatch upsert)"
+    }
+  ],
+  "encoding_matrix": "docs/evidence/S0_CUT3_STORAGE_ENCODING_TEST_MATRIX_20260912.json — individual IDs; T27–T31 superseded as umbrellas",
+  "upsert_matrix": "individual UPS-* IDs below"
+}

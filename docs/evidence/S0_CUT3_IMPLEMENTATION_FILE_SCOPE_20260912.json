@@ -1,0 +1,71 @@
+{
+  "artifact": "S0_CUT3_IMPLEMENTATION_FILE_SCOPE_20260912",
+  "date": "2026-09-12",
+  "branch": "security/s0-p0c-cut3-implementation-20260912",
+  "created_from": "b85d4164b9b10c87597e34de74b527a12bc571af",
+  "base_main": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "draft_pr": "https://github.com/gatekipa/villageclaq/pull/80",
+  "migration": "supabase/migrations/00116_s0_p0c_cut3_storage_path_fail_closed.sql",
+  "migration_sha256": "ba55d1f6f0f2f05d681fdc60386513580267ddc81892d79c05a7893ef43afd33",
+  "prior_migration_sha256_superseded": [
+    "f24cf5c65b34497cf8c4abff80cfcdc3bf746d16a0cc8cca7ff1a04da649d4e7",
+    "4b3588e81977adab1b29d80aa87f02c21bcfbab98ec1357a89c2e9586799e630"
+  ],
+  "executable_functional_tip": "ba8d75455ac04ebfd998eee6fafcb54abb73da8d",
+  "acl_tuple": "(function_name, role_name, privilege_type, grantor_name, is_grantable)",
+  "grantor_oid_0_is_not_public": true,
+  "except_parenthesized_both_directions": true,
+  "historical_migrations_00001_00115_modified": false,
+  "migration_00117_created": false,
+  "cut2_or_notifications_queue_modified": false,
+  "u01_u03_u07_grammar_modified": false,
+  "avatars_modified": false,
+  "production_mutation": "ZERO",
+  "dual_hashes_removed": true,
+  "files": [
+    {
+      "status": "A",
+      "path": "supabase/migrations/00116_s0_p0c_cut3_storage_path_fail_closed.sql"
+    },
+    {
+      "status": "M",
+      "path": "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx",
+      "change": "U02 path only: finance-record/{groupId}/{ts}-{filename}"
+    },
+    {
+      "status": "A",
+      "path": "scripts/_cut3_disposable_qualify.py",
+      "note": "local disposable REAL storage.objects RLS; not production"
+    },
+    {
+      "status": "A",
+      "path": "scripts/_cut3_live_functiondef_hex.json",
+      "note": "live pg_get_functiondef hex so disposable reproduces exact abort pins"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/S0_CUT3_IMPLEMENTATION_SUMMARY_20260912.md"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/S0_CUT3_DISPOSABLE_RLS_RESULTS_20260912.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/S0_CUT3_STORAGE_ENCODING_IMPLEMENTATION_RESULTS_20260912.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/S0_CUT3_LIVE_SHAPE_REHEARSAL_20260912.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/S0_CUT3_IMPLEMENTATION_FILE_SCOPE_20260912.json"
+    },
+    {
+      "status": "A",
+      "path": "docs/evidence/S0_CUT3_IMPLEMENTATION_REMEDIATION_20260912.json",
+      "note": "exact-hash-only, proconfig, ACL, grant-set, projects PK, overload rejection, 4 new RLS, anon unexpected-exception"
+    }
+  ]
+}

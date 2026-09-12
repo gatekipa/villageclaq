@@ -1,0 +1,107 @@
+{
+  "artifact": "S0_CUT3_STORAGE_BUCKET_MATRIX_20260912",
+  "date": "2026-09-12",
+  "revision": "DAYBREAK_HOLD_CLOSEOUT_R3",
+  "status": "FROZEN_PLANNING_ONLY",
+  "previous_planning_sha": "c3eccaa63b63f3c1517306a12c6a2bd31aee7149",
+  "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "production_mutation": "ZERO",
+  "cut3_policy_count": 8,
+  "buckets": [
+    {
+      "id": "avatars",
+      "public": true,
+      "size_limit_bytes": 2097152,
+      "mime": [
+        "jpeg",
+        "png",
+        "webp"
+      ],
+      "display_contract": "getPublicUrl",
+      "write_scope": "user_uid_first_segment",
+      "uses_v1_v2_null_or": false,
+      "cut3": "OUT_OF_SCOPE_WITH_PROOF",
+      "live_objects": 6
+    },
+    {
+      "id": "group-documents",
+      "public": false,
+      "cut3_abort_if_public_true": true,
+      "size_limit_bytes": 10485760,
+      "mime": null,
+      "display_contract": "createSignedUrl / signedUrlFor / download — SELECT authority",
+      "helper": "public.storage_group_documents_authorized(p_name text, p_operation text)",
+      "cut3_write_hardening": "IN_SCOPE",
+      "commands_in_scope": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "policy_names": [
+        "gdocs_select_group",
+        "gdocs_insert_group",
+        "gdocs_update_group",
+        "gdocs_delete_group"
+      ],
+      "update_requires_using_and_with_check": true,
+      "null_authorization": "FORBIDDEN_AFTER_CUT3",
+      "live_objects": 25,
+      "live_object_breakdown": {
+        "logos_prefix": 6,
+        "logos_canonical": 6,
+        "logos_other": 0,
+        "constitutions": 14,
+        "uuid_first": 5
+      },
+      "g_logos": {
+        "grammar": "logos/{groupId}/{file}",
+        "tenant": "groupId → groups.id",
+        "select": "is_group_member(groupId)",
+        "write_caller": "NO — settings writes avatars group-logos/{groupId}/…",
+        "delete_caller": "NO",
+        "do_not_invent_write": true,
+        "do_not_mutate_live_6": true
+      }
+    },
+    {
+      "id": "receipts",
+      "public": false,
+      "cut3_abort_if_public_true": true,
+      "size_limit_bytes": 5242880,
+      "mime": [
+        "jpeg",
+        "png",
+        "webp",
+        "pdf"
+      ],
+      "display_contract": "createSignedUrl / signedUrlFor — SELECT authority",
+      "helper": "public.storage_receipts_authorized(p_name text, p_operation text)",
+      "cut3_write_hardening": "IN_SCOPE",
+      "commands_in_scope": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "policy_names": [
+        "receipts_select_group",
+        "receipts_insert_group",
+        "receipts_update_group",
+        "receipts_delete_group"
+      ],
+      "update_requires_using_and_with_check": true,
+      "null_authorization": "FORBIDDEN_AFTER_CUT3",
+      "live_objects": 3
+    }
+  ],
+  "no_other_buckets": true,
+  "cut3_must_not": [
+    "flip public flags",
+    "change size/mime",
+    "rename or move objects",
+    "grant service_role EXECUTE on new helpers",
+    "drop v1/v2 by default",
+    "alter avatars policies"
+  ]
+}

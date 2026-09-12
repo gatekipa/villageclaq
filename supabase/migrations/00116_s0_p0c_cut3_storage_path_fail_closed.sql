@@ -141,29 +141,30 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- 4. v1 / v2 fingerprints
+  -- 4. v1 / v2 fingerprints — exact live abort hashes ONLY.
+  -- Alternate disposable serializations (5b535da3… / 756c2202…) are NOT accepted.
+  -- Disposable fixtures must reproduce these exact md5(pg_get_functiondef) values
+  -- before this unmodified file is applied.
+  --
+  -- proconfig normalization (exact; no COALESCE of NULL↔empty):
+  --   * NULL                 = no SET clause (v1, v2, is_group_member)
+  --   * ARRAY['search_path=""'] = SET search_path TO '' (15-char element)
+  --   * ARRAY[]::text[] and ARRAY['search_path='] are distinct and rejected
   SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
     INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname = 'storage_path_group_id'
      AND pg_get_function_identity_arguments(p.oid) = 'p_name text';
-  -- Live abort pin fb6155e6… (Chief). Embedded pg_get_functiondef_exact in
-  -- S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912.json is the CR-bearing
-  -- dump; on disposable PG16 md5(pg_get_functiondef) of that exact text is
-  -- 5b535da3… . Accept only those two — any other hash is drift.
-  IF v_md5 NOT IN (
-        'fb6155e6e3c996ad857208f717d981a8',
-        '5b535da3e44a85fe1871912b44e70160'
-      ) THEN
+  IF v_md5 IS DISTINCT FROM 'fb6155e6e3c996ad857208f717d981a8' THEN
     RAISE EXCEPTION 'CUT3_ABORT: storage_path_group_id md5 drift: %', v_md5;
   END IF;
-  IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT FALSE THEN
-    RAISE EXCEPTION 'CUT3_ABORT: storage_path_group_id owner/definer drift';
+  IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT FALSE OR v_cfg IS NOT NULL THEN
+    RAISE EXCEPTION 'CUT3_ABORT: storage_path_group_id owner/definer/proconfig drift';
   END IF;
 
-  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef
-    INTO v_md5, v_owner, v_definer
+  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
+    INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname = 'storage_path_group_id_v2'
@@ -171,12 +172,12 @@ BEGIN
   IF v_md5 IS DISTINCT FROM '585e7bd017f5623aacf87407b1b11524' THEN
     RAISE EXCEPTION 'CUT3_ABORT: storage_path_group_id_v2 md5 drift: %', v_md5;
   END IF;
-  IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT FALSE THEN
-    RAISE EXCEPTION 'CUT3_ABORT: storage_path_group_id_v2 owner/definer drift';
+  IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT FALSE OR v_cfg IS NOT NULL THEN
+    RAISE EXCEPTION 'CUT3_ABORT: storage_path_group_id_v2 owner/definer/proconfig drift';
   END IF;
 
   -- 5. Auth helpers
-  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, COALESCE(p.proconfig, ARRAY[]::text[])
+  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
     INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -186,29 +187,24 @@ BEGIN
     RAISE EXCEPTION 'CUT3_ABORT: is_active_group_member md5 drift: %', v_md5;
   END IF;
   IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT TRUE
-     OR v_cfg NOT IN (ARRAY['search_path=']::text[], ARRAY['search_path=""']::text[]) THEN
-    RAISE EXCEPTION 'CUT3_ABORT: is_active_group_member owner/definer/search_path drift';
+     OR v_cfg IS DISTINCT FROM ARRAY['search_path=""']::text[] THEN
+    RAISE EXCEPTION 'CUT3_ABORT: is_active_group_member owner/definer/proconfig drift';
   END IF;
 
-  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, COALESCE(p.proconfig, ARRAY[]::text[])
+  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
     INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname = 'is_group_member'
      AND pg_get_function_identity_arguments(p.oid) = 'gid uuid, uid uuid';
-  -- Live abort pin 4b1bbd54… (Chief). Embedded exact dump md5 on disposable
-  -- PG16 is 756c2202… . Accept only those two.
-  IF v_md5 NOT IN (
-        '4b1bbd54719c129ef12f0ebc53463686',
-        '756c2202f0b4b681194dcc2079ec920b'
-      ) THEN
+  IF v_md5 IS DISTINCT FROM '4b1bbd54719c129ef12f0ebc53463686' THEN
     RAISE EXCEPTION 'CUT3_ABORT: is_group_member md5 drift: %', v_md5;
   END IF;
-  IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT TRUE OR v_cfg IS DISTINCT FROM ARRAY[]::text[] THEN
-    RAISE EXCEPTION 'CUT3_ABORT: is_group_member owner/definer/search_path drift';
+  IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT TRUE OR v_cfg IS NOT NULL THEN
+    RAISE EXCEPTION 'CUT3_ABORT: is_group_member owner/definer/proconfig drift';
   END IF;
 
-  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, COALESCE(p.proconfig, ARRAY[]::text[])
+  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
     INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -218,11 +214,11 @@ BEGIN
     RAISE EXCEPTION 'CUT3_ABORT: is_group_admin md5 drift: %', v_md5;
   END IF;
   IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT TRUE
-     OR v_cfg NOT IN (ARRAY['search_path=']::text[], ARRAY['search_path=""']::text[]) THEN
-    RAISE EXCEPTION 'CUT3_ABORT: is_group_admin owner/definer/search_path drift';
+     OR v_cfg IS DISTINCT FROM ARRAY['search_path=""']::text[] THEN
+    RAISE EXCEPTION 'CUT3_ABORT: is_group_admin owner/definer/proconfig drift';
   END IF;
 
-  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, COALESCE(p.proconfig, ARRAY[]::text[])
+  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
     INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -232,16 +228,77 @@ BEGIN
     RAISE EXCEPTION 'CUT3_ABORT: has_group_permission md5 drift: %', v_md5;
   END IF;
   IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT TRUE
-     OR v_cfg NOT IN (ARRAY['search_path=']::text[], ARRAY['search_path=""']::text[]) THEN
-    RAISE EXCEPTION 'CUT3_ABORT: has_group_permission owner/definer/search_path drift';
+     OR v_cfg IS DISTINCT FROM ARRAY['search_path=""']::text[] THEN
+    RAISE EXCEPTION 'CUT3_ABORT: has_group_permission owner/definer/proconfig drift';
   END IF;
 
-  -- 6. New helpers must be absent
-  IF to_regprocedure('public.storage_group_documents_authorized(text,text)') IS NOT NULL THEN
-    RAISE EXCEPTION 'CUT3_ABORT: storage_group_documents_authorized already present';
+  -- 5b. Exact EXECUTE ACL set equality (PUBLIC/anon/authenticated/service_role/postgres).
+  -- Normalization: aclexplode(COALESCE(proacl, acldefault('f', proowner)))
+  -- → (proname, COALESCE(rolname,'PUBLIC'), privilege_type) compared both EXCEPT directions.
+  IF EXISTS (
+    WITH expected(fn, role_name, privilege) AS (
+      VALUES
+        ('storage_path_group_id', 'PUBLIC', 'EXECUTE'),
+        ('storage_path_group_id', 'postgres', 'EXECUTE'),
+        ('storage_path_group_id', 'anon', 'EXECUTE'),
+        ('storage_path_group_id', 'authenticated', 'EXECUTE'),
+        ('storage_path_group_id', 'service_role', 'EXECUTE'),
+        ('storage_path_group_id_v2', 'PUBLIC', 'EXECUTE'),
+        ('storage_path_group_id_v2', 'postgres', 'EXECUTE'),
+        ('storage_path_group_id_v2', 'anon', 'EXECUTE'),
+        ('storage_path_group_id_v2', 'authenticated', 'EXECUTE'),
+        ('storage_path_group_id_v2', 'service_role', 'EXECUTE'),
+        ('is_group_member', 'PUBLIC', 'EXECUTE'),
+        ('is_group_member', 'postgres', 'EXECUTE'),
+        ('is_group_member', 'anon', 'EXECUTE'),
+        ('is_group_member', 'authenticated', 'EXECUTE'),
+        ('is_group_member', 'service_role', 'EXECUTE'),
+        ('is_active_group_member', 'postgres', 'EXECUTE'),
+        ('is_active_group_member', 'authenticated', 'EXECUTE'),
+        ('is_active_group_member', 'service_role', 'EXECUTE'),
+        ('is_group_admin', 'postgres', 'EXECUTE'),
+        ('is_group_admin', 'authenticated', 'EXECUTE'),
+        ('is_group_admin', 'service_role', 'EXECUTE'),
+        ('has_group_permission', 'postgres', 'EXECUTE'),
+        ('has_group_permission', 'authenticated', 'EXECUTE'),
+        ('has_group_permission', 'service_role', 'EXECUTE')
+    ),
+    actual(fn, role_name, privilege) AS (
+      SELECT p.proname,
+             COALESCE(r.rolname, 'PUBLIC'),
+             a.privilege_type
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+        LEFT JOIN pg_roles r ON r.oid = a.grantee
+       WHERE n.nspname = 'public'
+         AND (
+           (p.proname = 'storage_path_group_id' AND pg_get_function_identity_arguments(p.oid) = 'p_name text')
+           OR (p.proname = 'storage_path_group_id_v2' AND pg_get_function_identity_arguments(p.oid) = 'p_name text')
+           OR (p.proname = 'is_active_group_member' AND pg_get_function_identity_arguments(p.oid) = 'gid uuid')
+           OR (p.proname = 'is_group_member' AND pg_get_function_identity_arguments(p.oid) = 'gid uuid, uid uuid')
+           OR (p.proname = 'is_group_admin' AND pg_get_function_identity_arguments(p.oid) = 'gid uuid, uid uuid')
+           OR (p.proname = 'has_group_permission' AND pg_get_function_identity_arguments(p.oid) = 'gid uuid, perm_key text, uid uuid')
+         )
+         AND a.privilege_type = 'EXECUTE'
+    )
+    SELECT 1 FROM (
+      SELECT * FROM actual EXCEPT SELECT * FROM expected
+      UNION ALL
+      SELECT * FROM expected EXCEPT SELECT * FROM actual
+    ) drift
+  ) THEN
+    RAISE EXCEPTION 'CUT3_ABORT: live helper EXECUTE ACL set mismatch';
   END IF;
-  IF to_regprocedure('public.storage_receipts_authorized(text,text)') IS NOT NULL THEN
-    RAISE EXCEPTION 'CUT3_ABORT: storage_receipts_authorized already present';
+
+  -- 6. New helpers must be absent under ANY signature (not only text,text).
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN ('storage_group_documents_authorized', 'storage_receipts_authorized')
+  ) THEN
+    RAISE EXCEPTION 'CUT3_ABORT: unexpected existing overload of storage_*_authorized';
   END IF;
 
   -- 7. projects.id + projects.group_id uuid NOT NULL
@@ -265,11 +322,22 @@ BEGIN
   IF v_typname IS DISTINCT FROM 'uuid' OR v_attnotnull IS NOT TRUE THEN
     RAISE EXCEPTION 'CUT3_ABORT: projects.group_id is not uuid NOT NULL';
   END IF;
+  -- PRIMARY KEY must exist and key columns must be exactly (id). NOT NULL is not enough.
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'public.projects'::regclass AND contype = 'p'
+    SELECT 1
+      FROM pg_index i
+      JOIN pg_class c ON c.oid = i.indrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relname = 'projects'
+       AND i.indisprimary
+       AND (
+         SELECT array_agg(a.attname::text ORDER BY x.ord)
+           FROM unnest(i.indkey) WITH ORDINALITY AS x(attnum, ord)
+           JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = x.attnum
+       ) = ARRAY['id']::text[]
   ) THEN
-    RAISE EXCEPTION 'CUT3_ABORT: projects.id PK missing';
+    RAISE EXCEPTION 'CUT3_ABORT: projects PRIMARY KEY is not exactly (id)';
   END IF;
 
   -- 8. Avatars write policies still uid-first
@@ -285,17 +353,39 @@ BEGIN
     RAISE EXCEPTION 'CUT3_ABORT: avatars uid-first write policies drifted (found % matching)', v_n;
   END IF;
 
-  -- 9. storage.objects role_table_grants exact pin
-  SELECT COUNT(*) INTO v_grant_n
-    FROM information_schema.role_table_grants g
-   WHERE g.table_schema = 'storage' AND g.table_name = 'objects'
-     AND (
-       (g.grantee IN ('anon', 'authenticated', 'service_role') AND g.is_grantable = 'NO')
-       OR (g.grantee = 'postgres' AND g.is_grantable = 'YES')
-     )
-     AND g.privilege_type IN ('INSERT', 'SELECT', 'UPDATE', 'DELETE', 'REFERENCES', 'TRIGGER', 'TRUNCATE');
-  IF v_grant_n <> 28 THEN
-    RAISE EXCEPTION 'CUT3_ABORT: storage.objects role_table_grants pin mismatch (found % of 28)', v_grant_n;
+  -- 9. storage.objects role_table_grants exact set equality (not count-only).
+  -- actual EXCEPT expected = empty AND expected EXCEPT actual = empty.
+  IF EXISTS (
+    WITH expected(grantee, privilege_type, is_grantable) AS (
+      VALUES
+        ('anon', 'INSERT', 'NO'), ('anon', 'SELECT', 'NO'), ('anon', 'UPDATE', 'NO'),
+        ('anon', 'DELETE', 'NO'), ('anon', 'REFERENCES', 'NO'), ('anon', 'TRIGGER', 'NO'),
+        ('anon', 'TRUNCATE', 'NO'),
+        ('authenticated', 'INSERT', 'NO'), ('authenticated', 'SELECT', 'NO'),
+        ('authenticated', 'UPDATE', 'NO'), ('authenticated', 'DELETE', 'NO'),
+        ('authenticated', 'REFERENCES', 'NO'), ('authenticated', 'TRIGGER', 'NO'),
+        ('authenticated', 'TRUNCATE', 'NO'),
+        ('service_role', 'INSERT', 'NO'), ('service_role', 'SELECT', 'NO'),
+        ('service_role', 'UPDATE', 'NO'), ('service_role', 'DELETE', 'NO'),
+        ('service_role', 'REFERENCES', 'NO'), ('service_role', 'TRIGGER', 'NO'),
+        ('service_role', 'TRUNCATE', 'NO'),
+        ('postgres', 'INSERT', 'YES'), ('postgres', 'SELECT', 'YES'),
+        ('postgres', 'UPDATE', 'YES'), ('postgres', 'DELETE', 'YES'),
+        ('postgres', 'REFERENCES', 'YES'), ('postgres', 'TRIGGER', 'YES'),
+        ('postgres', 'TRUNCATE', 'YES')
+    ),
+    actual(grantee, privilege_type, is_grantable) AS (
+      SELECT g.grantee, g.privilege_type, g.is_grantable
+        FROM information_schema.role_table_grants g
+       WHERE g.table_schema = 'storage' AND g.table_name = 'objects'
+    )
+    SELECT 1 FROM (
+      SELECT * FROM actual EXCEPT SELECT * FROM expected
+      UNION ALL
+      SELECT * FROM expected EXCEPT SELECT * FROM actual
+    ) drift
+  ) THEN
+    RAISE EXCEPTION 'CUT3_ABORT: storage.objects role_table_grants set mismatch';
   END IF;
 END
 $cut3_pre$;
@@ -630,24 +720,42 @@ DECLARE
   v_exec_anon boolean;
   v_exec_sr boolean;
 BEGIN
-  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, COALESCE(p.proconfig, ARRAY[]::text[])
+  SELECT COUNT(*) INTO v_n
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public'
+     AND p.proname IN ('storage_group_documents_authorized', 'storage_receipts_authorized');
+  IF v_n <> 2 THEN
+    RAISE EXCEPTION 'CUT3_ABORT: unexpected new-helper overload count % (expected 2)', v_n;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname IN ('storage_group_documents_authorized', 'storage_receipts_authorized')
+      AND pg_get_function_identity_arguments(p.oid) IS DISTINCT FROM 'p_name text, p_operation text'
+  ) THEN
+    RAISE EXCEPTION 'CUT3_ABORT: unexpected new-helper signature (only p_name text, p_operation text allowed)';
+  END IF;
+
+  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
     INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname = 'storage_group_documents_authorized'
      AND pg_get_function_identity_arguments(p.oid) = 'p_name text, p_operation text';
   IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT TRUE
-     OR v_cfg NOT IN (ARRAY['search_path=']::text[], ARRAY['search_path=""']::text[]) THEN
-    RAISE EXCEPTION 'CUT3_ABORT: storage_group_documents_authorized postcondition owner/definer/search_path failed';
+     OR v_cfg IS DISTINCT FROM ARRAY['search_path=""']::text[] THEN
+    RAISE EXCEPTION 'CUT3_ABORT: storage_group_documents_authorized postcondition owner/definer/proconfig failed';
   END IF;
 
-  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, COALESCE(p.proconfig, ARRAY[]::text[])
+  SELECT md5(pg_get_functiondef(p.oid)), pg_get_userbyid(p.proowner), p.prosecdef, p.proconfig
     INTO v_md5, v_owner, v_definer, v_cfg
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public' AND p.proname = 'storage_receipts_authorized'
      AND pg_get_function_identity_arguments(p.oid) = 'p_name text, p_operation text';
   IF v_owner IS DISTINCT FROM 'postgres' OR v_definer IS NOT TRUE
-     OR v_cfg NOT IN (ARRAY['search_path=']::text[], ARRAY['search_path=""']::text[]) THEN
-    RAISE EXCEPTION 'CUT3_ABORT: storage_receipts_authorized postcondition owner/definer/search_path failed';
+     OR v_cfg IS DISTINCT FROM ARRAY['search_path=""']::text[] THEN
+    RAISE EXCEPTION 'CUT3_ABORT: storage_receipts_authorized postcondition owner/definer/proconfig failed';
   END IF;
 
   v_exec_auth := has_function_privilege('authenticated', 'public.storage_group_documents_authorized(text,text)', 'EXECUTE')
@@ -658,6 +766,36 @@ BEGIN
             OR has_function_privilege('service_role', 'public.storage_receipts_authorized(text,text)', 'EXECUTE');
   IF v_exec_auth IS NOT TRUE OR v_exec_anon IS NOT FALSE OR v_exec_sr IS NOT FALSE THEN
     RAISE EXCEPTION 'CUT3_ABORT: helper EXECUTE grants postcondition failed (auth=% anon=% service_role=%)', v_exec_auth, v_exec_anon, v_exec_sr;
+  END IF;
+
+  IF EXISTS (
+    WITH expected(fn, role_name, privilege) AS (
+      VALUES
+        ('storage_group_documents_authorized', 'postgres', 'EXECUTE'),
+        ('storage_group_documents_authorized', 'authenticated', 'EXECUTE'),
+        ('storage_receipts_authorized', 'postgres', 'EXECUTE'),
+        ('storage_receipts_authorized', 'authenticated', 'EXECUTE')
+    ),
+    actual(fn, role_name, privilege) AS (
+      SELECT p.proname,
+             COALESCE(r.rolname, 'PUBLIC'),
+             a.privilege_type
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS a
+        LEFT JOIN pg_roles r ON r.oid = a.grantee
+       WHERE n.nspname = 'public'
+         AND p.proname IN ('storage_group_documents_authorized', 'storage_receipts_authorized')
+         AND pg_get_function_identity_arguments(p.oid) = 'p_name text, p_operation text'
+         AND a.privilege_type = 'EXECUTE'
+    )
+    SELECT 1 FROM (
+      SELECT * FROM actual EXCEPT SELECT * FROM expected
+      UNION ALL
+      SELECT * FROM expected EXCEPT SELECT * FROM actual
+    ) drift
+  ) THEN
+    RAISE EXCEPTION 'CUT3_ABORT: new helper EXECUTE ACL set mismatch';
   END IF;
 
   SELECT COUNT(*) INTO v_n
@@ -737,10 +875,7 @@ BEGIN
 
   -- v1/v2 kept, same md5, removed from policy authority
   SELECT md5(pg_get_functiondef('public.storage_path_group_id(text)'::regprocedure)) INTO v_md5;
-  IF v_md5 NOT IN (
-        'fb6155e6e3c996ad857208f717d981a8',
-        '5b535da3e44a85fe1871912b44e70160'
-      ) THEN
+  IF v_md5 IS DISTINCT FROM 'fb6155e6e3c996ad857208f717d981a8' THEN
     RAISE EXCEPTION 'CUT3_ABORT: v1 md5 changed after replace: %', v_md5;
   END IF;
   SELECT md5(pg_get_functiondef('public.storage_path_group_id_v2(text)'::regprocedure)) INTO v_md5;

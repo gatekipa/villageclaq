@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 import traceback
+from dataclasses import dataclass
 from pathlib import Path
 
 import psycopg2
@@ -20,8 +21,19 @@ import psycopg2.extensions
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase/migrations/00116_s0_p0c_cut3_storage_path_fail_closed.sql"
 FINGERPRINTS = ROOT / "docs/evidence/S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912.json"
+HEXDEFS = ROOT / "scripts/_cut3_live_functiondef_hex.json"
 ENCODING = ROOT / "docs/evidence/S0_CUT3_STORAGE_ENCODING_TEST_MATRIX_20260912.json"
 EVIDENCE = ROOT / "docs/evidence"
+
+LIVE_MD5 = {
+    "storage_path_group_id": "fb6155e6e3c996ad857208f717d981a8",
+    "storage_path_group_id_v2": "585e7bd017f5623aacf87407b1b11524",
+    "is_active_group_member": "26c12399120587df3d066dd7819bdf5e",
+    "is_group_member": "4b1bbd54719c129ef12f0ebc53463686",
+    "is_group_admin": "d4090a33af3a873873223416c204c913",
+    "has_group_permission": "695368464e97297fbf0f90ce7345162f",
+}
+EXPECTED_DENY_MECHANISMS = frozenset({"RLS_DENY", "PERMISSION_DENIED", "ZERO_ROWS"})
 
 DB = os.environ.get("CUT3_DISPOSABLE_DB", "s0p0c_cut3_disposable")
 
@@ -46,9 +58,16 @@ U_ARCHIVED = "10000000-0000-4000-8000-000000000008"
 U_G2_MEMBER = "10000000-0000-4000-8000-000000000009"
 U_G2_ADMIN = "10000000-0000-4000-8000-00000000000a"
 U_DOCS = "10000000-0000-4000-8000-00000000000b"
+U_FIN_MANAGE = "10000000-0000-4000-8000-00000000000c"
 
 POS_FIN = "20000000-0000-4000-8000-000000000001"
 POS_DOCS = "20000000-0000-4000-8000-000000000002"
+POS_FIN_MANAGE = "20000000-0000-4000-8000-000000000003"
+
+M_FINANCE = "aaaaaaaa-0001-4000-8000-000000000001"
+M_PENDING = "aaaaaaaa-0001-4000-8000-000000000002"
+M_SUSPENDED = "aaaaaaaa-0001-4000-8000-000000000003"
+M_FIN_MANAGE = "aaaaaaaa-0001-4000-8000-000000000008"
 
 
 def psql(sql: str, db: str = DB, on_error_stop: bool = True) -> subprocess.CompletedProcess:
@@ -83,16 +102,27 @@ def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def live_function_creates() -> str:
+    """Reproduce exact production pg_get_functiondef bytes (CRLF included)."""
+    hexdoc = load_json(HEXDEFS)
+    order = [
+        "public.storage_path_group_id",
+        "public.storage_path_group_id_v2",
+        "public.is_active_group_member",
+        "public.is_group_member",
+        "public.is_group_admin",
+        "public.has_group_permission",
+    ]
+    parts: list[str] = []
+    for key in order:
+        raw = bytes.fromhex(hexdoc["functions"][key]["hex"]).decode("utf-8")
+        parts.append(raw.rstrip() + ";\n")
+    return "\n".join(parts)
+
+
 def fixture_sql(fp: dict) -> str:
-    fns = fp["functions_live"]
-    defs = {
-        "v1": fns["public.storage_path_group_id"]["pg_get_functiondef_exact"],
-        "v2": fns["public.storage_path_group_id_v2"]["pg_get_functiondef_exact"],
-        "active": fns["public.is_active_group_member"]["pg_get_functiondef_exact"],
-        "member": fns["public.is_group_member"]["pg_get_functiondef_exact"],
-        "admin": fns["public.is_group_admin"]["pg_get_functiondef_exact"],
-        "perm": fns["public.has_group_permission"]["pg_get_functiondef_exact"],
-    }
+    del fp  # policies below are the exact live pg_get_expr strings
+    defs = live_function_creates()
     # Exact live policy expressions (pg_get_expr)
     return f"""
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -189,6 +219,7 @@ GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 GRANT INSERT, SELECT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE ON storage.objects TO anon;
 GRANT INSERT, SELECT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE ON storage.objects TO authenticated;
 GRANT INSERT, SELECT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE ON storage.objects TO service_role;
+GRANT INSERT, SELECT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE ON storage.objects TO postgres WITH GRANT OPTION;
 
 DO $$ BEGIN
   CREATE TYPE public.membership_role AS ENUM ('owner','admin','moderator','member');
@@ -231,19 +262,8 @@ CREATE TABLE public.position_permissions (
   permission text NOT NULL
 );
 
--- Exact live function definitions (pg_get_functiondef text from contract fingerprints)
-{defs['v1'].rstrip()}
-;
-{defs['v2'].rstrip()}
-;
-{defs['active'].rstrip()}
-;
-{defs['member'].rstrip()}
-;
-{defs['admin'].rstrip()}
-;
-{defs['perm'].rstrip()}
-;
+-- Exact live function definitions from production pg_get_functiondef hex
+{defs}
 
 ALTER FUNCTION public.storage_path_group_id(text) OWNER TO postgres;
 ALTER FUNCTION public.storage_path_group_id_v2(text) OWNER TO postgres;
@@ -258,9 +278,9 @@ REVOKE ALL ON FUNCTION public.is_active_group_member(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_active_group_member(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) TO PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.is_group_admin(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.is_group_admin(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_group_admin(uuid, uuid) TO authenticated, service_role;
 REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.has_group_permission(uuid, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.has_group_permission(uuid, text, uuid) TO authenticated, service_role;
 
 -- Live eight policies (exact expressions so pg_get_expr matches fingerprints)
 CREATE POLICY "gdocs_select_group" ON storage.objects FOR SELECT TO authenticated
@@ -303,13 +323,14 @@ INSERT INTO public.memberships(id, group_id, user_id, role, membership_status) V
   ('{M_MEMBER}', '{G1}', '{U_MEMBER}', 'member', 'active'),
   ('{M_OTHER}', '{G1}', '{U_MEMBER2}', 'member', 'active'),
   ('{M_G2}', '{G2}', '{U_G2_MEMBER}', 'member', 'active'),
-  ('aaaaaaaa-0001-4000-8000-000000000001', '{G1}', '{U_FINANCE}', 'member', 'active'),
-  ('aaaaaaaa-0001-4000-8000-000000000002', '{G1}', '{U_PENDING}', 'member', 'pending'),
-  ('aaaaaaaa-0001-4000-8000-000000000003', '{G1}', '{U_SUSPENDED}', 'member', 'suspended'),
+  ('{M_FINANCE}', '{G1}', '{U_FINANCE}', 'member', 'active'),
+  ('{M_PENDING}', '{G1}', '{U_PENDING}', 'member', 'pending'),
+  ('{M_SUSPENDED}', '{G1}', '{U_SUSPENDED}', 'member', 'suspended'),
   ('aaaaaaaa-0001-4000-8000-000000000004', '{G1}', '{U_EXITED}', 'member', 'exited'),
   ('aaaaaaaa-0001-4000-8000-000000000005', '{G1}', '{U_ARCHIVED}', 'member', 'archived'),
   ('aaaaaaaa-0001-4000-8000-000000000006', '{G2}', '{U_G2_ADMIN}', 'admin', 'active'),
-  ('aaaaaaaa-0001-4000-8000-000000000007', '{G1}', '{U_DOCS}', 'member', 'active');
+  ('aaaaaaaa-0001-4000-8000-000000000007', '{G1}', '{U_DOCS}', 'member', 'active'),
+  ('{M_FIN_MANAGE}', '{G1}', '{U_FIN_MANAGE}', 'member', 'active');
 
 INSERT INTO public.projects(id, group_id) VALUES
   ('{P1}', '{G1}'),
@@ -318,31 +339,68 @@ INSERT INTO public.projects(id, group_id) VALUES
 
 INSERT INTO public.group_positions(id, group_id) VALUES
   ('{POS_FIN}', '{G1}'),
-  ('{POS_DOCS}', '{G1}');
+  ('{POS_DOCS}', '{G1}'),
+  ('{POS_FIN_MANAGE}', '{G1}');
 
 INSERT INTO public.position_assignments(membership_id, position_id) VALUES
-  ('aaaaaaaa-0001-4000-8000-000000000001', '{POS_FIN}'),
-  ('aaaaaaaa-0001-4000-8000-000000000007', '{POS_DOCS}');
+  ('{M_FINANCE}', '{POS_FIN}'),
+  ('aaaaaaaa-0001-4000-8000-000000000007', '{POS_DOCS}'),
+  ('{M_FIN_MANAGE}', '{POS_FIN_MANAGE}');
 
 INSERT INTO public.position_permissions(position_id, permission) VALUES
   ('{POS_FIN}', 'finances.record'),
-  ('{POS_DOCS}', 'documents.manage');
+  ('{POS_DOCS}', 'documents.manage'),
+  ('{POS_FIN_MANAGE}', 'finances.manage');
 """
 
 
 CONN = None
 
 
-def classify_exc(exc: Exception) -> tuple[str, bool]:
-    text = str(exc)
+@dataclass
+class DmlResult:
+    actual_result: str
+    denial_mechanism: str | None
+    sqlstate: str | None
+    unexpected_exception: bool
+    error_text: str | None = None
+
+    def as_row(self, test_id: str, operation: str, expected_result: str) -> dict:
+        passed = (not self.unexpected_exception) and (
+            (expected_result == "ALLOW" and self.actual_result == "ALLOW")
+            or (
+                expected_result == "DENY"
+                and self.actual_result == "DENY"
+                and self.denial_mechanism in EXPECTED_DENY_MECHANISMS
+            )
+        )
+        return {
+            "test_id": test_id,
+            "operation": operation,
+            "expected_result": expected_result,
+            "actual_result": self.actual_result,
+            "denial_mechanism": self.denial_mechanism,
+            "SQLSTATE": self.sqlstate,
+            "unexpected_exception": self.unexpected_exception,
+            "pass": passed,
+        }
+
+
+def classify_exc(exc: Exception) -> DmlResult:
+    """Classify a DML exception. Only expected security paths are DENY.
+
+    Expected DENY: 42501 RLS policy violation, or 42501 privilege denial.
+    Everything else (syntax, missing relation/function, 22P02, aborted txn,
+    unexpected cast, programming error, connection) is unexpected_exception.
+    """
+    text = str(exc) or ""
     pgcode = getattr(exc, "pgcode", None)
-    if pgcode == "22P02" or "invalid input syntax for type uuid" in text:
-        return "ERROR_22P02", True
-    if pgcode == "42501" or "permission denied" in text:
-        return "PERMISSION_DENIED", False
-    if "row-level security policy" in text:
-        return "RLS_DENY", False
-    return text.splitlines()[-1] if text else "UNKNOWN", False
+    low = text.lower()
+    if pgcode == "42501" and "row-level security" in low:
+        return DmlResult("DENY", "RLS_DENY", pgcode, False, text)
+    if pgcode == "42501":
+        return DmlResult("DENY", "PERMISSION_DENIED", pgcode, False, text)
+    return DmlResult("ERROR", None, pgcode, True, text)
 
 
 def as_actor(uid: str | None):
@@ -361,32 +419,32 @@ def as_actor(uid: str | None):
     return cur
 
 
-def insert_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
+def insert_obj(uid: str | None, bucket: str, name: str) -> DmlResult:
     try:
         cur = as_actor(uid)
         cur.execute("INSERT INTO storage.objects(bucket_id, name) VALUES (%s, %s)", (bucket, name))
         CONN.commit()
-        return "ALLOW", False
+        return DmlResult("ALLOW", None, None, False)
     except Exception as exc:
         CONN.rollback()
-        kind, raised_22 = classify_exc(exc)
-        return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
+        return classify_exc(exc)
 
 
-def select_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
+def select_obj(uid: str | None, bucket: str, name: str) -> DmlResult:
     try:
         cur = as_actor(uid)
         cur.execute("SELECT COUNT(*) FROM storage.objects WHERE bucket_id = %s AND name = %s", (bucket, name))
         n = cur.fetchone()[0]
         CONN.commit()
-        return ("ALLOW" if n > 0 else "DENY"), False
+        if n > 0:
+            return DmlResult("ALLOW", None, None, False)
+        return DmlResult("DENY", "ZERO_ROWS", None, False)
     except Exception as exc:
         CONN.rollback()
-        kind, raised_22 = classify_exc(exc)
-        return kind, raised_22
+        return classify_exc(exc)
 
 
-def update_obj(uid: str | None, bucket: str, old: str, new: str) -> tuple[str, bool]:
+def update_obj(uid: str | None, bucket: str, old: str, new: str) -> DmlResult:
     try:
         cur = as_actor(uid)
         cur.execute(
@@ -395,27 +453,29 @@ def update_obj(uid: str | None, bucket: str, old: str, new: str) -> tuple[str, b
         )
         n = cur.rowcount
         CONN.commit()
-        return ("ALLOW" if n > 0 else "DENY"), False
+        if n > 0:
+            return DmlResult("ALLOW", None, None, False)
+        return DmlResult("DENY", "ZERO_ROWS", None, False)
     except Exception as exc:
         CONN.rollback()
-        kind, raised_22 = classify_exc(exc)
-        return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
+        return classify_exc(exc)
 
 
-def delete_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
+def delete_obj(uid: str | None, bucket: str, name: str) -> DmlResult:
     try:
         cur = as_actor(uid)
         cur.execute("DELETE FROM storage.objects WHERE bucket_id = %s AND name = %s", (bucket, name))
         n = cur.rowcount
         CONN.commit()
-        return ("ALLOW" if n > 0 else "DENY"), False
+        if n > 0:
+            return DmlResult("ALLOW", None, None, False)
+        return DmlResult("DENY", "ZERO_ROWS", None, False)
     except Exception as exc:
         CONN.rollback()
-        kind, raised_22 = classify_exc(exc)
-        return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
+        return classify_exc(exc)
 
 
-def upsert_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
+def upsert_obj(uid: str | None, bucket: str, name: str) -> DmlResult:
     try:
         cur = as_actor(uid)
         cur.execute(
@@ -424,11 +484,10 @@ def upsert_obj(uid: str | None, bucket: str, name: str) -> tuple[str, bool]:
             (bucket, name),
         )
         CONN.commit()
-        return "ALLOW", False
+        return DmlResult("ALLOW", None, None, False)
     except Exception as exc:
         CONN.rollback()
-        kind, raised_22 = classify_exc(exc)
-        return ("DENY" if kind in {"RLS_DENY", "PERMISSION_DENIED"} else kind), raised_22
+        return classify_exc(exc)
 
 
 def seed_as_postgres(bucket: str, name: str) -> None:
@@ -466,34 +525,29 @@ def main() -> int:
     must(psql_file(fixture_path), "apply fixture")
     must(psql(seed_actors_sql()), "seed actors")
 
-    # Verify precondition fingerprints before 00116
+    # Verify exact production fingerprints BEFORE unmodified 00116
     pre = {}
-    for name, args, expect in [
-        ("storage_path_group_id", "p_name text", [
-            "fb6155e6e3c996ad857208f717d981a8",
-            "5b535da3e44a85fe1871912b44e70160",
-        ]),
-        ("storage_path_group_id_v2", "p_name text", ["585e7bd017f5623aacf87407b1b11524"]),
-        ("is_active_group_member", "gid uuid", ["26c12399120587df3d066dd7819bdf5e"]),
-        ("is_group_member", "gid uuid, uid uuid", [
-            "4b1bbd54719c129ef12f0ebc53463686",
-            "756c2202f0b4b681194dcc2079ec920b",
-        ]),
-        ("is_group_admin", "gid uuid, uid uuid", ["d4090a33af3a873873223416c204c913"]),
-        ("has_group_permission", "gid uuid, perm_key text, uid uuid", ["695368464e97297fbf0f90ce7345162f"]),
+    for name, args in [
+        ("storage_path_group_id", "p_name text"),
+        ("storage_path_group_id_v2", "p_name text"),
+        ("is_active_group_member", "gid uuid"),
+        ("is_group_member", "gid uuid, uid uuid"),
+        ("is_group_admin", "gid uuid, uid uuid"),
+        ("has_group_permission", "gid uuid, perm_key text, uid uuid"),
     ]:
+        expect_md5 = LIVE_MD5[name]
         got = must(psql(
             "SELECT md5(pg_get_functiondef(p.oid)) FROM pg_proc p "
             "JOIN pg_namespace n ON n.oid = p.pronamespace "
             f"WHERE n.nspname='public' AND p.proname='{name}' "
             f"AND pg_get_function_identity_arguments(p.oid)='{args}';"
         ), f"md5 {name}").strip()
-        pre[name] = {"expected_any": expect, "got": got, "match": got in expect}
-        if got not in expect:
+        pre[name] = {"expected": expect_md5, "got": got, "match": got == expect_md5}
+        if got != expect_md5:
             dump = must(psql(
                 f"SELECT pg_get_functiondef('{name}'::regproc);"
             ), f"dump {name}")
-            print(f"MD5 MISMATCH {name}: got {got} expected {expect}", file=sys.stderr)
+            print(f"MD5 MISMATCH {name}: got {got} expected {expect_md5}", file=sys.stderr)
             print(dump, file=sys.stderr)
 
     pol_ok = True
@@ -540,166 +594,151 @@ def main() -> int:
     def rec(test_id: str, **kwargs):
         results.append({"id": test_id, **kwargs})
 
-    def expect(test_id: str, got: str, exp: str, raised_22: bool = False, **extra):
-        status = "PASS" if got == exp and not raised_22 else "FAIL"
-        rec(test_id, got=got, expected=exp, raised_22p02=raised_22, status=status, **extra)
+    def expect(test_id: str, result: DmlResult, exp: str, op: str, **extra):
+        row = result.as_row(test_id, op, exp)
+        status = "PASS" if row["pass"] else "FAIL"
+        rec(test_id, **row, status=status, **extra)
         if status != "PASS":
-            print(f"FAIL {test_id}: got={got} expected={exp} 22P02={raised_22} {extra}")
+            print(
+                f"FAIL {test_id}: actual={result.actual_result} expected={exp} "
+                f"mechanism={result.denial_mechanism} sqlstate={result.sqlstate} "
+                f"unexpected={result.unexpected_exception} {extra}"
+            )
+        return row
 
     # --- Core RLS cases (real storage.objects DML) ---
     # T-U01-01
-    got, r22 = insert_obj(U_MEMBER, "receipts", f"{G1}/{FILE}")
-    expect("T-U01-01", got, "ALLOW", r22, op="INSERT", bucket="receipts")
+    expect("T-U01-01", insert_obj(U_MEMBER, "receipts", f"{G1}/{FILE}"), "ALLOW", "INSERT", bucket="receipts")
     delete_as_postgres("receipts", f"{G1}/{FILE}")
 
-    # T-U02-01 finance officer
-    got, r22 = insert_obj(U_FINANCE, "receipts", f"finance-record/{G1}/{FILE}")
-    expect("T-U02-01", got, "ALLOW", r22, op="INSERT")
+    # T-U02-01 finance officer (finances.record)
+    expect("T-U02-01", insert_obj(U_FINANCE, "receipts", f"finance-record/{G1}/{FILE}"), "ALLOW", "INSERT")
     delete_as_postgres("receipts", f"finance-record/{G1}/{FILE}")
 
     # T-U02-02 ordinary member
-    got, r22 = insert_obj(U_MEMBER, "receipts", f"finance-record/{G1}/{FILE}")
-    expect("T-U02-02", got, "DENY", r22, op="INSERT")
+    expect("T-U02-02", insert_obj(U_MEMBER, "receipts", f"finance-record/{G1}/{FILE}"), "DENY", "INSERT")
 
     # Historical UUID-first SELECT
     seed_as_postgres("receipts", f"{G1}/historical.pdf")
-    got, r22 = select_obj(U_MEMBER, "receipts", f"{G1}/historical.pdf")
-    expect("T-U02-03", got, "ALLOW", r22, op="SELECT")
+    expect("T-U02-03", select_obj(U_MEMBER, "receipts", f"{G1}/historical.pdf"), "ALLOW", "SELECT")
+
+    # T-U02-04 finances.manage only (not finances.record)
+    expect(
+        "T-U02-04-MANAGE-ONLY",
+        insert_obj(U_FIN_MANAGE, "receipts", f"finance-record/{G1}/manage-only.pdf"),
+        "ALLOW",
+        "INSERT",
+    )
+    delete_as_postgres("receipts", f"finance-record/{G1}/manage-only.pdf")
+
+    # T-U02-05 finance permission in G1 targeting G2 path
+    expect(
+        "T-U02-05-CROSS-GROUP-FINANCE",
+        insert_obj(U_FINANCE, "receipts", f"finance-record/{G2}/cross.pdf"),
+        "DENY",
+        "INSERT",
+    )
 
     # U03 self / negatives
-    got, r22 = insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/{M1}/{FILE}")
-    expect("T-U03-01", got, "ALLOW", r22)
+    expect("T-U03-01", insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/{M1}/{FILE}"), "ALLOW", "INSERT")
     delete_as_postgres("receipts", f"dispute-docs/{G1}/{M1}/{FILE}")
-    got, r22 = insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/{M_OTHER}/{FILE}")
-    expect("U03-NEG-SAME-GROUP-OTHER-MID", got, "DENY", r22)
-    got, r22 = insert_obj(U_OWNER, "receipts", f"dispute-docs/{G2}/{M1}/{FILE}")
-    expect("U03-NEG-CROSS-GROUP", got, "DENY", r22)
-    got, r22 = insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/99999999-9999-4999-8999-999999999999/{FILE}")
-    expect("U03-NEG-NONEXISTENT-MID", got, "DENY", r22)
-    got, r22 = insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/not-a-uuid/{FILE}")
-    expect("U03-NEG-MALFORMED-MID", got, "DENY", r22)
+    expect("U03-NEG-SAME-GROUP-OTHER-MID", insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/{M_OTHER}/{FILE}"), "DENY", "INSERT")
+    expect("U03-NEG-CROSS-GROUP", insert_obj(U_OWNER, "receipts", f"dispute-docs/{G2}/{M1}/{FILE}"), "DENY", "INSERT")
+    expect("U03-NEG-NONEXISTENT-MID", insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/99999999-9999-4999-8999-999999999999/{FILE}"), "DENY", "INSERT")
+    expect("U03-NEG-MALFORMED-MID", insert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/not-a-uuid/{FILE}"), "DENY", "INSERT")
+    expect(
+        "U03-NEG-INACTIVE-OWN-MID",
+        insert_obj(U_PENDING, "receipts", f"dispute-docs/{G1}/{M_PENDING}/{FILE}"),
+        "DENY",
+        "INSERT",
+    )
 
     # U07
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/{M1}/{FILE}")
-    expect("T-U07-01", got, "ALLOW", r22)
+    expect("T-U07-01", insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/{M1}/{FILE}"), "ALLOW", "INSERT")
     delete_as_postgres("group-documents", f"relief-claims/{G1}/{M1}/{FILE}")
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/{M_OTHER}/{FILE}")
-    expect("U07-NEG-SAME-GROUP-OTHER-MID", got, "DENY", r22)
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"relief-claims/{G2}/{M1}/{FILE}")
-    expect("U07-NEG-CROSS-GROUP", got, "DENY", r22)
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/99999999-9999-4999-8999-999999999999/{FILE}")
-    expect("U07-NEG-NONEXISTENT-MID", got, "DENY", r22)
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/not-a-uuid/{FILE}")
-    expect("U07-NEG-MALFORMED-MID", got, "DENY", r22)
+    expect("U07-NEG-SAME-GROUP-OTHER-MID", insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/{M_OTHER}/{FILE}"), "DENY", "INSERT")
+    expect("U07-NEG-CROSS-GROUP", insert_obj(U_OWNER, "group-documents", f"relief-claims/{G2}/{M1}/{FILE}"), "DENY", "INSERT")
+    expect("U07-NEG-NONEXISTENT-MID", insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/99999999-9999-4999-8999-999999999999/{FILE}"), "DENY", "INSERT")
+    expect("U07-NEG-MALFORMED-MID", insert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/not-a-uuid/{FILE}"), "DENY", "INSERT")
+    expect(
+        "U07-NEG-INACTIVE-OWN-MID",
+        insert_obj(U_SUSPENDED, "group-documents", f"relief-claims/{G1}/{M_SUSPENDED}/{FILE}"),
+        "DENY",
+        "INSERT",
+    )
 
     # Logos
     seed_as_postgres("group-documents", f"logos/{G1}/logo.png")
-    got, r22 = select_obj(U_MEMBER, "group-documents", f"logos/{G1}/logo.png")
-    expect("T-LOGOS-01", got, "ALLOW", r22)
-    got, r22 = select_obj(U_G2_MEMBER, "group-documents", f"logos/{G1}/logo.png")
-    expect("T-LOGOS-02", got, "DENY", r22)
-    got, r22 = select_obj(U_MEMBER, "group-documents", "logos/not-a-uuid/file")
-    expect("T-LOGOS-03", got, "DENY", r22)
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"logos/{G1}/new.png")
-    expect("T-LOGOS-04-INSERT", got, "DENY", r22, op="INSERT")
+    expect("T-LOGOS-01", select_obj(U_MEMBER, "group-documents", f"logos/{G1}/logo.png"), "ALLOW", "SELECT")
+    expect("T-LOGOS-02", select_obj(U_G2_MEMBER, "group-documents", f"logos/{G1}/logo.png"), "DENY", "SELECT")
+    expect("T-LOGOS-03", select_obj(U_MEMBER, "group-documents", "logos/not-a-uuid/file"), "DENY", "SELECT")
+    expect("T-LOGOS-04-INSERT", insert_obj(U_OWNER, "group-documents", f"logos/{G1}/new.png"), "DENY", "INSERT")
     seed_as_postgres("group-documents", f"logos/{G1}/upd.png")
-    got, r22 = update_obj(U_OWNER, "group-documents", f"logos/{G1}/upd.png", f"logos/{G1}/upd2.png")
-    expect("T-LOGOS-04-UPDATE", got, "DENY", r22, op="UPDATE")
+    expect("T-LOGOS-04-UPDATE", update_obj(U_OWNER, "group-documents", f"logos/{G1}/upd.png", f"logos/{G1}/upd2.png"), "DENY", "UPDATE")
     seed_as_postgres("group-documents", f"logos/{G1}/del.png")
-    got, r22 = delete_obj(U_OWNER, "group-documents", f"logos/{G1}/del.png")
-    expect("T-LOGOS-04-DELETE", got, "DENY", r22, op="DELETE")
+    expect("T-LOGOS-04-DELETE", delete_obj(U_OWNER, "group-documents", f"logos/{G1}/del.png"), "DENY", "DELETE")
 
     # Projects
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"projects/{P1}/{FILE}")
-    expect("T11-PROJECTS-ADMIN-INSERT", got, "ALLOW", r22)
+    expect("T11-PROJECTS-ADMIN-INSERT", insert_obj(U_OWNER, "group-documents", f"projects/{P1}/{FILE}"), "ALLOW", "INSERT")
     delete_as_postgres("group-documents", f"projects/{P1}/{FILE}")
     seed_as_postgres("group-documents", f"projects/{P1}/{FILE}")
-    got, r22 = select_obj(U_MEMBER, "group-documents", f"projects/{P1}/{FILE}")
-    expect("D27-PROJECTS-MEMBER-SELECT", got, "ALLOW", r22)
-    got, r22 = select_obj(U_G2_MEMBER, "group-documents", f"projects/{P1}/{FILE}")
-    expect("D26-PROJECTS-CROSS-SELECT", got, "DENY", r22)
-    got, r22 = insert_obj(U_MEMBER, "group-documents", f"projects/{P1}/member.pdf")
-    expect("T12-PROJECTS-MEMBER-INSERT", got, "DENY", r22)
+    expect("D27-PROJECTS-MEMBER-SELECT", select_obj(U_MEMBER, "group-documents", f"projects/{P1}/{FILE}"), "ALLOW", "SELECT")
+    expect("D26-PROJECTS-CROSS-SELECT", select_obj(U_G2_MEMBER, "group-documents", f"projects/{P1}/{FILE}"), "DENY", "SELECT")
+    expect("T12-PROJECTS-MEMBER-INSERT", insert_obj(U_MEMBER, "group-documents", f"projects/{P1}/member.pdf"), "DENY", "INSERT")
     missing = "88888888-8888-4888-8888-888888888888"
-    got, r22 = insert_obj(U_OWNER, "group-documents", f"projects/{missing}/{FILE}")
-    expect("T10-PROJECTS-MISSING", got, "DENY", r22)
+    expect("T10-PROJECTS-MISSING", insert_obj(U_OWNER, "group-documents", f"projects/{missing}/{FILE}"), "DENY", "INSERT")
 
     # Inactive writes / historical SELECT
-    got, r22 = insert_obj(U_PENDING, "receipts", f"{G1}/pending.pdf")
-    expect("D31-PENDING-INSERT", got, "DENY", r22)
-    got, r22 = insert_obj(U_SUSPENDED, "receipts", f"{G1}/suspended.pdf")
-    expect("D32-SUSPENDED-INSERT", got, "DENY", r22)
-    got, r22 = insert_obj(U_EXITED, "receipts", f"{G1}/exited.pdf")
-    expect("D33-EXITED-INSERT", got, "DENY", r22)
-    got, r22 = insert_obj(U_ARCHIVED, "receipts", f"{G1}/archived.pdf")
-    expect("D34-ARCHIVED-INSERT", got, "DENY", r22)
+    expect("D31-PENDING-INSERT", insert_obj(U_PENDING, "receipts", f"{G1}/pending.pdf"), "DENY", "INSERT")
+    expect("D32-SUSPENDED-INSERT", insert_obj(U_SUSPENDED, "receipts", f"{G1}/suspended.pdf"), "DENY", "INSERT")
+    expect("D33-EXITED-INSERT", insert_obj(U_EXITED, "receipts", f"{G1}/exited.pdf"), "DENY", "INSERT")
+    expect("D34-ARCHIVED-INSERT", insert_obj(U_ARCHIVED, "receipts", f"{G1}/archived.pdf"), "DENY", "INSERT")
     seed_as_postgres("receipts", f"{G1}/hist-pending.pdf")
-    got, r22 = select_obj(U_PENDING, "receipts", f"{G1}/hist-pending.pdf")
-    expect("D35-PENDING-SELECT", got, "ALLOW", r22)
+    expect("D35-PENDING-SELECT", select_obj(U_PENDING, "receipts", f"{G1}/hist-pending.pdf"), "ALLOW", "SELECT")
 
     # Cross-tenant / garbage
-    got, r22 = insert_obj(U_MEMBER, "receipts", f"{G2}/{FILE}")
-    expect("T21-CROSS-TENANT-INSERT", got, "DENY", r22)
-    got, r22 = select_obj(U_G2_MEMBER, "receipts", f"{G1}/historical.pdf")
-    expect("D25-CROSS-SELECT", got, "DENY", r22)
-    got, r22 = select_obj(U_MEMBER, "receipts", "garbage/foo")
-    expect("D28-GARBAGE-SELECT", got, "DENY", r22)
-    got, r22 = insert_obj(U_MEMBER, "group-documents", "minutes/not-a-uuid/x")
-    expect("D30-MINUTES-BAD-UUID", got, "DENY", r22)
+    expect("T21-CROSS-TENANT-INSERT", insert_obj(U_MEMBER, "receipts", f"{G2}/{FILE}"), "DENY", "INSERT")
+    expect("D25-CROSS-SELECT", select_obj(U_G2_MEMBER, "receipts", f"{G1}/historical.pdf"), "DENY", "SELECT")
+    expect("D28-GARBAGE-SELECT", select_obj(U_MEMBER, "receipts", "garbage/foo"), "DENY", "SELECT")
+    expect("D30-MINUTES-BAD-UUID", insert_obj(U_MEMBER, "group-documents", "minutes/not-a-uuid/x"), "DENY", "INSERT")
 
     # UPDATE transitions
     seed_as_postgres("group-documents", f"{G1}/old-doc.pdf")
-    got, r22 = update_obj(U_DOCS, "group-documents", f"{G1}/old-doc.pdf", f"{G2}/new-doc.pdf")
-    expect("D36-UPDATE-CROSS-TENANT", got, "DENY", r22)
+    expect("D36-UPDATE-CROSS-TENANT", update_obj(U_DOCS, "group-documents", f"{G1}/old-doc.pdf", f"{G2}/new-doc.pdf"), "DENY", "UPDATE")
     seed_as_postgres("group-documents", "garbage/foo")
-    got, r22 = update_obj(U_DOCS, "group-documents", "garbage/foo", f"{G1}/from-garbage.pdf")
-    expect("D37-UPDATE-OLD-GARBAGE", got, "DENY", r22)
+    expect("D37-UPDATE-OLD-GARBAGE", update_obj(U_DOCS, "group-documents", "garbage/foo", f"{G1}/from-garbage.pdf"), "DENY", "UPDATE")
     seed_as_postgres("group-documents", f"{G1}/upd-ok.pdf")
-    got, r22 = update_obj(U_DOCS, "group-documents", f"{G1}/upd-ok.pdf", f"{G1}/upd-ok2.pdf")
-    expect("D38-UPDATE-SAME-GROUP", got, "ALLOW", r22)
+    expect("D38-UPDATE-SAME-GROUP", update_obj(U_DOCS, "group-documents", f"{G1}/upd-ok.pdf", f"{G1}/upd-ok2.pdf"), "ALLOW", "UPDATE")
 
     # UPS-01..12
-    got, r22 = upsert_obj(U_DOCS, "group-documents", f"{G1}/ups01.pdf")
-    expect("UPS-01", got, "ALLOW", r22)
-    got, r22 = upsert_obj(U_OWNER, "group-documents", f"constitutions/{G1}/ups02.pdf")
-    expect("UPS-02", got, "ALLOW", r22)
+    expect("UPS-01", upsert_obj(U_DOCS, "group-documents", f"{G1}/ups01.pdf"), "ALLOW", "UPSERT")
+    expect("UPS-02", upsert_obj(U_OWNER, "group-documents", f"constitutions/{G1}/ups02.pdf"), "ALLOW", "UPSERT")
     seed_as_postgres("group-documents", f"{G1}/ups03.pdf")
-    got, r22 = upsert_obj(U_G2_ADMIN, "group-documents", f"{G1}/ups03.pdf")
-    expect("UPS-03", got, "DENY", r22)
-    got, r22 = upsert_obj(U_DOCS, "group-documents", f"{G2}/ups04.pdf")
-    expect("UPS-04", got, "DENY", r22)
+    expect("UPS-03", upsert_obj(U_G2_ADMIN, "group-documents", f"{G1}/ups03.pdf"), "DENY", "UPSERT")
+    expect("UPS-04", upsert_obj(U_DOCS, "group-documents", f"{G2}/ups04.pdf"), "DENY", "UPSERT")
     seed_as_postgres("group-documents", f"constitutions/{G1}/ups05.pdf")
-    got, r22 = upsert_obj(U_G2_ADMIN, "group-documents", f"constitutions/{G1}/ups05.pdf")
-    expect("UPS-05", got, "DENY", r22)
-    got, r22 = upsert_obj(U_OWNER, "group-documents", f"constitutions/{G2}/ups06.pdf")
-    expect("UPS-06", got, "DENY", r22)
-    got, r22 = upsert_obj(U_OWNER, "group-documents", f"/{G1}/ups07.pdf")
-    expect("UPS-07", got, "DENY", r22)
-    got, r22 = upsert_obj(U_OWNER, "group-documents", f"unknown-prefix/{G1}/ups08.pdf")
-    expect("UPS-08", got, "DENY", r22)
+    expect("UPS-05", upsert_obj(U_G2_ADMIN, "group-documents", f"constitutions/{G1}/ups05.pdf"), "DENY", "UPSERT")
+    expect("UPS-06", upsert_obj(U_OWNER, "group-documents", f"constitutions/{G2}/ups06.pdf"), "DENY", "UPSERT")
+    expect("UPS-07", upsert_obj(U_OWNER, "group-documents", f"/{G1}/ups07.pdf"), "DENY", "UPSERT")
+    expect("UPS-08", upsert_obj(U_OWNER, "group-documents", f"unknown-prefix/{G1}/ups08.pdf"), "DENY", "UPSERT")
     seed_as_postgres("group-documents", f"{G1}/ups09.pdf")
-    got, r22 = update_obj(U_DOCS, "group-documents", f"{G1}/ups09.pdf", f"{G2}/ups09-new.pdf")
-    expect("UPS-09", got, "DENY", r22)
-    got, r22 = upsert_obj(U_MEMBER, "receipts", f"finance-record/{G1}/ups10.pdf")
-    expect("UPS-10", got, "DENY", r22)
-    got, r22 = upsert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/{M_OTHER}/ups11.pdf")
-    expect("UPS-11", got, "DENY", r22)
-    got, r22 = upsert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/{M_OTHER}/ups12.pdf")
-    expect("UPS-12", got, "DENY", r22)
+    expect("UPS-09", update_obj(U_DOCS, "group-documents", f"{G1}/ups09.pdf", f"{G2}/ups09-new.pdf"), "DENY", "UPDATE")
+    expect("UPS-10", upsert_obj(U_MEMBER, "receipts", f"finance-record/{G1}/ups10.pdf"), "DENY", "UPSERT")
+    expect("UPS-11", upsert_obj(U_OWNER, "receipts", f"dispute-docs/{G1}/{M_OTHER}/ups11.pdf"), "DENY", "UPSERT")
+    expect("UPS-12", upsert_obj(U_OWNER, "group-documents", f"relief-claims/{G1}/{M_OTHER}/ups12.pdf"), "DENY", "UPSERT")
 
-    # service_role EXECUTE deny
+    # service_role EXECUTE deny — expected security path is 42501 privilege denial
     try:
         cur = as_actor(None)
         cur.execute("SET ROLE service_role")
         cur.execute("SELECT public.storage_receipts_authorized('x','select')")
         CONN.commit()
-        expect("D40-SERVICE-ROLE-EXECUTE", "ALLOW", "DENY")
+        expect("D40-SERVICE-ROLE-EXECUTE", DmlResult("ALLOW", None, None, False), "DENY", "EXECUTE")
     except Exception as exc:
         CONN.rollback()
-        kind, _ = classify_exc(exc)
-        expect("D40-SERVICE-ROLE-EXECUTE", "DENY" if kind in {"PERMISSION_DENIED", "RLS_DENY"} else kind, "DENY")
+        expect("D40-SERVICE-ROLE-EXECUTE", classify_exc(exc), "DENY", "EXECUTE")
 
-    # Anon SELECT deny (private bucket)
+    # Anon SELECT deny (private bucket). Unexpected exceptions FAIL, not DENY PASS.
     try:
         cur = as_actor(None)
         cur.execute("SET ROLE anon")
@@ -709,10 +748,33 @@ def main() -> int:
         )
         n = cur.fetchone()[0]
         CONN.commit()
-        expect("R05-ANON-SELECT", "ALLOW" if n else "DENY", "DENY")
-    except Exception:
+        if n > 0:
+            anon_res = DmlResult("ALLOW", None, None, False)
+        else:
+            anon_res = DmlResult("DENY", "ZERO_ROWS", None, False)
+        expect("R05-ANON-SELECT", anon_res, "DENY", "SELECT")
+    except Exception as exc:
         CONN.rollback()
-        expect("R05-ANON-SELECT", "DENY", "DENY")
+        expect("R05-ANON-SELECT", classify_exc(exc), "DENY", "SELECT")
+
+    # Harness self-check: undefined function must be unexpected_exception, not DENY PASS
+    try:
+        cur = as_actor(U_OWNER)
+        cur.execute("SELECT public.this_function_does_not_exist_cut3()")
+        CONN.commit()
+        harness_probe = DmlResult("ALLOW", None, None, False)
+    except Exception as exc:
+        CONN.rollback()
+        harness_probe = classify_exc(exc)
+    harness_ok = harness_probe.unexpected_exception is True and harness_probe.actual_result != "DENY"
+    rec(
+        "HARNESS-UNEXPECTED-EXCEPTION",
+        **harness_probe.as_row("HARNESS-UNEXPECTED-EXCEPTION", "EXECUTE", "ERROR"),
+        status="PASS" if harness_ok else "FAIL",
+        note="undefined function must not classify as DENY PASS",
+    )
+    if not harness_ok:
+        print("FAIL HARNESS-UNEXPECTED-EXCEPTION: unexpected exception was swallowed as DENY")
 
     # Encoding matrix — every ENC-* ID against real storage.objects
     strongest = U_OWNER
@@ -722,50 +784,50 @@ def main() -> int:
         path = t["path"]
         op = t["operation"]
         tid = t["id"]
-        raised_22 = False
         if op == "INSERT":
-            got, raised_22 = insert_obj(strongest, bucket, path)
+            dml = insert_obj(strongest, bucket, path)
         elif op == "SELECT":
             seed_as_postgres(bucket, path)
-            got, raised_22 = select_obj(strongest, bucket, path)
+            dml = select_obj(strongest, bucket, path)
             delete_as_postgres(bucket, path)
         elif op == "UPDATE":
             seed_as_postgres(bucket, path)
-            got, raised_22 = update_obj(strongest, bucket, path, path + "-x")
+            dml = update_obj(strongest, bucket, path, path + "-x")
             delete_as_postgres(bucket, path)
             delete_as_postgres(bucket, path + "-x")
         elif op == "DELETE":
             seed_as_postgres(bucket, path)
-            got, raised_22 = delete_obj(strongest, bucket, path)
+            dml = delete_obj(strongest, bucket, path)
             delete_as_postgres(bucket, path)
         else:
-            got, raised_22 = "UNKNOWN_OP", False
-        status = "PASS" if got == "DENY" and not raised_22 else "FAIL"
+            dml = DmlResult("ERROR", None, None, True, f"unknown op {op}")
+        schema = dml.as_row(tid, op, "DENY")
+        status = "PASS" if schema["pass"] else "FAIL"
         row = {
             "id": tid,
             "class_id": t["class_id"],
             "bucket": bucket,
-            "operation": op,
             "path": path,
-            "got": got,
-            "expected": "DENY",
-            "raised_22p02": raised_22,
-            "status": status,
             "actor": "G1_owner_strongest",
+            **schema,
+            "status": status,
         }
         enc_results.append(row)
         rec(tid, **row)
         if status != "PASS":
-            print(f"FAIL {tid}: got={got} 22P02={raised_22}")
+            print(
+                f"FAIL {tid}: actual={dml.actual_result} mechanism={dml.denial_mechanism} "
+                f"sqlstate={dml.sqlstate} unexpected={dml.unexpected_exception}"
+            )
 
     # Live shape rehearsal (prefix tokens only; synthetic objects)
     rehearsal = {"gdocs": [], "receipts": [], "unknown": 0}
     for i in range(1, 7):
         name = f"logos/{G1}/live-logo-{i}.png"
         seed_as_postgres("group-documents", name)
-        got_m, _ = select_obj(U_MEMBER, "group-documents", name)
-        got_x, _ = select_obj(U_G2_MEMBER, "group-documents", name)
-        got_w, _ = insert_obj(U_OWNER, "group-documents", f"logos/{G1}/write-{i}.png")
+        got_m = select_obj(U_MEMBER, "group-documents", name).actual_result
+        got_x = select_obj(U_G2_MEMBER, "group-documents", name).actual_result
+        got_w = insert_obj(U_OWNER, "group-documents", f"logos/{G1}/write-{i}.png").actual_result
         rehearsal["gdocs"].append({
             "shape": "logos",
             "select_g1": got_m,
@@ -776,8 +838,8 @@ def main() -> int:
     for i in range(1, 15):
         name = f"constitutions/{G1}/live-const-{i}.pdf"
         seed_as_postgres("group-documents", name)
-        got_m, _ = select_obj(U_MEMBER, "group-documents", name)
-        got_x, _ = select_obj(U_G2_MEMBER, "group-documents", name)
+        got_m = select_obj(U_MEMBER, "group-documents", name).actual_result
+        got_x = select_obj(U_G2_MEMBER, "group-documents", name).actual_result
         rehearsal["gdocs"].append({
             "shape": "constitutions",
             "select_g1": got_m,
@@ -787,8 +849,8 @@ def main() -> int:
     for i in range(1, 6):
         name = f"{G1}/live-uuid-{i}.pdf"
         seed_as_postgres("group-documents", name)
-        got_m, _ = select_obj(U_MEMBER, "group-documents", name)
-        got_x, _ = select_obj(U_G2_MEMBER, "group-documents", name)
+        got_m = select_obj(U_MEMBER, "group-documents", name).actual_result
+        got_x = select_obj(U_G2_MEMBER, "group-documents", name).actual_result
         rehearsal["gdocs"].append({
             "shape": "uuid-first",
             "select_g1": got_m,
@@ -798,8 +860,8 @@ def main() -> int:
     for i in range(1, 4):
         name = f"{G1}/live-receipt-{i}.pdf"
         seed_as_postgres("receipts", name)
-        got_m, _ = select_obj(U_MEMBER, "receipts", name)
-        got_x, _ = select_obj(U_G2_MEMBER, "receipts", name)
+        got_m = select_obj(U_MEMBER, "receipts", name).actual_result
+        got_x = select_obj(U_G2_MEMBER, "receipts", name).actual_result
         rehearsal["receipts"].append({
             "shape": "uuid-first",
             "select_g1": got_m,

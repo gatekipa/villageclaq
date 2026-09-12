@@ -1,0 +1,147 @@
+{
+  "artifact": "M3_F3_06_09_SCOPE_MATRIX_20260912",
+  "date": "2026-09-12",
+  "implementation_this_run": "NONE",
+  "controlling_order": ["F3-06", "F3-07", "FCG-1", "F3-08", "F3-09"],
+  "collapse_into_one_batch": "FORBIDDEN",
+  "skip_fcg1": "FORBIDDEN",
+  "tickets": [
+    {
+      "ticket": "F3-06",
+      "title": "Account / fund / category settings UI",
+      "freeze_owner": "GROKBOT BUILDER (Astra semantics + Daybreak RLS)",
+      "prd_owner_notes": "finances.manage server auth; EN/FR; mobile; tenant-bound; atomic audit",
+      "in_scope": [
+        "Account list/create/archive; kinds bank/cash/mobile_money/wallet/other",
+        "Single currency per account; currency immutable in place",
+        "Default unrestricted/general fund; fund list/create/archive",
+        "Flat categories; system defaults + org-custom; archiveable",
+        "Inactive/archived accounts not offered as new-post custody targets (test N)"
+      ],
+      "out_of_scope": [
+        "Chart-of-accounts builder",
+        "Arbitrary posting-line builder",
+        "Fund-reallocation UI",
+        "Record Transaction (F3-07)",
+        "Balance editing",
+        "Opening-cash UX"
+      ],
+      "deps": [
+        "Founder auth",
+        "Strategy C forward F3-01..05 qualified on current main",
+        "ASTRA UX GATE accepted",
+        "F3-03 projection proof (settings should not invent balances)"
+      ],
+      "must_not": [
+        "Type over a balance field",
+        "Reuse contribution types as categories",
+        "Treat funds as accounts"
+      ],
+      "nav_constraint": "New settings surface under Money or Settings — not inside contributions/record"
+    },
+    {
+      "ticket": "F3-07",
+      "title": "Record Transaction UX",
+      "freeze_owner": "ASTRA",
+      "in_scope": [
+        "Money In / Money Out / Transfer only",
+        "Calls only public.post_financial_command",
+        "Confirm custody account + fund before post",
+        "Exact decimal strings; no JS float authority",
+        "Durable request identity across tabs/sessions/devices",
+        "Replay-time current authorization",
+        "Lost-response recovery",
+        "next-intl EN/FR; formatAmount(); dark; 375px"
+      ],
+      "out_of_scope": [
+        "Opening-Adjustment / opening-entry creation (D-007)",
+        "Silent reuse of /dashboard/contributions/record as org ledger writer",
+        "Debit/credit copy",
+        "Module events masquerading as generic manual finance",
+        "Notify or queue insert before/inside financial commit",
+        "Cross-currency ordinary transfer"
+      ],
+      "hard_gate": "F3-03 projection/read proof MUST re-pass before start (F3 freeze Slice 7)",
+      "deps": ["F3-02", "F3-03 PASSED", "F3-04 command", "F3-05 command hidden", "F3-06"],
+      "success_rule": "UX-002 — success only after authoritative commit/result"
+    },
+    {
+      "ticket": "FCG-1",
+      "title": "Financial Contract Reconciliation Gate",
+      "kind": "GATE_NOT_FEATURE",
+      "in_scope": ["Close M3_FCG1_RECONCILIATION_MATRIX proofs", "Document occurrence identity", "No F3-01..05 redesign"],
+      "out_of_scope": ["F3-08 UI", "F3-09 fixtures as substitute for the gate"],
+      "deps": ["F3-07 complete enough to show manual path + templates"]
+    },
+    {
+      "ticket": "F3-08",
+      "title": "Core / true financial reports UI",
+      "freeze_owner": "ASTRA",
+      "in_scope": [
+        "Account Balance (custody postings)",
+        "Fund Cash / Fund Net Position",
+        "Cashbook / Transaction Register (full committed set incl. corrections)",
+        "Statement of Activity cash-basis by occurred_at (D-002 labeled)",
+        "Cash Movement",
+        "Optional Financial Overview/Health only as labeled projection — full Health catalog is F6",
+        "Member own-statement without finances.view (P1-F) if in F3 scope; else defer with note",
+        "Exports match same projection",
+        "Every report shows scope, period/as-of, native currency, bucket, source/observation, correction treatment, opening treatment"
+      ],
+      "out_of_scope": [
+        "Full F6 catalog",
+        "Parent FX netted totals",
+        "Budgets / period close",
+        "Replacing reports 1-5 (Who Hasn't Paid, Contribution Ledger, Arrears, Njangi cycle) as if they were SoA"
+      ],
+      "deps": ["FCG-1 PASS", "F3-03 engine", "F3-07"],
+      "dashboard_rule": "Dashboard / AI / board packet must not use contribution-only shorthand as org-wide financial truth after migration phase"
+    },
+    {
+      "ticket": "F3-09",
+      "title": "Full acceptance matrix",
+      "freeze_owner": "GROKBOT BUILDER (fixtures under Astra)",
+      "usd_foundation": {
+        "bank": 9250,
+        "cash": 1000,
+        "total_cash_held": 10250,
+        "soa_income": 450,
+        "soa_expense": 200,
+        "general_fund_cash": 10000,
+        "restricted_fund_cash": 250,
+        "note": "Excluding the original donation yields the wrong Restricted cash and the wrong income"
+      },
+      "in_scope": [
+        "F2 tests A-O + Branch B XAF isolation",
+        "Authorization, concurrency, replay",
+        "Fresh-session/device uncertain-result recovery",
+        "Correction chains, historical epochs, archival",
+        "Opening-cash remediation policy (D-007)",
+        "Reporting reconciliation, migration rehearsal, representative scale, mobile, exports",
+        "No cross-tenant references"
+      ],
+      "out_of_scope": ["Wholesale F4/F5", "M4 hierarchy"],
+      "deps": ["F3-08 UI", "F3-05 command", "F3-04", "F3-02", "F3-01 currency foundation"]
+    }
+  ],
+  "preconditions_before_f3_06": [
+    "Founder M3 authorization",
+    "Strategy C accepted; old tip merge = NO",
+    "New forward F3-01..05 + bounded epoch after 00117, disposable-qualified",
+    "Cut 1 SAFER OR UNCHANGED re-proven",
+    "M2 still dormant; F3 RPCs have zero notification I/O",
+    "ASTRA UX GATE accepted",
+    "P1 payment-integrity overlays not replayed",
+    "Base still d83d13d4fe9915a0d1ff149ce29a53ad708c9853 or documented successor"
+  ],
+  "preconditions_before_f3_07": [
+    "F3-06 shipped (no balance edit)",
+    "F3-03 re-passed on current main",
+    "F3-02 re-passed including lock-wait revocation",
+    "F3-04 command available",
+    "F3-05 command may exist; opening UX hidden (D-007)",
+    "New Record Transaction route (not contributions/record)",
+    "Durable request identity + replay-time auth designed",
+    "FCG-1 still scheduled after F3-07"
+  ]
+}

@@ -1,0 +1,247 @@
+{
+  "artifact": "M3_CURRENT_FINANCIAL_ARCHITECTURE_20260912",
+  "date": "2026-09-12",
+  "kind": "planning_evidence_only",
+  "production_mutation": "ZERO",
+  "financial_writes": "ZERO",
+  "live_db_queried": false,
+  "pins": {
+    "current_main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+    "production_migrations_pin": 32,
+    "production_migrations_note": "Chief pin. This run did not query supabase_migrations.schema_migrations. Historical evidence: Cut 2 live count 29; Cut 3 pre-apply count 30 (latest s0_p0b_cut2); +00116 +00117 expected 32.",
+    "s0": "COMPLETE",
+    "m2": "CLOSED_DORMANT"
+  },
+  "canonical_money_engine": {
+    "path": "src/lib/money.ts",
+    "rule": "Confirmed payments only; obligation amount_paid column is not app truth until 00104 alignment",
+    "format_amount": "src/lib/currencies.ts formatAmount()",
+    "member_names": "src/lib/get-member-name.ts getMemberName()"
+  },
+  "f3_ledger_objects_on_main": {
+    "financial_events": "ABSENT",
+    "financial_postings": "ABSENT",
+    "financial_accounts": "ABSENT",
+    "financial_funds": "ABSENT",
+    "financial_categories": "ABSENT",
+    "financial_core_schema": "ABSENT",
+    "financial_private_schema": "ABSENT",
+    "financial_ledger_epochs": "ABSENT",
+    "post_financial_command": "ABSENT",
+    "correct_financial_event": "ABSENT",
+    "post_financial_opening_cash": "ABSENT",
+    "get_financial_projection_bundle": "ABSENT",
+    "get_financial_cashbook": "ABSENT",
+    "apply_payment_command": "ABSENT",
+    "grep_confirmation": "Zero matches for financial_events|financial_postings|custody_accounts|financial_core on current main source"
+  },
+  "tables": [
+    { "name": "contribution_types", "origin": "00002_money_tables.sql", "domain": "dues" },
+    { "name": "contribution_obligations", "origin": "00002_money_tables.sql", "domain": "dues" },
+    { "name": "payments", "origin": "00002; status 00023; payment_date 00040; relief_plan_id 00045", "domain": "payments" },
+    { "name": "payment_obligation_applications", "origin": "00079_standing_recalc_triggers.sql", "domain": "applications" },
+    { "name": "group_payment_config", "origin": "00021_group_payment_config.sql", "domain": "payments" },
+    { "name": "loan_configs", "origin": "00032_loans_module.sql", "domain": "loans" },
+    { "name": "loans", "origin": "00032_loans_module.sql", "domain": "loans" },
+    { "name": "loan_schedule", "origin": "00032_loans_module.sql", "domain": "loans" },
+    { "name": "loan_repayments", "origin": "00032 / legacy 00010", "domain": "loans" },
+    { "name": "fine_types", "origin": "00033_fines_disputes_overhaul.sql", "domain": "fines" },
+    { "name": "fines", "origin": "00010; extended 00033", "domain": "fines" },
+    { "name": "fine_rules", "origin": "00010; DROPPED 00034_drop_fine_rules_table.sql", "domain": "fines", "status": "DROPPED" },
+    { "name": "relief_plans", "origin": "00004; extended 00031/00045", "domain": "relief" },
+    { "name": "relief_enrollments", "origin": "00004", "domain": "relief" },
+    { "name": "relief_claims", "origin": "00004", "domain": "relief" },
+    { "name": "relief_payouts", "origin": "00004", "domain": "relief" },
+    { "name": "relief_remittances", "origin": "00045_federated_relief_plan_schema.sql", "domain": "relief" },
+    { "name": "savings_cycles", "origin": "00009_phase9_features.sql", "domain": "njangi" },
+    { "name": "savings_participants", "origin": "00009", "domain": "njangi" },
+    { "name": "savings_contributions", "origin": "00009", "domain": "njangi" },
+    { "name": "member_transfers", "origin": "00006; workflow 00082", "domain": "transfers" },
+    { "name": "sub_group_transfers", "origin": "00018_committee_members_and_transfers.sql", "domain": "transfers" },
+    { "name": "notifications", "origin": "00008_communications_tables.sql", "domain": "notifications" },
+    { "name": "notifications_queue", "origin": "00012; Cut 2 00115", "domain": "notifications" },
+    { "name": "action_intents", "origin": "00113_agentic_action_intents.sql", "domain": "agentic" },
+    { "name": "notification_policies", "origin": "00117", "domain": "m2", "status": "DORMANT" },
+    { "name": "notification_policy_triggers", "origin": "00117", "domain": "m2", "status": "DORMANT" },
+    { "name": "notification_policy_occurrences", "origin": "00117", "domain": "m2", "status": "DORMANT" }
+  ],
+  "rpcs": [
+    "generate_obligations_for_type",
+    "update_obligation_on_payment",
+    "recalc_obligation_amount_paid (00104)",
+    "compute_member_standing",
+    "recalculate_membership_standing",
+    "apply_standing_rules",
+    "preview_standing_changes",
+    "sync_relief_contribution_status",
+    "get_relief_branch_summary",
+    "request_member_transfer",
+    "approve_member_transfer",
+    "deny_member_transfer",
+    "cancel_member_transfer",
+    "execute_member_transfer",
+    "can_view_member_financial (00108)",
+    "has_group_permission (rewritten 00114)",
+    "is_active_group_member (00114)",
+    "get_my_active_group_ids (00114)",
+    "enqueue_outbound_notification (00115)",
+    "storage_receipts_authorized (00116)",
+    "approve_action_intent / reject_action_intent (00113)"
+  ],
+  "permissions": [
+    "finances.record",
+    "finances.manage",
+    "finances.view",
+    "contributions.manage",
+    "reports.view",
+    "reports.export",
+    "relief.manage",
+    "savings.manage",
+    "disputes.manage"
+  ],
+  "routes": {
+    "sidebar_section_money": [
+      "/dashboard/contributions",
+      "/dashboard/finances",
+      "/dashboard/loans"
+    ],
+    "sidebar_group_features_finance_adjacent": [
+      "/dashboard/savings-circle",
+      "/dashboard/relief",
+      "/dashboard/fines"
+    ],
+    "sidebar_analytics": ["/dashboard/reports"],
+    "member_account": [
+      "/dashboard/my-payments",
+      "/dashboard/my-loans",
+      "/dashboard/my-fines",
+      "/dashboard/relief/my"
+    ],
+    "record_payment_journeys": {
+      "admin_dues_record": {
+        "route": "/dashboard/contributions/record",
+        "permission": "finances.record|finances.manage",
+        "is_f3_record_transaction": false,
+        "note": "Dues subledger writer. F3 freeze: do not silently reuse as org ledger writer."
+      },
+      "member_pay_now": {
+        "component": "src/components/payments/pay-now-dialog.tsx",
+        "status": "pending_confirmation until treasurer confirm"
+      }
+    },
+    "settings": [
+      "/dashboard/settings",
+      "/dashboard/settings/billing",
+      "/dashboard/settings/notifications"
+    ],
+    "accounts_funds_categories_ui": "ABSENT"
+  },
+  "reports_hub": {
+    "path": "src/app/[locale]/(dashboard)/dashboard/reports/page.tsx",
+    "categories": ["financial", "membership", "operations", "executive"],
+    "financial_ids": {
+      "1": "Who Hasn't Paid (dues outstanding)",
+      "2": "Annual Contributions Summary",
+      "3": "Contribution Ledger",
+      "4": "Contribution Arrears Aging",
+      "5": "Njangi Cycle Report",
+      "21": "Loan Portfolio Summary",
+      "22": "Loan Repayment Schedule",
+      "23": "Overdue Loans Report"
+    },
+    "f3_soa_account_balance_fund_cash_cashbook": "ABSENT"
+  },
+  "notification_producers": {
+    "cut2_trusted_finance_adjacent": [
+      { "type": "payment_receipt", "producer": "src/lib/payment-receipt-producer.ts" },
+      { "type": "payment_reminder", "producer": "src/lib/payment-reminder-producer.ts" },
+      { "type": "standing_changed", "producer": "src/lib/standing-change-producer.ts" },
+      { "type": "loan_approved", "producer": "src/lib/loan-approved-producer.ts" },
+      { "type": "loan_overdue", "producer": "src/lib/loan-overdue-producer.ts" },
+      { "type": "fine_issued", "producer": "src/lib/fine-issued-producer.ts" },
+      { "type": "relief_enrollment", "producer": "src/lib/relief-enrollment-producer.ts" },
+      { "type": "relief_claim_approved|denied", "producer": "src/lib/relief-claim-decision-producer.ts" },
+      { "type": "remittance_confirmed|disputed", "producer": "src/lib/remittance-decision-producer.ts" }
+    ],
+    "enqueue_adapter": "src/lib/enqueue-outbound-notification.ts",
+    "drain": "src/app/api/cron/drain-notification-queue/route.ts (cut2_provenance_version=1 only)",
+    "legacy_direct_queue": ["src/lib/announcement-producer.ts"],
+    "f3_rpc_producers": []
+  },
+  "storage": {
+    "receipts": "PRIVATE; signedUrlFor(); Cut 3 storage_receipts_authorized",
+    "group_documents": "PRIVATE; document_category includes 'financial' (taxonomy, not CoA)",
+    "avatars": "public; getPublicUrl OK"
+  },
+  "cut1": {
+    "migration": "00114_s0_p0a_cut1_active_authorization.sql",
+    "sha256": "abf4954d0c13ea03eae599b3c5416e7a97b52e8e57a430b2de66b3ba5c3c2a37",
+    "helpers": ["is_active_group_member", "get_my_active_group_ids", "has_group_permission rewrite"],
+    "rule": "Active membership required; F3 must CALL has_group_permission never replace it"
+  },
+  "cut2": {
+    "migration": "00115_s0_p0b_cut2_notification_queue.sql",
+    "sha256": "d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c",
+    "rpc": "enqueue_outbound_notification",
+    "rule": "Only trusted producers; F3 RPCs must not enqueue"
+  },
+  "cut3": {
+    "migration": "00116_s0_p0c_cut3_storage_path_fail_closed.sql",
+    "sha256": "ba55d1f6f0f2f05d681fdc60386513580267ddc81892d79c05a7893ef43afd33",
+    "helper": "storage_receipts_authorized(text,text)",
+    "collision_if_old_p1_replayed": "HIGH — P1 adds financial_receipt_* RESTRICTIVE policies + can_access_payment_receipt"
+  },
+  "m2": {
+    "migration": "00117_m2_notification_policy_foundation.sql",
+    "sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+    "dormant": true,
+    "expected_rows": { "policies": 0, "triggers": 0, "occurrences": 0 },
+    "evidence": "docs/evidence/M2_DORMANCY_PROOF_20260912.json"
+  },
+  "finance_migrations_on_main": [
+    "00002_money_tables.sql",
+    "00004_relief_tables.sql",
+    "00006_member_transfers_table.sql",
+    "00009_phase9_features.sql",
+    "00010_stickiness_features.sql",
+    "00021_group_payment_config.sql",
+    "00022_fix_payment_config_columns.sql",
+    "00023_payment_status_column.sql",
+    "00031_relief_welfare_system.sql",
+    "00032_loans_module.sql",
+    "00033_fines_disputes_overhaul.sql",
+    "00034_drop_fine_rules_table.sql",
+    "00040_qa_batch_a_fixes.sql",
+    "00044_savings_circle_missing_columns.sql",
+    "00045_federated_relief_plan_schema.sql",
+    "00046_relief_auto_sync_part_a.sql",
+    "00046_relief_auto_sync_part_b.sql",
+    "00047_quarterly_frequency_and_pgcron.sql",
+    "00049_savings_circle_audit_fixes.sql",
+    "00079_standing_recalc_triggers.sql",
+    "00080_configurable_standing_rules.sql",
+    "00082_transfer_workflow.sql",
+    "00087_payment_receipt_notification_idempotency.sql",
+    "00090_payment_reminder_notification_idempotency.sql",
+    "00091_standing_change_notification_idempotency.sql",
+    "00093_money_path_notification_idempotency.sql",
+    "00094_invitation_loan_overdue_idempotency.sql",
+    "00096_remittance_notification_idempotency.sql",
+    "00101_standing_factors_and_history.sql",
+    "00104_payment_confirmation_accounting.sql",
+    "00105_performance_indexes.sql",
+    "00108_member_privacy_hardening.sql",
+    "00109_drop_duplicate_member_financial_select_policies.sql",
+    "00111_harden_relief_branch_summary.sql",
+    "00113_agentic_action_intents.sql",
+    "00114_s0_p0a_cut1_active_authorization.sql",
+    "00115_s0_p0b_cut2_notification_queue.sql",
+    "00116_s0_p0c_cut3_storage_path_fail_closed.sql",
+    "00117_m2_notification_policy_foundation.sql"
+  ],
+  "expected_production_objects_for_chief_readonly": {
+    "present_subledger": "See tables[] above (minus DROPPED fine_rules)",
+    "absent_f3": "See f3_ledger_objects_on_main",
+    "m2_if_00117_applied": "tables exist, zero rows, enabled default false"
+  }
+}

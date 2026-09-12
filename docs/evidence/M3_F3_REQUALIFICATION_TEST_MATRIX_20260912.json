@@ -1,0 +1,112 @@
+{
+  "artifact": "M3_F3_REQUALIFICATION_TEST_MATRIX_20260912",
+  "date": "2026-09-12",
+  "this_run_executed_harness": false,
+  "this_run_reason": "Optional disposable re-run only if safe/local. Skipped to keep production/live DB untouched and avoid applying old F3 SQL anywhere.",
+  "historical_results_old_chain_only": {
+    "chain": [
+      "20260906140228_financial_ledger_epochs_expand.sql",
+      "20260906140229_financial_payment_integrity.sql",
+      "20260908043912_standing_confirmed_basis_parity.sql",
+      "20260908154824_f3_core_ledger_foundation.sql",
+      "20260908215831_f3_secure_posting_idempotency.sql",
+      "20260909022633_f3_projection_read_proof.sql",
+      "20260909054500_f3_correction_reversal.sql",
+      "20260910054713_f3_opening_cash.sql"
+    ],
+    "product_base": "99e17e2b4f4dc16753843f1e115312e70a8ae8ca",
+    "not_current_main": true,
+    "suites": [
+      { "id": "F3-01-DB", "source": "PR #61 / scripts/test-financial-f3-foundation-db.mjs", "result": "43/43", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-02-ASTRA", "source": "PR #62 / tests/finance/f3-02", "result": "167/167", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-02-DB", "source": "PR #62 / scripts/test-financial-f3-posting-db.mjs", "result": "158/158", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-03-ASTRA", "source": "PR #63 / tests/finance/f3-03", "result": "80/80", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-03-DB", "source": "PR #63 / scripts/test-financial-f3-projection-db.mjs", "result": "25/25", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-04-ASTRA", "source": "PR #64 / tests/finance/f3-04", "result": "168/168", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-04-DB", "source": "PR #64 / scripts/test-financial-f3-correction-db.mjs", "result": "23/23", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-05-ASTRA", "source": "PR #65 / tests/finance/f3-05", "result": "118/118", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-05-DB", "source": "PR #65 / scripts/test-financial-f3-opening-db.mjs", "result": "31/31", "status": "HISTORICAL_ONLY" },
+      { "id": "F3-05-GOLDENS", "source": "PR #65", "result": "4/4", "status": "HISTORICAL_ONLY" },
+      { "id": "BOUNDED-F0", "source": "PRs #61-#65 (counts varied 18-82)", "result": "PASS on then-current bounded set", "status": "HISTORICAL_ONLY" }
+    ],
+    "oracle_trees_absent_from_main": [
+      "tests/finance/f3-02/",
+      "tests/finance/f3-03/",
+      "tests/finance/f3-04/",
+      "tests/finance/f3-05/",
+      "scripts/test-financial-f3-*.mjs"
+    ]
+  },
+  "new_current_main_requal_matrix": {
+    "environment": "Disposable PostgreSQL 17 only. Unnetworked. No production project llbnliixczcqfftxpsmb. No live apply.",
+    "floor": [
+      "Checkout d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+      "Apply current main migrations through 00117 (including Cut 1/2/3 + dormant M2)",
+      "Do NOT apply old 20260906*-20260910* files",
+      "Apply NEW forward 00118+ F3 files only (future run)"
+    ],
+    "cases": [
+      {
+        "id": "CM-PIN",
+        "prove": "Floor helper has_group_permission fingerprint+ACL equals 00114/00117 pin both before and after F3 DDL"
+      },
+      {
+        "id": "CM-CUT1",
+        "prove": "Inactive membership cannot post/correct/open/read projections; active + finances.manage can. SAFER OR UNCHANGED vs Cut 1."
+      },
+      {
+        "id": "CM-NO-HGP-REPLACE",
+        "prove": "pg_proc prosrc MD5 of has_group_permission unchanged by F3 migrations"
+      },
+      {
+        "id": "CM-00104",
+        "prove": "on_payment_changed and recalc_obligation_amount_paid still present after F3 forward (P1 not replayed)"
+      },
+      {
+        "id": "CM-00116",
+        "prove": "receipts_* policies still call storage_receipts_authorized; no financial_receipt_* overlays; no anon EXECUTE on receipt helper"
+      },
+      {
+        "id": "CM-M2",
+        "prove": "notification_policies/triggers/occurrences row count still 0; notifications_queue delta 0; F3 RPCs do not INSERT queue"
+      },
+      {
+        "id": "CM-NOTIFY",
+        "prove": "post_financial_command / correct_financial_event / post_financial_opening_cash perform no WA/SMS/email and do not call enqueue_outbound_notification"
+      },
+      {
+        "id": "CM-F3-01",
+        "prove": "Replay adapted foundation: unbalanced/empty/mixed-currency rejected; deny-by-default writes; 43 historical behaviors + category integrity"
+      },
+      {
+        "id": "CM-F3-02",
+        "prove": "Astra 167-vector oracle + DB posting/idempotency/lock-wait revocation against NEW files"
+      },
+      {
+        "id": "CM-F3-03",
+        "prove": "80 projection invariants including correction inclusion, transfer-not-SoA, opening-not-period-income, no amount_paid as org income"
+      },
+      {
+        "id": "CM-F3-04",
+        "prove": "168 + 23 correction; arithmetic +500-500+450=450"
+      },
+      {
+        "id": "CM-F3-05",
+        "prove": "118 + 31 opening; restricted attribution does not double ACCOUNT BALANCE; public post_financial_command still rejects opening"
+      },
+      {
+        "id": "CM-SOA",
+        "prove": "Dues obligation create posts nothing; confirmed non-refundable unapplied is income once + allocation credit (FCG1-03 fixture may be later but template must not emit liability)"
+      },
+      {
+        "id": "CM-OCCURRENCE",
+        "prove": "P1-B unique + conflict-on-payload-change; epoch bound to occurrence"
+      },
+      {
+        "id": "CM-SERVICE-ROLE",
+        "prove": "service_role cannot EXECUTE post_f3_command / private payloads; public RPCs authenticated only"
+      }
+    ],
+    "pass_rule": "No current-main F3-01..05 PASS may be claimed from historical PR numbers alone."
+  }
+}

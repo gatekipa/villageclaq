@@ -1,0 +1,278 @@
+{
+  "artifact": "M3_F3_MIGRATION_COLLISION_MATRIX_20260912",
+  "date": "2026-09-12",
+  "main_ref": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "f3_branch": "origin/codex/f3-core-ledger-foundation",
+  "f3_tip": "c7b4cd535d7125737eab2ec0fad27cae9432e8c3",
+  "f3_base_merge": "ba479fb510343c37cdfa888f6e94aeb7ab07292f",
+  "divergence": { "main_not_in_f3": 61, "f3_not_in_main": 19 },
+  "hash_method": "sha256sum of `git show origin/codex/f3-core-ledger-foundation:<path>` bytes",
+  "filename_collision_vs_00114_00117": false,
+  "version_prefix_collision_vs_00114_00117": false,
+  "safe_forward": {
+    "forbid": [
+      "rename old timestamp files onto main history",
+      "insert behind 00117",
+      "rewrite migration history",
+      "merge or rebase old tip",
+      "apply any of these 8 files to production or any live DB"
+    ],
+    "require": "NEW sequential migrations after 00117 (expected 00118+) in a future implementation run — none authored this run"
+  },
+  "migrations": [
+    {
+      "order": 1,
+      "ticket": "P0-pre-F3-epochs",
+      "filename": "supabase/migrations/20260906140228_financial_ledger_epochs_expand.sql",
+      "version": "20260906140228",
+      "sha256": "524e46d943c825b90049f29a49709f8f2862c4e2cb28b60a50887d6d8d624bce",
+      "git_blob": "d03bfa1dd969edc555b25791e17caaf98b77ca7a",
+      "predecessor": "00001-00113 live schema",
+      "creates": {
+        "extension": ["btree_gist"],
+        "schema": ["financial_private"],
+        "tables_public": ["financial_ledger_epochs"],
+        "columns_added": {
+          "contribution_types": ["ledger_epoch_id"],
+          "contribution_obligations": ["ledger_epoch_id"],
+          "payments": ["ledger_epoch_id"],
+          "payment_obligation_applications": ["ledger_epoch_id"]
+        }
+      },
+      "replaces": ["public.request_member_transfer", "public.execute_member_transfer"],
+      "notifications": false,
+      "m2_objects": false,
+      "has_group_permission_replaced": false,
+      "collision_vs_00114_00117": {
+        "filename": false,
+        "objects": "NEW epochs + REPLACE transfer RPCs (00114 does not touch transfer RPCs)",
+        "risk": "MEDIUM on transfer RPC body vs later S0-008 expectations"
+      },
+      "forward": "ADAPT minimal epoch model; do not blindly replay transfer RPC replacements"
+    },
+    {
+      "order": 2,
+      "ticket": "P1-pre-F3-payment-integrity",
+      "filename": "supabase/migrations/20260906140229_financial_payment_integrity.sql",
+      "version": "20260906140229",
+      "sha256": "7b4cdc97b42f753b793dd109cfe8efd40753f15d2c75895a180d031501999e99",
+      "git_blob": "3bdeb350ca075b4fd8daec24e73bd16d2459c9e6",
+      "predecessor": "20260906140228",
+      "creates": {
+        "tables_financial_private": ["payment_commands", "reconciliations"],
+        "public_rpcs": [
+          "public.apply_payment_command(p_group_id uuid, p_request_id uuid, p_action text, p_values jsonb, p_payment_id uuid DEFAULT NULL, p_expected_version integer DEFAULT NULL, p_reason text DEFAULT NULL) RETURNS jsonb",
+          "public.payment_command_history(p_payment_id uuid) RETURNS jsonb",
+          "public.can_access_payment_receipt(object_name text, object_owner text, write_access boolean DEFAULT false) RETURNS boolean",
+          "public.is_active_financial_reader(gid uuid) RETURNS boolean",
+          "public.is_active_financial_writer(gid uuid) RETURNS boolean"
+        ]
+      },
+      "drops_triggers": [
+        "on_payment_recorded",
+        "on_payment_changed",
+        "recalc_standing_on_payment",
+        "trigger_sync_relief_contribution_status"
+      ],
+      "storage_policies": [
+        "financial_receipt_read",
+        "financial_receipt_insert",
+        "financial_receipt_update",
+        "financial_receipt_delete"
+      ],
+      "replaces": ["public.prevent_membership_self_escalation"],
+      "notifications": false,
+      "m2_objects": false,
+      "uses_has_group_permission": true,
+      "collision_vs_main": {
+        "00104": "HIGH SCHEMA COLLISION — 00104 creates on_payment_changed / recalc_obligation_amount_paid; P1 drops those trigger names",
+        "00116": "HIGH SCHEMA COLLISION — Cut 3 receipts_* policies + storage_receipts_authorized vs P1 RESTRICTIVE overlays + can_access_payment_receipt (also GRANTs anon EXECUTE)",
+        "00114": "MEDIUM — prevent_membership_self_escalation REPLACE vs Cut 1 ecosystem",
+        "00115_00117": "NONE on queue/policy objects"
+      },
+      "forward": "DO NOT REPLAY"
+    },
+    {
+      "order": 3,
+      "ticket": "P0-standing-hotfix",
+      "filename": "supabase/migrations/20260908043912_standing_confirmed_basis_parity.sql",
+      "version": "20260908043912",
+      "sha256": "c2ac61485e7ec50f86fc39fb6b38f8f0fa7959c08e519d53c499ad2b98b27f31",
+      "git_blob": "19a52cbaa1049d4d3b0ee87d200d5cb95554dc67",
+      "predecessor": "20260906140229",
+      "replaces": [
+        "public.compute_member_standing(uuid, jsonb)",
+        "public.recalculate_membership_standing(uuid)"
+      ],
+      "notifications": false,
+      "collision_vs_main": {
+        "00101": "MEDIUM — body REPLACE of standing engine",
+        "00114_00117": "Uses has_group_permission; must not alter helper pin"
+      },
+      "forward": "Re-prove confirmed-basis gap vs money.ts + 00104 before replacing"
+    },
+    {
+      "order": 4,
+      "ticket": "F3-01",
+      "filename": "supabase/migrations/20260908154824_f3_core_ledger_foundation.sql",
+      "version": "20260908154824",
+      "sha256": "51c5ba071a8f978c60e97356058e2bf4a2ed637aca1b06629913b0361af14103",
+      "git_blob": "aefcd5d69a8749a1296f0d1b2b46f5e96d365142",
+      "predecessor": "20260906140228 (epoch composite FK)",
+      "creates": {
+        "schema": ["financial_core"],
+        "types": [
+          "financial_account_kind",
+          "financial_config_status",
+          "financial_account_status",
+          "financial_category_class",
+          "financial_event_class",
+          "financial_event_status",
+          "financial_control_class"
+        ],
+        "tables": [
+          "financial_accounts",
+          "financial_funds",
+          "financial_categories",
+          "financial_events",
+          "financial_postings"
+        ],
+        "functions": [
+          "financial_core.currency_scale(text) RETURNS smallint",
+          "financial_core.can_manage_finances(uuid) RETURNS boolean",
+          "financial_core.can_view_finances(uuid) RETURNS boolean",
+          "financial_core.assert_finances_manage(uuid) RETURNS uuid",
+          "financial_core.lock_financial_occurrence(uuid, text, text, text, uuid) RETURNS void",
+          "financial_core.assert_financial_event_balanced(uuid) RETURNS void"
+        ]
+      },
+      "grants": "SELECT/INSERT/UPDATE config tables to authenticated; SELECT events/postings to authenticated (later revoked by F3-03); EXECUTE can_* / assert_* to authenticated; REVOKE ALL from PUBLIC/anon; service_role SELECT on tables only",
+      "rls": "manager policies on accounts/funds/categories; reader policies on events/postings",
+      "notifications": false,
+      "m2_objects": false,
+      "uses_has_group_permission": true,
+      "replaces_has_group_permission": false,
+      "collision_vs_00114_00117": {
+        "filename": false,
+        "objects": "ALL NEW on main",
+        "auth": "CALL only — compatible / SAFER with Cut 1"
+      },
+      "forward": "NEW 00118+ after adapted epoch"
+    },
+    {
+      "order": 5,
+      "ticket": "F3-02",
+      "filename": "supabase/migrations/20260908215831_f3_secure_posting_idempotency.sql",
+      "version": "20260908215831",
+      "sha256": "9a4a53b7abb838b660198569a42fcfc8ac6ad606e8aeb7374451959fac8ae063",
+      "git_blob": "7b3644d18f14e85d2d5727c8e8bf1b24c9f9b034",
+      "predecessor": "20260908154824",
+      "creates": {
+        "tables_financial_core": ["posting_command_payloads"],
+        "public_rpc": "public.post_financial_command(jsonb) RETURNS jsonb",
+        "private_rpc": "financial_core.post_f3_command(jsonb, jsonb) RETURNS jsonb"
+      },
+      "grants": "post_financial_command authenticated only; post_f3_command NO EXECUTE to authenticated/anon/service_role",
+      "notifications": false,
+      "collision_vs_00114_00117": "NEW RPC — none",
+      "forward": "NEW sequential after F3-01 forward"
+    },
+    {
+      "order": 6,
+      "ticket": "F3-03",
+      "filename": "supabase/migrations/20260909022633_f3_projection_read_proof.sql",
+      "version": "20260909022633",
+      "sha256": "a89e4ee9a12223be8eafd65d0fa1822fee2d69056fead7f99418079d4e2fce6e",
+      "git_blob": "4170ef5a728ada1e8fcca58cdd560df440fd233a",
+      "predecessor": "20260908215831",
+      "alters": "REVOKE SELECT ON financial_events, financial_postings FROM authenticated",
+      "public_rpcs": [
+        "public.get_financial_projection_bundle(uuid, timestamptz, timestamptz, timestamptz) RETURNS jsonb",
+        "public.get_financial_cashbook(uuid, timestamptz, timestamptz, uuid, text, integer, integer) RETURNS jsonb"
+      ],
+      "notifications": false,
+      "collision_vs_00114_00117": "none",
+      "forward": "NEW sequential after F3-02 forward"
+    },
+    {
+      "order": 7,
+      "ticket": "F3-04",
+      "filename": "supabase/migrations/20260909054500_f3_correction_reversal.sql",
+      "version": "20260909054500",
+      "sha256": "e237f21fbfad2a4c34be68a7c7ad0ad1b51328ed46d02fb75e393b45de92541f",
+      "git_blob": "6fd831229017b7a7c89a6bcff0677b0cfffc22e4",
+      "predecessor": "20260908215831",
+      "creates": {
+        "tables_financial_core": ["correction_command_payloads"],
+        "public_rpc": "public.correct_financial_event(jsonb) RETURNS jsonb"
+      },
+      "notifications": false,
+      "collision_vs_00114_00117": "none",
+      "forward": "NEW sequential after F3-02/03 forward"
+    },
+    {
+      "order": 8,
+      "ticket": "F3-05",
+      "filename": "supabase/migrations/20260910054713_f3_opening_cash.sql",
+      "version": "20260910054713",
+      "sha256": "2c0134dc5f10cd8609fb46a114e3b34d8ac8063136211551ca40173d7568aaae",
+      "git_blob": "0d7a31bde0e2296b8b6edfbd19007fdba4f66aa7",
+      "predecessor": "20260908215831 (opening envelope)",
+      "creates": {
+        "tables_financial_core": ["opening_provenances"],
+        "public_rpc": "public.post_financial_opening_cash(jsonb) RETURNS jsonb"
+      },
+      "notifications": false,
+      "collision_vs_00114_00117": "none",
+      "forward": "NEW sequential; UX remains hidden (D-007)"
+    }
+  ],
+  "global_object_collisions": [
+    {
+      "object": "public.has_group_permission(uuid, text, uuid)",
+      "f3": "CALLED only",
+      "main": "00114 pins body; 00117 re-pins after DDL",
+      "risk": "HIGH only if future F3 replaces helper — current SQL does not"
+    },
+    {
+      "object": "on_payment_changed / update_obligation_on_payment",
+      "f3": "P1 DROPS",
+      "main": "00104 CREATES",
+      "risk": "HIGH SCHEMA COLLISION — do not replay P1"
+    },
+    {
+      "object": "storage.objects receipts policies",
+      "f3": "P1 RESTRICTIVE financial_receipt_* + can_access_payment_receipt",
+      "main": "00116 receipts_* + storage_receipts_authorized",
+      "risk": "HIGH SCHEMA COLLISION — do not replay P1"
+    },
+    {
+      "object": "compute_member_standing / recalculate_membership_standing",
+      "f3": "REPLACE in standing hotfix",
+      "main": "00101 originals",
+      "risk": "MEDIUM"
+    },
+    {
+      "object": "prevent_membership_self_escalation",
+      "f3": "REPLACE in P1",
+      "main": "00098 / Cut 1 ecosystem",
+      "risk": "MEDIUM — another reason not to replay P1"
+    },
+    {
+      "object": "notifications_queue / enqueue_outbound_notification / notification_policies*",
+      "f3": "NONE",
+      "main": "00115 / 00117",
+      "risk": "NONE — orthogonal"
+    }
+  ],
+  "recommended_future_disposable_order": [
+    "current main through 00117 (do not edit 00001-00117)",
+    "adapted epoch foundation (new 00118-class file)",
+    "F3-01 forward",
+    "F3-02 forward",
+    "F3-03 forward",
+    "F3-04 forward",
+    "F3-05 forward (command only)",
+    "STOP before F3-06 UI"
+  ]
+}

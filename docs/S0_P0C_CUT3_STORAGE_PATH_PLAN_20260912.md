@@ -1,12 +1,12 @@
 # S0 P0-C Cut 3 — Storage path fail-closed boundary (PLANNING ONLY)
 
 **Date:** 2026-09-12  
-**Revision:** **CONTRACT REVISION 3** (closes Daybreak blockers A–G only)  
+**Revision:** **CONTRACT REVISION 4** (U02 DENY-SAFE ROLLOUT ORDER only)  
 **Status:** **PLANNING ONLY — READY FOR DAYBREAK RE-REVIEW**  
 **Implementation:** **NOT AUTHORIZED**. This PR must not be treated as permission to author or apply `00116`.  
 **This PR (#79):** docs / evidence only. **No** `00116` SQL. **No** application / test / migration code. **No** edits to `00001`–`00115`. **No** Cut 2 / `notifications_queue` files. **Keep DRAFT OPEN UNMERGED.**  
 **Production mutation:** **ZERO**. This task did not query live SQL, list objects, or sign/download private objects.  
-**Previous planning SHA (parent — must be ancestor):** `c3eccaa63b63f3c1517306a12c6a2bd31aee7149`  
+**Previous planning SHA (parent — must be ancestor):** `57b74b2663f48f80b1ead71c757853c1649a027e`  
 **Base main:** `1f1221eeb9207b692a7e507ae95acfc9aabac113`
 
 **UI/UX EXCELLENCE TRACK: ACTIVE / DEFERRED BY S0 GATE, NOT CANCELLED.**  
@@ -14,7 +14,28 @@ Next UX gate: **ASTRA** fresh design-system + IA review. **No UI work now.**
 
 ---
 
-## Contract Revision 3 — Daybreak A–G closeout (this revision)
+## Contract Revision 4 — U02 DENY-SAFE ROLLOUT ORDER (this revision)
+
+**Only change:** production activation order for U02. Rev 3 target grammar (`finance-record/{groupId}/{ts}-{filename}`), finance perms, logos, U03/U07 bind, 8 policies, SELECT, signed URLs, helpers, encoding, fingerprints, `CUT3_ABORT`, and avatars are **not reopened**.
+
+| Rule | Freeze |
+|------|--------|
+| **PHASE A — DATABASE FIRST** | Production app **unchanged** (U02 still emits UUID-first). Apply exact qualified `00116_s0_p0c_cut3_storage_path_fail_closed.sql`. Verify helpers/policies/postconditions. `storage_receipts_authorized` recognizes `finance-record`. Ordinary active member on `finance-record` → **DENY**; `finances.record`\|`manage` → **ALLOW**. UUID-first U01/historical preserved. |
+| **APP-FIRST** | **FORBIDDEN / `CUT3_RELEASE_ABORT`**. Live policy is NULL-ALLOW for unknown grammars; emitting `finance-record` before 00116 would hit NULL-ALLOW. |
+| **PHASE B — U02 CALLER ONLY** | After Phase A **PASS** only. Deploy **only** the U02 path change. No U01/U03/U07 grammar drift. No object migration. |
+| **Caller activation preconditions** | Before Phase B: 00116 present with exact authorized version/name; `storage_receipts_authorized` present; owner/grants/`search_path` match; receipts SELECT/INSERT/UPDATE/DELETE match hardened defs; **NO NULL-ALLOW**; `finance-record` supported; finance permission branch active. Else **HOLD — U02 CALLER ACTIVATION PRECONDITION FAILED**. |
+| **Failures** | Phase A apply fail/rollback → do **not** deploy U02; HOLD; no auto-retry. 00116 commits but postconditions fail → do **not** activate U02; freeze; **no improvised 00117**; return founder/Daybreak. |
+| **Intermediate (A PASS, B not yet)** | DB hardened; app still UUID-first U02. NULL-ALLOW **CLOSED**. `finance-record` safe but not yet emitted. **TRANSITION — NOT Cut 3 CLOSED.** Keep short. |
+| **Why DB-first is safe** | Hardened DB recognizes **both** UUID-first (U01/history) **and** `finance-record` (U02). App does not emit `finance-record` until Phase A verified → never hits old NULL-ALLOW. |
+| **Final closure** | Cut 3 **CLOSED** only when Phase A **PASS** **AND** Phase B **PASS**. DB-only ≠ closed. App-before-DB forbidden. |
+| **Rollback** | Phase B app fail → rollback **APP** if needed; do **not** roll back 00116 merely for caller fail; do not weaken policies. |
+| **No production exploit testing** | Negatives in disposable only. Prod verify via metadata/source/safe same-tenant if separately authorized. |
+
+Evidence: `docs/evidence/S0_CUT3_STORAGE_U02_ROLLOUT_MATRIX_20260912.json`. Sequence: **R24** (do not collapse steps 7–11).
+
+---
+
+## Contract Revision 3 — Daybreak A–G closeout (passed, not reopened)
 
 Rev 2 A–H architecture **stays passed**. This revision closes **only** A–G below. Do not reopen helpers, 8-policy scope, SELECT fail-closed, UPDATE USING+WITH CHECK, avatars OOS, or v1/v2 keep-but-deauthorize unless live evidence requires.
 
@@ -49,7 +70,7 @@ Rev 2 A–H architecture **stays passed**. This revision closes **only** A–G b
 | Pin | Value |
 |-----|-------|
 | Planning base / `main` | `1f1221eeb9207b692a7e507ae95acfc9aabac113` |
-| Previous planning tip (must be ancestor) | `c3eccaa63b63f3c1517306a12c6a2bd31aee7149` |
+| Previous planning tip (must be ancestor) | `57b74b2663f48f80b1ead71c757853c1649a027e` |
 | Repo | `https://github.com/gatekipa/villageclaq` |
 | Planning branch / PR | `planning/s0-p0c-cut3-storage-insert-20260912` / DRAFT **#79** |
 | Live project | `llbnliixczcqfftxpsmb` |
@@ -70,6 +91,7 @@ Rev 2 A–H architecture **stays passed**. This revision closes **only** A–G b
 - `docs/evidence/S0_CUT3_STORAGE_SIGNED_URL_MATRIX_20260912.json`
 - `docs/evidence/S0_CUT3_STORAGE_LIVE_CATALOG_FINGERPRINTS_20260912.json` **(Rev 3)**
 - `docs/evidence/S0_CUT3_STORAGE_ENCODING_TEST_MATRIX_20260912.json` **(Rev 3)**
+- `docs/evidence/S0_CUT3_STORAGE_U02_ROLLOUT_MATRIX_20260912.json` **(Rev 4)**
 
 Unknown upload callers: **0**. Unknown signed-URL callers: **0**. No HOLD.
 
@@ -333,7 +355,7 @@ Unknown signed-URL callers: **0**.
 
 **Member-self bind:** `memberships.id = path.membershipId AND memberships.user_id = auth.uid() AND memberships.group_id = path.groupId`. Writes also require `membership_status='active'`. Proxy/admin-on-behalf: **NONE**.
 
-U01 and U02 are **Class A distinct grammars**. Shared UUID-first is **not** acceptable. Historical UUID-first objects stay put; SELECT remains `is_group_member`.
+U01 and U02 are **Class A distinct grammars**. Shared UUID-first is **not** acceptable. Historical UUID-first objects stay put; SELECT remains `is_group_member`. **Production activation order is R24 / Rev 4:** Phase A (00116) then Phase B (U02 caller). App-first is **FORBIDDEN**.
 
 ---
 
@@ -373,6 +395,8 @@ Later (not this PR):
 5. No avatars / queue / `00001`–`00115` edits.
 6. Dashboard-only (storage schema).
 7. No object rewrite (R14).
+
+Production apply/activation order is **R24** (Phase A DB, then Phase B U02 caller). App-first is **FORBIDDEN**. This file must not be authored in PR #79.
 
 ---
 
@@ -558,13 +582,30 @@ Then **atomic one-transaction** replace of **all eight** policies. Partial apply
 
 ---
 
-## R24 — Rollout
+## R24 — Rollout (Rev 4 — do not collapse steps 7–11)
 
-1. Daybreak PASS this revision (docs only).  
-2. Later implementation branch; author 00116; disposable A/B RLS; Daybreak implementation PASS.  
-3. Dashboard paste, one transaction.  
-4. Smoke: Pay Now, record payment, vault, minutes, constitution, relief, projects attach/sign/delete, history/my-payments `signedUrlFor`, avatars, Cut 2 drain.  
-5. No ASTRA / UI work in Cut 3.
+U02 is **DENY-SAFE**: database first, then caller. See `S0_CUT3_STORAGE_U02_ROLLOUT_MATRIX_20260912.json`.
+
+1. Contract **PASS** (this planning PR; docs only).  
+2. Founder **implementation auth**.  
+3. Implementation branch (not production).  
+4. Author `00116` **and** the U02 caller change **on that branch** (not prod). Production app stays UUID-first until Phase B.  
+5. Disposable RLS qualification (negatives here only — no production exploit testing).  
+6. Daybreak **implementation PASS**.  
+7. Founder **PHASE A DB auth**.  
+8. Apply **exact** qualified `00116_s0_p0c_cut3_storage_path_fail_closed.sql` (production app still unchanged).  
+9. Verify **hardened DB postconditions**: helpers/policies match; `storage_receipts_authorized` recognizes `finance-record`; ordinary active member **DENY** on that prefix; finance perms **ALLOW**; UUID-first U01/historical preserved; **NO NULL-ALLOW**.  
+10. Founder/qualified **PHASE B U02 app activation** — only if every caller-activation precondition holds; else **HOLD — U02 CALLER ACTIVATION PRECONDITION FAILED**.  
+11. Deploy **exact** U02 caller (`finance-record/{groupId}/{ts}-{filename}` only). No U01/U03/U07 grammar drift. No object migration.  
+12. Verify U02 new grammar (source SHA, prefix, unrelated callers unchanged, policies still hardened, app healthy).  
+13. Cut 3 **closeout** — **CLOSED** only when Phase A PASS **and** Phase B PASS. After step 9 and before step 11: **TRANSITION — NOT Cut 3 CLOSED**.  
+14. Next workstream. No ASTRA / UI work in Cut 3.
+
+**APP-FIRST = FORBIDDEN / `CUT3_RELEASE_ABORT`.** Emitting `finance-record` before 00116 would hit live NULL-ALLOW for unknown grammars.
+
+**Failures:** Phase A apply fail/rollback → do **not** deploy U02; HOLD; no auto-retry. 00116 commits but postconditions fail → do **not** activate U02; freeze; no improvised `00117`; return founder/Daybreak. Phase B app fail → rollback **APP** if needed; do **not** roll back 00116 merely for caller fail; do not weaken policies.
+
+**Why DB-first is safe:** hardened DB recognizes **both** UUID-first (U01/history) **and** `finance-record` (U02). The app does not emit `finance-record` until Phase A is verified.
 
 ---
 
@@ -615,8 +656,8 @@ Functional non-loss (security gate, not visual polish):
 ## Success criteria (this revision)
 
 - [x] Docs-only on PR **#79**, draft stays open unmerged  
-- [x] Parent `c3eccaa63b63f3c1517306a12c6a2bd31aee7149`  
-- [x] Blockers A–G closed (Rev 2 A–H not reopened)  
-- [x] G-LOGOS / U02 Class A / U03–U07 bind / UPS-* / ENC-* / live fingerprints frozen  
-- [x] Signed-URL unknown = 0; privileged = 0; logos SELECT auth tests added  
-- [x] No 00116 / app / test / SQL code  
+- [x] Parent `57b74b2663f48f80b1ead71c757853c1649a027e`  
+- [x] Only U02 rollout ordering changed (Rev 3 A–G / Rev 2 A–H not reopened)  
+- [x] Phase A DB-first and Phase B U02-second frozen; **app-first forbidden**  
+- [x] R24 is the 14-step sequence (steps 7–11 not collapsed)  
+- [x] No 00116 / app / test / SQL code 

@@ -1,0 +1,176 @@
+{
+  "artifact": "S0_CUT3_STORAGE_U02_ROLLOUT_MATRIX_20260912",
+  "date": "2026-09-12",
+  "revision": "CONTRACT_REVISION_4",
+  "status": "FROZEN_PLANNING_ONLY",
+  "previous_planning_sha": "57b74b2663f48f80b1ead71c757853c1649a027e",
+  "planning_base_sha": "1f1221eeb9207b692a7e507ae95acfc9aabac113",
+  "production_mutation": "ZERO",
+  "scope": "U02 DENY-SAFE ROLLOUT ORDER ONLY. Does not reopen logos, U02 target grammar, finance perms, U03/U07 bind, 8 policies, SELECT, signed URLs, helpers, encoding, fingerprints, CUT3_ABORT, or avatars.",
+  "ui_ux": "ACTIVE / DEFERRED BY S0 GATE, NOT CANCELLED",
+  "cut3_closed_when": "Phase A PASS AND Phase B PASS. DB-only is TRANSITION, not closed. App-before-DB is FORBIDDEN.",
+  "no_production_exploit_testing": "Negatives in disposable only. Prod verify via metadata/source/safe same-tenant if separately authorized.",
+  "r24_must_not_collapse": [7, 8, 9, 10, 11],
+  "rows": [
+    {
+      "id": "RO-CRIT-A",
+      "phase": "PHASE A — DATABASE FIRST",
+      "component": "production database / 00116",
+      "required_state_before": "Production app unchanged; U02 still emits UUID-first {groupId}/{ts}-{filename}. Contract + implementation + disposable RLS + Daybreak implementation PASS. Founder PHASE A DB auth granted. 00116 exact qualified file ready. Live policies still NULL-ALLOW for unknown grammars.",
+      "action": "Apply exact qualified 00116_s0_p0c_cut3_storage_path_fail_closed.sql. Production app not deployed with finance-record.",
+      "required_state_after": "Helpers/policies/postconditions verified. storage_receipts_authorized present and recognizes finance-record. finance-record + ordinary active member DENY; + finances.record|manage ALLOW. UUID-first U01/historical preserved. NULL-ALLOW CLOSED. App still UUID-first U02.",
+      "abort_condition": "Phase A apply fail OR rollback OR postconditions fail → CUT3_ABORT / HOLD. Do not deploy U02. No auto-retry. If 00116 commits but postconditions fail: freeze; no improvised 00117; return founder/Daybreak.",
+      "rollback_behavior": "Do not activate Phase B. Do not emit finance-record. Do not weaken remaining policies as a workaround."
+    },
+    {
+      "id": "RO-CRIT-B",
+      "phase": "PHASE B — U02 CALLER ONLY",
+      "component": "U02 contributions/record caller path",
+      "required_state_before": "Phase A PASS. Caller activation preconditions all true (see RO-PRE-*). App still UUID-first. Founder/qualified PHASE B U02 app activation granted.",
+      "action": "Deploy ONLY U02 path change to finance-record/{groupId}/{ts}-{filename}. No U01/U03/U07 grammar drift. No object migration/rename/move.",
+      "required_state_after": "Source SHA shows U02 prefix finance-record. Unrelated callers unchanged. Policies still hardened. App healthy. U02 new grammar verified.",
+      "abort_condition": "Any RO-PRE-* false → HOLD — U02 CALLER ACTIVATION PRECONDITION FAILED. Do not deploy U02.",
+      "rollback_behavior": "If Phase B app fails: rollback APP if needed. Do NOT roll back 00116 merely for caller fail. Do not weaken policies."
+    },
+    {
+      "id": "RO-CRIT-APP-FIRST",
+      "phase": "APP-FIRST",
+      "component": "U02 caller before 00116",
+      "required_state_before": "Live receipts INSERT/SELECT/UPDATE/DELETE still NULL-ALLOW unknown grammars (current production).",
+      "action": "FORBIDDEN. Must not emit finance-record/{groupId}/… while 00116 is absent or unhardened.",
+      "required_state_after": "Never a valid after-state. App-first must not occur.",
+      "abort_condition": "CUT3_RELEASE_ABORT — emitting finance-record before 00116 would hit NULL-ALLOW.",
+      "rollback_behavior": "If discovered: stop U02 activation; do not treat as Cut 3 progress; return founder/Daybreak. Do not invent a live NULL-ALLOW exception."
+    },
+    {
+      "id": "RO-A-APP-UNCHANGED",
+      "phase": "PHASE A",
+      "component": "production app / U02 emitter",
+      "required_state_before": "U02 at main 1f1221ee emits ${groupId}/${Date.now()}-${file.name} (UUID-first, identical to U01).",
+      "action": "Keep production app unchanged during Phase A.",
+      "required_state_after": "U02 still emits UUID-first. finance-record not yet emitted in production.",
+      "abort_condition": "Any production U02 path change before Phase A PASS → CUT3_RELEASE_ABORT (app-first).",
+      "rollback_behavior": "Revert the premature app change. Do not apply 00116 as a cover for an already-emitted finance-record wave without Daybreak requalify."
+    },
+    {
+      "id": "RO-A-APPLY",
+      "phase": "PHASE A",
+      "component": "00116 apply",
+      "required_state_before": "Exact authorized 00116 on implementation branch; founder PHASE A DB auth; CUT3_ABORT preflight pins match catalog fingerprints.",
+      "action": "Apply exact qualified 00116_s0_p0c_cut3_storage_path_fail_closed.sql (one transaction, all eight policies).",
+      "required_state_after": "00116 present with exact authorized version/name.",
+      "abort_condition": "Apply fail or rollback → HOLD. Do not deploy U02. No auto-retry.",
+      "rollback_behavior": "Leave U02 caller on UUID-first. No Phase B."
+    },
+    {
+      "id": "RO-A-POSTCONDITIONS",
+      "phase": "PHASE A",
+      "component": "helpers + eight receipts/gdocs policies",
+      "required_state_before": "00116 apply completed.",
+      "action": "Verify helpers/policies/postconditions against planning pins.",
+      "required_state_after": "storage_group_documents_authorized and storage_receipts_authorized present; owner postgres; search_path ''; grants match (authenticated YES; PUBLIC/anon/service_role NO). Receipts SELECT/INSERT/UPDATE/DELETE match hardened defs. NO NULL-ALLOW. finance-record supported. Finance permission branch active. UUID-first U01/historical preserved as qualified.",
+      "abort_condition": "00116 commits but postconditions fail → do NOT activate U02; freeze; no improvised 00117; return founder/Daybreak.",
+      "rollback_behavior": "HOLD. Do not compensate with app-side finance-record emission."
+    },
+    {
+      "id": "RO-A-FINREC-DENY-ALLOW",
+      "phase": "PHASE A",
+      "component": "storage_receipts_authorized finance-record branch",
+      "required_state_before": "Hardened helper live.",
+      "action": "Disposable (not prod exploit) check: finance-record + ordinary active member; finance-record + finances.record|manage.",
+      "required_state_after": "Ordinary active member DENY. finances.record|manage ALLOW. UUID-first U01/historical still authorized as qualified.",
+      "abort_condition": "Either polarity wrong → Phase A FAIL. Do not activate U02.",
+      "rollback_behavior": "HOLD. No Phase B."
+    },
+    {
+      "id": "RO-TRANS",
+      "phase": "TRANSITION (after A, before B)",
+      "component": "production system",
+      "required_state_before": "Phase A PASS.",
+      "action": "Keep this window short. Do not call Cut 3 CLOSED. Do not emit finance-record yet.",
+      "required_state_after": "DB hardened. App still UUID-first U02. NULL-ALLOW CLOSED. finance-record safe but not yet emitted. TRANSITION — NOT Cut 3 CLOSED.",
+      "abort_condition": "Treating DB-only as Cut 3 CLOSED is a process defect.",
+      "rollback_behavior": "Remain in TRANSITION until Phase B PASS or founder HOLD."
+    },
+    {
+      "id": "RO-PRE-00116",
+      "phase": "PHASE B PRECONDITION",
+      "component": "schema_migrations 00116",
+      "required_state_before": "Phase A apply attempted.",
+      "action": "Confirm 00116 present with exact authorized version/name.",
+      "required_state_after": "Pin match.",
+      "abort_condition": "Absent or drift → HOLD — U02 CALLER ACTIVATION PRECONDITION FAILED.",
+      "rollback_behavior": "Do not deploy U02."
+    },
+    {
+      "id": "RO-PRE-HELPER",
+      "phase": "PHASE B PRECONDITION",
+      "component": "public.storage_receipts_authorized",
+      "required_state_before": "Phase A apply attempted.",
+      "action": "Confirm function present; owner/grants/search_path match planning freeze.",
+      "required_state_after": "DEFINER, owner postgres, search_path '', EXECUTE authenticated YES; PUBLIC/anon/service_role NO.",
+      "abort_condition": "Mismatch → HOLD — U02 CALLER ACTIVATION PRECONDITION FAILED.",
+      "rollback_behavior": "Do not deploy U02."
+    },
+    {
+      "id": "RO-PRE-POLICIES",
+      "phase": "PHASE B PRECONDITION",
+      "component": "receipts SELECT/INSERT/UPDATE/DELETE",
+      "required_state_before": "Phase A apply attempted.",
+      "action": "Confirm four receipts policies match hardened defs (bucket literal + helper; UPDATE USING+WITH CHECK).",
+      "required_state_after": "NO NULL-ALLOW. finance-record supported. Finance permission branch active.",
+      "abort_condition": "Any NULL-ALLOW remainder or missing finance-record branch → HOLD — U02 CALLER ACTIVATION PRECONDITION FAILED.",
+      "rollback_behavior": "Do not deploy U02."
+    },
+    {
+      "id": "RO-B-DEPLOY",
+      "phase": "PHASE B",
+      "component": "U02 caller only",
+      "required_state_before": "All RO-PRE-* PASS. Founder/qualified Phase B auth.",
+      "action": "Deploy exact U02 caller path finance-record/{groupId}/{ts}-{filename}.",
+      "required_state_after": "U02 emits Class A new grammar. U01/U03/U07 unchanged.",
+      "abort_condition": "Unrelated caller drift or object migration attempted → HOLD.",
+      "rollback_behavior": "Rollback APP if needed. Do not roll back 00116 merely for caller fail. Do not weaken policies."
+    },
+    {
+      "id": "RO-B-VERIFY",
+      "phase": "PHASE B",
+      "component": "source + runtime health",
+      "required_state_before": "U02 caller deployed.",
+      "action": "Verify source SHA, finance-record prefix, unrelated callers unchanged, policies still hardened, app healthy. No object migration.",
+      "required_state_after": "Phase B PASS.",
+      "abort_condition": "Prefix missing, unrelated grammar drift, policy regression, or app unhealthy → Phase B FAIL.",
+      "rollback_behavior": "Rollback APP if needed. Keep 00116. Do not weaken policies."
+    },
+    {
+      "id": "RO-CLOSE",
+      "phase": "CLOSEOUT",
+      "component": "Cut 3 status",
+      "required_state_before": "Phase A PASS AND Phase B PASS.",
+      "action": "Declare Cut 3 CLOSED. Then next workstream (R24 step 14).",
+      "required_state_after": "Cut 3 CLOSED.",
+      "abort_condition": "DB-only (A PASS, B not PASS) ≠ closed. App-before-DB ≠ closed.",
+      "rollback_behavior": "Not applicable once both phases PASS."
+    },
+    {
+      "id": "RO-WHY-DB-FIRST",
+      "phase": "RATIONALE",
+      "component": "deny-safe overlap",
+      "required_state_before": "Planning freeze: helper recognizes UUID-first (U01/history) AND finance-record (U02).",
+      "action": "Apply DB first so both grammars are authorized-or-denied correctly before the app emits the new prefix.",
+      "required_state_after": "App never hits old NULL-ALLOW with finance-record.",
+      "abort_condition": "App-first would send an unknown prefix into live NULL-ALLOW.",
+      "rollback_behavior": "N/A — rationale row."
+    },
+    {
+      "id": "RO-NO-PROD-EXPLOIT",
+      "phase": "VERIFY",
+      "component": "negatives",
+      "required_state_before": "Disposable environment available.",
+      "action": "Run ENC-*/UPS-*/U02 ordinary-member DENY in disposable only.",
+      "required_state_after": "Prod verify is metadata/source/safe same-tenant only if separately authorized.",
+      "abort_condition": "Production exploit/cross-tenant probing is out of scope for this cut.",
+      "rollback_behavior": "N/A."
+    }
+  ]
+}

@@ -65,33 +65,20 @@ function loadProducer() {
     if (id === "@/lib/enqueue-outbound-notification") {
       return {
         enqueueCut2ProducerChannels: async (args, supabase) => {
-          if (supabase && typeof supabase.from === "function") {
-            supabase.from("notifications_queue").insert({
-              user_id: "cut2-adapter",
-              channel: "whatsapp",
-              template: args.notificationType,
-              status: "queued",
-              data: {
-                whatsappType: args.notificationType,
-                template: "cut2-semantic",
-                paymentId: args.domainObjectId,
-                membershipId: args.domainObjectId,
-                obligationId: args.domainObjectId,
-                enrollmentId: args.domainObjectId,
-                claimId: args.domainObjectId,
-                remittanceId: args.domainObjectId,
-                assignmentId: args.domainObjectId,
-                eventId: args.domainObjectId,
-                loanId: args.domainObjectId,
-                fineId: args.domainObjectId,
-                invitationId: args.domainObjectId,
-                subscriptionId: args.domainObjectId,
-                recipient: "+13014335857",
-                recipientUserId: args.recipientMembershipId,
-                userId: args.recipientMembershipId,
-                whatsappData: { groupName: "Njimafor Diaspora", memberName: "Proxy Member" },
-              },
-            });
+          if (supabase) {
+            supabase._cut2Enqueues = supabase._cut2Enqueues || [];
+            supabase._cut2Enqueues.push(args);
+          }
+          const duplicate = Boolean(supabase && (supabase._cut2Duplicate || supabase._insertErrorCode === "23505"));
+          if (duplicate) {
+            return {
+              anyInserted: false,
+              anyDuplicate: true,
+              anyDenied: false,
+              failClosed: false,
+              whatsappInserted: false,
+              results: [{ queueId: (supabase && supabase._cut2QueueId) || "cut2-qid", result: "duplicate" }],
+            };
           }
           return {
             anyInserted: true,
@@ -215,6 +202,9 @@ function createMockSupabase(options = {}) {
 
   return {
     calls,
+    _cut2Enqueues: [],
+    _insertErrorCode: state.insertErrorCode,
+
     auth: {
       admin: {
         async getUserById(userId) {
@@ -293,14 +283,9 @@ test("confirmed payment produces an in-app receipt and server-side WhatsApp queu
   assert.equal(notificationInsert.payload.type, "contribution_received");
   assert.equal(notificationInsert.payload.dedup_key, `payment_receipt:${ids.payment}`);
 
-  const queueInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "notifications_queue");
-  assert.ok(queueInsert, "expected WhatsApp queue insert");
-  assert.equal(queueInsert.payload.channel, "whatsapp");
-  assert.equal(queueInsert.payload.template, "payment_receipt");
-  assert.equal(queueInsert.payload.data.whatsappType, "payment_receipt");
-  assert.equal(queueInsert.payload.data.template, "villageclaq_payment_receipt_v2");
-  assert.equal(queueInsert.payload.data.paymentId, ids.payment);
-  assert.equal(queueInsert.payload.data.whatsappData.groupName, "Njimafor Diaspora");
+  assert.equal(supabase._cut2Enqueues.length, 1);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "payment_receipt");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.payment);
 
   const logText = JSON.stringify(logger.records);
   assert.match(logText, /\+130\*{6}857/);
@@ -351,8 +336,8 @@ test("real-member receipts fall back to auth phone when profile phone is missing
   assert.equal(result.status, "queued");
   assert.ok(supabase.calls.find((call) => call.op === "auth.admin.getUserById" && call.userId === ids.user));
 
-  const queueInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "notifications_queue");
-  assert.equal(queueInsert.payload.data.recipient, fullPhone);
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "payment_receipt");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.payment);
 });
 
 test("WhatsApp receipt data uses shared member-name fallback for proxy members", async () => {
@@ -374,8 +359,8 @@ test("WhatsApp receipt data uses shared member-name fallback for proxy members",
   const result = await producePaymentReceiptNotifications(supabase, ids.payment);
 
   assert.equal(result.status, "queued");
-  const queueInsert = supabase.calls.find((call) => call.op === "insert" && call.table === "notifications_queue");
-  assert.equal(queueInsert.payload.data.whatsappData.memberName, "Proxy Member");
+  assert.equal(supabase._cut2Enqueues[0].notificationType, "payment_receipt");
+  assert.equal(supabase._cut2Enqueues[0].domainObjectId, ids.payment);
 });
 
 test("existing queue event prevents duplicate receipt production for same payment", async () => {

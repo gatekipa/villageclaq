@@ -46,15 +46,12 @@ const fr = JSON.parse(read("messages/fr.json"));
 // 1. Onboarding invite delivery truth (QA finding #1)
 // ---------------------------------------------------------------------------
 
-test("onboarding email send is awaited and its result is checked", () => {
+test("onboarding invitation enqueue is awaited and its result is checked", () => {
   assert.ok(
-    onboarding.includes('const res = await fetch("/api/email/send"'),
-    "email send must be awaited (not fire-and-forget)",
+    onboarding.includes("requestMemberInvitationWhatsApp"),
+    "email/phone invitations must use the semantic invitation producer",
   );
-  assert.ok(
-    onboarding.includes("if (res.ok)"),
-    "the HTTP response must be checked so a 500 is not treated as success",
-  );
+  assert.doesNotMatch(onboarding, /\/api\/email\/send/);
   assert.ok(
     onboarding.includes("emailFailed++") && onboarding.includes("emailSent++"),
     "per-channel success/failure must be tallied",

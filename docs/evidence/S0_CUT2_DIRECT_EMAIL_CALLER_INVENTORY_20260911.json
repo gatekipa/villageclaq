@@ -1,0 +1,149 @@
+{
+  "document": "S0_CUT2_DIRECT_EMAIL_CALLER_INVENTORY_20260911",
+  "authority_freeze": {
+    "contract_sha": "5c3c1cce458cd13f9525eb21c6366f8877d3c51d",
+    "previous_functional_sha": "2e22dfd888c86c6d1c66c206fe5a5b0f35c7ac65",
+    "migration_00115_sha256": "d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c"
+  },
+  "unknown_email_callers": 0,
+  "email_allow_types": [
+    "payment_receipt",
+    "payment_reminder",
+    "welcome",
+    "event_reminder",
+    "member_invitation",
+    "minutes_published"
+  ],
+  "provider_boundary": {
+    "live_provider_delivery": "src/app/api/cron/drain-notification-queue/route.ts processEmail → sendEmail",
+    "helpers_allowed": [
+      "src/lib/send-email.ts",
+      "src/lib/resend.ts"
+    ],
+    "browser_api_closed": "src/app/api/email/send/route.ts → 410 GONE"
+  },
+  "callers": [
+    {
+      "file": "src/app/api/email/send/route.ts",
+      "function": "POST/GET",
+      "current_purpose": "Generic browser-reachable email relay",
+      "email_recipient_source": "caller body.to (UUID or raw email) — CLOSED",
+      "template": "caller-controlled",
+      "frozen_notification_type": null,
+      "replacement_semantic_route_or_producer": "none — 410 GONE; no enqueue of arbitrary template/data",
+      "status": "closed_410"
+    },
+    {
+      "file": "src/app/[locale]/(dashboard)/dashboard/contributions/record/page.tsx",
+      "function": "record payment success handler",
+      "current_purpose": "Payment receipt email after admin record",
+      "email_recipient_source": "membership.user_id then /api/email/send",
+      "template": "payment-receipt",
+      "frozen_notification_type": "payment_receipt",
+      "replacement_semantic_route_or_producer": "/api/payments/receipt-notifications → payment-receipt-producer",
+      "status": "converted_removed_direct_send"
+    },
+    {
+      "file": "src/app/[locale]/(dashboard)/dashboard/invitations/page.tsx",
+      "function": "enqueueInvitationNotice / handleSendInvitation / handleResendInvitation",
+      "current_purpose": "Invitation email to invitee",
+      "email_recipient_source": "invitations.email (row authority after insert)",
+      "template": "invitation",
+      "frozen_notification_type": "member_invitation",
+      "replacement_semantic_route_or_producer": "/api/invitations/whatsapp-notifications → member-invitation-producer",
+      "status": "converted"
+    },
+    {
+      "file": "src/app/[locale]/(dashboard)/dashboard/members/page.tsx",
+      "function": "bulk invite loop",
+      "current_purpose": "Bulk invitation emails",
+      "email_recipient_source": "invitations.email after insert",
+      "template": "invitation",
+      "frozen_notification_type": "member_invitation",
+      "replacement_semantic_route_or_producer": "/api/invitations/whatsapp-notifications → member-invitation-producer",
+      "status": "converted"
+    },
+    {
+      "file": "src/app/[locale]/(dashboard)/dashboard/members/page.tsx",
+      "function": "add-member welcome (was dead for proxy user_id=NULL)",
+      "current_purpose": "Welcome email on admin add",
+      "email_recipient_source": "membership.user_id",
+      "template": "welcome",
+      "frozen_notification_type": "welcome",
+      "replacement_semantic_route_or_producer": "join flows already call /api/members/welcome-notifications; admin-proxy add cannot use that caller gate",
+      "status": "removed_dead_direct_send"
+    },
+    {
+      "file": "src/app/[locale]/(dashboard)/dashboard/onboarding/group/page.tsx",
+      "function": "group setup invitations",
+      "current_purpose": "Onboarding invitation email/phone notices",
+      "email_recipient_source": "invitations.email",
+      "template": "invitation",
+      "frozen_notification_type": "member_invitation",
+      "replacement_semantic_route_or_producer": "/api/invitations/whatsapp-notifications → member-invitation-producer",
+      "status": "converted"
+    },
+    {
+      "file": "src/app/[locale]/(dashboard)/dashboard/enterprise/branches/page.tsx",
+      "function": "branch create invitation",
+      "current_purpose": "Founding-president invitation email",
+      "email_recipient_source": "invitations.email",
+      "template": "invitation",
+      "frozen_notification_type": "member_invitation",
+      "replacement_semantic_route_or_producer": "/api/invitations/whatsapp-notifications → member-invitation-producer",
+      "status": "converted"
+    },
+    {
+      "file": "src/lib/calculate-standing.ts",
+      "function": "standing notification block",
+      "current_purpose": "Generic notification-template email on standing change",
+      "email_recipient_source": "membership.user_id",
+      "template": "notification",
+      "frozen_notification_type": "standing_changed",
+      "replacement_semantic_route_or_producer": "/api/members/standing-notifications (WA+SMS only; email DENY)",
+      "status": "removed_email_deny_compliant"
+    },
+    {
+      "file": "src/lib/notify-client.ts",
+      "function": "notifyFromClient / notifyBulkFromClient",
+      "current_purpose": "Generic client email relay for many pages",
+      "email_recipient_source": "caller data.email or recipientUserId",
+      "template": "caller emailTemplate or notification",
+      "frozen_notification_type": null,
+      "replacement_semantic_route_or_producer": "in-app only; pages already call domain *-notifications for ALLOW types",
+      "status": "removed_generic_email_relay"
+    },
+    {
+      "file": "src/app/api/cron/drain-notification-queue/route.ts",
+      "function": "processEmail",
+      "current_purpose": "Trusted drain provider delivery",
+      "email_recipient_source": "cut2-drain-render reload (auth email or invitations.email)",
+      "template": "CUT2_EMAIL_TEMPLATE[type]",
+      "frozen_notification_type": "six EMAIL ALLOW types",
+      "replacement_semantic_route_or_producer": "this is the drain",
+      "status": "allowed_drain_only"
+    }
+  ],
+  "equivalent_direct_provider_paths": [
+    {
+      "file": "src/lib/send-email.ts",
+      "symbol": "sendEmail / resend.emails.send",
+      "status": "helper_only"
+    },
+    {
+      "file": "src/lib/resend.ts",
+      "symbol": "new Resend / getResendClient",
+      "status": "helper_only"
+    },
+    {
+      "file": "src/lib/send-email.ts",
+      "symbol": "sendBulkEmail",
+      "status": "helper_unused_by_browser_or_producers"
+    }
+  ],
+  "comments_only": [
+    "src/app/[locale]/(dashboard)/dashboard/my-invitations/page.tsx",
+    "src/lib/api-recipient-guard.ts",
+    "src/NOTIFICATION_CHANNEL_AUDIT.md"
+  ]
+}

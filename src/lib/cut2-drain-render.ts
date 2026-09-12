@@ -27,6 +27,24 @@ function asLocale(v: string | null | undefined): Locale {
   return v === "fr" ? "fr" : "en";
 }
 
+function standingLabel(standing: string, locale: Locale): string {
+  const key = standing.toLowerCase();
+  const en: Record<string, string> = {
+    good: "good standing",
+    warning: "warning",
+    suspended: "suspended",
+    banned: "banned",
+  };
+  const fr: Record<string, string> = {
+    good: "en règle",
+    warning: "avertissement",
+    suspended: "suspendu",
+    banned: "banni",
+  };
+  const table = locale === "fr" ? fr : en;
+  return table[key] || standing || (locale === "fr" ? "inconnu" : "unknown");
+}
+
 async function loadMembership(supabase: SupabaseClient, membershipId: string | null) {
   if (!membershipId) return null;
   const { data } = await supabase
@@ -126,6 +144,8 @@ export async function renderCut2TrustedRow(
 
   const fields = await loadTypeFields(supabase, type, domainId, membership, profile, locale);
   if (!fields.ok) return fields;
+  fields.emailData = { ...fields.emailData, locale };
+  fields.waData = { ...fields.waData, locale };
 
   if (channel === "sms") {
     const to = await reloadPhone(supabase, membership, fields.invitationPhone);
@@ -233,7 +253,8 @@ async function loadTypeFields(
     const { data: mem } = await supabase.from("memberships").select("*").eq("id", domainId).maybeSingle();
     if (!mem) return { ok: false, error: "domain_not_found" };
     const g = await groupName(supabase, mem.group_id);
-    const standing = String(mem.standing || "");
+    const standingRaw = String(mem.standing || "");
+    const standing = standingLabel(standingRaw, locale);
     return {
       ok: true,
       smsMessage: sms.standingChangedSms({ groupName: g, newStatus: standing, locale }),
@@ -265,7 +286,8 @@ async function loadTypeFields(
     const g = await groupName(supabase, plan?.group_id || null);
     const amount = formatAmount(claim.amount_approved ?? claim.amount_requested ?? 0, claim.currency || "XAF");
     const claimType = String(claim.claim_type || claim.type || "");
-    const reason = String(claim.decision_reason || claim.reason || "");
+    const reason = String(claim.decision_reason || claim.reason || "").trim()
+      || (locale === "fr" ? "motif non précisé" : "reason not specified");
     if (type === "relief_claim_approved") {
       return {
         ok: true,
@@ -322,6 +344,8 @@ async function loadTypeFields(
     const { data: roster } = await supabase.from("hosting_rosters").select("group_id").eq("id", assignment.roster_id).maybeSingle();
     const g = await groupName(supabase, roster?.group_id || null);
     const date = String(assignment.assigned_date || "");
+    const location = String(assignment.location || assignment.venue || "").trim()
+      || (locale === "fr" ? "lieu à confirmer" : "location TBA");
     if (type === "hosting_assignment") {
       return {
         ok: true,
@@ -333,10 +357,10 @@ async function loadTypeFields(
     }
     return {
       ok: true,
-      smsMessage: sms.hostingReminderSms({ groupName: g, date, location: "", locale }),
-      smsData: { groupName: g, date, hostingDate: date },
-      emailData: { memberName: name, hostingDate: date, groupName: g },
-      waData: { memberName: name, hostingDate: date, groupName: g },
+      smsMessage: sms.hostingReminderSms({ groupName: g, date, location, locale }),
+      smsData: { groupName: g, date, hostingDate: date, location },
+      emailData: { memberName: name, hostingDate: date, groupName: g, location },
+      waData: { memberName: name, hostingDate: date, groupName: g, location },
     };
   }
 
@@ -346,7 +370,8 @@ async function loadTypeFields(
     const g = await groupName(supabase, ev.group_id);
     const eventName = ev.title || ev.name || "";
     const date = String(ev.starts_at || ev.start_at || ev.event_date || "").slice(0, 10);
-    const location = ev.location || ev.venue || "";
+    const location = String(ev.location || ev.venue || "").trim()
+      || (locale === "fr" ? "lieu à confirmer" : "location TBA");
     return {
       ok: true,
       smsMessage: sms.eventReminderSms({ groupName: g, eventName, date, location, locale }),
@@ -385,8 +410,8 @@ async function loadTypeFields(
     if (!fine) return { ok: false, error: "domain_not_found" };
     const g = await groupName(supabase, fine.group_id);
     const amount = formatAmount(fine.amount, fine.currency || "XAF");
-    const reason = String(fine.reason || "");
-    const fineType = String(fine.fine_type || fine.type || "fine");
+    const reason = String(fine.reason || "").trim() || (locale === "fr" ? "amende" : "fine");
+    const fineType = String(fine.fine_type || fine.type || (locale === "fr" ? "amende" : "fine"));
     return {
       ok: true,
       smsMessage: sms.fineIssuedSms({ groupName: g, amount, reason, locale }),
@@ -399,16 +424,28 @@ async function loadTypeFields(
   if (type === "member_invitation") {
     const { data: inv } = await supabase.from("invitations").select("*").eq("id", domainId).maybeSingle();
     if (!inv) return { ok: false, error: "domain_not_found" };
-    const g = await groupName(supabase, inv.group_id);
-    const inviteeName = inv.invitee_name || inv.name || "Member";
-    const base = process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com";
-    const invitationLink = `${base}/invite/${inv.token || inv.id}`;
+    const { data: group } = await supabase.from("groups").select("name,group_type").eq("id", inv.group_id).maybeSingle();
+    const g = (group?.name as string) || "";
+    const groupType = (group?.group_type as string) || "";
+    let inviteeName = locale === "fr" ? "Membre" : "Member";
+    if (inv.claim_membership_id) {
+      const claim = await loadMembership(supabase, inv.claim_membership_id as string);
+      const claimName = claim ? getMemberName(claim as Record<string, unknown>) : "";
+      if (claimName && claimName !== "Member") inviteeName = claimName;
+    }
+    let inviterName = "";
+    if (inv.invited_by) {
+      const inviter = await loadProfile(supabase, inv.invited_by as string);
+      inviterName = String(inviter?.full_name || inviter?.display_name || "");
+    }
+    const base = (process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com").replace(/\/$/, "");
+    const acceptUrl = `${base}/${locale}/login?redirectTo=/dashboard/my-invitations`;
     return {
       ok: true,
       smsMessage: "",
       smsData: {},
-      emailData: { inviteeName, groupName: g, invitationLink, inviterName: "" },
-      waData: { inviteeName, groupName: g, invitationLink },
+      emailData: { inviteeName, groupName: g, groupType, inviterName, acceptUrl, invitationLink: acceptUrl },
+      waData: { inviteeName, groupName: g, invitationLink: acceptUrl },
       invitationPhone: inv.phone || null,
       invitationEmail: inv.email || null,
     };

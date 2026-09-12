@@ -1,52 +1,38 @@
-# S0 Cut 2 Disposable No-Send Rehearsal — 2026-09-11
+# S0 Cut 2 Disposable Rehearsal — 2026-09-11 (remediation portability)
 
-**Method:** local PostgreSQL 16 cluster (`16 main`), empty structural database `s0p0b_cut2_disposable`.  
-**Fixture:** `scripts/_cut2_disposable_fixture.sql` (not a migration).  
-**Apply:** exact file `supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql` via `psql -v ON_ERROR_STOP=1`. Not the full backlog runner.  
 **Production:** never contacted. Project `llbnliixczcqfftxpsmb` not migrated.  
-**Provider keys:** unset. Drain provider suppressed. Synthetic UUIDs and `+237…` / `@example.test` only.
+**Provider keys:** unset. Drain provider suppressed. Synthetic UUIDs and `+237…` / `@example.test` only.  
+**00115 digest (unchanged):** `d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c`
 
-## Apply
+## Exact portable command for the full DB-backed suite
 
-- Precondition fingerprints matched the disposable live-shaped catalog (17 old WA `indexdef`s, INSERT policy, staff UPDATE policy, INSERT grants, Cut 1 `schema_migrations.version=20260911183755`, no `group_id`, status vocab `queued|sent|failed`).
-- Transaction **COMMIT**.
-- NOTICE: `legacy_quarantine_count=0`.
+Do **not** depend on `sudo -u postgres`. Set a local disposable URL, then run the frozen 17 scripts:
 
-## 17/17 WA collision
+```bash
+export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable
+# Windows PowerShell:
+# $env:CUT2_DISPOSABLE_DATABASE_URL="postgresql://postgres@localhost:5432/s0p0b_cut2_disposable"
 
-For each frozen matrix row:
+npm run test:s0-cut2
+```
 
-1. Seed synthetic domain row + prefs-on profile + African test phone.
-2. Insert NULL-provenance poison fixture occupying the old WA key.
-3. First trusted RPC → `inserted`, `cut2_provenance_version=1`, new UUID.
-4. Second trusted RPC → `duplicate`, same trusted UUID.
-5. Legacy poison row MD5 unchanged.
-6. Legacy id never returned.
+Prerequisite: local empty-structural database `s0p0b_cut2_disposable` with fixture `scripts/_cut2_disposable_fixture.sql` and exact file `supabase/migrations/00115_s0_p0b_cut2_notification_queue.sql` applied via `psql -v ON_ERROR_STOP=1`. Not the full backlog runner. Never point the URL at production.
 
-Result: **17/17 PASS**. See `S0_CUT2_17_WA_COLLISION_RESULTS_20260911.json`. **ZERO sends.**
+## Harness resolution (`scripts/_cut2_test_helpers.mjs`)
 
-## Provenance / grants (disposable)
+1. If `CUT2_DISPOSABLE_DATABASE_URL` is set → `psql -d $URL`. Rejects production host `llbnliixczcqfftxpsmb`.
+2. Else detect a supported local disposable PostgreSQL (`psql` on PATH, default URL, host/user/port, Windows-practical PATH `psql`).
+3. Optional detected path only: passwordless `sudo -n -u postgres` if it already works. Never assumed. Never used if sudo needs a password.
+4. Else **fail clearly** with the exact export above. No silent skip. No false PASS.
 
-| Check | Result |
-|-------|--------|
-| Existing rows NULL (no DEFAULT) | PASS |
-| RPC hardcodes provenance=1 | PASS |
-| anon/authenticated/service_role table INSERT | DENY |
-| anon/authenticated EXECUTE enqueue | DENY |
-| service_role EXECUTE | ALLOW |
-| service_role UPDATE provenance/channel/template/user_id/created_at/id | DENY |
-| service_role UPDATE status | ALLOW |
-| `loan_overdue` + SMS | denied |
-| `proxy_claim` + email | denied |
-| `push` | denied |
-| Immutability trigger present | PASS |
+Python rehearsal `scripts/_cut2_rehearsal.py` uses the same order.
 
-## App / CI
+## Prior qualification (unchanged 00115)
 
-- `node --test scripts/test-s0-cut2-*.mjs` → **15/15 PASS**
-- `npm run build` → **PASS** (TypeScript + Next compile)
-- Existing `test-*-producer.mjs` suites still assert historic queue-insert payloads; adapter mock covers enqueue but not every payload field. **Frozen Cut 2 CI is the release gate**, not those historic payload inspections.
+Local PostgreSQL 16 cluster, database `s0p0b_cut2_disposable`. Transaction COMMIT. 17/17 WA collisions PASS. ZERO sends.
 
-## Browser
+## App / CI after remediation
 
-Not exercised (no production/preview deploy authorized; no real members). Closest substitute: disposable SQL rehearsals + static CI + `npm run build`.
+- `npm run test:s0-cut2` → **17/17 scripts PASS** (19 node:test cases)
+- Historical notification producer + drain render suite → **186/186 PASS, 0 fail**
+- `npm run build` → **PASS**

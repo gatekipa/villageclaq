@@ -3,6 +3,8 @@
   "production_apply": false,
   "real_sends": 0,
   "failed_rows_retried": 0,
+  "cached_results": false,
+  "functional_sha_note": "recorded against the remediation commit after this file lands",
   "frozen_ci_scripts": {
     "scripts/test-s0-cut2-sms-send-410.mjs": "PASS",
     "scripts/test-s0-cut2-whatsapp-send-410.mjs": "PASS",
@@ -18,27 +20,32 @@
     "scripts/test-s0-cut2-worker-column-grants.mjs": "PASS",
     "scripts/test-s0-cut2-legacy-wa-index-provenance.mjs": "PASS",
     "scripts/test-s0-cut2-duplicate-trusted-lookup.mjs": "PASS",
-    "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs": "PASS"
+    "scripts/test-s0-cut2-idempotency-conflict-mismatch.mjs": "PASS",
+    "scripts/test-s0-cut2-email-send-410.mjs": "PASS",
+    "scripts/test-s0-cut2-email-drain-only.mjs": "PASS"
   },
-  "frozen_ci_pass_count": "15/15",
+  "frozen_ci_script_count": 17,
+  "frozen_ci_pass_count": "17/17",
+  "original_15_renamed_or_removed": false,
   "npm_run_build": "PASS",
-  "wa_collisions": "17/17 PASS",
-  "privileges": {
-    "anon_insert": "DENY",
-    "authenticated_insert": "DENY",
-    "service_role_insert": "DENY",
-    "anon_execute": "DENY",
-    "authenticated_execute": "DENY",
-    "service_role_execute": "ALLOW",
-    "service_role_update_worker_columns": "ALLOW",
-    "service_role_update_provenance": "DENY"
+  "historical_notification_suite": {
+    "tests": 186,
+    "pass": 186,
+    "fail": 0,
+    "obsolete_updated": 58,
+    "true_regressions_fixed": 12
   },
+  "email_send_route": "410 GONE",
+  "email_provider_boundary": "drain only",
+  "direct_provider_email_outside_drain": 0,
+  "real_sends_this_remediation": 0,
+  "wa_collisions": "17/17 PASS (prior disposable rehearsal; 00115 unchanged)",
   "channel_denies": {
     "loan_overdue_sms": "denied",
     "member_invitation_sms": "matrix DENY (static + RPC allowlist)",
     "election_opened_sms": "matrix DENY (static + RPC allowlist)",
+    "standing_changed_email": "denied",
     "proxy_claim_email": "denied",
     "push": "denied"
-  },
-  "historic_producer_payload_tests": "NOT the Cut 2 gate; some payload-field asserts fail after adapter conversion (expected). Frozen 15 scripts pass."
+  }
 }

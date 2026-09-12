@@ -1,0 +1,51 @@
+{
+  "document": "S0_CUT2_NOTIFICATION_REGRESSION_MATRIX_20260911",
+  "daybreak_snapshot": { "tests": 166, "pass": 103, "fail": 63, "verdict": "NOT acceptable" },
+  "remediation_first_run": { "tests": 178, "pass": 108, "fail": 70 },
+  "final_suite": {
+    "files": [
+      "scripts/test-event-reminder-producer.mjs",
+      "scripts/test-fine-issued-producer.mjs",
+      "scripts/test-hosting-assignment-producer.mjs",
+      "scripts/test-hosting-reminder-producer.mjs",
+      "scripts/test-loan-approved-producer.mjs",
+      "scripts/test-loan-overdue-producer.mjs",
+      "scripts/test-member-invitation-producer.mjs",
+      "scripts/test-payment-receipt-producer.mjs",
+      "scripts/test-payment-reminder-producer.mjs",
+      "scripts/test-relief-claim-decision-producer.mjs",
+      "scripts/test-relief-enrollment-producer.mjs",
+      "scripts/test-remittance-decision-producer.mjs",
+      "scripts/test-standing-change-producer.mjs",
+      "scripts/test-subscription-expiring-producer.mjs",
+      "scripts/test-welcome-producer.mjs",
+      "scripts/test-cut2-drain-render-regression.mjs"
+    ],
+    "tests": 186,
+    "pass": 186,
+    "fail": 0,
+    "obsolete_updated": 58,
+    "true_regressions_fixed": 12
+  },
+  "dispositions": [
+    { "assertion": "event reminder queue shape / one row per member / ordered variables", "kind": "obsolete", "disposition": "semantic enqueue event_reminder + drain location fallback" },
+    { "assertion": "event reminder second call / partial dedupe / 23505", "kind": "obsolete", "disposition": "adapter result=duplicate + same queue_id; no raw 23505" },
+    { "assertion": "event empty location blank", "kind": "true_regression", "disposition": "drain location TBA / lieu à confirmer" },
+    { "assertion": "event cron keeps email/SMS direct", "kind": "obsolete", "disposition": "deny /api/email/send and /api/sms/send; producer enqueue only" },
+    { "assertion": "fine issued queue shape / FR locale / reason '-' / proxy recipient / 23505", "kind": "obsolete+true", "disposition": "enqueue locale; drain reason fallback amende/fine; proxy enqueue without caller dest" },
+    { "assertion": "hosting assignment queue shape / FR / proxy / page wiring", "kind": "obsolete", "disposition": "semantic enqueue hosting_assignment" },
+    { "assertion": "hosting reminder queue shape / duplicate / 23505 / reschedule / proxy-null-user / prefs / FR date / cron", "kind": "obsolete", "disposition": "enqueue + day-bucket duplicate; later-day inserted; drain location fallback" },
+    { "assertion": "loan approved queue shape / FR / proxy / 23505", "kind": "obsolete", "disposition": "semantic enqueue loan_approved" },
+    { "assertion": "loan overdue earliest installment / FR / next-day / proxy / 23505", "kind": "obsolete", "disposition": "enqueue loan_overdue; SMS remains DENY" },
+    { "assertion": "member invitation queue shape / FR link / proxy name / same-day / later-day / email-only skip / 23505", "kind": "obsolete+true", "disposition": "email-only now enqueues; drain acceptUrl locale-prefixed; invitations.email; SMS DENY" },
+    { "assertion": "payment receipt direct queue-row asserts", "kind": "obsolete", "disposition": "semantic enqueue + in-app insert; no restored old payload" },
+    { "assertion": "payment reminder Node 20 import .ts crash", "kind": "true_regression", "disposition": "transpile money.ts in harness; suite executes and is green" },
+    { "assertion": "payment reminder queue shape / FR / same-day / next-day / 23505 / cron email-SMS", "kind": "obsolete", "disposition": "semantic enqueue payment_reminder" },
+    { "assertion": "relief claim approved/denied queue shape / FR plan / proxy / 23505", "kind": "obsolete+true", "disposition": "enqueue approved/denied; drain denied-reason fallback" },
+    { "assertion": "relief enrollment queue shape / locale / proxy", "kind": "obsolete", "disposition": "semantic enqueue relief_enrollment" },
+    { "assertion": "remittance confirmed/disputed payloads / 23505", "kind": "obsolete", "disposition": "preserve remittance_confirmed vs remittance_disputed types" },
+    { "assertion": "standing change queue shape / FR label / next-day / calculate-standing WA", "kind": "obsolete+true", "disposition": "enqueue standing_changed; drain FR standing label; email DENY kept" },
+    { "assertion": "subscription expiring queue shape / countdown / daily dedupe / 23505 / non-midnight / cron WA", "kind": "obsolete", "disposition": "semantic enqueue; countdown stays drain-rendered" },
+    { "assertion": "welcome producer queue-shape / variable order / FR locale", "kind": "obsolete", "disposition": "enqueue welcome; drain renders memberName then groupName" }
+  ]
+}

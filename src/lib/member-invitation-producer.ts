@@ -1,7 +1,6 @@
 import { enqueueCut2ProducerChannels, type Cut2ProducerEnqueueSummary } from "@/lib/enqueue-outbound-notification";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatPhoneForWhatsApp } from "@/lib/format-phone-whatsapp";
-import { getMemberName } from "@/lib/get-member-name";
 import { maskPhoneNumber } from "@/lib/mask-phone";
 import { WA_TEMPLATES } from "@/lib/whatsapp-templates";
 
@@ -18,25 +17,6 @@ type InvitationRow = {
   status: string | null;
   expires_at: string | null;
   claim_membership_id: string | null;
-};
-
-type GroupRow = {
-  id: string;
-  name: string | null;
-};
-
-type MembershipRow = {
-  id: string;
-  display_name: string | null;
-  user_id: string | null;
-  privacy_settings: Record<string, unknown> | null;
-};
-
-// The invitee has no account yet, so there is no profile to localize
-// against — the fallback label follows the inviter's UI locale.
-const INVITEE_FALLBACK: Record<Locale, string> = {
-  en: "Member",
-  fr: "Membre",
 };
 
 export type MemberInvitationProducerResult = {
@@ -84,28 +64,20 @@ async function maybeSingle<T>(
 }
 
 /**
- * Queue a WhatsApp invitation notice for one phone invitee.
+ * Enqueue member_invitation ALLOW channels (WhatsApp + email; SMS DENY).
  *
- * WhatsApp-only producer for the NEW villageclaq_member_invitation_notice
- * UTILITY template ({{1}} inviteeName, {{2}} groupName,
- * {{3}} invitationLink) — never the MARKETING-categorized
- * villageclaq_invitation, whose {{1}} was the inviter.
+ * Recipients come from the invitation row only: invitations.phone for
+ * WhatsApp, invitations.email for email. No caller-controlled destination.
+ * The invitee usually has no account, so notification preferences cannot
+ * apply. Display fields (invitee name, locale-prefixed accept URL) are
+ * rendered at drain time, not here.
  *
- * The recipient is the invitee phone on the invitation row only. The
- * invitee usually has no account, so notification preferences cannot
- * apply (matching the email leg, which is always sent); the invitee name
- * is the claim-target membership's name for proxy-claim invitations and
- * a localized fallback label otherwise; the locale is the inviter's UI
- * locale (no recipient data exists to do better — documented).
+ * Skips: non-pending status, expired timestamp, missing email AND phone.
+ * Email-only invitations still enqueue email. Phone-only still enqueue
+ * WhatsApp. Invalid phone does not block the email channel.
  *
- * Skips: non-pending status (accepted/declined/revoked/expired), expired
- * by timestamp, missing/invalid phone. The invitation link is rebuilt
- * server-side with the same /login?redirectTo=/dashboard/my-invitations
- * path the email leg uses (CLAUDE.md rule 12).
- *
- * Idempotency is a DAY BUCKET on (invitationId, sendDate): same-day
- * repeats dedupe; the existing resend button re-delivers on a later day.
- * Backed by migration 00094.
+ * Idempotency is the Cut 2 day bucket (invitationId + UTC date): same-day
+ * repeats return result=duplicate; a later-day resend inserts again.
  */
 export async function produceMemberInvitationNotification(
   supabase: SupabaseClient,
@@ -148,89 +120,23 @@ export async function produceMemberInvitationNotification(
   }
 
   const recipientPhone = (invitation.phone || "").trim();
-  if (!recipientPhone) {
-    return { status: "skipped", reason: "missing_phone", invitationId, sendDate };
+  const recipientEmail = (invitation.email || "").trim();
+  if (!recipientPhone && !recipientEmail) {
+    return { status: "skipped", reason: "missing_contact", invitationId, sendDate };
   }
 
-  if (!formatPhoneForWhatsApp(recipientPhone)) {
+  if (recipientPhone && !formatPhoneForWhatsApp(recipientPhone)) {
     logger.log("[MemberInvitationProducer] WhatsApp invitation skipped", {
       invitationId: shortId(invitationId),
       recipient: maskPhoneNumber(recipientPhone),
       reason: "invalid_phone",
     });
-    return { status: "skipped", reason: "invalid_phone", invitationId, sendDate };
+    if (!recipientEmail) {
+      return { status: "skipped", reason: "invalid_phone", invitationId, sendDate };
+    }
   }
 
-  const [groupResult, claimMembershipResult] = await Promise.all([
-    maybeSingle<GroupRow>(supabase, "groups", "id,name", "id", invitation.group_id),
-    invitation.claim_membership_id
-      ? maybeSingle<MembershipRow>(
-          supabase,
-          "memberships",
-          "id,display_name,user_id,privacy_settings",
-          "id",
-          invitation.claim_membership_id,
-        )
-      : Promise.resolve({ data: null, error: null } as { data: MembershipRow | null; error: null }),
-  ]);
-
-  if (groupResult.error || claimMembershipResult.error) {
-    logger.warn("[MemberInvitationProducer] related lookup failed", {
-      invitationId: shortId(invitationId),
-      groupLookupError: groupResult.error?.message,
-      claimLookupError: claimMembershipResult.error?.message,
-    });
-    return { status: "error", reason: "related_lookup_failed", invitationId, sendDate };
-  }
-
-  const groupName = groupResult.data?.name || "";
   const locale = asLocale(options.locale);
-  // Proxy-claim invitations target an existing (proxy) membership whose
-  // name we know; plain invitations carry no invitee name — fall back to
-  // a localized label so {{1}} is never blank. getMemberName's own
-  // "Member" sentinel (blank display_name) also falls through to the
-  // localized label so FR messages never carry the English fallback.
-  const claimName = claimMembershipResult.data
-    ? getMemberName(claimMembershipResult.data as Record<string, unknown>)
-    : null;
-  const inviteeName = claimName && claimName !== "Member" ? claimName : INVITEE_FALLBACK[locale];
-  // Same destination as the invitation email (CLAUDE.md rule 12:
-  // /login?redirectTo=/dashboard/my-invitations, locale-prefixed).
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://villageclaq.com").replace(/\/$/, "");
-  const invitationLink = `${appUrl}/${locale}/login?redirectTo=/dashboard/my-invitations`;
-
-  // Meta rejects empty body parameters — never enqueue blank variables.
-  if (!groupName || !inviteeName) {
-    logger.warn("[MemberInvitationProducer] missing template data", {
-      invitationId: shortId(invitationId),
-      hasGroupName: !!groupName,
-      hasInviteeName: !!inviteeName,
-    });
-    return { status: "skipped", reason: "missing_template_data", invitationId, sendDate };
-  }
-
-  const { data: existingQueue } = await supabase
-    .from("notifications_queue")
-    .select("id,status")
-    .eq("channel", "whatsapp")
-    .eq("template", "member_invitation")
-    .eq("data->>invitationId", invitation.id)
-    .eq("data->>sendDate", sendDate)
-    .limit(1)
-    .maybeSingle();
-
-  // Day-bucket idempotency: same-day repeats (double-click, races) dedupe;
-  // a deliberate resend on a later day has a different key and delivers.
-  if (existingQueue) {
-    return {
-      status: "skipped",
-      reason: "duplicate_whatsapp_invitation",
-      invitationId,
-      sendDate,
-      template: WA_TEMPLATES.MEMBER_INVITATION,
-    };
-  }
-
   const enq = await enqueueCut2ProducerChannels({
     notificationType: "member_invitation",
     domainObjectId: invitation.id,
@@ -238,34 +144,32 @@ export async function produceMemberInvitationNotification(
   }, supabase);
   const queueError = cut2QueueError(enq);
 
-
   if (queueError) {
     if (queueError.code === "23505") {
       return {
         status: "skipped",
-        reason: "duplicate_whatsapp_invitation",
+        reason: "duplicate",
         invitationId,
         sendDate,
         template: WA_TEMPLATES.MEMBER_INVITATION,
       };
     }
-    logger.warn("[MemberInvitationProducer] WhatsApp invitation queue failed", {
+    logger.warn("[MemberInvitationProducer] invitation queue failed", {
       invitationId: shortId(invitationId),
-      recipient: maskPhoneNumber(recipientPhone),
       error: queueError.message,
     });
     return {
       status: "error",
-      reason: "whatsapp_queue_failed",
+      reason: "invitation_queue_failed",
       invitationId,
       sendDate,
       template: WA_TEMPLATES.MEMBER_INVITATION,
     };
   }
 
-  logger.log("[MemberInvitationProducer] WhatsApp invitation queued", {
+  logger.log("[MemberInvitationProducer] invitation queued", {
     invitationId: shortId(invitationId),
-    recipient: maskPhoneNumber(recipientPhone),
+    recipient: recipientPhone ? maskPhoneNumber(recipientPhone) : "(email)",
     template: WA_TEMPLATES.MEMBER_INVITATION,
     sendDate,
   });
@@ -275,7 +179,7 @@ export async function produceMemberInvitationNotification(
     invitationId,
     sendDate,
     template: WA_TEMPLATES.MEMBER_INVITATION,
-    whatsappQueued: true,
+    whatsappQueued: enq.whatsappInserted || enq.anyInserted,
   };
 }
 

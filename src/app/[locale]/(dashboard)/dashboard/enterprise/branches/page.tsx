@@ -50,7 +50,6 @@ import {
 import { useGroup } from "@/lib/group-context";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { createClient } from "@/lib/supabase/client";
-import { getEnabledChannels } from "@/lib/notification-prefs";
 import { CURRENCIES } from "@/lib/currencies";
 import { formatAmount } from "@/lib/currencies";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
@@ -207,52 +206,14 @@ export default function BranchesPage() {
               : t("branchCreatedInvitationFailed")
           );
         } else {
-          // Phone-carrying invitations get the WhatsApp notice via the
-          // server-side queue-backed producer (previously nothing).
-          if (formPhone.trim()) {
-            try {
-              const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
-              requestMemberInvitationWhatsApp(supabase, newInvitation?.id as string | undefined, locale).catch((err) => {
-                console.warn("[Branches] invitation WhatsApp trigger failed:", err instanceof Error ? err.message : err);
-              });
-            } catch (err) {
-              console.warn("[Branches] invitation WhatsApp dispatch failed:", err instanceof Error ? err.message : err);
-            }
-          }
-          // Fire-and-forget invitation email via /api/email/send
           try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-              let sendEmail = true;
-              try {
-                const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", newBranch.id);
-                sendEmail = prefs.email;
-              } catch { /* fail-open */ }
-
-              if (sendEmail) {
-                const inviterName = user.full_name || user.display_name || "";
-                const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
-                await fetch("/api/email/send", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${session.access_token}`,
-                  },
-                  body: JSON.stringify({
-                    to: presidentEmail,
-                    template: "invitation",
-                    data: {
-                      groupName: formName,
-                      inviterName,
-                      acceptUrl,
-                    },
-                    locale,
-                  }),
-                });
-              }
+            const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
+            const ok = await requestMemberInvitationWhatsApp(supabase, newInvitation?.id as string | undefined, locale);
+            if (!ok) {
+              setInvitationWarning(t("branchCreatedInvitationFailed"));
             }
-          } catch {
-            // Email send failed — invitation record still exists
+          } catch (err) {
+            console.warn("[Branches] invitation enqueue failed:", err instanceof Error ? err.message : err);
             setInvitationWarning(t("branchCreatedInvitationFailed"));
           }
         }

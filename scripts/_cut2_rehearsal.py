@@ -3,12 +3,41 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PG = ["sudo", "-u", "postgres", "psql", "-d", "s0p0b_cut2_disposable", "-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A"]
+
+
+def resolve_psql_prefix() -> list[str]:
+    url = os.environ.get("CUT2_DISPOSABLE_DATABASE_URL")
+    if url:
+        if "llbnliixczcqfftxpsmb" in url:
+            raise SystemExit("CUT2_DISPOSABLE_DATABASE_URL must not target production.")
+        return ["psql", "-d", url, "-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A"]
+    probes = [
+        ["psql", "-d", "postgresql://postgres@localhost:5432/s0p0b_cut2_disposable"],
+        ["psql", "-d", "s0p0b_cut2_disposable"],
+    ]
+    for prefix in probes:
+        r = subprocess.run(prefix + ["-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A", "-c", "select 1"], capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip() == "1":
+            return prefix + ["-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A"]
+    sudo_probe = ["sudo", "-n", "-u", "postgres", "psql", "-d", "s0p0b_cut2_disposable"]
+    r = subprocess.run(sudo_probe + ["-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A", "-c", "select 1"], capture_output=True, text=True)
+    if r.returncode == 0 and r.stdout.strip() == "1":
+        return sudo_probe + ["-v", "ON_ERROR_STOP=1", "-X", "-q", "-t", "-A"]
+    raise SystemExit(
+        "CUT2 disposable PostgreSQL is required and was not found.\n"
+        "Set CUT2_DISPOSABLE_DATABASE_URL to a LOCAL disposable database, then re-run.\n"
+        "Exact command: export CUT2_DISPOSABLE_DATABASE_URL=postgresql://postgres@localhost:5432/s0p0b_cut2_disposable\n"
+        "Do not point this at production. This harness never assumes sudo -u postgres."
+    )
+
+
+PG = resolve_psql_prefix()
 MATRIX = json.loads(
     (ROOT / "docs/evidence/S0_CUT2_LEGACY_WA_INDEX_PROVENANCE_MATRIX_20260911.json").read_text()
 )

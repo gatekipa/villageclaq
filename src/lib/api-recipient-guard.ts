@@ -1,10 +1,9 @@
 /**
- * Recipient authorisation helpers for /api/email|sms|whatsapp/send.
+ * Recipient authorisation helpers for domain notification routes.
  *
- * Before these helpers landed, any authenticated user could post to
- * /api/email/send with `to: <any user UUID>` or `<any email>` and
- * trigger a templated message. Combined with no rate limit this was
- * a spam/phishing vector. Callers now must either:
+ * Generic /api/email|sms|whatsapp/send relays are 410 GONE. Domain
+ * producers enqueue via service_role RPC; drain is the only provider
+ * send authority. Callers of remaining id-only routes must either:
  *   - be platform_staff (operations / broadcast tool), or
  *   - share at least one active group membership with the target user.
  */

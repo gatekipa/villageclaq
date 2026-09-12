@@ -1,11 +1,10 @@
 /**
- * Client-side notification helper.
- * Sends notifications via API routes (email, SMS, WhatsApp) from client components.
- * All sends are fire-and-forget — never throws, never blocks mutations.
+ * Client-side in-app notification helper.
+ * External email/SMS/WhatsApp go through domain *-notifications routes
+ * and the trusted drain. This helper must not call provider relays.
  *
- * PREFERENCE ENFORCEMENT: Every send checks member preferences via getEnabledChannels().
- * The caller's `channels` param is an UPPER BOUND — getEnabledChannels() further restricts
- * based on member settings. In-app is always sent (cannot opt out).
+ * In-app is always sent (cannot opt out). External channels are enqueued
+ * by domain producers, not this helper.
  *
  * DEEP LINKS: Every in-app notification INSERT includes a `link` field in the `data` JSONB.
  *
@@ -13,8 +12,7 @@
  */
 
 import { createClient } from "@/lib/supabase/client";
-import { getEnabledChannels, type NotificationTypeKey } from "@/lib/notification-prefs";
-import { maskPhoneNumber } from "@/lib/mask-phone";
+import type { NotificationTypeKey } from "@/lib/notification-prefs";
 
 // ─── Deep Link Map ─────────────────────────────────────────────────────────
 
@@ -123,44 +121,19 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
   } = params;
 
   const supabase = createClient();
-
-  // ─── Check member preferences ─────────────────────────────────────────────
-  let enabledEmail = !!channels.email;
-  let enabledSms = !!channels.sms;
-  let enabledWhatsapp = !!channels.whatsapp;
-
-  console.log("[SMS DIAG] notifyFromClient start", {
-    recipientUserId,
-    recipientPhone: maskPhoneNumber(recipientPhone),
-    callerChannels: channels,
-    smsTemplate,
-    prefType,
-  });
-
-  if (prefType) {
-    try {
-      const prefs = await getEnabledChannels(supabase, recipientUserId || null, prefType, groupId);
-      console.log("[SMS DIAG] getEnabledChannels result", { prefType, prefs });
-      enabledEmail = enabledEmail && prefs.email;
-      enabledSms = enabledSms && prefs.sms;
-      enabledWhatsapp = enabledWhatsapp && prefs.whatsapp;
-    } catch (err) {
-      console.warn("[SMS DIAG] getEnabledChannels threw — fail-open", err);
-      /* on error, send anyway (fail-open) */
-    }
-  }
-
-  // ─── Resolve deep link ────────────────────────────────────────────────────
   const deepLink = link || getNotificationLink(inAppType);
 
-  // Get session token for API calls
-  let accessToken: string | null = null;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    accessToken = session?.access_token || null;
-  } catch (err) { console.warn("[Notify] Failed to get session:", err instanceof Error ? err.message : err); }
+  // External channels are domain-route + drain only. This helper keeps
+  // in-app inserts. Pref/template/phone args remain accepted for callers.
+  void channels.email;
+  void channels.sms;
+  void channels.whatsapp;
+  void emailTemplate;
+  void smsTemplate;
+  void whatsappType;
+  void recipientPhone;
+  void prefType;
 
-  // ─── In-App Notification (always sent — cannot opt out) ───────────────────
   if (channels.inApp && recipientUserId) {
     try {
       await supabase.from("notifications").insert({
@@ -174,32 +147,6 @@ export async function notifyFromClient(params: ClientNotifyParams): Promise<void
       });
     } catch (err) { console.warn("[Notify:InApp] Insert failed:", err instanceof Error ? err.message : err); }
   }
-
-  if (!accessToken) return; // Can't call API routes without auth
-
-  // ─── Email ────────────────────────────────────────────────────────────────
-  if (enabledEmail && (recipientUserId || data.email)) {
-    try {
-      fetch("/api/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          to: data.email || recipientUserId,
-          template: emailTemplate,
-          data: { title, body, groupName: data.groupName || "", ...data },
-          locale,
-        }),
-      }).catch((err) => { console.warn("[Notify:Email] Fetch failed:", err instanceof Error ? err.message : err); });
-    } catch (err) { console.warn("[Notify:Email] Send failed:", err instanceof Error ? err.message : err); }
-  }
-
-  // Cut 2: SMS/WhatsApp generic relays are 410. Pages must call domain
-  // *-notifications routes with ids only. smsTemplate/whatsappType are ignored.
-  void enabledSms;
-  void enabledWhatsapp;
-  void smsTemplate;
-  void whatsappType;
-  void recipientPhone;
 }
 
 /**
@@ -217,14 +164,6 @@ export async function notifyBulkFromClient(
   },
 ): Promise<void> {
   const supabase = createClient();
-
-  let accessToken: string | null = null;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    accessToken = session?.access_token || null;
-  } catch (err) { console.warn("[NotifyBulk] Failed to get session:", err instanceof Error ? err.message : err); }
-
-  // ─── Resolve deep link ────────────────────────────────────────────────────
   const deepLink = params.link || getNotificationLink(params.inAppType || "system");
 
   // ─── Resolve per-recipient locale (G6) ───────────────────────────────────
@@ -285,47 +224,9 @@ export async function notifyBulkFromClient(
     } catch (err) { console.warn("[NotifyBulk:InApp] Batch insert failed:", err instanceof Error ? err.message : err); }
   }
 
-  if (!accessToken) return;
-
-  // ─── Per-recipient external channels (with preference check) ──────────────
-  for (const r of recipients) {
-    const to = r.phone || r.userId;
-    if (!to) continue;
-
-    const rendered = renderFor(r.userId);
-
-    // Check this member's preferences
-    let enabledEmail = !!params.channels.email;
-    let enabledSms = !!params.channels.sms;
-    let enabledWhatsapp = !!params.channels.whatsapp;
-
-    if (params.prefType) {
-      try {
-        const prefs = await getEnabledChannels(supabase, r.userId || null, params.prefType, params.groupId);
-        enabledEmail = enabledEmail && prefs.email;
-        enabledSms = enabledSms && prefs.sms;
-        enabledWhatsapp = enabledWhatsapp && prefs.whatsapp;
-      } catch (err) { console.warn("[NotifyBulk] Pref check failed, fail-open:", err instanceof Error ? err.message : err); }
-    }
-
-    if (enabledEmail && r.userId) {
-      try {
-        fetch("/api/email/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({
-            to: r.userId,
-            template: params.emailTemplate || "notification",
-            data: { title: rendered.title, body: rendered.body, groupName: rendered.data.groupName || "", ...rendered.data },
-            locale: rendered.locale,
-          }),
-        }).catch((err) => { console.warn("[NotifyBulk:Email] Fetch failed:", err instanceof Error ? err.message : err); });
-      } catch (err) { console.warn("[NotifyBulk:Email] Send failed:", err instanceof Error ? err.message : err); }
-    }
-
-    // Cut 2: no /api/sms/send or /api/whatsapp/send. Domain routes enqueue.
-    void enabledSms;
-    void enabledWhatsapp;
-    void to;
-  }
+  void params.channels.email;
+  void params.channels.sms;
+  void params.channels.whatsapp;
+  void params.prefType;
+  void params.emailTemplate;
 }

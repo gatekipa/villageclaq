@@ -85,7 +85,6 @@ import { useMembers, useGroupPositions } from "@/lib/hooks/use-supabase-query";
 import { usePermissions } from "@/lib/hooks/use-permissions";
 import { useGroup } from "@/lib/group-context";
 import { createClient } from "@/lib/supabase/client";
-import { getEnabledChannels } from "@/lib/notification-prefs";
 import { ListSkeleton, EmptyState, ErrorState } from "@/components/ui/page-skeleton";
 import { getMemberName } from "@/lib/get-member-name";
 import { StandingBadge } from "@/components/standing-badge";
@@ -540,13 +539,13 @@ export default function MembersPage() {
 
     for (const email of validEmails) {
       try {
-        const { error: invErr } = await supabase.from("invitations").insert({
+        const { data: insertedInvite, error: invErr } = await supabase.from("invitations").insert({
           group_id: groupId,
           email,
           role: "member",
           status: "pending",
           invited_by: user.id,
-        });
+        }).select("id").single();
         if (invErr) {
           // unique_violation from the invitations_group_*_active_unique
           // partial indexes (00029 email / 00099 phone): this address
@@ -558,31 +557,14 @@ export default function MembersPage() {
           continue;
         }
 
-        // Send email (fire-and-forget)
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.access_token) {
-            let sendEmail = true;
-            try {
-              const prefs = await getEnabledChannels(supabase, null as unknown as string, "new_member", groupId!);
-              sendEmail = prefs.email;
-            } catch { /* fail-open */ }
-
-            if (sendEmail) {
-              const acceptUrl = `https://villageclaq.com/${locale}/login?redirectTo=/dashboard/my-invitations`;
-              fetch("/api/email/send", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-                body: JSON.stringify({
-                  to: email,
-                  template: "invitation",
-                  data: { groupName: currentGroup?.name || "", inviterName: user.full_name || "", acceptUrl },
-                  locale,
-                }),
-              }).catch(() => {});
-            }
-          }
-        } catch { /* email non-critical */ }
+          const { requestMemberInvitationWhatsApp } = await import("@/lib/notify-member-invitation");
+          requestMemberInvitationWhatsApp(supabase, insertedInvite?.id, locale).catch((err) => {
+            console.warn("[Members] invitation enqueue failed:", err instanceof Error ? err.message : err);
+          });
+        } catch (err) {
+          console.warn("[Members] invitation enqueue failed:", err instanceof Error ? err.message : err);
+        }
 
         succeeded++;
       } catch {
@@ -1278,49 +1260,9 @@ export default function MembersPage() {
         }
       }
 
-      // Send welcome email (non-blocking)
-      // Guard: only send if the new member has a user_id (proxy members have user_id=NULL)
-      // Note: create_proxy_member always creates with user_id=NULL, so this guard
-      // currently skips all adds from this dialog. Wired for future non-proxy add flow.
-      try {
-        const { data: newMembership } = await supabase
-          .from("memberships")
-          .select("user_id")
-          .eq("id", newMembershipId)
-          .single();
-        if (newMembership?.user_id) {
-          let sendEmail = true;
-          try {
-            const prefs = await getEnabledChannels(supabase, newMembership.user_id, "new_member", groupId!);
-            sendEmail = prefs.email;
-          } catch { /* fail-open */ }
-
-          if (sendEmail) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-              fetch("/api/email/send", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  to: newMembership.user_id,
-                  template: "welcome",
-                  data: {
-                    memberName: displayName,
-                    groupName: currentGroup?.name || "",
-                    dashboardUrl: `${window.location.origin}/dashboard`,
-                  },
-                  locale,
-                }),
-              }).catch(() => {}); // Fire and forget
-            }
-          }
-        }
-      } catch {
-        // Email is non-critical — never block member creation
-      }
+      // Welcome email/SMS/WhatsApp: the joining member's own join flow
+      // calls /api/members/welcome-notifications (ids only). Admin-added
+      // proxy members have user_id=NULL and cannot use that caller gate.
 
       await queryClient.invalidateQueries({ queryKey: ["members", groupId] });
       setAddDialogOpen(false);

@@ -3,7 +3,6 @@ import { formatAmount } from "@/lib/currencies";
 import { getMemberName } from "@/lib/get-member-name";
 import { formatDateWithGroupFormat } from "@/lib/format";
 import { notifyFromClient } from "@/lib/notify-client";
-import { getEnabledChannels } from "@/lib/notification-prefs";
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -306,62 +305,10 @@ export default function RecordPaymentPage() {
       // ─── Produce payment receipt notifications ──────────────────────────
       await produceServerSideReceiptNotifications(result.payment?.id);
 
-      // Email/SMS remain independent; in-app + WhatsApp are produced server-side.
+      // Email/SMS/WhatsApp receipts enqueue via receipt-notifications.
       const typeName = contributionTypes?.find((ct: Record<string, unknown>) => ct.id === typeId)?.name as string || "";
       const formattedAmt = formatAmount(payAmount, currency);
       const dateStr = formatDateWithGroupFormat(new Date(), groupDateFormat, locale);
-
-      // Resolve the member's user_id for email. SMS/WA are enqueued by
-      // produceServerSideReceiptNotifications above.
-      let recipientUserId: string | null = null;
-      try {
-        const supabase = createClient();
-        const { data: membership } = await supabase
-          .from("memberships")
-          .select("user_id")
-          .eq("id", membershipId)
-          .single();
-        recipientUserId = membership?.user_id || null;
-      } catch {
-        // Non-critical — continue without external notifications
-      }
-
-      // External sends — check member notification preferences first
-      try {
-        const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (token) {
-          // Check member's notification channel preferences
-          const channels = await getEnabledChannels(supabase, recipientUserId, "payment_reminders", groupId || undefined);
-
-          // Email: require user_id (real members only) + member has email enabled
-          if (recipientUserId && channels.email) {
-            fetch("/api/email/send", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({
-                to: recipientUserId,
-                template: "payment-receipt",
-                data: {
-                  memberName,
-                  groupName: currentGroup?.name || "",
-                  amount: formattedAmt,
-                  contributionType: typeName,
-                  paymentMethod: payMethod,
-                  date: dateStr,
-                  reference: payRef || undefined,
-                  recordedBy: currentUser?.full_name || currentUser?.display_name || t("common.admin"),
-                  paymentsUrl: `${window.location.origin}/${locale}/dashboard/my-payments`,
-                },
-                locale,
-              }),
-            }).catch(() => {});
-          }
-        }
-      } catch {
-        // Non-critical — notification failure must never block payment success
-      }
 
       setLastSavedName(memberName);
       setLastSavedDetails({

@@ -14,9 +14,10 @@
 | Base main | `0c147f8e1e7aadbfd14583f6a9bef465c2217fe1` |
 | Branch | `security/m2-notification-policy-foundation-20260912` |
 | Draft PR | https://github.com/gatekipa/villageclaq/pull/82 |
-| **NEW functional SHA** | `a9a48447b4e48f9c800f4115bacf47a9e67c9ceb` |
+| **NEW functional SHA** | `e47ddd6b8c06c2933e5a297f7b48f1076496da40` |
+| Prior HOLD functional SHA | `a9a48447b4e48f9c800f4115bacf47a9e67c9ceb` |
 | Superseded functional SHA | `046cadcfac6e7b14f85e87d80f5025f8f3b493d4` |
-| Superseded evidence tip | `b7d41d387ec48e6c9d8e88521dddbd23b47d8994` |
+| Superseded evidence tip | `b7d41d387ec48e6c9d8e88521dddbd23b47d8994` / `fa8771a645fe0900a5d797ab1d9caf6fde0cf984` |
 | 00117 path | `supabase/migrations/00117_m2_notification_policy_foundation.sql` |
 | **NEW 00117 SHA-256** | `aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02` |
 | Superseded 00117 SHA-256 | `6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42` |
@@ -30,7 +31,7 @@
 - Queue **TABLE** ACL exact live set (postgres owner/full including `MAINTAIN`; authenticated SELECT; service_role SELECT; no authenticated/service_role table INSERT/UPDATE/DELETE; no anon/PUBLIC).
 - Queue **COLUMN** `attacl` exact five UPDATE rows: `status`, `error_message`, `attempts`, `sent_at`, `data` — grantor postgres, no grant option. Postcondition set `{attempts,data,error_message,sent_at,status}`.
 - ACL via `aclexplode` + role resolution; **not** raw ACL text order.
-- Disposable floor adapted **outside** 00117 to reproduce the exact production security floor (PG 17 required for `MAINTAIN`).
+- Disposable floor adapted **outside** 00117 to reproduce the exact production security floor (PG 17 required for `MAINTAIN`). Chief supplement: fail-closed `assertLiveQueueAcl()` to the exact 10-row TABLE aclexplode set + five column UPDATE attacl rows. **00117 bytes unchanged.**
 - Occurrence DML evidence: AUTH INSERT/UPDATE/DELETE → `PERMISSION_DENIED` / `42501`; service_role SELECT ALLOW; service_role INSERT/UPDATE/DELETE DENY `42501`; seeded occurrence unchanged. Empty-stdout denial shortcut banned (R25).
 - Negative drift (R15): 21/21 `M2_ABORT` (hgp body/owner/prosecdef/search_path/extra EXECUTE/grant option/overload; enqueue body/return/owner/prosecdef/search_path/authenticated EXECUTE/PUBLIC EXECUTE/grant option/overload; queue table unexpected DML; column sixth UPDATE / missing one / wrong grantor / WITH GRANT OPTION).
 
@@ -45,7 +46,7 @@ Unchanged in business semantics: evaluator, contracts, settings.manage RLS, dorm
 | `scripts/test-m2-cut2-nonregression.mjs` (M2-C2-01..20) | **20/20 PASS** |
 | `scripts/test-m2-static-security.mjs` | **9/9 PASS** |
 | Combined `npm run test:m2` | **111/111 PASS** |
-| Disposable schema qualify (PG 17.11 :5433) | **60/60 PASS** |
+| Disposable schema qualify (PG 17.11 :5433) | **66/66 PASS** |
 | Negative drift | **21/21 PASS** |
 | AUTH occurrence INSERT/UPDATE/DELETE | **PERMISSION_DENIED 42501** |
 | service_role SELECT / INSERT / UPDATE / DELETE | **ALLOW / DENY 42501 / DENY 42501 / DENY 42501** |
@@ -68,9 +69,24 @@ Unchanged in business semantics: evaluator, contracts, settings.manage RLS, dorm
 - def MD5 `dbdb16cdced6cae9cbdbfb6a6a9f421f`; prosrc MD5 `3fa76af51e431ccbd31eb033dcff0b80`
 - ACL only: postgres / service_role EXECUTE, grantor postgres, no grant option
 
-### notifications_queue
-- Table ACL: postgres owner/full (incl. MAINTAIN); authenticated SELECT; service_role SELECT
-- Column attacl: exactly five `service_role` UPDATE rows on `attempts`, `data`, `error_message`, `sent_at`, `status`
+### notifications_queue (Chief supplement — exact fixture target)
+Table ACL via aclexplode (10 rows only):
+- authenticated | SELECT | postgres | false
+- postgres | DELETE | postgres | false
+- postgres | INSERT | postgres | false
+- postgres | MAINTAIN | postgres | false
+- postgres | REFERENCES | postgres | false
+- postgres | SELECT | postgres | false
+- postgres | TRIGGER | postgres | false
+- postgres | TRUNCATE | postgres | false
+- postgres | UPDATE | postgres | false
+- service_role | SELECT | postgres | false
+
+No anon/PUBLIC. No authenticated/service_role table INSERT/UPDATE/DELETE.
+
+Column attacl: exactly five `service_role` UPDATE rows on `attempts`, `data`, `error_message`, `sent_at`, `status` (grantor postgres, no grant option).
+
+Fixture `assertLiveQueueAcl()` fail-closes to both sets before 00117. Qualify records floor + post-00117 equality. **00117 SHA-256 unchanged.**
 
 ## Dormancy
 

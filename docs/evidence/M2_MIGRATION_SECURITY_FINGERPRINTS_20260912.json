@@ -1,8 +1,8 @@
 {
   "artifact": "M2_MIGRATION_SECURITY_FINGERPRINTS_20260912",
   "date": "2026-09-12",
-  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
-  "remediation_note": "00117 preflight/postconditions rewritten to exact Chief-confirmed production live pins (aclexplode set equality). Disposable floor reproduces those pins on PG17. DDL/RLS/grants of the three policy tables unchanged in business semantics.",
+  "functional_sha": "e47ddd6b8c06c2933e5a297f7b48f1076496da40",
+  "remediation_note": "00117 preflight already pinned the Chief-confirmed 10-row TABLE ACL. This supplement fail-closes the disposable fixture to that exact set. 00117 SHA-256 unchanged.",
   "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
   "migration_sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
   "fingerprint_source": "local disposable PostgreSQL 17.11 port 5433 after exact 00117 apply on live-pin floor (NOT production)",

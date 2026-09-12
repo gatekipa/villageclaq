@@ -1,8 +1,8 @@
 {
   "artifact": "M2_ACL_TUPLES_20260912",
   "date": "2026-09-12",
-  "functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
-  "superseded_functional_sha": "046cadcfac6e7b14f85e87d80f5025f8f3b493d4",
+  "functional_sha": "e47ddd6b8c06c2933e5a297f7b48f1076496da40",
+  "superseded_functional_sha": "a9a48447b4e48f9c800f4115bacf47a9e67c9ceb",
   "superseded_evidence_tip": "b7d41d387ec48e6c9d8e88521dddbd23b47d8994",
   "superseded_00117_sha256": "6e91d0997ee03df57a6174c37fec50f6f812fcdc54412cf8fa115019863eeb42",
   "migration_path": "supabase/migrations/00117_m2_notification_policy_foundation.sql",
@@ -190,5 +190,15 @@
     "created_at",
     "cut2_provenance_version"
   ],
-  "post_00117": "unchanged vs preflight snapshot and vs live pins"
+  "post_00117": "unchanged vs preflight snapshot and vs live pins",
+  "chief_supplement": "2026-09-12 read-only production notifications_queue TABLE ACL via aclexplode — exact 10-row fixture target confirmed. Column attacl remains the five service_role UPDATE rows.",
+  "fixture_assert": "scripts/_m2_apply_disposable_floor.mjs assertLiveQueueAcl() fail-closed before 00117",
+  "qualify_cases": [
+    "FLOOR_QUEUE_TABLE_ACL_EXACT",
+    "FLOOR_QUEUE_COL_ACL_EXACT",
+    "POST_00117_QUEUE_TABLE_ACL_UNCHANGED",
+    "POST_00117_QUEUE_COL_ACL_UNCHANGED",
+    "QUEUE_TABLE_NO_ANON_PUBLIC",
+    "QUEUE_TABLE_NO_APP_DML"
+  ]
 }

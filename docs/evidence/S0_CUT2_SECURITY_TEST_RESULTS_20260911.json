@@ -4,7 +4,8 @@
   "real_sends": 0,
   "failed_rows_retried": 0,
   "cached_results": false,
-  "functional_sha_note": "recorded against the remediation commit after this file lands",
+  "functional_sha": "45d9b4d2ea74e387c509d96db493c21ee1d86a59",
+  "evidence_fold_note": "docs-only commit after functional SHA; report branch tip after push",
   "frozen_ci_scripts": {
     "scripts/test-s0-cut2-sms-send-410.mjs": "PASS",
     "scripts/test-s0-cut2-whatsapp-send-410.mjs": "PASS",
@@ -29,8 +30,8 @@
   "original_15_renamed_or_removed": false,
   "npm_run_build": "PASS",
   "historical_notification_suite": {
-    "tests": 186,
-    "pass": 186,
+    "tests": 182,
+    "pass": 182,
     "fail": 0,
     "obsolete_updated": 58,
     "true_regressions_fixed": 12

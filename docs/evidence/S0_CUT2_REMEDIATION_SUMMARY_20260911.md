@@ -3,6 +3,7 @@
 **Branch:** `security/s0-p0b-cut2-implementation-20260911` (same; PR #78 DRAFT only)  
 **Contract SHA (unreopened):** `5c3c1cce458cd13f9525eb21c6366f8877d3c51d`  
 **Previous functional SHA under HOLD:** `2e22dfd888c86c6d1c66c206fe5a5b0f35c7ac65`  
+**New functional SHA:** `45d9b4d2ea74e387c509d96db493c21ee1d86a59` (code). Evidence fold is docs-only on the same branch tip.  
 **00115 digest (unchanged):** `d196b89cefaa91d63fabf6f10ffb73e57b6762ef45d3ac1d93a28279e771706c`  
 **PR #77:** OPEN DRAFT UNMERGED — not altered.
 

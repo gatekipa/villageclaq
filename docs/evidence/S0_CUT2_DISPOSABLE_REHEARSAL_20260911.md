@@ -34,5 +34,5 @@ Local PostgreSQL 16 cluster, database `s0p0b_cut2_disposable`. Transaction COMMI
 ## App / CI after remediation
 
 - `npm run test:s0-cut2` → **17/17 scripts PASS** (19 node:test cases)
-- Historical notification producer + drain render suite → **186/186 PASS, 0 fail**
+- Historical notification producer + drain render suite → **182/182 PASS, 0 fail**
 - `npm run build` → **PASS**

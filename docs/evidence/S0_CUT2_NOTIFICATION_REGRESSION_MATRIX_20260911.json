@@ -21,8 +21,8 @@
       "scripts/test-welcome-producer.mjs",
       "scripts/test-cut2-drain-render-regression.mjs"
     ],
-    "tests": 186,
-    "pass": 186,
+    "tests": 182,
+    "pass": 182,
     "fail": 0,
     "obsolete_updated": 58,
     "true_regressions_fixed": 12

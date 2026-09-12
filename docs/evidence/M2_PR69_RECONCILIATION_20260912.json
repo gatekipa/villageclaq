@@ -1,0 +1,203 @@
+{
+  "artifact": "M2_PR69_RECONCILIATION_20260912",
+  "date": "2026-09-12",
+  "task": "M2 REQUALIFICATION / RECONCILIATION — PLANNING + EVIDENCE ONLY",
+  "production_mutation": "ZERO",
+  "messages_sent": "ZERO",
+  "queue_inserts": "ZERO",
+  "migrations_applied": "ZERO",
+  "src_runtime_changed": false,
+  "pr": {
+    "number": 69,
+    "state": "OPEN_DRAFT",
+    "html_url": "https://github.com/gatekipa/villageclaq/pull/69",
+    "title": "feat(notifications): policy foundation v2 (onto Trust Cut 1 main)",
+    "head_ref": "product-consistency/notification-policy-foundation-v2-20260910",
+    "head_sha": "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+    "github_baseRefName": "main",
+    "github_base_sha": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "founder_stated_old_base": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "computed_merge_base_vs_current_main": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "current_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+    "commits_on_main_since_merge_base": 47,
+    "mergeable_state_observed": "clean",
+    "note": "GitHub baseRefName=main is cosmetic. Branch content is pre-S0 (pre-Cut1-apply / pre-Cut2 / pre-Cut3). Do not merge. Do not rebase onto current main as an implementation vehicle."
+  },
+  "files": [
+    {
+      "path": "src/lib/notification-policy.ts",
+      "status": "added_on_pr_only",
+      "on_current_main": false,
+      "main_ls_tree": "ABSENT (git ls-tree 0c147f8… | notification-policy → NONE)"
+    },
+    {
+      "path": "scripts/test-notification-policy.mjs",
+      "status": "added_on_pr_only",
+      "on_current_main": false
+    }
+  ],
+  "commits": [
+    {
+      "sha": "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+      "message": "feat(notifications): refresh pure policy foundation onto Trust Cut 1 main"
+    }
+  ],
+  "historical_test_baseline": {
+    "command": "node --experimental-strip-types --test scripts/test-notification-policy.mjs",
+    "claimed_on_pr": "34/34",
+    "isolated_rerun_20260912": {
+      "ran": true,
+      "location": "/tmp/m2-iso-tests (copies only; not checked into this branch)",
+      "result": "34/34 pass",
+      "sends": 0,
+      "provider_calls": 0,
+      "queue_inserts": 0,
+      "note": "Pure unit tests. Safe to rerun in isolation. Not a Cut 2 non-regression suite."
+    }
+  },
+  "classification_legend": [
+    "STILL VALID",
+    "VALID BUT NEEDS CUT2 ADAPTATION",
+    "SUPERSEDED",
+    "OUT OF M2",
+    "SECURITY CONFLICT",
+    "PRD CONFLICT",
+    "CANNOT CONFIRM"
+  ],
+  "exports": [
+    {
+      "export": "PolicyDisposition",
+      "kind": "type",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "Kinds STOP_RESOLVED / STOP_POLICY / SKIP_CHANNEL_DISABLED / DEFER_UNTIL / INVALID_POLICY remain useful. SEND_NOW must be reinterpreted as ENQUEUE_ELIGIBLE via enqueue_outbound_notification only — never a provider send."
+    },
+    {
+      "export": "PolicyAnchorKind",
+      "kind": "type",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "payment_due | hosting_assigned | event_starts_at is the intended M2 domain set. Live payment reminders remain overdue-daily selection (LEGACY_PAYMENT_CRON_CONTRACT), not a relative +24h payment_due trigger."
+    },
+    {
+      "export": "PolicyChannel",
+      "kind": "type",
+      "classification": "SECURITY CONFLICT",
+      "reason": "Includes push as a first-class channel. Cut 2 floor: push DENY for all 22 types. Future M2 config must not treat push as sendable."
+    },
+    {
+      "export": "RelativeTrigger",
+      "kind": "interface",
+      "classification": "STILL VALID",
+      "reason": "Pure offsetHours contract. No send path."
+    },
+    {
+      "export": "QuietHours",
+      "kind": "interface",
+      "classification": "STILL VALID",
+      "reason": "Inclusive start / exclusive end / overnight wrap. Cut 2 does not enforce quiet hours; M2 evaluator may. Must not drop trusted queue rows."
+    },
+    {
+      "export": "NotificationPolicyConfig",
+      "kind": "interface",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "Shape is reusable. channels: Record<PolicyChannel, boolean> currently requires push. Must intersect Cut 2 type×channel matrix and default dormant/disabled."
+    },
+    {
+      "export": "ScheduledOccurrence",
+      "kind": "interface",
+      "classification": "STILL VALID",
+      "reason": "Identity + eligibleAt model. Writes to notification_policy_occurrences remain dormant until a later ticket."
+    },
+    {
+      "export": "ValidatePolicyResult",
+      "kind": "type",
+      "classification": "STILL VALID",
+      "reason": "Fail-closed validation result. Invalid timezone must never become SEND_NOW."
+    },
+    {
+      "export": "DEFAULT_HOSTING_POLICY",
+      "kind": "const",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "Offset -168h / maxOccurrences 1 matches intended hosting default. channels enable email+push; Cut 2 hosting_assignment/hosting_reminder = WA+SMS ALLOW, email DENY, push DENY. enabled:true conflicts with dormant-by-default until a group opts in."
+    },
+    {
+      "export": "DEFAULT_EVENT_POLICY",
+      "kind": "const",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "Offset -48h / maxOccurrences 1 matches intended event default. email ALLOW is Cut 2 compatible; push true is not. enabled:true conflicts with dormant-by-default."
+    },
+    {
+      "export": "DEFAULT_PAYMENT_COMPAT_NOTE",
+      "kind": "const",
+      "classification": "STILL VALID",
+      "reason": "Honest description of live overdue-daily cron. Still true on current main (src/lib/payment-reminder-producer.ts + /api/cron/payment-reminders)."
+    },
+    {
+      "export": "LEGACY_PAYMENT_CRON_CONTRACT",
+      "kind": "const",
+      "classification": "STILL VALID",
+      "reason": "live=true, kind=overdue_daily_selection, notARelativeTriggerOffsetHours=null. Confirmed against src/app/api/cron/payment-reminders/route.ts (due_date < today UTC, daily 08:00)."
+    },
+    {
+      "export": "FUTURE_PAYMENT_POLICY",
+      "kind": "const",
+      "classification": "PRD CONFLICT",
+      "reason": "__label NOT_LIVE_WIRED_EXAMPLE is honest, but +24h/repeat/14 max must never be treated as the live contract. channels include push. Keep as labeled example only; do not wire."
+    },
+    {
+      "export": "PAYMENT_LEGACY_COMPAT",
+      "kind": "const",
+      "classification": "STILL VALID",
+      "reason": "Alias of DEFAULT_PAYMENT_COMPAT_NOTE."
+    },
+    {
+      "export": "occurrenceIdentity",
+      "kind": "function",
+      "classification": "STILL VALID",
+      "reason": "domain:objectId:anchorIso:offset:index. Reschedule changes identity. Quiet defer must reuse identity."
+    },
+    {
+      "export": "validatePolicyConfig",
+      "kind": "function",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "Fail-closed timezone/repeat/max/quiet checks remain. Requires boolean for push. Must additionally reject channel combinations Cut 2 denies for the domain type."
+    },
+    {
+      "export": "isInQuietHours",
+      "kind": "function",
+      "classification": "STILL VALID",
+      "reason": "Pure local-minute window. No I/O."
+    },
+    {
+      "export": "nextQuietHoursEnd",
+      "kind": "function",
+      "classification": "STILL VALID",
+      "reason": "Used by DEFER_UNTIL. Minute-step bounded to 24h."
+    },
+    {
+      "export": "generateScheduledOccurrences",
+      "kind": "function",
+      "classification": "STILL VALID",
+      "reason": "Pure scheduler. Does not enqueue or send. Future writers must be SECURITY DEFINER / service_role workers, not this function."
+    },
+    {
+      "export": "evaluateDisposition",
+      "kind": "function",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "Core M2 evaluator. SEND_NOW must map to trusted enqueue only. Must AND Cut 2 channel matrix + member prefs fail-closed. Must never call providers or insert notifications_queue."
+    }
+  ],
+  "cut2_blind_spots_on_this_pr": [
+    "No enqueue_outbound_notification adapter",
+    "No cut2_provenance_version=1 awareness",
+    "No 22-type allowlist / cut2-channel-matrix.ts",
+    "No 410 relay closure",
+    "Defaults enable push",
+    "Does not exist on current main — 404"
+  ],
+  "disposition": {
+    "merge": "FORBIDDEN",
+    "rebase_as_implementation": "FORBIDDEN",
+    "recommended": "A_SUPERSEDE",
+    "salvage": "Pure evaluator + payment honesty constants + quiet-hours math + identity format. Re-author on fresh branch from 0c147f8e… with Cut 2 adaptations."
+  }
+}

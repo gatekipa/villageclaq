@@ -1,0 +1,130 @@
+{
+  "artifact": "M2_SCHEMA_COLLISION_INVENTORY_20260912",
+  "date": "2026-09-12",
+  "production_project": "llbnliixczcqfftxpsmb",
+  "production_query_mode": "SELECT_ONLY",
+  "production_mutation": "ZERO",
+  "do_not_apply": [
+    "20260910120000_notification_policy_schema.sql",
+    "any improvised 00117 authored by this planning task"
+  ],
+  "r11_line_review": {
+    "file": "supabase/migrations/20260910120000_notification_policy_schema.sql @ PR70 0f258726c9328ee0204f7b5dee9efceebe7265b9",
+    "self_banner": "CREATE-NOT-APPLY",
+    "overall_classification": "NEEDS REVISION",
+    "apply_verdict": "UNSAFE TO APPLY AS-IS",
+    "never_apply_from_pr70": true
+  },
+  "sections": [
+    {
+      "object": "notification_policies",
+      "purpose": "Per-group (and optional per-object) schedule intent for payment|hosting|event. Not a send ledger.",
+      "classification": "NEEDS REVISION",
+      "issues": [
+        "enabled boolean NOT NULL DEFAULT true — conflicts with dormant-by-default (R13–R22). Fresh 00117 must DEFAULT false.",
+        "channel_push DEFAULT true — SECURITY CONFLICT vs Cut 2 push DENY all 22.",
+        "channel_email/sms/whatsapp DEFAULT true — must not override Cut 2 type×channel DENY (hosting email DENY, etc.).",
+        "domain CHECK (payment, hosting, event) is correct M2 scope; do not add announcement.",
+        "UNIQUE NULLS NOT DISTINCT (group_id, domain, object_id) is a good design.",
+        "timezone CHECK vs pg_timezone_names is good (fail-closed write).",
+        "repeat requires max_occurrences is good (anti fan-out)."
+      ]
+    },
+    {
+      "object": "notification_policy_triggers",
+      "purpose": "Relative offset_hours per policy.",
+      "classification": "SAFE AS DESIGN ONLY",
+      "issues": [
+        "UNIQUE (policy_id, offset_hours) matches validatePolicyConfig duplicate rejection.",
+        "No send path."
+      ]
+    },
+    {
+      "object": "notification_policy_occurrences",
+      "purpose": "Dormant scheduled occurrence ledger. identity_key uniqueness. Reschedule supersedes.",
+      "classification": "NEEDS REVISION",
+      "issues": [
+        "DORMANT intent is correct. Authenticated SELECT-only is correct.",
+        "GRANT INSERT/UPDATE/DELETE ON occurrences TO service_role is too broad after Cut 2. Future writes must be SECURITY DEFINER RPCs with least privilege, not blanket table DML.",
+        "Do not grant notifications_queue INSERT here (file does not — good).",
+        "status CHECK set is acceptable as design."
+      ]
+    },
+    {
+      "object": "notification_policy_set_updated_at",
+      "classification": "SAFE AS DESIGN ONLY",
+      "issues": ["search_path='' is correct. Trigger-only."]
+    },
+    {
+      "object": "RLS",
+      "classification": "NEEDS REVISION",
+      "issues": [
+        "ENABLE + FORCE RLS — keep.",
+        "CRUD via has_group_permission(settings.manage) — KEEP after Cut 1 (owner/admin-without-assignments bypass; active membership required).",
+        "AND is_group_member(group_id) — live is_group_member does NOT exclude exited. Comment in SQL is wrong. has_group_permission already requires active. Prefer Cut 1-active membership predicate explicitly.",
+        "Do not invent notifications.manage.",
+        "Ordinary members correctly excluded if they lack settings.manage."
+      ]
+    },
+    {
+      "object": "GRANTS",
+      "classification": "NEEDS REVISION",
+      "issues": [
+        "REVOKE ALL FROM PUBLIC, anon — keep.",
+        "authenticated CRUD on policies/triggers behind RLS — acceptable for officer config.",
+        "authenticated SELECT-only on occurrences — keep.",
+        "service_role full DML on all three — revise. Anticipate SECURITY DEFINER workers; do not assume service_role table bypass is the write API.",
+        "Must NEVER GRANT INSERT on public.notifications_queue (this file does not — keep that invariant)."
+      ]
+    }
+  ],
+  "r12_filename": {
+    "pr70_filename": "20260910120000_notification_policy_schema.sql",
+    "collision_with_villageclaq_sequence": true,
+    "forward_sequence_on_main_ends_at": "00116_s0_p0c_cut3_storage_path_fail_closed.sql",
+    "production_latest": "20260912134123 / s0_p0c_cut3_storage_path_fail_closed",
+    "recommend_future_filename": "00117_m2_notification_policy_foundation.sql",
+    "alternates_acceptable": [
+      "00117_notification_policy_schema.sql",
+      "00117_m2_notification_policies.sql"
+    ],
+    "do_not_create_in_this_task": true,
+    "do_not_improvise_00117_from_cut3_docs": true
+  },
+  "r23_collisions": {
+    "production_to_regclass": {
+      "public.notification_policies": null,
+      "public.notification_policy_triggers": null,
+      "public.notification_policy_occurrences": null
+    },
+    "production_notification_tables_only": [
+      "public.notifications",
+      "public.notifications_queue"
+    ],
+    "main_policy_engine_files": {
+      "src/lib/notification-policy.ts": "ABSENT",
+      "src/lib/notification-policy-contracts.ts": "ABSENT",
+      "scripts/test-notification-policy.mjs": "ABSENT",
+      "scripts/test-notification-policy-contracts.mjs": "ABSENT"
+    },
+    "table_name_collision_live": false,
+    "function_name_collision_live": {
+      "enqueue_outbound_notification": "EXISTS — future 00117 must NOT replace or overload this signature",
+      "notification_policy_set_updated_at": "ABSENT"
+    },
+    "filename_collision_if_copied_to_main": "20260910120000_* sits outside 00114–00116 numbered sequence and must not be added"
+  },
+  "r13_r22_design_pins_for_future_00117": {
+    "policies_purpose": "Tenant schedule intent only. No provider fields. No queue writes.",
+    "triggers_purpose": "Relative offsets. No send.",
+    "occurrences_purpose": "Dormant identity ledger for future adapters. No authenticated writes.",
+    "dormant_by_default": "enabled DEFAULT false; no producer reads these tables in M2 foundation ship.",
+    "announcements_dormant": "Do not add domain='announcement'. F3-06 / M3 / announcement activation OUT.",
+    "adapter_boundary": "Pure TS adapters decide resolved/unresolved. They must not enqueue. Producers stay on enqueue_outbound_notification.",
+    "preferences": "Member prefs + muted_groups remain authoritative at enqueue time (RPC already enforces). Policy channels are an upper bound only.",
+    "PAYMENT_REMINDER_CONFIRMED_BASIS": "Keep default OFF. dryRun queues nothing. PaymentAdapter confirmed-full/waived must not flip the live cron by itself.",
+    "bulk_receipt_guard": "P0 on contributions/record/page.tsx (bulkSendReceipts default false + reconfirm). M2 must not auto-fan receipt occurrences from bulk record.",
+    "tenant_authority": "settings.manage after Cut 1 — KEEP.",
+    "security_definer_anticipation": "Occurrence writers and any policy-eval-at-enqueue helpers = SECURITY DEFINER, search_path='', least privilege, service_role EXECUTE only. No new browser send API. No Layer A."
+  }
+}

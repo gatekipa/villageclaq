@@ -1,0 +1,182 @@
+{
+  "artifact": "M2_PR70_RECONCILIATION_20260912",
+  "date": "2026-09-12",
+  "task": "M2 REQUALIFICATION / RECONCILIATION — PLANNING + EVIDENCE ONLY",
+  "production_mutation": "ZERO",
+  "messages_sent": "ZERO",
+  "queue_inserts": "ZERO",
+  "migrations_applied": "ZERO",
+  "do_not_apply": "supabase/migrations/20260910120000_notification_policy_schema.sql",
+  "pr": {
+    "number": 70,
+    "state": "OPEN_DRAFT",
+    "html_url": "https://github.com/gatekipa/villageclaq/pull/70",
+    "title": "feat(notifications): CREATE-NOT-APPLY policy schema + adapter contracts",
+    "head_ref": "security/notification-policy-schema-20260910",
+    "head_sha": "0f258726c9328ee0204f7b5dee9efceebe7265b9",
+    "github_baseRefName": "main",
+    "github_base_sha": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "founder_stated_old_base": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "computed_merge_base_vs_current_main": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "current_main": "0c147f8e1e7aadbfd14583f6a9bef465c2217fe1",
+    "commits_on_main_since_merge_base": 47,
+    "mergeable_state_observed": "unstable",
+    "depends_on_pr69_head": "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+    "note": "CREATE-NOT-APPLY banner is still correct. Content is pre-S0. Do not merge. Do not apply SQL."
+  },
+  "files_vs_pr69": [
+    {
+      "path": "docs/VILLAGECLAQ_NOTIFICATION_POLICY_SCHEMA_ADAPTER_CONTRACT.md",
+      "status": "added",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION"
+    },
+    {
+      "path": "docs/tickets/PC-PAYMENT.md",
+      "status": "added",
+      "classification": "SUPERSEDED",
+      "reason": "Ticket assumes PR #69 + apply-later schema on stale base. Salvage adapter rules into fresh M2; rewrite ticket after founder implementation decision."
+    },
+    {
+      "path": "docs/tickets/PC-HOSTING.md",
+      "status": "added",
+      "classification": "SUPERSEDED"
+    },
+    {
+      "path": "docs/tickets/PC-EVENTS.md",
+      "status": "added",
+      "classification": "SUPERSEDED"
+    },
+    {
+      "path": "scripts/test-notification-policy-contracts.mjs",
+      "status": "added",
+      "classification": "STILL VALID",
+      "note": "Historical 38 contract tests. Isolated 2026-09-12 rerun contributed to 72/72. No sends."
+    },
+    {
+      "path": "src/lib/notification-policy-contracts.ts",
+      "status": "added",
+      "on_current_main": false,
+      "main_ls_tree": "ABSENT"
+    },
+    {
+      "path": "src/lib/notification-policy.ts",
+      "status": "inherited_from_pr69",
+      "on_current_main": false
+    },
+    {
+      "path": "supabase/migrations/20260910120000_notification_policy_schema.sql",
+      "status": "added",
+      "classification": "NEEDS REVISION",
+      "apply": "FORBIDDEN",
+      "see": "docs/evidence/M2_SCHEMA_COLLISION_INVENTORY_20260912.json"
+    }
+  ],
+  "commits": [
+    "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+    "dab794b609fda913b02404ecb0a404f79514d27f",
+    "d6b9585a10dec713cf428c68613096268602f081",
+    "1a3db44080270a9d21072cb0fa14c95fa9d95aa7",
+    "bbb0d115e5d627b1636dac7ca87e8b6a9f35016a",
+    "0f258726c9328ee0204f7b5dee9efceebe7265b9"
+  ],
+  "historical_test_baseline": {
+    "claimed_on_pr": "72/72 (foundation 34 + contracts 38)",
+    "isolated_rerun_20260912": {
+      "ran": true,
+      "location": "/tmp/m2-iso-tests",
+      "command": "node --experimental-strip-types --test test-notification-policy.mjs test-notification-policy-contracts.mjs",
+      "result": "72/72 pass",
+      "sends": 0,
+      "provider_calls": 0,
+      "queue_inserts": 0
+    }
+  },
+  "exports_notification_policy_contracts_ts": [
+    {
+      "export": "PolicyPrecedence",
+      "classification": "STILL VALID",
+      "reason": "system_legacy < group_domain < object_override. Fail-closed on malformed stronger layer."
+    },
+    {
+      "export": "resolveEffectivePolicy",
+      "classification": "STILL VALID",
+      "reason": "Pure precedence. Must keep fail-closed; never silent downgrade."
+    },
+    {
+      "export": "ChannelIntersection",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "groupAllowed AND memberPref AND failClosedPrefs is correct. Must also AND Cut 2 type×channel matrix. push must be forced DENY."
+    },
+    {
+      "export": "FAIL_CLOSED_PREFS_ON_ERROR",
+      "classification": "STILL VALID",
+      "reason": "Matches Trust Cut 1 / src/lib/notification-prefs.ts real-user prefs-read error: external false, in_app true."
+    },
+    {
+      "export": "OccurrenceStatus / OccurrenceRow / OccurrenceSupersession",
+      "classification": "STILL VALID",
+      "reason": "Dormant occurrence lifecycle. Sent rows immutable. Reschedule supersedes future unsent. Quiet defer keeps identity."
+    },
+    {
+      "export": "PaymentAdapter",
+      "classification": "STILL VALID",
+      "reason": "confirmed-full OR waived → resolved; partial/unpaid/pending_confirmation → unresolved. Aligns with PAYMENT_REMINDER_CONFIRMED_BASIS / src/lib/money.ts confirmedBasis. Does not send."
+    },
+    {
+      "export": "HostingAdapter",
+      "classification": "STILL VALID",
+      "reason": "completed/exempt/cancelled/swapped-away → resolved for old host. New host = new object id."
+    },
+    {
+      "export": "EventAdapter",
+      "classification": "STILL VALID",
+      "reason": "cancelled/completed → resolved. starts_at change → new anchor / supersede."
+    },
+    {
+      "export": "LEGACY_DEFAULTS / legacyParity* / assertLegacy*",
+      "classification": "STILL VALID",
+      "reason": "Groups with no saved policy keep current cron/producer behavior. Required honesty pin."
+    },
+    {
+      "export": "UI_POLICY_LABELS",
+      "classification": "OUT OF M2",
+      "reason": "UI/UX Excellence Track ACTIVE. No UI implementation in M2 foundation."
+    },
+    {
+      "export": "channelsFromSqlBooleans",
+      "classification": "VALID BUT NEEDS CUT2 ADAPTATION",
+      "reason": "Helper for SQL boolean columns. Must not revive push ALLOW."
+    }
+  ],
+  "alternate_send_path_review": {
+    "verdict": "REJECT_ANY_ALTERNATE_SEND_PATH",
+    "pr70_own_files_direct_send": false,
+    "pr70_own_files_queue_insert": false,
+    "pr70_own_files_provider_call": false,
+    "forbidden_if_anyone_wires": [
+      "Direct notifications_queue INSERT (including service_role application producers)",
+      "Browser /api/sms/send / /api/whatsapp/send / /api/email/send (410 GONE on current main)",
+      "sms-sender.ts or dispatchWhatsApp happy-path from policy adapters",
+      "Reusing src/lib/announcement-producer.ts which still contains notifications_queue.insert (DORMANT on main; SECURITY CONFLICT if wired)"
+    ],
+    "required_send_path_after_cut2": "domain producer → service_role EXECUTE enqueue_outbound_notification → notifications_queue provenance=1 → CRON_SECRET drain → provider"
+  },
+  "tickets": {
+    "PC-PAYMENT": {
+      "anchor": "obligation due_date; live cron remains overdue-daily until later cutover",
+      "resolved_rules": "confirmed-full OR waived",
+      "must_not": ["wire live cron", "send", "apply migration", "change Meta/WABA"],
+      "classification": "SUPERSEDED_AS_TICKET_STILL_SALVAGE_RULES"
+    },
+    "order": ["PC-PAYMENT", "PC-HOSTING", "PC-EVENTS"],
+    "announcements": "DORMANT — OUT OF M2 / F3-06 / M3",
+    "F3": "UNTouched — OUT"
+  },
+  "disposition": {
+    "merge": "FORBIDDEN",
+    "apply_20260910120000": "FORBIDDEN",
+    "rebase_as_implementation": "FORBIDDEN",
+    "recommended": "A_SUPERSEDE",
+    "salvage": "Precedence, channel intersection (plus Cut 2 AND), adapters, occurrence supersession, settings.manage permission choice, dormant occurrences SELECT-only, CREATE-NOT-APPLY discipline. Re-author schema as future 00117_* only after founder decision."
+  }
+}

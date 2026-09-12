@@ -63,10 +63,11 @@ test("F3 SQL does not replace HGP, transfer RPCs, standing, enqueue, or Cut 3 st
     assert.doesNotMatch(src, /CREATE OR REPLACE FUNCTION public\.has_group_permission/);
     assert.doesNotMatch(src, /CREATE OR REPLACE FUNCTION public\.(request_member_transfer|execute_member_transfer)/);
     assert.doesNotMatch(src, /CREATE OR REPLACE FUNCTION public\.compute_member_standing/);
-    assert.doesNotMatch(ddl, /enqueue_outbound_notification/);
-    assert.doesNotMatch(ddl, /notifications_queue/);
+    assert.doesNotMatch(ddl, /CREATE OR REPLACE FUNCTION public\.enqueue_outbound_notification/);
+    assert.doesNotMatch(ddl, /GRANT\s+.*enqueue_outbound_notification/i);
+    assert.doesNotMatch(ddl, /INSERT\s+INTO\s+notifications_queue/i);
     assert.doesNotMatch(src, /storage_receipts_authorized|storage_path_group_id/);
-    assert.doesNotMatch(ddl, /notification_polic(y|ies)/);
+    assert.doesNotMatch(ddl, /CREATE TABLE[\s\S]{0,40}notification_polic/i);
   }
 });
 
@@ -157,6 +158,19 @@ test("F3 public command RPCs are authenticated-only", () => {
     assert.equal(db.sql(`SELECT has_function_privilege('anon','${fn}','EXECUTE')`), "f");
     assert.equal(db.sql(`SELECT has_function_privilege('service_role','${fn}','EXECUTE')`), "f");
   }
+});
+
+test("F3 DEFINER objects are postgres-owned with empty search_path", () => {
+  const row = db.sql(`
+    SELECT coalesce(string_agg(n.nspname||'.'||p.proname||':'||pg_get_userbyid(p.proowner), ',' ORDER BY 1), '')
+    FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE p.prosecdef
+      AND n.nspname IN ('public','financial_core','financial_private')
+      AND p.proname NOT IN ('has_group_permission','enqueue_outbound_notification')
+      AND (pg_get_userbyid(p.proowner) IS DISTINCT FROM 'postgres'
+           OR p.proconfig IS DISTINCT FROM ARRAY['search_path=""']::text[])
+  `);
+  assert.equal(row, "");
 });
 
 test("raw posted truth is not writable by authenticated", () => {

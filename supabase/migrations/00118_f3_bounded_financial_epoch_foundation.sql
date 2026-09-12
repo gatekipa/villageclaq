@@ -234,3 +234,48 @@ BEGIN
   END IF;
 END
 $f3_hgp_post$;
+
+-- Pin F3 SECURITY DEFINER owner to postgres (M2/Cut 1 disposable parity).
+-- Never touches has_group_permission or enqueue_outbound_notification.
+DO $f3_owner_pin$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) AS ident
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE p.prosecdef
+      AND n.nspname IN ('public','financial_core','financial_private')
+      AND p.proname NOT IN ('has_group_permission','enqueue_outbound_notification')
+  LOOP
+    EXECUTE format(
+      'ALTER FUNCTION %I.%I(%s) OWNER TO postgres',
+      r.nspname, r.proname, r.ident
+    );
+  END LOOP;
+END
+$f3_owner_pin$;
+
+SET ROLE postgres;
+DO $f3_owner_acl$
+BEGIN
+  IF to_regprocedure('public.post_financial_command(jsonb)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_command(jsonb) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.post_financial_command(jsonb) TO authenticated';
+  END IF;
+  IF to_regprocedure('public.correct_financial_event(jsonb)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.correct_financial_event(jsonb) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.correct_financial_event(jsonb) TO authenticated';
+  END IF;
+  IF to_regprocedure('public.post_financial_opening_cash(jsonb)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_opening_cash(jsonb) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.post_financial_opening_cash(jsonb) TO authenticated';
+  END IF;
+  IF to_regprocedure('public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) TO authenticated';
+  END IF;
+END
+$f3_owner_acl$;
+RESET ROLE;

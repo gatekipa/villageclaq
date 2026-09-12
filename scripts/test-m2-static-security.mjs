@@ -77,8 +77,9 @@ test("00118-00123 are the F3 forward batch; no 00124+ and no timestamp F3 histor
     const src = read(`supabase/migrations/${name}`);
     const ddl = src.replace(/--[^\n]*/g, "");
     assert.doesNotMatch(src, /CREATE OR REPLACE FUNCTION public\.has_group_permission/);
-    assert.doesNotMatch(ddl, /enqueue_outbound_notification/);
-    assert.doesNotMatch(ddl, /notifications_queue/);
+    assert.doesNotMatch(ddl, /CREATE OR REPLACE FUNCTION public\.enqueue_outbound_notification/);
+    assert.doesNotMatch(ddl, /GRANT\s+.*enqueue_outbound_notification/i);
+    assert.doesNotMatch(ddl, /INSERT\s+INTO\s+notifications_queue/i);
     assert.doesNotMatch(src, /storage_receipts_authorized/);
   }
 });

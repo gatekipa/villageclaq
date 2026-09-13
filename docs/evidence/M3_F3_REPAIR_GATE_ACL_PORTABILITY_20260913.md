@@ -1,6 +1,6 @@
 # M3 F3 repair-safety gate + optional-ubuntu ACL portability — 2026-09-13
 
-**OVERALL VERDICT: local harness + ACL-portability PASS; hosted six-file qualify NOT_RUN (this VM).**
+**OVERALL VERDICT: local harness + ACL-portability PASS; hosted six-file qualify NOT_RUN (this VM).** Current tip-fidelity close: `docs/evidence/M3_F3_TIP_FIDELITY_HARNESS_DELTAS_20260913.md` (hosted QUALIFICATION PASS used later harness deltas before tip land; this package does not erase that).
 
 Required floor label:
 

@@ -17,6 +17,7 @@ import {
   DESTRUCTIVE_ENV,
   HOLD_VERSION_UNRECOVERABLE,
   MANAGEMENT_API_ACCEPTS_CALLER_VERSION,
+  MANAGEMENT_API_APPLY_PERMANENTLY_DISQUALIFIED,
   MANAGEMENT_API_APPLY_BODY_FIELDS,
   PRODUCTION_REF,
   REMOTE_MANAGEMENT_API_STATUS,
@@ -106,6 +107,7 @@ test("approved disposable pins are exact and production is excluded", () => {
   assert.equal(APPROVED_DISPOSABLE_ORG_ID, "eyztkzkprpmlmcabrfef");
   assert.equal(PRODUCTION_REF, "llbnliixczcqfftxpsmb");
   assert.equal(MANAGEMENT_API_ACCEPTS_CALLER_VERSION, false);
+  assert.equal(MANAGEMENT_API_APPLY_PERMANENTLY_DISQUALIFIED, true);
   assert.deepEqual([...MANAGEMENT_API_APPLY_BODY_FIELDS], ["query", "name", "rollback"]);
   assert.match(REMOTE_MANAGEMENT_API_STATUS, /jkorwnwwmdeflfntxntl/);
   assert.doesNotMatch(REMOTE_MANAGEMENT_API_STATUS, /llbnliixczcqfftxpsmb/);

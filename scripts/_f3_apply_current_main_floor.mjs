@@ -11,7 +11,7 @@ import { F3_FORWARD_CHAIN, installLiveHasGroupPermission } from "./fixtures/f3-f
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-const BOOTSTRAP = `
+export const BOOTSTRAP = `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS btree_gist;

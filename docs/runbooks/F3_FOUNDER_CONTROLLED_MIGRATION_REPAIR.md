@@ -3,7 +3,16 @@
 **NOT FOR PRODUCTION USE BY THIS TASK.**  
 This runbook is write+test only. It does not authorize production apply, repair, deploy, merge, or any financial / notification write.
 
-`supabase migration repair --status applied` is **NEVER automatic**. No script, cron, CI job, or agent may run it against production. Only the founder, after every gate below is green, and after founder authentication immediately before the command, may run the exact version-pinned command. Repair is **manual / exceptional**.
+## Current runner status (2026-09-13)
+
+| Runner | Status |
+|--------|--------|
+| Management API `POST /v1/projects/{ref}/database/migrations` `{query,name}` | **PERMANENTLY DISQUALIFIED** as VillageClaq’s production migration guarantee. Chief live probe: SQL can `COMMIT` while history INSERT fails with **no recoverable version**. Verdict remains **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Repair is **FORBIDDEN** for that failure mode. |
+| Large-SQL MCP `apply_migration` | **DISQUALIFIED** (Cut 1 precedent). Not evidence about db push. |
+| Local two-phase (`psql -f` then INSERT) | **NON-API simulation only**. Not a production runner. |
+| `supabase db push` CLI **2.117.0** | **QUALIFICATION CANDIDATE ONLY**. Not production-approved until Daybreak approves. Do not claim production approval from this runbook. |
+
+`supabase migration repair --status applied` is **NEVER automatic**. No script, cron, CI job, or agent may run it against production. Repair runs only after every gate below is green, and only after **separate founder authentication** immediately before the command. Founder auth for any production apply/repair is distinct from disposable qualification credentials. Repair is **manual / exceptional**.
 
 If exact identity, state, or provenance cannot be established → **STOP and escalate**. Do not guess.
 
@@ -25,20 +34,24 @@ Those behaviors belong to **VillageClaq local helpers** only. They are **NOT** M
 
 If objects are missing, extra, owner-drifted, RLS-drifted, or SQL bytes do not match the authorized SHA-256 → **HOLD**. Do not repair.
 
-## Actual production runner (proven only)
+## Historical S0/M2 apply (superseded as future production runner)
+
+S0 Cut 1–3 and M2 00117 **did** apply via Management API file-stream / small-SQL MCP. That history is still the live production ledger through `20260912174049`. It does **not** authorize using Management API `{query,name}` for F3 `00118`–`00123`.
 
 | Item | Proven value | Source |
 |------|----------------|--------|
-| Cut 1–3 apply | Management API **FILE-STREAMED** `POST /v1/projects/{ref}/database/migrations` | S0 Cut 1–3 apply evidence / live history names |
+| Cut 1–3 apply (historical) | Management API **FILE-STREAMED** `POST /v1/projects/{ref}/database/migrations` | S0 Cut 1–3 apply evidence / live history names |
 | Official body fields | `query` (required), `name` (optional), `rollback` (optional) | https://supabase.com/docs/reference/api/v1-apply-a-migration |
 | Caller-selected version in POST body | **NOT accepted** by the official contract | same docs |
-| M2 00117 apply | connected `apply_migration` MCP (small SQL) | M2 evidence |
+| M2 00117 apply (historical) | connected `apply_migration` MCP (small SQL) | M2 evidence |
 | Large-SQL MCP | **DISQUALIFIED** (Cut 1 precedent) | Cut 1 |
-| Not the production apply runner | `supabase db push`, `supabase migration up` | S0/M2 |
-| History name | snake_case after stripping source `NNNNN_` prefix | S0/M2 live `name` matches filename stem |
-| History version | 14-digit `YYYYMMDDHHMMSS` **server-generated**; observed after success | live `schema_migrations` |
+| Management API `{query,name}` for future F3 apply | **PERMANENTLY DISQUALIFIED** | Chief live probe 2026-09-13 |
+| `supabase db push` CLI 2.117.0 | **QUALIFICATION CANDIDATE ONLY** until Daybreak approves | this runbook |
+| History name (S0/M2) | snake_case after stripping source `NNNNN_` prefix | S0/M2 live `name` matches filename stem |
+| History version (S0/M2 Management API) | 14-digit `YYYYMMDDHHMMSS` **server-generated**; observed after success | live `schema_migrations` |
+| History version (db push candidate) | 14-digit **filename version known before execution** | isolated workdir mapping |
 | Failed-response version (S0/M2 applies) | **UNKNOWN / UNPROVEN** for those successful applies | no captured failure body in S0/M2 evidence |
-| Failed-response version after history INSERT blocked | **PROVEN UNRECOVERABLE** | Chief live probe 2026-09-13 on `jkorwnwwmdeflfntxntl`: HTTP 400, error mentions history INSERT blocked, list `[]`, `schema_migrations` rows=0, SQL committed. Recovery from response / list_migrations / schema_migrations → **NONE**. Verdict: **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Repair forbidden. |
+| Failed-response version after Management API history INSERT blocked | **PROVEN UNRECOVERABLE** | Chief live probe 2026-09-13 on `jkorwnwwmdeflfntxntl`: HTTP 400, error mentions history INSERT blocked, list `[]`, `schema_migrations` rows=0, SQL committed. Recovery from response / list_migrations / schema_migrations → **NONE**. Verdict: **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Repair forbidden. |
 | API skip-if-present | **NOT proven** | do not claim |
 
 S0/M2 mapping (source label is **not** the production history key). Versions below were observed in `schema_migrations` **after success**, not recovered from a failed apply:
@@ -54,11 +67,34 @@ Orphan example `20260911164346` is cited as a server-generated version that can 
 
 Sequencing and continuation are **VillageClaq orchestration** (one authorized file at a time; next file only after prior success). The Management API does not own VillageClaq source-label order.
 
-F3 `00118`–`00123` files are large. Eventual production apply is expected to follow Cut 1–3 Management API file-stream (not `db push`, not MCP for the large body). That apply is **not authorized** by this runbook.
+F3 `00118`–`00123` files are large. Management API `{query,name}` is **PERMANENTLY DISQUALIFIED** for that apply. `supabase db push` CLI 2.117.0 is the **qualification candidate only** until Daybreak approves. MCP large-SQL remains disqualified and is not evidence about db push. No production apply is authorized by this runbook.
 
 Installed disposable CLI pin used to prove local CLI syntax: **Supabase CLI 2.117.0**. Re-read `--help` before any founder command; do not guess flags.
 
+## Preassigned db push filename versions (known before execution)
+
+Isolated workdir copies **only**. Never rename repository `00118`–`00123` source files. Collision vs production ceiling `20260912174049` is PASS; disposable history starts `[]`; `supabase/migrations` has no timestamp filenames.
+
+| Source file | Filename version | Isolated copy |
+|-------------|------------------|---------------|
+| `00118_f3_bounded_financial_epoch_foundation.sql` | `20260913173000` | `20260913173000_f3_bounded_financial_epoch_foundation.sql` |
+| `00119_f3_01_core_ledger_foundation.sql` | `20260913173001` | `20260913173001_f3_01_core_ledger_foundation.sql` |
+| `00120_f3_02_secure_posting_idempotency.sql` | `20260913173002` | `20260913173002_f3_02_secure_posting_idempotency.sql` |
+| `00121_f3_03_projection_read_proof.sql` | `20260913173003` | `20260913173003_f3_03_projection_read_proof.sql` |
+| `00122_f3_04_correction_reversal.sql` | `20260913173004` | `20260913173004_f3_04_correction_reversal.sql` |
+| `00123_f3_05_opening_cash_command.sql` | `20260913173005` | `20260913173005_f3_05_opening_cash_command.sql` |
+
+Candidate command (CLI 2.117.0 `db push --help`; `--db-url` built in-process; never `-p`):
+
+```bash
+supabase db push --db-url <PERCENT_ENCODED_DISPOSABLE_URL> --workdir <ISOLATED> --yes --skip-vault
+```
+
+When a post-COMMIT split occurs on this candidate: COMMIT → history INSERT fail → **known filename version** → founder-controlled repair → retry skip → next continues. Do not invent a server-generated version. Do not use an apply-time clock.
+
 ## Authoritative source of a repaired version
+
+### Management API `{query,name}` (permanently disqualified)
 
 The repaired version MUST come from **server identity**:
 
@@ -66,6 +102,10 @@ The repaired version MUST come from **server identity**:
 2. `supabase_migrations.schema_migrations` read after the failed apply
 
 If the version is not present in that server identity, and the failed Management API response is not captured showing the identifier → emit **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. **STOP**. Do not repair.
+
+### db push qualification candidate (filename version)
+
+For the isolated timestamp copies, the repaired version is the **preassigned filename version** (`20260913173000`–`20260913173005`). That version is known before execution. Repair still requires every gate below. Never automatic. Never `repair 00118`.
 
 ### History-insert failure before version persistence (Chief live probe 2026-09-13)
 
@@ -114,19 +154,19 @@ Management API skip of a caller-controlled timestamp is **NOT proven**. Never cl
 12. Read-only evidence is captured (catalog fingerprint, history dump, digest, CLI version, exact command, version provenance).
 13. CLI 2.117.0 `migration repair --help` still shows `--status applied|reverted` and `--db-url`.
 
-CLI 2.117.0 requires a local lookup file `supabase/migrations/<timestamp>_<name>.sql` or it errors `LegacyMigrationFileNotFoundError`. That lookup file is a **disposable copy of the authorized bytes** named with the **server-identity timestamp**. Do **not** rename or replace `00118`–`00123` in the repo. Do **not** `repair 00118`.
+CLI 2.117.0 requires a local lookup file `supabase/migrations/<timestamp>_<name>.sql` or it errors `LegacyMigrationFileNotFoundError`. That lookup file is a **disposable copy of the authorized bytes**. For the disqualified Management API path the timestamp would have been server-identity (unrecoverable after the live probe). For the db push **qualification candidate** the timestamp is the **preassigned filename version**. Do **not** rename or replace `00118`–`00123` in the repo. Do **not** `repair 00118`.
 
 ## Founder-authorized command (after every gate)
 
 Syntax from `supabase migration repair --help` (CLI 2.117.0):
 
 ```bash
-supabase migration repair <SERVER_IDENTITY_TIMESTAMP_VERSION> --status applied --db-url <PERCENT_ENCODED_DB_URL> --yes
+supabase migration repair <FILENAME_VERSION> --status applied --db-url <PERCENT_ENCODED_DB_URL> --yes
 ```
 
-`--workdir` must see the disposable `supabase/migrations/<SERVER_IDENTITY_TIMESTAMP_VERSION>_<snake_case_name>.sql` whose SHA-256 equals the authorized digest. Substitute only the version captured from server identity. Never a source label. Never an apply-time clock.
+`--workdir` must see the disposable `supabase/migrations/<FILENAME_VERSION>_<snake_case_name>.sql` whose SHA-256 equals the authorized digest. For the db push candidate, substitute only the preassigned filename version (`20260913173000`–`20260913173005`). Never a source label. Never an apply-time clock.
 
-This command updates **history only**. It does not re-run SQL.
+This command updates **history only**. It does not re-run SQL. Separate founder authentication is required immediately before any production apply/repair. Disposable qualification credentials do not authorize production.
 
 ## Post-repair verification
 
@@ -135,11 +175,21 @@ This command updates **history only**. It does not re-run SQL.
 3. No data drift. Recognition allowlist still `["manual_income"]`.
 4. Do **not** claim Management API will skip a caller-controlled timestamp. Re-apply behavior is **UNPROVEN** on the hosted API until a disposable Management API capture exists. Local `skipIfPresent` is a VillageClaq helper only.
 5. The next legitimate unused **server-generated** version can apply without object-collision only after the repaired identity is recorded.
-6. `supabase db push` remains **not** the production runner and must not be used to “fix” a timestamp/source-label mismatch.
+6. `supabase db push` is a **qualification candidate only** until Daybreak approves. It is **not** production-approved. Do not use it to “fix” a Management API timestamp/source-label mismatch. Do not treat a candidate PASS as production authorization.
 
 Any mismatch → **HOLD**. Do not invent a second repair. Do not force-push. Do not apply F3-06+ / M4.
 
 ## Remote fidelity (founder-authorized disposable only)
+
+### db push qualification candidate (current)
+
+Harness: `scripts/lib/f3-db-push-target-guard.mjs` + `scripts/lib/f3-db-push-cli.mjs`  
+Qualifier: `scripts/qualify-f3-db-push-disposable.mjs`  
+Isolated versions: `scripts/lib/f3-db-push-version-map.mjs`
+
+Management API POST `{query,name}` is **PERMANENTLY DISQUALIFIED** and is never the candidate command.
+
+### Management API (permanently disqualified apply path; identity GET only)
 
 Harness: `scripts/lib/f3-management-api-remote-harness.mjs`  
 Qualifier: `scripts/qualify-f3-management-api-disposable.mjs`  
@@ -188,18 +238,30 @@ This subsection remains only for a later case where list_migrations / `schema_mi
 
 CLI repair against the hosted disposable also needs `F3_DISPOSABLE_DB_URL` (never production). If that URL is absent, prepare the lookup file and stop at `REPAIR_AWAITING_DISPOSABLE_DB_URL`. After a HOLD for history-insert failure, do not prepare a lookup and do not set that URL.
 
-### Chief remote execution
+### Chief remote execution — db push candidate
+
+Password is env-only. Never print it. Never pass `-p`. The qualifier builds `--db-url` in-process.
+
+```bash
+export F3_DBPUSH_DISPOSABLE_SENTINEL=villageclaq-f3-dbpush-20260913-authorized
+export F3_REMOTE_DESTRUCTIVE_TEST=1
+export VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD='<founder vault; do not commit>'
+# optional; identity GET / migrations GET only (apply POST is permanently disqualified):
+# export VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN='<founder vault; do not commit>'
+node scripts/qualify-f3-db-push-disposable.mjs --prep-floor --sequence-f3
+```
+
+Repair is **NEVER automatic**. The qualifier may record a founder-controlled `migration repair <FILENAME_VERSION> --status applied` only after gates, identity/history preflight, exact-byte isolated copies, and the per-file history-failure proof. Separate founder authentication is required before any production apply/repair.
+
+### Chief remote execution — Management API (apply permanently disqualified)
 
 ```bash
 export F3_DISPOSABLE_MAPI_SENTINEL=villageclaq-f3-mapi-20260913-authorized
 export F3_REMOTE_DESTRUCTIVE_TEST=1
 export VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN='<founder vault; do not commit>'
-# optional, only if CLI repair should execute:
-# export F3_DISPOSABLE_DB_URL='<disposable db url; never production>'
-node scripts/prep-f3-disposable-management-api-floor.mjs
-node scripts/qualify-f3-management-api-disposable.mjs --prep-floor --inject-probe --apply-f3
+# Do not POST /database/migrations. Apply is permanently disqualified.
 ```
 
-Cleanup recommendation only: leave `jkorwnwwmdeflfntxntl` in place. Do **not** delete or pause it from this task.
+Cleanup recommendation only: leave `jkorwnwwmdeflfntxntl` in place. Do **not** delete or pause it from this task. After inventory reconfirm, `public.f3_mapi_throwaway_probe` (and dependent sequence/index) may be dropped. Do **not** drop standard `supabase_migrations` schema/table/indexes unless CLI 2.117.0 docs require init.
 
-Local two-phase proofs remain **NON-API simulation**. They are not Management API fidelity.
+Local two-phase proofs remain **NON-API simulation**. They are not Management API fidelity and are not db push fidelity.

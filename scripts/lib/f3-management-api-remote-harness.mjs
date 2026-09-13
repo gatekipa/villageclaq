@@ -44,6 +44,8 @@ export const MANAGEMENT_API_QUERY_PATH = "/v1/projects/{ref}/database/query";
 /** Chief live probe: POST /database/query returned 201 for SQL. */
 export const MANAGEMENT_API_APPLY_BODY_FIELDS = Object.freeze(["query", "name", "rollback"]);
 export const MANAGEMENT_API_ACCEPTS_CALLER_VERSION = false;
+/** Chief live probe 2026-09-13: permanently disqualified as VillageClaq production apply. */
+export const MANAGEMENT_API_APPLY_PERMANENTLY_DISQUALIFIED = true;
 
 export const REMOTE_MANAGEMENT_API_STATUS =
   "GATED — founder-authorized disposable jkorwnwwmdeflfntxntl only; exact sentinel + destructive opt-in + token + identity required";

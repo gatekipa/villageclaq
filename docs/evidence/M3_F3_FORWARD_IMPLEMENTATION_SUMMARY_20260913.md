@@ -1,8 +1,8 @@
 # M3 F3 Forward Implementation Summary — 2026-09-13 (runner-fidelity / local-safety)
 
-**OVERALL VERDICT: HOLD — F3_DBPUSH_FLOOR_HOLD (exit 1) on functional tip `164f579`. Gated `psql -f` cleared the v1 db-query multi-statement defect, then failed at `00030_enterprise_branches_committees.sql`. 00118–00123 sequence NOT RUN. Disposable is PARTIAL — founder must authorize wipe/retry. `psql -f` floor is NOT the candidate runner; `db push` is candidate for 00118–00123 only and was not exercised. Management API `{query,name}` remains PERMANENTLY DISQUALIFIED. Local `test:f3` 991/991 does not override hosted HOLD. FILE-BASED RUNNER QUALIFICATION PASS and production approval are NOT claimed.**
+**OVERALL VERDICT: HOLD.** Chief wipe **SUCCESS** — disposable `jkorwnwwmdeflfntxntl` is **CLEAN baseline** (do not re-floor). Local 00030 exact-14 transform **PASS** without shim. Full local floor through 00117 **HOLD** at `00057_profiles_rls_allow_co_members.sql` (unnest count=1 outside authorized 00030 transform). Hosted floor / db-push **NOT STARTED**. No shim. Repo 00030 / 00118–00123 unmodified. No further replay exceptions without new founder auth. FILE-BASED RUNNER QUALIFICATION PASS and production approval are **NOT** claimed.
 
-Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `164f57949df774586155b007bf8a6c067ded4874` (unchanged). Evidence SHA `79bdf1dd55fef7ddd0dcaa2162795a801ed4e741`.
+Current status: `docs/evidence/M3_F3_WIPE_TRANSFORM_HOLD_20260913.md`. Functional SHA `a0d60f1a3c3ad6fa57629f5cd7c0d544c80c962a`. Prior PARTIAL-floor HOLD (do not delete): `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Pre-wipe inventory preserved as 02-*; wipe SUCCESS as 03-*.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 

@@ -30,7 +30,7 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 | Gate-sync fix | `96bed5a4cdccb71c977536265fead8c9f28529bb` |
 | Superseded scaffolding evidence | `74e001eb2fd336924497b45f8db243da1f672f2c` |
 | **Functional SHA** | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` |
-| **Evidence tip** | *(this commit)* |
+| **Evidence tip** |  |
 | Recognition | exactly `["manual_income"]` |
 | Founder-report status | **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** |
 | Remediation PASS | **NOT CLAIMED** |

@@ -4,6 +4,7 @@
   "remediation_pass_claimed": false,
   "hosted_fidelity_pass_claimed": false,
   "functional_sha": "0c2fe83107fe440b46f978baf56ffd12db4f8cd4",
+  "evidence_sha": "235116f9d9cb4665dd8d5385ac4b6af7ebc279f5",
   "superseded_scaffolding_evidence": "74e001eb2fd336924497b45f8db243da1f672f2c",
   "start_tip": "7affd0d90763bc6fd30fee0b0d968257ec7609d2",
   "prior_functional": "1ca63d9fe0d82a74a761fb742be87642b55329d6",

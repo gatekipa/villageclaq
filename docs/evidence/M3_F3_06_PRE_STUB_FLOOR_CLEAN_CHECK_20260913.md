@@ -33,7 +33,7 @@ Floor label: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REP
 |-----|-------|
 | Functional SHA | `28cb53e87d4261b043e89186b57f137078923844` |
 | Evidence SHA | `eaf84a83214cdbefa727e594e6cd7287a2df28df` |
-| Tip SHA | `PENDING_TIP` |
+| Tip SHA | `f24b3766d1501bd5a6264a2a7848799443373099` |
 | Prior functional | `906e12e31e10c5b7d5bb517b83623b9d16a5b6c7` |
 | Prior evidence | `f4ffacd6397a192872cba22d98f79d56c530dcea` |
 | Prior tip | `a181bea463b1b7d255d70ce2b6be18522994d086` |

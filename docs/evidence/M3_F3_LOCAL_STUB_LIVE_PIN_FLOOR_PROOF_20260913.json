@@ -8,7 +8,7 @@
   "hosted": "NOT_RUN — Chief runs hosted db push",
   "functional_sha": "28cb53e87d4261b043e89186b57f137078923844",
   "evidence_sha": "eaf84a83214cdbefa727e594e6cd7287a2df28df",
-  "tip_sha": "PENDING_TIP",
+  "tip_sha": "f24b3766d1501bd5a6264a2a7848799443373099",
   "chief_06_clean_check": "PASS — packaged as M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913 from Chief box facts (originals not on this VM)",
   "local_unit_tests": "53/53 PASS",
   "qualify_without_env": "NOT_RUN exit 2",

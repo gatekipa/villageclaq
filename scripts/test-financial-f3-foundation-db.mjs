@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
-import { spawn } from "node:child_process";
 import { createDisposablePostgres } from "./fixtures/disposable-postgres.mjs";
 import { applyForwardMigration, installF3StubFloor } from "./fixtures/f3-forward-prerequisites.mjs";
 
@@ -43,19 +42,7 @@ function sqlFailure(query, { role, actor } = {}) {
 }
 
 function asyncSql(query) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("psql", ["-d", db.url, "-X", "-q", "-v", "ON_ERROR_STOP=1", "-At", "-c", query], {
-      encoding: "utf8",
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (d) => { stdout += d; });
-    child.stderr.on("data", (d) => { stderr += d; });
-    child.on("close", (code) => {
-      if (code !== 0) reject(new Error(stderr || "psql failed"));
-      else resolve(stdout.trim());
-    });
-  });
+  return db.asyncSql(query);
 }
 
 function eventInsert({

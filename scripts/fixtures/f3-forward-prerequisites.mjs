@@ -145,8 +145,9 @@ export function applyForwardMigration(url, name) {
  * It records source labels `00118`…`00123` after a successful `psql -f`
  * so injected in-transaction failures can prove rollback of both objects
  * and that internal insert. Production S0/M2 history versions are
- * generated timestamps + snake_case names (see
- * scripts/lib/f3-management-api-file-stream-apply.mjs).
+ * generated timestamps + snake_case names. The local two-phase helper
+ * in scripts/lib/f3-local-two-phase-history-simulation.mjs is NOT
+ * Management API equivalent.
  */
 export const MIGRATION_LEDGER_SQL = `
 CREATE SCHEMA IF NOT EXISTS supabase_migrations;

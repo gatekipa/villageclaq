@@ -1,9 +1,9 @@
 /**
- * Faithful post-COMMIT / pre-external-history failure + CLI repair proofs
- * for 00118–00123. Disposable PostgreSQL 17 only. No production URL.
+ * LOCAL NON-API post-COMMIT / pre-external-history failure + CLI repair
+ * proofs for 00118–00123. Disposable PostgreSQL 17 only. No production URL.
  *
- * Runner: disposable equivalent of Management API file-stream apply
- * (SQL COMMIT, then external schema_migrations INSERT). Not db push.
+ * Runner: local two-phase simulation (SQL COMMIT, then external
+ * schema_migrations INSERT). NOT Management API equivalent. Not db push.
  * Not the 14/14 in-transaction inject suite.
  */
 import assert from "node:assert/strict";
@@ -20,10 +20,11 @@ import {
 } from "./fixtures/f3-forward-prerequisites.mjs";
 import {
   HISTORY_VERSION_FORMAT,
-  PRODUCTION_APPLY_RUNNER,
+  HISTORICAL_PRODUCTION_APPLY_RUNNER,
+  LOCAL_TWO_PHASE_SIMULATION,
   S0_M2_PRODUCTION_HISTORY,
   allocateMonotonicVersions,
-  applyFileStreamThenExternalHistory,
+  applyLocalTwoPhaseHistorySimulation,
   createRepairWorkdir,
   ensureHostedHistoryTable,
   historyHasVersion,
@@ -34,7 +35,7 @@ import {
   removeTargetVersionInsertTrigger,
   repairHistoryApplied,
   requireSupabaseCli,
-} from "./lib/f3-management-api-file-stream-apply.mjs";
+} from "./lib/f3-local-two-phase-history-simulation.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const MIGRATIONS = path.join(root, "supabase/migrations");
@@ -207,12 +208,13 @@ function assertRecognitionInvariant() {
   assert.match(src, /export const F3_RECOGNIZED_SOA_INCOME_EFFECT_KINDS = \["manual_income"\] as const/);
 }
 
-function applyExact(url, file, version) {
-  return applyFileStreamThenExternalHistory({
+function applyExact(url, file, version, extra = {}) {
+  return applyLocalTwoPhaseHistorySimulation({
     url,
     fileAbsPath: path.join(MIGRATIONS, file),
     version,
     name: historyNameFromFilename(file),
+    ...extra,
   });
 }
 
@@ -290,10 +292,13 @@ function runPostCommitPreLedger(file) {
     assertSuccessfulSecurity(db.url);
     assertRecognitionInvariant();
 
-    const again = applyExact(db.url, file, version);
+    const again = applyExact(db.url, file, version, {
+      skipIfPresent: true,
+    });
     assert.equal(again.skipped, true);
-    assert.equal(again.phase, "skip_already_recorded");
-    assert.equal(catalogFingerprint(db.url).md5, committedCatalog.md5, "skip must not rerun SQL");
+    assert.equal(again.phase, "local_helper_skip_already_recorded");
+    assert.equal(again.managementApiEquivalent, false);
+    assert.equal(catalogFingerprint(db.url).md5, committedCatalog.md5, "local helper skip must not rerun SQL");
 
     const nextFile = F3_FORWARD_CHAIN[idx + 1];
     if (nextFile) {
@@ -309,7 +314,7 @@ function runPostCommitPreLedger(file) {
       const followSql = "SELECT 1;\n";
       const tmp = path.join(workdir, "supabase", "migrations", `${followVersion}_${followName}.sql`);
       fs.writeFileSync(tmp, followSql);
-      const follow = applyFileStreamThenExternalHistory({
+      const follow = applyLocalTwoPhaseHistorySimulation({
         url: db.url,
         fileAbsPath: tmp,
         version: followVersion,
@@ -332,7 +337,7 @@ function runPostCommitPreLedger(file) {
   });
 }
 
-test("runner pin: Management API file-stream + timestamp history; CLI repair syntax from --help", () => {
+test("runner pin: historical Management API vs local NON-API simulation; CLI repair syntax from --help", () => {
   const cliVersion = requireSupabaseCli();
   assert.match(cliVersion, /2\.\d+\.\d+/);
   const repairHelp = readCliHelp(["migration", "repair", "--help"]);
@@ -343,7 +348,8 @@ test("runner pin: Management API file-stream + timestamp history; CLI repair syn
   assert.match(repairHelp.text, /\[<version\.\.\.>\]|version/);
   const pushHelp = readCliHelp(["db", "push", "--help"]);
   assert.match(pushHelp.text, /Push new migrations/);
-  assert.equal(PRODUCTION_APPLY_RUNNER.includes("Management API"), true);
+  assert.equal(HISTORICAL_PRODUCTION_APPLY_RUNNER.includes("Management API"), true);
+  assert.match(LOCAL_TWO_PHASE_SIMULATION, /NOT Management API/);
   assert.equal(HISTORY_VERSION_FORMAT, "YYYYMMDDHHMMSS");
   for (const row of S0_M2_PRODUCTION_HISTORY) {
     assert.match(row.version, /^\d{14}$/);
@@ -403,4 +409,8 @@ test("founder repair runbook forbids automatic repair and requires timestamp ver
   assert.doesNotMatch(runbook, /repair 00118 /);
   assert.match(runbook, /HOLD/);
   assert.match(runbook, /NOT FOR PRODUCTION USE/);
+  assert.match(runbook, /UNRECOVERABLE/);
+  assert.match(runbook, /withdrawn/i);
+  assert.match(runbook, /apply-time clock/);
+  assert.match(runbook, /NOT proven/);
 });

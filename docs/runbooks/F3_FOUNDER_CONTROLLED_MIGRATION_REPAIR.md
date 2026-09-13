@@ -3,78 +3,124 @@
 **NOT FOR PRODUCTION USE BY THIS TASK.**  
 This runbook is write+test only. It does not authorize production apply, repair, deploy, merge, or any financial / notification write.
 
-`supabase migration repair --status applied` is **NEVER automatic**. No script, cron, CI job, or agent may run it against production. Only the founder, after every gate below is green, may run the exact version-pinned command.
+`supabase migration repair --status applied` is **NEVER automatic**. No script, cron, CI job, or agent may run it against production. Only the founder, after every gate below is green, and after founder authentication immediately before the command, may run the exact version-pinned command. Repair is **manual / exceptional**.
 
-## Intended production apply runner (do not invent another)
+If exact identity, state, or provenance cannot be established → **STOP and escalate**. Do not guess.
 
-| Item | Pin |
-|------|-----|
-| Production apply | Management API **FILE-STREAMED** `POST /v1/projects/{ref}/database/migrations` `{ query, name }` |
-| Large-SQL disqualification | MCP `apply_migration` is **DISQUALIFIED** (Cut 1 precedent) |
-| Not the production apply runner | `supabase db push`, `supabase migration up` |
-| History version format | `YYYYMMDDHHMMSS` (14-digit UTC timestamp generated at apply) |
-| History name | snake_case after stripping the source `NNNNN_` prefix |
+## SUPERSEDED CLAIMS (withdrawn)
 
-S0/M2 mapping precedent (source label is **not** the production history key):
+The following claims from earlier F3 external-ledger evidence are **withdrawn**:
 
-| Source file | Production version | Production name | Runner |
-|-------------|--------------------|-----------------|--------|
+- That the local two-phase helper (`psql -f` then `INSERT` with a caller-generated `YYYYMMDDHHMMSS`) is Management API-equivalent.
+- That an apply-time clock, inferred timestamp, or nearest timestamp may be used as a repaired version.
+- That Management API skips or continues from a caller-controlled timestamp.
+- That VillageClaq `skipIfPresent` is Management API continuation.
+
+Those behaviors belong to **VillageClaq local helpers** only. They are **NOT** Management API behavior.
+
+## Failure modes (do not conflate)
+
+1. **SQL rollback (before final `COMMIT`)** — security-tail / SQL error rolls back objects. Proven by `scripts/test-financial-f3-migration-atomicity.mjs` (**14/14 SQL pre-commit rollback only**; not CLI-equivalent; not Management API).
+2. **Post-COMMIT history failure** — SQL committed; target version is **absent** from `supabase_migrations.schema_migrations` (or list_migrations). Objects remain. This is the only case this repair runbook addresses. Local two-phase simulation can demonstrate the *shape* of this split; it is **NOT** runner-faithful Management API proof.
+
+If objects are missing, extra, owner-drifted, RLS-drifted, or SQL bytes do not match the authorized SHA-256 → **HOLD**. Do not repair.
+
+## Actual production runner (proven only)
+
+| Item | Proven value | Source |
+|------|----------------|--------|
+| Cut 1–3 apply | Management API **FILE-STREAMED** `POST /v1/projects/{ref}/database/migrations` | S0 Cut 1–3 apply evidence / live history names |
+| Official body fields | `query` (required), `name` (optional), `rollback` (optional) | https://supabase.com/docs/reference/api/v1-apply-a-migration |
+| Caller-selected version in POST body | **NOT accepted** by the official contract | same docs |
+| M2 00117 apply | connected `apply_migration` MCP (small SQL) | M2 evidence |
+| Large-SQL MCP | **DISQUALIFIED** (Cut 1 precedent) | Cut 1 |
+| Not the production apply runner | `supabase db push`, `supabase migration up` | S0/M2 |
+| History name | snake_case after stripping source `NNNNN_` prefix | S0/M2 live `name` matches filename stem |
+| History version | 14-digit `YYYYMMDDHHMMSS` **server-generated**; observed after success | live `schema_migrations` |
+| Failed-response version | **UNKNOWN / UNPROVEN** | no captured failure body in S0/M2 evidence |
+| API skip-if-present | **NOT proven** | do not claim |
+
+S0/M2 mapping (source label is **not** the production history key). Versions below were observed in `schema_migrations` **after success**, not recovered from a failed apply:
+
+| Source file | Observed version | Observed name | Runner |
+|-------------|------------------|---------------|--------|
 | `00114_s0_p0a_cut1_active_authorization.sql` | `20260911183755` | `s0_p0a_cut1_active_authorization` | Management API file-stream |
 | `00115_s0_p0b_cut2_notification_queue.sql` | `20260912033612` | `s0_p0b_cut2_notification_queue` | Management API file-stream |
 | `00116_s0_p0c_cut3_storage_path_fail_closed.sql` | `20260912134123` | `s0_p0c_cut3_storage_path_fail_closed` | Management API file-stream |
 | `00117_m2_notification_policy_foundation.sql` | `20260912174049` | `m2_notification_policy_foundation` | connected `apply_migration` MCP (small SQL) |
 
-F3 `00118`–`00123` files are large. Eventual production apply is expected to follow Cut 1–3 Management API file-stream (not `db push`, not MCP for the large body).
+Orphan example `20260911164346` is cited as a server-generated version that can be listed after the fact. In-repo S0/M2 evidence files on this branch do **not** contain that row; treat listing-by-version after success as the proven recovery path, and treat any specific orphan identity as **UNPROVEN here** unless the founder attaches the list_migrations / `schema_migrations` capture.
 
-Installed disposable CLI pin used to prove this runbook: **Supabase CLI 2.117.0**. Re-read `--help` before any founder command; do not guess flags.
+Sequencing and continuation are **VillageClaq orchestration** (one authorized file at a time; next file only after prior success). The Management API does not own VillageClaq source-label order.
 
-## Failure modes (do not conflate)
+F3 `00118`–`00123` files are large. Eventual production apply is expected to follow Cut 1–3 Management API file-stream (not `db push`, not MCP for the large body). That apply is **not authorized** by this runbook.
 
-1. **Before final `COMMIT`** — security-tail / SQL error rolls back objects. Proven by `scripts/test-financial-f3-migration-atomicity.mjs` (**14/14 SQL pre-commit rollback only**; not CLI-equivalent).
-2. **After final `COMMIT`, before external history insert** — secured objects remain; target timestamp is **absent** from `supabase_migrations.schema_migrations`. This is the only case this repair runbook addresses. Proven by `scripts/test-financial-f3-external-ledger.mjs`.
+Installed disposable CLI pin used to prove local CLI syntax: **Supabase CLI 2.117.0**. Re-read `--help` before any founder command; do not guess flags.
 
-If objects are missing, extra, owner-drifted, RLS-drifted, or SQL bytes do not match the authorized SHA-256 → **HOLD**. Do not repair.
+## Authoritative source of a repaired version
+
+The repaired version MUST come from **server identity**:
+
+1. `GET /v1/projects/{ref}/database/migrations` (list_migrations) after the failed apply, and/or
+2. `supabase_migrations.schema_migrations` read after the failed apply
+
+If the version is not present in that server identity, and the failed Management API response is not captured showing the identifier → **UNRECOVERABLE** without a disposable Management API failure capture. **STOP**.
+
+Do **not** invent, guess, infer, nearest-match, or use an apply-time clock.
+
+Management API skip of a caller-controlled timestamp is **NOT proven**. Never claim it.
 
 ## Pre-repair gates (all required; any miss → HOLD)
 
 1. Production apply is **stopped**. No in-flight Management API / MCP apply.
-2. The missing history version is known in the **actual runner format** (`YYYYMMDDHHMMSS`), captured from the failed apply response or apply-time clock. Do **not** invent that `00118` is the history key.
-3. Every **earlier** authorized version is already recorded (S0/M2 pins plus any earlier F3 timestamps that were successfully applied).
-4. The **target version is absent** from `supabase_migrations.schema_migrations`.
-5. **No later** version was attempted or recorded.
-6. Deployed / on-disk SQL bytes for the target file match the authorized SHA-256 (F3 freeze):
+2. Founder authentication is completed **immediately before** the repair command.
+3. Full catalog / security fingerprint is captured **before** repair (schemas/tables/types/views/functions; defs+owners; empty `search_path`; RLS+policies; grants/revokes/ACLs; HGP pin).
+4. The missing history version is known from **server identity** (list_migrations / `schema_migrations`). Format `YYYYMMDDHHMMSS`. Do **not** invent that `00118` is the history key. Do **not** use apply-time clock.
+5. Exact authorized SQL digest + version/name mapping is established from that server identity only.
+6. Every **earlier** authorized version is already recorded (S0/M2 pins plus any earlier F3 timestamps that were successfully applied).
+7. The **target version is absent** from `supabase_migrations.schema_migrations` (or list_migrations shows the post-COMMIT / pre-history gap).
+8. **No later** version was attempted or recorded.
+9. Deployed / on-disk SQL bytes for the target file match the authorized SHA-256 (F3 freeze):
    - `00118` `517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c`
    - `00119` `9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d`
    - `00120` `4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505`
    - `00121` `568ae0b15b1b6e6c0a7effd9e9b5644a294cc22d76dbbf0e6714a28888825cf5`
    - `00122` `fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9`
    - `00123` `848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699`
-7. Every expected object / owner / empty `search_path` / RLS / policy / grant / revoke / ACL / HGP pin is **exact**. No extras.
-8. Financial / recognition invariants are exact. Allowlist remains `["manual_income"]`.
-9. Read-only evidence is captured (catalog fingerprint, history dump, digest, CLI version, exact command).
-10. CLI 2.117.0 `migration repair --help` still shows `--status applied|reverted` and `--db-url`.
+10. Every expected object / owner / empty `search_path` / RLS / policy / grant / revoke / ACL / HGP pin is **exact**. No extras.
+11. Financial / recognition invariants are exact. Allowlist remains `["manual_income"]`.
+12. Read-only evidence is captured (catalog fingerprint, history dump, digest, CLI version, exact command, version provenance).
+13. CLI 2.117.0 `migration repair --help` still shows `--status applied|reverted` and `--db-url`.
 
-CLI 2.117.0 requires a local lookup file `supabase/migrations/<timestamp>_<name>.sql` or it errors `LegacyMigrationFileNotFoundError`. That lookup file is a **disposable copy of the authorized bytes** named with the **actual timestamp**. Do **not** rename or replace `00118`–`00123` in the repo. Do **not** `repair 00118`.
+CLI 2.117.0 requires a local lookup file `supabase/migrations/<timestamp>_<name>.sql` or it errors `LegacyMigrationFileNotFoundError`. That lookup file is a **disposable copy of the authorized bytes** named with the **server-identity timestamp**. Do **not** rename or replace `00118`–`00123` in the repo. Do **not** `repair 00118`.
 
 ## Founder-authorized command (after every gate)
 
 Syntax from `supabase migration repair --help` (CLI 2.117.0):
 
 ```bash
-supabase migration repair <ACTUAL_TIMESTAMP_VERSION> --status applied --db-url <PERCENT_ENCODED_DB_URL> --yes
+supabase migration repair <SERVER_IDENTITY_TIMESTAMP_VERSION> --status applied --db-url <PERCENT_ENCODED_DB_URL> --yes
 ```
 
-`--workdir` must see the disposable `supabase/migrations/<ACTUAL_TIMESTAMP_VERSION>_<snake_case_name>.sql` whose SHA-256 equals the authorized digest. Substitute only the real timestamp captured from the failed apply. Never a source label.
+`--workdir` must see the disposable `supabase/migrations/<SERVER_IDENTITY_TIMESTAMP_VERSION>_<snake_case_name>.sql` whose SHA-256 equals the authorized digest. Substitute only the version captured from server identity. Never a source label. Never an apply-time clock.
 
 This command updates **history only**. It does not re-run SQL.
 
 ## Post-repair verification
 
-1. `schema_migrations` contains exactly that timestamp + snake_case name.
-2. Catalog fingerprint (schemas/tables/types/views/functions, defs+owners, `search_path`, RLS+policies, grants/revokes/ACLs, HGP) is unchanged vs the post-COMMIT / pre-repair capture.
+1. `schema_migrations` / list_migrations contains exactly that server-identity timestamp + snake_case name.
+2. Catalog / security fingerprint is unchanged vs the post-COMMIT / pre-repair capture.
 3. No data drift. Recognition allowlist still `["manual_income"]`.
-4. Subsequent apply/check of the **same timestamp** skips; it must not rerun SQL (00118+ abort if objects already exist).
-5. The next legitimate unused timestamp can apply without object-collision.
+4. Do **not** claim Management API will skip a caller-controlled timestamp. Re-apply behavior is **UNPROVEN** on the hosted API until a disposable Management API capture exists. Local `skipIfPresent` is a VillageClaq helper only.
+5. The next legitimate unused **server-generated** version can apply without object-collision only after the repaired identity is recorded.
 6. `supabase db push` remains **not** the production runner and must not be used to “fix” a timestamp/source-label mismatch.
 
 Any mismatch → **HOLD**. Do not invent a second repair. Do not force-push. Do not apply F3-06+ / M4.
+
+## Remote fidelity
+
+Runner-faithful Management API failure / version-provenance / repair-continuation proofs are:
+
+`BLOCKED — DISPOSABLE PROJECT AUTHORIZATION REQUIRED`
+
+Do not implement or execute a hosted POST until the founder provides an approved disposable ref, credentials, and sentinel.

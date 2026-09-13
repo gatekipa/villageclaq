@@ -5,9 +5,10 @@
  * SCOPE: failure BEFORE the migration's sole final COMMIT (security-tail
  * inject inside the same transaction). This suite is NOT CLI-equivalent
  * and is NOT the post-commit / pre-external-history proof. Production
- * S0/M2 apply records generated timestamp versions after SQL commit
- * (Management API file-stream). See
- * scripts/test-financial-f3-external-ledger.mjs for that runner.
+ * S0/M2 apply records server-generated timestamp versions after SQL
+ * commit (historical Management API file-stream / MCP). See
+ * scripts/test-financial-f3-external-ledger.mjs for the local NON-API
+ * two-phase simulation — it is not Management API proof.
  *
  * Apply path: psql -f used by applyForwardMigration, plus a disposable
  * schema_migrations table that records source labels 00118…00123 only

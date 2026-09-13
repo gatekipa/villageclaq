@@ -1,7 +1,7 @@
 {
   "artifact": "M3_F3_LOCAL_SAFETY_RESULTS_20260913",
   "verdict": "BLOCKED_REMOTE_FIDELITY_LOCAL_SAFETY_REMEDIATED",
-  "evidence_tip": "cbd727cd57afe73ca885f3f00ce3f0d976520886",
+  "evidence_tip": "9055a2b478f115602579547aeb14335436a5bd90",
   "functional_sha": "1ca63d9fe0d82a74a761fb742be87642b55329d6",
   "superseded_functional": "968660d4e079ceb6c8d081be9f985597eaed0465",
   "superseded_tip": "3937b01bff0bc37ed4035e8f708cf10e355f3eae",

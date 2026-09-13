@@ -19,6 +19,7 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 | Base main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
 | **Functional SHA** | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
+| Evidence artifact | `9055a2b478f115602579547aeb14335436a5bd90` |
 | Superseded functional | `968660d4e079ceb6c8d081be9f985597eaed0465` |
 | Superseded evidence tip | `3937b01bff0bc37ed4035e8f708cf10e355f3eae` |
 | Recognition | exactly `["manual_income"]` |

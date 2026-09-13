@@ -30,8 +30,8 @@ PR **#84** remains **OPEN DRAFT UNMERGED**. Companion agent branch PR **#85** is
 | Tip start | `2d9cb67202eb131b7f64a0d5898ded0999bea2e2` |
 | Harness functional (first) | `dc7f68371ecee2f5f0dd81650a515da5884f3c88` |
 | **Functional SHA** | `f6acf177e11b618fce1d5bc4086f19f78af3ffac` |
-| **Evidence SHA** | `TO_BE_FILLED` |
-| **Tip SHA** | `TO_BE_FILLED` |
+| **Evidence SHA** | `e85f56eba087b0c31936ad6e8f68f39305ce806f` |
+| **Tip SHA** | `e85f56eba087b0c31936ad6e8f68f39305ce806f` |
 | Recognition | exactly `["manual_income"]` |
 | Verdict | **BLOCKED** — hosted password absent |
 | Production approval | **NOT CLAIMED** |

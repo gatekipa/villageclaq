@@ -2,7 +2,7 @@
 
 **OVERALL VERDICT: BLOCKED — db push qualification candidate hosted sequence NOT RUN (password absent on this VM). Management API `{query,name}` remains PERMANENTLY DISQUALIFIED (HOLD — MANAGEMENT API VERSION UNRECOVERABLE). Candidate `--db-url` is the Chief-proven session-mode pooler form after direct-host IPv6 failure. 00118–00123 SQL bytes unchanged. Local remediable gates remain green (`test:f3` 988/988). FILE-BASED RUNNER QUALIFICATION PASS and production approval are NOT claimed.**
 
-Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `f6acf177e11b618fce1d5bc4086f19f78af3ffac`.
+Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `f6acf177e11b618fce1d5bc4086f19f78af3ffac`. Evidence SHA `e85f56eba087b0c31936ad6e8f68f39305ce806f`.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 
@@ -72,3 +72,5 @@ See `M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md` for proven-vs-UNPROVEN runner fact
 - No hosted Management API POST from this VM (token absent); Chief live probe facts copied, not re-run
 - Disposable project not deleted or paused
 - Repair not attempted; 00118–00123 remote apply not claimed
+- Chief live preflight incorporated: identity PASS, migrations `[]`, throwaway probe dropped, session-mode pooler connect OK, direct IPv6 host failed
+- Candidate `--db-url` is session-mode pooler only; this VM still has no password so hosted `db push` remains **BLOCKED**

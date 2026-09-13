@@ -55,9 +55,26 @@ export const DB_PUSH_CANDIDATE_STATUS =
 
 export const FILE_BASED_RUNNER_VERDICTS = Object.freeze({
   PASS: "FILE-BASED RUNNER QUALIFICATION PASS",
+  QUALIFICATION_PASS: "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION",
   MECHANICS_PASS: "FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR",
+  MECHANICS_PASS_SUPERSEDED: true,
   HOLD: "HOLD",
   BLOCKED: "BLOCKED",
+});
+
+/** Prior hosted MECHANICS PASS is SUPERSEDED (docs only; do not erase). */
+export const SUPERSEDED_MECHANICS_PASS_CLAIM = Object.freeze({
+  label: "FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR",
+  status: "SUPERSEDED",
+  reason: [
+    "commands were exercised",
+    "00118 hit intended history-failure",
+    "00119/20 failed on missing role ubuntu",
+    "00121-23 cascading F3_ABORT",
+    "repairing after SQL failures was NOT qualified recovery",
+    "history alignment is not object install",
+    "repair-safety gate and F3 install were NOT qualified",
+  ],
 });
 
 export const F3_FORWARD_FILES = Object.freeze([
@@ -69,7 +86,8 @@ export const F3_FORWARD_FILES = Object.freeze([
   "00123_f3_05_opening_cash_command.sql",
 ]);
 
-export const FROZEN_DIGESTS = Object.freeze({
+/** Superseded 2026-09-13 ACL-portability pin (unconditional ubuntu REVOKE). */
+export const SUPERSEDED_FROZEN_DIGESTS = Object.freeze({
   "00118_f3_bounded_financial_epoch_foundation.sql":
     "517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c",
   "00119_f3_01_core_ledger_foundation.sql":
@@ -82,6 +100,22 @@ export const FROZEN_DIGESTS = Object.freeze({
     "fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9",
   "00123_f3_05_opening_cash_command.sql":
     "848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699",
+});
+
+/** Founder-authorized candidate bytes after optional-ubuntu ACL portability. */
+export const FROZEN_DIGESTS = Object.freeze({
+  "00118_f3_bounded_financial_epoch_foundation.sql":
+    "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+  "00119_f3_01_core_ledger_foundation.sql":
+    "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+  "00120_f3_02_secure_posting_idempotency.sql":
+    "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+  "00121_f3_03_projection_read_proof.sql":
+    "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+  "00122_f3_04_correction_reversal.sql":
+    "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+  "00123_f3_05_opening_cash_command.sql":
+    "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
 });
 
 /** Filename versions known BEFORE any db push execution. Never guessed / clocked. */

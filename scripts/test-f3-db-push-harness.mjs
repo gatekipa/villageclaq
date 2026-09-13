@@ -27,6 +27,8 @@ import {
   F3_FORWARD_FILES,
   FILE_BASED_RUNNER_VERDICTS,
   FROZEN_DIGESTS,
+  SUPERSEDED_FROZEN_DIGESTS,
+  SUPERSEDED_MECHANICS_PASS_CLAIM,
   HISTORY_INJECT_MARKER,
   LIVE_PROBE_THROWAWAY_TABLE,
   MANAGEMENT_API_APPLY_PERMANENTLY_DISQUALIFIED,
@@ -87,10 +89,17 @@ import {
 } from "./lib/f3-db-push-version-map.mjs";
 import {
   DROP_THROWAWAY_PROBE_SQL,
+  REMOVE_HISTORY_INJECT_SQL,
   classifyDbPushHistoryFailure,
   historyInjectSqlForFile,
   historyInjectSqlForVersion,
 } from "./lib/f3-db-push-history-inject.mjs";
+import {
+  FINGERPRINT_REQUIRED_MARKERS,
+  REPAIR_SAFETY_HOLD,
+  evaluateRepairSafetyGate,
+  runRepairSafetyThenMaybeRepair,
+} from "./lib/f3-db-push-repair-safety-gate.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
   FLOOR_HOLD_IF_INEXACT,
@@ -233,6 +242,9 @@ test("collision check fails when disposable history already has a preassigned ve
 test("frozen 00118-00123 digests stay byte-identical", () => {
   const observed = assertFrozenDigestsOnDisk();
   assert.deepEqual(observed, FROZEN_DIGESTS);
+  for (const file of F3_FORWARD_FILES) {
+    assert.notEqual(FROZEN_DIGESTS[file], SUPERSEDED_FROZEN_DIGESTS[file], file);
+  }
 });
 
 test("isolated workdir copies are byte-identical and do not rewrite repo files", () => {
@@ -674,7 +686,8 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /installHostedFloor/);
   assert.match(qualify, /stub-live-pin/);
   assert.match(qualify, /DOCUMENTED QUALIFICATION FIXTURE/);
-  assert.match(qualify, /FILE-BASED RUNNER MECHANICS PASS/);
+  assert.match(qualify, /FILE-BASED RUNNER QUALIFICATION PASS — STUB\/LIVE-PIN FLOOR LIMITATION/);
+  assert.match(qualify, /SUPERSEDED/);
   assert.match(qualify, /runGatedRemoteSqlText/);
   assert.match(qualify, /--wipe-to-baseline/);
   assert.match(qualify, /--no-wipe/);
@@ -710,4 +723,117 @@ test("runbook permanently disqualifies Management API apply and keeps db push as
   assert.match(runbook, /AAAA\/IPv6 unreachable/);
   assert.match(runbook, /gated remote `psql -f`|gated remote psql -f/);
   assert.doesNotMatch(runbook, /repair 00118 /);
+});
+
+const FILE118 = "00118_f3_bounded_financial_epoch_foundation.sql";
+const VER118 = "20260913173000";
+
+function passingFingerprint(file) {
+  const markers = FINGERPRINT_REQUIRED_MARKERS[file] || ["financial_private"];
+  return {
+    schema: markers.join(","),
+    function_owner: markers.map((m) => `${m}:postgres`).join(","),
+    acl: markers.join(","),
+    policy: "financial_",
+    f3_objects_absent: false,
+  };
+}
+
+function authorizedGateInput(extra = {}) {
+  return {
+    file: FILE118,
+    targetVersion: VER118,
+    injectInstalled: true,
+    injectStatus: 0,
+    injectSql: historyInjectSqlForFile(FILE118),
+    exitStatus: 3,
+    stdout: "",
+    stderr: `${HISTORY_INJECT_MARKER}: blocked INSERT for version ${VER118} name f3_bounded_financial_epoch_foundation`,
+    historyRows: [],
+    objectsPresent: true,
+    securityPostconditionsOk: true,
+    fingerprint: passingFingerprint(FILE118),
+    digest: FROZEN_DIGESTS[FILE118],
+    onDiskDigest: FROZEN_DIGESTS[FILE118],
+    ...extra,
+  };
+}
+
+test("repair-safety gate authorizes repair only after all eight proofs", () => {
+  const ok = evaluateRepairSafetyGate(authorizedGateInput());
+  assert.equal(ok.ok, true);
+  assert.equal(ok.repairAuthorized, true);
+  assert.equal(ok.nextMigration, true);
+  assert.equal(FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS, "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION");
+  assert.equal(FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS_SUPERSEDED, true);
+  assert.equal(SUPERSEDED_MECHANICS_PASS_CLAIM.status, "SUPERSEDED");
+});
+
+test("repair-safety negatives spawn zero repair processes and still clean poison", () => {
+  const cases = [
+    {
+      name: "missing-role SQL failure",
+      extra: {
+        stderr: 'ERROR:  role "ubuntu" does not exist\n',
+        originalSqlError: 'ERROR:  role "ubuntu" does not exist',
+      },
+    },
+    {
+      name: "F3_ABORT",
+      extra: {
+        stderr: "ERROR:  F3_ABORT: has_group_permission fingerprint changed by 00119\n",
+      },
+    },
+    {
+      name: "missing expected objects",
+      extra: { objectsPresent: false, securityPostconditionsOk: false },
+    },
+    {
+      name: "wrong injection marker",
+      extra: { stderr: "ERROR:  history INSERT blocked for some other reason\n" },
+    },
+    {
+      name: "missing injection marker",
+      extra: { stderr: "ERROR:  relation already exists\n" },
+    },
+    {
+      name: "target history unexpectedly present",
+      extra: { historyRows: [{ version: VER118, name: "f3_bounded_financial_epoch_foundation" }] },
+    },
+  ];
+  for (const c of cases) {
+    let repairCalls = 0;
+    let cleanupCalls = 0;
+    const decided = runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput(c.extra),
+      cleanup: () => {
+        cleanupCalls += 1;
+        return { sql: REMOVE_HISTORY_INJECT_SQL, ok: true };
+      },
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    assert.equal(decided.repairAuthorized, false, c.name);
+    assert.equal(decided.repairAttempted, false, c.name);
+    assert.equal(decided.continuation, false, c.name);
+    assert.equal(decided.nextMigration, false, c.name);
+    assert.equal(repairCalls, 0, `${c.name} repair spawned`);
+    assert.equal(cleanupCalls, 1, `${c.name} poison cleanup`);
+    assert.match(decided.cleanup.sql, /DROP TRIGGER IF EXISTS trg_f3_dbpush_fail_target_history/);
+    assert.match(decided.cleanup.sql, /DROP FUNCTION IF EXISTS supabase_migrations\.f3_dbpush_fail_target_history/);
+    assert.equal(decided.gate.hold, REPAIR_SAFETY_HOLD);
+  }
+});
+
+test("qualify runner classifies before repair and uses the new success label", () => {
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
+  const gateIdx = seq.indexOf("runRepairSafetyThenMaybeRepair");
+  const repairIdx = seq.indexOf("runFilenameVersionRepair");
+  assert.ok(gateIdx >= 0 && repairIdx > gateIdx);
+  assert.match(qualify, /QUALIFICATION_PASS/);
+  assert.match(qualify, /REPAIR_SAFETY_HOLD/);
+  assert.match(qualify, /mechanicsPass = "SUPERSEDED"/);
 });

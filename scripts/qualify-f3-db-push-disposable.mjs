@@ -116,6 +116,10 @@ import {
   assertPreStubFloorCleanCheck,
   evaluatePreStubFloorCleanCheck,
 } from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
+import {
+  REPAIR_SAFETY_HOLD,
+  runRepairSafetyThenMaybeRepair,
+} from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -501,6 +505,13 @@ async function main() {
           sql: objectProbeSql(TARGET_OBJECT_PROBES[file]),
         });
         const objectsPresent = objectsPresentFromProbe(probe);
+        const fingerprintBeforeRepair = await runDbQuery({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: CATALOG_FINGERPRINT_SQL,
+        });
+        const fingerprint = inventoryFromQuery(fingerprintBeforeRepair.stdout);
         const classification = classifyDbPushHistoryFailure({
           exitStatus: push.status,
           stdout: push.stdout,
@@ -509,19 +520,63 @@ async function main() {
           targetVersion: version,
           objectsPresent,
         });
-        runGatedRemoteSqlText(isolated.workdir, `remove-inject-${version}.sql`, REMOVE_HISTORY_INJECT_SQL);
-        const fingerprintBeforeRepair = await runDbQuery({
-          bin: cli.bin,
-          workdir: isolated.workdir,
-          help: queryHelp,
-          sql: CATALOG_FINGERPRINT_SQL,
+        const decided = runRepairSafetyThenMaybeRepair({
+          gateInput: {
+            file,
+            targetVersion: version,
+            injectInstalled: inject.status === 0,
+            injectStatus: inject.status,
+            injectSql,
+            exitStatus: push.status,
+            stdout: push.stdout,
+            stderr: push.stderr,
+            historyRows: rowsFromQuery(historyAfterFail),
+            objectsPresent,
+            securityPostconditionsOk: objectsPresent === true && fingerprint && typeof fingerprint === "object",
+            fingerprint,
+            digest: FROZEN_DIGESTS[file],
+            onDiskDigest: FROZEN_DIGESTS[file],
+            originalSqlError: `${push.stderr || ""}\n${push.stdout || ""}`.trim() || null,
+          },
+          cleanup: () =>
+            runGatedRemoteSqlText(isolated.workdir, `remove-inject-${version}.sql`, REMOVE_HISTORY_INJECT_SQL),
+          repair: () =>
+            runFilenameVersionRepair({
+              bin: cli.bin,
+              version,
+              workdir: isolated.workdir,
+              help: repairHelp,
+            }),
         });
-        const repair = runFilenameVersionRepair({
-          bin: cli.bin,
+        const step = {
+          file,
+          destName: timestampFilenameFor(file),
           version,
-          workdir: isolated.workdir,
-          help: repairHelp,
-        });
+          digest: FROZEN_DIGESTS[file],
+          inject: { status: inject.status },
+          push,
+          classification,
+          repairSafety: decided.gate,
+          objectsPresent,
+          historyAfterFail: rowsFromQuery(historyAfterFail),
+          fingerprintBeforeRepair: fingerprint,
+          repair: decided.repair,
+          repairAttempted: decided.repairAttempted,
+          continuation: decided.continuation,
+        };
+        if (!decided.repairAuthorized) {
+          evidence.sequence.push({
+            ...step,
+            historyAfterRepair: null,
+            fingerprintAfterRepair: null,
+            retry: null,
+          });
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = decided.gate.hold || REPAIR_SAFETY_HOLD;
+          evidence.originalSqlError = decided.gate.originalSqlError;
+          break;
+        }
         const historyAfterRepair = await runDbQuery({
           bin: cli.bin,
           workdir: isolated.workdir,
@@ -540,27 +595,11 @@ async function main() {
           help: pushHelp,
         });
         evidence.sequence.push({
-          file,
-          destName: timestampFilenameFor(file),
-          version,
-          digest: FROZEN_DIGESTS[file],
-          inject: { status: inject.status },
-          push,
-          classification,
-          objectsPresent,
-          historyAfterFail: rowsFromQuery(historyAfterFail),
-          fingerprintBeforeRepair: inventoryFromQuery(fingerprintBeforeRepair.stdout),
-          repair,
+          ...step,
           historyAfterRepair: rowsFromQuery(historyAfterRepair),
           fingerprintAfterRepair: inventoryFromQuery(fingerprintAfterRepair.stdout),
           retry,
         });
-        if (!classification.nonzeroExit || !classification.targetVersionAbsent) {
-          evidence.status = "HOLD";
-          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = `HOLD: ${file} did not prove history-failure + absent version`;
-          break;
-        }
       }
     }
 
@@ -572,10 +611,11 @@ async function main() {
       });
       evidence.migrationListAfter = listedAfter;
       if (args.sequenceF3 && evidence.sequence.length === F3_FORWARD_FILES.length) {
-        evidence.status = FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS;
-        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS;
+        evidence.status = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
+        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS;
         evidence.claims.dbPush =
-          "FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR; not production PASS; not clean replay PASS; not merge/deploy auth";
+          "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth";
+        evidence.claims.mechanicsPass = "SUPERSEDED";
         evidence.claims.productionApproval = "NOT CLAIMED";
         evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
       } else if (!args.sequenceF3) {

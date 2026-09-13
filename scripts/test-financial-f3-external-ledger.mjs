@@ -18,6 +18,7 @@ import {
   STUB_CORE_SQL,
   installLiveHasGroupPermission,
 } from "./fixtures/f3-forward-prerequisites.mjs";
+import { FROZEN_DIGESTS } from "./lib/f3-db-push-pins.mjs";
 import {
   HISTORY_VERSION_FORMAT,
   HISTORICAL_PRODUCTION_APPLY_RUNNER,
@@ -40,21 +41,6 @@ import {
 const root = fileURLToPath(new URL("..", import.meta.url));
 const MIGRATIONS = path.join(root, "supabase/migrations");
 const RECOGNITION_SRC = path.join(root, "src/lib/financial-f3-recognition.ts");
-
-export const FROZEN_DIGESTS = {
-  "00118_f3_bounded_financial_epoch_foundation.sql":
-    "517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c",
-  "00119_f3_01_core_ledger_foundation.sql":
-    "9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d",
-  "00120_f3_02_secure_posting_idempotency.sql":
-    "4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505",
-  "00121_f3_03_projection_read_proof.sql":
-    "568ae0b15b1b6e6c0a7effd9e9b5644a294cc22d76dbbf0e6714a28888825cf5",
-  "00122_f3_04_correction_reversal.sql":
-    "fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9",
-  "00123_f3_05_opening_cash_command.sql":
-    "848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699",
-};
 
 const TARGET_PRESENT_SQL = {
   "00118_f3_bounded_financial_epoch_foundation.sql": [

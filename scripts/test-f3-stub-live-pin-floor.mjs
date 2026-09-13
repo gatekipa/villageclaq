@@ -558,12 +558,17 @@ test("NOTICE already-exists plus auth ERROR fails stub floor and records stderrT
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
 });
 
-test("success verdict is mechanics-pass only and frozen F3 digests stay pinned", () => {
+test("success verdict is qualification-pass with superseded mechanics-pass and frozen F3 digests stay pinned", () => {
+  assert.equal(
+    FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS,
+    "FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION",
+  );
   assert.equal(
     FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS,
     "FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR",
   );
-  assert.notEqual(FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS, FILE_BASED_RUNNER_VERDICTS.PASS);
+  assert.equal(FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS_SUPERSEDED, true);
+  assert.notEqual(FILE_BASED_RUNNER_VERDICTS.QUALIFICATION_PASS, FILE_BASED_RUNNER_VERDICTS.PASS);
   const precheck = stubLivePinFloorPrecheck();
   assert.deepEqual(precheck.frozenDigests, FROZEN_DIGESTS);
   assert.deepEqual(precheck.recognition, ["manual_income"]);

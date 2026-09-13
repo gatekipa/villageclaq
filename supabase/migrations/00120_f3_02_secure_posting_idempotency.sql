@@ -548,19 +548,31 @@ SET ROLE postgres;
 DO $f3_owner_acl$
 BEGIN
   IF to_regprocedure('public.post_financial_command(jsonb)') IS NOT NULL THEN
-    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_command(jsonb) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_command(jsonb) FROM PUBLIC, anon, authenticated, service_role';
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
+      EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_command(jsonb) FROM ubuntu';
+    END IF;
     EXECUTE 'GRANT EXECUTE ON FUNCTION public.post_financial_command(jsonb) TO authenticated';
   END IF;
   IF to_regprocedure('public.correct_financial_event(jsonb)') IS NOT NULL THEN
-    EXECUTE 'REVOKE ALL ON FUNCTION public.correct_financial_event(jsonb) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'REVOKE ALL ON FUNCTION public.correct_financial_event(jsonb) FROM PUBLIC, anon, authenticated, service_role';
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
+      EXECUTE 'REVOKE ALL ON FUNCTION public.correct_financial_event(jsonb) FROM ubuntu';
+    END IF;
     EXECUTE 'GRANT EXECUTE ON FUNCTION public.correct_financial_event(jsonb) TO authenticated';
   END IF;
   IF to_regprocedure('public.post_financial_opening_cash(jsonb)') IS NOT NULL THEN
-    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_opening_cash(jsonb) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_opening_cash(jsonb) FROM PUBLIC, anon, authenticated, service_role';
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
+      EXECUTE 'REVOKE ALL ON FUNCTION public.post_financial_opening_cash(jsonb) FROM ubuntu';
+    END IF;
     EXECUTE 'GRANT EXECUTE ON FUNCTION public.post_financial_opening_cash(jsonb) TO authenticated';
   END IF;
   IF to_regprocedure('public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz)') IS NOT NULL THEN
-    EXECUTE 'REVOKE ALL ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) FROM PUBLIC, anon, authenticated, service_role, ubuntu';
+    EXECUTE 'REVOKE ALL ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) FROM PUBLIC, anon, authenticated, service_role';
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
+      EXECUTE 'REVOKE ALL ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) FROM ubuntu';
+    END IF;
     EXECUTE 'GRANT EXECUTE ON FUNCTION public.get_financial_projection_bundle(uuid,timestamptz,timestamptz,timestamptz), public.get_financial_cashbook(uuid,timestamptz,timestamptz,uuid,text,integer,integer) TO authenticated';
   END IF;
 END

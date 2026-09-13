@@ -64,7 +64,7 @@ The repaired version MUST come from **server identity**:
 1. `GET /v1/projects/{ref}/database/migrations` (list_migrations) after the failed apply, and/or
 2. `supabase_migrations.schema_migrations` read after the failed apply
 
-If the version is not present in that server identity, and the failed Management API response is not captured showing the identifier → **UNRECOVERABLE** without a disposable Management API failure capture. **STOP**.
+If the version is not present in that server identity, and the failed Management API response is not captured showing the identifier → emit **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. **STOP**. Do not repair.
 
 Do **not** invent, guess, infer, nearest-match, or use an apply-time clock.
 
@@ -117,10 +117,63 @@ This command updates **history only**. It does not re-run SQL.
 
 Any mismatch → **HOLD**. Do not invent a second repair. Do not force-push. Do not apply F3-06+ / M4.
 
-## Remote fidelity
+## Remote fidelity (founder-authorized disposable only)
 
-Runner-faithful Management API failure / version-provenance / repair-continuation proofs are:
+Harness: `scripts/lib/f3-management-api-remote-harness.mjs`  
+Qualifier: `scripts/qualify-f3-management-api-disposable.mjs`  
+Floor prep: `scripts/prep-f3-disposable-management-api-floor.mjs`
 
-`BLOCKED — DISPOSABLE PROJECT AUTHORIZATION REQUIRED`
+Approved disposable (do not substitute):
 
-Do not implement or execute a hosted POST until the founder provides an approved disposable ref, credentials, and sentinel.
+| Item | Value |
+|------|-------|
+| Name | `villageclaq-f3-management-api-disposable-20260913` |
+| Ref | `jkorwnwwmdeflfntxntl` |
+| Org | `eyztkzkprpmlmcabrfef` |
+| Sentinel | `villageclaq-f3-mapi-20260913-authorized` via `F3_DISPOSABLE_MAPI_SENTINEL` |
+| Token | `VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN` only (never print / commit) |
+| Destructive opt-in | `F3_REMOTE_DESTRUCTIVE_TEST=1` |
+| Production ref | `llbnliixczcqfftxpsmb` — always refused |
+
+The harness requires **all** of: exact approved ref, exact sentinel, destructive opt-in, token present, and positive project-identity verification (name match). Local connection-guard strength is unchanged.
+
+### Disclosed floor limitation
+
+Disposable floor is **NOT** a clean `00001`–`00117` replay. Install only: prerequisite stub + live HGP/enqueue/queue pins + real `00117` + exact frozen `00118`+ bytes. Record that limitation on every run.
+
+### Post-COMMIT history failure
+
+Disposable-only trigger on `supabase_migrations.schema_migrations` raises after the server assigns `version`+`name`, so the Management API response can expose that identity. Recover **only** from:
+
+1. apply response
+2. `GET /v1/projects/{ref}/database/migrations`
+3. `supabase_migrations.schema_migrations`
+
+If those artifacts do not agree on one `YYYYMMDDHHMMSS` + name → **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Do not repair. Do not use an apply-time clock, guess, infer, or nearest-match.
+
+### Recoverable version → CLI repair + continuation
+
+1. Discover `supabase --version` (do not guess).
+2. Run `supabase migration repair --help` and use only flags it shows.
+3. Write a timestamp-named lookup file whose bytes equal the authorized SQL digest.
+4. Repair **only** the recovered version as `--status applied`.
+5. Verify zero catalog drift / no SQL re-exec.
+6. Continue VillageClaq Management API orchestration (next authorized file via file-stream POST). Record whether the next file advances, retries, or errors. **Do not claim API custom skip unless a live re-POST observation shows it.**
+
+CLI repair against the hosted disposable also needs `F3_DISPOSABLE_DB_URL` (never production). If that URL is absent, prepare the lookup file and stop at `REPAIR_AWAITING_DISPOSABLE_DB_URL`.
+
+### Chief remote execution
+
+```bash
+export F3_DISPOSABLE_MAPI_SENTINEL=villageclaq-f3-mapi-20260913-authorized
+export F3_REMOTE_DESTRUCTIVE_TEST=1
+export VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN='<founder vault; do not commit>'
+# optional, only if CLI repair should execute:
+# export F3_DISPOSABLE_DB_URL='<disposable db url; never production>'
+node scripts/prep-f3-disposable-management-api-floor.mjs
+node scripts/qualify-f3-management-api-disposable.mjs --prep-floor --inject-probe --apply-f3
+```
+
+Cleanup recommendation only: leave `jkorwnwwmdeflfntxntl` in place. Do **not** delete or pause it from this task.
+
+Local two-phase proofs remain **NON-API simulation**. They are not Management API fidelity.

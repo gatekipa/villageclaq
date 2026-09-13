@@ -21,7 +21,11 @@ import {
 import { adminUrl, createDisposableDatabase, psql, psqlFile } from "./fixtures/disposable-postgres.mjs";
 import { applyLocalTwoPhaseHistorySimulation, repairHistoryApplied } from "./lib/f3-local-two-phase-history-simulation.mjs";
 import {
+  APPROVED_DISPOSABLE_PROJECT_REFS,
+  PRODUCTION_REF,
   REMOTE_MANAGEMENT_API_STATUS,
+  __remoteFetchLedgerForTests,
+  __resetRemoteFetchForTests,
   applyRemoteManagementApiMigration,
   assertRemoteManagementApiAuthorized,
   listRemoteManagementApiMigrations,
@@ -87,11 +91,19 @@ function assertRejectedBeforeSpawn(fn) {
 
 beforeEach(() => {
   __resetLocalSpawnForTests();
+  __resetRemoteFetchForTests();
+  delete process.env.VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN;
+  delete process.env.F3_DISPOSABLE_MAPI_SENTINEL;
+  delete process.env.F3_REMOTE_DESTRUCTIVE_TEST;
 });
 
 afterEach(() => {
   __resetLocalSpawnForTests();
+  __resetRemoteFetchForTests();
   delete process.env.F3_DISPOSABLE_ADMIN_URL;
+  delete process.env.VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN;
+  delete process.env.F3_DISPOSABLE_MAPI_SENTINEL;
+  delete process.env.F3_REMOTE_DESTRUCTIVE_TEST;
 });
 
 for (const [url, role] of LOCAL_OK) {
@@ -245,7 +257,7 @@ test("CLI help/version uses isolated HOME and stripped env", () => {
   delete process.env.SUPABASE_ACCESS_TOKEN;
 });
 
-test("remote Management API harness is blocked and spawns nothing", () => {
+test("remote Management API harness is fail-closed and fetches nothing when unauthorized", () => {
   assertRejectedBeforeSpawn(() => applyRemoteManagementApiMigration());
   assertRejectedBeforeSpawn(() => listRemoteManagementApiMigrations());
   assertRejectedBeforeSpawn(() =>
@@ -255,16 +267,20 @@ test("remote Management API harness is blocked and spawns nothing", () => {
       optIn: true,
     }),
   );
-  assert.equal(REMOTE_MANAGEMENT_API_STATUS, "BLOCKED — DISPOSABLE PROJECT AUTHORIZATION REQUIRED");
+  assert.equal(__remoteFetchLedgerForTests().length, 0);
+  assert.deepEqual([...APPROVED_DISPOSABLE_PROJECT_REFS], ["jkorwnwwmdeflfntxntl"]);
+  assert.match(REMOTE_MANAGEMENT_API_STATUS, /jkorwnwwmdeflfntxntl/);
+  assert.doesNotMatch(REMOTE_MANAGEMENT_API_STATUS, /llbnliixczcqfftxpsmb/);
 });
 
 test("remote harness refuses production ref without posting", () => {
   assertRejectedBeforeSpawn(() =>
     assertRemoteManagementApiAuthorized({
-      projectRef: "llbnliixczcqfftxpsmb",
+      projectRef: PRODUCTION_REF,
       optIn: true,
     }),
   );
+  assert.equal(__remoteFetchLedgerForTests().length, 0);
 });
 
 test("rejected cases across parser, psql, and admin override spawn zero processes", () => {

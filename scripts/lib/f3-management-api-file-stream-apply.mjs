@@ -5,6 +5,7 @@
  * caller-generated-timestamp two-phase helper. That claim is withdrawn.
  *
  * Canonical module: ./f3-local-two-phase-history-simulation.mjs
- * Remote Management API path: ./f3-management-api-remote-harness.mjs (BLOCKED)
+ * Remote Management API path: ./f3-management-api-remote-harness.mjs
+ * (gated founder-authorized disposable jkorwnwwmdeflfntxntl only)
  */
 export * from "./f3-local-two-phase-history-simulation.mjs";

@@ -73,6 +73,25 @@ function tryParseJson(text) {
 }
 
 /**
+ * CLI `--output-format json` still leaves `rows[0].jsonb_build_object` as a
+ * JSON string (double-encoded). Peel `{...}` / `[...]` strings up to 3 times.
+ */
+export function coerceJsonValue(value) {
+  let current = value;
+  for (let i = 0; i < 3; i += 1) {
+    if (typeof current !== "string") return current;
+    const trimmed = current.trim();
+    if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return current;
+    try {
+      current = JSON.parse(trimmed);
+    } catch {
+      return current;
+    }
+  }
+  return current;
+}
+
+/**
  * Parse jsonb / json / table-wrapped query stdout.
  * Returns an object/array when JSON is recoverable; otherwise the trimmed
  * string (fail-closed callers must not treat that as inventory).
@@ -106,23 +125,29 @@ export function unwrapCliRowsEnvelope(parsed) {
   return parsed;
 }
 
+function coerceJsonbBuildObject(value) {
+  return coerceJsonValue(value);
+}
+
 export function unwrapInventory(parsed) {
   if (parsed == null) return {};
-  if (typeof parsed === "string") {
-    const again = parseJsonish(parsed);
-    if (again && typeof again === "object") return unwrapInventory(again);
+  const coercedTop = coerceJsonValue(parsed);
+  if (typeof coercedTop === "string") {
+    const again = parseJsonish(coercedTop);
+    const peeled = coerceJsonValue(again);
+    if (peeled && typeof peeled === "object") return unwrapInventory(peeled);
     return {};
   }
-  const fromRows = unwrapCliRowsEnvelope(parsed);
-  if (fromRows !== parsed) return unwrapInventory(fromRows);
-  if (Array.isArray(parsed)) {
-    if (!parsed.length) return {};
-    const first = parsed[0];
+  const fromRows = unwrapCliRowsEnvelope(coercedTop);
+  if (fromRows !== coercedTop) return unwrapInventory(fromRows);
+  if (Array.isArray(coercedTop)) {
+    if (!coercedTop.length) return {};
+    const first = coercedTop[0];
     if (first && typeof first === "object") {
-      if (first.jsonb_build_object != null) return unwrapInventory(first.jsonb_build_object);
-      if (first.json_build_object != null) return unwrapInventory(first.json_build_object);
-      if (first.json_agg != null) return unwrapInventory(first.json_agg);
-      if (first.coalesce != null) return unwrapInventory(first.coalesce);
+      if (first.jsonb_build_object != null) return unwrapInventory(coerceJsonbBuildObject(first.jsonb_build_object));
+      if (first.json_build_object != null) return unwrapInventory(coerceJsonValue(first.json_build_object));
+      if (first.json_agg != null) return unwrapInventory(coerceJsonValue(first.json_agg));
+      if (first.coalesce != null) return unwrapInventory(coerceJsonValue(first.coalesce));
       if (first.public_tables !== undefined || first.schema_migrations_rows !== undefined) {
         return first;
       }
@@ -132,10 +157,14 @@ export function unwrapInventory(parsed) {
     }
     return {};
   }
-  if (typeof parsed === "object") {
-    if (parsed.jsonb_build_object != null) return unwrapInventory(parsed.jsonb_build_object);
-    if (parsed.json_build_object != null) return unwrapInventory(parsed.json_build_object);
-    return parsed;
+  if (typeof coercedTop === "object") {
+    if (coercedTop.jsonb_build_object != null) {
+      return unwrapInventory(coerceJsonbBuildObject(coercedTop.jsonb_build_object));
+    }
+    if (coercedTop.json_build_object != null) {
+      return unwrapInventory(coerceJsonValue(coercedTop.json_build_object));
+    }
+    return coercedTop;
   }
   return {};
 }
@@ -146,11 +175,25 @@ export function unwrapInventory(parsed) {
  * parseJsonish remains defense-in-depth for box-drawn table stdout.
  */
 export function inventoryFromQuery(textOrValue) {
-  return unwrapInventory(parseJsonish(textOrValue));
+  const unwrapped = unwrapInventory(parseJsonish(textOrValue));
+  const coerced = coerceJsonValue(unwrapped);
+  if (coerced && typeof coerced === "object") return coerced;
+  return unwrapInventory(coerced);
 }
 
 export function inventoryFromQueryStdout(textOrValue) {
   return inventoryFromQuery(textOrValue);
+}
+
+export function parseEvidenceOutArg(argv) {
+  const list = Array.isArray(argv) ? argv : [];
+  const eq = list.find((a) => String(a).startsWith("--evidence-out="));
+  if (eq) return String(eq).slice("--evidence-out=".length);
+  const idx = list.indexOf("--evidence-out");
+  if (idx >= 0 && list[idx + 1] != null && !String(list[idx + 1]).startsWith("-")) {
+    return list[idx + 1];
+  }
+  return null;
 }
 
 function asQueryRows(value) {
@@ -170,14 +213,14 @@ export function rowsFromQuery(result) {
       return asQueryRows(parsed[0].coalesce);
     }
     if (parsed.length && parsed[0] && typeof parsed[0] === "object" && parsed[0].jsonb_build_object) {
-      return unwrapInventory(parsed[0].jsonb_build_object);
+      return unwrapInventory(coerceJsonbBuildObject(parsed[0].jsonb_build_object));
     }
     return parsed;
   }
   if (parsed && typeof parsed === "object") {
-    if (parsed.json_agg != null) return asQueryRows(parsed.json_agg);
-    if (parsed.coalesce != null) return asQueryRows(parsed.coalesce);
-    if (parsed.jsonb_build_object != null) return unwrapInventory(parsed.jsonb_build_object);
+    if (parsed.json_agg != null) return asQueryRows(coerceJsonValue(parsed.json_agg));
+    if (parsed.coalesce != null) return asQueryRows(coerceJsonValue(parsed.coalesce));
+    if (parsed.jsonb_build_object != null) return unwrapInventory(coerceJsonbBuildObject(parsed.jsonb_build_object));
     return parsed;
   }
   return [];

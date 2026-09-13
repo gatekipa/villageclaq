@@ -107,6 +107,7 @@ import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
 import {
   inventoryFromQuery,
+  parseEvidenceOutArg,
   parseJsonish,
   rowsFromQuery,
 } from "./lib/f3-db-push-query-parse.mjs";
@@ -201,10 +202,7 @@ function parseArgs(argv) {
     noWipe: argv.includes("--no-wipe") || !argv.includes("--wipe-to-baseline"),
     skipCleanup: argv.includes("--skip-cleanup"),
     floorMode: parseFloorMode(argv),
-    evidenceOut: (() => {
-      const idx = argv.indexOf("--evidence-out");
-      return idx >= 0 ? argv[idx + 1] : null;
-    })(),
+    evidenceOut: parseEvidenceOutArg(argv),
   };
 }
 

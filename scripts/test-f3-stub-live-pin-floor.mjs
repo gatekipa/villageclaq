@@ -59,8 +59,10 @@ import {
   isCleanBaseline,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
+  coerceJsonValue,
   inventoryFromQuery,
   inventoryFromQueryStdout,
+  parseEvidenceOutArg,
   parseJsonish,
 } from "./lib/f3-db-push-query-parse.mjs";
 import {
@@ -321,6 +323,44 @@ test("parseJsonish extracts JSON from supabase db query table/text stdout", () =
   const cleanFromEnvelope = evaluatePreStubFloorCleanCheck({ inventory: envelope });
   assert.equal(cleanFromEnvelope.clean_ok, true);
   assert.equal(cleanFromEnvelope.public_tables, 0);
+});
+
+test("coerceJsonValue peels double-encoded jsonb_build_object strings up to 3 times", () => {
+  const payload = passingPreStubFloorCleanInventory();
+  const once = JSON.stringify(payload);
+  assert.equal(typeof coerceJsonValue(once), "object");
+  assert.deepEqual(coerceJsonValue(once).public_tables, []);
+  assert.equal(coerceJsonValue(once).schema_migrations_present, true);
+  assert.deepEqual(coerceJsonValue(payload), payload);
+  assert.equal(coerceJsonValue("not-json"), "not-json");
+  let layered = once;
+  for (let i = 0; i < 2; i += 1) layered = JSON.stringify(layered);
+  // Layered quotes start with `"`, not `{` — coerce stops; CLI field is `{...}`.
+  assert.equal(typeof coerceJsonValue(layered), "string");
+
+  const capturedBody = {
+    rows: [{ jsonb_build_object: once }],
+  };
+  const fromStringField = inventoryFromQuery(JSON.stringify(capturedBody));
+  assert.equal(typeof fromStringField, "object");
+  assert.notEqual(typeof fromStringField, "string");
+  assert.equal(fromStringField.schema_migrations_present, true);
+  assert.deepEqual(fromStringField.public_tables, []);
+
+  const fromParsedEnvelope = inventoryFromQuery(capturedBody);
+  assert.equal(fromParsedEnvelope.schema_migrations_rows, 0);
+
+  const check = evaluatePreStubFloorCleanCheck({ inventory: capturedBody });
+  assert.equal(check.clean_ok, true);
+  assert.equal(check.classification_verdict, "CLEAN_BASELINE");
+  assert.deepEqual(check.residuals, []);
+  assert.equal(isCleanBaseline(classifyInventory(fromStringField)), true);
+});
+
+test("parseEvidenceOutArg accepts equals and space forms", () => {
+  assert.equal(parseEvidenceOutArg(["--evidence-out=docs/out.json"]), "docs/out.json");
+  assert.equal(parseEvidenceOutArg(["--evidence-out", "docs/out.json"]), "docs/out.json");
+  assert.equal(parseEvidenceOutArg(["--no-wipe"]), null);
 });
 
 test("Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe", () => {

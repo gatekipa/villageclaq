@@ -681,6 +681,7 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /re-wipe is forbidden/);
   assert.match(qualify, /evaluatePreStubFloorCleanCheck/);
   assert.match(qualify, /inventoryFromQuery/);
+  assert.match(qualify, /parseEvidenceOutArg/);
   assert.match(qualify, /f3-db-push-query-parse/);
   const cliSrc = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-cli.mjs"), "utf8");
   assert.match(cliSrc, /hasOutputFormat: \/--output-format\//);

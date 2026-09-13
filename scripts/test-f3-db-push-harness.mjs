@@ -67,9 +67,11 @@ import {
 import {
   assertRepairHelpUsable,
   buildDbPushCommand,
+  buildDbQueryCommand,
   buildRepairCommand,
   discoverSupabaseCli,
   readDbPushHelp,
+  readDbQueryHelp,
   readMigrationRepairHelp,
   runDbQuery,
 } from "./lib/f3-db-push-cli.mjs";
@@ -384,6 +386,56 @@ test("candidate command uses --db-url --workdir --yes --skip-vault and never -p/
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
 });
 
+test("db query appends --output-format json before SQL/--file when help shows the flag", () => {
+  setAuthorizedEnv();
+  const isolated = createIsolatedDbPushWorkdir();
+  const withFmt = buildDbQueryCommand({
+    dbUrl: buildDisposableDbUrlFromEnv(),
+    workdir: isolated.workdir,
+    help: {
+      status: 0,
+      hasDbUrl: true,
+      hasWorkdir: true,
+      hasFile: true,
+      hasOutputFormat: true,
+      text: "--db-url --workdir --file --output-format",
+    },
+    sql: "SELECT 1",
+  });
+  const fmtIdx = withFmt.args.indexOf("--output-format");
+  const sqlIdx = withFmt.args.lastIndexOf("SELECT 1");
+  const fileHelp = {
+    status: 0,
+    hasDbUrl: true,
+    hasWorkdir: true,
+    hasFile: true,
+    hasOutputFormat: true,
+    text: "--db-url --workdir --file --output-format",
+  };
+  assert.ok(fmtIdx > 0);
+  assert.equal(withFmt.args[fmtIdx + 1], "json");
+  assert.ok(sqlIdx > fmtIdx);
+  assert.equal(withFmt.args.includes("-p"), false);
+  const fileSpec = buildDbQueryCommand({
+    dbUrl: buildDisposableDbUrlFromEnv(),
+    workdir: isolated.workdir,
+    help: fileHelp,
+    fileAbsPath: path.join(isolated.workdir, "probe.sql"),
+  });
+  const fileFmtIdx = fileSpec.args.indexOf("--output-format");
+  const fileIdx = fileSpec.args.indexOf("--file");
+  assert.equal(fileSpec.args[fileFmtIdx + 1], "json");
+  assert.ok(fileIdx > fileFmtIdx);
+  const without = buildDbQueryCommand({
+    dbUrl: buildDisposableDbUrlFromEnv(),
+    workdir: isolated.workdir,
+    help: { status: 0, hasDbUrl: true, hasWorkdir: true, hasOutputFormat: false },
+    sql: "SELECT 1",
+  });
+  assert.equal(without.args.includes("--output-format"), false);
+  fs.rmSync(isolated.workdir, { recursive: true, force: true });
+});
+
 test("repair command uses the filename version and --status applied from help", () => {
   setAuthorizedEnv();
   const help = {
@@ -592,6 +644,7 @@ test("CLI discovery uses --help and does not invent repair flags", () => {
   assert.equal(cli.matchesPin, true);
   const push = readDbPushHelp(cli.bin);
   const repair = readMigrationRepairHelp(cli.bin);
+  const query = readDbQueryHelp(cli.bin);
   assert.equal(push.status, 0);
   assert.equal(push.hasDbUrl, true);
   assert.equal(push.hasSkipVault, true);
@@ -601,6 +654,10 @@ test("CLI discovery uses --help and does not invent repair flags", () => {
   assert.equal(repair.hasStatus, true);
   assert.equal(repair.hasApplied, true);
   assert.equal(repair.hasDbUrl, true);
+  assert.equal(query.status, 0);
+  assert.equal(query.hasDbUrl, true);
+  assert.equal(query.hasOutputFormat, true);
+  assert.match(query.text, /--output-format/);
 });
 
 test("qualify runner refuses to run without env (NOT_RUN) and never applies via Management API", () => {
@@ -623,8 +680,11 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /--no-wipe/);
   assert.match(qualify, /re-wipe is forbidden/);
   assert.match(qualify, /evaluatePreStubFloorCleanCheck/);
-  assert.match(qualify, /inventoryFromQueryStdout/);
+  assert.match(qualify, /inventoryFromQuery/);
   assert.match(qualify, /f3-db-push-query-parse/);
+  const cliSrc = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-cli.mjs"), "utf8");
+  assert.match(cliSrc, /hasOutputFormat: \/--output-format\//);
+  assert.match(cliSrc, /--output-format", "json"/);
   assert.match(qualify, /06-pre-stub-floor-clean-check/);
   assert.match(qualify, /Do not install public\.unnest\(uuid\)/);
   assert.match(qualify, /Do not replay 00001–00116 or use 00030\/00057 transforms/);

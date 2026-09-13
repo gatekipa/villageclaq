@@ -114,6 +114,7 @@ export function readDbQueryHelp(bin) {
     hasDbUrl: /--db-url/.test(help.text),
     hasFile: /--file/.test(help.text),
     hasWorkdir: /--workdir/.test(help.text),
+    hasOutputFormat: /--output-format/.test(help.text),
   };
 }
 
@@ -187,6 +188,9 @@ export function buildDbQueryCommand({ dbUrl, workdir, help, sql, fileAbsPath }) 
   const safeUrl = assertConstructedDbUrl(dbUrl);
   const args = ["db", "query", "--db-url", safeUrl];
   if (help.hasWorkdir && workdir) args.push("--workdir", requireWorkdir(workdir));
+  // CLI 2.117.0 defaults to a box-drawn text table. Request JSON before SQL/--file
+  // so inventoryCapture.body is an object, not a string starting with ┌.
+  if (help.hasOutputFormat) args.push("--output-format", "json");
   if (fileAbsPath) {
     if (!help.hasFile) throw new Error("HOLD: db query --help did not show --file");
     args.push("--file", fileAbsPath);
@@ -196,7 +200,13 @@ export function buildDbQueryCommand({ dbUrl, workdir, help, sql, fileAbsPath }) 
     throw new Error("db query requires sql or fileAbsPath");
   }
   assertArgvSafe(args);
-  return { command: "supabase", args, rendered: "supabase db query --db-url [REDACTED] --workdir [ISOLATED]" };
+  return {
+    command: "supabase",
+    args,
+    rendered: help.hasOutputFormat
+      ? "supabase db query --db-url [REDACTED] --workdir [ISOLATED] --output-format json"
+      : "supabase db query --db-url [REDACTED] --workdir [ISOLATED]",
+  };
 }
 
 function runSpec(bin, spec) {

@@ -16,7 +16,7 @@ import {
   classifyInventory,
   isCleanBaseline,
 } from "./f3-db-push-inventory.mjs";
-import { inventoryFromQueryStdout } from "./f3-db-push-query-parse.mjs";
+import { inventoryFromQuery } from "./f3-db-push-query-parse.mjs";
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
 
 export const PRE_STUB_FLOOR_CLEAN_CHECK_ARTIFACT = "06-pre-stub-floor-clean-check";
@@ -76,7 +76,7 @@ export function evaluatePreStubFloorCleanCheck({
   historyRows = [],
   listMigrations = [],
 } = {}) {
-  const inv = inventoryFromQueryStdout(inventory);
+  const inv = inventoryFromQuery(inventory);
   const classification = classifyInventory(inv);
   const publicTables = asList(inv.public_tables);
   const publicViews = asList(inv.public_views);

@@ -261,7 +261,7 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 
 **Residual cleanup (not wipe):** leftover `FAILED_FLOOR_STORAGE_POLICY_NAMES` (10 named storage policies) and empty floor buckets `avatars` / `group-documents` / `receipts` are incomplete prior-wipe residuals. Chief may `DROP POLICY` those ten names (and drop empty floor buckets if safe) as a narrow residual completion of the prior wipe. That is **not** `--wipe-to-baseline`. After the table-stdout parse fix, `isCleanBaseline` / pre-stub clean-check follow Chief 06 semantics (public empty + history empty + F3 absent) and do **not** HOLD solely because those policies/buckets remain or are already gone.
 
-`supabase db query` table/text stdout is parsed by stripping box-drawing and extracting the JSON object so inventory is an object, not a leftover string.
+`supabase db query` on CLI 2.117.0 defaults to a box-drawn **text table**. When `db query --help` shows `--output-format`, the qualifier appends `--output-format json` **before** SQL/`--file`. The CLI JSON envelope `{ rows: [ { jsonb_build_object: <inventory> } ] }` is unwrapped by `inventoryFromQuery` before the pre-stub clean-check and gate fingerprints. Balanced-brace `parseJsonish` remains defense-in-depth for mixed text (a leftover `┌` string must not be treated as inventory).
 
 Do **not** claim hosted PASS unless Chief records the mechanics-pass label. Do **not** claim FILE-BASED RUNNER QUALIFICATION PASS. Do **not** claim production PASS or clean replay PASS.
 

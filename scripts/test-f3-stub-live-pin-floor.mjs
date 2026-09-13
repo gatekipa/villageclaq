@@ -59,6 +59,7 @@ import {
   isCleanBaseline,
 } from "./lib/f3-db-push-inventory.mjs";
 import {
+  inventoryFromQuery,
   inventoryFromQueryStdout,
   parseJsonish,
 } from "./lib/f3-db-push-query-parse.mjs";
@@ -308,6 +309,18 @@ test("parseJsonish extracts JSON from supabase db query table/text stdout", () =
   assert.notEqual(typeof naiveWouldFail, "object");
   const start = naiveWouldFail.search(/[\[{]/);
   assert.throws(() => JSON.parse(naiveWouldFail.slice(start)));
+
+  const envelope = {
+    rows: [{ jsonb_build_object: payload }],
+  };
+  const fromEnvelope = inventoryFromQuery(JSON.stringify(envelope));
+  assert.equal(typeof fromEnvelope, "object");
+  assert.deepEqual(fromEnvelope.public_tables, []);
+  assert.equal(fromEnvelope.schema_migrations_present, true);
+  assert.equal(fromEnvelope.storage_policies.length, 10);
+  const cleanFromEnvelope = evaluatePreStubFloorCleanCheck({ inventory: envelope });
+  assert.equal(cleanFromEnvelope.clean_ok, true);
+  assert.equal(cleanFromEnvelope.public_tables, 0);
 });
 
 test("Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe", () => {

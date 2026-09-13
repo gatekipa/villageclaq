@@ -106,7 +106,7 @@ import {
 import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
 import {
-  inventoryFromQueryStdout,
+  inventoryFromQuery,
   parseJsonish,
   rowsFromQuery,
 } from "./lib/f3-db-push-query-parse.mjs";
@@ -335,7 +335,7 @@ async function main() {
       help: queryHelp,
       sql: INVENTORY_SQL,
     });
-    evidence.inventoryBefore = { status: inventory.status, body: parseJsonish(inventory.stdout) };
+    evidence.inventoryBefore = { status: inventory.status, body: inventoryFromQuery(inventory.stdout) };
     const columns = await runDbQuery({
       bin: cli.bin,
       workdir: isolated.workdir,
@@ -360,7 +360,7 @@ async function main() {
       help: queryHelp,
       sql: INVENTORY_CAPTURE_SQL,
     });
-    evidence.inventoryCapture = { status: captured.status, body: inventoryFromQueryStdout(captured.stdout) };
+    evidence.inventoryCapture = { status: captured.status, body: inventoryFromQuery(captured.stdout) };
     let floorMode;
     try {
       floorMode = resolveHostedFloorMode(args.floorMode);
@@ -386,7 +386,7 @@ async function main() {
         ? listed
         : [];
     const cleanCheck = evaluatePreStubFloorCleanCheck({
-      inventory: inventoryFromQueryStdout(captured.stdout),
+      inventory: inventoryFromQuery(captured.stdout),
       historyRows: historyForClean,
       listMigrations: listedMigrations,
     });
@@ -428,7 +428,7 @@ async function main() {
         help: queryHelp,
         sql: PRE_DB_PUSH_VERIFICATION_SQL,
       });
-      const capturedGates = parseJsonish(gateQuery.stdout);
+      const capturedGates = inventoryFromQuery(gateQuery.stdout);
       const gates = evaluatePreDbPushGates({
         captured: capturedGates,
         isolatedWorkdir: isolated.workdir,
@@ -451,7 +451,7 @@ async function main() {
         hold: installed.hold || null,
         steps: installed.steps,
         failedAt: installed.failedAt,
-        fingerprint: { status: fingerprint.status, body: parseJsonish(fingerprint.stdout) },
+        fingerprint: { status: fingerprint.status, body: inventoryFromQuery(fingerprint.stdout) },
         gateQuery: { status: gateQuery.status },
       };
       if (!installed.installed || !installed.exact) {
@@ -551,10 +551,10 @@ async function main() {
           classification,
           objectsPresent,
           historyAfterFail: rowsFromQuery(historyAfterFail),
-          fingerprintBeforeRepair: parseJsonish(fingerprintBeforeRepair.stdout),
+          fingerprintBeforeRepair: inventoryFromQuery(fingerprintBeforeRepair.stdout),
           repair,
           historyAfterRepair: rowsFromQuery(historyAfterRepair),
-          fingerprintAfterRepair: parseJsonish(fingerprintAfterRepair.stdout),
+          fingerprintAfterRepair: inventoryFromQuery(fingerprintAfterRepair.stdout),
           retry,
         });
         if (!classification.nonzeroExit || !classification.targetVersionAbsent) {

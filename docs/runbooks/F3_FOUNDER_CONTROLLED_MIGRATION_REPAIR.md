@@ -92,7 +92,7 @@ supabase db push --db-url <PERCENT_ENCODED_DISPOSABLE_SESSION_POOLER_URL> --work
 
 **Connection form (Chief live preflight 2026-09-13, incorporate exactly):** identity gates still require exact project ref `jkorwnwwmdeflfntxntl` / name `villageclaq-f3-management-api-disposable-20260913` / org `eyztkzkprpmlmcabrfef` / host `db.jkorwnwwmdeflfntxntl.supabase.co`. Direct `db.jkorwnwwmdeflfntxntl.supabase.co:5432` **FAILED** (AAAA/IPv6 unreachable). Postgres connect succeeded via session-mode pooler `aws-0-us-east-1.pooler.supabase.com:5432` user `postgres.jkorwnwwmdeflfntxntl` `sslmode=require`. Transaction pooler `:6543` is never a db-push target. Production is forever denied. Password from env only; never argv / never log the URL.
 
-**Floor install (Chief hosted HOLD on tip `ca6df98`, then required fix):** `supabase db query --file` **cannot** execute multi-statement SQL (`cannot insert multiple commands into a prepared statement`). Repository-controlled floor authority remains `_f3_apply_current_main_floor.mjs` (bootstrap + 00001–00117 + `installLiveHasGroupPermission` before 00116/00117). Hosted floor now applies that authority with gated remote `psql -f` against the session-mode pooler URL (PGPASSWORD in child env only; never `-p`). `db query` remains allowed only for single-statement probes. 00118–00123 candidate runner remains `supabase db push` only.
+**Floor install (Chief hosted HOLD on tip `ca6df98`, then 00030 HOLD on `164f579`):** `supabase db query --file` **cannot** execute multi-statement SQL. Hosted disposable floor is now: **no-shim** bootstrap + 00001–00029 + **ephemeral transformed 00030** (exactly 14 `unnest(get_user_group_ids())` → `get_user_group_ids()`) + 00031–00117 + HGP pins, via gated remote `psql -f`. Repo `00030` bytes are never rewritten. `public.unnest(uuid)` must **not** be installed on the hosted path. If a later floor file still contains `unnest(get_user_group_ids())` (currently `00057`, count 1), hosted apply **HOLDs before that file** to avoid a second mid-file partial. 00118–00123 candidate runner remains `supabase db push` only.
 
 When a post-COMMIT split occurs on this candidate: COMMIT → history INSERT fail → **known filename version** → founder-controlled repair → retry skip → next continues. Do not invent a server-generated version. Do not use an apply-time clock.
 
@@ -246,14 +246,18 @@ CLI repair against the hosted disposable also needs `F3_DISPOSABLE_DB_URL` (neve
 
 Password is env-only. Never print it. Never pass `-p`. The qualifier builds `--db-url` in-process.
 
+**STOP (2026-09-13 Chief):** hosted wipe already **SUCCESS**. Disposable `jkorwnwwmdeflfntxntl` is a **CLEAN baseline**. Do **not** `--prep-floor`. Do **not** `--sequence-f3`. Do **not** re-wipe. No further replay exceptions (including ephemeral `00057` transform) without new founder authorization. Hosted floor / db-push is **NOT STARTED**.
+
 ```bash
-export F3_DBPUSH_DISPOSABLE_SENTINEL=villageclaq-f3-dbpush-20260913-authorized
-export F3_REMOTE_DESTRUCTIVE_TEST=1
-export VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD='<founder vault; do not commit>'
-# optional; identity GET / migrations GET only (apply POST is permanently disqualified):
-# export VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN='<founder vault; do not commit>'
-node scripts/qualify-f3-db-push-disposable.mjs --prep-floor --sequence-f3
+# Inventory / wipe already completed by Chief (02 pre-wipe, 03 wipe SUCCESS).
+# Do not run --prep-floor or --sequence-f3 on the clean baseline.
+# Qualifier without env still exits 2 NOT_RUN.
+node scripts/qualify-f3-db-push-disposable.mjs
 ```
+
+Harness still accepts `--wipe-to-baseline` / `--prep-floor` / `--sequence-f3` for a later authorized retry. Those flags are **not** authorized now. `--prep-floor` uses hosted bootstrap **without** `public.unnest(uuid)` and an ephemeral 00030-only transform (exactly 14). `00057` still has one executable `unnest(get_user_group_ids())` outside that authorization — local through-00117 **HOLD**. Local `_f3_apply_current_main_floor.mjs` may still shim for existing local F3 suites.
+
+Do **not** claim hosted PASS. Do **not** claim FILE-BASED RUNNER QUALIFICATION PASS.
 
 Repair is **NEVER automatic**. The qualifier may record a founder-controlled `migration repair <FILENAME_VERSION> --status applied` only after gates, identity/history preflight, exact-byte isolated copies, and the per-file history-failure proof. Separate founder authentication is required before any production apply/repair.
 

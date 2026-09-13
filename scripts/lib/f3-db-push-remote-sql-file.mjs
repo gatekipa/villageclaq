@@ -48,7 +48,7 @@ export function refuseDbQueryMultiStatement({ sql, fileAbsPath } = {}) {
     const base = path.basename(abs);
     if (
       /^(000|0010|0011[0-7])/.test(base) ||
-      /^(floor-bootstrap|floor-live-hgp|inject-)/.test(base)
+      /^(floor-bootstrap|floor-live-hgp|floor-00030-transformed|floor-wipe|inject-)/.test(base)
     ) {
       const err = new Error(DB_QUERY_MULTISTATEMENT_REFUSE);
       err.code = "F3_DBPUSH_DB_QUERY_MULTISTATEMENT";

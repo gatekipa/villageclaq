@@ -89,6 +89,7 @@ import {
   historyInjectSqlForFile,
   historyInjectSqlForVersion,
 } from "./lib/f3-db-push-history-inject.mjs";
+import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
   FLOOR_HOLD_IF_INEXACT,
   FLOOR_AUTHORITY,
@@ -98,8 +99,17 @@ import {
   listFloorMigrationsThrough00117,
   liveHasGroupPermissionSql,
   readFloorBootstrapSql,
+  remainingUnnestAfter00030,
   recognitionFromSource,
 } from "./lib/f3-db-push-floor.mjs";
+import {
+  EXPECTED_UNNEST_COUNT,
+  PINNED_ORIGINAL_SHA256,
+  PINNED_TRANSFORMED_SHA256,
+  countUnnestCalls,
+  readOriginal00030,
+  transform00030Text,
+} from "./lib/f3-00030-floor-replay-transform.mjs";
 import {
   DB_QUERY_MULTISTATEMENT_REFUSE,
   refuseDbQueryMultiStatement,
@@ -445,6 +455,8 @@ test("cleanup SQL may drop only the throwaway probe", () => {
 
 test("bootstrap and 00001 require psql -f; db query --file is refused", () => {
   const bootstrap = readFloorBootstrapSql();
+  assert.doesNotMatch(bootstrap, /CREATE OR REPLACE FUNCTION public\.unnest\(uuid\)/);
+  assert.match(BOOTSTRAP_WITH_LOCAL_SHIM, /CREATE OR REPLACE FUNCTION public\.unnest\(uuid\)/);
   assert.equal(sqlRequiresPsqlFile(bootstrap), true);
   const core = fs.readFileSync(path.join(root, "supabase/migrations/00001_core_tables.sql"), "utf8");
   assert.equal(sqlRequiresPsqlFile(core), true);
@@ -496,13 +508,24 @@ test("gated remote psql -f uses pooler child env and never -p; unauthorized is z
   });
   const isolated = createIsolatedDbPushWorkdir();
   const result = installRepositoryControlledFloor({ workdir: isolated.workdir });
-  assert.equal(result.installed, true);
-  assert.equal(result.exact, true);
-  assert.ok(result.steps.some((s) => s.id === "bootstrap" && s.runner === "gated_psql_file"));
-  assert.ok(result.steps.some((s) => String(s.id).startsWith("hgp-before-00116")));
-  assert.ok(result.steps.some((s) => s.id === "00117_m2_notification_policy_foundation.sql"));
-  assert.ok(result.steps.some((s) => s.id === "hgp-after-00117"));
+  assert.equal(result.installed, false);
+  assert.equal(result.exact, false);
+  assert.equal(result.failedAt, "00057_profiles_rls_allow_co_members.sql");
+  assert.ok(result.steps.some((s) => s.id === "bootstrap" && s.runner === "gated_psql_file" && s.shimInstalled === false));
+  assert.ok(result.steps.some((s) => s.id === "00030-ephemeral-transform"));
+  assert.ok(result.steps.some((s) => s.id === "00030_enterprise_branches_committees.sql" && s.transformed === true));
+  assert.ok(result.steps.some((s) => s.id === "00030-ephemeral-deleted"));
+  assert.ok(result.steps.some((s) => s.id === "hold-before-00057_profiles_rls_allow_co_members.sql"));
   assert.equal(result.steps.some((s) => /^0011[89]_/.test(s.id) || /^0012[0-3]_/.test(s.id)), false);
+  const continued = installRepositoryControlledFloor({
+    workdir: isolated.workdir,
+    stopBeforeRemainingUnnest: false,
+  });
+  assert.equal(continued.installed, true);
+  assert.equal(continued.exact, true);
+  assert.ok(continued.steps.some((s) => String(s.id).startsWith("hgp-before-00116")));
+  assert.ok(continued.steps.some((s) => s.id === "00117_m2_notification_policy_foundation.sql"));
+  assert.ok(continued.steps.some((s) => s.id === "hgp-after-00117"));
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
 });
 
@@ -521,10 +544,19 @@ test("repository floor lists through 00117 and excludes 00118-00123", () => {
   const precheck = floorPrecheck();
   assert.equal(precheck.excludes00118plus, true);
   assert.deepEqual(precheck.recognition, ["manual_income"]);
+  assert.equal(precheck.hostedBootstrapHasUnnestShim, false);
+  assert.equal(precheck.remainingUnnestHold, true);
+  assert.equal(precheck.remainingUnnestAfter00030[0].file, "00057_profiles_rls_allow_co_members.sql");
+  assert.equal(remainingUnnestAfter00030()[0].count, 1);
+  const original = readOriginal00030();
+  assert.equal(original.digest, PINNED_ORIGINAL_SHA256);
+  assert.equal(countUnnestCalls(original.text), EXPECTED_UNNEST_COUNT);
+  assert.equal(transform00030Text(original.text).digest, PINNED_TRANSFORMED_SHA256);
   assert.match(precheck.holdIfInexact, /HOLD/);
   assert.match(FLOOR_HOLD_IF_INEXACT, /HOLD/);
   assert.match(FLOOR_AUTHORITY, /gated remote psql -f/);
   assert.match(FLOOR_AUTHORITY, /NOT db query --file/);
+  assert.match(FLOOR_AUTHORITY, /WITHOUT unnest/);
   assert.equal(assertFloorDoesNotUseCandidateRunner(), true);
 });
 
@@ -576,6 +608,8 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /session-mode pooler/);
   assert.match(qualify, /installRepositoryControlledFloor/);
   assert.match(qualify, /runGatedRemoteSqlText/);
+  assert.match(qualify, /--wipe-to-baseline/);
+  assert.match(qualify, /Do not install public\.unnest\(uuid\)/);
   assert.doesNotMatch(qualify, /fileAbsPath: bootstrapFile/);
 });
 

@@ -91,7 +91,9 @@ import {
   installRepositoryControlledFloor,
   recognitionFromSource,
 } from "./lib/f3-db-push-floor.mjs";
-import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
+import { runGatedRemoteSqlFile, runGatedRemoteSqlText, writeGatedSqlFile } from "./lib/f3-db-push-remote-sql-file.mjs";
+import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
+import { assertWipeDoesNotTouchProduction, planWipe, proveCleanBaseline } from "./lib/f3-db-push-wipe.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -124,7 +126,8 @@ function chiefRunbook() {
       `export ${DESTRUCTIVE_ENV}=1`,
       `export ${DB_PASSWORD_ENV}='<password from founder vault; do not commit>'`,
       `# optional: export ${MGMT_TOKEN_ENV}='<mgmt token; GET/query only>'`,
-      "node scripts/qualify-f3-db-push-disposable.mjs --prep-floor --sequence-f3",
+      "STOP: disposable is CLEAN baseline after Chief wipe. Do not --prep-floor / --sequence-f3 / re-wipe without new founder auth.",
+      "node scripts/qualify-f3-db-push-disposable.mjs",
     ],
     candidateCommand:
       "supabase db push --db-url <in-process session-mode pooler URL> --workdir <isolated> --yes --skip-vault",
@@ -145,6 +148,10 @@ function chiefRunbook() {
       "Do not POST /database/migrations",
       "Do not claim production approval",
       "Do not auto-repair; founder auth required for any production apply/repair",
+      "Do not install public.unnest(uuid) shim on hosted floor",
+      "00030 transform is ephemeral workdir-only; do not modify repo 00030",
+      "Do not transform 00057 or any other unnest site without new founder auth",
+      "Do not re-floor the clean baseline disposable",
     ],
   };
 }
@@ -153,6 +160,7 @@ function parseArgs(argv) {
   return {
     prepFloor: argv.includes("--prep-floor"),
     sequenceF3: argv.includes("--sequence-f3"),
+    wipeToBaseline: argv.includes("--wipe-to-baseline"),
     skipCleanup: argv.includes("--skip-cleanup"),
     evidenceOut: (() => {
       const idx = argv.indexOf("--evidence-out");
@@ -231,6 +239,8 @@ async function main() {
     collision: null,
     identity: null,
     inventoryBefore: null,
+    inventoryCapture: null,
+    wipe: null,
     cleanup: null,
     floor: null,
     cli: null,
@@ -330,6 +340,50 @@ async function main() {
       evidence.cleanup.dropped = LIVE_PROBE_THROWAWAY_TABLE;
     }
 
+    const captured = await runDbQuery({
+      bin: cli.bin,
+      workdir: isolated.workdir,
+      help: queryHelp,
+      sql: INVENTORY_CAPTURE_SQL,
+    });
+    evidence.inventoryCapture = { status: captured.status, body: parseJsonish(captured.stdout) };
+    if (args.wipeToBaseline) {
+      const plan = planWipe(parseJsonish(captured.stdout));
+      evidence.wipe = {
+        action: plan.action,
+        verdict: plan.classification?.verdict,
+        reason: plan.classification?.reason,
+        ambiguous: plan.classification?.ambiguous,
+        drops: plan.sql?.drops || [],
+      };
+      if (plan.action === "HOLD") {
+        evidence.status = "HOLD";
+        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+        throw Object.assign(new Error(plan.hold || plan.classification?.reason), { code: "F3_WIPE_AMBIGUOUS_HOLD" });
+      }
+      if (plan.action === "WIPE") {
+        assertWipeDoesNotTouchProduction(plan.sql.sql);
+        const wipeFile = writeGatedSqlFile(isolated.workdir, "floor-wipe.sql", plan.sql.sql);
+        const wiped = runGatedRemoteSqlFile(wipeFile);
+        evidence.wipe.apply = { status: wiped.status, file: wiped.file };
+        if (wiped.status !== 0) {
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          throw Object.assign(new Error("HOLD: wipe-to-baseline psql failed"), { code: "F3_WIPE_APPLY_HOLD" });
+        }
+      }
+      const afterWipe = await runDbQuery({
+        bin: cli.bin,
+        workdir: isolated.workdir,
+        help: queryHelp,
+        sql: INVENTORY_CAPTURE_SQL,
+      });
+      const proved = proveCleanBaseline(parseJsonish(afterWipe.stdout));
+      evidence.wipe.after = { status: afterWipe.status, body: parseJsonish(afterWipe.stdout), proved };
+    } else {
+      evidence.wipe = { skipped: true, note: "Pass --wipe-to-baseline to wipe failed-floor objects only." };
+    }
+
     const precheck = floorPrecheck();
     evidence.floor = { precheck, authority: FLOOR_AUTHORITY, installed: false };
     if (args.prepFloor) {
@@ -345,8 +399,12 @@ async function main() {
         installed: installed.installed,
         exact: installed.exact,
         runner: "gated_psql_file",
+        shimInstalled: false,
+        transform: installed.transform,
+        remainingUnnest: installed.remainingUnnest,
+        hold: installed.hold || null,
         priorHostedHold:
-          "tip ca6df98 used supabase db query --file for bootstrap/00001; prepared-statement multi-command rejection → F3_DBPUSH_FLOOR_HOLD",
+          "tip 164f579 / evidence 79bdf1d: gated psql -f failed at 00030 unnest(get_user_group_ids()); this path uses no-shim bootstrap + ephemeral 00030 transform",
         steps: installed.steps,
         failedAt: installed.failedAt,
         fingerprint: { status: fingerprint.status, body: parseJsonish(fingerprint.stdout) },
@@ -354,8 +412,8 @@ async function main() {
       if (!installed.installed || !installed.exact) {
         evidence.status = "HOLD";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-        evidence.limitation = FLOOR_HOLD_IF_INEXACT;
-        throw Object.assign(new Error(FLOOR_HOLD_IF_INEXACT), { code: "F3_DBPUSH_FLOOR_HOLD" });
+        evidence.limitation = installed.hold || FLOOR_HOLD_IF_INEXACT;
+        throw Object.assign(new Error(installed.hold || FLOOR_HOLD_IF_INEXACT), { code: "F3_DBPUSH_FLOOR_HOLD" });
       }
     } else {
       evidence.floor.skipped = true;

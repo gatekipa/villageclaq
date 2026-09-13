@@ -87,13 +87,27 @@ $$;
 
 GRANT USAGE ON SCHEMA auth, storage, public TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
+`;
 
+/**
+ * Local-test-only uuid-overload. Hosted disposable floor MUST NOT install
+ * this. Founder: no function shim — use ephemeral transformed 00030 instead.
+ */
+export const LOCAL_UNNEST_UUID_SHIM = `
 -- Historical 00030 calls unnest(get_user_group_ids()) while 00014 returns SETOF uuid.
--- Shim only; 00001–00117 bytes stay untouched.
+-- Shim only; 00001–00117 bytes stay untouched. LOCAL TESTS ONLY.
 CREATE OR REPLACE FUNCTION public.unnest(uuid)
 RETURNS SETOF uuid
 LANGUAGE sql IMMUTABLE PARALLEL SAFE
 AS $$ SELECT $1 $$;
+`;
+
+/** Hosted disposable floor bootstrap — no unnest(uuid) shim. */
+export const HOSTED_FLOOR_BOOTSTRAP = BOOTSTRAP;
+
+/** Local F3 test bootstrap may still include the shim. */
+export const BOOTSTRAP_WITH_LOCAL_SHIM = `${BOOTSTRAP}
+${LOCAL_UNNEST_UUID_SHIM}
 `;
 
 export function listMainMigrationsThrough00117() {
@@ -107,7 +121,9 @@ export function listMainMigrationsThrough00117() {
 
 export function applyCurrentMainThenF3(url, { throughF3 } = {}) {
   refuseProduction(url);
-  psql(url, BOOTSTRAP);
+  // Local F3 suites may still use the uuid-overload shim. Hosted disposable
+  // floor path uses HOSTED_FLOOR_BOOTSTRAP (no shim) + transformed 00030.
+  psql(url, BOOTSTRAP_WITH_LOCAL_SHIM);
   for (const name of listMainMigrationsThrough00117()) {
     if (/^0011[6-7]_/.test(name)) {
       // 00116/00117 fail-closed on the live HGP pin (Cut 3 / M2).

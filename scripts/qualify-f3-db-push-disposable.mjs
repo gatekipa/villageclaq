@@ -1,6 +1,10 @@
 /**
  * Founder-authorized disposable qualifier for supabase db push (CLI 2.117.0).
  *
+ * Hosted default floor: stub+live-pin (replaces greenfield).
+ * Label: DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117
+ * REPLAY AND NOT PRODUCTION-EQUIVALENT.
+ *
  * QUALIFICATION CANDIDATE ONLY. Not production approval.
  * Management API POST /database/migrations {query,name} is permanently
  * disqualified and is never called here.
@@ -85,15 +89,23 @@ import {
 } from "./lib/f3-db-push-history-inject.mjs";
 import {
   CATALOG_FINGERPRINT_SQL,
-  FLOOR_AUTHORITY,
-  FLOOR_HOLD_IF_INEXACT,
-  floorPrecheck,
-  installRepositoryControlledFloor,
+  hostedFloorPrecheck,
+  installHostedFloor,
   recognitionFromSource,
 } from "./lib/f3-db-push-floor.mjs";
-import { runGatedRemoteSqlFile, runGatedRemoteSqlText, writeGatedSqlFile } from "./lib/f3-db-push-remote-sql-file.mjs";
+import {
+  GREENFIELD_DISALLOWED_FOR_THIS_AUTH,
+  HOSTED_DEFAULT_FLOOR_MODE,
+  PRE_DB_PUSH_VERIFICATION_SQL,
+  QUALIFICATION_FLOOR_LABEL,
+  STUB_LIVE_PIN_FLOOR_AUTHORITY,
+  STUB_LIVE_PIN_FLOOR_HOLD,
+  evaluatePreDbPushGates,
+  resolveHostedFloorMode,
+} from "./lib/f3-db-push-stub-live-pin-floor.mjs";
+import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
-import { assertWipeDoesNotTouchProduction, planWipe, proveCleanBaseline } from "./lib/f3-db-push-wipe.mjs";
+import { proveCleanBaseline } from "./lib/f3-db-push-wipe.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -126,8 +138,10 @@ function chiefRunbook() {
       `export ${DESTRUCTIVE_ENV}=1`,
       `export ${DB_PASSWORD_ENV}='<password from founder vault; do not commit>'`,
       `# optional: export ${MGMT_TOKEN_ENV}='<mgmt token; GET/query only>'`,
-      "STOP: disposable is CLEAN baseline after Chief wipe. Do not --wipe-to-baseline. Use --no-wipe hosted floor with both ephemeral transforms.",
+      "STOP: disposable jkorwnwwmdeflfntxntl is CLEAN. Do not re-wipe. Do not replay 00001–00116. Do not use 00030/00057 transforms.",
+      "Hosted default floor is stub+live-pin (DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT).",
       "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3",
+      "# equivalent (hosted default): --floor-mode=stub-live-pin",
     ],
     candidateCommand:
       "supabase db push --db-url <in-process session-mode pooler URL> --workdir <isolated> --yes --skip-vault",
@@ -136,8 +150,10 @@ function chiefRunbook() {
     managementApiApply: MANAGEMENT_API_APPLY_DISQUALIFICATION,
     versionsKnownBeforeExecution: PREASSIGNED_VERSIONS,
     recognition: [...RECOGNITION_ALLOWLIST],
-    floor: FLOOR_AUTHORITY,
-    holdIfFloorInexact: FLOOR_HOLD_IF_INEXACT,
+    floor: STUB_LIVE_PIN_FLOOR_AUTHORITY,
+    floorLabel: QUALIFICATION_FLOOR_LABEL,
+    floorMode: HOSTED_DEFAULT_FLOOR_MODE,
+    holdIfFloorInexact: STUB_LIVE_PIN_FLOOR_HOLD,
     bans: [
       `Do not target ${PRODUCTION_REF}`,
       "Do not delete or pause the disposable project",
@@ -149,11 +165,23 @@ function chiefRunbook() {
       "Do not claim production approval",
       "Do not auto-repair; founder auth required for any production apply/repair",
       "Do not install public.unnest(uuid) shim on hosted floor",
-      "00030 transform is ephemeral workdir-only; do not modify repo 00030",
-      "00057 transform is ephemeral workdir-only; do not modify repo 00057",
-      "Do not --wipe-to-baseline on the clean disposable; use --no-wipe",
+      "Do not replay 00001–00116 or use 00030/00057 transforms",
+      "Do not --wipe-to-baseline; disposable stays CLEAN; --no-wipe is required",
+      "Do not invent schema_migrations rows for 00117",
+      "Isolated db-push workdir only has 00118–00123; earlier production history is not reproduced",
+      "Greenfield floor mode is disallowed for this auth",
+      `Success label only: ${FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS}`,
     ],
   };
+}
+
+function parseFloorMode(argv) {
+  const eq = argv.find((a) => a.startsWith("--floor-mode="));
+  if (eq) return eq.slice("--floor-mode=".length);
+  const idx = argv.indexOf("--floor-mode");
+  if (idx >= 0) return argv[idx + 1];
+  if (argv.includes("--greenfield")) return "greenfield";
+  return HOSTED_DEFAULT_FLOOR_MODE;
 }
 
 function parseArgs(argv) {
@@ -161,8 +189,9 @@ function parseArgs(argv) {
     prepFloor: argv.includes("--prep-floor"),
     sequenceF3: argv.includes("--sequence-f3"),
     wipeToBaseline: argv.includes("--wipe-to-baseline"),
-    noWipe: argv.includes("--no-wipe"),
+    noWipe: argv.includes("--no-wipe") || !argv.includes("--wipe-to-baseline"),
     skipCleanup: argv.includes("--skip-cleanup"),
+    floorMode: parseFloorMode(argv),
     evidenceOut: (() => {
       const idx = argv.indexOf("--evidence-out");
       return idx >= 0 ? argv[idx + 1] : null;
@@ -244,6 +273,7 @@ async function main() {
     wipe: null,
     cleanup: null,
     floor: null,
+    preDbPushGates: null,
     cli: null,
     help: null,
     sequence: [],
@@ -348,98 +378,107 @@ async function main() {
       sql: INVENTORY_CAPTURE_SQL,
     });
     evidence.inventoryCapture = { status: captured.status, body: parseJsonish(captured.stdout) };
-    if (args.noWipe && args.wipeToBaseline) {
+    let floorMode;
+    try {
+      floorMode = resolveHostedFloorMode(args.floorMode);
+    } catch (err) {
       evidence.status = "HOLD";
       evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-      throw Object.assign(new Error("HOLD: --no-wipe and --wipe-to-baseline are mutually exclusive"), {
-        code: "F3_WIPE_FLAG_CONFLICT_HOLD",
-      });
+      evidence.limitation = err.message || GREENFIELD_DISALLOWED_FOR_THIS_AUTH;
+      throw Object.assign(new Error(evidence.limitation), { code: err.code || "F3_DBPUSH_GREENFIELD_DISALLOWED" });
     }
 
     if (args.wipeToBaseline) {
-      const plan = planWipe(parseJsonish(captured.stdout));
-      evidence.wipe = {
-        action: plan.action,
-        verdict: plan.classification?.verdict,
-        reason: plan.classification?.reason,
-        ambiguous: plan.classification?.ambiguous,
-        drops: plan.sql?.drops || [],
-      };
-      if (plan.action === "HOLD") {
-        evidence.status = "HOLD";
-        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-        throw Object.assign(new Error(plan.hold || plan.classification?.reason), { code: "F3_WIPE_AMBIGUOUS_HOLD" });
-      }
-      if (plan.action === "WIPE") {
-        assertWipeDoesNotTouchProduction(plan.sql.sql);
-        const wipeFile = writeGatedSqlFile(isolated.workdir, "floor-wipe.sql", plan.sql.sql);
-        const wiped = runGatedRemoteSqlFile(wipeFile);
-        evidence.wipe.apply = { status: wiped.status, file: wiped.file };
-        if (wiped.status !== 0) {
-          evidence.status = "HOLD";
-          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          throw Object.assign(new Error("HOLD: wipe-to-baseline psql failed"), { code: "F3_WIPE_APPLY_HOLD" });
-        }
-      }
-      const afterWipe = await runDbQuery({
-        bin: cli.bin,
-        workdir: isolated.workdir,
-        help: queryHelp,
-        sql: INVENTORY_CAPTURE_SQL,
+      evidence.status = "HOLD";
+      evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+      throw Object.assign(new Error("HOLD: re-wipe is forbidden for this founder auth; disposable stays CLEAN"), {
+        code: "F3_WIPE_FORBIDDEN_FOR_STUB_LIVE_PIN_AUTH",
       });
-      const proved = proveCleanBaseline(parseJsonish(afterWipe.stdout));
-      evidence.wipe.after = { status: afterWipe.status, body: parseJsonish(afterWipe.stdout), proved };
-    } else if (args.noWipe) {
-      const proved = proveCleanBaseline(parseJsonish(captured.stdout));
-      evidence.wipe = {
-        skipped: true,
-        noWipe: true,
-        proved,
-        note: "Founder: disposable already CLEAN; --no-wipe hosted floor with ephemeral 00030+00057 transforms. Do not re-wipe.",
-      };
-    } else {
-      evidence.wipe = { skipped: true, note: "Pass --no-wipe for clean-baseline hosted floor, or --wipe-to-baseline only if a failed floor must be removed." };
     }
 
-    const precheck = floorPrecheck();
-    evidence.floor = { precheck, authority: FLOOR_AUTHORITY, installed: false };
+    const proved = proveCleanBaseline(parseJsonish(captured.stdout));
+    evidence.wipe = {
+      skipped: true,
+      noWipe: true,
+      proved,
+      note: "Founder auth: CLEAN disposable; stub+live-pin floor; do not re-wipe; do not replay 00001–00116.",
+    };
+
+    const precheck = hostedFloorPrecheck(floorMode);
+    evidence.floor = {
+      precheck,
+      authority: STUB_LIVE_PIN_FLOOR_AUTHORITY,
+      label: QUALIFICATION_FLOOR_LABEL,
+      mode: floorMode,
+      installed: false,
+    };
     if (args.prepFloor) {
-      const installed = installRepositoryControlledFloor({ workdir: isolated.workdir });
+      const installed = installHostedFloor({ workdir: isolated.workdir, mode: floorMode });
       const fingerprint = await runDbQuery({
         bin: cli.bin,
         workdir: isolated.workdir,
         help: queryHelp,
         sql: CATALOG_FINGERPRINT_SQL,
       });
+      const gateQuery = await runDbQuery({
+        bin: cli.bin,
+        workdir: isolated.workdir,
+        help: queryHelp,
+        sql: PRE_DB_PUSH_VERIFICATION_SQL,
+      });
+      const capturedGates = parseJsonish(gateQuery.stdout);
+      const gates = evaluatePreDbPushGates({
+        captured: capturedGates,
+        isolatedWorkdir: isolated.workdir,
+        invented00117History: Boolean(installed.invented00117History),
+      });
+      evidence.preDbPushGates = gates;
       evidence.floor = {
         ...evidence.floor,
         installed: installed.installed,
         exact: installed.exact,
         runner: "gated_psql_file",
         shimInstalled: false,
-        transform: installed.transform,
-        transform00057: installed.transform00057,
-        remainingUnnest: installed.remainingUnnest,
-        remainingUnnestAfterAuthorizedTransforms: installed.remainingUnnestAfterAuthorizedTransforms,
+        transforms: installed.transforms,
+        components: installed.components,
+        cleanReplay00001_00117: false,
+        productionEquivalent: false,
+        invented00117History: false,
+        file00117: installed.file00117,
+        isolatedMigrations: installed.isolatedMigrations,
         hold: installed.hold || null,
-        priorHostedHold:
-          "tip 164f579 / evidence 79bdf1d: gated psql -f failed at 00030; this path uses no-shim bootstrap + ephemeral 00030 (14) + ephemeral 00057 (1)",
         steps: installed.steps,
         failedAt: installed.failedAt,
         fingerprint: { status: fingerprint.status, body: parseJsonish(fingerprint.stdout) },
+        gateQuery: { status: gateQuery.status },
       };
       if (!installed.installed || !installed.exact) {
         evidence.status = "HOLD";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-        evidence.limitation = installed.hold || FLOOR_HOLD_IF_INEXACT;
-        throw Object.assign(new Error(installed.hold || FLOOR_HOLD_IF_INEXACT), { code: "F3_DBPUSH_FLOOR_HOLD" });
+        evidence.limitation = installed.hold || STUB_LIVE_PIN_FLOOR_HOLD;
+        throw Object.assign(new Error(installed.hold || STUB_LIVE_PIN_FLOOR_HOLD), { code: "F3_DBPUSH_FLOOR_HOLD" });
+      }
+      if (!gates.ok) {
+        evidence.status = "HOLD";
+        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+        evidence.limitation = gates.hold || STUB_LIVE_PIN_FLOOR_HOLD;
+        throw Object.assign(new Error(gates.hold || STUB_LIVE_PIN_FLOOR_HOLD), {
+          code: "F3_DBPUSH_PRE_PUSH_GATE_HOLD",
+        });
       }
     } else {
       evidence.floor.skipped = true;
-      evidence.floor.note = "Pass --no-wipe --prep-floor to install repository-controlled 00001–00117 floor with ephemeral 00030+00057 transforms on the clean disposable.";
+      evidence.floor.note =
+        "Pass --no-wipe --prep-floor to install the documented stub+live-pin floor (00117 via gated psql -f). Greenfield is disallowed.";
     }
 
     if (args.sequenceF3) {
+      if (!args.prepFloor || !evidence.preDbPushGates?.ok) {
+        evidence.status = "HOLD";
+        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+        evidence.limitation = "HOLD: db push is refused until stub+live-pin floor and pre-db-push gates pass";
+        throw Object.assign(new Error(evidence.limitation), { code: "F3_DBPUSH_PRE_PUSH_GATE_HOLD" });
+      }
       for (const file of F3_FORWARD_FILES) {
         const version = preassignedVersionFor(file);
         const injectSql = historyInjectSqlForFile(file);
@@ -533,9 +572,12 @@ async function main() {
       });
       evidence.migrationListAfter = listedAfter;
       if (args.sequenceF3 && evidence.sequence.length === F3_FORWARD_FILES.length) {
-        evidence.status = "OBSERVED — hosted db push sequence recorded";
-        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.PASS;
-        evidence.claims.dbPush = "QUALIFICATION CANDIDATE — hosted sequence observed; Daybreak approval still required";
+        evidence.status = FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS;
+        evidence.verdict = FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS;
+        evidence.claims.dbPush =
+          "FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR; not production PASS; not clean replay PASS; not merge/deploy auth";
+        evidence.claims.productionApproval = "NOT CLAIMED";
+        evidence.floorLabel = QUALIFICATION_FLOOR_LABEL;
       } else if (!args.sequenceF3) {
         evidence.status = "GATED_SCAFFOLDING_READY — hosted sequence not requested";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;

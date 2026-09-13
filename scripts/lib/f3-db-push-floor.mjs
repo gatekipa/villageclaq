@@ -38,6 +38,16 @@ import { assertAuthorizedExecutableUnnestInventory } from "./f3-unnest-floor-sca
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
 import { runGatedRemoteSqlFile, writeGatedSqlFile } from "./f3-db-push-remote-sql-file.mjs";
 import { assertFrozenDigestsOnDisk } from "./f3-db-push-version-map.mjs";
+import {
+  FLOOR_MODES,
+  GREENFIELD_DISALLOWED_FOR_THIS_AUTH,
+  HOSTED_DEFAULT_FLOOR_MODE,
+  QUALIFICATION_FLOOR_LABEL,
+  STUB_LIVE_PIN_FLOOR_AUTHORITY,
+  installStubLivePinFloor,
+  resolveHostedFloorMode,
+  stubLivePinFloorPrecheck,
+} from "./f3-db-push-stub-live-pin-floor.mjs";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -46,6 +56,10 @@ export const FLOOR_AUTHORITY =
 
 export const FLOOR_HOLD_IF_INEXACT =
   "HOLD: exact legitimate VillageClaq state immediately before 00118 could not be reproduced from repository-controlled floor authority";
+
+export const HOSTED_FLOOR_MODE_DEFAULT = HOSTED_DEFAULT_FLOOR_MODE;
+export const HOSTED_FLOOR_LABEL = QUALIFICATION_FLOOR_LABEL;
+export const HOSTED_STUB_LIVE_PIN_AUTHORITY = STUB_LIVE_PIN_FLOOR_AUTHORITY;
 
 export const CATALOG_FINGERPRINT_SQL = `
 SELECT jsonb_build_object(
@@ -144,6 +158,30 @@ export function remainingUnnestAfterAuthorizedTransforms() {
     (f) => f !== FLOOR_00030_FILENAME && f !== FLOOR_00057_FILENAME,
   );
   return scanFloorFilesForUnnest(files);
+}
+
+/**
+ * Hosted default for this founder auth is stub+live-pin.
+ * Greenfield 00001–00117 replay is retained only as a unit-testable
+ * historical function and is refused when selected as the hosted mode.
+ */
+export function installHostedFloor({ workdir, mode = HOSTED_DEFAULT_FLOOR_MODE } = {}) {
+  const resolved = resolveHostedFloorMode(mode);
+  if (resolved !== FLOOR_MODES.STUB_LIVE_PIN) {
+    const err = new Error(GREENFIELD_DISALLOWED_FOR_THIS_AUTH);
+    err.code = "F3_DBPUSH_GREENFIELD_DISALLOWED";
+    throw err;
+  }
+  return installStubLivePinFloor({ workdir });
+}
+
+export function hostedFloorPrecheck(mode = HOSTED_DEFAULT_FLOOR_MODE) {
+  const resolved = resolveHostedFloorMode(mode);
+  return {
+    ...stubLivePinFloorPrecheck(),
+    mode: resolved,
+    greenfieldAuthorityRetainedForTestsOnly: FLOOR_AUTHORITY,
+  };
 }
 
 export function assertFloorDoesNotUseCandidateRunner() {

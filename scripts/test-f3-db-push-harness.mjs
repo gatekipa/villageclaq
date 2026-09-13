@@ -180,6 +180,10 @@ test("approved disposable pins are exact and production is excluded", () => {
   assert.match(DB_PUSH_CANDIDATE_STATUS, /QUALIFICATION CANDIDATE ONLY/);
   assert.deepEqual([...RECOGNITION_ALLOWLIST], ["manual_income"]);
   assert.deepEqual([...FILE_BASED_RUNNER_VERDICTS.PASS.split(" ")].slice(0, 2), ["FILE-BASED", "RUNNER"]);
+  assert.equal(
+    FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS,
+    "FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR",
+  );
 });
 
 test("preassigned versions are known before execution and map 00118-00123 exactly", () => {
@@ -610,14 +614,18 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /Do not use -p/);
   assert.match(qualify, /filename version|FILENAME_VERSION/);
   assert.match(qualify, /session-mode pooler/);
-  assert.match(qualify, /installRepositoryControlledFloor/);
+  assert.match(qualify, /installHostedFloor/);
+  assert.match(qualify, /stub-live-pin/);
+  assert.match(qualify, /DOCUMENTED QUALIFICATION FIXTURE/);
+  assert.match(qualify, /FILE-BASED RUNNER MECHANICS PASS/);
   assert.match(qualify, /runGatedRemoteSqlText/);
   assert.match(qualify, /--wipe-to-baseline/);
   assert.match(qualify, /--no-wipe/);
-  assert.match(qualify, /mutually exclusive/);
+  assert.match(qualify, /re-wipe is forbidden/);
   assert.match(qualify, /Do not install public\.unnest\(uuid\)/);
-  assert.match(qualify, /00057 transform is ephemeral/);
-  assert.doesNotMatch(qualify, /Do not transform 00057/);
+  assert.match(qualify, /Do not replay 00001–00116 or use 00030\/00057 transforms/);
+  assert.match(qualify, /Do not invent schema_migrations rows for 00117/);
+  assert.doesNotMatch(qualify, /installRepositoryControlledFloor/);
   assert.doesNotMatch(qualify, /fileAbsPath: bootstrapFile/);
 });
 

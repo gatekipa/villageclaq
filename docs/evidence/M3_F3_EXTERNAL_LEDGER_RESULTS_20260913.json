@@ -1,0 +1,80 @@
+{
+  "artifact": "M3_F3_EXTERNAL_LEDGER_RESULTS_20260913",
+  "date": "2026-09-13",
+  "verdict": "EXTERNAL-LEDGER REMEDIATION PASS",
+  "functional_sha": "968660d4e079ceb6c8d081be9f985597eaed0465",
+  "supersedes": {
+    "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+    "evidence_tip": "acd3b41bc04474cb9446e3d889c2b28425fdd901",
+    "withdrawn_claim": "prior in-transaction schema_migrations insert of source labels 00118-00123 was CLI-equivalent"
+  },
+  "pr83": {
+    "changed": false,
+    "authorized_tip": "a293f5958b31548ccec7591b653eff2857ae9a90"
+  },
+  "runner": {
+    "production_apply": "Management API FILE-STREAMED POST /v1/projects/{ref}/database/migrations",
+    "mcp_apply_migration": "DISQUALIFIED for large SQL (Cut 1)",
+    "supabase_db_push": "NOT the production apply runner",
+    "disposable_equivalent": "psql -f exact SQL (COMMIT) then external INSERT supabase_migrations.schema_migrations",
+    "history_version_format": "YYYYMMDDHHMMSS",
+    "cli": "2.117.0",
+    "cli_repair_help": "supabase migration repair [flags] [<version...>] --status applied|reverted --db-url <percent-encoded>",
+    "cli_repair_requires_local_file": "supabase/migrations/<timestamp>_*.sql",
+    "injected_failure": "BEFORE INSERT trigger on supabase_migrations.schema_migrations raising only for the target timestamp"
+  },
+  "s0_m2_mapping_precedent": [
+    {"source": "00114", "version": "20260911183755", "name": "s0_p0a_cut1_active_authorization", "runner": "Management API FILE-STREAMED POST"},
+    {"source": "00115", "version": "20260912033612", "name": "s0_p0b_cut2_notification_queue", "runner": "Management API FILE-STREAMED POST"},
+    {"source": "00116", "version": "20260912134123", "name": "s0_p0c_cut3_storage_path_fail_closed", "runner": "Management API FILE-STREAMED POST"},
+    {"source": "00117", "version": "20260912174049", "name": "m2_notification_policy_foundation", "runner": "connected apply_migration MCP"}
+  ],
+  "failure_modes": {
+    "before_final_commit": {
+      "suite": "scripts/test-financial-f3-migration-atomicity.mjs",
+      "result": "14/14 PASS",
+      "cli_equivalent": false
+    },
+    "after_commit_before_external_history": {
+      "suite": "scripts/test-financial-f3-external-ledger.mjs",
+      "failure_repair": "6/6 PASS",
+      "full_suite": "9/9 PASS"
+    }
+  },
+  "frozen_digests": {
+    "00118": "517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c",
+    "00119": "9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d",
+    "00120": "4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505",
+    "00121": "568ae0b15b1b6e6c0a7effd9e9b5644a294cc22d76dbbf0e6714a28888825cf5",
+    "00122": "fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9",
+    "00123": "848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699"
+  },
+  "fresh_counts": {
+    "external_ledger_failure_repair": "6/6",
+    "external_ledger_suite": "9/9",
+    "precommit_atomicity": "14/14",
+    "recognition": "40/40",
+    "f3_01_db": "43/43",
+    "f3_02_db": "159/159",
+    "f3_02_astra": "169/169",
+    "f3_03_db": "25/25",
+    "f3_03_astra": "80/80",
+    "f3_04_db": "23/23",
+    "f3_04_astra": "170/170",
+    "f3_05_db": "31/31",
+    "f3_05_astra": "118/118",
+    "post_s0": "14/14",
+    "combined_test_f3": "895/895",
+    "m2": "111/111",
+    "m2_static": "9/9",
+    "cut1_static": "11/11",
+    "cut2_nonregression": "20/20",
+    "cut3_storage": "11/11",
+    "tsc": "PASS",
+    "build": "PASS (dummy https://example.invalid.supabase.local)"
+  },
+  "recognition_allowlist": ["manual_income"],
+  "postgres": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
+  "production_changed": false,
+  "runbook": "docs/runbooks/F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md"
+}

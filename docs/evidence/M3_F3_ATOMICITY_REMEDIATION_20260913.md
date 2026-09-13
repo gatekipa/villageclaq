@@ -1,6 +1,13 @@
 # M3 F3 Transaction Atomicity Remediation — 2026-09-13
 
-**VERDICT: ATOMICITY REMEDIATION PASS**
+> **SUPERSESSION (2026-09-13 external-ledger remediation):** this document remains
+> the SQL **pre-commit** rollback proof (14/14). It is **not** CLI-equivalent and
+> is **not** the post-COMMIT / pre-external-history proof. Later evidence
+> `M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md` supersedes any reading of the
+> disposable `00118`…`00123` label ledger as the production runner or history key.
+> Production S0/M2 history versions are generated timestamps + snake_case names.
+
+**VERDICT: ATOMICITY REMEDIATION PASS** (SQL pre-commit rollback only)
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00118+ TO PRODUCTION.**  

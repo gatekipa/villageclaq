@@ -1,8 +1,8 @@
-# M3 F3 Forward Implementation Summary — 2026-09-13 (atomicity remediation supersedes recognition tip)
+# M3 F3 Forward Implementation Summary — 2026-09-13 (external-ledger remediation)
 
-**OVERALL VERDICT: ATOMICITY REMEDIATION PASS — 00118–00123 are one transaction each; disposable qualification re-run on new functional SHA**
+**OVERALL VERDICT: EXTERNAL-LEDGER REMEDIATION PASS — post-COMMIT / pre-history failure+repair proved on the Management API file-stream equivalent; 00118–00123 SQL bytes unchanged**
 
-This document **supersedes** the recognition-allowlist revision of `M3_F3_FORWARD_IMPLEMENTATION_SUMMARY_20260913.md` bound to `bb0c918` / `a983157`, and earlier 2026-09-12 evidence.
+This document **supersedes** the atomicity tip bound to `fc3d4ff` / `acd3b41`, the recognition-allowlist revision bound to `bb0c918` / `a983157`, and earlier 2026-09-12 evidence. The 14/14 suite remains SQL pre-commit rollback only (not CLI-equivalent).
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00118+ TO PRODUCTION.**  
@@ -17,9 +17,10 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 |-----|-------|
 | Base main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
-| **Functional SHA** | `fc3d4ff8cb59ad09abdc07033cbfd20cec75e585` |
-| Superseded functional SHA | `bb0c918201f4114303404a3498f312d9679c36cd` |
-| Superseded evidence tip | `a983157cbc3507f925f5889d23ac2a1be90e2a2d` |
+| **Functional SHA** | `968660d4e079ceb6c8d081be9f985597eaed0465` |
+| Superseded functional SHA | `fc3d4ff8cb59ad09abdc07033cbfd20cec75e585` |
+| Superseded evidence tip | `acd3b41bc04474cb9446e3d889c2b28425fdd901` |
+| Also superseded | `bb0c918` / `a983157` |
 | Prod migrations | 32; F3 objects ABSENT (not applied) |
 | M2 | CLOSED dormant 0/0/0 |
 
@@ -44,7 +45,9 @@ Recognition allowlist remains EXACTLY `manual_income`.
 
 | Suite | Result |
 |-------|--------|
-| Failure-atomicity + retry | **14/14 PASS** |
+| Post-commit / pre-ledger failure+repair | **6/6 PASS** |
+| External-ledger suite (incl. runner/runbook pins) | **9/9 PASS** |
+| Failure-atomicity + retry (SQL pre-commit only) | **14/14 PASS** |
 | Recognition direct | **40/40 PASS** |
 | F3-01 DB | **43/43 PASS** |
 | F3-02 DB | **159/159 PASS** |
@@ -56,7 +59,7 @@ Recognition allowlist remains EXACTLY `manual_income`.
 | F3-05 DB | **31/31 PASS** |
 | F3-05 Astra | **118/118 PASS** |
 | Post-S0 regression | **14/14 PASS** |
-| Combined `npm run test:f3` | **886/886 PASS** |
+| Combined `npm run test:f3` | **895/895 PASS** |
 | M2 static security | **9/9 PASS** |
 | Cut 1 static | **11/11 PASS** |
 | Cut 2 non-regression | **20/20 PASS** |
@@ -75,4 +78,5 @@ Greenfield replay of `00001`–`00117` on empty PG is **not clean**. Qualificati
 - No merge to main
 - No Astra / Daybreak contact
 - PR #83 unchanged
-- Evidence tip is docs-only after functional SHA `fc3d4ff8cb59ad09abdc07033cbfd20cec75e585`
+- Evidence tip is docs-only after functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465`
+- See `M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md`

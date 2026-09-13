@@ -1,8 +1,10 @@
 /**
  * Local proof of wipe-to-baseline + no-shim hosted floor path +
- * ephemeral 00030 transform. Not hosted evidence. Not candidate runner.
+ * ephemeral 00030 + ephemeral 00057 transforms. Not hosted evidence.
+ * Not candidate runner.
  *
- * Reports PASS/HOLD. Does not modify repo 00030. Does not apply 00118–00123.
+ * Reports PASS/HOLD. Does not modify repo 00030 / 00057.
+ * Does not apply 00118–00123.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -18,11 +20,28 @@ import {
   deleteEphemeralTransformed00030,
   writeEphemeralTransformed00030,
 } from "./lib/f3-00030-floor-replay-transform.mjs";
-import { INVENTORY_CAPTURE_SQL, classifyInventory } from "./lib/f3-db-push-inventory.mjs";
-import { remainingUnnestAfter00030 } from "./lib/f3-db-push-floor.mjs";
+import {
+  FLOOR_00057_FILENAME,
+  PINNED_00057_ORIGINAL_SHA256,
+  PINNED_00057_TRANSFORMED_SHA256,
+  deleteEphemeralTransformed00057,
+  writeEphemeralTransformed00057,
+} from "./lib/f3-00057-floor-replay-transform.mjs";
+import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
+import { remainingUnnestAfter00030, remainingUnnestAfterAuthorizedTransforms } from "./lib/f3-db-push-floor.mjs";
+import { assertAuthorizedExecutableUnnestInventory } from "./lib/f3-unnest-floor-scan.mjs";
 import { planWipe, proveCleanBaseline } from "./lib/f3-db-push-wipe.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+
+const TRANSFORM_WRITERS = {
+  [FLOOR_00030_FILENAME]: writeEphemeralTransformed00030,
+  [FLOOR_00057_FILENAME]: writeEphemeralTransformed00057,
+};
+const TRANSFORM_DELETERS = {
+  [FLOOR_00030_FILENAME]: deleteEphemeralTransformed00030,
+  [FLOOR_00057_FILENAME]: deleteEphemeralTransformed00057,
+};
 
 function parseInventory(text) {
   const s = String(text || "").trim();
@@ -48,9 +67,9 @@ function applyLocalFile(url, absPath, name) {
   }
 }
 
-function applyThrough(url, files, { workdir, transform00030, stopBefore }) {
+function applyThrough(url, files, { workdir, transformFiles = [], stopBefore }) {
   const steps = [];
-  let transform = null;
+  const transforms = {};
   for (const file of files) {
     if (stopBefore && file >= stopBefore) break;
     if (/^0011[6-7]_/.test(file)) {
@@ -59,47 +78,80 @@ function applyThrough(url, files, { workdir, transform00030, stopBefore }) {
         steps.push({ id: `hgp-before-${file}`, ok: true });
       } catch (err) {
         steps.push({ id: `hgp-before-${file}`, ok: false, error: String(err.message || err) });
-        return { ok: false, failedAt: `hgp-before-${file}`, steps, transform };
+        return { ok: false, failedAt: `hgp-before-${file}`, steps, transforms };
       }
     }
     let abs = path.join(root, "supabase/migrations", file);
-    if (file === FLOOR_00030_FILENAME && transform00030) {
-      transform = writeEphemeralTransformed00030(workdir);
-      abs = transform.destAbs;
+    if (transformFiles.includes(file)) {
+      const writer = TRANSFORM_WRITERS[file];
+      transforms[file] = writer(workdir);
+      abs = transforms[file].destAbs;
     }
     const applied = applyLocalFile(url, abs, file);
-    steps.push({ id: file, ...applied, transformed: file === FLOOR_00030_FILENAME && Boolean(transform00030) });
-    if (file === FLOOR_00030_FILENAME && transform) {
-      deleteEphemeralTransformed00030(transform.destAbs);
+    steps.push({
+      id: file,
+      ...applied,
+      transformed: transformFiles.includes(file),
+    });
+    if (transformFiles.includes(file) && transforms[file]) {
+      TRANSFORM_DELETERS[file](transforms[file].destAbs);
     }
-    if (!applied.ok) return { ok: false, failedAt: file, steps, transform };
+    if (!applied.ok) return { ok: false, failedAt: file, steps, transforms };
   }
-  return { ok: true, failedAt: null, steps, transform };
+  return { ok: true, failedAt: null, steps, transforms };
+}
+
+function summarizeTransform(record) {
+  if (!record) return null;
+  return {
+    originalDigest: record.originalDigest,
+    transformedDigest: record.transformedDigest,
+    unnestCount: record.unnestCount,
+    hunks: record.hunks,
+    repoUnchanged: record.repoUnchanged,
+  };
 }
 
 function main() {
   const remainingUnnest = remainingUnnestAfter00030();
+  const unauthorizedUnnest = remainingUnnestAfterAuthorizedTransforms();
+  const inventory = assertAuthorizedExecutableUnnestInventory();
   const evidence = {
-    artifact: "M3_F3_LOCAL_TRANSFORMED_FLOOR_PROOF_20260913",
+    artifact: "M3_F3_LOCAL_TRANSFORMED_FLOOR_PROOF_00057_20260913",
     hosted: "NOT_RUN",
     productionContacted: false,
     repo00030Modified: false,
+    repo00057Modified: false,
     shimOnHostedPath: false,
     recognition: ["manual_income"],
     original00030Sha256: PINNED_ORIGINAL_SHA256,
     transformed00030Sha256: PINNED_TRANSFORMED_SHA256,
+    original00057Sha256: PINNED_00057_ORIGINAL_SHA256,
+    transformed00057Sha256: PINNED_00057_TRANSFORMED_SHA256,
     remainingUnnestAfter00030: remainingUnnest,
+    remainingUnnestAfterAuthorizedTransforms: unauthorizedUnnest,
+    authorizedUnnestInventory: inventory,
     phases: {},
   };
 
   const db = createDisposableDatabase("wipe_floor");
-  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-00030-local-"));
+  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-00057-local-"));
   try {
+    if (unauthorizedUnnest.length > 0) {
+      evidence.verdict = "HOLD";
+      evidence.reason = `HOLD: unauthorized executable unnest after 00030+00057: ${unauthorizedUnnest
+        .map((r) => `${r.file}:${r.count}`)
+        .join(", ")}`;
+      throw new Error(evidence.reason);
+    }
+
     psql(db.url, HOSTED_FLOOR_BOOTSTRAP);
     const files = listMainMigrationsThrough00117();
     const through00029 = files.filter((f) => f < FLOOR_00030_FILENAME);
+    const through00056 = files.filter((f) => f < FLOOR_00057_FILENAME);
+    const from00057 = files.filter((f) => f >= FLOOR_00057_FILENAME);
 
-    const pre = applyThrough(db.url, through00029, { workdir, transform00030: false });
+    const pre = applyThrough(db.url, through00029, { workdir, transformFiles: [] });
     evidence.phases.apply00001_00029 = { ok: pre.ok, failedAt: pre.failedAt, stepCount: pre.steps.length };
     if (!pre.ok) {
       evidence.verdict = "HOLD";
@@ -160,51 +212,73 @@ function main() {
       throw new Error(evidence.reason);
     }
 
-    const replay = applyThrough(db.url, files, {
+    const replayTo56 = applyThrough(db.url, through00056, {
       workdir,
-      transform00030: true,
-      stopBefore: remainingUnnest[0]?.file || null,
+      transformFiles: [FLOOR_00030_FILENAME],
     });
-    evidence.phases.transformedReplayThroughHold = {
-      ok: replay.ok,
-      failedAt: replay.failedAt,
-      transform: replay.transform
-        ? {
-            originalDigest: replay.transform.originalDigest,
-            transformedDigest: replay.transform.transformedDigest,
-            unnestCount: replay.transform.unnestCount,
-            repoUnchanged: replay.transform.repoUnchanged,
-          }
-        : null,
-      appliedThrough: replay.steps.filter((s) => s.ok && /\.sql$/.test(s.id)).map((s) => s.id).slice(-3),
-      stepCount: replay.steps.length,
+    evidence.phases.transformedReplayThrough00056 = {
+      ok: replayTo56.ok,
+      failedAt: replayTo56.failedAt,
+      transform00030: summarizeTransform(replayTo56.transforms[FLOOR_00030_FILENAME]),
+      appliedThrough: replayTo56.steps.filter((s) => s.ok && /\.sql$/.test(s.id)).map((s) => s.id).slice(-3),
+      stepCount: replayTo56.steps.length,
     };
-    if (!replay.ok) {
+    if (!replayTo56.ok) {
       evidence.verdict = "HOLD";
-      evidence.reason = `transformed replay failed at ${replay.failedAt}`;
+      evidence.reason = `transformed 00030 replay failed at ${replayTo56.failedAt}`;
       throw new Error(evidence.reason);
     }
 
-    const probe00057 = remainingUnnest[0]
-      ? applyLocalFile(
-          db.url,
-          path.join(root, "supabase/migrations", remainingUnnest[0].file),
-          remainingUnnest[0].file,
-        )
-      : { ok: true, skipped: true };
-    evidence.phases.remainingUnnestProbe = {
-      file: remainingUnnest[0]?.file || null,
-      count: remainingUnnest[0]?.count || 0,
+    const probe00057 = applyLocalFile(
+      db.url,
+      path.join(root, "supabase/migrations", FLOOR_00057_FILENAME),
+      FLOOR_00057_FILENAME,
+    );
+    evidence.phases.original00057WithoutShim = {
+      file: FLOOR_00057_FILENAME,
+      count: 1,
       ok: probe00057.ok,
+      expectedFail: true,
       errorSample: probe00057.ok ? null : String(probe00057.error || "").slice(0, 400),
     };
+    if (probe00057.ok) {
+      evidence.verdict = "HOLD";
+      evidence.reason = "HOLD: original 00057 applied without shim; historical defect not reproduced";
+      throw new Error(evidence.reason);
+    }
 
-    const reached00117 = replay.ok && remainingUnnest.length === 0;
+    const replayRest = applyThrough(db.url, from00057, {
+      workdir,
+      transformFiles: [FLOOR_00057_FILENAME],
+    });
+    evidence.phases.transformedReplay00057Through00117 = {
+      ok: replayRest.ok,
+      failedAt: replayRest.failedAt,
+      transform00057: summarizeTransform(replayRest.transforms[FLOOR_00057_FILENAME]),
+      appliedThrough: replayRest.steps.filter((s) => s.ok && /\.sql$/.test(s.id)).map((s) => s.id).slice(-3),
+      stepCount: replayRest.steps.length,
+    };
+    if (!replayRest.ok) {
+      evidence.verdict = "HOLD";
+      evidence.reason = `transformed 00057 replay failed at ${replayRest.failedAt}`;
+      throw new Error(evidence.reason);
+    }
+
+    try {
+      installLiveHasGroupPermission(db.url);
+      evidence.phases.hgpAfter00117 = { ok: true };
+    } catch (err) {
+      evidence.verdict = "HOLD";
+      evidence.reason = `hgp-after-00117 failed: ${String(err.message || err)}`;
+      throw new Error(evidence.reason);
+    }
+
+    const reached00117 = replayRest.ok && unauthorizedUnnest.length === 0;
     evidence.through00117 = reached00117;
     evidence.verdict = reached00117 ? "PASS" : "HOLD";
     evidence.reason = reached00117
-      ? "local no-shim transformed replay reached 00117"
-      : `HOLD: local transformed 00030 replay is clean through ${FLOOR_00030_FILENAME}; remaining unnest in ${remainingUnnest.map((r) => `${r.file}:${r.count}`).join(", ")} blocks through-00117 without a further authorized transform. Hosted path HOLDs before that file to avoid a second mid-file partial.`;
+      ? "local no-shim transformed 00030+00057 replay reached 00117"
+      : `HOLD: remaining unauthorized unnest ${unauthorizedUnnest.map((r) => `${r.file}:${r.count}`).join(", ")}`;
   } catch (err) {
     if (!evidence.verdict) evidence.verdict = "HOLD";
     if (!evidence.reason) evidence.reason = String(err.message || err);
@@ -218,7 +292,7 @@ function main() {
     db.close();
   }
 
-  const outJson = path.join(root, "docs/evidence/M3_F3_LOCAL_TRANSFORMED_FLOOR_PROOF_20260913.json");
+  const outJson = path.join(root, "docs/evidence/M3_F3_LOCAL_TRANSFORMED_FLOOR_PROOF_00057_20260913.json");
   fs.mkdirSync(path.dirname(outJson), { recursive: true });
   fs.writeFileSync(outJson, `${JSON.stringify(evidence, null, 2)}\n`);
   console.log(JSON.stringify(evidence, null, 2));

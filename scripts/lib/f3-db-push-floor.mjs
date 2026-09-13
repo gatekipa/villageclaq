@@ -29,6 +29,12 @@ import {
   scanFloorFilesForUnnest,
   writeEphemeralTransformed00030,
 } from "./f3-00030-floor-replay-transform.mjs";
+import {
+  FLOOR_00057_FILENAME,
+  deleteEphemeralTransformed00057,
+  writeEphemeralTransformed00057,
+} from "./f3-00057-floor-replay-transform.mjs";
+import { assertAuthorizedExecutableUnnestInventory } from "./f3-unnest-floor-scan.mjs";
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
 import { runGatedRemoteSqlFile, writeGatedSqlFile } from "./f3-db-push-remote-sql-file.mjs";
 import { assertFrozenDigestsOnDisk } from "./f3-db-push-version-map.mjs";
@@ -36,7 +42,7 @@ import { assertFrozenDigestsOnDisk } from "./f3-db-push-version-map.mjs";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
 export const FLOOR_AUTHORITY =
-  "repository-controlled floor through 00117 via existing `_f3_apply_current_main_floor.mjs` file list + HOSTED bootstrap WITHOUT unnest(uuid) shim + ephemeral 00030 unnest→get_user_group_ids transform (exactly 14) + installLiveHasGroupPermission before 00116/00117; applied with gated remote psql -f against the session-mode pooler URL (NOT db query --file, NOT db push, NOT Management API apply). Historical disposable floor reconstruction — NOT production migration correction, NOT candidate runner.";
+  "repository-controlled floor through 00117 via existing `_f3_apply_current_main_floor.mjs` file list + HOSTED bootstrap WITHOUT unnest(uuid) shim + ephemeral 00030 unnest→get_user_group_ids transform (exactly 14) + ephemeral 00057 unnest→get_user_group_ids transform (exactly 1) + installLiveHasGroupPermission before 00116/00117; applied with gated remote psql -f against the session-mode pooler URL (NOT db query --file, NOT db push, NOT Management API apply). Historical disposable floor reconstruction — NOT production migration correction, NOT candidate runner.";
 
 export const FLOOR_HOLD_IF_INEXACT =
   "HOLD: exact legitimate VillageClaq state immediately before 00118 could not be reproduced from repository-controlled floor authority";
@@ -133,6 +139,13 @@ export function remainingUnnestAfter00030() {
   return scanFloorFilesForUnnest(files);
 }
 
+export function remainingUnnestAfterAuthorizedTransforms() {
+  const files = listFloorMigrationsThrough00117().filter(
+    (f) => f !== FLOOR_00030_FILENAME && f !== FLOOR_00057_FILENAME,
+  );
+  return scanFloorFilesForUnnest(files);
+}
+
 export function assertFloorDoesNotUseCandidateRunner() {
   const src = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-floor.mjs"), "utf8");
   if (/applyRemoteManagementApiMigration\s*\(/.test(src)) {
@@ -185,10 +198,11 @@ function floorApplyOk(result) {
 
 /**
  * Install hosted disposable floor: no-shim bootstrap + 00001–00029 +
- * ephemeral transformed 00030 + 00031–00117 + HGP pins, via gated
- * `psql -f`. If a later floor file still contains
- * `unnest(get_user_group_ids())`, HOLD before applying it so a second
- * mid-file partial is not created. Temp 00030 copy is always deleted.
+ * ephemeral transformed 00030 + ephemeral transformed 00057 +
+ * remaining repo bytes through 00117 + HGP pins, via gated `psql -f`.
+ * If any unauthorized floor file still contains
+ * `unnest(get_user_group_ids())`, HOLD before applying it so a mid-file
+ * partial is not created. Temp 00030/00057 copies are always deleted.
  */
 export function installRepositoryControlledFloor({
   workdir,
@@ -198,7 +212,9 @@ export function installRepositoryControlledFloor({
   assertFloorDoesNotUseCandidateRunner();
   const steps = [];
   let transformRecord = null;
+  let transform00057Record = null;
   const remainingUnnest = remainingUnnestAfter00030();
+  const unauthorizedUnnest = remainingUnnestAfterAuthorizedTransforms();
   const bootstrapFile = writeGatedSqlFile(workdir, "floor-bootstrap.sql", readHostedFloorBootstrapSql());
   const boot = runGatedRemoteSqlFile(bootstrapFile);
   const bootOk = floorApplyOk(boot);
@@ -211,12 +227,19 @@ export function installRepositoryControlledFloor({
     shimInstalled: false,
   });
   if (!bootOk.ok) {
-    return { installed: false, exact: false, steps, failedAt: "bootstrap", transform: null };
+    return {
+      installed: false,
+      exact: false,
+      steps,
+      failedAt: "bootstrap",
+      transform: null,
+      transform00057: null,
+    };
   }
 
   for (const file of listFloorMigrationsThrough00117()) {
-    if (stopBeforeRemainingUnnest && file > FLOOR_00030_FILENAME) {
-      const hit = remainingUnnest.find((row) => row.file === file);
+    if (stopBeforeRemainingUnnest) {
+      const hit = unauthorizedUnnest.find((row) => row.file === file);
       if (hit) {
         steps.push({
           id: `hold-before-${file}`,
@@ -230,9 +253,11 @@ export function installRepositoryControlledFloor({
           steps,
           failedAt: file,
           transform: transformRecord,
+          transform00057: transform00057Record,
           remainingUnnest,
+          remainingUnnestAfterAuthorizedTransforms: unauthorizedUnnest,
           hold:
-            `HOLD: ${file} still contains ${hit.count} unnest(get_user_group_ids()); refuse apply to avoid another mid-file partial. 00030 transform is not a 00057 transform.`,
+            `HOLD: ${file} still contains ${hit.count} unnest(get_user_group_ids()); refuse apply to avoid a mid-file partial. Authorized transforms are 00030 (14) and 00057 (1) only.`,
         };
       }
     }
@@ -241,7 +266,14 @@ export function installRepositoryControlledFloor({
       const hgpOk = floorApplyOk(hgp);
       steps.push({ id: `hgp-before-${file}`, runner: "gated_psql_file", status: hgp.status, ok: hgpOk.ok, already: hgpOk.already });
       if (!hgpOk.ok) {
-        return { installed: false, exact: false, steps, failedAt: `hgp-before-${file}`, transform: transformRecord };
+        return {
+          installed: false,
+          exact: false,
+          steps,
+          failedAt: `hgp-before-${file}`,
+          transform: transformRecord,
+          transform00057: transform00057Record,
+        };
       }
     }
     let applyPath = floorFileAbsPath(file);
@@ -258,6 +290,19 @@ export function installRepositoryControlledFloor({
         label: transformRecord.label,
       });
     }
+    if (file === FLOOR_00057_FILENAME) {
+      transform00057Record = writeEphemeralTransformed00057(workdir);
+      applyPath = transform00057Record.destAbs;
+      steps.push({
+        id: "00057-ephemeral-transform",
+        runner: "ephemeral_workdir",
+        ok: true,
+        originalDigest: transform00057Record.originalDigest,
+        transformedDigest: transform00057Record.transformedDigest,
+        unnestCount: transform00057Record.unnestCount,
+        label: transform00057Record.label,
+      });
+    }
     const applied = runGatedRemoteSqlFile(applyPath);
     const ok = floorApplyOk(applied);
     steps.push({
@@ -266,14 +311,25 @@ export function installRepositoryControlledFloor({
       status: applied.status,
       ok: ok.ok,
       already: ok.already,
-      transformed: file === FLOOR_00030_FILENAME,
+      transformed: file === FLOOR_00030_FILENAME || file === FLOOR_00057_FILENAME,
     });
     if (file === FLOOR_00030_FILENAME) {
       deleteEphemeralTransformed00030(applyPath);
       steps.push({ id: "00030-ephemeral-deleted", ok: true });
     }
+    if (file === FLOOR_00057_FILENAME) {
+      deleteEphemeralTransformed00057(applyPath);
+      steps.push({ id: "00057-ephemeral-deleted", ok: true });
+    }
     if (!ok.ok) {
-      return { installed: false, exact: false, steps, failedAt: file, transform: transformRecord };
+      return {
+        installed: false,
+        exact: false,
+        steps,
+        failedAt: file,
+        transform: transformRecord,
+        transform00057: transform00057Record,
+      };
     }
   }
 
@@ -281,7 +337,14 @@ export function installRepositoryControlledFloor({
   const afterOk = floorApplyOk(hgpAfter);
   steps.push({ id: "hgp-after-00117", runner: "gated_psql_file", status: hgpAfter.status, ok: afterOk.ok, already: afterOk.already });
   if (!afterOk.ok) {
-    return { installed: false, exact: false, steps, failedAt: "hgp-after-00117", transform: transformRecord };
+    return {
+      installed: false,
+      exact: false,
+      steps,
+      failedAt: "hgp-after-00117",
+      transform: transformRecord,
+      transform00057: transform00057Record,
+    };
   }
   return {
     installed: true,
@@ -289,7 +352,9 @@ export function installRepositoryControlledFloor({
     steps,
     failedAt: null,
     transform: transformRecord,
+    transform00057: transform00057Record,
     remainingUnnest,
+    remainingUnnestAfterAuthorizedTransforms: unauthorizedUnnest,
     shimInstalled: false,
   };
 }
@@ -312,6 +377,8 @@ export function floorPrecheck() {
   const recognition = recognitionFromSource();
   const digests = assertFrozenDigestsOnDisk();
   const remainingUnnest = remainingUnnestAfter00030();
+  const unauthorizedUnnest = remainingUnnestAfterAuthorizedTransforms();
+  const authorizedUnnestInventory = assertAuthorizedExecutableUnnestInventory();
   const hostedBootstrap = readHostedFloorBootstrapSql();
   return {
     authority: FLOOR_AUTHORITY,
@@ -324,6 +391,8 @@ export function floorPrecheck() {
     holdIfInexact: FLOOR_HOLD_IF_INEXACT,
     hostedBootstrapHasUnnestShim: /CREATE OR REPLACE FUNCTION public\.unnest\(uuid\)/i.test(hostedBootstrap),
     remainingUnnestAfter00030: remainingUnnest,
-    remainingUnnestHold: remainingUnnest.length > 0,
+    remainingUnnestAfterAuthorizedTransforms: unauthorizedUnnest,
+    remainingUnnestHold: unauthorizedUnnest.length > 0,
+    authorizedUnnestInventory,
   };
 }

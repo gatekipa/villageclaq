@@ -126,8 +126,8 @@ function chiefRunbook() {
       `export ${DESTRUCTIVE_ENV}=1`,
       `export ${DB_PASSWORD_ENV}='<password from founder vault; do not commit>'`,
       `# optional: export ${MGMT_TOKEN_ENV}='<mgmt token; GET/query only>'`,
-      "STOP: disposable is CLEAN baseline after Chief wipe. Do not --prep-floor / --sequence-f3 / re-wipe without new founder auth.",
-      "node scripts/qualify-f3-db-push-disposable.mjs",
+      "STOP: disposable is CLEAN baseline after Chief wipe. Do not --wipe-to-baseline. Use --no-wipe hosted floor with both ephemeral transforms.",
+      "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3",
     ],
     candidateCommand:
       "supabase db push --db-url <in-process session-mode pooler URL> --workdir <isolated> --yes --skip-vault",
@@ -150,8 +150,8 @@ function chiefRunbook() {
       "Do not auto-repair; founder auth required for any production apply/repair",
       "Do not install public.unnest(uuid) shim on hosted floor",
       "00030 transform is ephemeral workdir-only; do not modify repo 00030",
-      "Do not transform 00057 or any other unnest site without new founder auth",
-      "Do not re-floor the clean baseline disposable",
+      "00057 transform is ephemeral workdir-only; do not modify repo 00057",
+      "Do not --wipe-to-baseline on the clean disposable; use --no-wipe",
     ],
   };
 }
@@ -161,6 +161,7 @@ function parseArgs(argv) {
     prepFloor: argv.includes("--prep-floor"),
     sequenceF3: argv.includes("--sequence-f3"),
     wipeToBaseline: argv.includes("--wipe-to-baseline"),
+    noWipe: argv.includes("--no-wipe"),
     skipCleanup: argv.includes("--skip-cleanup"),
     evidenceOut: (() => {
       const idx = argv.indexOf("--evidence-out");
@@ -347,6 +348,14 @@ async function main() {
       sql: INVENTORY_CAPTURE_SQL,
     });
     evidence.inventoryCapture = { status: captured.status, body: parseJsonish(captured.stdout) };
+    if (args.noWipe && args.wipeToBaseline) {
+      evidence.status = "HOLD";
+      evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+      throw Object.assign(new Error("HOLD: --no-wipe and --wipe-to-baseline are mutually exclusive"), {
+        code: "F3_WIPE_FLAG_CONFLICT_HOLD",
+      });
+    }
+
     if (args.wipeToBaseline) {
       const plan = planWipe(parseJsonish(captured.stdout));
       evidence.wipe = {
@@ -380,8 +389,16 @@ async function main() {
       });
       const proved = proveCleanBaseline(parseJsonish(afterWipe.stdout));
       evidence.wipe.after = { status: afterWipe.status, body: parseJsonish(afterWipe.stdout), proved };
+    } else if (args.noWipe) {
+      const proved = proveCleanBaseline(parseJsonish(captured.stdout));
+      evidence.wipe = {
+        skipped: true,
+        noWipe: true,
+        proved,
+        note: "Founder: disposable already CLEAN; --no-wipe hosted floor with ephemeral 00030+00057 transforms. Do not re-wipe.",
+      };
     } else {
-      evidence.wipe = { skipped: true, note: "Pass --wipe-to-baseline to wipe failed-floor objects only." };
+      evidence.wipe = { skipped: true, note: "Pass --no-wipe for clean-baseline hosted floor, or --wipe-to-baseline only if a failed floor must be removed." };
     }
 
     const precheck = floorPrecheck();
@@ -401,10 +418,12 @@ async function main() {
         runner: "gated_psql_file",
         shimInstalled: false,
         transform: installed.transform,
+        transform00057: installed.transform00057,
         remainingUnnest: installed.remainingUnnest,
+        remainingUnnestAfterAuthorizedTransforms: installed.remainingUnnestAfterAuthorizedTransforms,
         hold: installed.hold || null,
         priorHostedHold:
-          "tip 164f579 / evidence 79bdf1d: gated psql -f failed at 00030 unnest(get_user_group_ids()); this path uses no-shim bootstrap + ephemeral 00030 transform",
+          "tip 164f579 / evidence 79bdf1d: gated psql -f failed at 00030; this path uses no-shim bootstrap + ephemeral 00030 (14) + ephemeral 00057 (1)",
         steps: installed.steps,
         failedAt: installed.failedAt,
         fingerprint: { status: fingerprint.status, body: parseJsonish(fingerprint.stdout) },
@@ -417,7 +436,7 @@ async function main() {
       }
     } else {
       evidence.floor.skipped = true;
-      evidence.floor.note = "Pass --prep-floor to install repository-controlled 00001–00117 floor.";
+      evidence.floor.note = "Pass --no-wipe --prep-floor to install repository-controlled 00001–00117 floor with ephemeral 00030+00057 transforms on the clean disposable.";
     }
 
     if (args.sequenceF3) {

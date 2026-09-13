@@ -66,8 +66,8 @@ Preassigned versions remain `20260913173000`–`20260913173005`.
 
 1. `verdict` = **HOLD** (do not convert to PASS)
 2. `functional_sha` = `a0d60f1a3c3ad6fa57629f5cd7c0d544c80c962a`
-3. `evidence_sha` = *(filled after evidence commit)*
-4. `tip_sha` = *(filled after tip)*
+3. `evidence_sha` = `6b9cb05cea817c7d34db43ae71812bfec5b1a7d7`
+4. `tip_sha` = *(filled after this SHA-fill commit)*
 5. `starting_ref` = `18bb1c740a2b6e6e5e70c573e944d88dea03da5b`
 6. `prior_functional` = `164f57949df774586155b007bf8a6c067ded4874`
 7. `prior_evidence` = `79bdf1dd55fef7ddd0dcaa2162795a801ed4e741`

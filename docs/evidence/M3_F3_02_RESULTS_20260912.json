@@ -1,4 +1,7 @@
 {
+  "superseded": true,
+  "superseded_by": "M3_F3_02_RESULTS_20260913",
+  "recognition_coverage_was": "OVERSTATED",
   "artifact": "M3_F3_02_RESULTS_20260912",
   "ticket": "F3-02",
   "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",

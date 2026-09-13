@@ -1,16 +1,16 @@
 {
-  "superseded": true,
-  "superseded_by": "M3_F3_FORWARD_MIGRATION_MANIFEST_20260913",
-  "artifact": "M3_F3_FORWARD_MIGRATION_MANIFEST_20260912",
-  "date": "2026-09-12",
-  "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
-  "superseded_functional_sha": "90cae96593e223ba6a7001349c214bfbbc9c0bba",
+  "artifact": "M3_F3_FORWARD_MIGRATION_MANIFEST_20260913",
+  "date": "2026-09-13",
+  "functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+  "superseded_functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+  "superseded_evidence_tip": "d5c045b7c329f1e4615d6b4d071abd4b357335dc",
   "base_main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
   "planning_pr": 83,
   "planning_sha": "a178068384290b37ec6c17b02428b399d52ddd10",
   "do_not_apply_to_production": true,
   "bytes_00001_00117_unchanged": true,
   "timestamp_f3_history_absent": true,
+  "migrations_00118_00123_bytes_identical_to_frozen_digests": true,
   "migrations": [
     {
       "file": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql",

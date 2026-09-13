@@ -1,4 +1,7 @@
 {
+  "superseded": true,
+  "superseded_by": "M3_F3_FCG1_READINESS_20260913",
+  "recognition_progress_claims": "OVERSTATED",
   "artifact": "M3_F3_FCG1_READINESS_20260912",
   "date": "2026-09-12",
   "functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",

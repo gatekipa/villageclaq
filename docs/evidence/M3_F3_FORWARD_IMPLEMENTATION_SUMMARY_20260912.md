@@ -1,6 +1,13 @@
 # M3 F3 Forward Implementation Summary — 2026-09-12
 
-**OVERALL VERDICT: PASS — M3 F3-01…05 FORWARD FOUNDATION COMPLETE; DISPOSABLE QUALIFICATION PASS; READY FOR DAYBREAK + ASTRA IMPLEMENTATION REVIEW**
+> **SUPERSEDED** by `M3_F3_FORWARD_IMPLEMENTATION_SUMMARY_20260913.md` and
+> `M3_F3_RECOGNITION_ALLOWLIST_REMEDIATION_20260913.md`.
+> Functional SHA `a1e9311552a2698a8296e8f87eb1d000a5c259fe` and evidence tip
+> `d5c045b7c329f1e4615d6b4d071abd4b357335dc` are superseded.
+> **Recognition coverage claims in this document were OVERSTATED** (denylist
+> default-to-income). Do not reuse the 2026-09-12 suite counts as current.
+
+**OVERALL VERDICT: SUPERSEDED — see 2026-09-13 recognition allowlist remediation**
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00118+ TO PRODUCTION.**  

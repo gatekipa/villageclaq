@@ -1,0 +1,41 @@
+{
+  "artifact": "M3_F3_02_RESULTS_20260913",
+  "ticket": "F3-02",
+  "date": "2026-09-13",
+  "functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+  "supersedes": {
+    "artifact": "M3_F3_02_RESULTS_20260912",
+    "old_functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
+    "old_evidence_tip": "d5c045b7c329f1e4615d6b4d071abd4b357335dc",
+    "recognition_coverage_was": "OVERSTATED"
+  },
+  "overstated_prior_claim": "recognition gate (pending/rejected/voided/relief-misapplied/dues assessment/opening arrears/refundable/njangi/unconfirmed not SoA income) described a denylist that defaulted unknown kinds to income",
+  "corrected_claim": "isRecognizedSoaIncome allowlist is EXACTLY manual_income; unknown/future/empty/malformed fail closed",
+  "migration": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql",
+  "migration_sha256": "de8359d1d289933cf4d4f7d5970b2126e4e49373fe35b8fdfc7bbf89964bd499",
+  "migration_bytes_unchanged": true,
+  "db_suite": "scripts/test-financial-f3-posting-db.mjs",
+  "db_result": "159/159 PASS",
+  "astra_suite": "tests/finance/f3-02/oracle.test.mjs",
+  "astra_result": "169/169 PASS",
+  "recognition_suite": "tests/finance/f3-recognition/recognition.test.mjs",
+  "recognition_result": "40/40 PASS",
+  "fresh": true,
+  "expected_change": "counts rose by added allowlist/retry/vocabulary proofs; SQL security not weakened",
+  "covered": [
+    "balanced postings",
+    "tenant isolation",
+    "exact decimals",
+    "same-currency transfer",
+    "cross-currency DENY",
+    "identical replay returns original after CURRENT auth revalidation",
+    "same identity + changed economics CONFLICT",
+    "revoked-auth DENY",
+    "lock-wait recheck",
+    "concurrent retry",
+    "rollback",
+    "no direct truth writes",
+    "SoA income allowlist EXACT manual_income only; fail-closed for unknown/future/empty/malformed",
+    "stored F3-02 effect_kinds are exactly manual_income, manual_expense, account_transfer, opening_custody"
+  ]
+}

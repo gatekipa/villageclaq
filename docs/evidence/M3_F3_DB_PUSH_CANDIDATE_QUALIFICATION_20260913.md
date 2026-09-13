@@ -47,8 +47,8 @@ Hosted re-run of `--prep-floor --sequence-f3` is **pending Chief vault secrets**
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
 | Superseded hosted HOLD tip | `ca6df986df53c7f4ab70dc9d5f8aa8be06d72425` |
 | **Functional SHA** | `164f57949df774586155b007bf8a6c067ded4874` |
-| **Evidence SHA** | `TO_BE_FILLED` |
-| **Tip SHA** | `TO_BE_FILLED` |
+| **Evidence SHA** | `e437b66737fac910013dc355e3b9179e3e4504c8` |
+| **Tip SHA** | `e437b66737fac910013dc355e3b9179e3e4504c8` |
 | Recognition | exactly `["manual_income"]` |
 | Verdict | **BLOCKED** — hosted six-file sequence not yet re-run |
 | Production approval | **NOT CLAIMED** |

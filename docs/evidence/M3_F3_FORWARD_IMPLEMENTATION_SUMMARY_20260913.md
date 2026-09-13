@@ -2,7 +2,7 @@
 
 **OVERALL VERDICT: BLOCKED — prior Chief hosted floor HOLD on tip `ca6df98` (`db query --file` multi-statement rejection) is superseded by gated `psql -f` floor (functional `164f579`). Hosted `--prep-floor --sequence-f3` re-run is pending Chief secrets. Management API `{query,name}` remains PERMANENTLY DISQUALIFIED. 00118–00123 SQL bytes unchanged. Local `test:f3` 991/991. FILE-BASED RUNNER QUALIFICATION PASS and production approval are NOT claimed.**
 
-Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `164f57949df774586155b007bf8a6c067ded4874`.
+Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `164f57949df774586155b007bf8a6c067ded4874`. Evidence SHA `e437b66737fac910013dc355e3b9179e3e4504c8`.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 
@@ -53,8 +53,8 @@ See `M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md` for proven-vs-UNPROVEN runner fact
 | Local two-phase failure+repair (NON-API simulation) | **9/9 PASS** |
 | SQL pre-commit atomicity | **14/14 PASS** |
 | Recognition direct | **40/40 PASS** |
-| Combined `npm run test:f3` | **988/988 PASS** |
-| db push harness (local) | **26/26 PASS** |
+| Combined `npm run test:f3` | **991/991 PASS** |
+| db push harness (local) | **29/29 PASS** |
 | Management API harness (local) | **22/22 PASS** |
 | `test:m2` | **111/111 PASS** |
 | Cut 1 / Cut 2 / Cut 3 storage | **11/11 / 20/20 / 11/11 PASS** |

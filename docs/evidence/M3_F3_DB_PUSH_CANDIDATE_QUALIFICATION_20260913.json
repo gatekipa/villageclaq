@@ -9,8 +9,8 @@
   "db_push_status": "QUALIFICATION CANDIDATE ONLY",
   "functional_sha": "164f57949df774586155b007bf8a6c067ded4874",
   "superseded_hosted_hold_tip": "ca6df986df53c7f4ab70dc9d5f8aa8be06d72425",
-  "evidence_sha": "TO_BE_FILLED",
-  "tip_sha": "TO_BE_FILLED",
+  "evidence_sha": "e437b66737fac910013dc355e3b9179e3e4504c8",
+  "tip_sha": "e437b66737fac910013dc355e3b9179e3e4504c8",
   "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
   "pr84": {
     "url": "https://github.com/gatekipa/villageclaq/pull/84",

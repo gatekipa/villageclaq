@@ -54,6 +54,8 @@ import {
   refuseProduction,
   sanitizeForLog,
   spawnDbPushChildSync,
+  spawnGatedRemotePsqlSync,
+  buildGatedRemotePsqlSubprocessEnv,
 } from "./lib/f3-db-push-target-guard.mjs";
 import {
   __dbPushFetchLedgerForTests,
@@ -69,6 +71,7 @@ import {
   discoverSupabaseCli,
   readDbPushHelp,
   readMigrationRepairHelp,
+  runDbQuery,
 } from "./lib/f3-db-push-cli.mjs";
 import {
   assertFrozenDigestsOnDisk,
@@ -88,10 +91,20 @@ import {
 } from "./lib/f3-db-push-history-inject.mjs";
 import {
   FLOOR_HOLD_IF_INEXACT,
+  FLOOR_AUTHORITY,
+  assertFloorDoesNotUseCandidateRunner,
   floorPrecheck,
+  installRepositoryControlledFloor,
   listFloorMigrationsThrough00117,
+  liveHasGroupPermissionSql,
+  readFloorBootstrapSql,
   recognitionFromSource,
 } from "./lib/f3-db-push-floor.mjs";
+import {
+  DB_QUERY_MULTISTATEMENT_REFUSE,
+  refuseDbQueryMultiStatement,
+  sqlRequiresPsqlFile,
+} from "./lib/f3-db-push-remote-sql-file.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -430,6 +443,77 @@ test("cleanup SQL may drop only the throwaway probe", () => {
   assert.equal(LIVE_PROBE_THROWAWAY_TABLE, "public.f3_mapi_throwaway_probe");
 });
 
+test("bootstrap and 00001 require psql -f; db query --file is refused", () => {
+  const bootstrap = readFloorBootstrapSql();
+  assert.equal(sqlRequiresPsqlFile(bootstrap), true);
+  const core = fs.readFileSync(path.join(root, "supabase/migrations/00001_core_tables.sql"), "utf8");
+  assert.equal(sqlRequiresPsqlFile(core), true);
+  assert.equal(sqlRequiresPsqlFile(DROP_THROWAWAY_PROBE_SQL), false);
+  assert.throws(
+    () => refuseDbQueryMultiStatement({ sql: bootstrap }),
+    (err) => err.code === "F3_DBPUSH_DB_QUERY_MULTISTATEMENT",
+  );
+  assert.throws(
+    () =>
+      refuseDbQueryMultiStatement({
+        fileAbsPath: path.join(root, "supabase/migrations/00001_core_tables.sql"),
+      }),
+    /multi-statement|db query/,
+  );
+  setAuthorizedEnv();
+  assertRejectedBeforeSpawn(() =>
+    runDbQuery({
+      bin: "supabase",
+      workdir: createIsolatedDbPushWorkdir().workdir,
+      help: { status: 0, hasDbUrl: true, hasFile: true, hasWorkdir: true },
+      fileAbsPath: path.join(root, "supabase/migrations/00001_core_tables.sql"),
+    }),
+  );
+});
+
+test("gated remote psql -f uses pooler child env and never -p; unauthorized is zero-spawn", () => {
+  assertRejectedBeforeSpawn(() => spawnGatedRemotePsqlSync(["-X", "-q", "-f", "/tmp/x.sql"]));
+  setAuthorizedEnv();
+  const env = buildGatedRemotePsqlSubprocessEnv();
+  assert.equal(env.PGHOST, "aws-0-us-east-1.pooler.supabase.com");
+  assert.equal(env.PGPORT, "5432");
+  assert.equal(env.PGUSER, "postgres.jkorwnwwmdeflfntxntl");
+  assert.equal(env.PGSSLMODE, "require");
+  assert.equal(env.DATABASE_URL, undefined);
+  assert.ok(env.PGPASSWORD);
+  assert.equal(env.HOME, isolatedDbPushHomeDir());
+  __installDbPushSpawnInterceptorForTests(({ cmd, args, opts }) => {
+    assert.equal(cmd, "psql");
+    assert.equal(args.includes("-p"), false);
+    assert.equal(args.includes("--password"), false);
+    assert.ok(args.includes("-f"));
+    assert.ok(args.includes("-v"));
+    assert.ok(args.includes("ON_ERROR_STOP=1"));
+    assert.equal(opts.env.PGHOST, "aws-0-us-east-1.pooler.supabase.com");
+    assert.equal(opts.env.PGPASSWORD, process.env[DB_PASSWORD_ENV]);
+    assert.equal(JSON.stringify(args).includes(process.env[DB_PASSWORD_ENV]), false);
+    return { status: 0, stdout: "ok", stderr: "", signal: null };
+  });
+  const isolated = createIsolatedDbPushWorkdir();
+  const result = installRepositoryControlledFloor({ workdir: isolated.workdir });
+  assert.equal(result.installed, true);
+  assert.equal(result.exact, true);
+  assert.ok(result.steps.some((s) => s.id === "bootstrap" && s.runner === "gated_psql_file"));
+  assert.ok(result.steps.some((s) => String(s.id).startsWith("hgp-before-00116")));
+  assert.ok(result.steps.some((s) => s.id === "00117_m2_notification_policy_foundation.sql"));
+  assert.ok(result.steps.some((s) => s.id === "hgp-after-00117"));
+  assert.equal(result.steps.some((s) => /^0011[89]_/.test(s.id) || /^0012[0-3]_/.test(s.id)), false);
+  fs.rmSync(isolated.workdir, { recursive: true, force: true });
+});
+
+test("live HGP remote SQL preserves the live create body", () => {
+  const sql = liveHasGroupPermissionSql();
+  assert.match(sql, /has_group_permission/);
+  assert.match(sql, /OWNER TO postgres/);
+  assert.match(sql, /authenticated, service_role/);
+  assert.equal(sqlRequiresPsqlFile(sql), true);
+});
+
 test("repository floor lists through 00117 and excludes 00118-00123", () => {
   const files = listFloorMigrationsThrough00117();
   assert.ok(files.includes("00117_m2_notification_policy_foundation.sql"));
@@ -439,6 +523,9 @@ test("repository floor lists through 00117 and excludes 00118-00123", () => {
   assert.deepEqual(precheck.recognition, ["manual_income"]);
   assert.match(precheck.holdIfInexact, /HOLD/);
   assert.match(FLOOR_HOLD_IF_INEXACT, /HOLD/);
+  assert.match(FLOOR_AUTHORITY, /gated remote psql -f/);
+  assert.match(FLOOR_AUTHORITY, /NOT db query --file/);
+  assert.equal(assertFloorDoesNotUseCandidateRunner(), true);
 });
 
 test("recognition allowlist is exactly manual_income", () => {
@@ -487,6 +574,9 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /Do not use -p/);
   assert.match(qualify, /filename version|FILENAME_VERSION/);
   assert.match(qualify, /session-mode pooler/);
+  assert.match(qualify, /installRepositoryControlledFloor/);
+  assert.match(qualify, /runGatedRemoteSqlText/);
+  assert.doesNotMatch(qualify, /fileAbsPath: bootstrapFile/);
 });
 
 test("runbook permanently disqualifies Management API apply and keeps db push as candidate only", () => {
@@ -503,5 +593,6 @@ test("runbook permanently disqualifies Management API apply and keeps db push as
   assert.match(runbook, /filename version|FILENAME_VERSION|preassigned/i);
   assert.match(runbook, /aws-0-us-east-1\.pooler\.supabase\.com/);
   assert.match(runbook, /AAAA\/IPv6 unreachable/);
+  assert.match(runbook, /gated remote `psql -f`|gated remote psql -f/);
   assert.doesNotMatch(runbook, /repair 00118 /);
 });

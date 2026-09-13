@@ -92,6 +92,8 @@ supabase db push --db-url <PERCENT_ENCODED_DISPOSABLE_SESSION_POOLER_URL> --work
 
 **Connection form (Chief live preflight 2026-09-13, incorporate exactly):** identity gates still require exact project ref `jkorwnwwmdeflfntxntl` / name `villageclaq-f3-management-api-disposable-20260913` / org `eyztkzkprpmlmcabrfef` / host `db.jkorwnwwmdeflfntxntl.supabase.co`. Direct `db.jkorwnwwmdeflfntxntl.supabase.co:5432` **FAILED** (AAAA/IPv6 unreachable). Postgres connect succeeded via session-mode pooler `aws-0-us-east-1.pooler.supabase.com:5432` user `postgres.jkorwnwwmdeflfntxntl` `sslmode=require`. Transaction pooler `:6543` is never a db-push target. Production is forever denied. Password from env only; never argv / never log the URL.
 
+**Floor install (Chief hosted HOLD on tip `ca6df98`, then required fix):** `supabase db query --file` **cannot** execute multi-statement SQL (`cannot insert multiple commands into a prepared statement`). Repository-controlled floor authority remains `_f3_apply_current_main_floor.mjs` (bootstrap + 00001–00117 + `installLiveHasGroupPermission` before 00116/00117). Hosted floor now applies that authority with gated remote `psql -f` against the session-mode pooler URL (PGPASSWORD in child env only; never `-p`). `db query` remains allowed only for single-statement probes. 00118–00123 candidate runner remains `supabase db push` only.
+
 When a post-COMMIT split occurs on this candidate: COMMIT → history INSERT fail → **known filename version** → founder-controlled repair → retry skip → next continues. Do not invent a server-generated version. Do not use an apply-time clock.
 
 ## Authoritative source of a repaired version

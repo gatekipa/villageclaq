@@ -65,7 +65,6 @@ import {
   runDbQuery,
   runFilenameVersionRepair,
   runMigrationList,
-  writeIsolatedSqlFile,
 } from "./lib/f3-db-push-cli.mjs";
 import {
   assertVersionCollisionPass,
@@ -88,12 +87,11 @@ import {
   CATALOG_FINGERPRINT_SQL,
   FLOOR_AUTHORITY,
   FLOOR_HOLD_IF_INEXACT,
-  floorFileAbsPath,
   floorPrecheck,
-  listFloorMigrationsThrough00117,
-  readFloorBootstrapSql,
+  installRepositoryControlledFloor,
   recognitionFromSource,
 } from "./lib/f3-db-push-floor.mjs";
+import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -335,31 +333,7 @@ async function main() {
     const precheck = floorPrecheck();
     evidence.floor = { precheck, authority: FLOOR_AUTHORITY, installed: false };
     if (args.prepFloor) {
-      const steps = [];
-      const bootstrapFile = writeIsolatedSqlFile(isolated.workdir, "floor-bootstrap.sql", readFloorBootstrapSql());
-      const boot = await runDbQuery({
-        bin: cli.bin,
-        workdir: isolated.workdir,
-        help: queryHelp,
-        fileAbsPath: bootstrapFile,
-      });
-      steps.push({ id: "bootstrap", status: boot.status, stdout: boot.stdout, stderr: boot.stderr });
-      let floorOk = boot.status === 0;
-      for (const file of listFloorMigrationsThrough00117()) {
-        const applied = await runDbQuery({
-          bin: cli.bin,
-          workdir: isolated.workdir,
-          help: queryHelp,
-          fileAbsPath: floorFileAbsPath(file),
-        });
-        const already = /already exists|duplicate_object|duplicate_function/i.test(`${applied.stdout}\n${applied.stderr}`);
-        const ok = applied.status === 0 || already;
-        steps.push({ id: file, status: applied.status, ok, already });
-        if (!ok) {
-          floorOk = false;
-          break;
-        }
-      }
+      const installed = installRepositoryControlledFloor({ workdir: isolated.workdir });
       const fingerprint = await runDbQuery({
         bin: cli.bin,
         workdir: isolated.workdir,
@@ -368,12 +342,16 @@ async function main() {
       });
       evidence.floor = {
         ...evidence.floor,
-        installed: floorOk,
-        exact: floorOk,
-        steps,
+        installed: installed.installed,
+        exact: installed.exact,
+        runner: "gated_psql_file",
+        priorHostedHold:
+          "tip ca6df98 used supabase db query --file for bootstrap/00001; prepared-statement multi-command rejection → F3_DBPUSH_FLOOR_HOLD",
+        steps: installed.steps,
+        failedAt: installed.failedAt,
         fingerprint: { status: fingerprint.status, body: parseJsonish(fingerprint.stdout) },
       };
-      if (!floorOk) {
+      if (!installed.installed || !installed.exact) {
         evidence.status = "HOLD";
         evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
         evidence.limitation = FLOOR_HOLD_IF_INEXACT;
@@ -388,13 +366,7 @@ async function main() {
       for (const file of F3_FORWARD_FILES) {
         const version = preassignedVersionFor(file);
         const injectSql = historyInjectSqlForFile(file);
-        const injectFile = writeIsolatedSqlFile(isolated.workdir, `inject-${version}.sql`, injectSql);
-        const inject = await runDbQuery({
-          bin: cli.bin,
-          workdir: isolated.workdir,
-          help: queryHelp,
-          fileAbsPath: injectFile,
-        });
+        const inject = runGatedRemoteSqlText(isolated.workdir, `inject-${version}.sql`, injectSql);
         const push = runDbPushCandidate({
           bin: cli.bin,
           workdir: isolated.workdir,
@@ -421,12 +393,7 @@ async function main() {
           targetVersion: version,
           objectsPresent,
         });
-        await runDbQuery({
-          bin: cli.bin,
-          workdir: isolated.workdir,
-          help: queryHelp,
-          sql: REMOVE_HISTORY_INJECT_SQL,
-        });
+        runGatedRemoteSqlText(isolated.workdir, `remove-inject-${version}.sql`, REMOVE_HISTORY_INJECT_SQL);
         const fingerprintBeforeRepair = await runDbQuery({
           bin: cli.bin,
           workdir: isolated.workdir,

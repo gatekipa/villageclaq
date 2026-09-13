@@ -460,6 +460,87 @@ export function spawnDbPushChildSync(cmd, args, { requirePassword = true } = {})
   });
 }
 
+const GATED_PSQL_ENV_KEYS = Object.freeze([
+  "PGHOST",
+  "PGPORT",
+  "PGUSER",
+  "PGPASSWORD",
+  "PGDATABASE",
+  "PGSSLMODE",
+]);
+
+/**
+ * Child env for gated remote `psql -f` (floor / multi-statement only).
+ * Password lives in PGPASSWORD only. Never DATABASE_URL. Never `-p` on argv
+ * (`-p` is also psql's port flag — port is PGPORT in env).
+ */
+export function buildGatedRemotePsqlSubprocessEnv() {
+  assertDbPushGates({ optIn: true });
+  const url = buildDisposableDbUrlFromEnv();
+  assertConstructedDbUrl(url);
+  const env = buildDbPushSubprocessEnv();
+  const password = readPasswordFromEnv();
+  env.PGHOST = APPROVED_DISPOSABLE_POOLER_HOST;
+  env.PGPORT = String(APPROVED_DISPOSABLE_POOLER_PORT);
+  env.PGUSER = APPROVED_DISPOSABLE_POOLER_USER;
+  env.PGDATABASE = APPROVED_DISPOSABLE_DATABASE;
+  env.PGPASSWORD = password;
+  env.PGSSLMODE = "require";
+  assertGatedRemotePsqlEnv(env);
+  return env;
+}
+
+export function assertGatedRemotePsqlEnv(env) {
+  if (!env || env.HOME !== isolatedDbPushHomeDir()) {
+    reject(DBPUSH_GATE_REJECT, "subprocess HOME is not the isolated db-push CLI directory");
+  }
+  if (env.DATABASE_URL || env.DIRECT_URL || env.POSTGRES_URL || env.PGURL) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql child must not receive DATABASE_URL/PGURL");
+  }
+  if (env.PGHOST !== APPROVED_DISPOSABLE_POOLER_HOST) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql PGHOST is not the approved session-mode pooler");
+  }
+  if (env.PGPORT !== String(APPROVED_DISPOSABLE_POOLER_PORT)) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql PGPORT must be session-mode 5432");
+  }
+  if (env.PGUSER !== APPROVED_DISPOSABLE_POOLER_USER) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql PGUSER must be postgres.{approved-ref}");
+  }
+  if (env.PGDATABASE !== APPROVED_DISPOSABLE_DATABASE) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql PGDATABASE must be postgres");
+  }
+  if (env.PGSSLMODE !== "require") {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql PGSSLMODE must be require");
+  }
+  if (!env.PGPASSWORD) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql PGPASSWORD missing");
+  }
+  refuseProduction(env.PGHOST);
+  refuseProduction(env.PGUSER);
+  refuseProduction(env.PGPASSWORD);
+  for (const key of Object.keys(env)) {
+    if (GATED_PSQL_ENV_KEYS.includes(key)) continue;
+    if (isForbiddenEnvKey(key)) {
+      reject(DBPUSH_GATE_REJECT, `subprocess env leaked forbidden key ${key}`);
+    }
+    refuseProduction(String(env[key] ?? ""));
+  }
+}
+
+export function spawnGatedRemotePsqlSync(args) {
+  assertDbPushGates({ optIn: true });
+  const safeArgs = assertArgvSafe(args);
+  if (safeArgs.some((a) => String(a) === "-d" || String(a).startsWith("postgresql://"))) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: gated psql must not take a URL on argv");
+  }
+  const env = buildGatedRemotePsqlSubprocessEnv();
+  return recordAndSpawnSync("psql", safeArgs, {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+    env,
+  });
+}
+
 export function spawnDbPushHelpSync(cmd, args) {
   const env = buildDbPushSubprocessEnv();
   assertEnvSanitized(env);

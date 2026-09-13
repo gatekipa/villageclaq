@@ -28,6 +28,7 @@ import {
   spawnDbPushHelpSync,
 } from "./f3-db-push-target-guard.mjs";
 import { isFourteenDigitVersion, refuseClockOrGuessedVersion } from "./f3-db-push-version-map.mjs";
+import { refuseDbQueryMultiStatement } from "./f3-db-push-remote-sql-file.mjs";
 
 export const PINNED_CLI_VERSION = CLI_PIN;
 
@@ -232,6 +233,7 @@ export function runMigrationList({ bin, workdir, help }) {
 }
 
 export function runDbQuery({ bin, workdir, help, sql, fileAbsPath }) {
+  refuseDbQueryMultiStatement({ sql, fileAbsPath });
   const dbUrl = buildDisposableDbUrlFromEnv();
   const spec = buildDbQueryCommand({ dbUrl, workdir, help, sql, fileAbsPath });
   return runSpec(bin, spec);

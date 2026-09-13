@@ -5,8 +5,12 @@
  * through 00117 as listed by `_f3_apply_current_main_floor.mjs`.
  * This is NOT the candidate runner (not db push of 00118–00123).
  *
- * Floor SQL is applied via `supabase db query --db-url` after gates.
- * If the exact pre-00118 state cannot be reproduced → HOLD.
+ * Floor SQL is applied via the gated remote `psql -f` executor
+ * (`f3-db-push-remote-sql-file.mjs`) — the same multi-statement authority
+ * as `_f3_apply_current_main_floor.mjs`. `supabase db query --file` is
+ * forbidden for floor files (Chief hosted HOLD: prepared-statement
+ * multi-command rejection). If the exact pre-00118 state cannot be
+ * reproduced → HOLD.
  *
  * Recognition allowlist remains exactly ["manual_income"] (source pin;
  * F3 objects must be absent at the floor).
@@ -14,14 +18,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractHasGroupPermissionCreateSql } from "../_m2_apply_disposable_floor.mjs";
 import { BOOTSTRAP, listMainMigrationsThrough00117 } from "../_f3_apply_current_main_floor.mjs";
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
+import { runGatedRemoteSqlFile, writeGatedSqlFile } from "./f3-db-push-remote-sql-file.mjs";
 import { assertFrozenDigestsOnDisk } from "./f3-db-push-version-map.mjs";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
 export const FLOOR_AUTHORITY =
-  "repository-controlled floor through 00117 via existing `_f3_apply_current_main_floor.mjs` file list + bootstrap; applied with supabase db query --db-url (NOT db push, NOT Management API apply)";
+  "repository-controlled floor through 00117 via existing `_f3_apply_current_main_floor.mjs` file list + bootstrap + installLiveHasGroupPermission before 00116/00117; applied with gated remote psql -f against the session-mode pooler URL (NOT db query --file, NOT db push, NOT Management API apply)";
 
 export const FLOOR_HOLD_IF_INEXACT =
   "HOLD: exact legitimate VillageClaq state immediately before 00118 could not be reproduced from repository-controlled floor authority";
@@ -105,10 +111,95 @@ export function readFloorBootstrapSql() {
 
 export function assertFloorDoesNotUseCandidateRunner() {
   const src = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-floor.mjs"), "utf8");
-  if (/applyRemoteManagementApiMigration/.test(src)) {
+  if (/applyRemoteManagementApiMigration\s*\(/.test(src)) {
     throw new Error("REFUSE: floor module must not call Management API apply");
   }
+  if (/runDbQuery\s*\(/.test(src)) {
+    throw new Error("REFUSE: floor module must not apply via supabase db query");
+  }
   return true;
+}
+
+/**
+ * Same live HGP pin as `installLiveHasGroupPermission` in
+ * `f3-forward-prerequisites.mjs`. ubuntu REVOKE is skipped when that
+ * local-only role is absent on hosted Supabase.
+ */
+export function liveHasGroupPermissionSql() {
+  return (
+    extractHasGroupPermissionCreateSql() +
+    `
+ALTER FUNCTION public.has_group_permission(uuid, text, uuid) OWNER TO postgres;
+DO $hgp$
+BEGIN
+  REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM PUBLIC;
+  REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM anon;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ubuntu') THEN
+    REVOKE ALL ON FUNCTION public.has_group_permission(uuid, text, uuid) FROM ubuntu;
+  END IF;
+END
+$hgp$;
+GRANT EXECUTE ON FUNCTION public.has_group_permission(uuid, text, uuid)
+  TO authenticated, service_role;
+`
+  );
+}
+
+export function installLiveHasGroupPermissionRemote(workdir) {
+  const abs = writeGatedSqlFile(workdir, "floor-live-hgp.sql", liveHasGroupPermissionSql());
+  return runGatedRemoteSqlFile(abs);
+}
+
+function floorApplyOk(result) {
+  if (result.status === 0) return { ok: true, already: false };
+  const text = `${result.stdout || ""}\n${result.stderr || ""}`;
+  if (/already exists|duplicate_object|duplicate_function/i.test(text)) {
+    return { ok: true, already: true };
+  }
+  return { ok: false, already: false };
+}
+
+/**
+ * Install bootstrap + 00001–00117 on the authorized disposable using
+ * gated `psql -f`. Preserves HGP pin before 00116/00117 and after the
+ * floor, matching `_f3_apply_current_main_floor.mjs`.
+ */
+export function installRepositoryControlledFloor({ workdir }) {
+  if (!workdir) throw new Error("HOLD: isolated workdir required for floor install");
+  assertFloorDoesNotUseCandidateRunner();
+  const steps = [];
+  const bootstrapFile = writeGatedSqlFile(workdir, "floor-bootstrap.sql", readFloorBootstrapSql());
+  const boot = runGatedRemoteSqlFile(bootstrapFile);
+  const bootOk = floorApplyOk(boot);
+  steps.push({ id: "bootstrap", runner: "gated_psql_file", status: boot.status, ok: bootOk.ok, already: bootOk.already });
+  if (!bootOk.ok) {
+    return { installed: false, exact: false, steps, failedAt: "bootstrap" };
+  }
+
+  for (const file of listFloorMigrationsThrough00117()) {
+    if (/^0011[6-7]_/.test(file)) {
+      const hgp = installLiveHasGroupPermissionRemote(workdir);
+      const hgpOk = floorApplyOk(hgp);
+      steps.push({ id: `hgp-before-${file}`, runner: "gated_psql_file", status: hgp.status, ok: hgpOk.ok, already: hgpOk.already });
+      if (!hgpOk.ok) {
+        return { installed: false, exact: false, steps, failedAt: `hgp-before-${file}` };
+      }
+    }
+    const applied = runGatedRemoteSqlFile(floorFileAbsPath(file));
+    const ok = floorApplyOk(applied);
+    steps.push({ id: file, runner: "gated_psql_file", status: applied.status, ok: ok.ok, already: ok.already });
+    if (!ok.ok) {
+      return { installed: false, exact: false, steps, failedAt: file };
+    }
+  }
+
+  const hgpAfter = installLiveHasGroupPermissionRemote(workdir);
+  const afterOk = floorApplyOk(hgpAfter);
+  steps.push({ id: "hgp-after-00117", runner: "gated_psql_file", status: hgpAfter.status, ok: afterOk.ok, already: afterOk.already });
+  if (!afterOk.ok) {
+    return { installed: false, exact: false, steps, failedAt: "hgp-after-00117" };
+  }
+  return { installed: true, exact: true, steps, failedAt: null };
 }
 
 export function recognitionFromSource() {

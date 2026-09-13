@@ -1,12 +1,12 @@
 {
   "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260913",
   "date": "2026-09-13",
-  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+  "functional_sha": "968660d4e079ceb6c8d081be9f985597eaed0465",
   "supersedes": {
-    "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260913 bound to bb0c918",
-    "old_functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
-    "old_evidence_tip": "a983157cbc3507f925f5889d23ac2a1be90e2a2d",
-    "note": "00118-00123 regenerated for transaction atomicity only. Fresh post-S0 regression 14/14 and atomicity 14/14 re-checked live pins, DEFINER owner/search_path, authenticated truth DML deny, and rollback fingerprints."
+    "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260913 bound to fc3d4ff / acd3b41",
+    "old_functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+    "old_evidence_tip": "acd3b41bc04474cb9446e3d889c2b28425fdd901",
+    "note": "00118-00123 bytes unchanged. External-ledger remediation adds post-COMMIT/pre-history proofs. Fresh post-S0 14/14, atomicity 14/14, and external-ledger 6/6 re-checked live pins, DEFINER owner/search_path, and catalog fingerprints."
   },
   "disposable": {
     "postgres": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",

@@ -138,11 +138,15 @@ export function applyForwardMigration(url, name) {
 }
 
 /**
- * Disposable migration-history ledger matching the Cut 2/3
- * supabase_migrations.schema_migrations shape used in this repo.
- * The default F3 psql -f apply path does not write a ledger; atomicity
- * tests install this table and record a version only after psqlFile
- * succeeds (CLI-equivalent). Failed files are not recorded.
+ * Disposable SQL-pre-commit ledger used ONLY by
+ * scripts/test-financial-f3-migration-atomicity.mjs.
+ *
+ * This is NOT a CLI equivalent and NOT the production history key.
+ * It records source labels `00118`…`00123` after a successful `psql -f`
+ * so injected in-transaction failures can prove rollback of both objects
+ * and that internal insert. Production S0/M2 history versions are
+ * generated timestamps + snake_case names (see
+ * scripts/lib/f3-management-api-file-stream-apply.mjs).
  */
 export const MIGRATION_LEDGER_SQL = `
 CREATE SCHEMA IF NOT EXISTS supabase_migrations;

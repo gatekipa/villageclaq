@@ -62,12 +62,19 @@ export function createDisposableDatabase(label) {
   const admin = adminUrl();
   const name = `f3_${String(label || "suite").replace(/[^a-z0-9_]/gi, "_").slice(0, 24)}_${process.pid}_${Date.now().toString(36)}`;
   const url = `postgresql://ubuntu@/${name}?host=/var/run/postgresql`;
+  const tcpUrl = `postgresql://ubuntu@127.0.0.1:5432/${name}`;
   refuseProduction(url);
+  refuseProduction(tcpUrl);
   psql(admin, `DROP DATABASE IF EXISTS ${name};`);
   psql(admin, `CREATE DATABASE ${name} OWNER ubuntu;`);
   const ver = psql(url, "SHOW server_version_num;");
   assert.match(ver, /^17/, `expected PostgreSQL 17, got ${ver}`);
-  return { name, url, close: () => psql(admin, `DROP DATABASE IF EXISTS ${name};`) };
+  return {
+    name,
+    url,
+    tcpUrl,
+    close: () => psql(admin, `DROP DATABASE IF EXISTS ${name};`),
+  };
 }
 
 /**

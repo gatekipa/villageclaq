@@ -1,10 +1,18 @@
 /**
- * Executable F3 00118–00123 failure-atomicity + retry proofs.
+ * Executable F3 00118–00123 SQL pre-commit rollback + retry proofs.
  * Disposable PostgreSQL 17 only. No production URL. No notifications.
  *
- * Apply path: the same psql -f used by applyForwardMigration, plus the
- * supabase_migrations.schema_migrations ledger used by Cut 2/3 disposable
- * floors. Version is recorded only after a successful file apply.
+ * SCOPE: failure BEFORE the migration's sole final COMMIT (security-tail
+ * inject inside the same transaction). This suite is NOT CLI-equivalent
+ * and is NOT the post-commit / pre-external-history proof. Production
+ * S0/M2 apply records generated timestamp versions after SQL commit
+ * (Management API file-stream). See
+ * scripts/test-financial-f3-external-ledger.mjs for that runner.
+ *
+ * Apply path: psql -f used by applyForwardMigration, plus a disposable
+ * schema_migrations table that records source labels 00118…00123 only
+ * after a successful file apply. Injected copies INSERT the label inside
+ * the transaction before RAISE EXCEPTION, then prove rollback.
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

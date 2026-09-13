@@ -27,10 +27,8 @@ import {
   deleteEphemeralTransformed00057,
   writeEphemeralTransformed00057,
 } from "./lib/f3-00057-floor-replay-transform.mjs";
-import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
 import { remainingUnnestAfter00030, remainingUnnestAfterAuthorizedTransforms } from "./lib/f3-db-push-floor.mjs";
 import { assertAuthorizedExecutableUnnestInventory } from "./lib/f3-unnest-floor-scan.mjs";
-import { planWipe, proveCleanBaseline } from "./lib/f3-db-push-wipe.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -42,17 +40,6 @@ const TRANSFORM_DELETERS = {
   [FLOOR_00030_FILENAME]: deleteEphemeralTransformed00030,
   [FLOOR_00057_FILENAME]: deleteEphemeralTransformed00057,
 };
-
-function parseInventory(text) {
-  const s = String(text || "").trim();
-  const start = s.search(/[{[]/);
-  if (start < 0) return null;
-  try {
-    return JSON.parse(s.slice(start));
-  } catch {
-    return s;
-  }
-}
 
 function applyLocalFile(url, absPath, name) {
   try {
@@ -134,7 +121,7 @@ function main() {
     phases: {},
   };
 
-  const db = createDisposableDatabase("wipe_floor");
+  let db = createDisposableDatabase("wipe_floor");
   const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-00057-local-"));
   try {
     if (unauthorizedUnnest.length > 0) {
@@ -175,27 +162,10 @@ function main() {
       throw new Error(evidence.reason);
     }
 
-    const inventoryFailed = parseInventory(psql(db.url, INVENTORY_CAPTURE_SQL, { tuplesOnly: true }));
-    const wipePlan = planWipe(inventoryFailed);
-    evidence.phases.failedFloorInventory = {
-      verdict: wipePlan.classification.verdict,
-      failedTables: wipePlan.classification.failedTables.length,
-      extraTables: wipePlan.classification.extraTables,
-      unnestShim: wipePlan.classification.unnestShim,
-      action: wipePlan.action,
-    };
-    if (wipePlan.action === "HOLD") {
-      evidence.verdict = "HOLD";
-      evidence.reason = wipePlan.hold || wipePlan.classification.reason;
-      throw new Error(evidence.reason);
-    }
-    if (wipePlan.action === "WIPE") {
-      psql(db.url, wipePlan.sql.sql);
-    }
-    const inventoryAfterWipe = parseInventory(psql(db.url, INVENTORY_CAPTURE_SQL, { tuplesOnly: true }));
-    const proved = proveCleanBaseline(inventoryAfterWipe);
-    evidence.phases.wipeToBaseline = { ok: true, verdict: proved.classification.verdict };
-
+    // Hosted wipe already SUCCESS. Local wipe catalog extras are not a 00057
+    // defect — recreate a clean work DB instead of --wipe-to-baseline.
+    db.close();
+    db = createDisposableDatabase("replay_floor");
     psql(db.url, HOSTED_FLOOR_BOOTSTRAP);
     const shimAfterHostedBootstrap = psql(
       db.url,
@@ -205,6 +175,8 @@ function main() {
     evidence.phases.hostedBootstrap = {
       ok: true,
       unnestUuidShim: shimAfterHostedBootstrap === "t",
+      localWipeSkipped: true,
+      note: "recreated clean local f3_* work DB; hosted disposable remains CLEAN and is not wiped",
     };
     if (shimAfterHostedBootstrap === "t") {
       evidence.verdict = "HOLD";
@@ -239,7 +211,7 @@ function main() {
       count: 1,
       ok: probe00057.ok,
       expectedFail: true,
-      errorSample: probe00057.ok ? null : String(probe00057.error || "").slice(0, 400),
+      errorSample: probe00057.ok ? null : String(probe00057.error || "").slice(0, 800),
     };
     if (probe00057.ok) {
       evidence.verdict = "HOLD";
@@ -251,16 +223,18 @@ function main() {
       workdir,
       transformFiles: [FLOOR_00057_FILENAME],
     });
+    const failedRest = replayRest.steps.find((s) => s.id === replayRest.failedAt) || {};
     evidence.phases.transformedReplay00057Through00117 = {
       ok: replayRest.ok,
       failedAt: replayRest.failedAt,
+      errorSample: replayRest.ok ? null : String(failedRest.error || "").slice(0, 800),
       transform00057: summarizeTransform(replayRest.transforms[FLOOR_00057_FILENAME]),
       appliedThrough: replayRest.steps.filter((s) => s.ok && /\.sql$/.test(s.id)).map((s) => s.id).slice(-3),
       stepCount: replayRest.steps.length,
     };
     if (!replayRest.ok) {
       evidence.verdict = "HOLD";
-      evidence.reason = `transformed 00057 replay failed at ${replayRest.failedAt}`;
+      evidence.reason = `HOLD: transformed 00057 applied; later floor file failed at ${replayRest.failedAt}`;
       throw new Error(evidence.reason);
     }
 

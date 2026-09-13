@@ -210,7 +210,6 @@ WHERE NOT EXISTS (
 
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA financial_private FROM PUBLIC, anon, authenticated;
 
-COMMIT;
 
 DO $f3_hgp_post$
 DECLARE
@@ -234,6 +233,7 @@ BEGIN
   END IF;
 END
 $f3_hgp_post$;
+
 
 -- Pin F3 SECURITY DEFINER owner to postgres (M2/Cut 1 disposable parity).
 -- Never touches has_group_permission or enqueue_outbound_notification.
@@ -279,3 +279,5 @@ BEGIN
 END
 $f3_owner_acl$;
 RESET ROLE;
+
+COMMIT;

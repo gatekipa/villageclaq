@@ -137,6 +137,65 @@ export function applyForwardMigration(url, name) {
   psqlFile(url, path.join(root, "supabase/migrations", name));
 }
 
+/**
+ * Disposable migration-history ledger matching the Cut 2/3
+ * supabase_migrations.schema_migrations shape used in this repo.
+ * The default F3 psql -f apply path does not write a ledger; atomicity
+ * tests install this table and record a version only after psqlFile
+ * succeeds (CLI-equivalent). Failed files are not recorded.
+ */
+export const MIGRATION_LEDGER_SQL = `
+CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
+  version text PRIMARY KEY,
+  name text
+);
+`;
+
+export function ensureMigrationLedger(url) {
+  psql(url, MIGRATION_LEDGER_SQL);
+}
+
+export function migrationLedgerVersion(name) {
+  return name.slice(0, 5);
+}
+
+export function recordMigrationLedger(url, name) {
+  const version = migrationLedgerVersion(name);
+  const stem = name.replace(/\.sql$/, "");
+  psql(
+    url,
+    `INSERT INTO supabase_migrations.schema_migrations(version, name)
+     VALUES ('${version}', '${stem}');`,
+  );
+}
+
+export function applyForwardMigrationWithLedger(url, name) {
+  applyForwardMigration(url, name);
+  recordMigrationLedger(url, name);
+}
+
+export function applyForwardMigrationsWithLedger(url, throughFile) {
+  const stop = throughFile || F3_FORWARD_CHAIN[F3_FORWARD_CHAIN.length - 1];
+  let seen = false;
+  for (const name of F3_FORWARD_CHAIN) {
+    applyForwardMigrationWithLedger(url, name);
+    if (name === stop) {
+      seen = true;
+      break;
+    }
+  }
+  if (!seen) throw new Error(`unknown stop migration ${stop}`);
+}
+
+export function readMigrationLedger(url) {
+  return psql(
+    url,
+    `SELECT coalesce(string_agg(version || ':' || name, ',' ORDER BY version), '')
+     FROM supabase_migrations.schema_migrations`,
+  );
+}
+
 export function applyForwardMigrations(url, throughFile) {
   const stop = throughFile || F3_FORWARD_CHAIN[F3_FORWARD_CHAIN.length - 1];
   let seen = false;

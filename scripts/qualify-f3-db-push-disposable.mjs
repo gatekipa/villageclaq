@@ -106,6 +106,11 @@ import {
 import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
 import {
+  inventoryFromQueryStdout,
+  parseJsonish,
+  rowsFromQuery,
+} from "./lib/f3-db-push-query-parse.mjs";
+import {
   PRE_STUB_FLOOR_CLEAN_CHECK_HOLD,
   assertPreStubFloorCleanCheck,
   evaluatePreStubFloorCleanCheck,
@@ -201,33 +206,6 @@ function parseArgs(argv) {
       return idx >= 0 ? argv[idx + 1] : null;
     })(),
   };
-}
-
-function parseJsonish(text) {
-  if (text == null) return null;
-  const s = String(text).trim();
-  const start = s.search(/[\[{]/);
-  if (start < 0) return s;
-  try {
-    return JSON.parse(s.slice(start));
-  } catch {
-    return s;
-  }
-}
-
-function rowsFromQuery(result) {
-  const parsed = parseJsonish(result?.stdout);
-  if (Array.isArray(parsed)) {
-    if (parsed.length && parsed[0] && typeof parsed[0] === "object" && parsed[0].json_agg) {
-      return Array.isArray(parsed[0].json_agg) ? parsed[0].json_agg : parseJsonish(parsed[0].json_agg) || [];
-    }
-    if (parsed.length && parsed[0] && typeof parsed[0] === "object" && parsed[0].jsonb_build_object) {
-      return parsed[0].jsonb_build_object;
-    }
-    return parsed;
-  }
-  if (parsed && typeof parsed === "object") return parsed;
-  return [];
 }
 
 function objectsPresentFromProbe(result) {
@@ -382,7 +360,7 @@ async function main() {
       help: queryHelp,
       sql: INVENTORY_CAPTURE_SQL,
     });
-    evidence.inventoryCapture = { status: captured.status, body: parseJsonish(captured.stdout) };
+    evidence.inventoryCapture = { status: captured.status, body: inventoryFromQueryStdout(captured.stdout) };
     let floorMode;
     try {
       floorMode = resolveHostedFloorMode(args.floorMode);
@@ -408,7 +386,7 @@ async function main() {
         ? listed
         : [];
     const cleanCheck = evaluatePreStubFloorCleanCheck({
-      inventory: parseJsonish(captured.stdout),
+      inventory: inventoryFromQueryStdout(captured.stdout),
       historyRows: historyForClean,
       listMigrations: listedMigrations,
     });
@@ -418,7 +396,7 @@ async function main() {
       noWipe: true,
       do_not_wipe: true,
       cleanCheck,
-      note: "Chief 06 clean-check is the pre-floor pin. Do not re-wipe. Do not replay 00001–00116.",
+      note: "Chief 06 clean-check is the pre-floor pin. Do not re-wipe. Do not replay 00001–00116. Leftover FAILED_FLOOR_STORAGE_POLICY_NAMES + avatars/group-documents/receipts are residual cleanup (narrow DROP), not --wipe-to-baseline.",
     };
     if (!cleanCheck.clean_ok) {
       evidence.status = "HOLD";

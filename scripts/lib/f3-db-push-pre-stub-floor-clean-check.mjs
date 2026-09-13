@@ -9,7 +9,14 @@
  * Not a clean 00001–00117 replay. Not production-equivalent.
  */
 import { QUALIFICATION_FLOOR_LABEL } from "./f3-db-push-stub-live-pin-floor.mjs";
-import { asList, classifyInventory, isCleanBaseline } from "./f3-db-push-inventory.mjs";
+import {
+  FAILED_FLOOR_STORAGE_BUCKETS,
+  FAILED_FLOOR_STORAGE_POLICY_NAMES,
+  asList,
+  classifyInventory,
+  isCleanBaseline,
+} from "./f3-db-push-inventory.mjs";
+import { inventoryFromQueryStdout } from "./f3-db-push-query-parse.mjs";
 import { RECOGNITION_ALLOWLIST } from "./f3-db-push-pins.mjs";
 
 export const PRE_STUB_FLOOR_CLEAN_CHECK_ARTIFACT = "06-pre-stub-floor-clean-check";
@@ -61,22 +68,32 @@ export function passingPreStubFloorCleanInventory() {
   };
 }
 
+export const INCOMPLETE_WIPE_RESIDUAL_CLEANUP_NOTE =
+  "incomplete prior wipe residuals: the 10 named FAILED_FLOOR_STORAGE_POLICY_NAMES (+ empty floor buckets avatars/group-documents/receipts if safe) may be dropped narrowly. Not --wipe-to-baseline. Not blocking when public/history/F3 match Chief 06.";
+
 export function evaluatePreStubFloorCleanCheck({
   inventory,
   historyRows = [],
   listMigrations = [],
 } = {}) {
-  const classification = classifyInventory(inventory || {});
-  const publicTables = asList(inventory?.public_tables);
-  const publicViews = asList(inventory?.public_views);
+  const inv = inventoryFromQueryStdout(inventory);
+  const classification = classifyInventory(inv);
+  const publicTables = asList(inv.public_tables);
+  const publicViews = asList(inv.public_views);
   const migrations = asHistoryList(listMigrations);
   const history = asHistoryList(historyRows);
-  const schemaRows = Number(inventory?.schema_migrations_rows ?? 0);
+  const schemaRows = Number(inv.schema_migrations_rows ?? 0);
   const f3Absent =
-    inventory?.financial_core !== true &&
-    inventory?.financial_private !== true &&
-    inventory?.financial_ledger_epochs !== true &&
+    inv.financial_core !== true &&
+    inv.financial_private !== true &&
+    inv.financial_ledger_epochs !== true &&
     classification.financialPresent !== true;
+  const leftoverStoragePolicies = asList(inv.storage_policies).filter((p) =>
+    FAILED_FLOOR_STORAGE_POLICY_NAMES.includes(p),
+  );
+  const leftoverFloorBuckets = asList(inv.storage_buckets).filter((b) =>
+    FAILED_FLOOR_STORAGE_BUCKETS.includes(b),
+  );
 
   const residuals = [];
   if (publicTables.length) residuals.push({ kind: "public_table", names: publicTables });
@@ -95,6 +112,9 @@ export function evaluatePreStubFloorCleanCheck({
   if (schemaRows > 0) residuals.push({ kind: "schema_migrations_rows", names: [String(schemaRows)] });
   if (history.length) residuals.push({ kind: "schema_migrations_history", names: history });
   if (migrations.length) residuals.push({ kind: "list_migrations", names: migrations });
+  if (classification.extraStoragePolicies?.length) {
+    residuals.push({ kind: "extra_storage_policy", names: classification.extraStoragePolicies });
+  }
 
   const uniqueResiduals = [];
   const seen = new Set();
@@ -112,7 +132,7 @@ export function evaluatePreStubFloorCleanCheck({
     history.length === 0 &&
     migrations.length === 0 &&
     f3Absent &&
-    inventory?.unnest_uuid_shim !== true;
+    inv.unnest_uuid_shim !== true;
 
   const clean_ok = matchesPostWipe && uniqueResiduals.length === 0;
 
@@ -120,6 +140,14 @@ export function evaluatePreStubFloorCleanCheck({
     artifact: PRE_STUB_FLOOR_CLEAN_CHECK_ARTIFACT,
     clean_ok,
     residuals: uniqueResiduals,
+    residual_cleanup: {
+      storage_policies: leftoverStoragePolicies,
+      storage_buckets: leftoverFloorBuckets,
+      blocking: false,
+      drop_narrowly: leftoverStoragePolicies.length > 0 || leftoverFloorBuckets.length > 0,
+      wipe_to_baseline: false,
+      note: INCOMPLETE_WIPE_RESIDUAL_CLEANUP_NOTE,
+    },
     public_tables: publicTables.length,
     public_tables_list: publicTables,
     migrations,

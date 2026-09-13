@@ -183,6 +183,13 @@ export const FAILED_FLOOR_STORAGE_POLICY_NAMES = Object.freeze([
   "Authenticated users can delete group documents",
 ]);
 
+/** Floor buckets that may remain after an incomplete prior wipe. Never drop via --wipe-to-baseline. */
+export const FAILED_FLOOR_STORAGE_BUCKETS = Object.freeze([
+  "avatars",
+  "group-documents",
+  "receipts",
+]);
+
 export const FAILED_FLOOR_AUTH_TRIGGER = "on_auth_user_created";
 
 export const INVENTORY_CAPTURE_SQL = `
@@ -292,6 +299,8 @@ export function classifyInventory(inventory) {
   );
   const failedStoragePolicies = storagePolicies.filter((p) => FAILED_FLOOR_STORAGE_POLICY_NAMES.includes(p));
   const extraStoragePolicies = storagePolicies.filter((p) => !FAILED_FLOOR_STORAGE_POLICY_NAMES.includes(p));
+  const storageBuckets = asList(inventory?.storage_buckets);
+  const incompleteWipeBuckets = storageBuckets.filter((b) => FAILED_FLOOR_STORAGE_BUCKETS.includes(b));
 
   const financialPresent = Boolean(
     inventory?.financial_private ||
@@ -307,26 +316,32 @@ export function classifyInventory(inventory) {
   if (publicViews.length) ambiguous.push({ kind: "public_view", names: publicViews });
   if (extraTypes.length) ambiguous.push({ kind: "public_type", names: extraTypes });
   if (extraFunctions.length) ambiguous.push({ kind: "public_function", names: extraFunctions });
+  if (extraStoragePolicies.length) ambiguous.push({ kind: "extra_storage_policy", names: extraStoragePolicies });
   if (financialPresent) ambiguous.push({ kind: "financial_object", names: ["financial_*"] });
   if (historyRows > 0) ambiguous.push({ kind: "schema_migrations_rows", names: [String(historyRows)] });
 
-  const failedPresent =
+  const publicFailedPresent =
     failedTables.length > 0 ||
     failedTypes.length > 0 ||
     failedFunctions.length > 0 ||
-    failedStoragePolicies.length > 0 ||
     inventory?.unnest_uuid_shim === true ||
     inventory?.auth_handle_new_user_trigger === true ||
     inventory?.exchange_rates === true ||
     inventory?.organizations_base_country === true ||
     inventory?.groups_group_level === true;
 
+  const failedPresent = publicFailedPresent || failedStoragePolicies.length > 0;
+
+  // Chief 06: public empty + history empty + F3 absent. The 10 named floor
+  // storage policies + avatars/group-documents/receipts buckets are incomplete
+  // prior-wipe residuals — not a veto. Extra/unknown storage policies HOLD.
   const cleanBaseline =
-    !failedPresent &&
+    !publicFailedPresent &&
     extraTables.length === 0 &&
     publicViews.length === 0 &&
     extraTypes.length === 0 &&
     extraFunctions.length === 0 &&
+    extraStoragePolicies.length === 0 &&
     !financialPresent &&
     historyRows === 0 &&
     leftoverOk;
@@ -363,6 +378,9 @@ export function classifyInventory(inventory) {
     failedStoragePolicies,
     extraStoragePolicies,
     extraStoragePoliciesPreserved: extraStoragePolicies,
+    incompleteWipeStoragePolicies: failedStoragePolicies,
+    incompleteWipeBuckets,
+    publicFailedPresent,
     unnestShim: inventory?.unnest_uuid_shim === true,
     authTrigger: inventory?.auth_handle_new_user_trigger === true,
     financialPresent,

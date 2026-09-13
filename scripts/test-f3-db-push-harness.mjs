@@ -623,6 +623,8 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /--no-wipe/);
   assert.match(qualify, /re-wipe is forbidden/);
   assert.match(qualify, /evaluatePreStubFloorCleanCheck/);
+  assert.match(qualify, /inventoryFromQueryStdout/);
+  assert.match(qualify, /f3-db-push-query-parse/);
   assert.match(qualify, /06-pre-stub-floor-clean-check/);
   assert.match(qualify, /Do not install public\.unnest\(uuid\)/);
   assert.match(qualify, /Do not replay 00001–00116 or use 00030\/00057 transforms/);

@@ -53,6 +53,16 @@ import {
   stubLivePinFloorSqlSteps,
 } from "./lib/f3-db-push-stub-live-pin-floor.mjs";
 import {
+  FAILED_FLOOR_STORAGE_BUCKETS,
+  FAILED_FLOOR_STORAGE_POLICY_NAMES,
+  classifyInventory,
+  isCleanBaseline,
+} from "./lib/f3-db-push-inventory.mjs";
+import {
+  inventoryFromQueryStdout,
+  parseJsonish,
+} from "./lib/f3-db-push-query-parse.mjs";
+import {
   CHIEF_06_PRE_STUB_FLOOR_CLEAN_CHECK,
   PRE_STUB_FLOOR_CLEAN_CHECK_HOLD,
   assertPreStubFloorCleanCheck,
@@ -232,6 +242,74 @@ test("gated stub+live-pin install uses psql -f for all floor SQL and never write
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
 });
 
+function inventoryJson(extra = {}) {
+  return JSON.stringify({
+    ...passingPreStubFloorCleanInventory(),
+    storage_policies: [],
+    storage_buckets: [],
+    ...extra,
+  });
+}
+
+function boxTableStdout(jsonText) {
+  const inner = jsonText.replace(/\n/g, " ");
+  return [
+    "┌────────────────────────────────────────────────────────────────┐",
+    "│                      jsonb_build_object                        │",
+    "├────────────────────────────────────────────────────────────────┤",
+    `│ ${inner} │`,
+    "└────────────────────────────────────────────────────────────────┘",
+    "(1 row)",
+  ].join("\n");
+}
+
+function prettyBoxTableStdout(obj) {
+  const pretty = JSON.stringify(obj, null, 2);
+  const lines = [
+    "╭──────────────────────────────────────────╮",
+    "│           jsonb_build_object             │",
+    "├──────────────────────────────────────────┤",
+  ];
+  for (const line of pretty.split("\n")) {
+    lines.push(`│ ${line} │`);
+  }
+  lines.push("╰──────────────────────────────────────────╯");
+  lines.push("(1 row)");
+  return lines.join("\n");
+}
+
+test("parseJsonish extracts JSON from supabase db query table/text stdout", () => {
+  const payload = {
+    ...passingPreStubFloorCleanInventory(),
+    storage_policies: [...FAILED_FLOOR_STORAGE_POLICY_NAMES],
+    storage_buckets: [...FAILED_FLOOR_STORAGE_BUCKETS],
+  };
+  const raw = inventoryJson(payload);
+  const boxed = boxTableStdout(raw);
+  const parsedBoxed = parseJsonish(boxed);
+  assert.equal(typeof parsedBoxed, "object");
+  assert.ok(!Array.isArray(parsedBoxed));
+  assert.deepEqual(parsedBoxed.public_tables, []);
+  assert.equal(parsedBoxed.schema_migrations_rows, 0);
+  assert.equal(parsedBoxed.financial_core, false);
+  assert.equal(parsedBoxed.storage_policies.length, 10);
+  assert.deepEqual(inventoryFromQueryStdout(boxed).storage_buckets, [...FAILED_FLOOR_STORAGE_BUCKETS]);
+
+  const pretty = prettyBoxTableStdout(payload);
+  const parsedPretty = parseJsonish(pretty);
+  assert.equal(typeof parsedPretty, "object");
+  assert.deepEqual(parsedPretty.public_tables, []);
+  assert.equal(inventoryFromQueryStdout(pretty).schema_migrations_present, true);
+
+  const psql = `   jsonb_build_object    \n-------------------------\n ${raw}\n(1 row)\n`;
+  assert.equal(inventoryFromQueryStdout(psql).schema_migrations_rows, 0);
+
+  const naiveWouldFail = boxed;
+  assert.notEqual(typeof naiveWouldFail, "object");
+  const start = naiveWouldFail.search(/[\[{]/);
+  assert.throws(() => JSON.parse(naiveWouldFail.slice(start)));
+});
+
 test("Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe", () => {
   const pass = evaluatePreStubFloorCleanCheck({
     inventory: passingPreStubFloorCleanInventory(),
@@ -266,6 +344,64 @@ test("Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and H
   assert.ok(dirty.residuals.length > 0);
   assert.equal(dirty.hold, PRE_STUB_FLOOR_CLEAN_CHECK_HOLD);
   assert.throws(() => assertPreStubFloorCleanCheck(dirty), (err) => err.code === "F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD");
+});
+
+test("pre-stub clean-check accepts leftover floor storage policies/buckets or zero of them", () => {
+  const without = evaluatePreStubFloorCleanCheck({
+    inventory: {
+      ...passingPreStubFloorCleanInventory(),
+      storage_policies: [],
+      storage_buckets: [],
+    },
+  });
+  assert.equal(without.clean_ok, true);
+  assert.deepEqual(without.residuals, []);
+  assert.deepEqual(without.residual_cleanup.storage_policies, []);
+  assert.equal(without.residual_cleanup.blocking, false);
+  assert.equal(
+    isCleanBaseline(classifyInventory({
+      ...passingPreStubFloorCleanInventory(),
+      storage_policies: [],
+      storage_buckets: [],
+    })),
+    true,
+  );
+
+  const withLeftovers = {
+    ...passingPreStubFloorCleanInventory(),
+    storage_policies: [...FAILED_FLOOR_STORAGE_POLICY_NAMES],
+    storage_buckets: [...FAILED_FLOOR_STORAGE_BUCKETS],
+  };
+  const classification = classifyInventory(withLeftovers);
+  assert.equal(classification.verdict, "CLEAN_BASELINE");
+  assert.equal(isCleanBaseline(classification), true);
+  assert.equal(classification.incompleteWipeStoragePolicies.length, 10);
+  assert.deepEqual(classification.incompleteWipeBuckets, [...FAILED_FLOOR_STORAGE_BUCKETS]);
+
+  const withPolicies = evaluatePreStubFloorCleanCheck({ inventory: withLeftovers });
+  assert.equal(withPolicies.clean_ok, true);
+  assert.deepEqual(withPolicies.residuals, []);
+  assert.equal(withPolicies.residual_cleanup.storage_policies.length, 10);
+  assert.deepEqual(withPolicies.residual_cleanup.storage_buckets, [...FAILED_FLOOR_STORAGE_BUCKETS]);
+  assert.equal(withPolicies.residual_cleanup.blocking, false);
+  assert.equal(withPolicies.residual_cleanup.wipe_to_baseline, false);
+  assert.equal(matchesChief06CleanCheck(withPolicies), true);
+
+  const fromTable = evaluatePreStubFloorCleanCheck({
+    inventory: boxTableStdout(inventoryJson(withLeftovers)),
+  });
+  assert.equal(fromTable.clean_ok, true);
+  assert.equal(typeof fromTable.residuals, "object");
+  assert.equal(fromTable.public_tables, 0);
+
+  const extraPolicy = evaluatePreStubFloorCleanCheck({
+    inventory: {
+      ...passingPreStubFloorCleanInventory(),
+      storage_policies: ["mystery policy"],
+    },
+  });
+  assert.equal(extraPolicy.clean_ok, false);
+  assert.equal(extraPolicy.do_not_wipe, true);
 });
 
 test("success verdict is mechanics-pass only and frozen F3 digests stay pinned", () => {

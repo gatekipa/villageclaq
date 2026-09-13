@@ -37,7 +37,7 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84 (OPEN DRAFT UNMERGED)
 | Gate-sync fix | `96bed5a4cdccb71c977536265fead8c9f28529bb` |
 | Superseded scaffolding evidence | `74e001eb2fd336924497b45f8db243da1f672f2c` |
 | **Functional SHA** | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` (unchanged; no functional commit this revision) |
-| **Evidence tip** | *(this counts commit; SHA filled next)* |
+| **Evidence tip** | `35befd90f16ad37d78857c513831321699230b73` |
 | Recognition | exactly `["manual_income"]` |
 | Founder-report status | **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** |
 | Remediation PASS | **NOT CLAIMED** |
@@ -228,7 +228,7 @@ Leave disposable project `jkorwnwwmdeflfntxntl` in place. Do **not** delete or p
 
 1. `verdict` = **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** (do not convert to PASS)
 2. `functional_sha` = `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` (unchanged)
-3. `evidence_sha` = *(this counts commit; SHA filled next)*
+3. `evidence_sha` = `35befd90f16ad37d78857c513831321699230b73`
 4. `starting_ref` = `440ca02316f60750034943a479215e7b992e6c70`
 5. `prior_evidence` = `235116f9d9cb4665dd8d5385ac4b6af7ebc279f5`
 6. `pr` = **#84 OPEN DRAFT UNMERGED** (https://github.com/gatekipa/villageclaq/pull/84)

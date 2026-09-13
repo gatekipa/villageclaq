@@ -32,20 +32,28 @@ Isolated db-push workdir copies remain `00118`–`00123` only (`20260913173000`�
 
 Pre-db-push gates (any miss → HOLD, no db push): HGP/enqueue MD5+ACL, queue ACLs, 00117 postconditions, F3 absent, recognition exactly `["manual_income"]`, history empty, no residue, frozen 00118–00123 digests.
 
-Hosted HOLD `F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD` root cause: CLI 2.117.0 `supabase db query` defaulted to a box-drawn **text table**, so `inventoryCapture.body` was a string starting with `┌`. `JSON.parse` failed; `schema_migrations_present` was undefined; `leftoverOk` was false. Harness now detects `--output-format` from help, appends `--output-format json` before SQL/`--file`, unwraps `{ rows: [ { jsonb_build_object } ] }` via `inventoryFromQuery`, and `coerceJsonValue` peels a double-encoded `jsonb_build_object` **string** up to 3 times so inventory is an object. `parseJsonish` stays as mixed-text defense-in-depth. `--evidence-out=path` is accepted. Leftover named floor storage policies / empty `avatars` `group-documents` `receipts` buckets are residual cleanup (narrow DROP), not `--wipe-to-baseline`.
+Hosted HOLD `F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD` root cause (already landed): CLI 2.117.0 `supabase db query` defaulted to a box-drawn **text table**, so `inventoryCapture.body` was a string starting with `┌`. Harness detects `--output-format` from help, appends `--output-format json` before SQL/`--file`, unwraps `{ rows: [ { jsonb_build_object } ] }` via `inventoryFromQuery`, and `coerceJsonValue` peels a double-encoded `jsonb_build_object` **string** up to 3 times. Leftover named floor storage policies / empty `avatars` `group-documents` `receipts` buckets are residual cleanup (narrow DROP), not `--wipe-to-baseline`.
+
+## Floor-apply HOLDs landed this tip
+
+1. **STUB_CORE auth** — hosted disposable rejects `CREATE OR REPLACE FUNCTION auth.uid()` with `ERROR: permission denied for schema auth` (platform owns `auth`). That ERROR + `ON_ERROR_STOP=1` aborted the rest of STUB_CORE, so `public.payments` never existed and enqueue later failed. `STUB_CORE_SQL` now creates `auth.uid` / `auth.jwt` only when `to_regprocedure(...) IS NULL`, catches `insufficient_privilege` / permission denied, and soft-fails GRANTs on `auth` only. `GRANT USAGE ON SCHEMA public` stays hard. Local empty-`auth` disposable still creates the functions when missing. `_f3_apply_current_main_floor.mjs` unchanged.
+
+2. **floorApplyOk** — NOTICE `extension "pgcrypto" already exists, skipping` made status=3 look like success while a real ERROR aborted the script. Parser now uses **ERROR lines only**. `already` only when every ERROR is duplicate/already-exists. Non-duplicate ERROR → `ok:false`. Status≠0 with no ERROR lines → fail closed. `stderrTail` attached on the six fixture steps and unmodified 00117.
+
+Chief reset partial floor leftovers on disposable (`08-reset-partial-stub-floor`) and is re-running hosted qualify. This VM does not run hosted apply.
 
 ## This VM
 
 | Check | Result |
 |-------|--------|
-| Unit tests `test:f3-db-push` (includes CLI JSON unwrap + Chief 06 clean-check) | **PASS** (56/56) |
+| Unit tests `test:f3-db-push` (auth guard + ERROR-line floorApplyOk) | **PASS** (61/61) |
 | Local composition / isolated workdir / 00117 bytes | **PASS** |
 | Local PG17 apply through 00117 | **NOT_RUN** — no local PostgreSQL 17 |
 | Hosted disposable password | **absent** |
 | Hosted `--prep-floor --sequence-f3` | **NOT_RUN** — Chief runs hosted |
 | Qualify without env | **NOT_RUN** exit 2 |
 | 00118–00123 SQL bytes | **unchanged** (frozen digests) |
-| Disposable `jkorwnwwmdeflfntxntl` | **CLEAN** — Chief 06 PASS — do not re-wipe |
+| Disposable `jkorwnwwmdeflfntxntl` | Chief 06 CLEAN then 08 reset of partial floor leftovers — do not re-wipe |
 | Chief 06 packaging | `docs/evidence/M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913.md` (from Chief box facts; originals not on this VM) |
 | Production `llbnliixczcqfftxpsmb` | **not contacted** |
 
@@ -65,15 +73,15 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 
 | Pin | Value |
 |-----|-------|
-| Functional SHA | `30f27954507ec22a0414628943408d7be91030a1` |
-| Evidence SHA | `5f85c0f57f5bd8a5b3d25d0d287da16718cd7494` |
-| Tip SHA | `38bbd3b4a26f46a23ac6d3bdb64e3549c143ead5` |
-| Prior functional | `bb4d76d696313f5fb4812453d8ce4fb82ab193c4` |
-| Prior evidence | `ebeb4459f03f9dc10eff8abd7e96b1f997b2b4a6` |
-| Prior tip | `f6816b7c37040a842bd62d4b666ff481f2a2bdf8` |
+| Functional SHA | `62c4569586a8531d005cde16e36f43a8bb1fd1ff` |
+| Evidence SHA | PENDING |
+| Tip SHA | PENDING |
+| Prior functional | `30f27954507ec22a0414628943408d7be91030a1` |
+| Prior evidence | `5f85c0f57f5bd8a5b3d25d0d287da16718cd7494` |
+| Prior tip | `185c7db0b233df30fddb279927a6fbe522d104bb` |
 | PR #83 | `a293f5958b31548ccec7591b653eff2857ae9a90` unchanged |
 | Main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
-| Disposable | `jkorwnwwmdeflfntxntl` CLEAN |
+| Disposable | `jkorwnwwmdeflfntxntl` (Chief 08 reset; do not re-wipe) |
 | Recognition | exactly `["manual_income"]` |
 | PR #84 | OPEN DRAFT (authoritative) |
 | PR #85 / #86 | OPEN DRAFT companions; tree-identical |

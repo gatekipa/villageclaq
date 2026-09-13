@@ -13,7 +13,7 @@
   "clean_replay_00001_00117": false,
   "hosted_db_push": "NOT_RUN",
   "wipe": "FORBIDDEN_FOR_THIS_AUTH",
-  "disposable_state": "CLEAN_BASELINE",
+  "disposable_state": "CHIEF_08_RESET_PARTIAL_STUB_FLOOR",
   "do_not_re_wipe": true,
   "chief_06_pre_stub_floor_clean_check": {
     "box_artifact": "06-pre-stub-floor-clean-check",
@@ -32,13 +32,27 @@
     "matches_post_wipe_baseline": true,
     "do_not_wipe": true
   },
-  "hosted_hold_root_cause": "CLI 2.117.0 supabase db query defaulted to text table; inventoryCapture.body was a string starting with ┌; schema_migrations_present undefined → leftoverOk false → F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD. Fix: --output-format json + inventoryFromQuery unwrap of { rows: [{ jsonb_build_object }] }; parseJsonish remains defense-in-depth.",
-  "functional_sha": "30f27954507ec22a0414628943408d7be91030a1",
-  "evidence_sha": "5f85c0f57f5bd8a5b3d25d0d287da16718cd7494",
-  "tip_sha": "38bbd3b4a26f46a23ac6d3bdb64e3549c143ead5",
-  "prior_functional": "bb4d76d696313f5fb4812453d8ce4fb82ab193c4",
-  "prior_evidence": "ebeb4459f03f9dc10eff8abd7e96b1f997b2b4a6",
-  "prior_tip": "f6816b7c37040a842bd62d4b666ff481f2a2bdf8",
+  "hosted_hold_root_cause": "CLI 2.117.0 supabase db query defaulted to text table; inventoryCapture.body was a string starting with ┌; schema_migrations_present undefined → leftoverOk false → F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD. Fix: --output-format json + inventoryFromQuery unwrap + coerceJsonValue.",
+  "floor_apply_holds": [
+    {
+      "id": "STUB_CORE_auth",
+      "error": "permission denied for schema auth",
+      "cause": "CREATE OR REPLACE FUNCTION auth.uid() on platform-owned auth aborted ON_ERROR_STOP before public.payments",
+      "fix": "create auth.uid/auth.jwt only if to_regprocedure IS NULL; catch insufficient_privilege / permission denied; soft-fail GRANTs on auth only"
+    },
+    {
+      "id": "floorApplyOk_NOTICE_mask",
+      "error": "NOTICE extension pgcrypto already exists plus a later ERROR looked like success at status=3",
+      "cause": "already-exists regex matched NOTICE anywhere in stdout/stderr",
+      "fix": "parse ERROR lines only; already only when every ERROR is duplicate/already-exists; non-duplicate ERROR → ok:false; fail closed if no ERROR lines; attach stderrTail"
+    }
+  ],
+  "functional_sha": "62c4569586a8531d005cde16e36f43a8bb1fd1ff",
+  "evidence_sha": "PENDING",
+  "tip_sha": "PENDING",
+  "prior_functional": "30f27954507ec22a0414628943408d7be91030a1",
+  "prior_evidence": "5f85c0f57f5bd8a5b3d25d0d287da16718cd7494",
+  "prior_tip": "185c7db0b233df30fddb279927a6fbe522d104bb",
   "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
   "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
   "pr84": {
@@ -80,7 +94,7 @@
     "history_invented": false
   },
   "isolated_workdir_only": "00118-00123 / 20260913173000-005",
-  "local_unit_tests": "PASS",
+  "local_unit_tests": "PASS 61/61",
   "local_pg17_apply_through_00117": "NOT_RUN",
   "qualify_without_env": "NOT_RUN exit 2",
   "f3_00118_00123_modified": false,

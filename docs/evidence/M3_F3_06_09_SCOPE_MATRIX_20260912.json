@@ -2,9 +2,18 @@
   "artifact": "M3_F3_06_09_SCOPE_MATRIX_20260912",
   "date": "2026-09-12",
   "implementation_this_run": "NONE",
+  "f3_06_implemented": false,
   "controlling_order": ["F3-06", "F3-07", "FCG-1", "F3-08", "F3-09"],
   "collapse_into_one_batch": "FORBIDDEN",
   "skip_fcg1": "FORBIDDEN",
+  "astra_ux_acceptance": {
+    "status": "DOCUMENTED_NOT_IMPLEMENTED",
+    "source": "docs/evidence/M3_ASTRA_UX_GATE_20260912.md#10-measurable-acceptance-criteria-future-f3-06--f3-07--f3-08",
+    "cross_link": "docs/M3_F3_REQUALIFICATION_20260912.md#r17--astra-ux-gate-read-only",
+    "constrains": ["F3-06", "F3-07", "F3-08"],
+    "ids": ["AX-KBD", "AX-FOCUS", "AX-SR", "AX-CONTRAST", "AX-TOUCH", "AX-DESKTOP", "AX-TABLE", "AX-FR", "AX-I18N", "AX-JOURNEY", "AX-EVID"],
+    "note": "Measurable close-out contract for future tickets. This package does not claim any ID PASS and does not implement F3-06."
+  },
   "tickets": [
     {
       "ticket": "F3-06",
@@ -37,7 +46,8 @@
         "Reuse contribution types as categories",
         "Treat funds as accounts"
       ],
-      "nav_constraint": "New settings surface under Money or Settings — not inside contributions/record"
+      "nav_constraint": "New settings surface under Money or Settings — not inside contributions/record",
+      "astra_ux_acceptance_required": ["AX-KBD", "AX-FOCUS", "AX-SR", "AX-CONTRAST", "AX-TOUCH", "AX-DESKTOP", "AX-TABLE-if-tabular", "AX-FR", "AX-I18N", "AX-JOURNEY", "AX-EVID"]
     },
     {
       "ticket": "F3-07",
@@ -63,7 +73,8 @@
       ],
       "hard_gate": "F3-03 projection/read proof MUST re-pass before start (F3 freeze Slice 7)",
       "deps": ["F3-02", "F3-03 PASSED", "F3-04 command", "F3-05 command hidden", "F3-06"],
-      "success_rule": "UX-002 — success only after authoritative commit/result"
+      "success_rule": "UX-002 — success only after authoritative commit/result",
+      "astra_ux_acceptance_required": ["AX-KBD", "AX-FOCUS", "AX-SR", "AX-CONTRAST", "AX-TOUCH", "AX-DESKTOP", "AX-FR", "AX-I18N", "AX-JOURNEY-including-uncertain-result", "AX-EVID"]
     },
     {
       "ticket": "FCG-1",
@@ -95,7 +106,8 @@
         "Replacing reports 1-5 (Who Hasn't Paid, Contribution Ledger, Arrears, Njangi cycle) as if they were SoA"
       ],
       "deps": ["FCG-1 PASS", "F3-03 engine", "F3-07"],
-      "dashboard_rule": "Dashboard / AI / board packet must not use contribution-only shorthand as org-wide financial truth after migration phase"
+      "dashboard_rule": "Dashboard / AI / board packet must not use contribution-only shorthand as org-wide financial truth after migration phase",
+      "astra_ux_acceptance_required": ["AX-KBD", "AX-FOCUS-if-dialogs", "AX-SR", "AX-CONTRAST", "AX-TOUCH", "AX-DESKTOP", "AX-TABLE", "AX-FR", "AX-I18N", "AX-JOURNEY", "AX-EVID"]
     },
     {
       "ticket": "F3-09",
@@ -131,7 +143,7 @@
       "New forward F3-01..05 + bounded epoch after 00117, disposable-qualified",
     "Cut 1 SAFER OR UNCHANGED re-proven",
     "M2 still dormant; F3 RPCs have zero notification I/O",
-    "ASTRA UX GATE accepted",
+    "ASTRA UX GATE accepted (IA + §10 AX-* measurable IDs as future close-out; not claimed PASS)",
     "P1 payment-integrity overlays not replayed",
     "Base still d83d13d4fe9915a0d1ff149ce29a53ad708c9853 or documented successor"
   ],

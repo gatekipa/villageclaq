@@ -290,10 +290,10 @@ See `docs/evidence/M3_F3_06_09_SCOPE_MATRIX_20260912.json` and ASTRA gate.
 
 | Ticket | Owner (freeze) | Objective | Hard deps | Hard bans |
 |---|---|---|---|---|
-| **F3-06** | Builder + Astra/Daybreak review | Accounts / Funds / Categories settings. Archive not delete. No balance edit. Currency immutable in place. | Forward F3-01…05 + ASTRA UX GATE + Founder auth | CoA builder; posting-line builder; fund-reallocation UI; Record Transaction |
-| **F3-07** | Astra | Treasurer Money In / Out / Transfer calling **only** F3-02. Confirm account+fund. EN/FR, `formatAmount`, mobile. Durable request id; replay-time auth. | F3-02+03 **re-qualified**, F3-04, F3-06; F3-03 is a hard gate | Reuse `contributions/record` as org ledger writer; opening UX (D-007); debit/credit; JS float authority; notify-before-commit |
+| **F3-06** | Builder + Astra/Daybreak review | Accounts / Funds / Categories settings. Archive not delete. No balance edit. Currency immutable in place. **Not implemented here.** Future close-out includes ASTRA §10 AX-*. | Forward F3-01…05 + ASTRA UX GATE (IA + §10) + Founder auth | CoA builder; posting-line builder; fund-reallocation UI; Record Transaction |
+| **F3-07** | Astra | Treasurer Money In / Out / Transfer calling **only** F3-02. Confirm account+fund. EN/FR, `formatAmount`, mobile. Durable request id; replay-time auth. Future close-out includes ASTRA §10 (uncertain-result required). | F3-02+03 **re-qualified**, F3-04, F3-06; F3-03 is a hard gate | Reuse `contributions/record` as org ledger writer; opening UX (D-007); debit/credit; JS float authority; notify-before-commit |
 | **FCG-1** | Reconciliation gate | Close R14 proofs | After F3-07, **before** F3-08/09 | Skip; redesign F3-01…05 |
-| **F3-08** | Astra | Account Balance, Fund Cash / Net Position, cashbook, cash-basis SoA, cash movement. Scope/period/currency/correction/opening labels. | FCG-1 PASS + F3-03 engine | Treat reports 1–5 as org SoA; contribution-only dashboard as org truth |
+| **F3-08** | Astra | Account Balance, Fund Cash / Net Position, cashbook, cash-basis SoA, cash movement. Scope/period/currency/correction/opening labels. Future close-out includes ASTRA §10 AX-TABLE + dual-viewport evidence. | FCG-1 PASS + F3-03 engine | Treat reports 1–5 as org SoA; contribution-only dashboard as org truth |
 | **F3-09** | Builder fixtures under Astra | A–O + USD foundation 9,250 / 1,000 / 10,250 / income 450 / expense 200 / GF 10,000 / RF 250 + PRD recovery/scale | F3-08 UI + opening command + correction | Wholesale F4/F5 |
 
 ---
@@ -304,6 +304,8 @@ See `docs/evidence/M3_F3_06_09_SCOPE_MATRIX_20260912.json` and ASTRA gate.
 
 Fresh review of current main design system + finance IA is in `docs/evidence/M3_ASTRA_UX_GATE_20260912.md`.
 
+**F3-06 / F3-07 / F3-08 are not implemented in this package.** The gate is a constraint catalog only.
+
 Headline constraints:
 
 1. Current `/dashboard/finances` and reports 1–5 are **dues/contribution** surfaces. Do not silently promote them to F3 org truth.  
@@ -313,6 +315,24 @@ Headline constraints:
 5. Mobile-first 375px, EN/FR via `t()`, dark `dark:` tokens, `formatAmount()`, `PermissionGate` / `RequirePermission` — already platform law; F3 UI inherits them.  
 6. Opening-Adjustment is **not** offered in F3-07 (D-007).  
 7. F3-08 reports are additive foundational projections; they must not overwrite Who Hasn’t Paid / Contribution Ledger / Arrears as if those were SoA.
+
+**§10 measurable acceptance** (same file) is now the testable close-out contract for future F3-06/07/08. IDs are `NOT RUN` here. A later implementation PR cannot close those tickets on IA review alone.
+
+| ID | What must be measurable later | Tickets |
+|---|---|---|
+| AX-KBD | Keyboard-only critical path; Tab order = visual order; no accidental trap | 06 / 07 / 08 |
+| AX-FOCUS | Dialog focus in, trap, restore to trigger; first `aria-invalid` on fail | 06 / 07 / 08 (dialogs) |
+| AX-SR | Accessible name 100%; `aria-describedby` instructions/errors; live status; F3-07 announces account+fund | 06 / 07 / 08 |
+| AX-CONTRAST | Text ≥ 4.5:1; UI/focus ≥ 3:1; visible `focus-visible` ring light+dark | 06 / 07 / 08 |
+| AX-TOUCH | Primary hit box ≥ 44×44 CSS px at 375/320; 2.5.8 spacing exception documented | 06 / 07 / 08 |
+| AX-DESKTOP | 1280/1440 layouts; F3-08 labels above first row; no second finance hamburger | 06 / 07 / 08 |
+| AX-TABLE | No page-level horizontal scroll at 375; no mid-digit `formatAmount` ellipsis; required columns at 1280 | 08 (06 if tabular) |
+| AX-FR | ≥ 40% expansion budget; ≤ 2-line buttons; longest FR titles in evidence | 06 / 07 / 08 |
+| AX-I18N | Validation / confirm / failure / recovery `t()` keys in **en and fr** | 06 / 07 / 08 |
+| AX-JOURNEY | Named cases for loading, empty, failure, retry; F3-07 uncertain-result (UX-002, no blind queue) | 06 / 07 / 08 |
+| AX-EVID | Desktop **and** mobile artifacts required; missing one viewport set = cannot close | 06 / 07 / 08 |
+
+Full numbered checks: `docs/evidence/M3_ASTRA_UX_GATE_20260912.md` §10.
 
 ---
 
@@ -399,7 +419,7 @@ Contract reference only. Not merge targets for this run. Not product changes.
 3. New forward F3-01…05 (+ bounded epoch) authored **after** `00117` and disposable-qualified on current-main floor.  
 4. Cut 1 compatibility re-proven SAFER OR UNCHANGED (must not replace `has_group_permission`).  
 5. M2 remains dormant; F3 RPCs still have zero notification I/O.  
-6. ASTRA UX GATE recommendations accepted (this package).  
+6. ASTRA UX GATE recommendations accepted (this package), including §10 measurable AX-* IDs as the future F3-06/07/08 close-out contract (not claimed PASS).  
 7. P1 payment-integrity overlays **not** replayed; Cut 3 receipt helper remains `storage_receipts_authorized`.  
 8. Base SHA still `d83d13d4…` or a documented successor pin.
 
@@ -442,7 +462,7 @@ Then, only after that floor is qualified: `feat/m3-f3-06-account-fund-category-s
 | `docs/evidence/M3_FCG1_RECONCILIATION_MATRIX_20260912.json` | R14–R15 |
 | `docs/evidence/M3_F3_06_09_SCOPE_MATRIX_20260912.json` | R16–R20 |
 | `docs/evidence/M3_F3_REQUALIFICATION_TEST_MATRIX_20260912.json` | R21 |
-| `docs/evidence/M3_ASTRA_UX_GATE_20260912.md` | R17 |
+| `docs/evidence/M3_ASTRA_UX_GATE_20260912.md` | R17 + §10 measurable AX-* close-out contract (future F3-06/07/08; not implemented) |
 
 ---
 
@@ -481,7 +501,7 @@ Then, only after that floor is qualified: `feat/m3-f3-06-account-fund-category-s
 | 29 | FCG-1 skip | **NO** |
 | 30 | Collapse 06–09 | **NO** |
 | 31 | Occurrence identity | PRESENT on old tip; MISSING on main; shared manual+module **NEEDS FCG-1** |
-| 32 | ASTRA UX GATE | **ASTRA GATE NOW DUE** |
+| 32 | ASTRA UX GATE | **ASTRA GATE NOW DUE** — IA + §10 AX-* measurable IDs documented; F3-06 **not** implemented; no AX ID claimed PASS |
 | 33 | Old harness | Historical PASS on old chain; **not** current-main PASS |
 | 34 | New harness this run | **NOT RUN** (optional disposable skipped) |
 | 35 | Disposition | **C** |

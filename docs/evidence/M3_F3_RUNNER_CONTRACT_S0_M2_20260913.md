@@ -1,17 +1,17 @@
 # M3 F3 runner contract from S0/M2 evidence — 2026-09-13
 
-**Verdict: BLOCKED (remote Management API fidelity) with local safety REMEDIATED.**
+**Verdict: GATED SCAFFOLDING READY. Hosted Management API fidelity NOT RUN (token absent).**
 
-**Founder path B confirmed:** finish local-only remediation. Do not create or access any remote Supabase project. Do not attempt Management API writes.
+Founder authorized disposable `jkorwnwwmdeflfntxntl` / `villageclaq-f3-management-api-disposable-20260913`. The harness is implemented and fail-closed. This VM did **not** have `VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN`, so no hosted POST/GET was attempted.
 
-**Daybreak’s Management API fidelity requirement remains BLOCKED** pending a founder-approved disposable project, credentials, and sentinel.
+Current evidence: `docs/evidence/M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md`.
 
-This evidence tip **supersedes** overstated Management API-equivalence and apply-time-clock claims bound to functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465` and tip `3937b01bff0bc37ed4035e8f708cf10e355f3eae`. Historical `M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md` is stamped SUPERSEDED and must not be read as current. It does **not** claim hosted Management API tests ran.
+This file still **supersedes** overstated Management API-equivalence and apply-time-clock claims bound to functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465` and tip `3937b01bff0bc37ed4035e8f708cf10e355f3eae`. Historical `M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md` remains SUPERSEDED.
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00118+ TO PRODUCTION.**  
 **NO ASTRA / DAYBREAK CONTACT.**  
-**NO REMOTE Management API WRITE.**
+**DO NOT DELETE OR PAUSE** the disposable project.
 
 Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 
@@ -21,13 +21,13 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 |-----|-------|
 | Base main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
-| Start tip | `3937b01bff0bc37ed4035e8f708cf10e355f3eae` |
+| Start tip | `7affd0d90763bc6fd30fee0b0d968257ec7609d2` |
+| Prior Path B functional | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
+| **NEW functional SHA** | `96bed5a4cdccb71c977536265fead8c9f28529bb` |
+| Harness unlock | `483e47f59927a11faeef305a33570e9976f48757` |
+| Evidence artifact | `docs/evidence/M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md` |
 | Superseded functional | `968660d4e079ceb6c8d081be9f985597eaed0465` |
-| Intermediate functional | `c926ea5338b7dfd9840bccf3496fe5f884e64bdd` |
-| **NEW functional SHA** | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
-| Evidence artifact | `9055a2b478f115602579547aeb14335436a5bd90` |
 | Path B leftover-stamp | `3663e33b4dee8fbc97491f0dffe474c805c37113` |
-| Path B confirmation tip | `e58eecd1e90507c66428a6175f16b9bf1c1b3284` |
 | Recognition | exactly `["manual_income"]` |
 | 00118–00123 digests | byte-identical to freeze (see below) |
 
@@ -92,9 +92,9 @@ Cited as an example of a server-generated version recoverable by listing history
 
 ## Scope B/C
 
-`BLOCKED — DISPOSABLE PROJECT AUTHORIZATION REQUIRED`
+Harness: **implemented and gated** for `jkorwnwwmdeflfntxntl` only.
 
-No runner-faithful Management API failure / version-provenance / repair-continuation proofs were executed. No hosted POST was attempted.
+Hosted runner-faithful failure / version-provenance / repair-continuation proofs: **NOT RUN** (token absent in this VM). Local unit tests cover recovery HOLD / no clock / lookup bytes / `--help` flags. Do not claim hosted PASS. Do not claim API custom skip.
 
 ## Proposed smallest fail-closed runner change (NOT implemented)
 
@@ -112,18 +112,18 @@ If version is unrecoverable after a post-COMMIT / pre-history hosted failure:
 - Work DB names must begin with `f3_`
 - Validation before any child process
 - Minimal allowlisted subprocess env + isolated CLI HOME
-- Remote Management API harness separate and blocked
+- Remote Management API harness separate and gated (unauthorized calls still sync-throw + zero fetch)
 - Local two-phase helper labeled **NON-API simulation**
 
 ## Path B confirmation re-run (founder-confirmed local-only; 2026-09-13T15:53Z)
 
 Founder confirmed path B. This re-run used **local suites only**. No remote Supabase project was created or accessed. No Management API write was attempted.
 
-**Daybreak’s Management API fidelity requirement remains BLOCKED** pending a founder-approved disposable project.
+Leftover `968660d` ledger evidence files remain stamped SUPERSEDED / WITHDRAWN / BLOCKED and must not be read as current.
 
-Leftover `968660d` ledger evidence files are stamped SUPERSEDED / WITHDRAWN / BLOCKED and must not be read as current.
+Current hosted status is **NOT RUN**, not Path B BLOCKED-for-lack-of-project. The disposable is named; credentials were not in this VM.
 
-## Fresh local counts (Path B confirmation; do not reuse; no remote API tests)
+## Fresh local counts (Management API scaffolding; 2026-09-13T16:49Z)
 
 | Suite | Result |
 |-------|--------|
@@ -141,7 +141,8 @@ Leftover `968660d` ledger evidence files are stamped SUPERSEDED / WITHDRAWN / BL
 | F3-05 DB | **31/31 PASS** |
 | F3-05 Astra | **118/118 PASS** |
 | Post-S0 regression | **14/14 PASS** |
-| Combined `npm run test:f3` | **940/940 PASS** (895 prior + 45 local safety) |
+| Combined `npm run test:f3` | **960/960 PASS** (940 prior + 20 harness) |
+| Management API harness (local) | **20/20 PASS** |
 | `test:m2` | **111/111 PASS** |
 | M2 static | **9/9 PASS** |
 | Cut 1 static | **11/11 PASS** |
@@ -149,7 +150,7 @@ Leftover `968660d` ledger evidence files are stamped SUPERSEDED / WITHDRAWN / BL
 | Cut 3 storage buckets | **11/11 PASS** |
 | `tsc --noEmit` | **PASS** |
 | `npm run build` | **PASS** (dummy `https://example.invalid.supabase.local`) |
-| Remote Management API fidelity | **BLOCKED / NOT RUN** |
+| Remote Management API fidelity | **NOT RUN** (token absent; harness gated) |
 
 PostgreSQL 17.11 local disposable. Production URL not used.
 

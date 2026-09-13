@@ -2,6 +2,7 @@
   "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260913",
   "date": "2026-09-13",
   "functional_sha": "968660d4e079ceb6c8d081be9f985597eaed0465",
+  "runner_authority": "SUPERSEDED — fingerprints remain historical; Management API fidelity BLOCKED",
   "supersedes": {
     "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260913 bound to fc3d4ff / acd3b41",
     "old_functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",

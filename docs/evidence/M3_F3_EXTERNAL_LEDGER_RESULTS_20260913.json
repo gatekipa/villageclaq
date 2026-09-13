@@ -1,7 +1,11 @@
 {
   "artifact": "M3_F3_EXTERNAL_LEDGER_RESULTS_20260913",
   "date": "2026-09-13",
-  "verdict": "EXTERNAL-LEDGER REMEDIATION PASS",
+  "status": "SUPERSEDED",
+  "superseded_reason": "local two-phase helper is NOT Management API equivalent; apply-time timestamps and skip-if-present are VillageClaq helpers only",
+  "superseded_by": "docs/evidence/M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md",
+  "daybreak_management_api_fidelity": "BLOCKED — DISPOSABLE PROJECT AUTHORIZATION REQUIRED",
+  "verdict": "SUPERSEDED — HISTORICAL local two-phase PASS only; NOT Management API fidelity",
   "functional_sha": "968660d4e079ceb6c8d081be9f985597eaed0465",
   "supersedes": {
     "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",

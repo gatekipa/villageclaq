@@ -2,6 +2,7 @@
   "artifact": "M3_F3_FORWARD_MIGRATION_MANIFEST_20260913",
   "date": "2026-09-13",
   "functional_sha": "968660d4e079ceb6c8d081be9f985597eaed0465",
+  "runner_authority": "SUPERSEDED — see M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md; 00118-00123 digests unchanged",
   "superseded_functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
   "superseded_evidence_tip": "acd3b41bc04474cb9446e3d889c2b28425fdd901",
   "also_supersedes_functional_fc3d4ff_predecessor": "bb0c918201f4114303404a3498f312d9679c36cd",

@@ -413,4 +413,11 @@ test("founder repair runbook forbids automatic repair and requires timestamp ver
   assert.match(runbook, /withdrawn/i);
   assert.match(runbook, /apply-time clock/);
   assert.match(runbook, /NOT proven/);
+  const supersededLedger = fs.readFileSync(
+    path.join(root, "docs/evidence/M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md"),
+    "utf8",
+  );
+  assert.match(supersededLedger, /SUPERSEDED — DO NOT READ AS CURRENT/);
+  assert.match(supersededLedger, /WITHDRAWN/);
+  assert.match(supersededLedger, /BLOCKED/);
 });

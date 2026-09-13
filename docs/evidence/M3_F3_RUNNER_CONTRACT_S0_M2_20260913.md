@@ -2,7 +2,11 @@
 
 **Verdict: BLOCKED (remote Management API fidelity) with local safety REMEDIATED.**
 
-This evidence tip **supersedes** overstated Management API-equivalence and apply-time-clock claims bound to functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465` and tip `3937b01bff0bc37ed4035e8f708cf10e355f3eae`. It does **not** claim hosted Management API tests ran.
+**Founder path B confirmed:** finish local-only remediation. Do not create or access any remote Supabase project. Do not attempt Management API writes.
+
+**Daybreak’s Management API fidelity requirement remains BLOCKED** pending a founder-approved disposable project, credentials, and sentinel.
+
+This evidence tip **supersedes** overstated Management API-equivalence and apply-time-clock claims bound to functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465` and tip `3937b01bff0bc37ed4035e8f708cf10e355f3eae`. Historical `M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md` is stamped SUPERSEDED and must not be read as current. It does **not** claim hosted Management API tests ran.
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00118+ TO PRODUCTION.**  

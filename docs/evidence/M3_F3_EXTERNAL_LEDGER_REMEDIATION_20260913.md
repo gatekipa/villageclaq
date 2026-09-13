@@ -1,6 +1,12 @@
 # M3 F3 External Migration-Ledger Remediation — 2026-09-13
 
-**VERDICT: EXTERNAL-LEDGER REMEDIATION PASS**
+> **SUPERSEDED — DO NOT READ AS CURRENT.**  
+> Path B (founder-confirmed): local-only remediation. This file’s claims that the local two-phase helper is a “faithful disposable equivalent” / “Management API-equivalent runner”, that skip-if-present is API continuation, and that a generated apply-time timestamp is a repair identity are **WITHDRAWN**.  
+> Current authority: `docs/evidence/M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md` and `docs/runbooks/F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md`.  
+> Daybreak’s Management API fidelity requirement remains **BLOCKED** pending a founder-approved disposable project.  
+> Functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465` is **SUPERSEDED** by `1ca63d9fe0d82a74a761fb742be87642b55329d6`.
+
+**HISTORICAL VERDICT (superseded): EXTERNAL-LEDGER REMEDIATION PASS — local two-phase only; not Management API fidelity**
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00118+ TO PRODUCTION.**  
@@ -18,8 +24,8 @@ Branch: `feat/m3-f3-01-05-forward-foundation-9b17` (additive commits only; draft
 |-----|-----|--------|
 | Old functional | `fc3d4ff8cb59ad09abdc07033cbfd20cec75e585` | SUPERSEDED |
 | Old evidence tip | `acd3b41bc04474cb9446e3d889c2b28425fdd901` | SUPERSEDED |
-| **NEW functional SHA** | `968660d4e079ceb6c8d081be9f985597eaed0465` | CURRENT |
-| Evidence tip | docs-only commit after that SHA | CURRENT |
+| **NEW functional SHA** | `968660d4e079ceb6c8d081be9f985597eaed0465` | SUPERSEDED (was CURRENT; see `1ca63d9`) |
+| Evidence tip | docs-only commit after that SHA | SUPERSEDED |
 
 The prior 14/14 suite remains valid as **SQL pre-commit rollback only**. Any implication that the in-transaction `schema_migrations` insert of source labels `00118`…`00123` was CLI-equivalent or used the production history key is **withdrawn**.
 

@@ -1,0 +1,75 @@
+{
+  "artifact": "M3_F3_STUB_LIVE_PIN_FLOOR_20260913",
+  "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "verdict": "LOCAL COMPOSITION PASS — HOSTED NOT_RUN",
+  "do_not_convert_to_production_pass": true,
+  "do_not_claim_clean_replay_pass": true,
+  "file_based_runner_qualification": "NOT CLAIMED",
+  "mechanics_pass_label": "FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR",
+  "mechanics_pass_claimed": false,
+  "production_approval_claimed": false,
+  "production_equivalent": false,
+  "clean_replay_00001_00117": false,
+  "hosted_db_push": "NOT_RUN",
+  "wipe": "FORBIDDEN_FOR_THIS_AUTH",
+  "disposable_state": "CLEAN_BASELINE",
+  "do_not_re_wipe": true,
+  "functional_sha": "906e12e31e10c5b7d5bb517b83623b9d16a5b6c7",
+  "evidence_sha": "PENDING_EVIDENCE",
+  "tip_sha": "PENDING_TIP",
+  "prior_functional": "9cd4971387fae68fb52f308b43e2e0c245b028c4",
+  "prior_evidence": "28cbe2ab9f3254f1970f11b7776de4241c0099b1",
+  "prior_tip": "af2b9b632e61dc039f6434b6ae6fd46a96cc1ea0",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
+  "pr84": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/84",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "authoritative"
+  },
+  "pr85": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/85",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "companion"
+  },
+  "pr86": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/86",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "companion"
+  },
+  "production_ref_contacted": false,
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "recognition": ["manual_income"],
+  "floor_mode_default": "stub-live-pin",
+  "greenfield_disallowed": true,
+  "transforms_disallowed": true,
+  "components": [
+    "STUB_CORE_SQL",
+    "REGRESSION_SLICE_SQL",
+    "CUT2_QUEUE_SLICE_SQL",
+    "live_has_group_permission_cut3",
+    "enqueue_outbound_notification_00115_extract",
+    "remoteFloorOwnershipAndAclSql",
+    "unmodified_00117_gated_psql"
+  ],
+  "file_00117": {
+    "sha256": "aa1c545ce174b537035c0fa95576e3af9157aa132e52476e01a7bfd3ab81cb02",
+    "byteLength": 52187,
+    "applied_via": "gated_psql_file",
+    "not_management_api": true,
+    "not_db_push": true,
+    "history_invented": false
+  },
+  "isolated_workdir_only": "00118-00123 / 20260913173000-005",
+  "local_unit_tests": "PASS",
+  "local_pg17_apply_through_00117": "NOT_RUN",
+  "qualify_without_env": "NOT_RUN exit 2",
+  "f3_00118_00123_modified": false,
+  "chief_run": {
+    "sentinel": "villageclaq-f3-dbpush-20260913-authorized",
+    "destructive": "F3_REMOTE_DESTRUCTIVE_TEST=1",
+    "password_env": "VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD",
+    "command": "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3 --floor-mode=stub-live-pin"
+  },
+  "merge_deploy": "DO NOT MERGE / DO NOT DEPLOY"
+}

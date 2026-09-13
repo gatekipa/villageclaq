@@ -1,8 +1,8 @@
 # M3 F3 Forward Implementation Summary — 2026-09-13 (runner-fidelity / local-safety)
 
-**OVERALL VERDICT: founder stub+live-pin auth wired; Chief 06 clean-check PASS; hosted HOLD root-cause fixed in harness; hosted db-push NOT RUN.** Greenfield `00001`–`00117` replay is **disallowed** for this auth. Hosted default floor is the documented stub+live-pin fixture (NOT a clean replay, NOT production-equivalent). Hosted HOLD was CLI text-table stdout (`inventoryCapture.body` started with `┌`). Qualifier now uses `--output-format json` + `inventoryFromQuery` unwrap. Chief disposable clean-check: `clean_ok=true`, residuals `[]`, public tables 0, migrations `[]`, `schema_migrations` rows 0, F3 absent — **do not wipe**. Local composition **PASS**. Local PG17 apply through 00117 **NOT_RUN**. Hosted `--prep-floor --sequence-f3` **NOT_RUN** (password absent). FILE-BASED RUNNER QUALIFICATION PASS, production PASS, clean replay PASS, and merge/deploy auth are **NOT** claimed.
+**OVERALL VERDICT: repair-safety gate + optional-ubuntu ACL landed locally; prior hosted MECHANICS PASS SUPERSEDED; hosted db-push NOT RUN.** Greenfield `00001`–`00117` replay is **disallowed** for this auth. Hosted default floor is the documented stub+live-pin fixture (NOT a clean replay, NOT production-equivalent). Hosted HOLD was CLI text-table stdout (`inventoryCapture.body` started with `┌`). Qualifier now uses `--output-format json` + `inventoryFromQuery` unwrap. Chief disposable clean-check: `clean_ok=true`, residuals `[]`, public tables 0, migrations `[]`, `schema_migrations` rows 0, F3 absent — **do not wipe**. Local composition **PASS**. Local PG17 apply through 00117 **NOT_RUN**. Hosted `--prep-floor --sequence-f3` **NOT_RUN** (password absent). FILE-BASED RUNNER QUALIFICATION PASS, production PASS, clean replay PASS, and merge/deploy auth are **NOT** claimed. Prior hosted `FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR` is **SUPERSEDED** (do not erase).
 
-Current status: `docs/evidence/M3_F3_STUB_LIVE_PIN_FLOOR_20260913.md`. Clean-check: `docs/evidence/M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913.md`. Functional SHA `30f27954507ec22a0414628943408d7be91030a1`. Evidence SHA `5f85c0f57f5bd8a5b3d25d0d287da16718cd7494`. Tip SHA `38bbd3b4a26f46a23ac6d3bdb64e3549c143ead5`. Prior greenfield HOLD (do not delete): `docs/evidence/M3_F3_GREENFIELD_CUT_M2_PIN_HOLD_20260913.md`. Prior 00061 first-fail packaging (do not delete): `docs/evidence/M3_F3_00057_TRANSFORM_HOLD_20260913.md`. Prior wipe HOLD: `docs/evidence/M3_F3_WIPE_TRANSFORM_HOLD_20260913.md`.
+Current status: `docs/evidence/M3_F3_REPAIR_GATE_ACL_PORTABILITY_20260913.md`. Prior stub+live-pin packaging (do not delete): `docs/evidence/M3_F3_STUB_LIVE_PIN_FLOOR_20260913.md`. Clean-check: `docs/evidence/M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913.md`. Functional SHA `30f27954507ec22a0414628943408d7be91030a1`. Evidence SHA `5f85c0f57f5bd8a5b3d25d0d287da16718cd7494`. Tip SHA `38bbd3b4a26f46a23ac6d3bdb64e3549c143ead5`. Prior greenfield HOLD (do not delete): `docs/evidence/M3_F3_GREENFIELD_CUT_M2_PIN_HOLD_20260913.md`. Prior 00061 first-fail packaging (do not delete): `docs/evidence/M3_F3_00057_TRANSFORM_HOLD_20260913.md`. Prior wipe HOLD: `docs/evidence/M3_F3_WIPE_TRANSFORM_HOLD_20260913.md`.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 
@@ -34,10 +34,21 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 
 See `M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md` for proven-vs-UNPROVEN runner facts and `F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md` for the corrected runbook.
 
-## Frozen digests (unchanged)
+## Frozen digests (ACL-portability freeze; prior table SUPERSEDED)
 
 | File | SHA-256 |
 |------|---------|
+| `00118_f3_bounded_financial_epoch_foundation.sql` | `bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed` |
+| `00119_f3_01_core_ledger_foundation.sql` | `b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11` |
+| `00120_f3_02_secure_posting_idempotency.sql` | `d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60` |
+| `00121_f3_03_projection_read_proof.sql` | `51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce` |
+| `00122_f3_04_correction_reversal.sql` | `84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3` |
+| `00123_f3_05_opening_cash_command.sql` | `0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d` |
+
+Prior freeze (SUPERSEDED 2026-09-13; unconditional ubuntu REVOKE; do not erase):
+
+| File | SUPERSEDED SHA-256 |
+|------|--------------------|
 | `00118_f3_bounded_financial_epoch_foundation.sql` | `517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c` |
 | `00119_f3_01_core_ledger_foundation.sql` | `9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d` |
 | `00120_f3_02_secure_posting_idempotency.sql` | `4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505` |

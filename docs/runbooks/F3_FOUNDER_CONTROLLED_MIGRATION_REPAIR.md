@@ -146,7 +146,15 @@ Management API skip of a caller-controlled timestamp is **NOT proven**. Never cl
 6. Every **earlier** authorized version is already recorded (S0/M2 pins plus any earlier F3 timestamps that were successfully applied).
 7. The **target version is absent** from `supabase_migrations.schema_migrations` (or list_migrations shows the post-COMMIT / pre-history gap).
 8. **No later** version was attempted or recorded.
-9. Deployed / on-disk SQL bytes for the target file match the authorized SHA-256 (F3 freeze):
+9. Deployed / on-disk SQL bytes for the target file match the authorized SHA-256 (F3 freeze after optional-ubuntu ACL portability):
+   - `00118` `bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed`
+   - `00119` `b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11`
+   - `00120` `d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60`
+   - `00121` `51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce`
+   - `00122` `84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3`
+   - `00123` `0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d`
+
+   Prior freeze (SUPERSEDED 2026-09-13; unconditional ubuntu REVOKE; do not erase):
    - `00118` `517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c`
    - `00119` `9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d`
    - `00120` `4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505`
@@ -246,7 +254,7 @@ CLI repair against the hosted disposable also needs `F3_DISPOSABLE_DB_URL` (neve
 
 Password is env-only. Never print it. Never pass `-p`. The qualifier builds `--db-url` in-process.
 
-**AUTHORIZED (2026-09-13 founder — stub+live-pin / documented qualification fixture):** hosted wipe already **SUCCESS**. Chief **06-pre-stub-floor-clean-check PASS** on `jkorwnwwmdeflfntxntl`: `clean_ok=true`, `residuals=[]`, public tables **0**, migrations `[]`, `schema_migrations` rows **0**, F3 **absent**, matches post-wipe baseline. Do **not** re-wipe. Do **not** `--wipe-to-baseline`. Qualifier re-runs that clean-check before floor; fail → **HOLD**, no floor, no db push. Do **not** replay `00001`–`00116`. Hosted default floor mode is `--floor-mode=stub-live-pin`. Greenfield is **disallowed**. Pre-db-push gates (HGP/enqueue MD5+ACL, queue ACLs, 00117 postconditions, F3 absent, recognition, history empty, no residue, frozen digests) must pass or **HOLD** with no db push. Candidate remains `supabase db push` 2.117.0 with preassigned versions `20260913173000`–`005` (inject/repair/retry/continuation). This VM without password ships harness + local stub-floor proof + unit tests; Chief runs hosted. Success label only: `FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR`. Never production PASS, clean replay PASS, or merge/deploy auth. Floor label: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`.
+**AUTHORIZED (2026-09-13 founder — stub+live-pin / documented qualification fixture):** hosted wipe already **SUCCESS**. Chief **06-pre-stub-floor-clean-check PASS** on `jkorwnwwmdeflfntxntl`: `clean_ok=true`, `residuals=[]`, public tables **0**, migrations `[]`, `schema_migrations` rows **0**, F3 **absent**, matches post-wipe baseline. Do **not** re-wipe. Do **not** `--wipe-to-baseline`. Qualifier re-runs that clean-check before floor; fail → **HOLD**, no floor, no db push. Do **not** replay `00001`–`00116`. Hosted default floor mode is `--floor-mode=stub-live-pin`. Greenfield is **disallowed**. Pre-db-push gates (HGP/enqueue MD5+ACL, queue ACLs, 00117 postconditions, F3 absent, recognition, history empty, no residue, frozen digests) must pass or **HOLD** with no db push. Candidate remains `supabase db push` 2.117.0 with preassigned versions `20260913173000`–`005` (inject/repair/retry/continuation). This VM without password ships harness + local stub-floor proof + unit tests; Chief runs hosted. Prior hosted claim `FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR` is **SUPERSEDED** (commands were exercised; 00118 hit intended history-failure; 00119/20 failed on missing role ubuntu; 00121–23 cascading F3_ABORT; repairing after SQL failures was NOT qualified recovery; history alignment ≠ object install; repair-safety gate and F3 install were NOT qualified). Do not erase that prior claim. Permitted later hosted success label (Chief only): `FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION`. Never production PASS, clean replay PASS, or merge/deploy auth. Floor label: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT`.
 
 ```bash
 # Disposable CLEAN. Do not re-wipe. Do not greenfield-replay. Chief hosted:
@@ -263,7 +271,7 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 
 `supabase db query` on CLI 2.117.0 defaults to a box-drawn **text table**. When `db query --help` shows `--output-format`, the qualifier appends `--output-format json` **before** SQL/`--file`. The CLI JSON envelope `{ rows: [ { jsonb_build_object: <inventory> } ] }` is unwrapped by `inventoryFromQuery` before the pre-stub clean-check and gate fingerprints. Balanced-brace `parseJsonish` remains defense-in-depth for mixed text (a leftover `┌` string must not be treated as inventory).
 
-Do **not** claim hosted PASS unless Chief records the mechanics-pass label. Do **not** claim FILE-BASED RUNNER QUALIFICATION PASS. Do **not** claim production PASS or clean replay PASS.
+Do **not** claim hosted PASS unless Chief records `FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION`. Do **not** revive the superseded MECHANICS PASS label. Do **not** claim unqualified FILE-BASED RUNNER QUALIFICATION PASS. Do **not** claim production PASS or clean replay PASS.
 
 Repair is **NEVER automatic**. The qualifier may record a founder-controlled `migration repair <FILENAME_VERSION> --status applied` only after gates, identity/history preflight, exact-byte isolated copies, and the per-file history-failure proof. Separate founder authentication is required before any production apply/repair.
 

@@ -1,5 +1,7 @@
 # M3 F3 documented stub+live-pin floor — 2026-09-13
 
+**SUPERSEDED CLAIM (docs only — do not erase):** prior hosted `FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR` is **SUPERSEDED**. Commands were exercised; 00118 hit intended history-failure; 00119/20 failed on missing role ubuntu; 00121–23 cascading F3_ABORT; repairing after SQL failures was NOT qualified recovery; history alignment ≠ object install; repair-safety gate and F3 install were NOT qualified. Current evidence of record: `docs/evidence/M3_F3_REPAIR_GATE_ACL_PORTABILITY_20260913.md`. Permitted later hosted success (Chief only): `FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION`.
+
 **OVERALL VERDICT: local composition PASS; Chief 06 clean-check PASS; hosted db-push NOT RUN (no password on this VM).**
 
 Required floor label:
@@ -10,9 +12,13 @@ Do **not** convert this packaging to production PASS.
 Do **not** claim clean `00001`–`00117` replay PASS.  
 Do **not** claim FILE-BASED RUNNER QUALIFICATION PASS.  
 Do **not** claim merge/deploy auth.  
-Success label, if and only if Chief hosted sequence + gates succeed:
+Prior success label (SUPERSEDED — do not erase; do not claim):
 
 `FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR`
+
+Permitted later hosted success (Chief only; not claimed here):
+
+`FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION`
 
 ## What this auth does
 
@@ -96,5 +102,6 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 | Management API apply | **PERMANENTLY DISQUALIFIED** |
 | `db push` | **QUALIFICATION CANDIDATE ONLY** — hosted **NOT RUN** |
 | FILE-BASED RUNNER QUALIFICATION PASS | **NOT CLAIMED** |
-| FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR | **NOT CLAIMED** until Chief hosted sequence + gates |
+| FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION FLOOR | **SUPERSEDED** (prior hosted claim; do not erase; do not revive) |
+| FILE-BASED RUNNER QUALIFICATION PASS — STUB/LIVE-PIN FLOOR LIMITATION | **NOT CLAIMED** — Chief hosted only after this tip |
 | Merge / deploy | **DO NOT MERGE / DO NOT DEPLOY** |

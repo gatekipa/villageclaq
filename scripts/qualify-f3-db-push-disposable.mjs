@@ -75,7 +75,7 @@ import {
   assertFrozenDigestsOnDisk,
   createIsolatedDbPushWorkdir,
   preassignedVersionFor,
-  timestampFilenameFor,
+  stageIsolatedWorkdirTarget,
 } from "./lib/f3-db-push-version-map.mjs";
 import {
   DROP_THROWAWAY_PROBE_SQL,
@@ -107,6 +107,7 @@ import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
 import {
   inventoryFromQuery,
+  objectsPresentFromProbe,
   parseEvidenceOutArg,
   parseJsonish,
   rowsFromQuery,
@@ -208,18 +209,6 @@ function parseArgs(argv) {
     floorMode: parseFloorMode(argv),
     evidenceOut: parseEvidenceOutArg(argv),
   };
-}
-
-function objectsPresentFromProbe(result) {
-  const text = `${result?.stdout || ""}\n${result?.stderr || ""}`;
-  if (/\bNULL\b/.test(text) && !/\bfinancial_|\bpost_financial|\bcorrect_financial/.test(text)) {
-    return false;
-  }
-  if (/\((f3_|financial_)/i.test(text)) return true;
-  if (/financial_private|financial_core|financial_ledger_epochs|financial_accounts|post_financial_command|correct_financial_event|post_financial_opening_cash/.test(text)) {
-    return /[a-z0-9_]+\.[a-z0-9_]+/.test(text) && !/\(NULL\)/.test(text);
-  }
-  return /t\b/.test(text) && !/\bf\b/.test(text);
 }
 
 async function main() {
@@ -485,6 +474,7 @@ async function main() {
       }
       for (const file of F3_FORWARD_FILES) {
         const version = preassignedVersionFor(file);
+        const staged = stageIsolatedWorkdirTarget(isolated.workdir, file);
         const injectSql = historyInjectSqlForFile(file);
         const inject = runGatedRemoteSqlText(isolated.workdir, `inject-${version}.sql`, injectSql);
         const push = runDbPushCandidate({
@@ -504,7 +494,7 @@ async function main() {
           help: queryHelp,
           sql: objectProbeSql(TARGET_OBJECT_PROBES[file]),
         });
-        const objectsPresent = objectsPresentFromProbe(probe);
+        const objectsPresent = objectsPresentFromProbe(probe, (TARGET_OBJECT_PROBES[file] || []).length);
         const fingerprintBeforeRepair = await runDbQuery({
           bin: cli.bin,
           workdir: isolated.workdir,
@@ -550,7 +540,7 @@ async function main() {
         });
         const step = {
           file,
-          destName: timestampFilenameFor(file),
+          destName: staged.destName,
           version,
           digest: FROZEN_DIGESTS[file],
           inject: { status: inject.status },
@@ -589,6 +579,7 @@ async function main() {
           help: queryHelp,
           sql: CATALOG_FINGERPRINT_SQL,
         });
+        stageIsolatedWorkdirTarget(isolated.workdir, file);
         const retry = runDbPushCandidate({
           bin: cli.bin,
           workdir: isolated.workdir,

@@ -214,6 +214,56 @@ export function createIsolatedDbPushWorkdir({
   };
 }
 
+export function isolatedMigrationsDir(workdir) {
+  return path.join(workdir, "supabase", "migrations");
+}
+
+export function listIsolatedMigrationFilenames(workdir) {
+  const dir = isolatedMigrationsDir(workdir);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
+}
+
+/**
+ * Stage only the current target file in the isolated supabase/migrations
+ * workdir so a successful repair+retry cannot cascade-apply later F3 files
+ * in one `db push`. Bytes stay the founder-authorized freeze.
+ */
+export function stageIsolatedWorkdirTarget(workdir, file) {
+  if (!workdir) throw new Error("HOLD: isolated workdir required for per-file staging");
+  if (!F3_FORWARD_FILES.includes(file)) {
+    throw new Error(`REFUSE: ${file} is not an authorized F3 forward file`);
+  }
+  const migDir = isolatedMigrationsDir(workdir);
+  fs.mkdirSync(migDir, { recursive: true });
+  for (const name of fs.readdirSync(migDir)) {
+    if (name.endsWith(".sql")) fs.unlinkSync(path.join(migDir, name));
+  }
+  const source = readAuthorizedSourceBytes(file);
+  const destName = timestampFilenameFor(file);
+  const destAbs = path.join(migDir, destName);
+  fs.writeFileSync(destAbs, source.bytes);
+  const after = fs.readFileSync(destAbs);
+  const afterDigest = sha256Buffer(after);
+  if (afterDigest !== source.digest || after.byteLength !== source.byteLength) {
+    throw new Error(`REFUSE: staged copy of ${file} is not byte-identical`);
+  }
+  const remaining = listIsolatedMigrationFilenames(workdir);
+  if (remaining.length !== 1 || remaining[0] !== destName) {
+    throw new Error(
+      `HOLD: isolated workdir must contain only ${destName}; observed ${remaining.join(",")}`,
+    );
+  }
+  return {
+    sourceFile: file,
+    destName,
+    destAbs,
+    version: preassignedVersionFor(file),
+    sha256: afterDigest,
+    staged: remaining,
+  };
+}
+
 export function nextAuthorizedFile(currentFile) {
   const idx = F3_FORWARD_FILES.indexOf(currentFile);
   if (idx < 0) return F3_FORWARD_FILES[0];

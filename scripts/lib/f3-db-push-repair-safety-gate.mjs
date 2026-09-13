@@ -206,8 +206,8 @@ export function evaluateRepairSafetyGate(input = {}) {
 }
 
 /**
- * Classify, then maybe repair. Cleanup always runs (finally).
- * Repair callback is invoked only when the gate authorizes it.
+ * Classify, then finally-style poison cleanup, THEN maybe repair.
+ * Repair must not run while the history-inject poison remains.
  */
 export function runRepairSafetyThenMaybeRepair({
   gateInput,
@@ -219,15 +219,16 @@ export function runRepairSafetyThenMaybeRepair({
   let repairResult = null;
   let repairAttempted = false;
   try {
-    if (gate.ok) {
-      if (typeof repair !== "function") {
-        throw new Error("HOLD: repair executor required after authorized gate");
-      }
-      repairAttempted = true;
-      repairResult = repair();
-    }
+    // Classify only. Do not spawn repair while poison remains.
   } finally {
     if (typeof cleanup === "function") cleanupResult = cleanup();
+  }
+  if (gate.ok) {
+    if (typeof repair !== "function") {
+      throw new Error("HOLD: repair executor required after authorized gate");
+    }
+    repairAttempted = true;
+    repairResult = repair();
   }
   return {
     gate,
@@ -238,5 +239,6 @@ export function runRepairSafetyThenMaybeRepair({
     nextMigration: gate.ok,
     cleanup: cleanupResult,
     poisonCleanupOnly: true,
+    poisonRemovedBeforeRepair: true,
   };
 }

@@ -64,8 +64,11 @@ import {
   coerceJsonValue,
   inventoryFromQuery,
   inventoryFromQueryStdout,
+  objectsPresentFromProbe,
   parseEvidenceOutArg,
   parseJsonish,
+  rowsFromQuery,
+  unwrapCliRowsEnvelope,
 } from "./lib/f3-db-push-query-parse.mjs";
 import {
   CHIEF_06_PRE_STUB_FLOOR_CLEAN_CHECK,
@@ -324,6 +327,12 @@ test("parseJsonish extracts JSON from supabase db query table/text stdout", () =
   assert.deepEqual(fromEnvelope.public_tables, []);
   assert.equal(fromEnvelope.schema_migrations_present, true);
   assert.equal(fromEnvelope.storage_policies.length, 10);
+  const asTopLevelArray = [payload];
+  assert.deepEqual(unwrapCliRowsEnvelope(asTopLevelArray), asTopLevelArray);
+  assert.deepEqual(unwrapCliRowsEnvelope(envelope), envelope.rows);
+  const fromTopLevelArray = inventoryFromQuery(JSON.stringify(asTopLevelArray));
+  assert.deepEqual(fromTopLevelArray.public_tables, []);
+  assert.equal(fromTopLevelArray.schema_migrations_present, true);
   const cleanFromEnvelope = evaluatePreStubFloorCleanCheck({ inventory: envelope });
   assert.equal(cleanFromEnvelope.clean_ok, true);
   assert.equal(cleanFromEnvelope.public_tables, 0);
@@ -461,6 +470,16 @@ test("pre-stub clean-check accepts leftover floor storage policies/buckets or ze
   assert.equal(extraPolicy.do_not_wipe, true);
 });
 
+test("objectsPresentFromProbe treats top-level JSON array rows like envelope.rows", () => {
+  const presentRow = { p0: "financial_private", p1: "public.financial_ledger_epochs" };
+  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify([presentRow]) }, 2), true);
+  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify({ rows: [presentRow] }) }, 2), true);
+  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify([{ p0: null, p1: null }]) }, 2), false);
+  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify({ rows: [{ p0: "financial_private", p1: null }] }) }, 2), false);
+  assert.deepEqual(rowsFromQuery({ stdout: JSON.stringify([presentRow]) }), [presentRow]);
+  assert.deepEqual(rowsFromQuery({ stdout: JSON.stringify({ rows: [presentRow] }) }), [presentRow]);
+});
+
 test("STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs", () => {
   assert.doesNotMatch(STUB_CORE_SQL, /^\s*CREATE OR REPLACE FUNCTION auth\.uid\s*\(/m);
   assert.doesNotMatch(STUB_CORE_SQL, /^\s*CREATE OR REPLACE FUNCTION auth\.jwt\s*\(/m);
@@ -475,6 +494,10 @@ test("STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails a
   assert.match(STUB_CORE_SQL, /CREATE TABLE public\.payments /);
   assert.match(STUB_CORE_SQL, /CREATE FUNCTION auth\.uid\(\)/);
   assert.match(STUB_CORE_SQL, /CREATE FUNCTION auth\.jwt\(\)/);
+  assert.match(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION public\.uuid_generate_v5\(namespace uuid, name text\)/);
+  assert.match(STUB_CORE_SQL, /SELECT extensions\.uuid_generate_v5\(namespace, name\)/);
+  assert.match(STUB_CORE_SQL, /CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions/);
+  assert.doesNotMatch(STUB_CORE_SQL, /CREATE ROLE ubuntu/i);
 });
 
 test("floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR", () => {

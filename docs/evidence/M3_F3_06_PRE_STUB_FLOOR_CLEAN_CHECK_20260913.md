@@ -31,12 +31,12 @@ Floor label: `DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REP
 
 | Pin | Value |
 |-----|-------|
-| Functional SHA | `28cb53e87d4261b043e89186b57f137078923844` |
-| Evidence SHA | `eaf84a83214cdbefa727e594e6cd7287a2df28df` |
-| Tip SHA | `f24b3766d1501bd5a6264a2a7848799443373099` |
-| Prior functional | `906e12e31e10c5b7d5bb517b83623b9d16a5b6c7` |
-| Prior evidence | `f4ffacd6397a192872cba22d98f79d56c530dcea` |
-| Prior tip | `a181bea463b1b7d255d70ce2b6be18522994d086` |
+| Functional SHA | `bb4d76d696313f5fb4812453d8ce4fb82ab193c4` |
+| Evidence SHA | `PENDING_EVIDENCE` |
+| Tip SHA | `PENDING_TIP` |
+| Prior functional | `5fe08e237870739fb9765130380afa7c6c6da605` |
+| Prior evidence | `eaf84a83214cdbefa727e594e6cd7287a2df28df` |
+| Prior tip | `da9d89c800eae0ec2adb503ac6191e3e73c205dd` |
 | PR #83 | `a293f5958b31548ccec7591b653eff2857ae9a90` unchanged |
 | Main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Recognition | exactly `["manual_income"]` |

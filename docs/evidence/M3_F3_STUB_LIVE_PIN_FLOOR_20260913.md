@@ -32,11 +32,13 @@ Isolated db-push workdir copies remain `00118`–`00123` only (`20260913173000`�
 
 Pre-db-push gates (any miss → HOLD, no db push): HGP/enqueue MD5+ACL, queue ACLs, 00117 postconditions, F3 absent, recognition exactly `["manual_income"]`, history empty, no residue, frozen 00118–00123 digests.
 
+Hosted HOLD `F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD` root cause: CLI 2.117.0 `supabase db query` defaulted to a box-drawn **text table**, so `inventoryCapture.body` was a string starting with `┌`. `JSON.parse` failed; `schema_migrations_present` was undefined; `leftoverOk` was false. Harness now detects `--output-format` from help, appends `--output-format json` before SQL/`--file`, and unwraps `{ rows: [ { jsonb_build_object } ] }` via `inventoryFromQuery`. `parseJsonish` stays as mixed-text defense-in-depth. Leftover named floor storage policies / empty `avatars` `group-documents` `receipts` buckets are residual cleanup (narrow DROP), not `--wipe-to-baseline`.
+
 ## This VM
 
 | Check | Result |
 |-------|--------|
-| Unit tests `test:f3-db-push` (includes Chief 06 clean-check + stub+live-pin) | **PASS** (53/53) |
+| Unit tests `test:f3-db-push` (includes CLI JSON unwrap + Chief 06 clean-check) | **PASS** (56/56) |
 | Local composition / isolated workdir / 00117 bytes | **PASS** |
 | Local PG17 apply through 00117 | **NOT_RUN** — no local PostgreSQL 17 |
 | Hosted disposable password | **absent** |
@@ -63,12 +65,12 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 
 | Pin | Value |
 |-----|-------|
-| Functional SHA | `28cb53e87d4261b043e89186b57f137078923844` |
-| Evidence SHA | `eaf84a83214cdbefa727e594e6cd7287a2df28df` |
-| Tip SHA | `f24b3766d1501bd5a6264a2a7848799443373099` |
-| Prior functional | `906e12e31e10c5b7d5bb517b83623b9d16a5b6c7` |
-| Prior evidence | `f4ffacd6397a192872cba22d98f79d56c530dcea` |
-| Prior tip | `a181bea463b1b7d255d70ce2b6be18522994d086` |
+| Functional SHA | `bb4d76d696313f5fb4812453d8ce4fb82ab193c4` |
+| Evidence SHA | `PENDING_EVIDENCE` |
+| Tip SHA | `PENDING_TIP` |
+| Prior functional | `5fe08e237870739fb9765130380afa7c6c6da605` |
+| Prior evidence | `eaf84a83214cdbefa727e594e6cd7287a2df28df` |
+| Prior tip | `da9d89c800eae0ec2adb503ac6191e3e73c205dd` |
 | PR #83 | `a293f5958b31548ccec7591b653eff2857ae9a90` unchanged |
 | Main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Disposable | `jkorwnwwmdeflfntxntl` CLEAN |

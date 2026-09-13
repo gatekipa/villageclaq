@@ -11,7 +11,7 @@
   "do_not_re_wipe": true,
   "functional_sha": "9cd4971387fae68fb52f308b43e2e0c245b028c4",
   "evidence_sha": "14b7ab625e2414d9048d80191669267b72120bc6",
-  "tip_sha": null,
+  "tip_sha": "2c3bc6b2d46aedea95e15df49c272baa7f4e8aad",
   "starting_ref": "79e60d9212fcd99f93cc3db0b11c8084316838a7",
   "prior_functional": "a0d60f1a3c3ad6fa57629f5cd7c0d544c80c962a",
   "prior_evidence": "6b9cb05cea817c7d34db43ae71812bfec5b1a7d7",

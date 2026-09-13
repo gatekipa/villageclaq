@@ -355,7 +355,7 @@ export function buildLocalSubprocessEnv(spec) {
     env.PGPORT = String(spec.port);
     env.PGDATABASE = spec.database;
     env.PGUSER = spec.user;
-    env.PGPASSWORD = spec.password || "";
+    if (spec.password) env.PGPASSWORD = spec.password;
   }
   for (const key of Object.keys(env)) {
     if (isForbiddenEnvKey(key) && !["PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"].includes(key)) {
@@ -446,10 +446,13 @@ export function defaultLocalAdminUrl() {
   return `postgresql://ubuntu@/${ADMIN_MAINTENANCE_DB}?host=${APPROVED_UNIX_SOCKET}`;
 }
 
+/** Local-only TCP password for disposable CLI tools that cannot use peer auth. Never used remotely. */
+export const LOCAL_TCP_PASSWORD = "f3_local_disposable";
+
 export function localWorkUrl({ database, kind = "socket" }) {
   assertSafeDatabaseName(database, { role: "work" });
   if (kind === "tcp") {
-    return `postgresql://ubuntu@127.0.0.1:5432/${database}`;
+    return `postgresql://ubuntu:${encodeURIComponent(LOCAL_TCP_PASSWORD)}@127.0.0.1:5432/${database}`;
   }
   return `postgresql://ubuntu@/${database}?host=${APPROVED_UNIX_SOCKET}`;
 }

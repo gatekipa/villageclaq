@@ -170,7 +170,7 @@ test("environment sanitization strips secrets and uses isolated HOME", () => {
   assert.equal(captured.PGPORT, "5432");
   assert.equal(captured.PGDATABASE, "f3_ok");
   assert.equal(captured.PGUSER, "ubuntu");
-  assert.equal(captured.PGPASSWORD, "");
+  assert.equal(captured.PGPASSWORD, undefined);
   assert.equal(captured.HOME, isolatedCliHomeDir());
   assert.equal(captured.HOME.includes("f3-local-cli-home-"), true);
   delete process.env.SUPABASE_ACCESS_TOKEN;

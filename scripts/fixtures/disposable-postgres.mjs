@@ -15,6 +15,7 @@ import {
   assertLocalWorkConnection,
   assertSafeDatabaseName,
   defaultLocalAdminUrl,
+  LOCAL_TCP_PASSWORD,
   localWorkUrl,
   refuseProduction,
   spawnLocalPsql,
@@ -79,6 +80,7 @@ export function createDisposableDatabase(label) {
   assertLocalWorkConnection(tcpUrl);
   psqlAdmin(admin, `DROP DATABASE IF EXISTS ${name};`);
   psqlAdmin(admin, `CREATE DATABASE ${name} OWNER ubuntu;`);
+  psqlAdmin(admin, `ALTER ROLE ubuntu PASSWORD '${LOCAL_TCP_PASSWORD.replace(/'/g, "''")}';`);
   const ver = psql(url, "SHOW server_version_num;");
   assert.match(ver, /^17/, `expected PostgreSQL 17, got ${ver}`);
   return {

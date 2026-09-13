@@ -59,7 +59,7 @@ Need **new founder auth** if they want the documented stub+live-pin disposable f
 
 1. `verdict` = **HOLD**
 2. `functional_sha` = `9cd4971387fae68fb52f308b43e2e0c245b028c4`
-3. `evidence_sha` = *(filled after evidence commit)*
+3. `evidence_sha` = `28cbe2ab9f3254f1970f11b7776de4241c0099b1`
 4. `tip_sha` = *(filled after tip commit)*
 5. `starting_ref` = `79e60d9212fcd99f93cc3db0b11c8084316838a7`
 6. `prior_functional` = `a0d60f1a3c3ad6fa57629f5cd7c0d544c80c962a`

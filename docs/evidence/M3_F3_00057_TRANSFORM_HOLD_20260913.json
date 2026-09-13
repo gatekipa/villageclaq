@@ -1,5 +1,6 @@
 {
   "artifact": "M3_F3_00057_TRANSFORM_HOLD_20260913",
+  "superseded_as_current_status_by": "M3_F3_GREENFIELD_CUT_M2_PIN_HOLD_20260913",
   "verdict": "HOLD",
   "do_not_convert_to_pass": true,
   "file_based_runner_qualification": "HOLD",

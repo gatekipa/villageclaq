@@ -52,6 +52,14 @@ import {
   stubLivePinFloorPrecheck,
   stubLivePinFloorSqlSteps,
 } from "./lib/f3-db-push-stub-live-pin-floor.mjs";
+import {
+  CHIEF_06_PRE_STUB_FLOOR_CLEAN_CHECK,
+  PRE_STUB_FLOOR_CLEAN_CHECK_HOLD,
+  assertPreStubFloorCleanCheck,
+  evaluatePreStubFloorCleanCheck,
+  matchesChief06CleanCheck,
+  passingPreStubFloorCleanInventory,
+} from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -222,6 +230,42 @@ test("gated stub+live-pin install uses psql -f for all floor SQL and never write
   assert.equal(mig.includes(FILE_00117), false);
   assert.ok(fs.existsSync(path.join(isolated.workdir, "floor-sql", FILE_00117)));
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
+});
+
+test("Chief 06 pre-stub-floor clean-check PASSes empty post-wipe inventory and HOLDs residuals without wipe", () => {
+  const pass = evaluatePreStubFloorCleanCheck({
+    inventory: passingPreStubFloorCleanInventory(),
+    historyRows: [],
+    listMigrations: [],
+  });
+  assert.equal(pass.clean_ok, true);
+  assert.deepEqual(pass.residuals, []);
+  assert.equal(pass.public_tables, 0);
+  assert.deepEqual(pass.migrations, []);
+  assert.equal(pass.schema_migrations_rows, 0);
+  assert.equal(pass.f3_absent, true);
+  assert.equal(pass.matches_post_wipe_baseline, true);
+  assert.equal(pass.do_not_wipe, true);
+  assert.equal(matchesChief06CleanCheck(pass), true);
+  assert.equal(CHIEF_06_PRE_STUB_FLOOR_CLEAN_CHECK.clean_ok, true);
+  assert.equal(assertPreStubFloorCleanCheck(pass), pass);
+  assert.match(pass.label, /NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT/);
+
+  const dirty = evaluatePreStubFloorCleanCheck({
+    inventory: {
+      ...passingPreStubFloorCleanInventory(),
+      public_tables: ["profiles"],
+      financial_core: true,
+      schema_migrations_rows: 2,
+    },
+    historyRows: [{ version: "00117", name: "m2_notification_policy_foundation" }],
+    listMigrations: [{ version: "20260912174049", name: "m2_notification_policy_foundation" }],
+  });
+  assert.equal(dirty.clean_ok, false);
+  assert.equal(dirty.do_not_wipe, true);
+  assert.ok(dirty.residuals.length > 0);
+  assert.equal(dirty.hold, PRE_STUB_FLOOR_CLEAN_CHECK_HOLD);
+  assert.throws(() => assertPreStubFloorCleanCheck(dirty), (err) => err.code === "F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD");
 });
 
 test("success verdict is mechanics-pass only and frozen F3 digests stay pinned", () => {

@@ -24,6 +24,12 @@ import {
   stubLivePinFloorPrecheck,
   stubLivePinFloorSqlSteps,
 } from "./lib/f3-db-push-stub-live-pin-floor.mjs";
+import {
+  CHIEF_06_PRE_STUB_FLOOR_CLEAN_CHECK,
+  evaluatePreStubFloorCleanCheck,
+  matchesChief06CleanCheck,
+  passingPreStubFloorCleanInventory,
+} from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 import { createIsolatedDbPushWorkdir } from "./lib/f3-db-push-version-map.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -54,6 +60,18 @@ function compositionProof() {
     invented00117History: false,
     greenfieldDisallowed: true,
     transformsDisallowed: true,
+    preStubFloorCleanCheck: (() => {
+      const check = evaluatePreStubFloorCleanCheck({
+        inventory: passingPreStubFloorCleanInventory(),
+        historyRows: [],
+        listMigrations: [],
+      });
+      return {
+        ...check,
+        matches_chief_06: matchesChief06CleanCheck(check),
+        chief_pin: { ...CHIEF_06_PRE_STUB_FLOOR_CLEAN_CHECK, residuals: [], migrations: [] },
+      };
+    })(),
   };
 }
 

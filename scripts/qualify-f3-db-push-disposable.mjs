@@ -105,7 +105,11 @@ import {
 } from "./lib/f3-db-push-stub-live-pin-floor.mjs";
 import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
-import { proveCleanBaseline } from "./lib/f3-db-push-wipe.mjs";
+import {
+  PRE_STUB_FLOOR_CLEAN_CHECK_HOLD,
+  assertPreStubFloorCleanCheck,
+  evaluatePreStubFloorCleanCheck,
+} from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
@@ -138,7 +142,7 @@ function chiefRunbook() {
       `export ${DESTRUCTIVE_ENV}=1`,
       `export ${DB_PASSWORD_ENV}='<password from founder vault; do not commit>'`,
       `# optional: export ${MGMT_TOKEN_ENV}='<mgmt token; GET/query only>'`,
-      "STOP: disposable jkorwnwwmdeflfntxntl is CLEAN. Do not re-wipe. Do not replay 00001–00116. Do not use 00030/00057 transforms.",
+      "STOP: Chief clean-check PASS on jkorwnwwmdeflfntxntl (06-pre-stub-floor-clean-check). Do not re-wipe.",
       "Hosted default floor is stub+live-pin (DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT).",
       "node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence-f3",
       "# equivalent (hosted default): --floor-mode=stub-live-pin",
@@ -273,6 +277,7 @@ async function main() {
     wipe: null,
     cleanup: null,
     floor: null,
+    preStubFloorCleanCheck: null,
     preDbPushGates: null,
     cli: null,
     help: null,
@@ -396,13 +401,32 @@ async function main() {
       });
     }
 
-    const proved = proveCleanBaseline(parseJsonish(captured.stdout));
+    const historyForClean = Array.isArray(historyRows) ? historyRows : [];
+    const listedMigrations = Array.isArray(listed?.rows)
+      ? listed.rows
+      : Array.isArray(listed)
+        ? listed
+        : [];
+    const cleanCheck = evaluatePreStubFloorCleanCheck({
+      inventory: parseJsonish(captured.stdout),
+      historyRows: historyForClean,
+      listMigrations: listedMigrations,
+    });
+    evidence.preStubFloorCleanCheck = cleanCheck;
     evidence.wipe = {
       skipped: true,
       noWipe: true,
-      proved,
-      note: "Founder auth: CLEAN disposable; stub+live-pin floor; do not re-wipe; do not replay 00001–00116.",
+      do_not_wipe: true,
+      cleanCheck,
+      note: "Chief 06 clean-check is the pre-floor pin. Do not re-wipe. Do not replay 00001–00116.",
     };
+    if (!cleanCheck.clean_ok) {
+      evidence.status = "HOLD";
+      evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+      evidence.limitation = cleanCheck.hold || PRE_STUB_FLOOR_CLEAN_CHECK_HOLD;
+      throw Object.assign(new Error(evidence.limitation), { code: "F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD" });
+    }
+    assertPreStubFloorCleanCheck(cleanCheck);
 
     const precheck = hostedFloorPrecheck(floorMode);
     evidence.floor = {

@@ -43,9 +43,9 @@ END$$;
 
 CREATE SCHEMA IF NOT EXISTS auth;
 
--- Hosted disposable owns schema auth; CREATE OR REPLACE FUNCTION auth.uid()
--- raises ERROR: permission denied for schema auth and ON_ERROR_STOP aborts
--- before public.payments. Create only when missing; soft-fail auth GRANTs.
+-- Hosted disposable owns schema auth; replacing auth.uid/auth.jwt there
+-- raises permission denied and ON_ERROR_STOP aborts before public.payments.
+-- Create only when missing; soft-fail GRANTs on auth only.
 DO $auth_fns$
 BEGIN
   BEGIN

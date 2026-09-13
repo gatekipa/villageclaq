@@ -461,8 +461,9 @@ test("pre-stub clean-check accepts leftover floor storage policies/buckets or ze
 });
 
 test("STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs", () => {
-  assert.doesNotMatch(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION auth\.uid\s*\(/);
-  assert.doesNotMatch(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION auth\.jwt\s*\(/);
+  assert.doesNotMatch(STUB_CORE_SQL, /^\s*CREATE OR REPLACE FUNCTION auth\.uid\s*\(/m);
+  assert.doesNotMatch(STUB_CORE_SQL, /^\s*CREATE OR REPLACE FUNCTION auth\.jwt\s*\(/m);
+  assert.doesNotMatch(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION auth\.(uid|jwt)\s*\(/);
   assert.match(STUB_CORE_SQL, /to_regprocedure\('auth\.uid\(\)'\) IS NULL/);
   assert.match(STUB_CORE_SQL, /to_regprocedure\('auth\.jwt\(\)'\) IS NULL/);
   assert.match(STUB_CORE_SQL, /WHEN insufficient_privilege THEN NULL/);

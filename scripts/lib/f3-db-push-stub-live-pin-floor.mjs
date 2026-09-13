@@ -212,13 +212,47 @@ export function resolveHostedFloorMode(raw) {
   throw err;
 }
 
-function floorApplyOk(result) {
-  if (result.status === 0) return { ok: true, already: false };
-  const text = `${result.stdout || ""}\n${result.stderr || ""}`;
-  if (/already exists|duplicate_object|duplicate_function/i.test(text)) {
-    return { ok: true, already: true };
+const ALREADY_EXISTS_ERROR = /already exists|duplicate_object|duplicate_function|duplicate key/i;
+export const STDERR_TAIL_MAX = 1600;
+
+/**
+ * psql ERROR lines only. NOTICE "extension already exists, skipping" must
+ * not count as success when a later ERROR aborted ON_ERROR_STOP.
+ */
+export function extractPsqlErrorLines(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => {
+      if (!line || /^\s*NOTICE:/i.test(line) || /^\s*WARNING:/i.test(line)) {
+        return false;
+      }
+      return /(?:^|:\s*)ERROR:/i.test(line);
+    });
+}
+
+export function resultStderrTail(result, max = STDERR_TAIL_MAX) {
+  const stderr = String(result?.stderr || "");
+  const stdout = String(result?.stdout || "");
+  const text = stderr.length > 0 ? (stdout ? `${stderr}\n${stdout}` : stderr) : stdout;
+  return text.length > max ? text.slice(-max) : text;
+}
+
+/**
+ * Status 0 → ok. Nonzero: only `already` when every ERROR line is a
+ * duplicate/already-exists. NOTICE matches are ignored. No ERROR lines
+ * with status≠0 → fail closed.
+ */
+export function floorApplyOk(result) {
+  if (Number(result?.status) === 0) return { ok: true, already: false, errorLines: [] };
+  const text = `${result?.stdout || ""}\n${result?.stderr || ""}`;
+  const errorLines = extractPsqlErrorLines(text);
+  if (errorLines.length === 0) {
+    return { ok: false, already: false, errorLines };
   }
-  return { ok: false, already: false };
+  const allAlready = errorLines.every((line) => ALREADY_EXISTS_ERROR.test(line));
+  if (allAlready) return { ok: true, already: true, errorLines };
+  return { ok: false, already: false, errorLines };
 }
 
 export function assertIsolatedWorkdirOnlyF3Forward(workdir) {
@@ -267,6 +301,7 @@ export function installStubLivePinFloor({ workdir } = {}) {
       status: applied.status,
       ok: ok.ok,
       already: ok.already,
+      stderrTail: resultStderrTail(applied),
     });
     if (!ok.ok) {
       return {
@@ -303,6 +338,7 @@ export function installStubLivePinFloor({ workdir } = {}) {
     status: applied00117.status,
     ok: ok00117.ok,
     already: ok00117.already,
+    stderrTail: resultStderrTail(applied00117),
     sha256: file00117.sha256,
     notManagementApi: true,
     notDbPush: true,

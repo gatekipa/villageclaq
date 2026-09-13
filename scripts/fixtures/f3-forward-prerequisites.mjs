@@ -42,18 +42,64 @@ BEGIN
 END$$;
 
 CREATE SCHEMA IF NOT EXISTS auth;
-CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
-LANGUAGE sql STABLE SET search_path = ''
-AS $$
-  SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
-$$;
-CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb
-LANGUAGE sql STABLE SET search_path = ''
-AS $$
-  SELECT COALESCE(current_setting('request.jwt.claims', true), '{}')::jsonb;
-$$;
-GRANT USAGE ON SCHEMA auth, public TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
+
+-- Hosted disposable owns schema auth; CREATE OR REPLACE FUNCTION auth.uid()
+-- raises ERROR: permission denied for schema auth and ON_ERROR_STOP aborts
+-- before public.payments. Create only when missing; soft-fail auth GRANTs.
+DO $auth_fns$
+BEGIN
+  BEGIN
+    IF to_regprocedure('auth.uid()') IS NULL THEN
+      CREATE FUNCTION auth.uid() RETURNS uuid
+      LANGUAGE sql STABLE SET search_path = ''
+      AS $auth_uid_body$
+        SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
+      $auth_uid_body$;
+    END IF;
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+    WHEN duplicate_function THEN NULL;
+    WHEN OTHERS THEN
+      IF SQLERRM ILIKE '%permission denied%' THEN NULL; ELSE RAISE; END IF;
+  END;
+  BEGIN
+    IF to_regprocedure('auth.jwt()') IS NULL THEN
+      CREATE FUNCTION auth.jwt() RETURNS jsonb
+      LANGUAGE sql STABLE SET search_path = ''
+      AS $auth_jwt_body$
+        SELECT COALESCE(current_setting('request.jwt.claims', true), '{}')::jsonb;
+      $auth_jwt_body$;
+    END IF;
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+    WHEN duplicate_function THEN NULL;
+    WHEN OTHERS THEN
+      IF SQLERRM ILIKE '%permission denied%' THEN NULL; ELSE RAISE; END IF;
+  END;
+END
+$auth_fns$;
+
+DO $auth_grants$
+BEGIN
+  BEGIN
+    GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+    WHEN OTHERS THEN
+      IF SQLERRM ILIKE '%permission denied%' THEN NULL; ELSE RAISE; END IF;
+  END;
+  BEGIN
+    GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated, service_role;
+  EXCEPTION
+    WHEN insufficient_privilege THEN NULL;
+    WHEN undefined_function THEN NULL;
+    WHEN OTHERS THEN
+      IF SQLERRM ILIKE '%permission denied%' THEN NULL; ELSE RAISE; END IF;
+  END;
+END
+$auth_grants$;
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 
 CREATE TABLE public.profiles (
   id uuid PRIMARY KEY,

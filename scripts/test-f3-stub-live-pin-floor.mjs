@@ -45,6 +45,8 @@ import {
   assertIsolatedWorkdirOnlyF3Forward,
   assertStubFloorDoesNotReplayOrTransform,
   evaluatePreDbPushGates,
+  extractPsqlErrorLines,
+  floorApplyOk,
   installStubLivePinFloor,
   passingPreDbPushFixture,
   readUnmodified00117Bytes,
@@ -237,6 +239,7 @@ test("gated stub+live-pin install uses psql -f for all floor SQL and never write
     ],
   );
   assert.ok(result.steps.every((s) => s.runner === "gated_psql_file"));
+  assert.ok(result.steps.every((s) => typeof s.stderrTail === "string"));
   assert.ok(applied.includes(FILE_00117));
   assert.equal(applied.some((n) => /00030|00057|00001/.test(n)), false);
   const mig = fs.readdirSync(path.join(isolated.workdir, "supabase", "migrations"));
@@ -455,6 +458,95 @@ test("pre-stub clean-check accepts leftover floor storage policies/buckets or ze
   });
   assert.equal(extraPolicy.clean_ok, false);
   assert.equal(extraPolicy.do_not_wipe, true);
+});
+
+test("STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs", () => {
+  assert.doesNotMatch(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION auth\.uid\s*\(/);
+  assert.doesNotMatch(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION auth\.jwt\s*\(/);
+  assert.match(STUB_CORE_SQL, /to_regprocedure\('auth\.uid\(\)'\) IS NULL/);
+  assert.match(STUB_CORE_SQL, /to_regprocedure\('auth\.jwt\(\)'\) IS NULL/);
+  assert.match(STUB_CORE_SQL, /WHEN insufficient_privilege THEN NULL/);
+  assert.match(STUB_CORE_SQL, /SQLERRM ILIKE '%permission denied%'/);
+  assert.match(STUB_CORE_SQL, /GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role/);
+  assert.match(STUB_CORE_SQL, /CREATE TABLE public\.payments /);
+  assert.match(STUB_CORE_SQL, /CREATE FUNCTION auth\.uid\(\)/);
+  assert.match(STUB_CORE_SQL, /CREATE FUNCTION auth\.jwt\(\)/);
+});
+
+test("floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a real ERROR", () => {
+  assert.deepEqual(floorApplyOk({ status: 0, stdout: "NOTICE:  extension \"pgcrypto\" already exists, skipping\n", stderr: "" }), {
+    ok: true,
+    already: false,
+    errorLines: [],
+  });
+
+  const mixed = {
+    status: 3,
+    stdout: "NOTICE:  extension \"pgcrypto\" already exists, skipping\n",
+    stderr: 'psql:floor-stub-core.sql:45: ERROR:  permission denied for schema auth\n',
+  };
+  const mixedOk = floorApplyOk(mixed);
+  assert.equal(mixedOk.ok, false);
+  assert.equal(mixedOk.already, false);
+  assert.equal(mixedOk.errorLines.length, 1);
+  assert.match(mixedOk.errorLines[0], /permission denied for schema auth/);
+  assert.deepEqual(
+    extractPsqlErrorLines(`${mixed.stdout}\n${mixed.stderr}`),
+    mixedOk.errorLines,
+  );
+
+  const allDup = floorApplyOk({
+    status: 3,
+    stdout: "",
+    stderr: 'ERROR:  relation "profiles" already exists\nERROR:  duplicate_function\n',
+  });
+  assert.equal(allDup.ok, true);
+  assert.equal(allDup.already, true);
+  assert.equal(allDup.errorLines.length, 2);
+
+  const mixedDupAndReal = floorApplyOk({
+    status: 3,
+    stdout: 'ERROR:  relation "profiles" already exists\n',
+    stderr: "ERROR:  permission denied for schema auth\n",
+  });
+  assert.equal(mixedDupAndReal.ok, false);
+  assert.equal(mixedDupAndReal.already, false);
+
+  const noticeOnlyNonzero = floorApplyOk({
+    status: 3,
+    stdout: 'NOTICE:  extension "pgcrypto" already exists, skipping\n',
+    stderr: "",
+  });
+  assert.equal(noticeOnlyNonzero.ok, false);
+  assert.equal(noticeOnlyNonzero.already, false);
+  assert.deepEqual(noticeOnlyNonzero.errorLines, []);
+});
+
+test("NOTICE already-exists plus auth ERROR fails stub floor and records stderrTail", () => {
+  setAuthorizedEnv();
+  __installDbPushSpawnInterceptorForTests(({ cmd, args }) => {
+    assert.equal(cmd, "psql");
+    const file = path.basename(args[args.indexOf("-f") + 1]);
+    if (file === "floor-stub-core.sql") {
+      return {
+        status: 3,
+        stdout: 'NOTICE:  extension "pgcrypto" already exists, skipping\n',
+        stderr: "ERROR:  permission denied for schema auth\n",
+        signal: null,
+      };
+    }
+    return { status: 0, stdout: "ok", stderr: "", signal: null };
+  });
+  const isolated = createIsolatedDbPushWorkdir();
+  const result = installStubLivePinFloor({ workdir: isolated.workdir });
+  assert.equal(result.installed, false);
+  assert.equal(result.failedAt, "prerequisite_stub");
+  assert.equal(result.steps.length, 1);
+  assert.equal(result.steps[0].ok, false);
+  assert.equal(result.steps[0].already, false);
+  assert.equal(result.steps[0].status, 3);
+  assert.match(result.steps[0].stderrTail, /permission denied for schema auth/);
+  fs.rmSync(isolated.workdir, { recursive: true, force: true });
 });
 
 test("success verdict is mechanics-pass only and frozen F3 digests stay pinned", () => {

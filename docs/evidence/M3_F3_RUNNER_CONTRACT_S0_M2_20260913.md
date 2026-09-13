@@ -26,6 +26,8 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 | Intermediate functional | `c926ea5338b7dfd9840bccf3496fe5f884e64bdd` |
 | **NEW functional SHA** | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
 | Evidence artifact | `9055a2b478f115602579547aeb14335436a5bd90` |
+| Path B leftover-stamp | `3663e33b4dee8fbc97491f0dffe474c805c37113` |
+| Path B confirmation tip | pending this docs commit (rebound immediately after) |
 | Recognition | exactly `["manual_income"]` |
 | 00118–00123 digests | byte-identical to freeze (see below) |
 
@@ -113,7 +115,15 @@ If version is unrecoverable after a post-COMMIT / pre-history hosted failure:
 - Remote Management API harness separate and blocked
 - Local two-phase helper labeled **NON-API simulation**
 
-## Fresh local counts (do not reuse; no remote API tests)
+## Path B confirmation re-run (founder-confirmed local-only; 2026-09-13T15:53Z)
+
+Founder confirmed path B. This re-run used **local suites only**. No remote Supabase project was created or accessed. No Management API write was attempted.
+
+**Daybreak’s Management API fidelity requirement remains BLOCKED** pending a founder-approved disposable project.
+
+Leftover `968660d` ledger evidence files are stamped SUPERSEDED / WITHDRAWN / BLOCKED and must not be read as current.
+
+## Fresh local counts (Path B confirmation; do not reuse; no remote API tests)
 
 | Suite | Result |
 |-------|--------|

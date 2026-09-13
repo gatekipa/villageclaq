@@ -5,7 +5,7 @@
   "path_b_stamp": "3663e33b4dee8fbc97491f0dffe474c805c37113",
   "path_b_confirmation": {
     "founder_path": "B",
-    "remote_management_api": "BLOCKED — DISPOSABLE PROJECT AUTHORIZATION REQUIRED",
+    "remote_management_api": "BLOCKED \u2014 DISPOSABLE PROJECT AUTHORIZATION REQUIRED",
     "remote_project_created_or_accessed": false,
     "management_api_writes_attempted": false,
     "rerun_at": "2026-09-13T15:53:29Z",
@@ -14,8 +14,10 @@
   "functional_sha": "1ca63d9fe0d82a74a761fb742be87642b55329d6",
   "superseded_functional": "968660d4e079ceb6c8d081be9f985597eaed0465",
   "superseded_tip": "3937b01bff0bc37ed4035e8f708cf10e355f3eae",
-  "recognition": ["manual_income"],
-  "remote_management_api": "BLOCKED — DISPOSABLE PROJECT AUTHORIZATION REQUIRED",
+  "recognition": [
+    "manual_income"
+  ],
+  "remote_management_api": "BLOCKED \u2014 DISPOSABLE PROJECT AUTHORIZATION REQUIRED",
   "remote_tests_ran": false,
   "local_safety": {
     "suite": "scripts/test-f3-local-disposable-safety.mjs",
@@ -52,5 +54,6 @@
     "apply-time clock may recover a repaired version",
     "Management API skips a caller-controlled timestamp",
     "VillageClaq skipIfPresent is Management API continuation"
-  ]
+  ],
+  "path_b_confirmation_tip": "e58eecd1e90507c66428a6175f16b9bf1c1b3284"
 }

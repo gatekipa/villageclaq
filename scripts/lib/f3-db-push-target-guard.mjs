@@ -5,9 +5,10 @@
  * other ref are refused first. Sentinel + destructive opt-in + password
  * required before any child process that can reach a database.
  *
- * --db-url is built in-process from env. Never `-p` / `--password` on argv.
- * Never echo the URL. Isolated HOME + CLI config. Ambient DATABASE_URL /
- * PG* / tokens stripped from the child env.
+ * --db-url is built in-process from env as the Chief-proven session-mode
+ * pooler URL (direct db.{ref}.supabase.co:5432 is IPv6-unreachable).
+ * Never `-p` / `--password` on argv. Never echo the URL. Isolated HOME +
+ * CLI config. Ambient DATABASE_URL / PG* / tokens stripped from the child env.
  *
  * Gate failures are synchronous and spawn nothing.
  */
@@ -19,10 +20,13 @@ import {
   APPROVED_DISPOSABLE_DATABASE,
   APPROVED_DISPOSABLE_HOST,
   APPROVED_DISPOSABLE_ORG_ID,
-  APPROVED_DISPOSABLE_PORT,
+  APPROVED_DISPOSABLE_POOLER_HOST,
+  APPROVED_DISPOSABLE_POOLER_PORT,
+  APPROVED_DISPOSABLE_POOLER_USER,
   APPROVED_DISPOSABLE_PROJECT_NAME,
   APPROVED_DISPOSABLE_PROJECT_REF,
-  APPROVED_DISPOSABLE_USER,
+  DIRECT_DB_HOST_IPV6_LIMITATION,
+  TRANSACTION_POOLER_PORT,
   DBPUSH_SENTINEL,
   DBPUSH_SENTINEL_ENV,
   DB_PASSWORD_ENV,
@@ -327,6 +331,8 @@ export function dbPushGatesSatisfiedFromEnv() {
 
 /**
  * Build the disposable --db-url in-process. Never logs. Never uses `-p`.
+ * Session-mode pooler only (Chief live preflight). Direct host is an
+ * identity pin, not the candidate connection host.
  */
 export function buildDisposableDbUrlFromEnv() {
   assertDbPushGates({ optIn: true });
@@ -337,19 +343,11 @@ export function buildDisposableDbUrlFromEnv() {
   }
   const encoded = encodeURIComponent(password);
   const url =
-    `postgresql://${APPROVED_DISPOSABLE_USER}:${encoded}` +
-    `@${APPROVED_DISPOSABLE_HOST}:${APPROVED_DISPOSABLE_PORT}` +
+    `postgresql://${APPROVED_DISPOSABLE_POOLER_USER}:${encoded}` +
+    `@${APPROVED_DISPOSABLE_POOLER_HOST}:${APPROVED_DISPOSABLE_POOLER_PORT}` +
     `/${APPROVED_DISPOSABLE_DATABASE}?sslmode=require`;
   refuseProduction(url);
-  if (!url.includes(APPROVED_DISPOSABLE_PROJECT_REF)) {
-    reject(DBPUSH_GATE_REJECT, "REFUSE: constructed URL missing approved disposable ref");
-  }
-  if (!url.includes(APPROVED_DISPOSABLE_HOST)) {
-    reject(DBPUSH_GATE_REJECT, "REFUSE: constructed URL missing approved disposable host");
-  }
-  if (url.includes(":6543/") || /pooler/i.test(url)) {
-    reject(DBPUSH_GATE_REJECT, "REFUSE: pooler URL is never a db push target");
-  }
+  assertConstructedDbUrl(url);
   lastConstructedUrl = url;
   return url;
 }
@@ -359,17 +357,32 @@ export function assertConstructedDbUrl(url) {
   if (typeof url !== "string" || !url.startsWith("postgresql://")) {
     reject(DBPUSH_GATE_REJECT, "REFUSE: db-url must be a postgresql URL");
   }
-  if (!url.includes(APPROVED_DISPOSABLE_HOST)) {
-    reject(DBPUSH_GATE_REJECT, "REFUSE: db-url host is not the approved disposable host");
+  if (url.includes(`:${TRANSACTION_POOLER_PORT}`)) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: transaction pooler :6543 is never a db push target");
+  }
+  if (url.includes(APPROVED_DISPOSABLE_HOST)) {
+    reject(DBPUSH_GATE_REJECT, `REFUSE: direct disposable DB host is not the candidate --db-url (${DIRECT_DB_HOST_IPV6_LIMITATION})`);
+  }
+  if (!url.includes(APPROVED_DISPOSABLE_POOLER_HOST)) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: db-url host is not the approved disposable session-mode pooler");
+  }
+  if (!url.includes(`${APPROVED_DISPOSABLE_POOLER_HOST}:${APPROVED_DISPOSABLE_POOLER_PORT}`)) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: db-url must use session-mode pooler port 5432");
+  }
+  if (!url.includes(`${APPROVED_DISPOSABLE_POOLER_USER}@`) && !url.includes(`${APPROVED_DISPOSABLE_POOLER_USER}:`)) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: db-url user must be postgres.{approved-disposable-ref}");
   }
   if (!url.includes(APPROVED_DISPOSABLE_PROJECT_REF)) {
     reject(DBPUSH_GATE_REJECT, "REFUSE: db-url does not target the approved disposable ref");
   }
-  if (url.includes(":6543") || /pooler/i.test(url)) {
-    reject(DBPUSH_GATE_REJECT, "REFUSE: pooler URL is never a db push target");
+  if (/pooler/i.test(url) && !url.includes(APPROVED_DISPOSABLE_POOLER_HOST)) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: unapproved pooler host");
   }
   if (url.includes(PRODUCTION_REF)) {
     reject(DBPUSH_PRODUCTION_REFUSED, "REFUSE: production ref in db-url");
+  }
+  if (!/[?&]sslmode=require(?:&|$)/.test(url)) {
+    reject(DBPUSH_GATE_REJECT, "REFUSE: db-url must set sslmode=require");
   }
   return url;
 }

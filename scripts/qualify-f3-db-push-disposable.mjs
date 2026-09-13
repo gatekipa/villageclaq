@@ -6,7 +6,9 @@
  * disqualified and is never called here.
  *
  * NEVER targets production. NEVER prints the DB password or constructed URL.
- * Requires exact disposable ref/host + sentinel + destructive opt-in + password.
+ * Requires exact disposable ref/name/org/host identity + sentinel +
+ * destructive opt-in + password. --db-url is the session-mode pooler
+ * form (direct IPv6 host is unreachable; see DIRECT_DB_HOST_IPV6_LIMITATION).
  *
  * If env is absent: exit 2 NOT_RUN with a Chief runbook (no child process
  * that can reach a database).
@@ -17,8 +19,12 @@ import { fileURLToPath } from "node:url";
 import {
   APPROVED_DISPOSABLE_HOST,
   APPROVED_DISPOSABLE_ORG_ID,
+  APPROVED_DISPOSABLE_POOLER_HOST,
+  APPROVED_DISPOSABLE_POOLER_PORT,
+  APPROVED_DISPOSABLE_POOLER_USER,
   APPROVED_DISPOSABLE_PROJECT_NAME,
   APPROVED_DISPOSABLE_PROJECT_REF,
+  DIRECT_DB_HOST_IPV6_LIMITATION,
   CLI_PIN,
   DBPUSH_SENTINEL,
   DBPUSH_SENTINEL_ENV,
@@ -103,6 +109,10 @@ function chiefRunbook() {
       ref: APPROVED_DISPOSABLE_PROJECT_REF,
       org: APPROVED_DISPOSABLE_ORG_ID,
       host: APPROVED_DISPOSABLE_HOST,
+      poolerHost: APPROVED_DISPOSABLE_POOLER_HOST,
+      poolerPort: APPROVED_DISPOSABLE_POOLER_PORT,
+      poolerUser: APPROVED_DISPOSABLE_POOLER_USER,
+      directHostLimitation: DIRECT_DB_HOST_IPV6_LIMITATION,
     },
     cli: CLI_PIN,
     env: {
@@ -119,7 +129,7 @@ function chiefRunbook() {
       "node scripts/qualify-f3-db-push-disposable.mjs --prep-floor --sequence-f3",
     ],
     candidateCommand:
-      "supabase db push --db-url <in-process URL> --workdir <isolated> --yes --skip-vault",
+      "supabase db push --db-url <in-process session-mode pooler URL> --workdir <isolated> --yes --skip-vault",
     repairCommand:
       "supabase migration repair <FILENAME_VERSION> --status applied --db-url <in-process URL> --workdir <isolated> --yes",
     managementApiApply: MANAGEMENT_API_APPLY_DISQUALIFICATION,
@@ -133,6 +143,7 @@ function chiefRunbook() {
       "Do not rename or rewrite 00118–00123 SQL bytes",
       "Do not use -p / --password on argv",
       "Do not echo the db-url",
+      "db-url is session-mode pooler aws-0-us-east-1.pooler.supabase.com:5432 user postgres.{ref}; direct db.{ref}.supabase.co:5432 is IPv6-unreachable",
       "Do not POST /database/migrations",
       "Do not claim production approval",
       "Do not auto-repair; founder auth required for any production apply/repair",

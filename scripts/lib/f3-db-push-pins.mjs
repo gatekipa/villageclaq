@@ -23,6 +23,19 @@ export const APPROVED_DISPOSABLE_PORT = 5432;
 export const APPROVED_DISPOSABLE_DATABASE = "postgres";
 export const APPROVED_DISPOSABLE_USER = "postgres";
 
+/**
+ * Chief live preflight 2026-09-13: identity host stays the project DB
+ * hostname for gates. Direct `db.{ref}.supabase.co:5432` failed
+ * (AAAA/IPv6 unreachable). Session-mode pooler on :5432 succeeded.
+ * Transaction pooler :6543 is never a db-push target (DDL).
+ */
+export const APPROVED_DISPOSABLE_POOLER_HOST = "aws-0-us-east-1.pooler.supabase.com";
+export const APPROVED_DISPOSABLE_POOLER_PORT = 5432;
+export const APPROVED_DISPOSABLE_POOLER_USER = `postgres.${APPROVED_DISPOSABLE_PROJECT_REF}`;
+export const TRANSACTION_POOLER_PORT = 6543;
+export const DIRECT_DB_HOST_IPV6_LIMITATION =
+  "Direct db.jkorwnwwmdeflfntxntl.supabase.co:5432 failed from Chief live preflight (AAAA/IPv6 unreachable). Candidate --db-url uses session-mode pooler aws-0-us-east-1.pooler.supabase.com:5432 user postgres.jkorwnwwmdeflfntxntl. Identity gates still require exact project ref/name/org/host. Production forever denied.";
+
 export const DBPUSH_SENTINEL = "villageclaq-f3-dbpush-20260913-authorized";
 export const DBPUSH_SENTINEL_ENV = "F3_DBPUSH_DISPOSABLE_SENTINEL";
 export const DB_PASSWORD_ENV = "VILLAGECLAQ_F3_DISPOSABLE_DB_PASSWORD";

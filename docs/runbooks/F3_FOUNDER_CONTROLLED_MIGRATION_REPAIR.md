@@ -84,11 +84,13 @@ Isolated workdir copies **only**. Never rename repository `00118`–`00123` sour
 | `00122_f3_04_correction_reversal.sql` | `20260913173004` | `20260913173004_f3_04_correction_reversal.sql` |
 | `00123_f3_05_opening_cash_command.sql` | `20260913173005` | `20260913173005_f3_05_opening_cash_command.sql` |
 
-Candidate command (CLI 2.117.0 `db push --help`; `--db-url` built in-process; never `-p`):
+Candidate command (CLI 2.117.0 `db push --help`; `--db-url` built in-process from env; never `-p`):
 
 ```bash
-supabase db push --db-url <PERCENT_ENCODED_DISPOSABLE_URL> --workdir <ISOLATED> --yes --skip-vault
+supabase db push --db-url <PERCENT_ENCODED_DISPOSABLE_SESSION_POOLER_URL> --workdir <ISOLATED> --yes --skip-vault
 ```
+
+**Connection form (Chief live preflight 2026-09-13, incorporate exactly):** identity gates still require exact project ref `jkorwnwwmdeflfntxntl` / name `villageclaq-f3-management-api-disposable-20260913` / org `eyztkzkprpmlmcabrfef` / host `db.jkorwnwwmdeflfntxntl.supabase.co`. Direct `db.jkorwnwwmdeflfntxntl.supabase.co:5432` **FAILED** (AAAA/IPv6 unreachable). Postgres connect succeeded via session-mode pooler `aws-0-us-east-1.pooler.supabase.com:5432` user `postgres.jkorwnwwmdeflfntxntl` `sslmode=require`. Transaction pooler `:6543` is never a db-push target. Production is forever denied. Password from env only; never argv / never log the URL.
 
 When a post-COMMIT split occurs on this candidate: COMMIT → history INSERT fail → **known filename version** → founder-controlled repair → retry skip → next continues. Do not invent a server-generated version. Do not use an apply-time clock.
 

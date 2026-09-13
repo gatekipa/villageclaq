@@ -11,8 +11,13 @@ import { fileURLToPath } from "node:url";
 import {
   APPROVED_DISPOSABLE_HOST,
   APPROVED_DISPOSABLE_ORG_ID,
+  APPROVED_DISPOSABLE_POOLER_HOST,
+  APPROVED_DISPOSABLE_POOLER_PORT,
+  APPROVED_DISPOSABLE_POOLER_USER,
   APPROVED_DISPOSABLE_PROJECT_NAME,
   APPROVED_DISPOSABLE_PROJECT_REF,
+  DIRECT_DB_HOST_IPV6_LIMITATION,
+  TRANSACTION_POOLER_PORT,
   CLI_PIN,
   DBPUSH_SENTINEL,
   DBPUSH_SENTINEL_ENV,
@@ -39,6 +44,7 @@ import {
   __dbPushSpawnLedgerForTests,
   __installDbPushSpawnInterceptorForTests,
   __resetDbPushSpawnForTests,
+  assertConstructedDbUrl,
   assertDbPushGates,
   buildDbPushSubprocessEnv,
   buildDisposableDbUrlFromEnv,
@@ -135,6 +141,12 @@ test("approved disposable pins are exact and production is excluded", () => {
   assert.equal(APPROVED_DISPOSABLE_PROJECT_NAME, "villageclaq-f3-management-api-disposable-20260913");
   assert.equal(APPROVED_DISPOSABLE_ORG_ID, "eyztkzkprpmlmcabrfef");
   assert.equal(APPROVED_DISPOSABLE_HOST, "db.jkorwnwwmdeflfntxntl.supabase.co");
+  assert.equal(APPROVED_DISPOSABLE_POOLER_HOST, "aws-0-us-east-1.pooler.supabase.com");
+  assert.equal(APPROVED_DISPOSABLE_POOLER_PORT, 5432);
+  assert.equal(APPROVED_DISPOSABLE_POOLER_USER, "postgres.jkorwnwwmdeflfntxntl");
+  assert.equal(TRANSACTION_POOLER_PORT, 6543);
+  assert.match(DIRECT_DB_HOST_IPV6_LIMITATION, /AAAA\/IPv6 unreachable/);
+  assert.match(DIRECT_DB_HOST_IPV6_LIMITATION, /aws-0-us-east-1\.pooler\.supabase\.com/);
   assert.equal(DBPUSH_SENTINEL, "villageclaq-f3-dbpush-20260913-authorized");
   assert.equal(PRODUCTION_REF, "llbnliixczcqfftxpsmb");
   assert.equal(PRODUCTION_HISTORY_CEILING_VERSION, "20260912174049");
@@ -258,7 +270,9 @@ test("password is never accepted as -p and never appears in sanitized logs", () 
   const password = "super-secret-db-password-value";
   setAuthorizedEnv({ password });
   const url = buildDisposableDbUrlFromEnv();
-  assert.match(url, new RegExp(APPROVED_DISPOSABLE_HOST.replace(/\./g, "\\.")));
+  assert.match(url, new RegExp(APPROVED_DISPOSABLE_POOLER_HOST.replace(/\./g, "\\.")));
+  assert.match(url, new RegExp(APPROVED_DISPOSABLE_POOLER_USER.replace(/\./g, "\\.")));
+  assert.doesNotMatch(url, new RegExp(APPROVED_DISPOSABLE_HOST.replace(/\./g, "\\.")));
   assert.match(url, /sslmode=require/);
   assert.match(url, /:5432\//);
   assert.doesNotMatch(url, /:6543/);
@@ -269,6 +283,32 @@ test("password is never accepted as -p and never appears in sanitized logs", () 
   });
   assert.equal(JSON.stringify(leaked).includes(password), false);
   assert.match(JSON.stringify(leaked), /\[REDACTED\]/);
+});
+
+test("constructed --db-url is session-mode pooler only; direct host and :6543 are refused", () => {
+  setAuthorizedEnv();
+  const url = buildDisposableDbUrlFromEnv();
+  assert.doesNotThrow(() => assertConstructedDbUrl(url));
+  assertRejectedBeforeSpawn(() =>
+    assertConstructedDbUrl(
+      "postgresql://postgres.jkorwnwwmdeflfntxntl:x@db.jkorwnwwmdeflfntxntl.supabase.co:5432/postgres?sslmode=require",
+    ),
+  );
+  assertRejectedBeforeSpawn(() =>
+    assertConstructedDbUrl(
+      "postgresql://postgres.jkorwnwwmdeflfntxntl:x@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require",
+    ),
+  );
+  assertRejectedBeforeSpawn(() =>
+    assertConstructedDbUrl(
+      "postgresql://postgres.jkorwnwwmdeflfntxntl:x@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require",
+    ),
+  );
+  assertRejectedBeforeSpawn(() =>
+    assertConstructedDbUrl(
+      `postgresql://postgres.${PRODUCTION_REF}:x@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require`,
+    ),
+  );
 });
 
 test("constructed URL and child env strip ambient DATABASE_URL / PG* / tokens", () => {
@@ -446,6 +486,7 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.doesNotMatch(qualify, /["']--password["']|["']-p["']/);
   assert.match(qualify, /Do not use -p/);
   assert.match(qualify, /filename version|FILENAME_VERSION/);
+  assert.match(qualify, /session-mode pooler/);
 });
 
 test("runbook permanently disqualifies Management API apply and keeps db push as candidate only", () => {
@@ -460,5 +501,7 @@ test("runbook permanently disqualifies Management API apply and keeps db push as
   assert.match(runbook, /jkorwnwwmdeflfntxntl/);
   assert.match(runbook, /--status applied/);
   assert.match(runbook, /filename version|FILENAME_VERSION|preassigned/i);
+  assert.match(runbook, /aws-0-us-east-1\.pooler\.supabase\.com/);
+  assert.match(runbook, /AAAA\/IPv6 unreachable/);
   assert.doesNotMatch(runbook, /repair 00118 /);
 });

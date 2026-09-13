@@ -36,9 +36,9 @@ Hosted HOLD `F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD` root cause (already landed): CL
 
 ## Floor-apply HOLDs landed this tip
 
-1. **STUB_CORE auth** — hosted disposable rejects `CREATE OR REPLACE FUNCTION auth.uid()` with `ERROR: permission denied for schema auth` (platform owns `auth`). That ERROR + `ON_ERROR_STOP=1` aborted the rest of STUB_CORE, so `public.payments` never existed and enqueue later failed. `STUB_CORE_SQL` now creates `auth.uid` / `auth.jwt` only when `to_regprocedure(...) IS NULL`, catches `insufficient_privilege` / permission denied, and soft-fails GRANTs on `auth` only. `GRANT USAGE ON SCHEMA public` stays hard. Local empty-`auth` disposable still creates the functions when missing. `_f3_apply_current_main_floor.mjs` unchanged.
+1. **STUB_CORE auth** — hosted disposable rejects `CREATE OR REPLACE FUNCTION auth.uid()` with `ERROR: permission denied for schema auth` (platform owns `auth`). That ERROR + `ON_ERROR_STOP=1` aborted the rest of STUB_CORE, so `public.payments` never existed and enqueue later failed. `STUB_CORE_SQL` uses `DO $auth_stub$`: create `auth.uid` / `auth.jwt` only when `to_regprocedure(...) IS NULL`, catch `insufficient_privilege` / permission denied, soft-fail GRANTs on `auth` only. `GRANT USAGE ON SCHEMA public` stays hard. Local empty-`auth` disposable still creates the functions when missing. `_f3_apply_current_main_floor.mjs` unchanged.
 
-2. **floorApplyOk** — NOTICE `extension "pgcrypto" already exists, skipping` made status=3 look like success while a real ERROR aborted the script. Parser now uses **ERROR lines only**. `already` only when every ERROR is duplicate/already-exists. Non-duplicate ERROR → `ok:false`. Status≠0 with no ERROR lines → fail closed. `stderrTail` attached on the six fixture steps and unmodified 00117.
+2. **floorApplyOk** — NOTICE `extension "pgcrypto" already exists, skipping` made status=3 look like success while a real ERROR aborted the script. Parser now uses **ERROR lines only**. `already` only when every ERROR is duplicate/already-exists. Non-duplicate ERROR → `{ok:false}`. Status≠0 with no ERROR lines → fail closed. Each step push attaches `stderrTail` and `errors`.
 
 Chief reset partial floor leftovers on disposable (`08-reset-partial-stub-floor`) and is re-running hosted qualify. This VM does not run hosted apply.
 
@@ -73,12 +73,12 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 
 | Pin | Value |
 |-----|-------|
-| Functional SHA | `62c4569586a8531d005cde16e36f43a8bb1fd1ff` |
-| Evidence SHA | `312452b8c1dd31afbad0687c2425cfd81a9509e3` |
-| Tip SHA | `505e421e885a269df2ff8375902116778c0b1566` |
-| Prior functional | `30f27954507ec22a0414628943408d7be91030a1` |
-| Prior evidence | `5f85c0f57f5bd8a5b3d25d0d287da16718cd7494` |
-| Prior tip | `185c7db0b233df30fddb279927a6fbe522d104bb` |
+| Functional SHA | `e13e9108db9162981d4c5395be8d8514345b3363` |
+| Evidence SHA | PENDING |
+| Tip SHA | PENDING |
+| Prior functional | `62c4569586a8531d005cde16e36f43a8bb1fd1ff` |
+| Prior evidence | `312452b8c1dd31afbad0687c2425cfd81a9509e3` |
+| Prior tip | `f9a8982cace7f7ff0d0c96106ed498e1dd86bcde` |
 | PR #83 | `a293f5958b31548ccec7591b653eff2857ae9a90` unchanged |
 | Main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Disposable | `jkorwnwwmdeflfntxntl` (Chief 08 reset; do not re-wipe) |

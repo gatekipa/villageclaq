@@ -38,21 +38,21 @@
       "id": "STUB_CORE_auth",
       "error": "permission denied for schema auth",
       "cause": "CREATE OR REPLACE FUNCTION auth.uid() on platform-owned auth aborted ON_ERROR_STOP before public.payments",
-      "fix": "create auth.uid/auth.jwt only if to_regprocedure IS NULL; catch insufficient_privilege / permission denied; soft-fail GRANTs on auth only"
+      "fix": "DO $auth_stub$ creates auth.uid/auth.jwt only if to_regprocedure IS NULL; catch insufficient_privilege / permission denied; soft-fail GRANTs on auth only"
     },
     {
       "id": "floorApplyOk_NOTICE_mask",
       "error": "NOTICE extension pgcrypto already exists plus a later ERROR looked like success at status=3",
       "cause": "already-exists regex matched NOTICE anywhere in stdout/stderr",
-      "fix": "parse ERROR lines only; already only when every ERROR is duplicate/already-exists; non-duplicate ERROR → ok:false; fail closed if no ERROR lines; attach stderrTail"
+      "fix": "parse ERROR lines only; already only when every ERROR is duplicate/already-exists; non-duplicate ERROR → {ok:false}; fail closed if no ERROR lines; attach stderrTail and errors on each step"
     }
   ],
-  "functional_sha": "62c4569586a8531d005cde16e36f43a8bb1fd1ff",
-  "evidence_sha": "312452b8c1dd31afbad0687c2425cfd81a9509e3",
-  "tip_sha": "505e421e885a269df2ff8375902116778c0b1566",
-  "prior_functional": "30f27954507ec22a0414628943408d7be91030a1",
-  "prior_evidence": "5f85c0f57f5bd8a5b3d25d0d287da16718cd7494",
-  "prior_tip": "185c7db0b233df30fddb279927a6fbe522d104bb",
+  "functional_sha": "e13e9108db9162981d4c5395be8d8514345b3363",
+  "evidence_sha": "PENDING",
+  "tip_sha": "PENDING",
+  "prior_functional": "62c4569586a8531d005cde16e36f43a8bb1fd1ff",
+  "prior_evidence": "312452b8c1dd31afbad0687c2425cfd81a9509e3",
+  "prior_tip": "f9a8982cace7f7ff0d0c96106ed498e1dd86bcde",
   "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
   "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
   "pr84": {

@@ -1,13 +1,14 @@
-# M3 F3 Forward Implementation Summary — 2026-09-13 (external-ledger remediation)
+# M3 F3 Forward Implementation Summary — 2026-09-13 (runner-fidelity / local-safety)
 
-**OVERALL VERDICT: EXTERNAL-LEDGER REMEDIATION PASS — post-COMMIT / pre-history failure+repair proved on the Management API file-stream equivalent; 00118–00123 SQL bytes unchanged**
+**OVERALL VERDICT: BLOCKED (remote Management API fidelity) with local safety REMEDIATED — 00118–00123 SQL bytes unchanged**
 
-This document **supersedes** the atomicity tip bound to `fc3d4ff` / `acd3b41`, the recognition-allowlist revision bound to `bb0c918` / `a983157`, and earlier 2026-09-12 evidence. The 14/14 suite remains SQL pre-commit rollback only (not CLI-equivalent).
+This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 
 **DO NOT MERGE.**  
 **DO NOT APPLY 00118+ TO PRODUCTION.**  
 **NO F3-06 UI. NO PRODUCTION FINANCIAL WRITES. NO M4.**  
-**FCG-1 IS NOT CLOSED.**
+**FCG-1 IS NOT CLOSED.**  
+**REMOTE Management API WRITE PATH IS BLOCKED.**
 
 Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 
@@ -17,20 +18,15 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 |-----|-------|
 | Base main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
-| **Functional SHA** | `968660d4e079ceb6c8d081be9f985597eaed0465` |
-| Superseded functional SHA | `fc3d4ff8cb59ad09abdc07033cbfd20cec75e585` |
-| Superseded evidence tip | `acd3b41bc04474cb9446e3d889c2b28425fdd901` |
-| Also superseded | `bb0c918` / `a983157` |
+| **Functional SHA** | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
+| Superseded functional | `968660d4e079ceb6c8d081be9f985597eaed0465` |
+| Superseded evidence tip | `3937b01bff0bc37ed4035e8f708cf10e355f3eae` |
+| Recognition | exactly `["manual_income"]` |
 | Prod migrations | 32; F3 objects ABSENT (not applied) |
-| M2 | CLOSED dormant 0/0/0 |
 
-## Atomicity fix
+See `M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md` for proven-vs-UNPROVEN runner facts and `F3_FOUNDER_CONTROLLED_MIGRATION_REPAIR.md` for the corrected runbook.
 
-Generator strips the oracle's premature top-level `COMMIT` and emits the sole final `COMMIT` after HGP postconditions, owner pinning, grants/revokes, role-switch verification, and `RESET ROLE`. See `M3_F3_ATOMICITY_REMEDIATION_20260913.md`.
-
-Recognition allowlist remains EXACTLY `manual_income`.
-
-## Regenerated migrations
+## Frozen digests (unchanged)
 
 | File | SHA-256 |
 |------|---------|
@@ -41,35 +37,20 @@ Recognition allowlist remains EXACTLY `manual_income`.
 | `00122_f3_04_correction_reversal.sql` | `fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9` |
 | `00123_f3_05_opening_cash_command.sql` | `848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699` |
 
-## Fresh disposable qualification (this remediation)
+## Fresh local qualification (this remediation)
 
 | Suite | Result |
 |-------|--------|
-| Post-commit / pre-ledger failure+repair | **6/6 PASS** |
-| External-ledger suite (incl. runner/runbook pins) | **9/9 PASS** |
-| Failure-atomicity + retry (SQL pre-commit only) | **14/14 PASS** |
+| Local disposable safety | **45/45 PASS** |
+| Local two-phase failure+repair (NON-API simulation) | **9/9 PASS** |
+| SQL pre-commit atomicity | **14/14 PASS** |
 | Recognition direct | **40/40 PASS** |
-| F3-01 DB | **43/43 PASS** |
-| F3-02 DB | **159/159 PASS** |
-| F3-02 Astra | **169/169 PASS** |
-| F3-03 DB | **25/25 PASS** |
-| F3-03 Astra | **80/80 PASS** |
-| F3-04 DB | **23/23 PASS** |
-| F3-04 Astra | **170/170 PASS** |
-| F3-05 DB | **31/31 PASS** |
-| F3-05 Astra | **118/118 PASS** |
-| Post-S0 regression | **14/14 PASS** |
-| Combined `npm run test:f3` | **895/895 PASS** |
-| M2 static security | **9/9 PASS** |
-| Cut 1 static | **11/11 PASS** |
-| Cut 2 non-regression | **20/20 PASS** |
-| Cut 3 storage buckets | **11/11 PASS** |
+| Combined `npm run test:f3` | **940/940 PASS** |
+| `test:m2` | **111/111 PASS** |
+| Cut 1 / Cut 2 / Cut 3 storage | **11/11 / 20/20 / 11/11 PASS** |
 | `tsc --noEmit` | **PASS** |
-| `npm run build` | **PASS** (dummy non-prod env; no production URL) |
-
-## Disposable boundary
-
-Greenfield replay of `00001`–`00117` on empty PG is **not clean**. Qualification uses stub + live pins + real `00117` + new `00118+`.
+| `npm run build` | **PASS** (dummy non-prod env) |
+| Remote Management API fidelity | **BLOCKED — NOT RUN** |
 
 ## Confirmations
 
@@ -78,5 +59,4 @@ Greenfield replay of `00001`–`00117` on empty PG is **not clean**. Qualificati
 - No merge to main
 - No Astra / Daybreak contact
 - PR #83 unchanged
-- Evidence tip is docs-only after functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465`
-- See `M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md`
+- No hosted Management API POST

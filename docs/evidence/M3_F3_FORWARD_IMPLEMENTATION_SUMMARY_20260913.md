@@ -1,8 +1,8 @@
 # M3 F3 Forward Implementation Summary — 2026-09-13 (runner-fidelity / local-safety)
 
-**OVERALL VERDICT: BLOCKED — db push qualification candidate hosted sequence NOT RUN (password absent on this VM). Management API `{query,name}` remains PERMANENTLY DISQUALIFIED (HOLD — MANAGEMENT API VERSION UNRECOVERABLE). Candidate `--db-url` is the Chief-proven session-mode pooler form after direct-host IPv6 failure. 00118–00123 SQL bytes unchanged. Local remediable gates remain green (`test:f3` 988/988). FILE-BASED RUNNER QUALIFICATION PASS and production approval are NOT claimed.**
+**OVERALL VERDICT: BLOCKED — prior Chief hosted floor HOLD on tip `ca6df98` (`db query --file` multi-statement rejection) is superseded by gated `psql -f` floor (functional `164f579`). Hosted `--prep-floor --sequence-f3` re-run is pending Chief secrets. Management API `{query,name}` remains PERMANENTLY DISQUALIFIED. 00118–00123 SQL bytes unchanged. Local `test:f3` 991/991. FILE-BASED RUNNER QUALIFICATION PASS and production approval are NOT claimed.**
 
-Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `f6acf177e11b618fce1d5bc4086f19f78af3ffac`. Evidence SHA `e85f56eba087b0c31936ad6e8f68f39305ce806f`.
+Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `164f57949df774586155b007bf8a6c067ded4874`.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 
@@ -20,7 +20,7 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 |-----|-------|
 | Base main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
-| **db push functional SHA** | `f6acf177e11b618fce1d5bc4086f19f78af3ffac` |
+| **db push functional SHA** | `164f57949df774586155b007bf8a6c067ded4874` |
 | Prior MAPI-era functional | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` |
 | Evidence | `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md` |
 | Superseded scaffolding evidence | `74e001eb2fd336924497b45f8db243da1f672f2c` / `M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md` |

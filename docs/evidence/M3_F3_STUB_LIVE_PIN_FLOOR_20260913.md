@@ -43,7 +43,8 @@ Pre-db-push gates (any miss → HOLD, no db push): HGP/enqueue MD5+ACL, queue AC
 | Hosted `--prep-floor --sequence-f3` | **NOT_RUN** — Chief runs hosted |
 | Qualify without env | **NOT_RUN** exit 2 |
 | 00118–00123 SQL bytes | **unchanged** (frozen digests) |
-| Disposable `jkorwnwwmdeflfntxntl` | **CLEAN** — do not re-wipe |
+| Disposable `jkorwnwwmdeflfntxntl` | **CLEAN** — Chief 06 PASS — do not re-wipe |
+| Chief 06 packaging | `docs/evidence/M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913.md` (from Chief box facts; originals not on this VM) |
 | Production `llbnliixczcqfftxpsmb` | **not contacted** |
 
 ## Chief hosted RUN command
@@ -63,7 +64,7 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 | Pin | Value |
 |-----|-------|
 | Functional SHA | `28cb53e87d4261b043e89186b57f137078923844` |
-| Evidence SHA | `PENDING_EVIDENCE` |
+| Evidence SHA | `eaf84a83214cdbefa727e594e6cd7287a2df28df` |
 | Tip SHA | `PENDING_TIP` |
 | Prior functional | `906e12e31e10c5b7d5bb517b83623b9d16a5b6c7` |
 | Prior evidence | `f4ffacd6397a192872cba22d98f79d56c530dcea` |

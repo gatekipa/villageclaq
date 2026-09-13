@@ -1,6 +1,8 @@
 # M3 F3 Forward Implementation Summary — 2026-09-13 (runner-fidelity / local-safety)
 
-**OVERALL VERDICT: HOLD — MANAGEMENT API VERSION UNRECOVERABLE — 00118–00123 SQL bytes unchanged. Local remediable gates remain green. REMEDIATION PASS is NOT claimed.**
+**OVERALL VERDICT: BLOCKED — db push qualification candidate hosted sequence NOT RUN (password absent on this VM). Management API `{query,name}` remains PERMANENTLY DISQUALIFIED (HOLD — MANAGEMENT API VERSION UNRECOVERABLE). Candidate `--db-url` is the Chief-proven session-mode pooler form after direct-host IPv6 failure. 00118–00123 SQL bytes unchanged. Local remediable gates remain green (`test:f3` 988/988). FILE-BASED RUNNER QUALIFICATION PASS and production approval are NOT claimed.**
+
+Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `f6acf177e11b618fce1d5bc4086f19f78af3ffac`.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 
@@ -18,8 +20,9 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 |-----|-------|
 | Base main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
-| **Functional SHA** | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` |
-| Evidence | `docs/evidence/M3_F3_MANAGEMENT_API_LIVE_PROBE_HOLD_20260913.md` |
+| **db push functional SHA** | `f6acf177e11b618fce1d5bc4086f19f78af3ffac` |
+| Prior MAPI-era functional | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` |
+| Evidence | `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md` |
 | Superseded scaffolding evidence | `74e001eb2fd336924497b45f8db243da1f672f2c` / `M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md` |
 | Prior Path B functional | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
 | Path B leftover-stamp | `3663e33b4dee8fbc97491f0dffe474c805c37113` |
@@ -50,10 +53,11 @@ See `M3_F3_RUNNER_CONTRACT_S0_M2_20260913.md` for proven-vs-UNPROVEN runner fact
 | Local two-phase failure+repair (NON-API simulation) | **9/9 PASS** |
 | SQL pre-commit atomicity | **14/14 PASS** |
 | Recognition direct | **40/40 PASS** |
-| Combined `npm run test:f3` | **962/962 PASS** |
+| Combined `npm run test:f3` | **988/988 PASS** |
+| db push harness (local) | **26/26 PASS** |
 | Management API harness (local) | **22/22 PASS** |
 | `test:m2` | **111/111 PASS** |
-| Cut 1 / Cut 2 / Cut 3 storage | **11/11 / 21/21 / 11/11 PASS** |
+| Cut 1 / Cut 2 / Cut 3 storage | **11/11 / 20/20 / 11/11 PASS** |
 | `tsc --noEmit` | **PASS** |
 | `npm run build` | **PASS** (dummy non-prod env) |
 | Remote Management API fidelity | **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** |

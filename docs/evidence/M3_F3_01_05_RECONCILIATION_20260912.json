@@ -1,0 +1,243 @@
+{
+  "artifact": "M3_F3_01_05_RECONCILIATION_20260912",
+  "date": "2026-09-12",
+  "classification_vocab": [
+    "VALID AS-IS",
+    "VALID WITH COMPATIBILITY ADAPTATION",
+    "SUPERSEDED",
+    "SECURITY CONFLICT",
+    "SCHEMA COLLISION",
+    "PRD CONFLICT",
+    "CANNOT CONFIRM"
+  ],
+  "overall": "No F3-01..05 artifact is VALID AS-IS as a file to apply on current main. Contracts remain frozen. Carry via Strategy C new forward migrations after 00117.",
+  "tickets": [
+    {
+      "ticket": "F3-01",
+      "title": "Core ledger security foundation",
+      "old_pr": 61,
+      "old_head": "bc449bef9eef25aaa6ff189f8eb6bad8c96f8475",
+      "old_migration": "20260908154824_f3_core_ledger_foundation.sql",
+      "sha256": "51c5ba071a8f978c60e97356058e2bf4a2ed637aca1b06629913b0361af14103",
+      "historical_db": "43/43",
+      "classification": "VALID WITH COMPATIBILITY ADAPTATION",
+      "pieces": [
+        {
+          "piece": "Tables financial_accounts/funds/categories/events/postings + enums + composite FKs",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "Matches F2 object model. Depends on financial_ledger_epochs from P0 which is absent on main. New sequential filename required."
+        },
+        {
+          "piece": "Deny-by-default RLS + manager/reader policies",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "Uses financial_core.can_* which already require membership_status=active AND has_group_permission."
+        },
+        {
+          "piece": "assert_finances_manage / lock_financial_occurrence",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "P1-B lock hook must exist before F3-02. Keep signature; re-host after epoch adapt."
+        },
+        {
+          "piece": "memberships UNIQUE (id, group_id) / projects UNIQUE (id, group_id)",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "Needed for composite FKs. Main has memberships_user_group_unique (user_id, group_id) only. Prove add UNIQUE (id, group_id) on live shape before apply."
+        },
+        {
+          "piece": "Posting command body",
+          "class": "VALID AS-IS",
+          "why": "Correctly ABSENT in F3-01 (out of scope)."
+        }
+      ],
+      "cut1": "SAFER OR UNCHANGED — double active gate",
+      "notifications": "none",
+      "m2": "none"
+    },
+    {
+      "ticket": "F3-02",
+      "title": "Secure posting + idempotency",
+      "old_pr": 62,
+      "old_head": "4570deff65404bd95fdb5d6c403209131fc62b44",
+      "old_migration": "20260908215831_f3_secure_posting_idempotency.sql",
+      "sha256": "9a4a53b7abb838b660198569a42fcfc8ac6ad606e8aeb7374451959fac8ae063",
+      "git_blob": "7b3644d18f14e85d2d5727c8e8bf1b24c9f9b034",
+      "historical_oracle": "167/167",
+      "historical_db": "158/158",
+      "classification": "VALID WITH COMPATIBILITY ADAPTATION",
+      "public_rpc": "public.post_financial_command(p_command jsonb) RETURNS jsonb",
+      "private_rpc": "financial_core.post_f3_command(p_command jsonb, p_opening jsonb DEFAULT NULL) RETURNS jsonb",
+      "grants": {
+        "post_financial_command": "authenticated EXECUTE only; PUBLIC/anon/service_role revoked",
+        "post_f3_command": "REVOKE ALL — no authenticated/anon/service_role EXECUTE"
+      },
+      "pieces": [
+        {
+          "piece": "Idempotent ship (request_id + occurrence unique + fingerprint)",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "P1-B contract intact. Must not split RPC from idempotency."
+        },
+        {
+          "piece": "Opening rejected on public RPC (p_opening NULL)",
+          "class": "VALID AS-IS",
+          "why": "Correct boundary; F3-05 owns opening envelope."
+        },
+        {
+          "piece": "Authz before history disclosure + lock-wait recheck",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "Uses assert_finances_manage; Cut 1 strengthens helper."
+        },
+        {
+          "piece": "Notification / queue I/O",
+          "class": "VALID AS-IS",
+          "why": "Absent — required money/notification separation."
+        }
+      ]
+    },
+    {
+      "ticket": "F3-03",
+      "title": "Projection / read proof",
+      "old_pr": 63,
+      "old_head": "347e493fde799bdb822e1127e7ae7ae7c5683668",
+      "old_migration": "20260909022633_f3_projection_read_proof.sql",
+      "sha256": "a89e4ee9a12223be8eafd65d0fa1822fee2d69056fead7f99418079d4e2fce6e",
+      "historical_oracle": "80/80",
+      "historical_db": "25/25",
+      "classification": "VALID WITH COMPATIBILITY ADAPTATION",
+      "public_rpcs": [
+        "public.get_financial_projection_bundle(p_group_id uuid, p_from timestamptz, p_to timestamptz, p_as_of_exclusive timestamptz DEFAULT NULL) RETURNS jsonb",
+        "public.get_financial_cashbook(p_group_id uuid, p_from timestamptz, p_to timestamptz, p_account_id uuid, p_currency text, p_offset integer DEFAULT 0, p_limit integer DEFAULT 100) RETURNS jsonb"
+      ],
+      "pieces": [
+        {
+          "piece": "Revoke authenticated SELECT on financial_events/postings",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "RPC-only read boundary. Keep on forward port."
+        },
+        {
+          "piece": "SoA-lite invariants (transfers excluded; opening excluded from period income; correction inclusion R1)",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION",
+          "why": "Matches D-002 / Rev 2. Must be re-proven on current-main floor — do not assume historical 80/80."
+        },
+        {
+          "piece": "Hard gate for F3-07",
+          "class": "VALID AS-IS",
+          "why": "F3 freeze Slice 7 cannot start until Slice 3 passes."
+        }
+      ]
+    },
+    {
+      "ticket": "F3-04",
+      "title": "Correction / reversal",
+      "old_pr": 64,
+      "old_head": "86d8ce351d95d44672b1e7e3131200166b88c5d2",
+      "old_migration": "20260909054500_f3_correction_reversal.sql",
+      "sha256": "e237f21fbfad2a4c34be68a7c7ad0ad1b51328ed46d02fb75e393b45de92541f",
+      "historical_oracle": "168/168",
+      "historical_db": "23/23",
+      "classification": "VALID WITH COMPATIBILITY ADAPTATION",
+      "public_rpc": "public.correct_financial_event(p_command jsonb) RETURNS jsonb",
+      "arithmetic": "+500 - 500 + 450 = 450 (original + reversal + replacement all included)",
+      "pieces": [
+        {
+          "piece": "Append-only correction lineage",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION"
+        },
+        {
+          "piece": "No client UPDATE of posted rows",
+          "class": "VALID AS-IS"
+        }
+      ]
+    },
+    {
+      "ticket": "F3-05",
+      "title": "Opening cash command",
+      "old_pr": 65,
+      "old_head": "c7b4cd535d7125737eab2ec0fad27cae9432e8c3",
+      "old_migration": "20260910054713_f3_opening_cash.sql",
+      "sha256": "2c0134dc5f10cd8609fb46a114e3b34d8ac8063136211551ca40173d7568aaae",
+      "historical_oracle": "118/118",
+      "historical_db": "31/31",
+      "classification": "VALID WITH COMPATIBILITY ADAPTATION",
+      "prd_ux": "PRD CONFLICT — D-007 hides opening creation from F3-07 until remediation path qualified",
+      "public_rpc": "public.post_financial_opening_cash(p_command jsonb) RETURNS jsonb",
+      "pieces": [
+        {
+          "piece": "Custody + opening-position; not period income",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION"
+        },
+        {
+          "piece": "Delegates economics to post_f3_command opening envelope",
+          "class": "VALID WITH COMPATIBILITY ADAPTATION"
+        },
+        {
+          "piece": "End-user opening UX",
+          "class": "PRD CONFLICT",
+          "why": "Master PRD D-007. Command may exist; F3-07 must not expose create-opening."
+        }
+      ]
+    }
+  ],
+  "pre_f3_on_old_line": [
+    {
+      "ticket": "P0-epochs",
+      "classification": "VALID WITH COMPATIBILITY ADAPTATION",
+      "why": "F3-01 composite FKs need ledger epochs. Replay of request/execute_member_transfer replacements needs S0-008 / Cut 1 review. New forward file, not timestamp replay."
+    },
+    {
+      "ticket": "P1-payment-integrity",
+      "classification": "SCHEMA COLLISION",
+      "secondary": ["SUPERSEDED"],
+      "why": "Drops on_payment_recorded / on_payment_changed (fights 00104). Adds storage RESTRICTIVE financial_receipt_* (fights 00116). apply_payment_command is not F3-01..05. DO NOT REPLAY."
+    },
+    {
+      "ticket": "standing-confirmed-basis",
+      "classification": "VALID WITH COMPATIBILITY ADAPTATION",
+      "secondary": ["SUPERSEDED"],
+      "why": "Replaces compute_member_standing / recalculate_membership_standing. App money.ts already confirmed-basis. Re-prove gap vs 00101+00104 before replacing bodies."
+    }
+  ],
+  "r10_cut1": {
+    "verdict": "SAFER OR UNCHANGED",
+    "weaker": false,
+    "rule": "F3 must CALL has_group_permission; never CREATE OR REPLACE it; 00114/00117 pin body+ACL",
+    "prod_observed": {
+      "identity": "(gid uuid, perm_key text, uid uuid)",
+      "security_definer": true,
+      "owner": "postgres",
+      "search_path": "",
+      "source_default": "uid uuid DEFAULT auth.uid() in 00114 — 2-arg RLS calls are the same overload, not a second function"
+    },
+    "two_arg_reconciliation": {
+      "app_ts_calls": "NONE in src/",
+      "sql_two_arg_examples": [
+        "00117 M2 RLS: has_group_permission(group_id, 'settings.manage')",
+        "00116 Cut 3: has_group_permission(v_gid, 'finances.record'|'finances.manage'|...)",
+        "00113/00075/00074/00073/00072 RLS and RPCs"
+      ],
+      "safe_iff": "DEFAULT auth.uid() remains on the single 3-arg function",
+      "forward_ban": "Do not add has_group_permission(uuid, text) as a separate overload. Old F3 3-arg explicit-uid calls stay preferred."
+    }
+  },
+  "r11_m2": {
+    "verdict": "PASS_ISOLATED",
+    "f3_creates_policy_tables": false,
+    "f3_enqueues": false,
+    "f3_sends": false,
+    "prod_rows_chief_live": { "policies": 0, "triggers": 0, "occurrences": 0 }
+  },
+  "prod_f3_objects_chief_live": {
+    "tables": "NULL/ABSENT",
+    "rpcs": { "post_financial_command": 0, "post_opening_cash": 0, "reverse_financial_event": 0 }
+  },
+  "r12_money_notification": {
+    "verdict": "PASS",
+    "f3_rpc_notification_io": false,
+    "trusted_cut2_only": true
+  },
+  "r13_cash_basis": {
+    "authority": [
+      "F2 §5 / §5.1 / §18.1 @ a13b5e6c482e5e68ba2c92c41ae14b411668ae88",
+      "PRD D-002 + Security Revision 2 F4-002"
+    ],
+    "implemented_on_main": false
+  }
+}

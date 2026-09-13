@@ -1,0 +1,72 @@
+{
+  "artifact": "M3_F3_00057_TRANSFORM_HOLD_20260913",
+  "verdict": "HOLD",
+  "do_not_convert_to_pass": true,
+  "file_based_runner_qualification": "HOLD",
+  "production_approval_claimed": false,
+  "hosted_db_push_pass_claimed": false,
+  "hosted_floor_db_push": "NOT_STARTED",
+  "wipe": "SUCCESS_PRIOR",
+  "disposable_state": "CLEAN_BASELINE",
+  "do_not_re_wipe": true,
+  "functional_sha": "9cd4971387fae68fb52f308b43e2e0c245b028c4",
+  "evidence_sha": null,
+  "tip_sha": null,
+  "starting_ref": "79e60d9212fcd99f93cc3db0b11c8084316838a7",
+  "prior_functional": "a0d60f1a3c3ad6fa57629f5cd7c0d544c80c962a",
+  "prior_evidence": "6b9cb05cea817c7d34db43ae71812bfec5b1a7d7",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "pr84": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/84",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "authoritative"
+  },
+  "pr85": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/85",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "companion",
+    "do_not_close": true
+  },
+  "pr86": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/86",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "companion",
+    "do_not_close": true
+  },
+  "production_ref_contacted": false,
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "recognition": ["manual_income"],
+  "unnest_inventory": {
+    "00030": 14,
+    "00057": 1,
+    "00048": "comment-only"
+  },
+  "local_00030_transform": {
+    "result": "PASS",
+    "original_sha256": "366ee277f8d659d4194340ebbcb93f4191e0ee64820d391999938596474f669f",
+    "transformed_sha256": "f4223e8a33f6b9dc367057ca638ae52d795b01a6796325f760db6f63849854e5",
+    "count": 14,
+    "shim": false
+  },
+  "local_00057_transform": {
+    "result": "PASS_APPLY",
+    "original_without_shim": "FAIL_EXPECTED",
+    "original_sha256": "85355a3808b6aa14362d0017272d5e1f3a82ed2e0179e717248a2d6b0d721cdc",
+    "transformed_sha256": "2a3c468537539bd45b0b285ece4e7bfe5204b898c9148345e1b88a43554dcf4d",
+    "count": 1,
+    "shim": false
+  },
+  "local_through_00117": {
+    "result": "HOLD",
+    "failedAt": "00061_batch3_fixes.sql",
+    "error": "cannot change name of input parameter \"p_group_id\"",
+    "function": "is_group_admin_or_owner(uuid)"
+  },
+  "shim_created": false,
+  "repo_00030_modified": false,
+  "repo_00057_modified": false,
+  "f3_00118_00123_modified": false,
+  "founder_auth_needed": "00061 is_group_admin_or_owner param-rename or other later floor defects; no further replay exceptions without new auth",
+  "local_harness": "44/44 transform+scan+db-push unit tests",
+  "merge_deploy": "DO NOT MERGE / DO NOT DEPLOY"
+}

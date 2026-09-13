@@ -1,8 +1,8 @@
 # M3 F3 Forward Implementation Summary — 2026-09-13 (runner-fidelity / local-safety)
 
-**OVERALL VERDICT: HOLD.** Chief wipe **SUCCESS** — disposable `jkorwnwwmdeflfntxntl` is **CLEAN baseline** (do not re-floor). Local 00030 exact-14 transform **PASS** without shim. Full local floor through 00117 **HOLD** at `00057_profiles_rls_allow_co_members.sql` (unnest count=1 outside authorized 00030 transform). Hosted floor / db-push **NOT STARTED**. No shim. Repo 00030 / 00118–00123 unmodified. No further replay exceptions without new founder auth. FILE-BASED RUNNER QUALIFICATION PASS and production approval are **NOT** claimed.
+**OVERALL VERDICT: HOLD.** Founder 00057 ephemeral transform authorized and applied locally. Disposable `jkorwnwwmdeflfntxntl` remains **CLEAN baseline** (do not re-wipe). Local 00030 exact-14 + 00057 exact-1 transforms **PASS** without shim. Full local floor through 00117 **HOLD** at `00061_batch3_fixes.sql` (`is_group_admin_or_owner` cannot rename input parameter `p_group_id`). Hosted floor / db-push **NOT STARTED**. No shim. Repo 00030 / 00057 / 00118–00123 unmodified. No further replay exceptions without new founder auth. FILE-BASED RUNNER QUALIFICATION PASS and production approval are **NOT** claimed.
 
-Current status: `docs/evidence/M3_F3_WIPE_TRANSFORM_HOLD_20260913.md`. Functional SHA `a0d60f1a3c3ad6fa57629f5cd7c0d544c80c962a`. Prior PARTIAL-floor HOLD (do not delete): `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Pre-wipe inventory preserved as 02-*; wipe SUCCESS as 03-*.
+Current status: `docs/evidence/M3_F3_00057_TRANSFORM_HOLD_20260913.md`. Functional SHA `9cd4971387fae68fb52f308b43e2e0c245b028c4`. Prior wipe/00057-unnest HOLD (do not delete): `docs/evidence/M3_F3_WIPE_TRANSFORM_HOLD_20260913.md`. Prior PARTIAL-floor HOLD: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 

@@ -1,0 +1,188 @@
+{
+  "artifact": "M3_F3_LOCAL_TRANSFORMED_FLOOR_PROOF_00057_20260913",
+  "hosted": "NOT_RUN",
+  "productionContacted": false,
+  "repo00030Modified": false,
+  "repo00057Modified": false,
+  "shimOnHostedPath": false,
+  "recognition": [
+    "manual_income"
+  ],
+  "original00030Sha256": "366ee277f8d659d4194340ebbcb93f4191e0ee64820d391999938596474f669f",
+  "transformed00030Sha256": "f4223e8a33f6b9dc367057ca638ae52d795b01a6796325f760db6f63849854e5",
+  "original00057Sha256": "85355a3808b6aa14362d0017272d5e1f3a82ed2e0179e717248a2d6b0d721cdc",
+  "transformed00057Sha256": "2a3c468537539bd45b0b285ece4e7bfe5204b898c9148345e1b88a43554dcf4d",
+  "remainingUnnestAfter00030": [
+    {
+      "file": "00057_profiles_rls_allow_co_members.sql",
+      "count": 1
+    }
+  ],
+  "remainingUnnestAfterAuthorizedTransforms": [],
+  "authorizedUnnestInventory": {
+    "ok": true,
+    "executable": [
+      {
+        "file": "00030_enterprise_branches_committees.sql",
+        "count": 14,
+        "raw": 14
+      },
+      {
+        "file": "00057_profiles_rls_allow_co_members.sql",
+        "count": 1,
+        "raw": 1
+      }
+    ],
+    "commentOnly": [
+      {
+        "file": "00048_rls_security_audit_fixes.sql",
+        "raw": 1,
+        "count": 0
+      }
+    ],
+    "authorized": {
+      "00030_enterprise_branches_committees.sql": 14,
+      "00057_profiles_rls_allow_co_members.sql": 1
+    }
+  },
+  "phases": {
+    "apply00001_00029": {
+      "ok": true,
+      "failedAt": null,
+      "stepCount": 30
+    },
+    "original00030WithoutShim": {
+      "ok": false,
+      "expectedFail": true,
+      "errorSample": "/workspace/supabase/migrations/00030_enterprise_branches_committees.sql failed:\npsql:/workspace/supabase/migrations/00030_enterprise_branches_committees.sql:45: ERROR:  function unnest(uuid) does not exist\nHINT:  No function matches the given name and argument types. You might need to add explicit type casts.\n"
+    },
+    "hostedBootstrap": {
+      "ok": true,
+      "unnestUuidShim": false,
+      "localWipeSkipped": true,
+      "note": "recreated clean local f3_* work DB; hosted disposable remains CLEAN and is not wiped"
+    },
+    "transformedReplayThrough00056": {
+      "ok": true,
+      "failedAt": null,
+      "transform00030": {
+        "originalDigest": "366ee277f8d659d4194340ebbcb93f4191e0ee64820d391999938596474f669f",
+        "transformedDigest": "f4223e8a33f6b9dc367057ca638ae52d795b01a6796325f760db6f63849854e5",
+        "unnestCount": 14,
+        "hunks": [
+          {
+            "line": 42,
+            "before": "      WHERE g.id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "      WHERE g.id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 54,
+            "before": "      WHERE g.id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "      WHERE g.id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 83,
+            "before": "  USING (group_id IN (SELECT unnest(get_user_group_ids())));",
+            "after": "  USING (group_id IN (SELECT get_user_group_ids()));"
+          },
+          {
+            "line": 88,
+            "before": "    group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "    group_id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 106,
+            "before": "      WHERE c.group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "      WHERE c.group_id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 115,
+            "before": "      WHERE c.group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "      WHERE c.group_id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 132,
+            "before": "  USING (group_id IN (SELECT unnest(get_user_group_ids())));",
+            "after": "  USING (group_id IN (SELECT get_user_group_ids()));"
+          },
+          {
+            "line": 136,
+            "before": "  WITH CHECK (group_id IN (SELECT unnest(get_user_group_ids())));",
+            "after": "  WITH CHECK (group_id IN (SELECT get_user_group_ids()));"
+          },
+          {
+            "line": 141,
+            "before": "    group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "    group_id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 158,
+            "before": "    (source_group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "    (source_group_id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 159,
+            "before": "     OR dest_group_id IN (SELECT unnest(get_user_group_ids())))",
+            "after": "     OR dest_group_id IN (SELECT get_user_group_ids()))"
+          },
+          {
+            "line": 171,
+            "before": "    source_group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "    source_group_id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 183,
+            "before": "    (source_group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "    (source_group_id IN (SELECT get_user_group_ids())"
+          },
+          {
+            "line": 184,
+            "before": "     OR dest_group_id IN (SELECT unnest(get_user_group_ids())))",
+            "after": "     OR dest_group_id IN (SELECT get_user_group_ids()))"
+          }
+        ],
+        "repoUnchanged": true
+      },
+      "appliedThrough": [
+        "00054_notification_prefs_rpc.sql",
+        "00055_handle_new_user_copy_phone.sql",
+        "00056_join_flow_rls_fix.sql"
+      ],
+      "stepCount": 58
+    },
+    "original00057WithoutShim": {
+      "file": "00057_profiles_rls_allow_co_members.sql",
+      "count": 1,
+      "ok": false,
+      "expectedFail": true,
+      "errorSample": "/workspace/supabase/migrations/00057_profiles_rls_allow_co_members.sql failed:\npsql:/workspace/supabase/migrations/00057_profiles_rls_allow_co_members.sql:25: NOTICE:  policy \"Users can view own profile\" for relation \"public.profiles\" does not exist, skipping\npsql:/workspace/supabase/migrations/00057_profiles_rls_allow_co_members.sql:26: NOTICE:  policy \"profiles_select\" for relation \"public.profiles\" does not exist, skipping\npsql:/workspace/supabase/migrations/00057_profiles_rls_allow_co_members.sql:47: ERROR:  function unnest(uuid) does not exist\nHINT:  No function matches the given name and argument types. You might need to add explicit type casts.\n"
+    },
+    "transformedReplay00057Through00117": {
+      "ok": false,
+      "failedAt": "00061_batch3_fixes.sql",
+      "errorSample": "/workspace/supabase/migrations/00061_batch3_fixes.sql failed:\npsql:/workspace/supabase/migrations/00061_batch3_fixes.sql:66: ERROR:  cannot change name of input parameter \"p_group_id\"\nHINT:  Use DROP FUNCTION is_group_admin_or_owner(uuid) first.\n",
+      "transform00057": {
+        "originalDigest": "85355a3808b6aa14362d0017272d5e1f3a82ed2e0179e717248a2d6b0d721cdc",
+        "transformedDigest": "2a3c468537539bd45b0b285ece4e7bfe5204b898c9148345e1b88a43554dcf4d",
+        "unnestCount": 1,
+        "hunks": [
+          {
+            "line": 45,
+            "before": "        AND m.group_id IN (SELECT unnest(get_user_group_ids()))",
+            "after": "        AND m.group_id IN (SELECT get_user_group_ids())"
+          }
+        ],
+        "repoUnchanged": true
+      },
+      "appliedThrough": [
+        "00058_join_approval.sql",
+        "00059_settings_fixes.sql",
+        "00060_constitution_tables.sql"
+      ],
+      "stepCount": 5
+    }
+  },
+  "verdict": "HOLD",
+  "reason": "HOLD: transformed 00057 applied; later floor file failed at 00061_batch3_fixes.sql",
+  "error": "HOLD: transformed 00057 applied; later floor file failed at 00061_batch3_fixes.sql"
+}

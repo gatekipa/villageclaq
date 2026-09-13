@@ -74,7 +74,7 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 | Pin | Value |
 |-----|-------|
 | Functional SHA | `e13e9108db9162981d4c5395be8d8514345b3363` |
-| Evidence SHA | PENDING |
+| Evidence SHA | `d313456fc685163c369c059eb42086c15c5b630f` |
 | Tip SHA | PENDING |
 | Prior functional | `62c4569586a8531d005cde16e36f43a8bb1fd1ff` |
 | Prior evidence | `312452b8c1dd31afbad0687c2425cfd81a9509e3` |

@@ -1,6 +1,7 @@
 {
   "artifact": "M3_F3_STUB_LIVE_PIN_FLOOR_20260913",
   "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "label_short": "DOCUMENTED QUALIFICATION FIXTURE — NOT CLEAN 00001–00117 / NOT PRODUCTION-EQUIVALENT",
   "verdict": "LOCAL COMPOSITION PASS — HOSTED NOT_RUN",
   "do_not_convert_to_production_pass": true,
   "do_not_claim_clean_replay_pass": true,
@@ -14,12 +15,29 @@
   "wipe": "FORBIDDEN_FOR_THIS_AUTH",
   "disposable_state": "CLEAN_BASELINE",
   "do_not_re_wipe": true,
-  "functional_sha": "906e12e31e10c5b7d5bb517b83623b9d16a5b6c7",
-  "evidence_sha": "f4ffacd6397a192872cba22d98f79d56c530dcea",
-  "tip_sha": "09f840fcfce1d300d9a534b1c0bf9d63c41c5165",
-  "prior_functional": "9cd4971387fae68fb52f308b43e2e0c245b028c4",
-  "prior_evidence": "28cbe2ab9f3254f1970f11b7776de4241c0099b1",
-  "prior_tip": "af2b9b632e61dc039f6434b6ae6fd46a96cc1ea0",
+  "chief_06_pre_stub_floor_clean_check": {
+    "box_artifact": "06-pre-stub-floor-clean-check",
+    "packaged_from": "Chief box 06-pre-stub-floor-clean-check.json/.md (not present on this VM; facts as Chief reported)",
+    "docs": [
+      "docs/evidence/M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913.md",
+      "docs/evidence/M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913.json"
+    ],
+    "verdict": "PASS",
+    "clean_ok": true,
+    "residuals": [],
+    "public_tables": 0,
+    "migrations": [],
+    "schema_migrations_rows": 0,
+    "f3_absent": true,
+    "matches_post_wipe_baseline": true,
+    "do_not_wipe": true
+  },
+  "functional_sha": "28cb53e87d4261b043e89186b57f137078923844",
+  "evidence_sha": "PENDING_EVIDENCE",
+  "tip_sha": "PENDING_TIP",
+  "prior_functional": "906e12e31e10c5b7d5bb517b83623b9d16a5b6c7",
+  "prior_evidence": "f4ffacd6397a192872cba22d98f79d56c530dcea",
+  "prior_tip": "a181bea463b1b7d255d70ce2b6be18522994d086",
   "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
   "main": "d83d13d4fe9915a0d1ff149ce29a53ad708c9853",
   "pr84": {

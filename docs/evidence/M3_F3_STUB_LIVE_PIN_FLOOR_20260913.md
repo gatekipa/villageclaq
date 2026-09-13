@@ -1,6 +1,6 @@
 # M3 F3 documented stub+live-pin floor — 2026-09-13
 
-**OVERALL VERDICT: local composition PASS; hosted db-push NOT RUN (no password on this VM).**
+**OVERALL VERDICT: local composition PASS; Chief 06 clean-check PASS; hosted db-push NOT RUN (no password on this VM).**
 
 Required floor label:
 
@@ -36,7 +36,7 @@ Pre-db-push gates (any miss → HOLD, no db push): HGP/enqueue MD5+ACL, queue AC
 
 | Check | Result |
 |-------|--------|
-| Unit tests `test:f3-db-push` + new stub-floor suite | **PASS** (37 + related 37) |
+| Unit tests `test:f3-db-push` (includes Chief 06 clean-check + stub+live-pin) | **PASS** (53/53) |
 | Local composition / isolated workdir / 00117 bytes | **PASS** |
 | Local PG17 apply through 00117 | **NOT_RUN** — no local PostgreSQL 17 |
 | Hosted disposable password | **absent** |
@@ -62,12 +62,12 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 
 | Pin | Value |
 |-----|-------|
-| Functional SHA | `906e12e31e10c5b7d5bb517b83623b9d16a5b6c7` |
-| Evidence SHA | `f4ffacd6397a192872cba22d98f79d56c530dcea` |
-| Tip SHA | `09f840fcfce1d300d9a534b1c0bf9d63c41c5165` |
-| Prior functional | `9cd4971387fae68fb52f308b43e2e0c245b028c4` |
-| Prior evidence | `28cbe2ab9f3254f1970f11b7776de4241c0099b1` |
-| Prior tip | `af2b9b632e61dc039f6434b6ae6fd46a96cc1ea0` |
+| Functional SHA | `28cb53e87d4261b043e89186b57f137078923844` |
+| Evidence SHA | `PENDING_EVIDENCE` |
+| Tip SHA | `PENDING_TIP` |
+| Prior functional | `906e12e31e10c5b7d5bb517b83623b9d16a5b6c7` |
+| Prior evidence | `f4ffacd6397a192872cba22d98f79d56c530dcea` |
+| Prior tip | `a181bea463b1b7d255d70ce2b6be18522994d086` |
 | PR #83 | `a293f5958b31548ccec7591b653eff2857ae9a90` unchanged |
 | Main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Disposable | `jkorwnwwmdeflfntxntl` CLEAN |

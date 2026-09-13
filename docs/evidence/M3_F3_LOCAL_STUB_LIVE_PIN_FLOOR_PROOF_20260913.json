@@ -6,9 +6,12 @@
   "productionEquivalent": false,
   "productionApproval": "NOT CLAIMED",
   "hosted": "NOT_RUN — Chief runs hosted db push",
-  "functional_sha": "906e12e31e10c5b7d5bb517b83623b9d16a5b6c7",
-  "evidence_sha": "f4ffacd6397a192872cba22d98f79d56c530dcea",
-  "tip_sha": "09f840fcfce1d300d9a534b1c0bf9d63c41c5165",
+  "functional_sha": "28cb53e87d4261b043e89186b57f137078923844",
+  "evidence_sha": "PENDING_EVIDENCE",
+  "tip_sha": "PENDING_TIP",
+  "chief_06_clean_check": "PASS — packaged as M3_F3_06_PRE_STUB_FLOOR_CLEAN_CHECK_20260913 from Chief box facts (originals not on this VM)",
+  "local_unit_tests": "53/53 PASS",
+  "qualify_without_env": "NOT_RUN exit 2",
   "composition": {
     "ok": true,
     "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
@@ -58,7 +61,37 @@
     "productionEquivalent": false,
     "invented00117History": false,
     "greenfieldDisallowed": true,
-    "transformsDisallowed": true
+    "transformsDisallowed": true,
+    "preStubFloorCleanCheck": {
+      "artifact": "06-pre-stub-floor-clean-check",
+      "clean_ok": true,
+      "residuals": [],
+      "public_tables": 0,
+      "public_tables_list": [],
+      "migrations": [],
+      "schema_migrations_rows": 0,
+      "schema_migrations_history": [],
+      "f3_absent": true,
+      "matches_post_wipe_baseline": true,
+      "do_not_wipe": true,
+      "classification_verdict": "CLEAN_BASELINE",
+      "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+      "recognition": [
+        "manual_income"
+      ],
+      "hold": null,
+      "matches_chief_06": true,
+      "chief_pin": {
+        "clean_ok": true,
+        "residuals": [],
+        "public_tables": 0,
+        "migrations": [],
+        "schema_migrations_rows": 0,
+        "f3_absent": true,
+        "matches_post_wipe_baseline": true,
+        "do_not_wipe": true
+      }
+    }
   },
   "apply": {
     "status": "NOT_RUN",

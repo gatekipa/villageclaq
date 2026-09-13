@@ -65,12 +65,12 @@ node scripts/qualify-f3-db-push-disposable.mjs --no-wipe --prep-floor --sequence
 
 | Pin | Value |
 |-----|-------|
-| Functional SHA | `bb4d76d696313f5fb4812453d8ce4fb82ab193c4` |
-| Evidence SHA | `ebeb4459f03f9dc10eff8abd7e96b1f997b2b4a6` |
-| Tip SHA | `e613244fe56c8f89a1957c063337e5c3e0fdd7a0` |
-| Prior functional | `5fe08e237870739fb9765130380afa7c6c6da605` |
-| Prior evidence | `eaf84a83214cdbefa727e594e6cd7287a2df28df` |
-| Prior tip | `da9d89c800eae0ec2adb503ac6191e3e73c205dd` |
+| Functional SHA | `30f27954507ec22a0414628943408d7be91030a1` |
+| Evidence SHA | `PENDING_EVIDENCE` |
+| Tip SHA | `PENDING_TIP` |
+| Prior functional | `bb4d76d696313f5fb4812453d8ce4fb82ab193c4` |
+| Prior evidence | `ebeb4459f03f9dc10eff8abd7e96b1f997b2b4a6` |
+| Prior tip | `f6816b7c37040a842bd62d4b666ff481f2a2bdf8` |
 | PR #83 | `a293f5958b31548ccec7591b653eff2857ae9a90` unchanged |
 | Main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |
 | Disposable | `jkorwnwwmdeflfntxntl` CLEAN |

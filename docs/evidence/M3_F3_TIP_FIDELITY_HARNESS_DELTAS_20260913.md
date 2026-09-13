@@ -33,7 +33,7 @@ Prior hosted `FILE-BASED RUNNER MECHANICS PASS — STUB/LIVE-PIN QUALIFICATION F
 | Starting functional | `d70db3e54e1992a96aae0c9eceda7f4e61f7b4a4` |
 | Starting evidence | `6ca63131f4f09002cbdadd0aca1f388b1dc01096` |
 | **Functional SHA** | `b6fadd313752ca77743f25c038041f07bdd00a7e` |
-| **Evidence SHA** | PENDING |
+| **Evidence SHA** | `45879046c8b6bd81213390cbe1563caff7e1a89a` |
 | **Tip SHA** | PENDING |
 | PR #83 | `a293f5958b31548ccec7591b653eff2857ae9a90` unchanged |
 | Main | `d83d13d4fe9915a0d1ff149ce29a53ad708c9853` |

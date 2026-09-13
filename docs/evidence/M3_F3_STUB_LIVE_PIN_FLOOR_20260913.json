@@ -35,7 +35,7 @@
   "hosted_hold_root_cause": "CLI 2.117.0 supabase db query defaulted to text table; inventoryCapture.body was a string starting with ┌; schema_migrations_present undefined → leftoverOk false → F3_PRE_STUB_FLOOR_CLEAN_CHECK_HOLD. Fix: --output-format json + inventoryFromQuery unwrap of { rows: [{ jsonb_build_object }] }; parseJsonish remains defense-in-depth.",
   "functional_sha": "bb4d76d696313f5fb4812453d8ce4fb82ab193c4",
   "evidence_sha": "ebeb4459f03f9dc10eff8abd7e96b1f997b2b4a6",
-  "tip_sha": "PENDING_TIP",
+  "tip_sha": "e613244fe56c8f89a1957c063337e5c3e0fdd7a0",
   "prior_functional": "5fe08e237870739fb9765130380afa7c6c6da605",
   "prior_evidence": "eaf84a83214cdbefa727e594e6cd7287a2df28df",
   "prior_tip": "da9d89c800eae0ec2adb503ac6191e3e73c205dd",

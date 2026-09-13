@@ -1,10 +1,10 @@
 # M3 F3 runner contract from S0/M2 evidence — 2026-09-13
 
-**Verdict: GATED SCAFFOLDING READY. Hosted Management API fidelity NOT RUN (token absent).**
+**Verdict: HOLD — MANAGEMENT API VERSION UNRECOVERABLE. REMEDIATION PASS is NOT claimed.**
 
-Founder authorized disposable `jkorwnwwmdeflfntxntl` / `villageclaq-f3-management-api-disposable-20260913`. The harness is implemented and fail-closed. This VM did **not** have `VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN`, so no hosted POST/GET was attempted.
+Founder authorized disposable `jkorwnwwmdeflfntxntl` / `villageclaq-f3-management-api-disposable-20260913`. Chief live probe: HTTP 400, history INSERT blocked, list `[]`, schema rows=0, throwaway table EXISTS, version recovery NONE. Repair forbidden. This VM did **not** re-run hosted POST/GET (token absent).
 
-Current evidence: `docs/evidence/M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md`.
+Current evidence: `docs/evidence/M3_F3_MANAGEMENT_API_LIVE_PROBE_HOLD_20260913.md`. Prior scaffolding file `M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md` is SUPERSEDED as hosted truth.
 
 This file still **supersedes** overstated Management API-equivalence and apply-time-clock claims bound to functional SHA `968660d4e079ceb6c8d081be9f985597eaed0465` and tip `3937b01bff0bc37ed4035e8f708cf10e355f3eae`. Historical `M3_F3_EXTERNAL_LEDGER_REMEDIATION_20260913.md` remains SUPERSEDED.
 
@@ -23,9 +23,10 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84
 | Planning PR #83 (unchanged) | `a293f5958b31548ccec7591b653eff2857ae9a90` |
 | Start tip | `7affd0d90763bc6fd30fee0b0d968257ec7609d2` |
 | Prior Path B functional | `1ca63d9fe0d82a74a761fb742be87642b55329d6` |
-| **NEW functional SHA** | `96bed5a4cdccb71c977536265fead8c9f28529bb` |
+| **NEW functional SHA** | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` |
 | Harness unlock | `483e47f59927a11faeef305a33570e9976f48757` |
-| Evidence artifact | `docs/evidence/M3_F3_MANAGEMENT_API_RUNNER_FIDELITY_20260913.md` |
+| Evidence artifact | `docs/evidence/M3_F3_MANAGEMENT_API_LIVE_PROBE_HOLD_20260913.md` |
+| Superseded scaffolding evidence | `74e001eb2fd336924497b45f8db243da1f672f2c` |
 | Superseded functional | `968660d4e079ceb6c8d081be9f985597eaed0465` |
 | Path B leftover-stamp | `3663e33b4dee8fbc97491f0dffe474c805c37113` |
 | Recognition | exactly `["manual_income"]` |
@@ -72,7 +73,9 @@ Caller-generated / apply-time-clock timestamps are **not** Management API behavi
 
 ### Failed-response identifier
 
-**UNKNOWN / UNPROVEN.** No captured Management API failure body in S0/M2 evidence on this branch shows a migration version. Official 200 schema is an empty object; 401/403/429/500 bodies are not captured here. Do not invent.
+S0/M2 successful applies still have **no captured failure body** on this branch. Official 200 schema is an empty object.
+
+Chief live probe 2026-09-13 on `jkorwnwwmdeflfntxntl`: HTTP 400, error mentions **history INSERT blocked**, list `[]`, `schema_migrations` rows=0, SQL committed. Recovery from response / list_migrations / schema_migrations → **NONE**. **PROVEN UNRECOVERABLE.** Verdict: **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Repair forbidden. One runner-faithful case established universal unrecoverability under history-insert failure.
 
 ### History query by name afterward
 
@@ -94,7 +97,7 @@ Cited as an example of a server-generated version recoverable by listing history
 
 Harness: **implemented and gated** for `jkorwnwwmdeflfntxntl` only.
 
-Hosted runner-faithful failure / version-provenance / repair-continuation proofs: **NOT RUN** (token absent in this VM). Local unit tests cover recovery HOLD / no clock / lookup bytes / `--help` flags. Do not claim hosted PASS. Do not claim API custom skip.
+Hosted runner-faithful history-insert failure: **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** (Chief live probe). Version provenance from response / list / schema: **NONE**. Repair+continuation: **FORBIDDEN**. Local unit tests cover that HOLD / no clock / lookup bytes / `--help` flags. Do not claim hosted PASS. Do not claim API custom skip. Do not claim 00118–00123 completed.
 
 ## Proposed smallest fail-closed runner change (NOT implemented)
 
@@ -121,7 +124,7 @@ Founder confirmed path B. This re-run used **local suites only**. No remote Supa
 
 Leftover `968660d` ledger evidence files remain stamped SUPERSEDED / WITHDRAWN / BLOCKED and must not be read as current.
 
-Current hosted status is **NOT RUN**, not Path B BLOCKED-for-lack-of-project. The disposable is named; credentials were not in this VM.
+Current hosted status is **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**, not Path B BLOCKED-for-lack-of-project and not scaffolding-ready as current hosted truth.
 
 ## Fresh local counts (Management API scaffolding; 2026-09-13T16:49Z)
 
@@ -141,16 +144,16 @@ Current hosted status is **NOT RUN**, not Path B BLOCKED-for-lack-of-project. Th
 | F3-05 DB | **31/31 PASS** |
 | F3-05 Astra | **118/118 PASS** |
 | Post-S0 regression | **14/14 PASS** |
-| Combined `npm run test:f3` | **960/960 PASS** (940 prior + 20 harness) |
-| Management API harness (local) | **20/20 PASS** |
+| Combined `npm run test:f3` | **962/962 PASS** (940 prior + 22 harness) |
+| Management API harness (local) | **22/22 PASS** |
 | `test:m2` | **111/111 PASS** |
 | M2 static | **9/9 PASS** |
 | Cut 1 static | **11/11 PASS** |
-| Cut 2 non-regression | **20/20 PASS** |
+| Cut 2 non-regression | **21/21 PASS** |
 | Cut 3 storage buckets | **11/11 PASS** |
 | `tsc --noEmit` | **PASS** |
 | `npm run build` | **PASS** (dummy `https://example.invalid.supabase.local`) |
-| Remote Management API fidelity | **NOT RUN** (token absent; harness gated) |
+| Remote Management API fidelity | **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** |
 
 PostgreSQL 17.11 local disposable. Production URL not used.
 

@@ -1,6 +1,8 @@
 # M3 F3 Management API runner-fidelity scaffolding — 2026-09-13
 
-**Verdict: GATED SCAFFOLDING READY. Hosted Management API fidelity NOT RUN in this VM.**
+**SUPERSEDED as current hosted truth.** Chief live probe on `jkorwnwwmdeflfntxntl` established **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Read `docs/evidence/M3_F3_MANAGEMENT_API_LIVE_PROBE_HOLD_20260913.md` instead. Do not claim REMEDIATION PASS. Do not claim hosted fidelity PASS.
+
+~~**Verdict: GATED SCAFFOLDING READY. Hosted Management API fidelity NOT RUN in this VM.**~~
 
 Token env `VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN` was **absent**. No hosted POST/GET against `jkorwnwwmdeflfntxntl` was attempted. Production `llbnliixczcqfftxpsmb` was not contacted.
 

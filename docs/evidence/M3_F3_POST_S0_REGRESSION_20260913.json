@@ -1,16 +1,17 @@
 {
   "artifact": "M3_F3_POST_S0_REGRESSION_20260913",
   "date": "2026-09-13",
-  "functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
   "supersedes": {
-    "artifact": "M3_F3_POST_S0_REGRESSION_20260912",
-    "old_functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
-    "old_evidence_tip": "d5c045b7c329f1e4615d6b4d071abd4b357335dc"
+    "artifact": "M3_F3_POST_S0_REGRESSION_20260913 bound to bb0c918",
+    "old_functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+    "old_evidence_tip": "a983157cbc3507f925f5889d23ac2a1be90e2a2d"
   },
   "suite": "scripts/test-financial-f3-post-s0-regression.mjs",
   "result": "14/14 PASS",
   "fresh": true,
   "static_companion": {
+    "test-financial-f3-migration-atomicity": "14/14 PASS",
     "test-m2-static-security": "9/9 PASS",
     "test-s0-cut1-active-authorization": "11/11 PASS",
     "test-storage-buckets": "11/11 PASS",

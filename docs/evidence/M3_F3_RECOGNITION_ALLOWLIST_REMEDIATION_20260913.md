@@ -21,7 +21,9 @@ This evidence tip **supersedes**:
 | Old evidence tip | `d5c045b7c329f1e4615d6b4d071abd4b357335dc` | SUPERSEDED |
 
 **NEW functional SHA:** `bb0c918201f4114303404a3498f312d9679c36cd`  
-All artifacts in this 2026-09-13 set bind to that functional SHA.
+All artifacts in this 2026-09-13 recognition set bind to that functional SHA.
+
+**SUPERSEDED as the PR #84 tip** by atomicity functional `fc3d4ff8cb59ad09abdc07033cbfd20cec75e585`. The allowlist conclusion (`manual_income` only) remains in force and was not reopened.
 
 **Prior recognition coverage claims were OVERSTATED and are superseded.**  
 `docs/evidence/M3_F3_02_RESULTS_20260912.json` claimed a recognition gate that

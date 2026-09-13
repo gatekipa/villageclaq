@@ -1,11 +1,11 @@
 {
   "artifact": "M3_F3_FCG1_READINESS_20260913",
   "date": "2026-09-13",
-  "functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
   "supersedes": {
-    "artifact": "M3_F3_FCG1_READINESS_20260912",
-    "old_functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
-    "old_evidence_tip": "d5c045b7c329f1e4615d6b4d071abd4b357335dc",
+    "artifact": "M3_F3_FCG1_READINESS_20260913 bound to bb0c918",
+    "old_functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+    "old_evidence_tip": "a983157cbc3507f925f5889d23ac2a1be90e2a2d",
     "recognition_progress_claims": "OVERSTATED — denylist default-to-income was not a fail-closed module gate"
   },
   "fcg1_closed": false,

@@ -1,12 +1,12 @@
 {
   "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260913",
   "date": "2026-09-13",
-  "functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
   "supersedes": {
-    "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260912",
-    "old_functional_sha": "a1e9311552a2698a8296e8f87eb1d000a5c259fe",
-    "old_evidence_tip": "d5c045b7c329f1e4615d6b4d071abd4b357335dc",
-    "note": "00118-00123 bytes unchanged; this remediation did not alter DEFINER SQL. Fresh post-S0 regression 14/14 re-checked live pins and authenticated truth DML deny."
+    "artifact": "M3_F3_SECURITY_FINGERPRINTS_20260913 bound to bb0c918",
+    "old_functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+    "old_evidence_tip": "a983157cbc3507f925f5889d23ac2a1be90e2a2d",
+    "note": "00118-00123 regenerated for transaction atomicity only. Fresh post-S0 regression 14/14 and atomicity 14/14 re-checked live pins, DEFINER owner/search_path, authenticated truth DML deny, and rollback fingerprints."
   },
   "disposable": {
     "postgres": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)",
@@ -22,13 +22,13 @@
     "def_md5": "695368464e97297fbf0f90ce7345162f",
     "src_md5": "96a296dfd541c7fc75ec68c4da1d92ff",
     "unchanged_by_f3": true,
-    "rechecked_20260913": true
+    "rechecked_20260913_atomicity": true
   },
   "enqueue_outbound_notification": {
     "def_md5": "dbdb16cdced6cae9cbdbfb6a6a9f421f",
     "src_md5": "3fa76af51e431ccbd31eb033dcff0b80",
     "unchanged_by_f3": true,
-    "rechecked_20260913": true
+    "rechecked_20260913_atomicity": true
   },
   "posted_truth_rls_deny_rechecked": {
     "financial_events_authenticated_insert_update_delete": false,
@@ -36,5 +36,10 @@
     "source": "scripts/test-financial-f3-post-s0-regression.mjs 14/14 PASS"
   },
   "f3_definer_owner_drift_excluding_hgp_enqueue": "",
-  "f3_queue_insert": false
+  "f3_queue_insert": false,
+  "atomicity": {
+    "suite": "scripts/test-financial-f3-migration-atomicity.mjs",
+    "result": "14/14 PASS",
+    "ledger_executed": true
+  }
 }

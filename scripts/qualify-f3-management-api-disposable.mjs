@@ -5,6 +5,9 @@
  * Requires exact approved ref + sentinel + destructive opt-in + token + identity.
  *
  * If env is absent: exit 2 NOT_RUN with a Chief runbook (no network).
+ * If a post-COMMIT history identity cannot be recovered from response /
+ * list_migrations / schema_migrations: HOLD — MANAGEMENT API VERSION UNRECOVERABLE.
+ * Do not claim custom skip unless a live re-POST observation records it.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -77,11 +80,13 @@ function chiefRunbook() {
       "node scripts/qualify-f3-management-api-disposable.mjs --prep-floor --inject-probe --apply-f3",
     ],
     limitation: FLOOR_LIMITATION,
+    holdIfUnrecoverable: "HOLD — MANAGEMENT API VERSION UNRECOVERABLE",
     bans: [
       "Do not target llbnliixczcqfftxpsmb",
       "Do not delete or pause the disposable project",
       "Do not guess / clock / nearest-match a history version",
       "Do not change 00118–00123 SQL bytes",
+      "Do not claim custom skip unless observed",
     ],
   };
 }

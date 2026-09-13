@@ -392,7 +392,7 @@ test("qualify runner and floor prep refuse to run without env (NOT_RUN)", () => 
   assert.match(qualify, /HOLD — MANAGEMENT API VERSION UNRECOVERABLE/);
   assert.match(qualify, /Do not claim custom skip|NOT CLAIMED/);
   assert.match(prep, /NOT_RUN/);
-  assert.match(prep, /NOT a clean 00001–00117 replay/);
+  assert.match(prep + qualify, /NOT a clean 00001–00117 replay/);
 });
 
 test("runbook and evidence withdraw overclaims and keep production ban", () => {

@@ -2,6 +2,7 @@
  * Chief-runnable disclosed floor install for the founder-authorized
  * disposable Management API project. Does NOT replay 00001–00116.
  * Does NOT apply 00118+. Does NOT target production.
+ * Disclosed floor is NOT a clean 00001–00117 replay.
  *
  * Requires:
  *   VILLAGECLAQ_F3_DISPOSABLE_MGMT_TOKEN

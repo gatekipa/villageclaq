@@ -136,6 +136,8 @@ export function sanitizeForLog(value, extraSecrets = []) {
       }
       if (val && typeof val === "object") {
         out[key] = redactObject(val);
+      } else if (typeof val === "boolean" || typeof val === "number") {
+        out[key] = val;
       } else {
         out[key] = sanitizeString(val == null ? val : String(val), secrets);
       }
@@ -405,18 +407,7 @@ function assertApplyBody({ query, name, rollback, ...rest }) {
   return body;
 }
 
-export async function applyRemoteManagementApiMigration(opts = {}) {
-  assertRemoteManagementApiGates({
-    projectRef: opts.projectRef,
-    sentinel: opts.sentinel,
-    optIn: opts.optIn,
-  });
-  if (opts.version != null) {
-    reject(
-      "F3_REMOTE_APPLY_BODY_REJECTED",
-      "REFUSE: caller-selected version is not accepted by Management API apply",
-    );
-  }
+async function applyRemoteManagementApiMigrationAuthorized(opts) {
   const identity = await verifyRemoteProjectIdentity({ projectRef: opts.projectRef });
   const body = assertApplyBody({
     query: opts.query,
@@ -452,7 +443,26 @@ export async function applyRemoteManagementApiMigration(opts = {}) {
   };
 }
 
-export async function applyRemoteManagementApiMigrationFromFile({
+/**
+ * Gate failures throw synchronously (fail-closed, zero fetch).
+ * Authorized calls return a Promise.
+ */
+export function applyRemoteManagementApiMigration(opts = {}) {
+  assertRemoteManagementApiGates({
+    projectRef: opts.projectRef,
+    sentinel: opts.sentinel,
+    optIn: opts.optIn,
+  });
+  if (opts.version != null) {
+    reject(
+      "F3_REMOTE_APPLY_BODY_REJECTED",
+      "REFUSE: caller-selected version is not accepted by Management API apply",
+    );
+  }
+  return applyRemoteManagementApiMigrationAuthorized(opts);
+}
+
+export function applyRemoteManagementApiMigrationFromFile({
   fileAbsPath,
   name,
   rollback,
@@ -477,12 +487,7 @@ export async function applyRemoteManagementApiMigrationFromFile({
   });
 }
 
-export async function listRemoteManagementApiMigrations(opts = {}) {
-  assertRemoteManagementApiGates({
-    projectRef: opts.projectRef,
-    sentinel: opts.sentinel,
-    optIn: opts.optIn,
-  });
+async function listRemoteManagementApiMigrationsAuthorized(opts) {
   const identity = opts.skipIdentity
     ? { ok: true, skipped: true }
     : await verifyRemoteProjectIdentity({ projectRef: opts.projectRef });
@@ -499,6 +504,15 @@ export async function listRemoteManagementApiMigrations(opts = {}) {
     identity,
     capture: captureFrom("GET", pathname, { bodyFields: [] }, response),
   };
+}
+
+export function listRemoteManagementApiMigrations(opts = {}) {
+  assertRemoteManagementApiGates({
+    projectRef: opts.projectRef,
+    sentinel: opts.sentinel,
+    optIn: opts.optIn,
+  });
+  return listRemoteManagementApiMigrationsAuthorized(opts);
 }
 
 /**

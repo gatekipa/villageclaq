@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { isRecognizedSoaIncome } from "../../../src/lib/financial-f3-recognition.ts";
 import { evaluateCommand } from "../f3-02/oracle.mjs";
 import { moneyIn, moneyOut, transfer } from "../f3-02/vectors.mjs";
 import { project, minorUnits } from "../f3-03/projection-oracle.mjs";
@@ -275,4 +276,22 @@ test("same request different valid targets serializes independently of target",(
     assert.equal(c.events.find(e=>e.id===lose).status,"posted");
     assert.equal(c.completed.length,1);
   }
+});
+test("correction_reversal is not recognized SoA income; original money_in remains allowlisted",()=>{
+  const {t,cmd,c}=fixture();
+  const plan=evaluateCorrection(cmd,c);
+  assert.equal(isRecognizedSoaIncome(t.effect_kind),true);
+  assert.equal(plan.result.reversal.effect_kind,"correction_reversal");
+  assert.equal(isRecognizedSoaIncome(plan.result.reversal.effect_kind),false);
+  assert.equal(plan.result.replacement.effect_kind,"correction_replacement");
+  assert.equal(isRecognizedSoaIncome(plan.result.replacement.effect_kind),false);
+});
+test("identical correction retry does not treat reversal as SoA income",()=>{
+  const f=fixture(),first=evaluateCorrection(f.cmd,f.c),c=commit(f.c,first);
+  const retry=evaluateCorrection(f.cmd,c);
+  assert.equal(retry.decision,"IDEMPOTENT_RETURN_EXISTING");
+  assert.equal(retry.new_event_count,0);
+  assert.equal(isRecognizedSoaIncome(retry.result.reversal.effect_kind),false);
+  assert.equal(isRecognizedSoaIncome(retry.result.replacement.effect_kind),false);
+  assert.equal(isRecognizedSoaIncome(f.t.effect_kind),true);
 });

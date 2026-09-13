@@ -389,6 +389,16 @@ test("O. authorization is rechecked after a retry waits on its identity lock",as
     if(pending) await pending;
   }
 });
+test("F3-02 stored effect_kinds are the frozen vocabulary; only manual_income is SoA income",()=>{
+  seed();
+  command(moneyIn(),fixtureContext());
+  command(moneyOut({request_id:uuid(680)}),fixtureContext());
+  command(transfer({request_id:uuid(681)}),fixtureContext());
+  const openingCtx=fixtureContext(); privateOpening(openingCtx);
+  command(opening(),openingCtx);
+  const kinds=JSON.parse(sql("SELECT jsonb_agg(effect_kind ORDER BY effect_kind) FROM public.financial_events"));
+  assert.deepEqual(kinds,["account_transfer","manual_expense","manual_income","opening_custody"]);
+});
 test("M. an existing foundation event without a command snapshot fails closed",()=>{
   seed();
   const input=moneyIn(); const expected=evaluateCommand(input,fixtureContext());

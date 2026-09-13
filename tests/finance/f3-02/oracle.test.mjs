@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { isRecognizedSoaIncome, F3_RECOGNIZED_SOA_INCOME_EFFECT_KINDS } from "../../../src/lib/financial-f3-recognition.ts";
 import { evaluateCommand, SemanticError, CURRENCY_SCALE, EFFECTS, VERSION,
   canonicalBytes, fingerprint, normalizeAmount, normalizeTimestamp, uuid as canonicalUuid } from "./oracle.mjs";
 import { ID, uuid, fixtureContext, moneyIn, transfer, opening, privateOpening,
@@ -256,4 +257,30 @@ test("fixture counts for serialized handoff", (t) => {
     valid: validVectors.length, negative: negativeVectors.length, replay: replayVectors.length,
     recognition: 4 + capabilityVectors.length, canonical_golden: golden.length,
   }));
+});
+test("SoA income allowlist is exactly manual_income for F3-02 effect kinds", () => {
+  assert.deepEqual([...F3_RECOGNIZED_SOA_INCOME_EFFECT_KINDS], ["manual_income"]);
+  assert.equal(isRecognizedSoaIncome(EFFECTS.money_in.effect_kind), true);
+  assert.equal(isRecognizedSoaIncome(EFFECTS.money_out.effect_kind), false);
+  assert.equal(isRecognizedSoaIncome(EFFECTS.transfer.effect_kind), false);
+  assert.equal(isRecognizedSoaIncome(EFFECTS.opening.effect_kind), false);
+  for (const kind of ["dues_allocation", "loan_principal_repayment", "relief_remittance",
+    "correction_reversal", "future_income_v2", "", " ", "MANUAL_INCOME"]) {
+    assert.equal(isRecognizedSoaIncome(kind), false, kind);
+  }
+});
+test("idempotent money_in retry does not invent SoA income from unknown kinds", () => {
+  const context = fixtureContext();
+  const original = evaluateCommand(moneyIn(), context);
+  assert.equal(original.recognition, "operating_income");
+  assert.equal(isRecognizedSoaIncome(original.payload.effect_kind), true);
+  context.existing = [{
+    event_id: ID.event, payload: original.payload, fingerprint: original.fingerprint,
+  }];
+  const retry = evaluateCommand(moneyIn(), context);
+  assert.equal(retry.decision, "IDEMPOTENT_RETURN_EXISTING");
+  assert.equal(retry.new_event_count, 0);
+  assert.equal(Object.hasOwn(retry, "recognition"), false);
+  assert.equal(isRecognizedSoaIncome(original.payload.effect_kind), true);
+  assert.equal(isRecognizedSoaIncome("future_income_v2"), false);
 });

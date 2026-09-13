@@ -1,0 +1,41 @@
+{
+  "artifact": "S0_C_MIGRATION_MANIFEST_20260910",
+  "generated_at_utc": "2026-09-10T18:00:00Z",
+  "pins": {
+    "production_main": "0559b758bc53df3ec8081e361ffd022c1f19be43",
+    "prd_freeze": "050be86c9df3455c66b27bb5853eb786228b4009",
+    "s0a": "97388b34037589a21eae66e3a5a1668f71e3bb55",
+    "s0b": "e1df73fd7536511fd2c062ab575eac9916fe86c7",
+    "f0": "99e17e2b4f4dc16753843f1e115312e70a8ae8ca",
+    "f3_integration": "c7b4cd535d7125737eab2ec0fad27cae9432e8c3",
+    "pr69": "a8cdeaa98e6bb9e3a6cccaf815aa4ae4441b59a7",
+    "pr70": "0f258726c9328ee0204f7b5dee9efceebe7265b9"
+  },
+  "production_applied_count": 28,
+  "repository_migration_count_main": 115,
+  "duplicate_numeric_ids": [
+    "00015",
+    "00046"
+  ],
+  "schema_fingerprint_md5": "0c39479e0b595fe5e1652169855abb96",
+  "fingerprint_scope": "public columns+constraints+functions(security/config)+policies+extensions",
+  "blank_replay": {
+    "verdict": "FAIL",
+    "engine": "postgres:17-alpine docker villageclaq-s0c-replay",
+    "first_failure": "00001_core_tables.sql",
+    "first_error": "role \"authenticated\" does not exist",
+    "continue_pass_failure_count": 14,
+    "self_aborting": [
+      "00092_membership_status_self_freeze.sql"
+    ]
+  },
+  "approved_strategy": "A+B",
+  "security_contract": "PASS_WITH_FOLLOW_UP_F1_F6",
+  "production_mutation": 0,
+  "crosswalk_classification_counts": {
+    "LEGACY-PRE-TRACKING": 73,
+    "PROD-APPLIED": 28,
+    "REPO-ONLY": 12,
+    "DORMANT": 2
+  }
+}

@@ -1,17 +1,20 @@
 /**
  * Disposable-only Management API post-COMMIT history-failure injection.
  *
- * Installs a trigger on supabase_migrations.schema_migrations that raises
- * AFTER the server assigns version+name, exposing that identity in the
- * exception (Management API response). FORBIDDEN: apply-time clock,
- * guessed / inferred / nearest timestamps.
+ * Chief live probe on jkorwnwwmdeflfntxntl (2026-09-13): BEFORE INSERT
+ * trigger raised F3_MAPI_DISPOSABLE_HISTORY_INJECT; POST migrations
+ * returned HTTP 400 mentioning history INSERT blocked; list stayed [];
+ * schema_migrations rows=0; throwaway table EXISTS. Version recovery
+ * from response / list_migrations / schema_migrations was NONE.
+ * Verdict: HOLD — MANAGEMENT API VERSION UNRECOVERABLE. Repair forbidden.
  *
- * Authoritative recovery sources only:
+ * Authoritative recovery sources only (do not invent):
  *   1) apply response body / bodyText
  *   2) GET list_migrations
  *   3) schema_migrations rows
  *
- * If none of those expose an exact version+name → HOLD.
+ * If none expose an exact version+name → HOLD. FORBIDDEN: apply-time
+ * clock, guessed / inferred / nearest timestamps.
  * Never targets production. Never mutates 00118–00123 SQL bytes.
  */
 import {
@@ -20,8 +23,43 @@ import {
   queryRemoteDisposableDatabase,
 } from "./f3-management-api-remote-harness.mjs";
 
-export const HISTORY_INJECT_MARKER = "F3_MAPI_HISTORY_INJECT";
+/** Marker observed on the Chief live disposable probe. */
+export const HISTORY_INJECT_MARKER = "F3_MAPI_DISPOSABLE_HISTORY_INJECT";
 export const PROBE_NAME = "f3_mapi_history_inject_probe";
+export const LIVE_PROBE_THROWAWAY_TABLE = "public.f3_mapi_throwaway_probe";
+
+/**
+ * Sanitized facts from Chief live probe. Do not invent extra fields.
+ * Token was never printed. Project was not deleted.
+ */
+export const CHIEF_LIVE_PROBE_20260913 = Object.freeze({
+  projectRef: "jkorwnwwmdeflfntxntl",
+  projectName: "villageclaq-f3-management-api-disposable-20260913",
+  identityHttpStatus: 200,
+  identityActiveHealthy: true,
+  notProduction: true,
+  baselineMigrations: Object.freeze([]),
+  queryHttpStatus: 201,
+  applyHttpStatus: 400,
+  applyErrorMentions: "history INSERT blocked",
+  injectMarker: HISTORY_INJECT_MARKER,
+  listAfter: Object.freeze([]),
+  schemaMigrationsRows: 0,
+  throwawayTable: LIVE_PROBE_THROWAWAY_TABLE,
+  throwawayTableExists: true,
+  sqlCommitted: true,
+  historyFailed: true,
+  recoveredVersion: null,
+  recoveredName: null,
+  verdict: "HOLD — MANAGEMENT API VERSION UNRECOVERABLE",
+  repair: "FORBIDDEN",
+  sequential00118_00123: "NOT COMPLETED",
+  limitation:
+    "one runner-faithful case established universal unrecoverability under history-insert failure",
+  poisonTriggerDropped: true,
+  throwawayTableLeftInPlace: true,
+  projectDeleted: false,
+});
 
 export const INSTALL_HISTORY_INJECT_SQL = `
 CREATE SCHEMA IF NOT EXISTS supabase_migrations;
@@ -87,7 +125,8 @@ SELECT EXISTS (
 `;
 
 const VERSION_RE = /(\d{14})/;
-const INJECT_PAIR_RE = /F3_MAPI_HISTORY_INJECT version=([0-9]{14}) name=([A-Za-z0-9_]+)/;
+const INJECT_PAIR_RE =
+  /F3_MAPI_(?:DISPOSABLE_)?HISTORY_INJECT version=([0-9]{14}) name=([A-Za-z0-9_]+)/;
 const DETAIL_PAIR_RE = /"version"\s*:\s*"([0-9]{14})"\s*,\s*"name"\s*:\s*"([A-Za-z0-9_]+)"/;
 
 export function identityKey(row) {
@@ -232,6 +271,87 @@ export function recoverServerGeneratedIdentity({
   };
 }
 
+export function historyInsertFailedBeforePersistence({
+  applyStatus,
+  applyBodyText,
+  listAfter,
+  schemaRows,
+} = {}) {
+  const text = String(applyBodyText || "");
+  const historyFailed =
+    applyStatus === 400 &&
+    (/history INSERT blocked/i.test(text) ||
+      text.includes(HISTORY_INJECT_MARKER) ||
+      /F3_MAPI_(?:DISPOSABLE_)?HISTORY_INJECT/.test(text));
+  const listEmpty = !listAfter || listAfter.length === 0;
+  const schemaEmpty = !schemaRows || schemaRows.length === 0;
+  return historyFailed && listEmpty && schemaEmpty;
+}
+
+/**
+ * Classify the Chief-observed history-insert failure.
+ *
+ * Live probe (2026-09-13): HTTP 400, error mentions "history INSERT blocked",
+ * list [], schema_migrations rows=0, throwaway table EXISTS. Recovery from
+ * response / list / schema was NONE. One runner-faithful case established
+ * universal unrecoverability under history-insert failure.
+ *
+ * Do not invent a version from that 400 body. A parser-only `version= name=`
+ * pair in exception text is NOT persistence and does NOT authorize repair.
+ */
+export function classifyHistoryInsertFailure({
+  applyStatus,
+  applyBodyText,
+  listAfter,
+  schemaRows,
+  objectExists,
+} = {}) {
+  const listEmpty = !listAfter || listAfter.length === 0;
+  const schemaEmpty = !schemaRows || schemaRows.length === 0;
+  const beforePersistence = historyInsertFailedBeforePersistence({
+    applyStatus,
+    applyBodyText,
+    listAfter,
+    schemaRows,
+  });
+  if (beforePersistence) {
+    return {
+      ok: false,
+      hold: HOLD_VERSION_UNRECOVERABLE,
+      verdict: HOLD_VERSION_UNRECOVERABLE,
+      reason: "history_insert_failed_before_version_persistence",
+      candidates: [],
+      recovered: null,
+      recoveredVersion: null,
+      recoveredName: null,
+      repairForbidden: true,
+      sqlCommitted: objectExists === true,
+      historyFailed: true,
+      limitation: CHIEF_LIVE_PROBE_20260913.limitation,
+    };
+  }
+  const recovery = recoverServerGeneratedIdentity({
+    applyResponse: { status: applyStatus, bodyText: applyBodyText },
+    listBefore: [],
+    listAfter: listAfter || [],
+    schemaRows: schemaRows || [],
+  });
+  if (!recovery.ok) {
+    return {
+      ...recovery,
+      verdict: HOLD_VERSION_UNRECOVERABLE,
+      repairForbidden: true,
+      sqlCommitted: objectExists === true,
+      historyFailed: applyStatus === 400 || /history INSERT blocked/i.test(String(applyBodyText || "")),
+      limitation:
+        objectExists === true && listEmpty && schemaEmpty
+          ? CHIEF_LIVE_PROBE_20260913.limitation
+          : null,
+    };
+  }
+  return { ...recovery, verdict: null, repairForbidden: false, sqlCommitted: objectExists === true };
+}
+
 export function refuseClockOrGuessedVersion(version, { nowMs } = {}) {
   if (version == null) return;
   if (nowMs != null) {
@@ -248,7 +368,11 @@ export function isFourteenDigitVersion(value) {
 
 export function responseLooksLikeInjectFailure(applyResult) {
   const text = `${applyResult?.bodyText || ""} ${JSON.stringify(applyResult?.body || "")}`;
-  return text.includes(HISTORY_INJECT_MARKER) || Boolean(parseIdentityFromAuthoritativeText(text));
+  return (
+    text.includes(HISTORY_INJECT_MARKER) ||
+    /history INSERT blocked/i.test(text) ||
+    Boolean(parseIdentityFromAuthoritativeText(text))
+  );
 }
 
 export async function installHistoryInject({ projectRef } = {}) {
@@ -266,6 +390,33 @@ export async function removeHistoryInject({ projectRef } = {}) {
     projectRef,
     skipIdentity: true,
   });
+}
+
+export function objectExistsFromQueryResult(result) {
+  const parsed = result?.rawParsed ?? result?.body;
+  if (parsed === true) return true;
+  if (Array.isArray(parsed)) {
+    const first = parsed[0];
+    if (first === true) return true;
+    if (first && typeof first === "object") {
+      const value = first.exists ?? first.rel ?? first.to_regclass ?? Object.values(first)[0];
+      return Boolean(value) && value !== "null" && value !== false;
+    }
+  }
+  const text = String(result?.bodyText || "");
+  if (/\btrue\b/i.test(text)) return true;
+  if (/f3_mapi_throwaway_probe|probe_commit_marker/.test(text)) return true;
+  return false;
+}
+
+export async function readProbeObjectExists({ projectRef } = {}) {
+  assertRemoteManagementApiGates({ projectRef, optIn: true });
+  const result = await queryRemoteDisposableDatabase({
+    query: PROBE_MARKER_PRESENT_SQL,
+    projectRef,
+    skipIdentity: true,
+  });
+  return { ...result, exists: objectExistsFromQueryResult(result) };
 }
 
 export async function readRemoteSchemaMigrations({ projectRef } = {}) {

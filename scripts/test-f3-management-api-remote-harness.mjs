@@ -43,7 +43,10 @@ import {
   assertFrozenDigestsOnDisk,
 } from "./lib/f3-management-api-disposable-floor.mjs";
 import {
+  CHIEF_LIVE_PROBE_20260913,
   HISTORY_INJECT_MARKER,
+  LIVE_PROBE_THROWAWAY_TABLE,
+  classifyHistoryInsertFailure,
   parseIdentityFromAuthoritativeText,
   recoverServerGeneratedIdentity,
   refuseClockOrGuessedVersion,
@@ -53,6 +56,7 @@ import {
   discoverSupabaseCli,
   nextAuthorizedFile,
   readMigrationRepairHelp,
+  refuseRepairWhenUnrecoverable,
 } from "./lib/f3-management-api-repair-continuation.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -264,6 +268,9 @@ test("list captures before/after rows from interceptor", async () => {
 });
 
 test("version recovery uses response / list / schema only and HOLDs when absent", () => {
+  // Parser capability only: an explicit version= name= pair can be extracted.
+  // The Chief live probe 400 body did NOT contain that pair. Do not treat
+  // this extract as hosted recovery or as authorization to repair.
   const fromResponse = recoverServerGeneratedIdentity({
     applyResponse: {
       bodyText: `${HISTORY_INJECT_MARKER} version=20260913181200 name=f3_mapi_history_inject_probe`,
@@ -318,6 +325,57 @@ test("version recovery uses response / list / schema only and HOLDs when absent"
 test("parseIdentityFromAuthoritativeText does not accept a bare 14-digit clock", () => {
   assert.equal(parseIdentityFromAuthoritativeText("applied at 20260913125959"), null);
   assert.equal(parseIdentityFromAuthoritativeText("nearest 20260913125958"), null);
+  assert.equal(parseIdentityFromAuthoritativeText("history INSERT blocked"), null);
+  assert.equal(parseIdentityFromAuthoritativeText("history INSERT blocked at 20260913181200"), null);
+});
+
+test("Chief live probe shape is HOLD and repair is forbidden", () => {
+  assert.equal(CHIEF_LIVE_PROBE_20260913.verdict, HOLD_VERSION_UNRECOVERABLE);
+  assert.equal(CHIEF_LIVE_PROBE_20260913.repair, "FORBIDDEN");
+  assert.equal(CHIEF_LIVE_PROBE_20260913.recoveredVersion, null);
+  assert.equal(LIVE_PROBE_THROWAWAY_TABLE, "public.f3_mapi_throwaway_probe");
+  const live = classifyHistoryInsertFailure({
+    applyStatus: 400,
+    applyBodyText: "failed to apply database migration: history INSERT blocked",
+    listAfter: [],
+    schemaRows: [],
+    objectExists: true,
+  });
+  assert.equal(live.ok, false);
+  assert.equal(live.hold, HOLD_VERSION_UNRECOVERABLE);
+  assert.equal(live.verdict, HOLD_VERSION_UNRECOVERABLE);
+  assert.equal(live.repairForbidden, true);
+  assert.equal(live.recoveredVersion, null);
+  assert.equal(live.sqlCommitted, true);
+  assert.equal(live.historyFailed, true);
+  assert.match(live.limitation, /universal unrecoverability under history-insert failure/);
+  assert.throws(
+    () => refuseRepairWhenUnrecoverable(live),
+    (err) => {
+      assert.equal(err.message, HOLD_VERSION_UNRECOVERABLE);
+      assert.equal(err.code, "F3_REMOTE_REPAIR_FORBIDDEN");
+      return true;
+    },
+  );
+});
+
+test("history INSERT blocked HOLD even if exception text has parser-only version= name= pair", () => {
+  const classified = classifyHistoryInsertFailure({
+    applyStatus: 400,
+    applyBodyText: `${HISTORY_INJECT_MARKER} version=20260913181200 name=f3_mapi_history_inject_probe; history INSERT blocked`,
+    listAfter: [],
+    schemaRows: [],
+    objectExists: true,
+  });
+  assert.equal(classified.ok, false);
+  assert.equal(classified.repairForbidden, true);
+  assert.equal(classified.recoveredVersion, null);
+  assert.equal(classified.hold, HOLD_VERSION_UNRECOVERABLE);
+  const parsed = parseIdentityFromAuthoritativeText(
+    `${HISTORY_INJECT_MARKER} version=20260913181200 name=f3_mapi_history_inject_probe`,
+  );
+  assert.equal(parsed.version, "20260913181200");
+  assert.equal(parsed.source, "response");
 });
 
 test("refuseClockOrGuessedVersion rejects apply-time clock usage", () => {
@@ -391,6 +449,8 @@ test("qualify runner and floor prep refuse to run without env (NOT_RUN)", () => 
   assert.match(qualify, /NOT_RUN/);
   assert.match(qualify, /HOLD — MANAGEMENT API VERSION UNRECOVERABLE/);
   assert.match(qualify, /Do not claim custom skip|NOT CLAIMED/);
+  assert.match(qualify, /repairForbidden|FORBIDDEN/);
+  assert.match(qualify, /universal unrecoverability under history-insert failure/);
   assert.match(prep, /NOT_RUN/);
   assert.match(prep + qualify, /NOT a clean 00001–00117 replay/);
 });
@@ -401,8 +461,11 @@ test("runbook and evidence withdraw overclaims and keep production ban", () => {
     "utf8",
   );
   assert.match(runbook, /NEVER automatic/);
-  assert.match(runbook, /HOLD — MANAGEMENT API VERSION UNRECOVERABLE|UNRECOVERABLE/);
+  assert.match(runbook, /HOLD — MANAGEMENT API VERSION UNRECOVERABLE/);
   assert.match(runbook, /jkorwnwwmdeflfntxntl/);
   assert.match(runbook, /apply-time clock/);
+  assert.match(runbook, /before version persistence/);
+  assert.match(runbook, /repair is \*\*FORBIDDEN\*\*|Repair is \*\*FORBIDDEN\*\*|repair is forbidden/i);
+  assert.match(runbook, /universal unrecoverability under history-insert failure/);
   assert.doesNotMatch(runbook, /repair 00118 /);
 });

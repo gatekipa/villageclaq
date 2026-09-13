@@ -37,7 +37,8 @@ If objects are missing, extra, owner-drifted, RLS-drifted, or SQL bytes do not m
 | Not the production apply runner | `supabase db push`, `supabase migration up` | S0/M2 |
 | History name | snake_case after stripping source `NNNNN_` prefix | S0/M2 live `name` matches filename stem |
 | History version | 14-digit `YYYYMMDDHHMMSS` **server-generated**; observed after success | live `schema_migrations` |
-| Failed-response version | **UNKNOWN / UNPROVEN** | no captured failure body in S0/M2 evidence |
+| Failed-response version (S0/M2 applies) | **UNKNOWN / UNPROVEN** for those successful applies | no captured failure body in S0/M2 evidence |
+| Failed-response version after history INSERT blocked | **PROVEN UNRECOVERABLE** | Chief live probe 2026-09-13 on `jkorwnwwmdeflfntxntl`: HTTP 400, error mentions history INSERT blocked, list `[]`, `schema_migrations` rows=0, SQL committed. Recovery from response / list_migrations / schema_migrations → **NONE**. Verdict: **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Repair forbidden. |
 | API skip-if-present | **NOT proven** | do not claim |
 
 S0/M2 mapping (source label is **not** the production history key). Versions below were observed in `schema_migrations` **after success**, not recovered from a failed apply:
@@ -65,6 +66,27 @@ The repaired version MUST come from **server identity**:
 2. `supabase_migrations.schema_migrations` read after the failed apply
 
 If the version is not present in that server identity, and the failed Management API response is not captured showing the identifier → emit **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. **STOP**. Do not repair.
+
+### History-insert failure before version persistence (Chief live probe 2026-09-13)
+
+When the history phase fails **before version persistence**, the version is **UNRECOVERABLE**. Repair is **FORBIDDEN**. Do not attempt. Do not claim.
+
+Observed on authorized disposable `jkorwnwwmdeflfntxntl` / `villageclaq-f3-management-api-disposable-20260913` (ACTIVE_HEALTHY, ≠ production):
+
+1. Identity GET 200; baseline GET migrations `[]`.
+2. POST `/database/query` works (201) for SQL.
+3. Failure injection created `schema_migrations` + BEFORE INSERT trigger raising `F3_MAPI_DISPOSABLE_HISTORY_INJECT`.
+4. POST `/database/migrations` `{query,name}` tiny SQL creating `public.f3_mapi_throwaway_probe` ending `COMMIT`.
+5. Migration POST → **HTTP 400**; error mentions **history INSERT blocked**.
+6. List still `[]`; `schema_migrations` rows=0; `to_regclass` shows the throwaway table **EXISTS**.
+7. SQL committed; history failed.
+8. Version recovery from response body / list_migrations / schema_migrations → **NONE**.
+
+**HOLD — MANAGEMENT API VERSION UNRECOVERABLE**
+
+One runner-faithful case established **universal unrecoverability under history-insert failure**. Do **not** claim full `00118`–`00123` remote apply completed. Do **not** clock, guess, or nearest-match a version. Poison trigger/function were dropped; throwaway table left; project not deleted.
+
+The next section (CLI repair after a *persisted* server identity) does **not** apply to this failure mode.
 
 Do **not** invent, guess, infer, nearest-match, or use an apply-time clock.
 
@@ -151,7 +173,11 @@ Disposable-only trigger on `supabase_migrations.schema_migrations` raises after 
 
 If those artifacts do not agree on one `YYYYMMDDHHMMSS` + name → **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**. Do not repair. Do not use an apply-time clock, guess, infer, or nearest-match.
 
-### Recoverable version → CLI repair + continuation
+### Recoverable version → CLI repair + continuation (NOT this live failure mode)
+
+**Does not apply** when history INSERT failed before version persistence. After the 2026-09-13 live probe that case is **HOLD — MANAGEMENT API VERSION UNRECOVERABLE**; repair is forbidden.
+
+This subsection remains only for a later case where list_migrations / `schema_migrations` actually persist one `YYYYMMDDHHMMSS` + name (the live history-insert failure did **not**). Until that different observation exists, do not treat the following as authorized:
 
 1. Discover `supabase --version` (do not guess).
 2. Run `supabase migration repair --help` and use only flags it shows.
@@ -160,7 +186,7 @@ If those artifacts do not agree on one `YYYYMMDDHHMMSS` + name → **HOLD — MA
 5. Verify zero catalog drift / no SQL re-exec.
 6. Continue VillageClaq Management API orchestration (next authorized file via file-stream POST). Record whether the next file advances, retries, or errors. **Do not claim API custom skip unless a live re-POST observation shows it.**
 
-CLI repair against the hosted disposable also needs `F3_DISPOSABLE_DB_URL` (never production). If that URL is absent, prepare the lookup file and stop at `REPAIR_AWAITING_DISPOSABLE_DB_URL`.
+CLI repair against the hosted disposable also needs `F3_DISPOSABLE_DB_URL` (never production). If that URL is absent, prepare the lookup file and stop at `REPAIR_AWAITING_DISPOSABLE_DB_URL`. After a HOLD for history-insert failure, do not prepare a lookup and do not set that URL.
 
 ### Chief remote execution
 

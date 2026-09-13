@@ -5,8 +5,10 @@
  * Requires exact approved ref + sentinel + destructive opt-in + token + identity.
  *
  * If env is absent: exit 2 NOT_RUN with a Chief runbook (no network).
- * If a post-COMMIT history identity cannot be recovered from response /
- * list_migrations / schema_migrations: HOLD — MANAGEMENT API VERSION UNRECOVERABLE.
+ * Chief live probe (2026-09-13): history INSERT blocked before version
+ * persistence → HOLD — MANAGEMENT API VERSION UNRECOVERABLE. Repair
+ * forbidden. Do not claim 00118–00123 completed. One runner-faithful
+ * case established universal unrecoverability under history-insert failure.
  * Do not claim custom skip unless a live re-POST observation records it.
  */
 import fs from "node:fs";
@@ -36,10 +38,13 @@ import {
   installDisclosedDisposableFloor,
 } from "./lib/f3-management-api-disposable-floor.mjs";
 import {
+  CHIEF_LIVE_PROBE_20260913,
   HISTORY_INJECT_MARKER,
   PROBE_NAME,
   PROBE_SQL,
+  classifyHistoryInsertFailure,
   installHistoryInject,
+  readProbeObjectExists,
   readRemoteSchemaMigrations,
   recoverServerGeneratedIdentity,
   removeHistoryInject,
@@ -52,6 +57,7 @@ import {
   discoverSupabaseCli,
   readAuthorizedSqlBytes,
   readMigrationRepairHelp,
+  refuseRepairWhenUnrecoverable,
   repairPreparedButNotRun,
   runDiscoveredRepair,
 } from "./lib/f3-management-api-repair-continuation.mjs";
@@ -80,13 +86,22 @@ function chiefRunbook() {
       "node scripts/qualify-f3-management-api-disposable.mjs --prep-floor --inject-probe --apply-f3",
     ],
     limitation: FLOOR_LIMITATION,
+    liveProbe: {
+      verdict: CHIEF_LIVE_PROBE_20260913.verdict,
+      repair: CHIEF_LIVE_PROBE_20260913.repair,
+      sequential00118_00123: CHIEF_LIVE_PROBE_20260913.sequential00118_00123,
+      limitation: CHIEF_LIVE_PROBE_20260913.limitation,
+    },
     holdIfUnrecoverable: "HOLD — MANAGEMENT API VERSION UNRECOVERABLE",
+    repairWhenHistoryInsertFailsBeforePersistence: "FORBIDDEN",
     bans: [
       "Do not target llbnliixczcqfftxpsmb",
       "Do not delete or pause the disposable project",
       "Do not guess / clock / nearest-match a history version",
       "Do not change 00118–00123 SQL bytes",
       "Do not claim custom skip unless observed",
+      "Do not attempt or claim repair after HOLD — MANAGEMENT API VERSION UNRECOVERABLE",
+      "Do not claim 00118–00123 remote apply completed",
     ],
   };
 }
@@ -142,6 +157,8 @@ async function main() {
       managementApiCustomSkip: "NOT CLAIMED — not observed in this runner unless a re-POST result is recorded below",
       applyTimeClock: "FORBIDDEN / NOT USED",
       cleanReplay00001_00117: false,
+      sequential00118_00123: "NOT COMPLETED unless recorded below",
+      remediationPass: "NOT CLAIMED",
     },
     cleanupRecommendation:
       "Leave disposable project jkorwnwwmdeflfntxntl in place. Do not delete or pause. Founder may later reset schema or retire the project after evidence is accepted.",
@@ -174,11 +191,19 @@ async function main() {
       const listAfter = await listRemoteManagementApiMigrations({ skipIdentity: true });
       applyProbe.capture.afterHistory = listAfter.rows;
       const schema = await readRemoteSchemaMigrations();
-      const recovery = recoverServerGeneratedIdentity({
+      const objectCheck = await readProbeObjectExists();
+      const parserOnly = recoverServerGeneratedIdentity({
         applyResponse: applyProbe,
         listBefore: listBefore.rows,
         listAfter: listAfter.rows,
         schemaRows: schema.rows,
+      });
+      const recovery = classifyHistoryInsertFailure({
+        applyStatus: applyProbe.status,
+        applyBodyText: applyProbe.bodyText,
+        listAfter: listAfter.rows,
+        schemaRows: schema.rows,
+        objectExists: objectCheck.exists,
       });
       await removeHistoryInject();
       evidence.probe = {
@@ -189,11 +214,27 @@ async function main() {
         listBefore: listBefore.rows,
         listAfter: listAfter.rows,
         schemaRows: schema.rows,
+        objectExists: objectCheck.exists,
+        parserOnlyRecovery: parserOnly.ok
+          ? { note: "parser capability only; not live persistence; does not authorize repair" }
+          : { ok: false },
       };
       evidence.recovery = recovery;
-      if (!recovery.ok) {
+      if (recovery.repairForbidden || !recovery.ok) {
         evidence.status = HOLD_VERSION_UNRECOVERABLE;
-        evidence.repair = { skipped: true, reason: HOLD_VERSION_UNRECOVERABLE };
+        evidence.historyInsertLimitation = recovery.limitation || CHIEF_LIVE_PROBE_20260913.limitation;
+        evidence.claims.sequential00118_00123 = CHIEF_LIVE_PROBE_20260913.sequential00118_00123;
+        evidence.repair = {
+          attempted: false,
+          forbidden: true,
+          skipped: true,
+          reason: HOLD_VERSION_UNRECOVERABLE,
+        };
+        try {
+          refuseRepairWhenUnrecoverable(recovery);
+        } catch (err) {
+          evidence.repair.refused = { code: err.code, message: err.message };
+        }
       } else {
         const cli = discoverSupabaseCli();
         const help = cli.available ? readMigrationRepairHelp() : { status: 1, text: "supabase CLI not available" };
@@ -204,6 +245,8 @@ async function main() {
           sqlBytes: probeBytes,
         });
         evidence.repair = {
+          attempted: false,
+          forbidden: false,
           cli,
           help: {
             status: help.status,
@@ -225,17 +268,23 @@ async function main() {
             help,
           });
         } else {
+          evidence.repair.attempted = true;
           evidence.repair.execution = runDiscoveredRepair({
             version: recovery.version,
             dbUrl: process.env[DISPOSABLE_DB_URL_ENV],
             workdir: lookup.workdir,
             help,
+            recovery,
           });
         }
       }
     }
 
-    if (args.applyF3 && evidence.status !== HOLD_VERSION_UNRECOVERABLE) {
+    if (
+      args.applyF3 &&
+      evidence.status !== HOLD_VERSION_UNRECOVERABLE &&
+      evidence.repair?.forbidden !== true
+    ) {
       if (args.injectOn00118) {
         const file = F3_FORWARD_FILES[0];
         const listBefore = await listRemoteManagementApiMigrations({ skipIdentity: true });
@@ -249,9 +298,9 @@ async function main() {
         const listAfter = await listRemoteManagementApiMigrations({ skipIdentity: true });
         apply.capture.afterHistory = listAfter.rows;
         const schema = await readRemoteSchemaMigrations();
-        const recovery = recoverServerGeneratedIdentity({
-          applyResponse: apply,
-          listBefore: listBefore.rows,
+        const recovery = classifyHistoryInsertFailure({
+          applyStatus: apply.status,
+          applyBodyText: apply.bodyText,
           listAfter: listAfter.rows,
           schemaRows: schema.rows,
         });
@@ -263,8 +312,21 @@ async function main() {
           apply: publicApply(apply),
           recovery,
         });
-        if (!recovery.ok) {
+        if (recovery.repairForbidden || !recovery.ok) {
           evidence.status = HOLD_VERSION_UNRECOVERABLE;
+          evidence.historyInsertLimitation = recovery.limitation || CHIEF_LIVE_PROBE_20260913.limitation;
+          evidence.claims.sequential00118_00123 = CHIEF_LIVE_PROBE_20260913.sequential00118_00123;
+          evidence.repair = {
+            attempted: false,
+            forbidden: true,
+            skipped: true,
+            reason: HOLD_VERSION_UNRECOVERABLE,
+          };
+          try {
+            refuseRepairWhenUnrecoverable(recovery);
+          } catch (err) {
+            evidence.repair.refused = { code: err.code, message: err.message };
+          }
         } else {
           const cli = discoverSupabaseCli();
           const help = cli.available ? readMigrationRepairHelp() : { status: 1, text: "supabase CLI not available" };
@@ -288,6 +350,7 @@ async function main() {
                   dbUrl: process.env[DISPOSABLE_DB_URL_ENV],
                   workdir: lookup.workdir,
                   help,
+                  recovery,
                 })
               : repairPreparedButNotRun({
                   version: recovery.version,
@@ -299,7 +362,7 @@ async function main() {
         }
       }
 
-      if (evidence.status !== HOLD_VERSION_UNRECOVERABLE) {
+      if (evidence.status !== HOLD_VERSION_UNRECOVERABLE && evidence.repair?.forbidden !== true) {
         for (const file of F3_FORWARD_FILES) {
           if (args.injectOn00118 && file === F3_FORWARD_FILES[0]) continue;
           const listBefore = await listRemoteManagementApiMigrations({ skipIdentity: true });
@@ -331,17 +394,25 @@ async function main() {
     }
 
     if (evidence.status === "RUNNING") {
-      const appliedOk = evidence.f3Applies.filter((row) => row.apply?.ok).length;
-      evidence.status =
-        evidence.recovery && !evidence.recovery.ok
-          ? HOLD_VERSION_UNRECOVERABLE
-          : args.applyF3 && appliedOk === 0
+      if (evidence.recovery?.repairForbidden || (evidence.recovery && !evidence.recovery.ok)) {
+        evidence.status = HOLD_VERSION_UNRECOVERABLE;
+        evidence.repair = evidence.repair || {
+          attempted: false,
+          forbidden: true,
+          skipped: true,
+          reason: HOLD_VERSION_UNRECOVERABLE,
+        };
+      } else {
+        const appliedOk = evidence.f3Applies.filter((row) => row.apply?.ok).length;
+        evidence.status =
+          args.applyF3 && appliedOk === 0
             ? "GATED_SCAFFOLDING_READY — no successful 00118–00123 apply observed"
             : args.applyF3 && appliedOk < F3_FORWARD_FILES.length
               ? "PARTIAL — not all six files advanced"
               : args.applyF3
                 ? "OBSERVED — sequential Management API applies recorded"
                 : "GATED_SCAFFOLDING_READY";
+      }
     }
   } catch (err) {
     evidence.status = err.code || "ERROR";

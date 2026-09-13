@@ -41,6 +41,7 @@ export const MANAGEMENT_API_APPLY_PATH = "/v1/projects/{ref}/database/migrations
 export const MANAGEMENT_API_LIST_PATH = "/v1/projects/{ref}/database/migrations";
 export const MANAGEMENT_API_PROJECT_PATH = "/v1/projects/{ref}";
 export const MANAGEMENT_API_QUERY_PATH = "/v1/projects/{ref}/database/query";
+/** Chief live probe: POST /database/query returned 201 for SQL. */
 export const MANAGEMENT_API_APPLY_BODY_FIELDS = Object.freeze(["query", "name", "rollback"]);
 export const MANAGEMENT_API_ACCEPTS_CALLER_VERSION = false;
 

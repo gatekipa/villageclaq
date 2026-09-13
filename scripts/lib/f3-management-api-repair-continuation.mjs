@@ -58,6 +58,17 @@ export function assertRepairHelpUsable(help) {
   return help;
 }
 
+/** Live probe: history failed before version persistence → repair is forbidden. */
+export function refuseRepairWhenUnrecoverable(recovery) {
+  if (!recovery || recovery.ok !== true || recovery.repairForbidden === true) {
+    const err = new Error(HOLD_VERSION_UNRECOVERABLE);
+    err.code = "F3_REMOTE_REPAIR_FORBIDDEN";
+    err.details = { repair: "FORBIDDEN", hold: HOLD_VERSION_UNRECOVERABLE };
+    throw err;
+  }
+  return recovery;
+}
+
 export function createAuthorizedRepairLookup({ version, name, sqlBytes, digest }) {
   if (!isFourteenDigitVersion(version)) {
     throw new Error(`${HOLD_VERSION_UNRECOVERABLE}: repair lookup refuses non-authoritative version`);
@@ -110,7 +121,8 @@ export function buildRepairCommand({ version, dbUrl, workdir, help }) {
   return { command: "supabase", args, rendered: ["supabase", ...args].join(" ") };
 }
 
-export function runDiscoveredRepair({ version, dbUrl, workdir, help }) {
+export function runDiscoveredRepair({ version, dbUrl, workdir, help, recovery }) {
+  if (recovery !== undefined) refuseRepairWhenUnrecoverable(recovery);
   const spec = buildRepairCommand({ version, dbUrl, workdir, help });
   const res = spawnSync(spec.command, spec.args, { encoding: "utf8" });
   return {

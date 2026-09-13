@@ -8,7 +8,7 @@
   "hosted": "NOT_RUN — Chief runs hosted db push",
   "functional_sha": "906e12e31e10c5b7d5bb517b83623b9d16a5b6c7",
   "evidence_sha": "f4ffacd6397a192872cba22d98f79d56c530dcea",
-  "tip_sha": "PENDING_TIP",
+  "tip_sha": "09f840fcfce1d300d9a534b1c0bf9d63c41c5165",
   "composition": {
     "ok": true,
     "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",

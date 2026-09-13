@@ -37,7 +37,7 @@ Draft PR: https://github.com/gatekipa/villageclaq/pull/84 (OPEN DRAFT UNMERGED)
 | Gate-sync fix | `96bed5a4cdccb71c977536265fead8c9f28529bb` |
 | Superseded scaffolding evidence | `74e001eb2fd336924497b45f8db243da1f672f2c` |
 | **Functional SHA** | `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` (unchanged; no functional commit this revision) |
-| **Evidence tip** | *(this commit)* |
+| **Evidence tip** | *(this counts commit; SHA filled next)* |
 | Recognition | exactly `["manual_income"]` |
 | Founder-report status | **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** |
 | Remediation PASS | **NOT CLAIMED** |
@@ -155,9 +155,9 @@ This is **docs-only proposal text**. There is **no** code path that auto-repairs
 3. Qualifier refuses repair and does not continue 00118–00123 on that HOLD.
 4. Runbook uses the exact HOLD wording and forbids repair for this failure mode.
 
-## Fresh local counts (this revision; pending until local suites finish)
+## Fresh local counts (this revision; 2026-09-13T17:18Z; PostgreSQL 17.11; CLI 2.117.0)
 
-Local remediable gates are re-run on this VM after the evidence commit. Combined founder status remains HOLD. Environmental limitation: agent VM has no disposable token → hosted re-run **NOT RUN**; Chief live probe remains authoritative hosted evidence.
+Local remediable gates remain green. Combined founder status is still HOLD. Environmental limitation: agent VM has no disposable token → hosted re-run **NOT RUN**; Chief live probe remains authoritative hosted evidence. No remote migration POST was performed.
 
 | Suite | Result |
 |-------|--------|
@@ -167,32 +167,34 @@ Local remediable gates are re-run on this VM after the evidence commit. Combined
 | Repair + continuation (hosted) | **FORBIDDEN / NOT ATTEMPTED** |
 | Sequential 00118–00123 via Management API | **NOT COMPLETED** |
 | Management API custom skip | **NOT OBSERVED — not claimed** |
-| Management API harness (local unit) | *(pending this revision)* |
-| Local disposable safety | *(pending this revision)* |
-| SQL pre-commit atomicity | *(pending this revision)* |
-| Local two-phase external-ledger (NON-API) | *(pending this revision)* |
-| Recognition | *(pending this revision)* |
-| F3-01 DB | *(pending this revision)* |
-| F3-02 DB | *(pending this revision)* |
-| F3-02 Astra | *(pending this revision)* |
-| F3-03 DB | *(pending this revision)* |
-| F3-03 Astra | *(pending this revision)* |
-| F3-04 DB | *(pending this revision)* |
-| F3-04 Astra | *(pending this revision)* |
-| F3-05 DB | *(pending this revision)* |
-| F3-05 Astra | *(pending this revision)* |
-| Post-S0 regression | *(pending this revision)* |
-| Combined `npm run test:f3` | *(pending this revision)* |
-| `test:m2` | *(pending this revision)* |
-| M2 static | *(pending this revision)* |
-| Cut 1 static | *(pending this revision)* |
-| Cut 2 non-regression | *(pending this revision)* |
-| Cut 3 storage buckets | *(pending this revision)* |
-| `tsc --noEmit` | *(pending this revision)* |
-| `npm run build` | *(pending this revision)* |
-| Qualify without env | *(pending this revision)* |
+| Management API harness (local unit) | **22/22 PASS** |
+| Local disposable safety | **45/45 PASS** |
+| SQL pre-commit atomicity | **14/14 PASS** |
+| Local two-phase external-ledger (NON-API) | **9/9 PASS** |
+| Recognition | **40/40 PASS** |
+| F3-01 DB | **43/43 PASS** |
+| F3-02 DB | **159/159 PASS** |
+| F3-02 Astra | **169/169 PASS** |
+| F3-03 DB | **25/25 PASS** |
+| F3-03 Astra | **80/80 PASS** |
+| F3-04 DB | **23/23 PASS** |
+| F3-04 Astra | **170/170 PASS** |
+| F3-05 DB | **31/31 PASS** |
+| F3-05 Astra | **118/118 PASS** |
+| Post-S0 regression | **14/14 PASS** |
+| Combined `npm run test:f3` | **962/962 PASS** |
+| `test:m2` | **111/111 PASS** |
+| M2 static | **9/9 PASS** |
+| Cut 1 static | **11/11 PASS** |
+| Cut 2 non-regression (`test:m2-cut2-nonregression`, M2-C2-01..20) | **20/20 PASS** |
+| Cut 3 storage buckets | **11/11 PASS** |
+| `tsc --noEmit` | **PASS** |
+| `npm run build` | **PASS** (dummy `https://example.invalid.supabase.local`) |
+| Qualify without env | exit 2 `NOT_RUN`; runbook HOLD + repair FORBIDDEN |
 
-Prior local counts (2026-09-13T17:03Z; PostgreSQL 17.11; CLI 2.117.0) remain historical only: harness 22/22, local safety 45/45, atomicity 14/14, external-ledger NON-API 9/9, recognition 40/40, F3-01 DB 43/43, F3-02 DB 159/159, F3-02 Astra 169/169, F3-03 DB 25/25, F3-03 Astra 80/80, F3-04 DB 23/23, F3-04 Astra 170/170, F3-05 DB 31/31, F3-05 Astra 118/118, post-S0 14/14, `test:f3` 962/962, `test:m2` 111/111, M2 static 9/9, cut1 11/11, cut2 21/21, storage 11/11, tsc PASS, build PASS.
+Digest confirmation this revision: all six `00118`–`00123` SHA-256 values **UNCHANGED**.
+
+Prior 17:03Z table listed cut2 as 21/21; this fresh run of the same npm script is **20/20** (file contains M2-C2-01..20 only). Other suite counts match the prior table.
 
 ## Frozen digests (must remain unchanged)
 
@@ -226,7 +228,7 @@ Leave disposable project `jkorwnwwmdeflfntxntl` in place. Do **not** delete or p
 
 1. `verdict` = **HOLD — MANAGEMENT API VERSION UNRECOVERABLE** (do not convert to PASS)
 2. `functional_sha` = `0c2fe83107fe440b46f978baf56ffd12db4f8cd4` (unchanged)
-3. `evidence_sha` = *(this commit; filled after push)*
+3. `evidence_sha` = *(this counts commit; SHA filled next)*
 4. `starting_ref` = `440ca02316f60750034943a479215e7b992e6c70`
 5. `prior_evidence` = `235116f9d9cb4665dd8d5385ac4b6af7ebc279f5`
 6. `pr` = **#84 OPEN DRAFT UNMERGED** (https://github.com/gatekipa/villageclaq/pull/84)
@@ -240,6 +242,6 @@ Leave disposable project `jkorwnwwmdeflfntxntl` in place. Do **not** delete or p
 14. `history_failed` = **true**; `GET …/migrations` → `[]`
 15. `poison_still_installed` = **false**; leftover objects 1–6 listed above; do not modify
 16. `hosted_rerun` = **NOT RUN** (this VM token length 0); Chief live probe remains authoritative hosted evidence
-17. `local_counts` = pending this revision (see table); prior 17:03Z counts historical only
+17. `local_counts` = harness 22/22; local safety 45/45; atomicity 14/14; external-ledger NON-API 9/9; recognition 40/40; F3-01..05 DB+Astra 43/159/169/25/80/23/170/31/118; post-S0 14/14; test:f3 962/962; m2 111/111; m2 static 9/9; cut1 11/11; cut2 20/20; storage 11/11; tsc PASS; build PASS; qualify exit 2 NOT_RUN
 18. `fail_closed_proposal` = docs-only; file-stream `{query,name}`; fail closed on non-2xx **or** missing authoritative GET version+name mapped to authorized digest; STOP HOLD; no repair; no guessed timestamps; no queue continuation; no `db push` / large-SQL MCP / caller timestamps / local two-phase as production apply
 19. `merge_deploy` = **DO NOT MERGE / DO NOT DEPLOY**; PR #83 untouched; no Astra/Daybreak contact

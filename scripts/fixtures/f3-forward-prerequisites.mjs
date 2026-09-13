@@ -46,7 +46,7 @@ CREATE SCHEMA IF NOT EXISTS auth;
 -- Hosted disposable owns schema auth; replacing auth.uid/auth.jwt there
 -- raises permission denied and ON_ERROR_STOP aborts before public.payments.
 -- Create only when missing; soft-fail GRANTs on auth only.
-DO $auth_fns$
+DO $auth_stub$
 BEGIN
   BEGIN
     IF to_regprocedure('auth.uid()') IS NULL THEN
@@ -76,11 +76,6 @@ BEGIN
     WHEN OTHERS THEN
       IF SQLERRM ILIKE '%permission denied%' THEN NULL; ELSE RAISE; END IF;
   END;
-END
-$auth_fns$;
-
-DO $auth_grants$
-BEGIN
   BEGIN
     GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
   EXCEPTION
@@ -97,7 +92,7 @@ BEGIN
       IF SQLERRM ILIKE '%permission denied%' THEN NULL; ELSE RAISE; END IF;
   END;
 END
-$auth_grants$;
+$auth_stub$;
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 

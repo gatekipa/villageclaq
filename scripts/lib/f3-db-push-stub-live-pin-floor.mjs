@@ -244,15 +244,17 @@ export function resultStderrTail(result, max = STDERR_TAIL_MAX) {
  * with status≠0 → fail closed.
  */
 export function floorApplyOk(result) {
-  if (Number(result?.status) === 0) return { ok: true, already: false, errorLines: [] };
-  const text = `${result?.stdout || ""}\n${result?.stderr || ""}`;
-  const errorLines = extractPsqlErrorLines(text);
-  if (errorLines.length === 0) {
-    return { ok: false, already: false, errorLines };
+  if (Number(result?.status) === 0) {
+    return { ok: true, already: false, errors: [], errorLines: [] };
   }
-  const allAlready = errorLines.every((line) => ALREADY_EXISTS_ERROR.test(line));
-  if (allAlready) return { ok: true, already: true, errorLines };
-  return { ok: false, already: false, errorLines };
+  const text = `${result?.stdout || ""}\n${result?.stderr || ""}`;
+  const errors = extractPsqlErrorLines(text);
+  if (errors.length === 0) {
+    return { ok: false, already: false, errors, errorLines: errors };
+  }
+  const allAlready = errors.every((line) => ALREADY_EXISTS_ERROR.test(line));
+  if (allAlready) return { ok: true, already: true, errors, errorLines: errors };
+  return { ok: false, already: false, errors, errorLines: errors };
 }
 
 export function assertIsolatedWorkdirOnlyF3Forward(workdir) {
@@ -302,6 +304,7 @@ export function installStubLivePinFloor({ workdir } = {}) {
       ok: ok.ok,
       already: ok.already,
       stderrTail: resultStderrTail(applied),
+      errors: ok.errors,
     });
     if (!ok.ok) {
       return {
@@ -339,6 +342,7 @@ export function installStubLivePinFloor({ workdir } = {}) {
     ok: ok00117.ok,
     already: ok00117.already,
     stderrTail: resultStderrTail(applied00117),
+    errors: ok00117.errors,
     sha256: file00117.sha256,
     notManagementApi: true,
     notDbPush: true,

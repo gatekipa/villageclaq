@@ -240,6 +240,7 @@ test("gated stub+live-pin install uses psql -f for all floor SQL and never write
   );
   assert.ok(result.steps.every((s) => s.runner === "gated_psql_file"));
   assert.ok(result.steps.every((s) => typeof s.stderrTail === "string"));
+  assert.ok(result.steps.every((s) => Array.isArray(s.errors)));
   assert.ok(applied.includes(FILE_00117));
   assert.equal(applied.some((n) => /00030|00057|00001/.test(n)), false);
   const mig = fs.readdirSync(path.join(isolated.workdir, "supabase", "migrations"));
@@ -464,6 +465,8 @@ test("STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails a
   assert.doesNotMatch(STUB_CORE_SQL, /^\s*CREATE OR REPLACE FUNCTION auth\.uid\s*\(/m);
   assert.doesNotMatch(STUB_CORE_SQL, /^\s*CREATE OR REPLACE FUNCTION auth\.jwt\s*\(/m);
   assert.doesNotMatch(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION auth\.(uid|jwt)\s*\(/);
+  assert.match(STUB_CORE_SQL, /DO \$auth_stub\$/);
+  assert.match(STUB_CORE_SQL, /\$auth_stub\$;/);
   assert.match(STUB_CORE_SQL, /to_regprocedure\('auth\.uid\(\)'\) IS NULL/);
   assert.match(STUB_CORE_SQL, /to_regprocedure\('auth\.jwt\(\)'\) IS NULL/);
   assert.match(STUB_CORE_SQL, /WHEN insufficient_privilege THEN NULL/);
@@ -478,6 +481,7 @@ test("floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a re
   assert.deepEqual(floorApplyOk({ status: 0, stdout: "NOTICE:  extension \"pgcrypto\" already exists, skipping\n", stderr: "" }), {
     ok: true,
     already: false,
+    errors: [],
     errorLines: [],
   });
 
@@ -489,11 +493,12 @@ test("floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a re
   const mixedOk = floorApplyOk(mixed);
   assert.equal(mixedOk.ok, false);
   assert.equal(mixedOk.already, false);
+  assert.equal(mixedOk.errors.length, 1);
   assert.equal(mixedOk.errorLines.length, 1);
-  assert.match(mixedOk.errorLines[0], /permission denied for schema auth/);
+  assert.match(mixedOk.errors[0], /permission denied for schema auth/);
   assert.deepEqual(
     extractPsqlErrorLines(`${mixed.stdout}\n${mixed.stderr}`),
-    mixedOk.errorLines,
+    mixedOk.errors,
   );
 
   const allDup = floorApplyOk({
@@ -503,7 +508,7 @@ test("floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a re
   });
   assert.equal(allDup.ok, true);
   assert.equal(allDup.already, true);
-  assert.equal(allDup.errorLines.length, 2);
+  assert.equal(allDup.errors.length, 2);
 
   const mixedDupAndReal = floorApplyOk({
     status: 3,
@@ -520,6 +525,7 @@ test("floorApplyOk uses ERROR lines only; NOTICE already-exists cannot mask a re
   });
   assert.equal(noticeOnlyNonzero.ok, false);
   assert.equal(noticeOnlyNonzero.already, false);
+  assert.deepEqual(noticeOnlyNonzero.errors, []);
   assert.deepEqual(noticeOnlyNonzero.errorLines, []);
 });
 
@@ -547,6 +553,8 @@ test("NOTICE already-exists plus auth ERROR fails stub floor and records stderrT
   assert.equal(result.steps[0].already, false);
   assert.equal(result.steps[0].status, 3);
   assert.match(result.steps[0].stderrTail, /permission denied for schema auth/);
+  assert.equal(result.steps[0].errors.length, 1);
+  assert.match(result.steps[0].errors[0], /permission denied for schema auth/);
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
 });
 

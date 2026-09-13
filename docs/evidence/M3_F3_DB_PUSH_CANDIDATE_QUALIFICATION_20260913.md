@@ -34,8 +34,8 @@ PR **#84** remains **OPEN DRAFT UNMERGED** (authoritative). Companion **#85** st
 | Hosted functional tip | `164f57949df774586155b007bf8a6c067ded4874` |
 | **Functional SHA** (unchanged) | `164f57949df774586155b007bf8a6c067ded4874` |
 | Prior superseded HOLD (`db query --file`) | `ca6df986df53c7f4ab70dc9d5f8aa8be06d72425` |
-| **Evidence SHA** | `TO_BE_FILLED` |
-| **Tip SHA** | `TO_BE_FILLED` |
+| **Evidence SHA** | `79bdf1dd55fef7ddd0dcaa2162795a801ed4e741` |
+| **Tip SHA** | `79bdf1dd55fef7ddd0dcaa2162795a801ed4e741` |
 | Recognition | exactly `["manual_income"]` |
 | Verdict | **HOLD** `F3_DBPUSH_FLOOR_HOLD` |
 | Production approval | **NOT CLAIMED** |

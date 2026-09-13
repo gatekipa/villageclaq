@@ -2,7 +2,7 @@
 
 **OVERALL VERDICT: HOLD — F3_DBPUSH_FLOOR_HOLD (exit 1) on functional tip `164f579`. Gated `psql -f` cleared the v1 db-query multi-statement defect, then failed at `00030_enterprise_branches_committees.sql`. 00118–00123 sequence NOT RUN. Disposable is PARTIAL — founder must authorize wipe/retry. `psql -f` floor is NOT the candidate runner; `db push` is candidate for 00118–00123 only and was not exercised. Management API `{query,name}` remains PERMANENTLY DISQUALIFIED. Local `test:f3` 991/991 does not override hosted HOLD. FILE-BASED RUNNER QUALIFICATION PASS and production approval are NOT claimed.**
 
-Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `164f57949df774586155b007bf8a6c067ded4874` (unchanged).
+Current candidate evidence: `docs/evidence/M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913.md`. Functional SHA `164f57949df774586155b007bf8a6c067ded4874` (unchanged). Evidence SHA `79bdf1dd55fef7ddd0dcaa2162795a801ed4e741`.
 
 This document **supersedes** the external-ledger tip bound to `968660d` / `3937b01` insofar as that tip claimed Management API equivalence or apply-time-clock recovery. The 14/14 suite remains SQL pre-commit rollback only. The local two-phase suite remains a **NON-API simulation**.
 

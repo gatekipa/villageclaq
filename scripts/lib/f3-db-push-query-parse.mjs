@@ -116,12 +116,10 @@ export function parseJsonish(text) {
 }
 
 /**
- * CLI `--output-format json` under `--workdir` may return either
- * `{ rows: [ ... ] }` or a top-level array. Treat them the same.
+ * CLI `--output-format json` envelope: `{ rows: [ { jsonb_build_object: <obj> } ] }`.
  */
 export function unwrapCliRowsEnvelope(parsed) {
-  if (Array.isArray(parsed)) return parsed;
-  if (parsed && typeof parsed === "object" && Array.isArray(parsed.rows)) {
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && Array.isArray(parsed.rows)) {
     return parsed.rows;
   }
   return parsed;
@@ -226,49 +224,4 @@ export function rowsFromQuery(result) {
     return parsed;
   }
   return [];
-}
-
-function probeCellPresent(value) {
-  if (value == null) return false;
-  const text = String(value).trim();
-  if (!text) return false;
-  if (text.toLowerCase() === "null") return false;
-  return true;
-}
-
-function firstProbeRow(parsed) {
-  if (Array.isArray(parsed) && parsed.length > 0 && parsed[0] && typeof parsed[0] === "object" && !Array.isArray(parsed[0])) {
-    return parsed[0];
-  }
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const keys = Object.keys(parsed);
-    if (keys.some((k) => /^p\d+$/.test(k) || /^to_reg/.test(k))) return parsed;
-  }
-  return null;
-}
-
-/**
- * Object-probe SELECT via `db query --output-format json` may be a
- * top-level array or `{ rows: [...] }`. All probe cells must be non-null.
- * Table/text stdout keeps the previous regex fallback.
- */
-export function objectsPresentFromProbe(result, expectedCount) {
-  const parsed = rowsFromQuery(result);
-  const row = firstProbeRow(parsed);
-  if (row) {
-    const values = Object.values(row);
-    if (!values.length) return false;
-    if (expectedCount != null && values.length < Number(expectedCount)) return false;
-    return values.every(probeCellPresent);
-  }
-
-  const text = `${result?.stdout || ""}\n${result?.stderr || ""}`;
-  if (/\bNULL\b/.test(text) && !/\bfinancial_|\bpost_financial|\bcorrect_financial/.test(text)) {
-    return false;
-  }
-  if (/\((f3_|financial_)/i.test(text)) return true;
-  if (/financial_private|financial_core|financial_ledger_epochs|financial_accounts|post_financial_command|correct_financial_event|post_financial_opening_cash/.test(text)) {
-    return /[a-z0-9_]+\.[a-z0-9_]+/.test(text) && !/\(NULL\)/.test(text);
-  }
-  return /t\b/.test(text) && !/\bf\b/.test(text);
 }

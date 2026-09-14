@@ -74,6 +74,7 @@ export const HOSTED_DEFAULT_FLOOR_MODE = FLOOR_MODES.STUB_LIVE_PIN;
 
 export const DISCLOSED_STUB_LIVE_PIN_COMPONENTS = Object.freeze([
   "STUB_CORE_SQL",
+  "public_uuid_generate_v5_wrapper",
   "REGRESSION_SLICE_SQL",
   "CUT2_QUEUE_SLICE_SQL",
   "live_has_group_permission_cut3",
@@ -141,9 +142,27 @@ export function liveEnqueueCreateSqlFrom00115() {
   return sql;
 }
 
+export const PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL = `
+-- Hosted stub/live-pin floor pin: uuid-ossp is installed in schema extensions.
+-- F3 00122 calls public.uuid_generate_v5; provide a thin public wrapper.
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
+RETURNS uuid
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+SET search_path = ''
+AS $$
+  SELECT extensions.uuid_generate_v5(namespace, name);
+$$;
+REVOKE ALL ON FUNCTION public.uuid_generate_v5(uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.uuid_generate_v5(uuid, text) TO postgres, anon, authenticated, service_role;
+`;
+
 export function stubLivePinFloorSqlSteps() {
   return [
     { id: "prerequisite_stub", basename: "floor-stub-core.sql", sql: STUB_CORE_SQL },
+    { id: "public_uuid_generate_v5_wrapper", basename: "floor-uuid-v5-wrapper.sql", sql: PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL },
     { id: "regression_slice", basename: "floor-regression-slice.sql", sql: REGRESSION_SLICE_SQL },
     { id: "cut2_queue_slice", basename: "floor-cut2-queue-slice.sql", sql: CUT2_QUEUE_SLICE_SQL },
     {

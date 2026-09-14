@@ -75,7 +75,7 @@ import {
   assertFrozenDigestsOnDisk,
   createIsolatedDbPushWorkdir,
   preassignedVersionFor,
-  stageIsolatedWorkdirTarget,
+  timestampFilenameFor,
 } from "./lib/f3-db-push-version-map.mjs";
 import {
   DROP_THROWAWAY_PROBE_SQL,
@@ -107,7 +107,6 @@ import { runGatedRemoteSqlText } from "./lib/f3-db-push-remote-sql-file.mjs";
 import { INVENTORY_CAPTURE_SQL } from "./lib/f3-db-push-inventory.mjs";
 import {
   inventoryFromQuery,
-  objectsPresentFromProbe,
   parseEvidenceOutArg,
   parseJsonish,
   rowsFromQuery,
@@ -209,6 +208,63 @@ function parseArgs(argv) {
     floorMode: parseFloorMode(argv),
     evidenceOut: parseEvidenceOutArg(argv),
   };
+}
+
+function objectsPresentFromProbe(result) {
+  // CLI 2.117.0 --output-format json may be either:
+  //   [{ p0: ..., p1: ... }]  (workdir db query path)
+  //   { advisory, rows: [...], warning } (some envelopes)
+  const stdout = String(result?.stdout || "");
+  try {
+    const parsed = JSON.parse(stdout);
+    const row = Array.isArray(parsed)
+      ? parsed[0]
+      : Array.isArray(parsed?.rows)
+        ? parsed.rows[0]
+        : null;
+    if (row && typeof row === "object") {
+      const vals = Object.values(row);
+      if (vals.length === 0) return false;
+      const present = (v) => v !== null && v !== undefined && v !== false && v !== "f" && v !== "";
+      if (vals.every(present)) return true;
+      if (vals.every((v) => !present(v))) return false;
+    }
+  } catch {
+    /* fall through */
+  }
+  const text = `${stdout}\n${result?.stderr || ""}`;
+  if (/\bNULL\b/.test(text) && !/\bfinancial_|\bpost_financial|\bcorrect_financial|\bget_financial_/.test(text)) {
+    return false;
+  }
+  if (/\((f3_|financial_)/i.test(text)) return true;
+  if (/financial_private|financial_core|financial_ledger_epochs|financial_accounts|post_financial_command|correct_financial_event|post_financial_opening_cash|get_financial_/.test(text)) {
+    return true;
+  }
+  return /\bt\b/.test(text) && !/\bf\b/.test(text);
+}
+
+
+function syncIsolatedMigrationsThrough(isolated, throughFile) {
+  const migDir = path.join(isolated.workdir, "supabase", "migrations");
+  const keep = [];
+  for (const f of F3_FORWARD_FILES) {
+    keep.push(timestampFilenameFor(f));
+    if (f === throughFile) break;
+  }
+  const keepSet = new Set(keep);
+  for (const name of fs.readdirSync(migDir)) {
+    if (!name.endsWith(".sql")) continue;
+    if (!keepSet.has(name)) fs.rmSync(path.join(migDir, name), { force: true });
+  }
+  for (const c of isolated.copies || []) {
+    if (!keepSet.has(c.destName)) continue;
+    const dest = path.join(migDir, c.destName);
+    if (!fs.existsSync(dest)) {
+      const src = path.join(root, "supabase", "migrations", c.sourceFile);
+      fs.writeFileSync(dest, fs.readFileSync(src));
+    }
+  }
+  return [...keepSet];
 }
 
 async function main() {
@@ -474,7 +530,9 @@ async function main() {
       }
       for (const file of F3_FORWARD_FILES) {
         const version = preassignedVersionFor(file);
-        const staged = stageIsolatedWorkdirTarget(isolated.workdir, file);
+        // Stage only migrations through the current file so post-repair retry
+        // cannot cascade-apply later F3 files without their inject cycle.
+        const staged = syncIsolatedMigrationsThrough(isolated, file);
         const injectSql = historyInjectSqlForFile(file);
         const inject = runGatedRemoteSqlText(isolated.workdir, `inject-${version}.sql`, injectSql);
         const push = runDbPushCandidate({
@@ -494,7 +552,7 @@ async function main() {
           help: queryHelp,
           sql: objectProbeSql(TARGET_OBJECT_PROBES[file]),
         });
-        const objectsPresent = objectsPresentFromProbe(probe, (TARGET_OBJECT_PROBES[file] || []).length);
+        const objectsPresent = objectsPresentFromProbe(probe);
         const fingerprintBeforeRepair = await runDbQuery({
           bin: cli.bin,
           workdir: isolated.workdir,
@@ -540,7 +598,7 @@ async function main() {
         });
         const step = {
           file,
-          destName: staged.destName,
+          destName: timestampFilenameFor(file),
           version,
           digest: FROZEN_DIGESTS[file],
           inject: { status: inject.status },
@@ -554,7 +612,7 @@ async function main() {
           repairAttempted: decided.repairAttempted,
           continuation: decided.continuation,
         };
-        if (!decided.repairAuthorized) {
+        if (!decided.repairAuthorized || decided.continuation === false) {
           evidence.sequence.push({
             ...step,
             historyAfterRepair: null,
@@ -563,7 +621,9 @@ async function main() {
           });
           evidence.status = "HOLD";
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = decided.gate.hold || REPAIR_SAFETY_HOLD;
+          evidence.limitation = decided.repairAuthorized
+            ? "HOLD: repair authorized but repair command failed after poison cleanup; no continuation"
+            : (decided.gate.hold || REPAIR_SAFETY_HOLD);
           evidence.originalSqlError = decided.gate.originalSqlError;
           break;
         }
@@ -579,7 +639,6 @@ async function main() {
           help: queryHelp,
           sql: CATALOG_FINGERPRINT_SQL,
         });
-        stageIsolatedWorkdirTarget(isolated.workdir, file);
         const retry = runDbPushCandidate({
           bin: cli.bin,
           workdir: isolated.workdir,

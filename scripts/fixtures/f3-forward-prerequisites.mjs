@@ -26,21 +26,7 @@ export const F3_FORWARD_CHAIN = [
 
 export const STUB_CORE_SQL = `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-CREATE SCHEMA IF NOT EXISTS extensions;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
-
--- Hosted 00122 calls public.uuid_generate_v5; uuid-ossp lives in extensions.
--- Thin floor pin only — F3 migration bytes stay frozen.
-CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
-RETURNS uuid
-LANGUAGE sql
-IMMUTABLE
-STRICT
-PARALLEL SAFE
-SET search_path = ''
-AS $uuid_v5$
-  SELECT extensions.uuid_generate_v5(namespace, name);
-$uuid_v5$;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 DO $$
 BEGIN

@@ -206,8 +206,8 @@ export function evaluateRepairSafetyGate(input = {}) {
 }
 
 /**
- * Classify, then finally-style poison cleanup, THEN maybe repair.
- * Repair must not run while the history-inject poison remains.
+ * Classify, then maybe repair. Cleanup always runs (finally).
+ * Repair callback is invoked only when the gate authorizes it.
  */
 export function runRepairSafetyThenMaybeRepair({
   gateInput,
@@ -218,27 +218,33 @@ export function runRepairSafetyThenMaybeRepair({
   let cleanupResult = null;
   let repairResult = null;
   let repairAttempted = false;
+  // Poison MUST be removed before repair: migration repair INSERTs the
+  // target version into schema_migrations; an active inject trigger blocks it.
   try {
-    // Classify only. Do not spawn repair while poison remains.
-  } finally {
     if (typeof cleanup === "function") cleanupResult = cleanup();
-  }
-  if (gate.ok) {
-    if (typeof repair !== "function") {
-      throw new Error("HOLD: repair executor required after authorized gate");
+    if (gate.ok) {
+      if (typeof repair !== "function") {
+        throw new Error("HOLD: repair executor required after authorized gate");
+      }
+      repairAttempted = true;
+      repairResult = repair();
     }
-    repairAttempted = true;
-    repairResult = repair();
+  } catch (err) {
+    if (cleanupResult == null && typeof cleanup === "function") {
+      try { cleanupResult = cleanup(); } catch { /* keep original err */ }
+    }
+    throw err;
   }
+  const repairOk = !repairAttempted || (repairResult && repairResult.status === 0);
   return {
     gate,
     repairAuthorized: gate.ok,
     repairAttempted,
     repair: repairResult,
-    continuation: gate.ok,
-    nextMigration: gate.ok,
+    continuation: Boolean(gate.ok && repairOk),
+    nextMigration: Boolean(gate.ok && repairOk),
     cleanup: cleanupResult,
     poisonCleanupOnly: true,
-    poisonRemovedBeforeRepair: true,
+    repairOk,
   };
 }

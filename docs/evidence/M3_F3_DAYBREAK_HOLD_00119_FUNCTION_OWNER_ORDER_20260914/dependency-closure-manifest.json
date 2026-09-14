@@ -1,0 +1,164 @@
+{
+  "artifact": "dependency-closure",
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "roots": [
+    "scripts/qualify-f3-db-push-disposable.mjs",
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+    "scripts/lib/f3-db-push-pins.mjs"
+  ],
+  "entry_count": 30,
+  "entries": [
+    {
+      "path": "scripts/_f3_apply_current_main_floor.mjs",
+      "sha256": "f90371c594cc33c5436411427195e62387d903cbfd18ff01989e032011f0d2df",
+      "bytes": 5682
+    },
+    {
+      "path": "scripts/fixtures/disposable-postgres.mjs",
+      "sha256": "1e5b683539ca2ead090a4e69701b3752feaa1135f29078d50b40a40e633a8171",
+      "bytes": 4556
+    },
+    {
+      "path": "scripts/fixtures/f3-forward-prerequisites.mjs",
+      "sha256": "26ed50b6cec86f487b895d8bccbdda87bf21136da1b3faf69e7104a67caa4d71",
+      "bytes": 12190
+    },
+    {
+      "path": "scripts/lib/f3-00030-floor-replay-transform.mjs",
+      "sha256": "ef94473238c3dde0b9a17dd4cfc3ba0d4daf2678233af459684bcb89097dfa0e",
+      "bytes": 8586
+    },
+    {
+      "path": "scripts/lib/f3-00057-floor-replay-transform.mjs",
+      "sha256": "78dd0e563d29d15ca2bf748d6fdc7908bd1d78d4bc804d963c1d6aa680339b08",
+      "bytes": 7672
+    },
+    {
+      "path": "scripts/lib/f3-db-push-cli.mjs",
+      "sha256": "164789ec1eb9015cf218b52069632f6be67b9fe9187cfbea2c36f419a314147a",
+      "bytes": 9136
+    },
+    {
+      "path": "scripts/lib/f3-db-push-floor.mjs",
+      "sha256": "277e11a095bfbd4699135c8904590544d1b0781a15fb13580292d857cfbb35f5",
+      "bytes": 16919
+    },
+    {
+      "path": "scripts/lib/f3-db-push-history-inject.mjs",
+      "sha256": "3e472c9548ef0db61c131a971257e5a7ef9c1d84c26469d9389bbb4510f5a96d",
+      "bytes": 5165
+    },
+    {
+      "path": "scripts/lib/f3-db-push-identity.mjs",
+      "sha256": "4f7e7285238d2f57e7b85bb97c6693879835e27428946c125b6541e7b64f25bc",
+      "bytes": 5809
+    },
+    {
+      "path": "scripts/lib/f3-db-push-inventory.mjs",
+      "sha256": "28e7a9606dc343c57595bd60adeb345ff0bd37798a7cd22825b2fc1fa2615da2",
+      "bytes": 13050
+    },
+    {
+      "path": "scripts/lib/f3-db-push-pins.mjs",
+      "sha256": "9ce282bed1c4ea3b81f0e2ba9bedd5c7a928ecdccc1e23c867c86ac0f8969412",
+      "bytes": 8485
+    },
+    {
+      "path": "scripts/lib/f3-db-push-pre-stub-floor-clean-check.mjs",
+      "sha256": "1bb07a711f621f61d74346c4b5b0e06a648d52caeb5217d12129ce12c4e8caa9",
+      "bytes": 6909
+    },
+    {
+      "path": "scripts/lib/f3-db-push-query-parse.mjs",
+      "sha256": "eabcb5ad1ead1fe2b977f622ca121c53e850a67ea24f7fd23b614dc412667bfa",
+      "bytes": 7600
+    },
+    {
+      "path": "scripts/lib/f3-db-push-remote-sql-file.mjs",
+      "sha256": "655337dc833680db9ac33ba53e4ab73bf3e40fab52b73913fc6948c504833453",
+      "bytes": 3658
+    },
+    {
+      "path": "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "sha256": "3d66f0892dcfe9587301e9203051dcff78622367f530ae311955e5c4010f9e3c",
+      "bytes": 108134
+    },
+    {
+      "path": "scripts/lib/f3-db-push-stub-live-pin-floor.mjs",
+      "sha256": "25ebcc05519ce5e89d7cebefb15d7914fd529756463c370ad0e1da9059712e60",
+      "bytes": 31082
+    },
+    {
+      "path": "scripts/lib/f3-db-push-target-guard.mjs",
+      "sha256": "8552dff537d237b83045313f277df6e60f1bb2f186f3cd0975dd979992fbfb3b",
+      "bytes": 18401
+    },
+    {
+      "path": "scripts/lib/f3-db-push-version-map.mjs",
+      "sha256": "5b833b5b7fc4db6cf239177fcc91197c2c4786c87f6153da23ab2ef2b62638ee",
+      "bytes": 7475
+    },
+    {
+      "path": "scripts/lib/f3-db-push-wipe.mjs",
+      "sha256": "c0d2224bcabefa0de4cfac6cac86db174d6334bb6634cd8d81b93b106c36e7bb",
+      "bytes": 5708
+    },
+    {
+      "path": "scripts/lib/f3-management-api-disposable-floor.mjs",
+      "sha256": "4ee5cfaa85802231c01b4baa2b8f134099fd5b1ed33f9b74b7daea2a232907f6",
+      "bytes": 6433
+    },
+    {
+      "path": "scripts/lib/f3-management-api-remote-harness.mjs",
+      "sha256": "710d9d2418f0d23714b780ed015a6cef726aaa172a6160733344d7b01b59856d",
+      "bytes": 17900
+    },
+    {
+      "path": "scripts/lib/f3-unnest-floor-scan.mjs",
+      "sha256": "b5e2d01d3d7a6ee2bc61a09b6f5f64b94e462e804ed5d913ce559faf36eee6fa",
+      "bytes": 3251
+    },
+    {
+      "path": "scripts/qualify-f3-db-push-disposable.mjs",
+      "sha256": "6f46b7e819d9013eeb389af324ff3c0e0a5cd9f4ed41546b42ebb63afede2707",
+      "bytes": 28540
+    },
+    {
+      "path": "scripts/test-f3-db-push-harness.mjs",
+      "sha256": "501d3c9a4d75db79c4c2bd7963b6f8a98f244cf545efe0bbdb8f849819985d6d",
+      "bytes": 72965
+    },
+    {
+      "path": "supabase/migrations/00118_f3_bounded_financial_epoch_foundation.sql",
+      "sha256": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "bytes": 12935
+    },
+    {
+      "path": "supabase/migrations/00119_f3_01_core_ledger_foundation.sql",
+      "sha256": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "bytes": 35663
+    },
+    {
+      "path": "supabase/migrations/00120_f3_02_secure_posting_idempotency.sql",
+      "sha256": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "bytes": 33103
+    },
+    {
+      "path": "supabase/migrations/00121_f3_03_projection_read_proof.sql",
+      "sha256": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "bytes": 36076
+    },
+    {
+      "path": "supabase/migrations/00122_f3_04_correction_reversal.sql",
+      "sha256": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "bytes": 49221
+    },
+    {
+      "path": "supabase/migrations/00123_f3_05_opening_cash_command.sql",
+      "sha256": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+      "bytes": 19813
+    }
+  ],
+  "missing": [],
+  "zero_mismatch": true
+}

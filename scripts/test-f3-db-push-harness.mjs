@@ -106,9 +106,14 @@ import {
   evaluatePrefixCompleteSinglePendingStaging,
   evaluateRepairSafetyGate,
   expectedFingerprintSha256,
+  canonicalizeFingerprintForCompare,
+  CATALOG_FINGERPRINT_SQL,
+  FINGERPRINT_CANONICALIZATION_REASON,
+  FINGERPRINT_FIELD_REGISTRY,
   fingerprintCanonicalSha256,
   fingerprintCompleteAndExact,
   FROZEN_EXPECTED_FINGERPRINT_SHA256,
+  SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256,
   getFrozenExpectedFingerprint,
   objectsPresentFromProbe,
   recordPreDbExpectedHashes,
@@ -1066,9 +1071,25 @@ test("fingerprint gate forbids null sides, missing keys, extra keys, and securit
   await assertFingerprintForbidsRepair("observed extra key", observedExtra);
 
   const mismatches = [
-    ["owner", (e, o) => { o.function_owner = o.function_owner.replace("postgres", "ubuntu"); }],
-    ["acl", (e, o) => { o.acl = o.acl.replace("authenticated=r/postgres", "authenticated=arwd/postgres"); }],
-    ["policy", (e, o) => { o.policy = o.policy.replace("SELECT", "ALL"); }],
+    ["owner", (e, o) => {
+      o.function_owner = o.function_owner.map((row) => ({
+        ...row,
+        owner: row.owner === "postgres" ? "ubuntu" : row.owner,
+      }));
+    }],
+    ["acl", (e, o) => {
+      o.acl = o.acl.map((row) => (
+        row.grantee === "authenticated" && row.privilege === "SELECT"
+          ? { ...row, privilege: "INSERT" }
+          : row
+      ));
+    }],
+    ["policy", (e, o) => {
+      o.policy = o.policy.map((row) => ({
+        ...row,
+        command: row.command === "SELECT" ? "ALL" : row.command,
+      }));
+    }],
     ["rls", (e, o) => { e.rls = false; o.rls = true; }],
     ["function-definition", (e, o) => { e.function_definition = "CREATE FUNCTION sealed()"; o.function_definition = "CREATE FUNCTION leaked()"; }],
     ["search_path", (e, o) => { e.search_path = "\"\""; o.search_path = "public,pg_temp"; }],
@@ -1096,7 +1117,9 @@ test("reordered set-like values normalize; security-relevant changes never norma
     f3_objects_absent: expected.f3_objects_absent,
   };
   const reordered = buildIndependentObservedFingerprint(FILE118, catalog);
-  reordered.schema = ` ${expected.schema} `;
+  reordered.function_owner = [...expected.function_owner].reverse();
+  reordered.acl = [...expected.acl].reverse();
+  reordered.policy = [...expected.policy].reverse();
   reordered.recognition = ["manual_income"];
   assert.equal(fingerprintCompleteAndExact({ expected, observed: reordered }, FILE118).ok, true);
 
@@ -1115,13 +1138,20 @@ test("reordered set-like values normalize; security-relevant changes never norma
   );
 
   const security = frozenPair((observed) => {
-    observed.acl = observed.acl.replace("postgres=arwdDxtm/postgres", "ubuntu=arwdDxtm/postgres");
+    observed.acl = observed.acl.map((row) => (
+      row.grantee === "postgres" && row.object_identity === "epoch_transitions"
+        ? { ...row, grantee: "ubuntu" }
+        : row
+    ));
     return observed;
   });
   assert.equal(fingerprintCompleteAndExact(security, FILE118).ok, false, "acl owner change");
 
   const policyWs = frozenPair((observed) => {
-    observed.policy = observed.policy.replace(/\n/g, " ");
+    observed.policy = observed.policy.map((row) => ({
+      ...row,
+      using: row.using.replace(/\n/g, " "),
+    }));
     return observed;
   });
   assert.equal(fingerprintCompleteAndExact(policyWs, FILE118).ok, false, "policy whitespace coarsen");
@@ -1162,13 +1192,18 @@ test("module-load frozen expected hashes are independent of observed and match t
   const recorded = recordPreDbExpectedHashes();
   assert.equal(recorded.recordedBeforeDbAccess, true);
   assert.equal(recorded.independentOfObserved, true);
+  assert.equal(SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.reason, FINGERPRINT_CANONICALIZATION_REASON);
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256["00119_f3_01_core_ledger_foundation.sql"],
+    "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
+  );
   assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
-    "00119_f3_01_core_ledger_foundation.sql": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
-    "00120_f3_02_secure_posting_idempotency.sql": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610",
-    "00121_f3_03_projection_read_proof.sql": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
-    "00122_f3_04_correction_reversal.sql": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
-    "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+    "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+    "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+    "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+    "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+    "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
   });
   for (const file of F3_FORWARD_FILES) {
     const clone = getFrozenExpectedFingerprint(file);
@@ -1176,6 +1211,263 @@ test("module-load frozen expected hashes are independent of observed and match t
     assertExpectedFingerprintImmutable(file);
     assert.equal(expectedFingerprintSha256(file), recorded.sha256BeforeDb[file]);
   }
+});
+
+function fnOwnerRecord(overrides = {}) {
+  return {
+    schema: "financial_core",
+    function: "guard_a",
+    identity_arguments: "",
+    owner: "postgres",
+    security_definer: false,
+    search_path: "{\"search_path=\\\"\\\"\"}",
+    ...overrides,
+  };
+}
+
+function aclRecord(overrides = {}) {
+  return {
+    object_type: "table",
+    schema: "financial_core",
+    object_identity: "financial_accounts",
+    grantee: "authenticated",
+    grantor: "postgres",
+    privilege: "SELECT",
+    grantable: false,
+    ...overrides,
+  };
+}
+
+function policyRecord(overrides = {}) {
+  return {
+    schema: "public",
+    table: "financial_accounts",
+    policy_name: "manager_select",
+    command: "SELECT",
+    permissive: true,
+    roles: ["authenticated"],
+    using: "( SELECT financial_core.can_manage_finances(financial_accounts.group_id) )",
+    with_check: "",
+    ...overrides,
+  };
+}
+
+function functionDefinitionRecord(overrides = {}) {
+  return {
+    schema: "financial_core",
+    name: "guard_a",
+    identity_arguments: "",
+    definition: "SELECT 1",
+    owner: "postgres",
+    security_mode: "invoker",
+    search_path: "",
+    ...overrides,
+  };
+}
+
+function pairFromCatalog(expectedCatalog, observedCatalog) {
+  return {
+    expected: completeFingerprint(expectedCatalog),
+    observed: completeFingerprint(observedCatalog),
+  };
+}
+
+test("semantic set canonicalization matrix: order-only pass; association/expression mismatches fail with zero repair", async () => {
+  const ownersA = [
+    fnOwnerRecord({ function: "guard_a", owner: "postgres" }),
+    fnOwnerRecord({ function: "guard_b", owner: "ubuntu", identity_arguments: "p uuid" }),
+  ];
+  const ownersOrderOnly = pairFromCatalog(
+    { function_owner: ownersA },
+    { function_owner: [ownersA[1], ownersA[0]] },
+  );
+  assert.equal(fingerprintCompleteAndExact(ownersOrderOnly).ok, true, "function_owner order-only");
+
+  const ownerSwap = pairFromCatalog(
+    { function_owner: ownersA },
+    { function_owner: [
+      fnOwnerRecord({ function: "guard_a", owner: "ubuntu" }),
+      fnOwnerRecord({ function: "guard_b", owner: "postgres", identity_arguments: "p uuid" }),
+    ] },
+  );
+  await assertFingerprintForbidsRepair("function_owner owner swap", ownerSwap);
+
+  await assertFingerprintForbidsRepair("function_owner missing", pairFromCatalog(
+    { function_owner: ownersA },
+    { function_owner: [ownersA[0]] },
+  ));
+  await assertFingerprintForbidsRepair("function_owner extra", pairFromCatalog(
+    { function_owner: ownersA },
+    { function_owner: [...ownersA, fnOwnerRecord({ function: "guard_c" })] },
+  ));
+  await assertFingerprintForbidsRepair("function_owner duplicate", pairFromCatalog(
+    { function_owner: ownersA },
+    { function_owner: [...ownersA, ownersA[0]] },
+  ));
+  await assertFingerprintForbidsRepair("function_owner wrong identity args", pairFromCatalog(
+    { function_owner: ownersA },
+    { function_owner: [
+      ownersA[0],
+      fnOwnerRecord({ function: "guard_b", owner: "ubuntu", identity_arguments: "p text" }),
+    ] },
+  ));
+  await assertFingerprintForbidsRepair("function_owner wrong schema", pairFromCatalog(
+    { function_owner: ownersA },
+    { function_owner: [
+      fnOwnerRecord({ schema: "financial_private", function: "guard_a", owner: "postgres" }),
+      ownersA[1],
+    ] },
+  ));
+  await assertFingerprintForbidsRepair("function_owner identity argument order not sorted", pairFromCatalog(
+    { function_owner: [fnOwnerRecord({ identity_arguments: "a uuid, b text" })] },
+    { function_owner: [fnOwnerRecord({ identity_arguments: "b text, a uuid" })] },
+  ));
+
+  const acls = [
+    aclRecord({ object_identity: "financial_accounts", privilege: "SELECT" }),
+    aclRecord({ object_identity: "financial_funds", privilege: "INSERT", grantee: "postgres" }),
+  ];
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog({ acl: acls }, { acl: [acls[1], acls[0]] })).ok,
+    true,
+    "acl order-only",
+  );
+  await assertFingerprintForbidsRepair("acl wrong grantee", pairFromCatalog(
+    { acl: acls },
+    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "SELECT", grantee: "ubuntu" }), acls[1]] },
+  ));
+  await assertFingerprintForbidsRepair("acl wrong grantor", pairFromCatalog(
+    { acl: acls },
+    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "SELECT", grantor: "ubuntu" }), acls[1]] },
+  ));
+  await assertFingerprintForbidsRepair("acl wrong privilege", pairFromCatalog(
+    { acl: acls },
+    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "UPDATE" }), acls[1]] },
+  ));
+  await assertFingerprintForbidsRepair("acl wrong grantable", pairFromCatalog(
+    { acl: acls },
+    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "SELECT", grantable: true }), acls[1]] },
+  ));
+  await assertFingerprintForbidsRepair("acl moved to different object", pairFromCatalog(
+    { acl: acls },
+    { acl: [aclRecord({ object_identity: "financial_funds", privilege: "SELECT" }), acls[1]] },
+  ));
+  await assertFingerprintForbidsRepair("acl missing", pairFromCatalog({ acl: acls }, { acl: [acls[0]] }));
+  await assertFingerprintForbidsRepair("acl extra", pairFromCatalog(
+    { acl: acls },
+    { acl: [...acls, aclRecord({ object_identity: "financial_events", privilege: "DELETE" })] },
+  ));
+  await assertFingerprintForbidsRepair("acl duplicate", pairFromCatalog(
+    { acl: acls },
+    { acl: [...acls, acls[0]] },
+  ));
+
+  const policies = [
+    policyRecord({ policy_name: "p_select", command: "SELECT" }),
+    policyRecord({ policy_name: "p_insert", command: "INSERT", using: "", with_check: "(true)" }),
+  ];
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog({ policy: policies }, { policy: [policies[1], policies[0]] })).ok,
+    true,
+    "policy order-only",
+  );
+  const rolesReordered = pairFromCatalog(
+    { policy: [policyRecord({ roles: ["authenticated", "service_role"] })] },
+    { policy: [policyRecord({ roles: ["service_role", "authenticated"] })] },
+  );
+  assert.equal(fingerprintCompleteAndExact(rolesReordered).ok, true, "policy roles set-order");
+  await assertFingerprintForbidsRepair("policy changed expression", pairFromCatalog(
+    { policy: policies },
+    { policy: [policyRecord({ policy_name: "p_select", command: "SELECT", using: "(false)" }), policies[1]] },
+  ));
+  await assertFingerprintForbidsRepair("policy changed role", pairFromCatalog(
+    { policy: policies },
+    { policy: [policyRecord({ policy_name: "p_select", roles: ["service_role"] }), policies[1]] },
+  ));
+
+  const defs = [
+    functionDefinitionRecord({ name: "guard_a", definition: "SELECT 1" }),
+    functionDefinitionRecord({ name: "guard_b", definition: "SELECT 2", security_mode: "definer" }),
+  ];
+  const defPair = (observedDefs) => ({
+    expected: completeFingerprint({ function_definition: defs }),
+    observed: completeFingerprint({ function_definition: observedDefs }),
+  });
+  assert.equal(fingerprintCompleteAndExact(defPair([defs[1], defs[0]])).ok, true, "function_definition order-only");
+  await assertFingerprintForbidsRepair("function_definition changed", defPair([
+    functionDefinitionRecord({ name: "guard_a", definition: "SELECT 9" }),
+    defs[1],
+  ]));
+  await assertFingerprintForbidsRepair("function_definition owner", defPair([
+    functionDefinitionRecord({ name: "guard_a", owner: "ubuntu" }),
+    defs[1],
+  ]));
+  await assertFingerprintForbidsRepair("function_definition search_path", defPair([
+    functionDefinitionRecord({ name: "guard_a", search_path: "public" }),
+    defs[1],
+  ]));
+  await assertFingerprintForbidsRepair("function_definition security", defPair([
+    functionDefinitionRecord({ name: "guard_a", security_mode: "definer" }),
+    defs[1],
+  ]));
+
+  const frozen119 = getFrozenExpectedFingerprint("00119_f3_01_core_ledger_foundation.sql");
+  const observed119 = buildIndependentObservedFingerprint("00119_f3_01_core_ledger_foundation.sql", {
+    schema: frozen119.schema,
+    function_owner: [...frozen119.function_owner].reverse(),
+    acl: [...frozen119.acl].reverse(),
+    policy: [...frozen119.policy].reverse(),
+    f3_objects_absent: frozen119.f3_objects_absent,
+  });
+  const before119 = fingerprintCanonicalSha256(frozen119);
+  assert.equal(
+    fingerprintCompleteAndExact({ expected: frozen119, observed: observed119 }, "00119_f3_01_core_ledger_foundation.sql").ok,
+    true,
+    "00119 hosted order-only HOLD reproduction now passes",
+  );
+  assert.equal(fingerprintCanonicalSha256(frozen119), before119);
+  assert.equal(before119, FROZEN_EXPECTED_FINGERPRINT_SHA256["00119_f3_01_core_ledger_foundation.sql"]);
+});
+
+test("source contract and unit test prove there is no generic array-sorting fallback", () => {
+  const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const stripped = gate
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  assert.doesNotMatch(stripped, /items\.every\(\s*\(?\s*item\s*\)?\s*=>\s*item\s*===\s*null\s*\|\|\s*typeof\s+item\s*!==\s*"object"\)/);
+  assert.doesNotMatch(stripped, /JSON\.stringify\(\s*a\s*\)\.localeCompare\(\s*JSON\.stringify\(\s*b\s*\)\)/);
+  assert.doesNotMatch(stripped, /FINGERPRINT_SET_LIKE_STRING_KEYS/);
+  assert.match(gate, /FINGERPRINT_FIELD_REGISTRY/);
+  assert.match(gate, /doNotSort/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /jsonb_agg/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /identity_arguments/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /aclexplode/);
+  assert.doesNotMatch(CATALOG_FINGERPRINT_SQL, /string_agg/);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.function_owner.sortBy.includes("owner"), true);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.policy.innerSetFields.includes("roles"), true);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.policy.doNotSort.includes("using"), true);
+
+  const floorImport = qualify.slice(
+    qualify.lastIndexOf("import {", qualify.indexOf('from "./lib/f3-db-push-floor.mjs"')),
+    qualify.indexOf('from "./lib/f3-db-push-floor.mjs"'),
+  );
+  assert.doesNotMatch(floorImport, /CATALOG_FINGERPRINT_SQL/);
+  assert.match(qualify, /CATALOG_FINGERPRINT_SQL/);
+
+  const unregistered = {
+    expected: completeFingerprint({ hgp: ["zeta", "alpha"] }),
+    observed: completeFingerprint({ hgp: ["alpha", "zeta"] }),
+  };
+  assert.equal(
+    fingerprintCompleteAndExact(unregistered).ok,
+    false,
+    "unregistered arrays must not be generically sorted",
+  );
+  const rejected = canonicalizeFingerprintForCompare({
+    function_owner: [fnOwnerRecord(), fnOwnerRecord()],
+  }, null);
+  assert.equal(rejected.__f3_fingerprint_canonicalization_rejected, true);
 });
 
 test("source contract forbids assigning expected from observed in qualify and repair-safety-gate", () => {

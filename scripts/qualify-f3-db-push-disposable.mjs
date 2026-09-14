@@ -88,7 +88,6 @@ import {
   objectProbeSql,
 } from "./lib/f3-db-push-history-inject.mjs";
 import {
-  CATALOG_FINGERPRINT_SQL,
   hostedFloorPrecheck,
   installHostedFloor,
   recognitionFromSource,
@@ -117,6 +116,7 @@ import {
   evaluatePreStubFloorCleanCheck,
 } from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 import {
+  CATALOG_FINGERPRINT_SQL, // structured JSON records — overrides floor comma-joined query
   POISON_ABSENT_PROBE_SQL,
   PRODUCTION_HISTORY_LIMITATION_WARNING,
   REPAIR_SAFETY_HOLD,

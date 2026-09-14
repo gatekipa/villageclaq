@@ -84,8 +84,691 @@ export const FINGERPRINT_ALLOWED_KEYS = Object.freeze([
   ...new Set([...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_CATALOG_KEYS, ...FINGERPRINT_META_KEYS]),
 ]);
 
-/** Schema is a comma-separated inventory with no internal commas. ACL/policy/owner are not set-like. */
-export const FINGERPRINT_SET_LIKE_STRING_KEYS = Object.freeze(["schema"]);
+/**
+ * Explicit field registry: ONLY these collections are set-canonicalized.
+ * Collection order is semantically meaningless; associations stay intact.
+ *
+ * FORBIDDEN: generic recursive array sort; sorting identity_arguments /
+ * table column order / migration history / staged prefix / SQL bodies;
+ * splitting arbitrary catalog strings and sorting words; dropping fields;
+ * subset comparisons; deriving expected from observed.
+ */
+export const FINGERPRINT_FIELD_REGISTRY = Object.freeze({
+  schema: Object.freeze({
+    kind: "record_set",
+    fields: Object.freeze(["schema", "owner"]),
+    sortBy: Object.freeze(["schema", "owner"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze([]),
+    notes: "Schema inventory members are (schema, owner). Order of schemas is meaningless.",
+  }),
+  function_owner: Object.freeze({
+    kind: "record_set",
+    fields: Object.freeze([
+      "schema",
+      "function",
+      "identity_arguments",
+      "owner",
+      "security_definer",
+      "search_path",
+    ]),
+    sortBy: Object.freeze(["schema", "function", "identity_arguments", "owner"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["identity_arguments", "search_path"]),
+    notes: "Complete function↔owner association. Owner-name multisets are not compared. identity_arguments are never reordered.",
+  }),
+  acl: Object.freeze({
+    kind: "record_set",
+    fields: Object.freeze([
+      "object_type",
+      "schema",
+      "object_identity",
+      "grantee",
+      "grantor",
+      "privilege",
+      "grantable",
+    ]),
+    sortBy: Object.freeze([
+      "object_type",
+      "schema",
+      "object_identity",
+      "grantee",
+      "grantor",
+      "privilege",
+      "grantable",
+    ]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["object_identity"]),
+    notes: "One record per privilege. Object identity is not split. grantable is boolean.",
+  }),
+  policy: Object.freeze({
+    kind: "record_set",
+    fields: Object.freeze([
+      "schema",
+      "table",
+      "policy_name",
+      "command",
+      "permissive",
+      "roles",
+      "using",
+      "with_check",
+    ]),
+    sortBy: Object.freeze(["schema", "table", "policy_name", "command"]),
+    innerSetFields: Object.freeze(["roles"]),
+    doNotSort: Object.freeze(["using", "with_check"]),
+    notes: "Roles are a set (order meaningless). USING / WITH CHECK expressions are never sorted or whitespace-normalized.",
+  }),
+  function_definition: Object.freeze({
+    kind: "record_set_or_exact_string",
+    fields: Object.freeze([
+      "schema",
+      "name",
+      "identity_arguments",
+      "definition",
+      "owner",
+      "security_mode",
+      "search_path",
+    ]),
+    sortBy: Object.freeze(["schema", "name", "identity_arguments", "owner"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["identity_arguments", "definition", "search_path", "security_mode"]),
+    notes: "Optional. String values compare exactly. Record arrays sort by identity only; definition/owner/search_path/security changes fail.",
+  }),
+  recognition: Object.freeze({
+    kind: "exact_string_set",
+    fields: Object.freeze([]),
+    sortBy: Object.freeze([]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze([]),
+    notes: "Allowlist tags. Order meaningless. Exact strings only — never word-split.",
+  }),
+});
+
+export const FINGERPRINT_CANONICALIZATION_REASON =
+  "canonicalization format (comma-joined catalog strings → structured records + registry set-order); semantic members unchanged";
+
+/**
+ * Hosted catalog fingerprint query. Overrides floor CATALOG_FINGERPRINT_SQL
+ * (comma-joined strings) so observed inventory is structured JSON records.
+ * Same object filters as the floor query; representation only.
+ */
+export const CATALOG_FINGERPRINT_SQL = `
+SELECT jsonb_build_object(
+  'schema', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', nspname,
+        'owner', pg_get_userbyid(nspowner)
+      )
+      ORDER BY nspname, pg_get_userbyid(nspowner)
+    ), '[]'::jsonb)
+    FROM pg_namespace
+    WHERE nspname IN ('financial_core','financial_private')
+  ),
+  'function_owner', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'function', p.proname,
+        'identity_arguments', pg_get_function_identity_arguments(p.oid),
+        'owner', pg_get_userbyid(p.proowner),
+        'security_definer', p.prosecdef,
+        'search_path', coalesce(p.proconfig::text, '')
+      )
+      ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), pg_get_userbyid(p.proowner)
+    ), '[]'::jsonb)
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname IN ('public','financial_core','financial_private')
+      AND (n.nspname LIKE 'financial_%' OR p.proname ~ 'financial|f3_|guard_ledger')
+  ),
+  'acl', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'object_type', x.object_type,
+        'schema', x.schema,
+        'object_identity', x.object_identity,
+        'grantee', x.grantee,
+        'grantor', x.grantor,
+        'privilege', x.privilege,
+        'grantable', x.grantable
+      )
+      ORDER BY x.object_type, x.schema, x.object_identity, x.grantee, x.grantor, x.privilege, x.grantable::text
+    ), '[]'::jsonb)
+    FROM (
+      SELECT
+        'table'::text AS object_type,
+        n.nspname AS schema,
+        c.relname AS object_identity,
+        CASE
+          WHEN c.relacl IS NULL THEN ''
+          WHEN a.grantee = 0 THEN 'PUBLIC'
+          ELSE pg_get_userbyid(a.grantee)
+        END AS grantee,
+        CASE
+          WHEN c.relacl IS NULL THEN ''
+          ELSE pg_get_userbyid(a.grantor)
+        END AS grantor,
+        CASE
+          WHEN c.relacl IS NULL THEN ''
+          ELSE a.privilege_type
+        END AS privilege,
+        CASE
+          WHEN c.relacl IS NULL THEN false
+          ELSE a.is_grantable
+        END AS grantable
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN LATERAL aclexplode(c.relacl) a ON c.relacl IS NOT NULL
+      WHERE c.relkind = 'r'
+        AND (
+          n.nspname IN ('financial_core','financial_private')
+          OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+        )
+      UNION ALL
+      SELECT
+        'function'::text,
+        n.nspname,
+        p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+        CASE
+          WHEN p.proacl IS NULL THEN ''
+          WHEN a.grantee = 0 THEN 'PUBLIC'
+          ELSE pg_get_userbyid(a.grantee)
+        END,
+        CASE
+          WHEN p.proacl IS NULL THEN ''
+          ELSE pg_get_userbyid(a.grantor)
+        END,
+        CASE
+          WHEN p.proacl IS NULL THEN ''
+          ELSE a.privilege_type
+        END,
+        CASE
+          WHEN p.proacl IS NULL THEN false
+          ELSE a.is_grantable
+        END
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      LEFT JOIN LATERAL aclexplode(p.proacl) a ON p.proacl IS NOT NULL
+      WHERE n.nspname IN ('public','financial_core','financial_private')
+        AND (n.nspname LIKE 'financial_%' OR p.proname ~ 'financial|f3_|guard_ledger')
+    ) x
+  ),
+  'policy', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', schemaname,
+        'table', tablename,
+        'policy_name', policyname,
+        'command', cmd,
+        'permissive', (upper(permissive) IN ('PERMISSIVE','YES','T','TRUE')),
+        'roles', to_jsonb(roles),
+        'using', coalesce(qual, ''),
+        'with_check', coalesce(with_check, '')
+      )
+      ORDER BY schemaname, tablename, policyname, cmd
+    ), '[]'::jsonb)
+    FROM pg_policies
+    WHERE schemaname IN ('public','financial_core','financial_private')
+      AND (tablename LIKE 'financial_%' OR schemaname LIKE 'financial_%')
+  ),
+  'f3_objects_absent', (
+    to_regnamespace('financial_private') IS NULL
+    AND to_regnamespace('financial_core') IS NULL
+    AND to_regclass('public.financial_ledger_epochs') IS NULL
+    AND to_regclass('public.financial_accounts') IS NULL
+    AND to_regprocedure('public.post_financial_command(jsonb)') IS NULL
+    AND to_regprocedure('public.correct_financial_event(jsonb)') IS NULL
+    AND to_regprocedure('public.post_financial_opening_cash(jsonb)') IS NULL
+  )
+)::text
+`;
+
+const ACL_PRIVILEGE_LETTERS = Object.freeze({
+  a: "INSERT",
+  r: "SELECT",
+  w: "UPDATE",
+  d: "DELETE",
+  D: "TRUNCATE",
+  x: "REFERENCES",
+  t: "TRIGGER",
+  X: "EXECUTE",
+  U: "USAGE",
+  C: "CREATE",
+  c: "CONNECT",
+  T: "TEMPORARY",
+  m: "MAINTAIN",
+  s: "SET",
+});
+
+function fingerprintCanonicalizationRejected(reason) {
+  return Object.freeze({
+    __f3_fingerprint_canonicalization_rejected: true,
+    reason: String(reason || "canonicalization rejected"),
+  });
+}
+
+function isFingerprintCanonicalizationRejected(value) {
+  return Boolean(value && typeof value === "object" && value.__f3_fingerprint_canonicalization_rejected === true);
+}
+
+function compareCanonicalScalars(a, b) {
+  if (a === b) return 0;
+  const sa = a === null || a === undefined ? "" : typeof a === "boolean" ? (a ? "true" : "false") : String(a);
+  const sb = b === null || b === undefined ? "" : typeof b === "boolean" ? (b ? "true" : "false") : String(b);
+  if (sa < sb) return -1;
+  if (sa > sb) return 1;
+  return 0;
+}
+
+function compareRecordsByFields(a, b, fields) {
+  for (const field of fields) {
+    const cmp = compareCanonicalScalars(a?.[field], b?.[field]);
+    if (cmp !== 0) return cmp;
+  }
+  return compareCanonicalScalars(JSON.stringify(a), JSON.stringify(b));
+}
+
+function recordsDeepEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function canonicalizeRoleSet(roles) {
+  if (Array.isArray(roles)) {
+    return [...roles].map((role) => String(role)).sort(compareCanonicalScalars);
+  }
+  if (typeof roles === "string") {
+    const trimmed = roles.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      const body = trimmed.slice(1, -1);
+      if (!body) return [];
+      return body.split(",").map((part) => part.trim()).filter((part) => part.length > 0).sort(compareCanonicalScalars);
+    }
+    return trimmed ? [trimmed] : [];
+  }
+  if (roles == null) return [];
+  return fingerprintCanonicalizationRejected("policy roles are not a set of names");
+}
+
+function splitSchemaIdentity(identity) {
+  const text = String(identity);
+  let depth = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === "(") depth += 1;
+    else if (ch === ")") depth = Math.max(0, depth - 1);
+    else if (ch === "." && depth === 0) {
+      return { schema: text.slice(0, i), object_identity: text.slice(i + 1) };
+    }
+  }
+  return null;
+}
+
+function parseLegacySchema(value) {
+  if (value === "") return { ok: true, records: [] };
+  const records = [];
+  for (const part of String(value).split(",")) {
+    const item = part.trim();
+    if (!item) continue;
+    const colon = item.indexOf(":");
+    if (colon <= 0) return { ok: false, reason: "schema member is not schema:owner" };
+    records.push({
+      schema: item.slice(0, colon),
+      owner: item.slice(colon + 1),
+    });
+  }
+  return { ok: true, records };
+}
+
+function parseLegacyFunctionOwner(value) {
+  const text = String(value);
+  const records = [];
+  let i = 0;
+  while (i < text.length) {
+    while (text[i] === ",") i += 1;
+    if (i >= text.length) break;
+    const ident = splitSchemaIdentity(text.slice(i));
+    if (!ident || !ident.schema || !ident.object_identity) {
+      return { ok: false, reason: "function_owner identity is not schema.function(args)" };
+    }
+    const close = (() => {
+      const start = ident.object_identity.indexOf("(");
+      if (start < 0) return -1;
+      let depth = 0;
+      for (let j = start; j < ident.object_identity.length; j += 1) {
+        if (ident.object_identity[j] === "(") depth += 1;
+        else if (ident.object_identity[j] === ")") {
+          depth -= 1;
+          if (depth === 0) return j;
+        }
+      }
+      return -1;
+    })();
+    if (close < 0) return { ok: false, reason: "function_owner identity arguments are unbalanced" };
+    const functionName = ident.object_identity.slice(0, ident.object_identity.indexOf("("));
+    const identityArguments = ident.object_identity.slice(ident.object_identity.indexOf("(") + 1, close);
+    const consumedIdentity = ident.schema.length + 1 + close + 1;
+    i += consumedIdentity;
+    if (text[i] !== ":") return { ok: false, reason: "function_owner missing owner separator" };
+    i += 1;
+    const ownerEnd = text.indexOf(":", i);
+    if (ownerEnd < 0) return { ok: false, reason: "function_owner missing security separator" };
+    const owner = text.slice(i, ownerEnd);
+    i = ownerEnd + 1;
+    const secEnd = text.indexOf(":", i);
+    if (secEnd < 0) return { ok: false, reason: "function_owner missing search_path separator" };
+    const securityRaw = text.slice(i, secEnd);
+    i = secEnd + 1;
+    let brace = 0;
+    const searchStart = i;
+    while (i < text.length) {
+      const ch = text[i];
+      if (ch === "{") brace += 1;
+      else if (ch === "}") brace = Math.max(0, brace - 1);
+      else if (ch === "," && brace === 0) break;
+      i += 1;
+    }
+    const searchPath = text.slice(searchStart, i);
+    let securityDefiner = securityRaw;
+    if (securityRaw === "true") securityDefiner = true;
+    else if (securityRaw === "false") securityDefiner = false;
+    records.push({
+      schema: ident.schema,
+      function: functionName,
+      identity_arguments: identityArguments,
+      owner,
+      security_definer: securityDefiner,
+      search_path: searchPath,
+    });
+  }
+  return { ok: true, records };
+}
+
+function explodeAclPrivileges(privText) {
+  const grants = [];
+  const raw = String(privText || "");
+  for (let i = 0; i < raw.length; i += 1) {
+    const letter = raw[i];
+    if (letter === "*") continue;
+    const privilege = ACL_PRIVILEGE_LETTERS[letter] || letter;
+    const grantable = raw[i + 1] === "*";
+    if (grantable) i += 1;
+    grants.push({ privilege, grantable });
+  }
+  return grants;
+}
+
+function parseLegacyAcl(value) {
+  const text = String(value);
+  const records = [];
+  let i = 0;
+  while (i < text.length) {
+    while (text[i] === ",") i += 1;
+    if (i >= text.length) break;
+    const brace = text.indexOf("{", i);
+    const emptySep = text.indexOf(":", i);
+    let identity;
+    let aclBody;
+    if (brace >= 0 && (emptySep < 0 || brace <= emptySep || text[emptySep + 1] === "{")) {
+      if (brace < i) return { ok: false, reason: "acl object missing privilege block" };
+      identity = text.slice(i, brace);
+      if (identity.endsWith(":")) identity = identity.slice(0, -1);
+      let depth = 0;
+      let j = brace;
+      for (; j < text.length; j += 1) {
+        if (text[j] === "{") depth += 1;
+        else if (text[j] === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            j += 1;
+            break;
+          }
+        }
+      }
+      aclBody = text.slice(brace + 1, j - 1);
+      i = j;
+    } else if (emptySep >= 0) {
+      identity = text.slice(i, emptySep);
+      aclBody = "";
+      i = emptySep + 1;
+    } else {
+      return { ok: false, reason: "acl member is not identity:{grants}" };
+    }
+    const split = splitSchemaIdentity(identity);
+    if (!split) return { ok: false, reason: "acl identity is not schema.object" };
+    const objectType = split.object_identity.includes("(") ? "function" : "table";
+    if (!aclBody) {
+      records.push({
+        object_type: objectType,
+        schema: split.schema,
+        object_identity: split.object_identity,
+        grantee: "",
+        grantor: "",
+        privilege: "",
+        grantable: false,
+      });
+      continue;
+    }
+    for (const item of aclBody.split(",")) {
+      const entry = item.trim();
+      if (!entry) continue;
+      const eq = entry.indexOf("=");
+      const slash = entry.lastIndexOf("/");
+      if (eq < 0 || slash < eq) return { ok: false, reason: "acl grant is not grantee=privs/grantor" };
+      const granteeRaw = entry.slice(0, eq);
+      const privs = entry.slice(eq + 1, slash);
+      const grantor = entry.slice(slash + 1);
+      const grantee = granteeRaw === "" ? "PUBLIC" : granteeRaw;
+      const exploded = explodeAclPrivileges(privs);
+      if (exploded.length === 0) {
+        records.push({
+          object_type: objectType,
+          schema: split.schema,
+          object_identity: split.object_identity,
+          grantee,
+          grantor,
+          privilege: "",
+          grantable: false,
+        });
+        continue;
+      }
+      for (const grant of exploded) {
+        records.push({
+          object_type: objectType,
+          schema: split.schema,
+          object_identity: split.object_identity,
+          grantee,
+          grantor,
+          privilege: grant.privilege,
+          grantable: grant.grantable,
+        });
+      }
+    }
+  }
+  return { ok: true, records };
+}
+
+function parseLegacyPolicy(value) {
+  const text = String(value);
+  const records = [];
+  let i = 0;
+  const commands = ["SELECT", "INSERT", "UPDATE", "DELETE", "ALL"];
+  while (i < text.length) {
+    while (text[i] === ",") i += 1;
+    if (i >= text.length) break;
+    let commandIdx = -1;
+    let command = null;
+    for (const cmd of commands) {
+      const needle = `:${cmd}:`;
+      const found = text.indexOf(needle, i);
+      if (found >= 0 && (commandIdx < 0 || found < commandIdx)) {
+        commandIdx = found;
+        command = cmd;
+      }
+    }
+    if (commandIdx < 0 || !command) return { ok: false, reason: "policy missing command" };
+    const identity = text.slice(i, commandIdx);
+    const parts = identity.split(".");
+    if (parts.length < 3) return { ok: false, reason: "policy identity is not schema.table.policy_name" };
+    const schema = parts[0];
+    const table = parts[1];
+    const policyName = parts.slice(2).join(".");
+    i = commandIdx + command.length + 2;
+    if (text[i] !== "{") return { ok: false, reason: "policy missing roles" };
+    const roleEnd = text.indexOf("}", i);
+    if (roleEnd < 0) return { ok: false, reason: "policy roles are unbalanced" };
+    const roles = canonicalizeRoleSet(text.slice(i, roleEnd + 1));
+    if (isFingerprintCanonicalizationRejected(roles)) return { ok: false, reason: roles.reason };
+    i = roleEnd + 1;
+    if (text[i] !== ":") return { ok: false, reason: "policy missing using separator" };
+    i += 1;
+    let depth = 0;
+    const usingStart = i;
+    while (i < text.length) {
+      const ch = text[i];
+      if (ch === "(") depth += 1;
+      else if (ch === ")") depth = Math.max(0, depth - 1);
+      else if (ch === ":" && depth === 0 && text[i + 1] !== ":") break;
+      if (ch === ":" && text[i + 1] === ":") {
+        i += 2;
+        continue;
+      }
+      i += 1;
+    }
+    const using = text.slice(usingStart, i);
+    if (text[i] !== ":") return { ok: false, reason: "policy missing with_check separator" };
+    i += 1;
+    depth = 0;
+    const checkStart = i;
+    while (i < text.length) {
+      const ch = text[i];
+      if (ch === "(") depth += 1;
+      else if (ch === ")") depth = Math.max(0, depth - 1);
+      else if (ch === "," && depth === 0) break;
+      i += 1;
+    }
+    records.push({
+      schema,
+      table,
+      policy_name: policyName,
+      command,
+      permissive: true,
+      roles,
+      using,
+      with_check: text.slice(checkStart, i),
+    });
+  }
+  return { ok: true, records };
+}
+
+function parseLegacyCollection(key, value) {
+  if (key === "schema") return parseLegacySchema(value);
+  if (key === "function_owner") return parseLegacyFunctionOwner(value);
+  if (key === "acl") return parseLegacyAcl(value);
+  if (key === "policy") return parseLegacyPolicy(value);
+  return { ok: false, reason: `${key} has no legacy parser` };
+}
+
+function normalizeRegistryRecord(key, raw, spec) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return fingerprintCanonicalizationRejected(`${key} record is not an object`);
+  }
+  const out = {};
+  for (const field of spec.fields) {
+    if (Object.prototype.hasOwnProperty.call(raw, field)) {
+      out[field] = raw[field];
+    } else if (field === "permissive" && key === "policy") {
+      out[field] = true;
+    } else if (field === "roles" && key === "policy") {
+      out[field] = [];
+    } else if (field === "grantable" && key === "acl") {
+      out[field] = false;
+    } else if ((field === "security_definer" || field === "search_path") && key === "function_owner") {
+      out[field] = field === "security_definer" ? null : "";
+    } else {
+      out[field] = null;
+    }
+  }
+  for (const extra of Object.keys(raw).sort()) {
+    if (!spec.fields.includes(extra)) out[extra] = raw[extra];
+  }
+  if (spec.innerSetFields.includes("roles")) {
+    const roles = canonicalizeRoleSet(out.roles);
+    if (isFingerprintCanonicalizationRejected(roles)) return roles;
+    out.roles = roles;
+  }
+  return out;
+}
+
+function canonicalizeRegisteredField(key, value) {
+  const spec = FINGERPRINT_FIELD_REGISTRY[key];
+  if (!spec) return value;
+  if (spec.kind === "exact_string_set") {
+    if (!Array.isArray(value)) return fingerprintCanonicalizationRejected(`${key} is not an array`);
+    const items = [];
+    for (const item of value) {
+      if (typeof item !== "string") return fingerprintCanonicalizationRejected(`${key} member is not a string`);
+      items.push(item);
+    }
+    const sorted = [...items].sort(compareCanonicalScalars);
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (sorted[i] === sorted[i - 1]) {
+        return fingerprintCanonicalizationRejected(`${key} duplicate records`);
+      }
+    }
+    return sorted;
+  }
+  if (spec.kind === "record_set_or_exact_string" && typeof value === "string") {
+    return value;
+  }
+  if (spec.kind === "record_set" || spec.kind === "record_set_or_exact_string") {
+    let records;
+    if (typeof value === "string") {
+      const parsed = parseLegacyCollection(key, value);
+      if (!parsed.ok) return fingerprintCanonicalizationRejected(parsed.reason);
+      records = parsed.records.map((record) => normalizeRegistryRecord(key, record, spec));
+    } else if (Array.isArray(value)) {
+      records = value.map((record) => normalizeRegistryRecord(key, record, spec));
+    } else {
+      return fingerprintCanonicalizationRejected(`${key} must be a string or array of records`);
+    }
+    for (const record of records) {
+      if (isFingerprintCanonicalizationRejected(record)) return record;
+    }
+    const sorted = [...records].sort((a, b) => compareRecordsByFields(a, b, spec.sortBy));
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (recordsDeepEqual(sorted[i - 1], sorted[i])) {
+        return fingerprintCanonicalizationRejected(`${key} duplicate records`);
+      }
+    }
+    return sorted;
+  }
+  return value;
+}
+
+export function canonicalizeFingerprintForCompare(value, key = null) {
+  if (key && FINGERPRINT_FIELD_REGISTRY[key]) {
+    return canonicalizeRegisteredField(key, value);
+  }
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalizeFingerprintForCompare(item));
+  }
+  const out = {};
+  for (const nextKey of Object.keys(value).sort()) {
+    out[nextKey] = canonicalizeFingerprintForCompare(value[nextKey], nextKey);
+    if (isFingerprintCanonicalizationRejected(out[nextKey])) return out[nextKey];
+  }
+  return out;
+}
+
+export function upgradeFingerprintToStructured(fingerprint) {
+  const upgraded = canonicalizeFingerprintForCompare(fingerprint);
+  if (isFingerprintCanonicalizationRejected(upgraded)) {
+    throw new Error(`HOLD: fingerprint canonicalization rejected: ${upgraded.reason}`);
+  }
+  return upgraded;
+}
 
 function deepFreeze(value) {
   if (value === null || typeof value !== "object") return value;
@@ -187,20 +870,34 @@ const FROZEN_EXPECTED_FINGERPRINTS_RAW = {
   }
 };
 
-export const FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
+/**
+ * Pre-canonicalization seals (comma-joined catalog strings).
+ * Superseded because representation/order changed — not semantic drift.
+ */
+export const SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
+  reason: FINGERPRINT_CANONICALIZATION_REASON,
   "00118_f3_bounded_financial_epoch_foundation.sql": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
   "00119_f3_01_core_ledger_foundation.sql": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
   "00120_f3_02_secure_posting_idempotency.sql": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610",
   "00121_f3_03_projection_read_proof.sql": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
   "00122_f3_04_correction_reversal.sql": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
-  "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66"
+  "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66",
+});
+
+export const FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
+  "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+  "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+  "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+  "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+  "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+  "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
 });
 
 
 function assertSealedExpectedHashesAtLoad() {
   const frozen = {};
   for (const file of Object.keys(FROZEN_EXPECTED_FINGERPRINTS_RAW)) {
-    frozen[file] = deepFreeze(FROZEN_EXPECTED_FINGERPRINTS_RAW[file]);
+    frozen[file] = deepFreeze(upgradeFingerprintToStructured(FROZEN_EXPECTED_FINGERPRINTS_RAW[file]));
   }
   deepFreeze(frozen);
   for (const file of Object.keys(FROZEN_EXPECTED_FINGERPRINT_SHA256)) {
@@ -221,7 +918,11 @@ function assertSealedExpectedHashesAtLoad() {
 }
 
 export function fingerprintCanonicalSha256(value) {
-  return createHash("sha256").update(JSON.stringify(canonicalize(value)), "utf8").digest("hex");
+  const canonical = canonicalizeFingerprintForCompare(value);
+  if (isFingerprintCanonicalizationRejected(canonical)) {
+    throw new Error(`HOLD: cannot hash rejected fingerprint: ${canonical.reason}`);
+  }
+  return createHash("sha256").update(JSON.stringify(canonicalize(canonical)), "utf8").digest("hex");
 }
 
 export const FROZEN_EXPECTED_FINGERPRINTS = assertSealedExpectedHashesAtLoad();
@@ -304,34 +1005,13 @@ export function buildIndependentObservedFingerprint(file, catalogInventory) {
   return observed;
 }
 
-function normalizeSetLikeString(value) {
-  if (typeof value !== "string") return value;
-  const parts = value.split(",").map((part) => part.trim()).filter((part) => part.length > 0);
-  parts.sort();
-  return parts.join(",");
-}
-
-function canonicalizeForCompare(value, key = null) {
-  if (key && FINGERPRINT_SET_LIKE_STRING_KEYS.includes(key) && typeof value === "string") {
-    return normalizeSetLikeString(value);
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (Array.isArray(value)) {
-    const items = value.map((item) => canonicalizeForCompare(item));
-    if (items.every((item) => item === null || typeof item !== "object")) {
-      return [...items].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-    }
-    return items;
-  }
-  const out = {};
-  for (const k of Object.keys(value).sort()) {
-    out[k] = canonicalizeForCompare(value[k], k);
-  }
-  return out;
-}
-
 export function canonicalFingerprintEqual(a, b) {
-  return JSON.stringify(canonicalizeForCompare(a)) === JSON.stringify(canonicalizeForCompare(b));
+  const left = canonicalizeFingerprintForCompare(a);
+  const right = canonicalizeFingerprintForCompare(b);
+  if (isFingerprintCanonicalizationRejected(left) || isFingerprintCanonicalizationRejected(right)) {
+    return false;
+  }
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 

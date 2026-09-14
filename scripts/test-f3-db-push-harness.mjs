@@ -96,9 +96,14 @@ import {
   historyInjectSqlForVersion,
 } from "./lib/f3-db-push-history-inject.mjs";
 import {
+  PREFIX_COMPLETE_SINGLE_PENDING_HOLD,
+  PRODUCTION_HISTORY_LIMITATION_WARNING,
   REPAIR_SAFETY_HOLD,
   assertExpectedFingerprintImmutable,
+  assertPrefixCompleteSinglePendingStaging,
+  authorizedStagedPrefixThrough,
   buildIndependentObservedFingerprint,
+  evaluatePrefixCompleteSinglePendingStaging,
   evaluateRepairSafetyGate,
   expectedFingerprintSha256,
   fingerprintCanonicalSha256,
@@ -107,6 +112,7 @@ import {
   getFrozenExpectedFingerprint,
   objectsPresentFromProbe,
   recordPreDbExpectedHashes,
+  runPrefixCompleteSinglePendingOrchestration,
   runRepairSafetyThenMaybeRepair,
   syncIsolatedMigrationsThrough,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
@@ -1301,16 +1307,22 @@ test("qualify runner classifies before repair and uses the new success label", (
   const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
   const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
   const stageIdx = seq.indexOf("syncIsolatedMigrationsThrough");
+  const preflightIdx = seq.indexOf("assertPrefixCompleteSinglePendingStaging");
   const pushIdx = seq.indexOf("runDbPushCandidate");
   const gateIdx = seq.indexOf("runRepairSafetyThenMaybeRepair");
   const repairIdx = seq.indexOf("runFilenameVersionRepair");
+  const retryStageIdx = seq.lastIndexOf("syncIsolatedMigrationsThrough");
+  const retryPreflightIdx = seq.lastIndexOf("assertPrefixCompleteSinglePendingStaging");
   const retryIdx = seq.lastIndexOf("runDbPushCandidate");
-  assert.ok(stageIdx >= 0 && stageIdx < pushIdx, "stage current file before first push");
+  assert.ok(stageIdx >= 0 && stageIdx < preflightIdx && preflightIdx < pushIdx, "stage + preflight before first push");
   assert.ok(gateIdx >= 0 && repairIdx > gateIdx);
-  assert.ok(retryIdx > repairIdx, "retry push after repair");
-  // Sealed hosted-run: stage once per loop iteration (no second sync before retry).
-  assert.equal((seq.match(/syncIsolatedMigrationsThrough/g) || []).length, 1);
-  assert.match(qualify, /syncIsolatedMigrationsThrough/);
+  assert.ok(retryStageIdx > repairIdx && retryPreflightIdx > retryStageIdx && retryIdx > retryPreflightIdx, "restage + preflight before retry");
+  assert.equal((seq.match(/syncIsolatedMigrationsThrough/g) || []).length, 2);
+  assert.equal((seq.match(/assertPrefixCompleteSinglePendingStaging/g) || []).length, 2);
+  assert.match(qualify, /phase: "initial"/);
+  assert.match(qualify, /phase: "retry"/);
+  assert.match(qualify, /PREFIX-COMPLETE, SINGLE-PENDING/);
+  assert.match(qualify, /PRODUCTION_HISTORY_LIMITATION_WARNING/);
   assert.match(qualify, /function objectsPresentFromProbe/);
   assert.match(qualify, /verifyPoisonAbsent/);
   assert.match(qualify, /QUALIFICATION_PASS/);
@@ -1320,7 +1332,7 @@ test("qualify runner classifies before repair and uses the new success label", (
   assert.match(qualify, /DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117/);
 });
 
-test("real isolated staging stages exactly one intended file and blocks unexpected files", () => {
+test("real isolated staging stages prefix-complete through current and blocks unexpected files", () => {
   const isolated = createIsolatedDbPushWorkdir();
   const migDir = path.join(isolated.workdir, "supabase", "migrations");
   const listMig = () => fs.readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort();
@@ -1329,20 +1341,21 @@ test("real isolated staging stages exactly one intended file and blocks unexpect
   assert.equal(listMig().length, 6);
 
   const first = syncIsolatedMigrationsThrough(isolated, F3_FORWARD_FILES[0]);
-  assert.deepEqual(first, [timestampFilenameFor(F3_FORWARD_FILES[0])]);
+  assert.deepEqual(first, authorizedStagedPrefixThrough(F3_FORWARD_FILES[0]));
   assert.deepEqual(listMig(), first);
   for (const later of F3_FORWARD_FILES.slice(1)) {
     assert.equal(fs.existsSync(path.join(migDir, timestampFilenameFor(later))), false, later);
   }
 
-  const retryStaged = listMig();
-  assert.deepEqual(retryStaged, first, "retry inspects the same staged workdir; no cascade files appear");
+  const retryStaged = syncIsolatedMigrationsThrough(isolated, F3_FORWARD_FILES[0]);
+  assert.deepEqual(retryStaged, first, "retry restage keeps complete prefix through current; no later files");
 
   const laterFile = F3_FORWARD_FILES[4];
   const later = syncIsolatedMigrationsThrough(isolated, laterFile);
-  assert.deepEqual(later, [timestampFilenameFor(laterFile)]);
+  assert.deepEqual(later, authorizedStagedPrefixThrough(laterFile));
   assert.deepEqual(listMig(), later);
-  assert.equal(fs.existsSync(path.join(migDir, first[0])), false);
+  assert.equal(fs.existsSync(path.join(migDir, timestampFilenameFor(F3_FORWARD_FILES[0]))), true);
+  assert.equal(fs.existsSync(path.join(migDir, timestampFilenameFor(F3_FORWARD_FILES[5]))), false);
 
   const unexpected = path.join(migDir, "99999_unexpected_block.sql");
   fs.writeFileSync(unexpected, "-- unexpected\n");
@@ -1379,4 +1392,406 @@ test("unexpected staged files and identity/cli misses forbid repair", async () =
     assert.equal(decided.repairAttempted, false, c.name);
     assert.equal(repairCalls, 0, `${c.name} repair spawned`);
   }
+});
+
+function historyResult(rows, extra = {}) {
+  return { status: 0, stdout: JSON.stringify(rows), stderr: "", ...extra };
+}
+
+function remoteRows(files) {
+  return files.map((file) => ({
+    version: PREASSIGNED_VERSIONS[file],
+    name: PREASSIGNED_NAMES[file],
+  }));
+}
+
+function isolatedMigDir(isolated) {
+  return path.join(isolated.workdir, "supabase", "migrations");
+}
+
+async function assertStagingForbidsPushAndRepair(name, input) {
+  let dbPushCalls = 0;
+  let repairCalls = 0;
+  const decided = await runPrefixCompleteSinglePendingOrchestration({
+    isolated: input.isolated,
+    file: input.file,
+    cliVersion: input.cliVersion === undefined ? CLI_PIN : input.cliVersion,
+    queryHistory: input.queryHistory || (() => input.historyResult),
+    dbPush: () => {
+      dbPushCalls += 1;
+      return { status: 0 };
+    },
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+    phase: input.phase || "initial",
+    stage: input.stage === undefined ? false : input.stage,
+  });
+  assert.equal(decided.ok, false, `${name} preflight unexpectedly passed`);
+  assert.equal(dbPushCalls, 0, `${name} dbPushCalls`);
+  assert.equal(repairCalls, 0, `${name} repairCalls`);
+  assert.equal(decided.dbPushCalls, 0, `${name} orchestration dbPushCalls`);
+  assert.equal(decided.repairCalls, 0, `${name} orchestration repairCalls`);
+  assert.match(decided.hold || decided.preflight?.reason || "", /HOLD|prefix-complete|staging|cli|history|migration/i);
+  if (input.expectCode) {
+    assert.equal(decided.preflight?.code, input.expectCode, `${name} code`);
+  }
+  if (input.historyResult !== undefined) {
+    assert.throws(
+      () => assertPrefixCompleteSinglePendingStaging({
+        workdir: input.isolated.workdir,
+        currentFile: input.file,
+        historyResult: input.historyResult,
+        cliVersion: input.cliVersion === undefined ? CLI_PIN : input.cliVersion,
+        phase: input.phase || "initial",
+      }),
+      (err) => /HOLD/.test(err.message),
+    );
+  }
+  return decided;
+}
+
+test("prefix-complete single-pending positives through 00123 and empty pending after repair", async () => {
+  assert.match(PRODUCTION_HISTORY_LIMITATION_WARNING, /disposable proves prefix-complete staging for F3 qualification history only/);
+  assert.match(PRODUCTION_HISTORY_LIMITATION_WARNING, /separately authorized read-only production preflight/);
+  assert.match(PRODUCTION_HISTORY_LIMITATION_WARNING, /Do not invent production migrations/);
+  assert.match(PREFIX_COMPLETE_SINGLE_PENDING_HOLD, /db push not spawned/);
+
+  for (let i = 0; i < F3_FORWARD_FILES.length; i += 1) {
+    const file = F3_FORWARD_FILES[i];
+    const isolated = createIsolatedDbPushWorkdir();
+    const staged = syncIsolatedMigrationsThrough(isolated, file);
+    assert.deepEqual(staged, authorizedStagedPrefixThrough(file));
+    const applied = F3_FORWARD_FILES.slice(0, i);
+    const initial = evaluatePrefixCompleteSinglePendingStaging({
+      workdir: isolated.workdir,
+      currentFile: file,
+      historyResult: historyResult(remoteRows(applied)),
+      cliVersion: CLI_PIN,
+      phase: "initial",
+    });
+    assert.equal(initial.ok, true, `${file} initial`);
+    assert.deepEqual(initial.pending, [PREASSIGNED_VERSIONS[file]]);
+    assert.deepEqual(initial.expectedApplied, applied);
+    assert.match(initial.productionHistoryLimitation, /Do not invent production migrations/);
+    assert.deepEqual(assertPrefixCompleteSinglePendingStaging({
+      workdir: isolated.workdir,
+      currentFile: file,
+      historyResult: historyResult(remoteRows(applied)),
+      cliVersion: CLI_PIN,
+      phase: "initial",
+    }).pending, [PREASSIGNED_VERSIONS[file]]);
+
+    let dbPushCalls = 0;
+    let repairCalls = 0;
+    const first = await runPrefixCompleteSinglePendingOrchestration({
+      isolated,
+      file,
+      cliVersion: CLI_PIN,
+      queryHistory: () => historyResult(remoteRows(applied)),
+      dbPush: () => {
+        dbPushCalls += 1;
+        return { status: 0 };
+      },
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+      phase: "initial",
+      stage: true,
+    });
+    assert.equal(first.ok, true, `${file} orchestration initial`);
+    assert.equal(dbPushCalls, 1, `${file} initial dbPush`);
+    assert.equal(repairCalls, 0, `${file} initial repair must stay 0 until repair-safety`);
+
+    const retryStaged = syncIsolatedMigrationsThrough(isolated, file);
+    assert.deepEqual(retryStaged, authorizedStagedPrefixThrough(file));
+    const repairedPrefix = F3_FORWARD_FILES.slice(0, i + 1);
+    const retry = evaluatePrefixCompleteSinglePendingStaging({
+      workdir: isolated.workdir,
+      currentFile: file,
+      historyResult: historyResult(remoteRows(repairedPrefix)),
+      cliVersion: CLI_PIN,
+      phase: "retry",
+    });
+    assert.equal(retry.ok, true, `${file} retry`);
+    assert.deepEqual(retry.pending, []);
+    dbPushCalls = 0;
+    repairCalls = 0;
+    const retryOrch = await runPrefixCompleteSinglePendingOrchestration({
+      isolated,
+      file,
+      cliVersion: CLI_PIN,
+      queryHistory: () => historyResult(remoteRows(repairedPrefix)),
+      dbPush: () => {
+        dbPushCalls += 1;
+        return { status: 0 };
+      },
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+      phase: "retry",
+      stage: true,
+    });
+    assert.equal(retryOrch.ok, true, `${file} orchestration retry`);
+    assert.equal(dbPushCalls, 1, `${file} retry dbPush`);
+    assert.equal(repairCalls, 0, `${file} retry repair`);
+    fs.rmSync(isolated.workdir, { recursive: true, force: true });
+  }
+});
+
+test("staging-negative matrix forbids db push and repair", async () => {
+  const file118 = F3_FORWARD_FILES[0];
+  const file119 = F3_FORWARD_FILES[1];
+  const file120 = F3_FORWARD_FILES[2];
+  const name118 = timestampFilenameFor(file118);
+  const name119 = timestampFilenameFor(file119);
+
+  const cases = [
+    {
+      name: "applied remote version missing from local workdir",
+      file: file119,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file119);
+        fs.rmSync(path.join(isolatedMigDir(isolated), name118), { force: true });
+      },
+      historyResult: historyResult(remoteRows([file118])),
+      expectCode: "applied_remote_missing_locally",
+    },
+    {
+      name: "applied local file wrong digest",
+      file: file119,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file119);
+        fs.writeFileSync(path.join(isolatedMigDir(isolated), name118), "-- mutated applied prefix\n");
+      },
+      historyResult: historyResult(remoteRows([file118])),
+      expectCode: "applied_local_digest",
+    },
+    {
+      name: "applied local file wrong name",
+      file: file119,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file119);
+        fs.renameSync(
+          path.join(isolatedMigDir(isolated), name118),
+          path.join(isolatedMigDir(isolated), "20260913173000_wrong_name.sql"),
+        );
+      },
+      historyResult: historyResult(remoteRows([file118])),
+      expectCode: "applied_local_identity",
+    },
+    {
+      name: "applied local file wrong timestamp",
+      file: file119,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file119);
+        fs.renameSync(
+          path.join(isolatedMigDir(isolated), name118),
+          path.join(isolatedMigDir(isolated), "20260913173999_f3_bounded_financial_epoch_foundation.sql"),
+        );
+      },
+      historyResult: historyResult(remoteRows([file118])),
+    },
+    {
+      name: "remote history unknown version",
+      file: file119,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file119);
+      },
+      historyResult: historyResult([{ version: "19990101000000", name: "not_an_f3_migration" }]),
+      expectCode: "remote_unknown_version",
+    },
+    {
+      name: "remote history unexpected name",
+      file: file119,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file119);
+      },
+      historyResult: historyResult([{ version: PREASSIGNED_VERSIONS[file118], name: "unexpected_name" }]),
+      expectCode: "remote_unexpected_name",
+    },
+    {
+      name: "remote history out of order",
+      file: file120,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file120);
+      },
+      historyResult: historyResult(remoteRows([file119, file118])),
+      expectCode: "remote_out_of_order",
+    },
+    {
+      name: "remote history gap",
+      file: file120,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file120);
+      },
+      historyResult: historyResult([
+        { version: PREASSIGNED_VERSIONS[file118], name: PREASSIGNED_NAMES[file118] },
+        { version: PREASSIGNED_VERSIONS[file120], name: PREASSIGNED_NAMES[file120] },
+      ]),
+      expectCode: "remote_gap",
+    },
+    {
+      name: "current target already remotely recorded before initial push",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+      },
+      historyResult: historyResult(remoteRows([file118])),
+      expectCode: "current_already_remote",
+    },
+    {
+      name: "current target missing locally",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+        fs.rmSync(path.join(isolatedMigDir(isolated), name118), { force: true });
+      },
+      historyResult: historyResult([]),
+      expectCode: "current_missing_locally",
+    },
+    {
+      name: "later migration staged",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+        const src = path.join(root, "supabase", "migrations", file119);
+        fs.writeFileSync(path.join(isolatedMigDir(isolated), name119), fs.readFileSync(src));
+      },
+      historyResult: historyResult([]),
+    },
+    {
+      name: "two unapplied migrations staged",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file119);
+      },
+      historyResult: historyResult([]),
+    },
+    {
+      name: "unrelated migration file exists",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+        fs.writeFileSync(path.join(isolatedMigDir(isolated), "99999_unrelated.sql"), "-- unrelated\n");
+      },
+      historyResult: historyResult([]),
+      expectCode: "unrelated_migration",
+    },
+    {
+      name: "duplicate timestamp exists",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+        fs.writeFileSync(path.join(isolatedMigDir(isolated), "20260913173000_duplicate.sql"), "-- dup\n");
+      },
+      historyResult: historyResult([]),
+      expectCode: "duplicate_timestamp",
+    },
+    {
+      name: "malformed history response",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+      },
+      historyResult: { status: 0, stdout: "not-json", stderr: "" },
+      expectCode: "malformed_history",
+    },
+    {
+      name: "history query exits nonzero",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+      },
+      historyResult: { status: 1, stdout: "[]", stderr: "ERROR: history probe failed" },
+      expectCode: "history_nonzero",
+    },
+    {
+      name: "CLI version differs from 2.117.0",
+      file: file118,
+      setup(isolated) {
+        syncIsolatedMigrationsThrough(isolated, file118);
+      },
+      historyResult: historyResult([]),
+      cliVersion: "2.116.0",
+      expectCode: "cli_pin",
+    },
+  ];
+
+  for (const c of cases) {
+    const isolated = createIsolatedDbPushWorkdir();
+    c.setup(isolated);
+    await assertStagingForbidsPushAndRepair(c.name, {
+      isolated,
+      file: c.file,
+      historyResult: c.historyResult,
+      cliVersion: c.cliVersion,
+      expectCode: c.expectCode,
+      stage: false,
+    });
+    fs.rmSync(isolated.workdir, { recursive: true, force: true });
+  }
+});
+
+test("malformed history envelopes and extra CLI drift still stop before push", async () => {
+  const extra = [
+    { name: "error object", historyResult: { status: 0, stdout: JSON.stringify({ error: "nope" }), stderr: "" } },
+    { name: "truncated JSON", historyResult: { status: 0, stdout: "{", stderr: "" } },
+    { name: "SQL ERROR on status 0", historyResult: { status: 0, stdout: "[]", stderr: "ERROR: relation missing" } },
+    { name: "missing status", historyResult: { stdout: "[]", stderr: "" } },
+    { name: "CLI 2.117.1", historyResult: historyResult([]), cliVersion: "2.117.1" },
+  ];
+  for (const c of extra) {
+    const isolated = createIsolatedDbPushWorkdir();
+    syncIsolatedMigrationsThrough(isolated, F3_FORWARD_FILES[0]);
+    await assertStagingForbidsPushAndRepair(c.name, {
+      isolated,
+      file: F3_FORWARD_FILES[0],
+      historyResult: c.historyResult,
+      cliVersion: c.cliVersion,
+      stage: false,
+    });
+    fs.rmSync(isolated.workdir, { recursive: true, force: true });
+  }
+});
+
+test("repair-safety staging gate accepts prefix-complete for 00119 and rejects one-file-only", () => {
+  const file119 = F3_FORWARD_FILES[1];
+  const prefix = authorizedStagedPrefixThrough(file119);
+  const okStaging = evaluateRepairSafetyGate(authorizedGateInput({
+    file: file119,
+    targetVersion: PREASSIGNED_VERSIONS[file119],
+    stagedMigrations: prefix,
+    injectSql: historyInjectSqlForFile(file119),
+    stderr: `${HISTORY_INJECT_MARKER}: blocked INSERT for version ${PREASSIGNED_VERSIONS[file119]} name ${PREASSIGNED_NAMES[file119]}`,
+    digest: FROZEN_DIGESTS[file119],
+    onDiskDigest: FROZEN_DIGESTS[file119],
+    fingerprint: passingFingerprint(file119),
+    probe: passingProbe(file119),
+  }));
+  assert.equal(okStaging.gates.find((g) => g.id === "staged_prefix_complete")?.ok, true);
+  const oneFile = evaluateRepairSafetyGate(authorizedGateInput({
+    file: file119,
+    targetVersion: PREASSIGNED_VERSIONS[file119],
+    stagedMigrations: [timestampFilenameFor(file119)],
+    injectSql: historyInjectSqlForFile(file119),
+    stderr: `${HISTORY_INJECT_MARKER}: blocked INSERT for version ${PREASSIGNED_VERSIONS[file119]} name ${PREASSIGNED_NAMES[file119]}`,
+    digest: FROZEN_DIGESTS[file119],
+    onDiskDigest: FROZEN_DIGESTS[file119],
+    fingerprint: passingFingerprint(file119),
+    probe: passingProbe(file119),
+  }));
+  assert.equal(oneFile.gates.find((g) => g.id === "staged_prefix_complete")?.ok, false);
+});
+
+test("harness uses exported staging preflight rather than a test-local copy", () => {
+  const harness = fs.readFileSync(path.join(root, "scripts/test-f3-db-push-harness.mjs"), "utf8");
+  assert.match(harness, /assertPrefixCompleteSinglePendingStaging/);
+  assert.match(harness, /runPrefixCompleteSinglePendingOrchestration/);
+  assert.match(harness, /evaluatePrefixCompleteSinglePendingStaging/);
+  assert.equal((harness.match(/function assertPrefixCompleteSinglePendingStaging/g) || []).length, 0);
+  assert.equal((harness.match(/function syncIsolatedMigrationsThrough/g) || []).length, 0);
 });

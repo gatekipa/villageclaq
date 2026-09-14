@@ -22,18 +22,29 @@ import {
   F3_FORWARD_FILES,
   FROZEN_DIGESTS,
   HISTORY_INJECT_MARKER,
+  PREASSIGNED_NAMES,
   PREASSIGNED_VERSIONS,
   PRODUCTION_REF,
   RECOGNITION_ALLOWLIST,
   TARGET_OBJECT_PROBES,
 } from "./f3-db-push-pins.mjs";
-import { timestampFilenameFor } from "./f3-db-push-version-map.mjs";
+import {
+  sha256Buffer,
+  sourceFileForVersion,
+  timestampFilenameFor,
+} from "./f3-db-push-version-map.mjs";
 import { extractPsqlErrorLines } from "./f3-db-push-stub-live-pin-floor.mjs";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 export const REPAIR_SAFETY_HOLD =
   "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation";
+
+export const PREFIX_COMPLETE_SINGLE_PENDING_HOLD =
+  "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned";
+
+export const PRODUCTION_HISTORY_LIMITATION_WARNING =
+  "WARNING: disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, a separately authorized read-only production preflight must prove every production-recorded migration has an authoritative local timestamp file, frozen SQL digest, and order. Empty placeholders and guessed history are forbidden. Do not invent production migrations.";
 
 export const FINGERPRINT_REQUIRED_KEYS = Object.freeze([
   "schema",
@@ -709,24 +720,70 @@ export function authorizedStagedFilename(file) {
   return timestampFilenameFor(file);
 }
 
+export function authorizedPrefixFilesThrough(throughFile) {
+  const idx = F3_FORWARD_FILES.indexOf(throughFile);
+  if (idx < 0) {
+    throw new Error(`HOLD: ${throughFile} is not an authorized F3 forward file`);
+  }
+  return F3_FORWARD_FILES.slice(0, idx + 1);
+}
+
+export function authorizedStagedPrefixThrough(throughFile) {
+  return authorizedPrefixFilesThrough(throughFile).map((file) => timestampFilenameFor(file));
+}
+
+export function expectedAppliedPrefixFiles(throughFile, phase = "initial") {
+  const idx = F3_FORWARD_FILES.indexOf(throughFile);
+  if (idx < 0) {
+    throw new Error(`HOLD: ${throughFile} is not an authorized F3 forward file`);
+  }
+  if (phase === "retry") return F3_FORWARD_FILES.slice(0, idx + 1);
+  return F3_FORWARD_FILES.slice(0, idx);
+}
+
+export function expectedPendingFiles(throughFile, phase = "initial") {
+  if (phase === "retry") return [];
+  if (!F3_FORWARD_FILES.includes(throughFile)) {
+    throw new Error(`HOLD: ${throughFile} is not an authorized F3 forward file`);
+  }
+  return [throughFile];
+}
+
 export function listIsolatedMigrationFilenames(workdir) {
   const migDir = path.join(workdir, "supabase", "migrations");
   if (!fs.existsSync(migDir)) return [];
   return fs.readdirSync(migDir).sort();
 }
 
+function isolatedMigrationsDir(workdir) {
+  return path.join(workdir, "supabase", "migrations");
+}
+
+function copyAuthorizedSourceToDest(isolated, sourceFile, dest) {
+  const intended = timestampFilenameFor(sourceFile);
+  const copy = (isolated?.copies || []).find((c) => c.destName === intended);
+  const srcFile = copy?.sourceFile || sourceFile;
+  const src = path.join(repoRoot, "supabase", "migrations", srcFile);
+  if (!fs.existsSync(src)) {
+    throw new Error(`HOLD: authorized source missing for ${srcFile}`);
+  }
+  fs.writeFileSync(dest, fs.readFileSync(src));
+}
+
 /**
- * Stage exactly one intended F3 timestamp migration in the isolated workdir.
- * Unexpected files block. Authorized non-target files are cleaned from the
- * staged directory. Repository migration bytes are never rewritten.
+ * PREFIX-COMPLETE, SINGLE-PENDING staging.
+ * Stage every authorized F3 timestamp file through `throughFile` (inclusive).
+ * Later F3 files are removed. Unexpected files block.
+ * Repository migration bytes are never rewritten.
  */
 export function syncIsolatedMigrationsThrough(isolated, throughFile) {
   if (!isolated?.workdir) {
     throw new Error("HOLD: isolated workdir required for staging");
   }
-  const intended = authorizedStagedFilename(throughFile);
+  const intended = authorizedStagedPrefixThrough(throughFile);
+  const intendedSet = new Set(intended);
   const authorized = new Set(F3_FORWARD_FILES.map((f) => timestampFilenameFor(f)));
-  const migDir = path.join(isolated.workdir, "supabase", "migrations");
+  const migDir = isolatedMigrationsDir(isolated.workdir);
   if (!fs.existsSync(migDir)) {
     throw new Error("HOLD: isolated migrations directory missing");
   }
@@ -742,29 +799,514 @@ export function syncIsolatedMigrationsThrough(isolated, throughFile) {
   }
 
   for (const name of names) {
-    if (name !== intended) {
+    if (!intendedSet.has(name)) {
       fs.rmSync(path.join(migDir, name), { force: true });
     }
   }
 
-  const dest = path.join(migDir, intended);
-  if (!fs.existsSync(dest)) {
-    const copy = (isolated.copies || []).find((c) => c.destName === intended);
-    const sourceFile = copy?.sourceFile || throughFile;
-    const src = path.join(repoRoot, "supabase", "migrations", sourceFile);
-    if (!fs.existsSync(src)) {
-      throw new Error(`HOLD: authorized source missing for ${sourceFile}`);
+  for (const sourceFile of authorizedPrefixFilesThrough(throughFile)) {
+    const destName = timestampFilenameFor(sourceFile);
+    const dest = path.join(migDir, destName);
+    if (!fs.existsSync(dest)) {
+      copyAuthorizedSourceToDest(isolated, sourceFile, dest);
     }
-    fs.writeFileSync(dest, fs.readFileSync(src));
   }
 
   const staged = fs.readdirSync(migDir).filter((name) => name.endsWith(".sql")).sort();
-  if (staged.length !== 1 || staged[0] !== intended) {
-    const err = new Error(`HOLD: staging did not leave exactly the intended migration ${intended}`);
+  const expected = [...intended].sort();
+  if (staged.length !== expected.length || expected.some((name, i) => staged[i] !== name)) {
+    const err = new Error(
+      `HOLD: staging did not leave prefix-complete set through ${throughFile}: ${staged.join(",")}`,
+    );
     err.code = "F3_DBPUSH_STAGING_INEXACT";
     throw err;
   }
   return staged;
+}
+
+export const stagePrefixCompleteThrough = syncIsolatedMigrationsThrough;
+
+function failPreflight(code, reason, extra = {}) {
+  return { ok: false, code, reason, ...extra };
+}
+
+function unwrapHistoryRows(value) {
+  let current = value;
+  if (typeof current === "string") {
+    try {
+      current = JSON.parse(current);
+    } catch {
+      return { ok: false, reason: "malformed history response: non-JSON row payload", code: "malformed_history" };
+    }
+  }
+  if (Array.isArray(current)) {
+    if (
+      current.length === 1 &&
+      current[0] &&
+      typeof current[0] === "object" &&
+      !Array.isArray(current[0]) &&
+      (Array.isArray(current[0].json_agg) || Array.isArray(current[0].coalesce) || Array.isArray(current[0].rows))
+    ) {
+      current = current[0].json_agg || current[0].coalesce || current[0].rows;
+    } else if (
+      current.length === 1 &&
+      typeof current[0] === "string"
+    ) {
+      return unwrapHistoryRows(current[0]);
+    }
+    return { ok: true, rows: current };
+  }
+  if (current && typeof current === "object") {
+    const unexpected = Object.keys(current).filter(
+      (k) => !["json_agg", "coalesce", "rows", "advisory", "warning"].includes(k),
+    );
+    if (unexpected.length > 0 && !Array.isArray(current.json_agg) && !Array.isArray(current.coalesce) && !Array.isArray(current.rows)) {
+      return { ok: false, reason: "malformed history response: unexpected object keys", code: "malformed_history" };
+    }
+    if (Array.isArray(current.json_agg)) return { ok: true, rows: current.json_agg };
+    if (Array.isArray(current.coalesce)) return { ok: true, rows: current.coalesce };
+    if (Array.isArray(current.rows)) return { ok: true, rows: current.rows };
+    return { ok: false, reason: "malformed history response: missing rows", code: "malformed_history" };
+  }
+  return { ok: false, reason: "malformed history response: wrong JSON shape", code: "malformed_history" };
+}
+
+export function parseRemoteMigrationHistoryResult(result) {
+  if (result == null || typeof result !== "object" || Array.isArray(result)) {
+    return failPreflight("malformed_history", "malformed history response");
+  }
+  if (!Object.prototype.hasOwnProperty.call(result, "status") || result.status !== 0) {
+    return failPreflight(
+      "history_nonzero",
+      `history query exits nonzero: status=${result.status}`,
+      { status: result.status },
+    );
+  }
+  const blob = textOf(result);
+  if (hasSqlFailureOutput(blob)) {
+    return failPreflight("malformed_history", "malformed history response: SQL error");
+  }
+  const parsedStdout = parseEntireJson(result.stdout);
+  if (!parsedStdout.ok) {
+    return failPreflight("malformed_history", `malformed history response: ${parsedStdout.reason}`);
+  }
+  const unwrapped = unwrapHistoryRows(parsedStdout.value);
+  if (!unwrapped.ok) return unwrapped;
+  if (!Array.isArray(unwrapped.rows)) {
+    return failPreflight("malformed_history", "malformed history response: rows are not an array");
+  }
+
+  const rows = [];
+  const seen = new Set();
+  for (const row of unwrapped.rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      return failPreflight("malformed_history", "malformed history response: row is not an object");
+    }
+    const version = row.version;
+    const name = row.name;
+    if (typeof version !== "string" || !/^\d{14}$/.test(version)) {
+      return failPreflight("malformed_history", "malformed history response: invalid version");
+    }
+    if (typeof name !== "string") {
+      return failPreflight("malformed_history", "malformed history response: invalid name");
+    }
+    if (seen.has(version)) {
+      return failPreflight("remote_duplicate", `duplicate remote version ${version}`);
+    }
+    seen.add(version);
+    rows.push({ version, name });
+  }
+  return { ok: true, rows };
+}
+
+function inspectLocalStagedMigrations(workdir) {
+  const migDir = isolatedMigrationsDir(workdir);
+  if (!fs.existsSync(migDir)) {
+    return failPreflight("local_missing_dir", "isolated migrations directory missing");
+  }
+  const names = fs.readdirSync(migDir);
+  const sqlFiles = names.filter((name) => name.endsWith(".sql")).sort();
+  const authorizedFilenames = new Set(F3_FORWARD_FILES.map((file) => timestampFilenameFor(file)));
+  const versionToFiles = new Map();
+  const unrelated = [];
+  const parsed = [];
+
+  for (const filename of sqlFiles) {
+    const match = filename.match(/^(\d{14})_(.+)\.sql$/);
+    if (!match) {
+      unrelated.push(filename);
+      continue;
+    }
+    const version = match[1];
+    const historyName = match[2];
+    if (!versionToFiles.has(version)) versionToFiles.set(version, []);
+    versionToFiles.get(version).push(filename);
+    const sourceFile = sourceFileForVersion(version);
+    const authorizedName = sourceFile ? timestampFilenameFor(sourceFile) : null;
+    const abs = path.join(migDir, filename);
+    const digest = sha256Buffer(fs.readFileSync(abs));
+    if (!authorizedFilenames.has(filename) && !sourceFile) {
+      unrelated.push(filename);
+    }
+    parsed.push({
+      filename,
+      version,
+      name: historyName,
+      sourceFile,
+      digest,
+      authorizedFilename: filename === authorizedName,
+    });
+  }
+
+  const duplicates = [...versionToFiles.entries()]
+    .filter(([, files]) => files.length > 1)
+    .map(([version, files]) => ({ version, files }));
+
+  return { ok: true, sqlFiles, parsed, unrelated, duplicates, versionToFiles };
+}
+
+function evaluateRemoteAppliedPrefix(rows, expectedFiles) {
+  const authorizedVersions = new Set(Object.values(PREASSIGNED_VERSIONS));
+  const idxByVersion = new Map(F3_FORWARD_FILES.map((file, i) => [PREASSIGNED_VERSIONS[file], i]));
+
+  for (const row of rows) {
+    if (!authorizedVersions.has(row.version)) {
+      return failPreflight("remote_unknown_version", `remote history unknown version ${row.version}`);
+    }
+    const file = sourceFileForVersion(row.version);
+    if (!file || PREASSIGNED_NAMES[file] !== row.name) {
+      return failPreflight(
+        "remote_unexpected_name",
+        `remote history unexpected name ${row.name} for ${row.version}`,
+      );
+    }
+  }
+
+  const indices = rows.map((row) => idxByVersion.get(row.version));
+  for (let i = 1; i < indices.length; i += 1) {
+    if (indices[i] <= indices[i - 1]) {
+      return failPreflight("remote_out_of_order", "remote history out of order");
+    }
+    if (indices[i] !== indices[i - 1] + 1) {
+      return failPreflight("remote_gap", "remote history gap");
+    }
+  }
+  if (indices.length > 0 && indices[0] !== 0) {
+    return failPreflight("remote_gap", "remote history gap");
+  }
+
+  return { ok: true };
+}
+
+function evaluateRemoteExactAppliedPrefix(rows, expectedFiles) {
+  const expected = expectedFiles.map((file) => ({
+    version: PREASSIGNED_VERSIONS[file],
+    name: PREASSIGNED_NAMES[file],
+  }));
+  if (rows.length !== expected.length) {
+    return failPreflight(
+      "remote_applied_prefix_mismatch",
+      "remote recorded versions/names do not equal expected applied prefix",
+    );
+  }
+  for (let i = 0; i < expected.length; i += 1) {
+    if (rows[i].version !== expected[i].version || rows[i].name !== expected[i].name) {
+      return failPreflight(
+        "remote_applied_prefix_mismatch",
+        "remote recorded versions/names do not equal expected applied prefix",
+      );
+    }
+  }
+  return { ok: true, expected };
+}
+
+/**
+ * Independently verify PREFIX-COMPLETE, SINGLE-PENDING staging before db push.
+ * Expected prefix is computed from the frozen F3 map + current file + phase.
+ * Never assigned from observed local or remote listings.
+ */
+export function evaluatePrefixCompleteSinglePendingStaging({
+  workdir,
+  currentFile,
+  historyResult,
+  cliVersion,
+  phase = "initial",
+} = {}) {
+  if (cliVersion !== CLI_PIN) {
+    return failPreflight("cli_pin", `cliVersion=${cliVersion} required=${CLI_PIN}`);
+  }
+  if (!F3_FORWARD_FILES.includes(currentFile)) {
+    return failPreflight("unauthorized_file", `unknown file ${currentFile}`);
+  }
+  if (!workdir) {
+    return failPreflight("workdir_missing", "isolated workdir required for staging preflight");
+  }
+
+  const expectedLocalFiles = authorizedPrefixFilesThrough(currentFile);
+  const expectedLocalNames = authorizedStagedPrefixThrough(currentFile);
+  const expectedApplied = expectedAppliedPrefixFiles(currentFile, phase);
+  const expectedPending = expectedPendingFiles(currentFile, phase);
+  const currentVersion = PREASSIGNED_VERSIONS[currentFile];
+  const currentName = PREASSIGNED_NAMES[currentFile];
+  const currentFilename = timestampFilenameFor(currentFile);
+  const laterFiles = F3_FORWARD_FILES.slice(F3_FORWARD_FILES.indexOf(currentFile) + 1);
+
+  const history = parseRemoteMigrationHistoryResult(historyResult);
+  if (!history.ok) return history;
+
+  const remoteStructure = evaluateRemoteAppliedPrefix(history.rows, expectedApplied);
+  if (!remoteStructure.ok) return remoteStructure;
+
+  const remoteVersionsEarly = history.rows.map((row) => row.version);
+  if (phase === "initial" && remoteVersionsEarly.includes(currentVersion)) {
+    return failPreflight(
+      "current_already_remote",
+      "current target already remotely recorded before initial push",
+    );
+  }
+
+  const remotePrefix = evaluateRemoteExactAppliedPrefix(history.rows, expectedApplied);
+  if (!remotePrefix.ok) return remotePrefix;
+
+  const local = inspectLocalStagedMigrations(workdir);
+  if (!local.ok) return local;
+
+  if (local.duplicates.length > 0) {
+    return failPreflight(
+      "duplicate_timestamp",
+      `duplicate timestamp exists: ${local.duplicates.map((d) => d.version).join(",")}`,
+    );
+  }
+  if (local.unrelated.length > 0) {
+    return failPreflight(
+      "unrelated_migration",
+      `unrelated migration file present: ${local.unrelated.join(",")}`,
+    );
+  }
+
+  const laterPresent = local.parsed.filter((row) => laterFiles.some((file) => PREASSIGNED_VERSIONS[file] === row.version));
+  if (laterPresent.length > 0) {
+    return failPreflight(
+      "later_migration_staged",
+      `later F3 migration staged: ${laterPresent.map((row) => row.filename).join(",")}`,
+    );
+  }
+
+  const localByVersion = new Map(local.parsed.map((row) => [row.version, row]));
+  for (const file of expectedApplied) {
+    const version = PREASSIGNED_VERSIONS[file];
+    const row = localByVersion.get(version);
+    if (!row) {
+      return failPreflight(
+        "applied_remote_missing_locally",
+        `applied remote version ${version} missing from local workdir`,
+      );
+    }
+    if (row.filename !== timestampFilenameFor(file) || row.name !== PREASSIGNED_NAMES[file]) {
+      return failPreflight(
+        "applied_local_identity",
+        `applied local file wrong name or timestamp for ${file}: ${row.filename}`,
+      );
+    }
+    if (row.digest !== FROZEN_DIGESTS[file]) {
+      return failPreflight(
+        "applied_local_digest",
+        `applied local file wrong digest for ${file}`,
+      );
+    }
+  }
+
+  const currentLocal = localByVersion.get(currentVersion);
+  if (phase === "initial" && !currentLocal) {
+    return failPreflight("current_missing_locally", `current target ${currentFilename} missing locally`);
+  }
+  if (currentLocal) {
+    if (currentLocal.filename !== currentFilename || currentLocal.name !== currentName) {
+      return failPreflight(
+        "current_local_identity",
+        `current target wrong name or timestamp: ${currentLocal.filename}`,
+      );
+    }
+    if (currentLocal.digest !== FROZEN_DIGESTS[currentFile]) {
+      return failPreflight("current_local_digest", "current target does not match authorized digest");
+    }
+  }
+
+  const remoteVersions = history.rows.map((row) => row.version);
+  const localVersions = local.parsed.map((row) => row.version).sort();
+  const remoteSet = new Set(remoteVersions);
+  const localSet = new Set(localVersions);
+  const pending = localVersions.filter((version) => !remoteSet.has(version));
+  const remoteMinusLocal = remoteVersions.filter((version) => !localSet.has(version));
+  const expectedPendingVersions = expectedPending.map((file) => PREASSIGNED_VERSIONS[file]);
+
+  if (phase === "initial" && remoteSet.has(currentVersion)) {
+    return failPreflight(
+      "current_already_remote",
+      "current target already remotely recorded before initial push",
+    );
+  }
+  if (phase === "retry" && !remoteSet.has(currentVersion)) {
+    return failPreflight(
+      "current_missing_remote_after_repair",
+      "current target absent from remote history before retry",
+    );
+  }
+
+  if (pending.length !== expectedPendingVersions.length || pending.some((v, i) => v !== expectedPendingVersions[i])) {
+    if (pending.length > 1 && phase === "initial") {
+      return failPreflight(
+        "two_unapplied",
+        `local-minus-remote versions ${JSON.stringify(pending)} is not exactly [${currentVersion}]`,
+      );
+    }
+    return failPreflight(
+      "pending_mismatch",
+      `local-minus-remote versions ${JSON.stringify(pending)} expected ${JSON.stringify(expectedPendingVersions)}`,
+    );
+  }
+  if (remoteMinusLocal.length > 0) {
+    return failPreflight(
+      "remote_minus_local",
+      `remote-minus-local versions is not empty: ${remoteMinusLocal.join(",")}`,
+    );
+  }
+
+  const observedLocalNames = local.parsed.map((row) => row.filename).sort();
+  if (
+    observedLocalNames.length !== expectedLocalNames.length ||
+    expectedLocalNames.some((name, i) => observedLocalNames[i] !== name)
+  ) {
+    return failPreflight(
+      "local_prefix_mismatch",
+      `local staged set ${JSON.stringify(observedLocalNames)} != prefix ${JSON.stringify(expectedLocalNames)}`,
+    );
+  }
+
+  return {
+    ok: true,
+    phase,
+    currentFile,
+    currentVersion,
+    staged: observedLocalNames,
+    expectedLocal: expectedLocalFiles,
+    expectedApplied,
+    expectedPending,
+    pending,
+    remote: history.rows,
+    productionHistoryLimitation: PRODUCTION_HISTORY_LIMITATION_WARNING,
+  };
+}
+
+export function assertPrefixCompleteSinglePendingStaging(input = {}) {
+  const result = evaluatePrefixCompleteSinglePendingStaging(input);
+  if (!result.ok) {
+    const err = new Error(`${PREFIX_COMPLETE_SINGLE_PENDING_HOLD}: ${result.reason}`);
+    err.code = result.code || "F3_DBPUSH_STAGING_PREFLIGHT";
+    err.preflight = result;
+    throw err;
+  }
+  return result;
+}
+
+/**
+ * Shared qualify/test orchestration: stage prefix-complete, independently
+ * preflight, then maybe db-push. Repair is accepted only so callers can prove
+ * it is not invoked when preflight fails.
+ */
+export async function runPrefixCompleteSinglePendingOrchestration({
+  isolated,
+  file,
+  cliVersion,
+  queryHistory,
+  dbPush,
+  repair,
+  phase = "initial",
+  stage = true,
+} = {}) {
+  let staged = null;
+  try {
+    if (stage) {
+      staged = syncIsolatedMigrationsThrough(isolated, file);
+    } else if (isolated?.workdir) {
+      staged = listIsolatedMigrationFilenames(isolated.workdir).filter((name) => name.endsWith(".sql"));
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      staged,
+      dbPushCalls: 0,
+      repairCalls: 0,
+      hold: PREFIX_COMPLETE_SINGLE_PENDING_HOLD,
+      error: String(err?.message || err),
+      code: err?.code || "F3_DBPUSH_STAGING_UNEXPECTED_FILES",
+      preflight: err?.preflight || { ok: false, reason: String(err?.message || err), code: err?.code },
+    };
+  }
+
+  let historyResult;
+  try {
+    if (typeof queryHistory !== "function") {
+      return {
+        ok: false,
+        staged,
+        dbPushCalls: 0,
+        repairCalls: 0,
+        hold: PREFIX_COMPLETE_SINGLE_PENDING_HOLD,
+        preflight: failPreflight("history_query_missing", "history query callback missing"),
+      };
+    }
+    historyResult = await Promise.resolve(queryHistory());
+  } catch (err) {
+    return {
+      ok: false,
+      staged,
+      dbPushCalls: 0,
+      repairCalls: 0,
+      hold: PREFIX_COMPLETE_SINGLE_PENDING_HOLD,
+      preflight: failPreflight("malformed_history", `malformed history response: ${err?.message || err}`),
+    };
+  }
+
+  let preflight;
+  try {
+    preflight = assertPrefixCompleteSinglePendingStaging({
+      workdir: isolated?.workdir,
+      currentFile: file,
+      historyResult,
+      cliVersion,
+      phase,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      staged,
+      dbPushCalls: 0,
+      repairCalls: 0,
+      hold: PREFIX_COMPLETE_SINGLE_PENDING_HOLD,
+      preflight: err.preflight || { ok: false, reason: String(err?.message || err), code: err?.code },
+    };
+  }
+
+  if (typeof dbPush !== "function") {
+    return {
+      ok: true,
+      staged,
+      preflight,
+      dbPushCalls: 0,
+      repairCalls: 0,
+      pushResult: null,
+    };
+  }
+  const pushResult = await Promise.resolve(dbPush({ staged, preflight, phase }));
+  return {
+    ok: true,
+    staged,
+    preflight,
+    pushResult,
+    dbPushCalls: 1,
+    repairCalls: 0,
+  };
 }
 
 function disposableIdentityOk(input) {
@@ -828,12 +1370,17 @@ export function evaluateRepairSafetyGate(input = {}) {
     pass("cli_pin");
   }
 
-  const intendedName = F3_FORWARD_FILES.includes(file) ? timestampFilenameFor(file) : null;
+  const intendedPrefix = F3_FORWARD_FILES.includes(file) ? authorizedStagedPrefixThrough(file) : null;
   const staged = Array.isArray(input.stagedMigrations) ? input.stagedMigrations : null;
-  if (!staged || staged.length !== 1 || staged[0] !== intendedName) {
-    fail("staged_exact_one", `staged=${JSON.stringify(staged)} intended=${intendedName}`);
+  const prefixOk =
+    intendedPrefix != null &&
+    Array.isArray(staged) &&
+    staged.length === intendedPrefix.length &&
+    intendedPrefix.every((name, i) => staged[i] === name);
+  if (!prefixOk) {
+    fail("staged_prefix_complete", `staged=${JSON.stringify(staged)} intended=${JSON.stringify(intendedPrefix)}`);
   } else {
-    pass("staged_exact_one");
+    pass("staged_prefix_complete");
   }
 
   const injectInstalled =

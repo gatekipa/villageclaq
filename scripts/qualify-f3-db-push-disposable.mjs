@@ -118,8 +118,10 @@ import {
 } from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 import {
   POISON_ABSENT_PROBE_SQL,
+  PRODUCTION_HISTORY_LIMITATION_WARNING,
   REPAIR_SAFETY_HOLD,
   assertExpectedFingerprintImmutable,
+  assertPrefixCompleteSinglePendingStaging,
   buildIndependentObservedFingerprint,
   expectedFingerprintSha256,
   getFrozenExpectedFingerprint,
@@ -172,6 +174,8 @@ function chiefRunbook() {
     managementApiApply: MANAGEMENT_API_APPLY_DISQUALIFICATION,
     versionsKnownBeforeExecution: PREASSIGNED_VERSIONS,
     recognition: [...RECOGNITION_ALLOWLIST],
+    stagingInvariant: "PREFIX-COMPLETE, SINGLE-PENDING",
+    productionHistoryLimitation: PRODUCTION_HISTORY_LIMITATION_WARNING,
     floor: STUB_LIVE_PIN_FLOOR_AUTHORITY,
     floorLabel: QUALIFICATION_FLOOR_LABEL,
     floorMode: HOSTED_DEFAULT_FLOOR_MODE,
@@ -190,7 +194,8 @@ function chiefRunbook() {
       "Do not replay 00001–00116 or use 00030/00057 transforms",
       "Do not --wipe-to-baseline; disposable stays CLEAN; --no-wipe is required",
       "Do not invent schema_migrations rows for 00117",
-      "Isolated db-push workdir only has 00118–00123; earlier production history is not reproduced",
+      "Isolated db-push workdir uses PREFIX-COMPLETE, SINGLE-PENDING staging for F3 qualification history only",
+      PRODUCTION_HISTORY_LIMITATION_WARNING,
       "Greenfield floor mode is disallowed for this auth",
       `Success label only: ${FILE_BASED_RUNNER_VERDICTS.MECHANICS_PASS}`,
     ],
@@ -285,6 +290,8 @@ async function main() {
     cli: null,
     help: null,
     sequence: [],
+    stagingInvariant: "PREFIX-COMPLETE, SINGLE-PENDING",
+    productionHistoryLimitation: PRODUCTION_HISTORY_LIMITATION_WARNING,
     claims: {
       productionApproval: "NOT CLAIMED",
       managementApiApply: "PERMANENTLY DISQUALIFIED",
@@ -511,9 +518,24 @@ async function main() {
       }
       for (const file of F3_FORWARD_FILES) {
         const version = preassignedVersionFor(file);
-        // Stage exactly the current intended file so post-repair retry
-        // cannot cascade-apply earlier or later F3 files.
+        const queryHistory = () =>
+          runDbQuery({
+            bin: cli.bin,
+            workdir: isolated.workdir,
+            help: queryHelp,
+            sql: READ_SCHEMA_MIGRATIONS_SQL,
+          });
+        // PREFIX-COMPLETE, SINGLE-PENDING: stage through current, then
+        // independently preflight before the first db push.
         const staged = syncIsolatedMigrationsThrough(isolated, file);
+        const historyBeforePush = await queryHistory();
+        const stagingPreflight = assertPrefixCompleteSinglePendingStaging({
+          workdir: isolated.workdir,
+          currentFile: file,
+          historyResult: historyBeforePush,
+          cliVersion: cli.version,
+          phase: "initial",
+        });
         const injectSql = historyInjectSqlForFile(file);
         const inject = runGatedRemoteSqlText(isolated.workdir, `inject-${version}.sql`, injectSql);
         const push = runDbPushCandidate({
@@ -605,6 +627,8 @@ async function main() {
           destName: timestampFilenameFor(file),
           version,
           digest: FROZEN_DIGESTS[file],
+          staged,
+          stagingPreflight,
           inject: { status: inject.status },
           push,
           classification,
@@ -643,6 +667,15 @@ async function main() {
           help: queryHelp,
           sql: CATALOG_FINGERPRINT_SQL,
         });
+        const retryStaged = syncIsolatedMigrationsThrough(isolated, file);
+        const historyBeforeRetry = await queryHistory();
+        const retryPreflight = assertPrefixCompleteSinglePendingStaging({
+          workdir: isolated.workdir,
+          currentFile: file,
+          historyResult: historyBeforeRetry,
+          cliVersion: cli.version,
+          phase: "retry",
+        });
         const retry = runDbPushCandidate({
           bin: cli.bin,
           workdir: isolated.workdir,
@@ -652,6 +685,8 @@ async function main() {
           ...step,
           historyAfterRepair: rowsFromQuery(historyAfterRepair),
           fingerprintAfterRepair: inventoryFromQuery(fingerprintAfterRepair.stdout),
+          retryStaged,
+          retryPreflight,
           retry,
         });
       }

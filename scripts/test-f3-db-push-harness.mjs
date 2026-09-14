@@ -97,9 +97,16 @@ import {
 } from "./lib/f3-db-push-history-inject.mjs";
 import {
   REPAIR_SAFETY_HOLD,
+  assertExpectedFingerprintImmutable,
+  buildIndependentObservedFingerprint,
   evaluateRepairSafetyGate,
+  expectedFingerprintSha256,
+  fingerprintCanonicalSha256,
   fingerprintCompleteAndExact,
+  FROZEN_EXPECTED_FINGERPRINT_SHA256,
+  getFrozenExpectedFingerprint,
   objectsPresentFromProbe,
+  recordPreDbExpectedHashes,
   runRepairSafetyThenMaybeRepair,
   syncIsolatedMigrationsThrough,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
@@ -699,6 +706,11 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /inventoryFromQuery/);
   assert.match(qualify, /parseEvidenceOutArg/);
   assert.match(qualify, /f3-db-push-query-parse/);
+  assert.match(qualify, /getFrozenExpectedFingerprint/);
+  assert.match(qualify, /buildIndependentObservedFingerprint/);
+  assert.match(qualify, /recordPreDbExpectedHashes/);
+  assert.match(qualify, /expectedFingerprintsBeforeDb/);
+  assert.doesNotMatch(qualify, /expected:\s*null/);
   const cliSrc = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-cli.mjs"), "utf8");
   assert.match(cliSrc, /hasOutputFormat: \/--output-format\//);
   assert.match(cliSrc, /--output-format", "json"/);
@@ -743,11 +755,18 @@ function completeFingerprint(overrides = {}) {
   };
 }
 
-function passingFingerprint() {
-  const observed = completeFingerprint();
+function passingFingerprint(file = FILE118) {
+  const expected = getFrozenExpectedFingerprint(file);
+  const catalog = {
+    schema: expected.schema,
+    function_owner: expected.function_owner,
+    acl: expected.acl,
+    policy: expected.policy,
+    f3_objects_absent: expected.f3_objects_absent,
+  };
   return {
-    expected: { ...observed },
-    observed: { ...observed },
+    expected,
+    observed: buildIndependentObservedFingerprint(file, catalog),
   };
 }
 
@@ -985,6 +1004,204 @@ test("fingerprint mismatch of any catalog value forbids repair", async () => {
     assert.equal(decided.repairAuthorized, false, c.name);
     assert.equal(decided.repairAttempted, false, c.name);
     assert.equal(repairCalls, 0, `${c.name} repair spawned`);
+  }
+});
+
+async function assertFingerprintForbidsRepair(name, fingerprint) {
+  assert.equal(fingerprintCompleteAndExact(fingerprint, FILE118).ok, false, name);
+  let repairCalls = 0;
+  const decided = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput({ fingerprint }),
+    cleanup: () => provenCleanup(),
+    verifyPoisonAbsent: () => poisonAbsentResult(),
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+  });
+  assert.equal(decided.repairAuthorized, false, name);
+  assert.equal(decided.repairAttempted, false, name);
+  assert.equal(repairCalls, 0, `${name} repair spawned`);
+  return decided;
+}
+
+function frozenPair(mutateObserved = (observed) => observed) {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const catalog = {
+    schema: expected.schema,
+    function_owner: expected.function_owner,
+    acl: expected.acl,
+    policy: expected.policy,
+    f3_objects_absent: expected.f3_objects_absent,
+  };
+  const observed = mutateObserved(buildIndependentObservedFingerprint(FILE118, catalog));
+  return { expected, observed };
+}
+
+test("fingerprint gate forbids null sides, missing keys, extra keys, and security mismatches", async () => {
+  const passing = passingFingerprint(FILE118);
+  await assertFingerprintForbidsRepair("expected=null", { expected: null, observed: passing.observed });
+  await assertFingerprintForbidsRepair("observed=null", { expected: passing.expected, observed: null });
+
+  const expectedMissing = frozenPair();
+  delete expectedMissing.expected.acl;
+  await assertFingerprintForbidsRepair("expected missing key", expectedMissing);
+
+  const observedMissing = frozenPair((observed) => {
+    delete observed.policy;
+    return observed;
+  });
+  await assertFingerprintForbidsRepair("observed missing key", observedMissing);
+
+  const observedExtra = frozenPair((observed) => {
+    observed.rls = "on";
+    return observed;
+  });
+  await assertFingerprintForbidsRepair("observed extra key", observedExtra);
+
+  const mismatches = [
+    ["owner", (e, o) => { o.function_owner = o.function_owner.replace("postgres", "ubuntu"); }],
+    ["acl", (e, o) => { o.acl = o.acl.replace("authenticated=r/postgres", "authenticated=arwd/postgres"); }],
+    ["policy", (e, o) => { o.policy = o.policy.replace("SELECT", "ALL"); }],
+    ["rls", (e, o) => { e.rls = false; o.rls = true; }],
+    ["function-definition", (e, o) => { e.function_definition = "CREATE FUNCTION sealed()"; o.function_definition = "CREATE FUNCTION leaked()"; }],
+    ["search_path", (e, o) => { e.search_path = "\"\""; o.search_path = "public,pg_temp"; }],
+    ["hgp", (e, o) => { e.hgp = "sealed-hgp-pin"; o.hgp = "drifted-hgp-pin"; }],
+    ["enqueue", (e, o) => { e.enqueue = "sealed-enqueue-pin"; o.enqueue = "drifted-enqueue-pin"; }],
+    ["recognition", (e, o) => { o.recognition = ["manual_expense"]; }],
+    ["digest", (e, o) => { o.migration_digest = "0".repeat(64); }],
+    ["version", (e, o) => { o.migration_version = "19990101000000"; }],
+    ["name", (e, o) => { o.migration_name = "wrong_migration_name"; }],
+  ];
+  for (const [name, mutateBoth] of mismatches) {
+    const pair = frozenPair();
+    mutateBoth(pair.expected, pair.observed);
+    await assertFingerprintForbidsRepair(name, pair);
+  }
+});
+
+test("reordered set-like values normalize; security-relevant changes never normalize away", async () => {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const catalog = {
+    schema: expected.schema,
+    function_owner: expected.function_owner,
+    acl: expected.acl,
+    policy: expected.policy,
+    f3_objects_absent: expected.f3_objects_absent,
+  };
+  const reordered = buildIndependentObservedFingerprint(FILE118, catalog);
+  reordered.schema = ` ${expected.schema} `;
+  reordered.recognition = ["manual_income"];
+  assert.equal(fingerprintCompleteAndExact({ expected, observed: reordered }, FILE118).ok, true);
+
+  const multiSchemaExpected = completeFingerprint({
+    schema: "financial_core:postgres,financial_private:postgres",
+    recognition: ["zeta", "alpha"],
+  });
+  const multiSchemaObserved = completeFingerprint({
+    schema: "financial_private:postgres,financial_core:postgres",
+    recognition: ["alpha", "zeta"],
+  });
+  assert.equal(
+    fingerprintCompleteAndExact({ expected: multiSchemaExpected, observed: multiSchemaObserved }).ok,
+    true,
+    "schema and recognition set reorder",
+  );
+
+  const security = frozenPair((observed) => {
+    observed.acl = observed.acl.replace("postgres=arwdDxtm/postgres", "ubuntu=arwdDxtm/postgres");
+    return observed;
+  });
+  assert.equal(fingerprintCompleteAndExact(security, FILE118).ok, false, "acl owner change");
+
+  const policyWs = frozenPair((observed) => {
+    observed.policy = observed.policy.replace(/\n/g, " ");
+    return observed;
+  });
+  assert.equal(fingerprintCompleteAndExact(policyWs, FILE118).ok, false, "policy whitespace coarsen");
+
+  const searchPathCoarsen = {
+    expected: completeFingerprint({ search_path: "\"\"" }),
+    observed: completeFingerprint({ search_path: "public" }),
+  };
+  assert.equal(fingerprintCompleteAndExact(searchPathCoarsen).ok, false, "search_path coarsen");
+});
+
+test("expected object is unchanged after observed processing", async () => {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const before = fingerprintCanonicalSha256(expected);
+  const sealed = expectedFingerprintSha256(FILE118);
+  assert.equal(before, sealed);
+  const catalog = {
+    schema: "mutated-schema-should-not-touch-expected",
+    function_owner: expected.function_owner,
+    acl: expected.acl,
+    policy: expected.policy,
+    f3_objects_absent: false,
+  };
+  const observed = buildIndependentObservedFingerprint(FILE118, catalog);
+  observed.acl = "attacker-rewrote-observed-acl";
+  const result = fingerprintCompleteAndExact({ expected, observed }, FILE118);
+  assert.equal(result.ok, false);
+  assert.equal(fingerprintCanonicalSha256(expected), before);
+  assert.deepEqual(assertExpectedFingerprintImmutable(FILE118), {
+    file: FILE118,
+    sha256: sealed,
+    unchanged: true,
+  });
+  assert.equal(FROZEN_EXPECTED_FINGERPRINT_SHA256[FILE118], sealed);
+});
+
+test("module-load frozen expected hashes are independent of observed and match the offline seal", () => {
+  const recorded = recordPreDbExpectedHashes();
+  assert.equal(recorded.recordedBeforeDbAccess, true);
+  assert.equal(recorded.independentOfObserved, true);
+  assert.deepEqual(recorded.sha256BeforeDb, {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
+    "00119_f3_01_core_ledger_foundation.sql": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
+    "00120_f3_02_secure_posting_idempotency.sql": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610",
+    "00121_f3_03_projection_read_proof.sql": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
+    "00122_f3_04_correction_reversal.sql": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
+    "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66",
+  });
+  for (const file of F3_FORWARD_FILES) {
+    const clone = getFrozenExpectedFingerprint(file);
+    clone.acl = "mutated-clone";
+    assertExpectedFingerprintImmutable(file);
+    assert.equal(expectedFingerprintSha256(file), recorded.sha256BeforeDb[file]);
+  }
+});
+
+test("source contract forbids assigning expected from observed in qualify and repair-safety-gate", () => {
+  const files = [
+    path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"),
+    path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"),
+  ];
+  const forbidden = [
+    /expected\s*:\s*observed\b/,
+    /expected\s*=\s*observed\b/,
+    /expected\s*=\s*structuredClone\s*\(\s*observed/,
+    /expected\s*:\s*structuredClone\s*\(\s*observed/,
+    /expected\s*=\s*await\s+queryObservedFingerprint\s*\(/,
+    /expected\s*=\s*normalize\s*\(\s*observed/,
+    /expected\s*:\s*normalize\s*\(\s*observed/,
+    /expected\s*=\s*fingerprintObserved\b/,
+    /expected\s*:\s*fingerprintObserved\b/,
+    /expected\s*=\s*catalogObserved\b/,
+    /expected\s*:\s*catalogObserved\b/,
+    /Object\.assign\(\s*expected\s*,\s*observed/,
+    /expected\s*=\s*\{\s*\.\.\.observed/,
+    /expected\s*=\s*JSON\.parse\(\s*JSON\.stringify\(\s*observed/,
+  ];
+  for (const file of files) {
+    const raw = fs.readFileSync(file, "utf8");
+    const stripped = raw
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    for (const pattern of forbidden) {
+      assert.equal(pattern.test(stripped), false, `${path.basename(file)} matches ${pattern}`);
+    }
+    assert.match(raw, /getFrozenExpectedFingerprint/);
   }
 });
 

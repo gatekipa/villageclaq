@@ -119,7 +119,12 @@ import {
 import {
   POISON_ABSENT_PROBE_SQL,
   REPAIR_SAFETY_HOLD,
+  assertExpectedFingerprintImmutable,
+  buildIndependentObservedFingerprint,
+  expectedFingerprintSha256,
+  getFrozenExpectedFingerprint,
   objectsPresentFromProbe as objectsPresentFromProbeStrict,
+  recordPreDbExpectedHashes,
   runRepairSafetyThenMaybeRepair,
   syncIsolatedMigrationsThrough,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
@@ -261,6 +266,7 @@ async function main() {
     verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
     candidateOnly: true,
     productionApproved: false,
+    expectedFingerprintsBeforeDb: recordPreDbExpectedHashes(),
     managementApiApply: MANAGEMENT_API_APPLY_DISQUALIFICATION,
     projectRef: APPROVED_DISPOSABLE_PROJECT_REF,
     host: APPROVED_DISPOSABLE_HOST,
@@ -500,6 +506,9 @@ async function main() {
         evidence.limitation = "HOLD: db push is refused until stub+live-pin floor and pre-db-push gates pass";
         throw Object.assign(new Error(evidence.limitation), { code: "F3_DBPUSH_PRE_PUSH_GATE_HOLD" });
       }
+      if (!evidence.expectedFingerprintsBeforeDb?.recordedBeforeDbAccess) {
+        evidence.expectedFingerprintsBeforeDb = recordPreDbExpectedHashes();
+      }
       for (const file of F3_FORWARD_FILES) {
         const version = preassignedVersionFor(file);
         // Stage exactly the current intended file so post-repair retry
@@ -531,10 +540,13 @@ async function main() {
           help: queryHelp,
           sql: CATALOG_FINGERPRINT_SQL,
         });
-        const fingerprintObserved = inventoryFromQuery(fingerprintBeforeRepair.stdout);
+        const catalogObserved = inventoryFromQuery(fingerprintBeforeRepair.stdout);
+        const fingerprintObserved = buildIndependentObservedFingerprint(file, catalogObserved);
+        assertExpectedFingerprintImmutable(file);
         const fingerprint = {
-          expected: null,
+          expected: getFrozenExpectedFingerprint(file),
           observed: fingerprintObserved,
+          expectedSha256BeforeDb: expectedFingerprintSha256(file),
         };
         const classification = classifyDbPushHistoryFailure({
           exitStatus: push.status,

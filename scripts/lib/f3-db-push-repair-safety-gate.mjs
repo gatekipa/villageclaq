@@ -9,6 +9,7 @@
  * Fingerprints require expected+observed complete-schema canonical equality.
  * Poison must be proven absent by a separate post-cleanup probe before repair.
  */
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,7 @@ import {
   HISTORY_INJECT_MARKER,
   PREASSIGNED_VERSIONS,
   PRODUCTION_REF,
+  RECOGNITION_ALLOWLIST,
   TARGET_OBJECT_PROBES,
 } from "./f3-db-push-pins.mjs";
 import { timestampFilenameFor } from "./f3-db-push-version-map.mjs";
@@ -41,18 +43,286 @@ export const FINGERPRINT_REQUIRED_KEYS = Object.freeze([
 ]);
 
 /** Catalog fields that, if present on either side, must exist on both and match exactly. */
-export const FINGERPRINT_CATALOG_KEYS = Object.freeze([
-  ...FINGERPRINT_REQUIRED_KEYS,
+export const FINGERPRINT_OPTIONAL_CATALOG_KEYS = Object.freeze([
   "rls",
   "owner",
   "function_definition",
   "search_path",
   "hgp_pin",
   "hgp",
-  "recognition",
+  "enqueue",
   "object_identity",
   "f3_objects_absent",
 ]);
+
+export const FINGERPRINT_CATALOG_KEYS = Object.freeze([
+  ...FINGERPRINT_REQUIRED_KEYS,
+  ...FINGERPRINT_OPTIONAL_CATALOG_KEYS,
+  "recognition",
+]);
+
+export const FINGERPRINT_META_KEYS = Object.freeze([
+  "migration_file",
+  "migration_version",
+  "migration_name",
+  "migration_digest",
+  "recognition",
+]);
+
+export const FINGERPRINT_ALLOWED_KEYS = Object.freeze([
+  ...new Set([...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_CATALOG_KEYS, ...FINGERPRINT_META_KEYS]),
+]);
+
+/** Schema is a comma-separated inventory with no internal commas. ACL/policy/owner are not set-like. */
+export const FINGERPRINT_SET_LIKE_STRING_KEYS = Object.freeze(["schema"]);
+
+function deepFreeze(value) {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    for (const item of value) deepFreeze(item);
+  } else {
+    for (const key of Object.keys(value)) deepFreeze(value[key]);
+  }
+  return Object.freeze(value);
+}
+
+/* AUTO-EMBEDDED from docs/evidence/M3_F3_FROZEN_EXPECTED_FINGERPRINTS_20260914.json
+ * Offline construction seal. Not read from DB. Do not assign from observed.
+ */
+const FROZEN_EXPECTED_FINGERPRINTS_RAW = {
+  "00118_f3_bounded_financial_epoch_foundation.sql": {
+    "acl": "financial_private.epoch_transitions:{postgres=arwdDxtm/postgres},financial_private.guard_ledger_epoch():{postgres=X/postgres},financial_private.internal_financial_tenants:{postgres=arwdDxtm/postgres},public.financial_ledger_epochs:{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres}",
+    "policy": "public.financial_ledger_epochs.financial_ledger_epoch_active_reader:SELECT:{authenticated}:(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))):",
+    "schema": "financial_private:postgres",
+    "function_owner": "financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"}",
+    "f3_objects_absent": false,
+    "migration_file": "00118_f3_bounded_financial_epoch_foundation.sql",
+    "migration_version": "20260913173000",
+    "migration_name": "00118_f3_bounded_financial_epoch_foundation",
+    "migration_digest": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+    "recognition": [
+      "manual_income"
+    ]
+  },
+  "00119_f3_01_core_ledger_foundation.sql": {
+    "acl": "financial_core.assert_finances_manage(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.assert_financial_event_balanced(p_event_id uuid):{postgres=X/postgres},financial_core.can_manage_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.can_view_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.check_event_balance_from_event():{postgres=X/postgres},financial_core.check_event_balance_from_posting():{postgres=X/postgres},financial_core.currency_scale(p_currency text):{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres},financial_core.guard_financial_account():{postgres=X/postgres},financial_core.guard_financial_category():{postgres=X/postgres},financial_core.guard_financial_event_epoch():{postgres=X/postgres},financial_core.guard_financial_event_history():{postgres=X/postgres},financial_core.guard_financial_fund():{postgres=X/postgres},financial_core.guard_financial_posting_history():{postgres=X/postgres},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):{postgres=X/postgres},financial_private.epoch_transitions:{postgres=arwdDxtm/postgres},financial_private.guard_ledger_epoch():{postgres=X/postgres},financial_private.internal_financial_tenants:{postgres=arwdDxtm/postgres},public.financial_accounts:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_categories:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_events:{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=r/postgres},public.financial_funds:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_ledger_epochs:{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres},public.financial_postings:{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=r/postgres}",
+    "policy": "public.financial_ledger_epochs.financial_ledger_epoch_active_reader:SELECT:{authenticated}:(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))):,public.financial_accounts.financial_accounts_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):,public.financial_accounts.financial_accounts_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_accounts.financial_accounts_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):,public.financial_funds.financial_funds_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_categories.financial_categories_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances):,public.financial_categories.financial_categories_manager_insert:INSERT:{authenticated}::(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_categories.financial_categories_manager_update:UPDATE:{authenticated}:(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)):(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_events.financial_events_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_events.group_id) AS can_view_finances):,public.financial_postings.financial_postings_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_postings.group_id) AS can_view_finances):",
+    "schema": "financial_core:postgres,financial_private:postgres",
+    "function_owner": "financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_posting_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_event():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_account():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_fund():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_category():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.assert_financial_event_balanced(p_event_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_posting():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.currency_scale(p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.can_manage_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.can_view_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_finances_manage(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"}",
+    "f3_objects_absent": false,
+    "migration_file": "00119_f3_01_core_ledger_foundation.sql",
+    "migration_version": "20260913173001",
+    "migration_name": "00119_f3_01_core_ledger_foundation",
+    "migration_digest": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+    "recognition": [
+      "manual_income"
+    ]
+  },
+  "00120_f3_02_secure_posting_idempotency.sql": {
+    "acl": "financial_core.assert_finances_manage(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.assert_financial_event_balanced(p_event_id uuid):{postgres=X/postgres},financial_core.can_manage_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.can_view_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.check_event_balance_from_event():{postgres=X/postgres},financial_core.check_event_balance_from_posting():{postgres=X/postgres},financial_core.check_f3_posting_closure():{postgres=X/postgres},financial_core.currency_scale(p_currency text):{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres},financial_core.f3_amount(p_value jsonb, p_currency text):{postgres=X/postgres},financial_core.f3_canonical(p_payload jsonb):{postgres=X/postgres},financial_core.f3_currency(p_value jsonb):{postgres=X/postgres},financial_core.f3_fingerprint(p_payload jsonb):{postgres=X/postgres},financial_core.f3_timestamp(p_value jsonb):{postgres=X/postgres},financial_core.f3_trim(p_text text):{postgres=X/postgres},financial_core.f3_uuid(p_value jsonb, p_optional boolean):{postgres=X/postgres},financial_core.guard_f3_payload():{postgres=X/postgres},financial_core.guard_f3_posting_closure():{postgres=X/postgres},financial_core.guard_financial_account():{postgres=X/postgres},financial_core.guard_financial_category():{postgres=X/postgres},financial_core.guard_financial_event_epoch():{postgres=X/postgres},financial_core.guard_financial_event_history():{postgres=X/postgres},financial_core.guard_financial_fund():{postgres=X/postgres},financial_core.guard_financial_posting_history():{postgres=X/postgres},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):{postgres=X/postgres},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):{postgres=X/postgres},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):{postgres=X/postgres},financial_core.posting_command_payloads:{postgres=arwdDxtm/postgres},financial_private.epoch_transitions:{postgres=arwdDxtm/postgres},financial_private.guard_ledger_epoch():{postgres=X/postgres},financial_private.internal_financial_tenants:{postgres=arwdDxtm/postgres},public.financial_accounts:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_categories:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_events:{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=r/postgres},public.financial_funds:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_ledger_epochs:{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres},public.financial_postings:{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=r/postgres},public.post_financial_command(p_command jsonb):{postgres=X/postgres,authenticated=X/postgres}",
+    "policy": "public.financial_ledger_epochs.financial_ledger_epoch_active_reader:SELECT:{authenticated}:(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))):,public.financial_accounts.financial_accounts_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):,public.financial_accounts.financial_accounts_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_accounts.financial_accounts_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):,public.financial_funds.financial_funds_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_categories.financial_categories_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances):,public.financial_categories.financial_categories_manager_insert:INSERT:{authenticated}::(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_categories.financial_categories_manager_update:UPDATE:{authenticated}:(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)):(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_events.financial_events_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_events.group_id) AS can_view_finances):,public.financial_postings.financial_postings_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_postings.group_id) AS can_view_finances):",
+    "schema": "financial_core:postgres,financial_private:postgres",
+    "function_owner": "financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_posting_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_event():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_account():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_fund():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_category():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.assert_financial_event_balanced(p_event_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_posting():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.currency_scale(p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.can_manage_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.can_view_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_finances_manage(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.f3_uuid(p_value jsonb, p_optional boolean):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_currency(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_payload():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_amount(p_value jsonb, p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_timestamp(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_trim(p_text text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_canonical(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_fingerprint(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.post_financial_command(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"}",
+    "f3_objects_absent": false,
+    "migration_file": "00120_f3_02_secure_posting_idempotency.sql",
+    "migration_version": "20260913173002",
+    "migration_name": "00120_f3_02_secure_posting_idempotency",
+    "migration_digest": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+    "recognition": [
+      "manual_income"
+    ]
+  },
+  "00121_f3_03_projection_read_proof.sql": {
+    "acl": "financial_core.assert_finances_manage(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.assert_financial_event_balanced(p_event_id uuid):{postgres=X/postgres},financial_core.can_manage_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.can_view_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.check_event_balance_from_event():{postgres=X/postgres},financial_core.check_event_balance_from_posting():{postgres=X/postgres},financial_core.check_f3_posting_closure():{postgres=X/postgres},financial_core.currency_scale(p_currency text):{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres},financial_core.f3_amount(p_value jsonb, p_currency text):{postgres=X/postgres},financial_core.f3_canonical(p_payload jsonb):{postgres=X/postgres},financial_core.f3_currency(p_value jsonb):{postgres=X/postgres},financial_core.f3_fingerprint(p_payload jsonb):{postgres=X/postgres},financial_core.f3_timestamp(p_value jsonb):{postgres=X/postgres},financial_core.f3_trim(p_text text):{postgres=X/postgres},financial_core.f3_uuid(p_value jsonb, p_optional boolean):{postgres=X/postgres},financial_core.format_projection_amount(p_amount numeric, p_currency text):{postgres=X/postgres},financial_core.guard_f3_payload():{postgres=X/postgres},financial_core.guard_f3_posting_closure():{postgres=X/postgres},financial_core.guard_financial_account():{postgres=X/postgres},financial_core.guard_financial_category():{postgres=X/postgres},financial_core.guard_financial_event_epoch():{postgres=X/postgres},financial_core.guard_financial_event_history():{postgres=X/postgres},financial_core.guard_financial_fund():{postgres=X/postgres},financial_core.guard_financial_posting_history():{postgres=X/postgres},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):{postgres=X/postgres},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):{postgres=X/postgres},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):{postgres=X/postgres},financial_core.posting_command_payloads:{postgres=arwdDxtm/postgres},financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean):{postgres=X/postgres},financial_private.epoch_transitions:{postgres=arwdDxtm/postgres},financial_private.guard_ledger_epoch():{postgres=X/postgres},financial_private.internal_financial_tenants:{postgres=arwdDxtm/postgres},public.financial_accounts:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_categories:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_events:{postgres=arwdDxtm/postgres,service_role=r/postgres},public.financial_funds:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_ledger_epochs:{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres},public.financial_postings:{postgres=arwdDxtm/postgres,service_role=r/postgres},public.get_financial_cashbook(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer):{postgres=X/postgres,authenticated=X/postgres},public.get_financial_projection_bundle(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone):{postgres=X/postgres,authenticated=X/postgres},public.post_financial_command(p_command jsonb):{postgres=X/postgres,authenticated=X/postgres}",
+    "policy": "public.financial_ledger_epochs.financial_ledger_epoch_active_reader:SELECT:{authenticated}:(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))):,public.financial_accounts.financial_accounts_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):,public.financial_accounts.financial_accounts_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_accounts.financial_accounts_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):,public.financial_funds.financial_funds_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_categories.financial_categories_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances):,public.financial_categories.financial_categories_manager_insert:INSERT:{authenticated}::(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_categories.financial_categories_manager_update:UPDATE:{authenticated}:(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)):(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_events.financial_events_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_events.group_id) AS can_view_finances):,public.financial_postings.financial_postings_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_postings.group_id) AS can_view_finances):",
+    "schema": "financial_core:postgres,financial_private:postgres",
+    "function_owner": "financial_core.format_projection_amount(p_amount numeric, p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean):postgres:false:{\"search_path=\\\"\\\"\"},public.get_financial_projection_bundle(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone):postgres:true:{\"search_path=\\\"\\\"\"},public.get_financial_cashbook(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer):postgres:true:{\"search_path=\\\"\\\"\"},financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_posting_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_event():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_account():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_fund():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_category():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.assert_financial_event_balanced(p_event_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_posting():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.currency_scale(p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.can_manage_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.can_view_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_finances_manage(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.f3_uuid(p_value jsonb, p_optional boolean):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_currency(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_payload():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_amount(p_value jsonb, p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_timestamp(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_trim(p_text text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_canonical(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_fingerprint(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.post_financial_command(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"}",
+    "f3_objects_absent": false,
+    "migration_file": "00121_f3_03_projection_read_proof.sql",
+    "migration_version": "20260913173003",
+    "migration_name": "00121_f3_03_projection_read_proof",
+    "migration_digest": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+    "recognition": [
+      "manual_income"
+    ]
+  },
+  "00122_f3_04_correction_reversal.sql": {
+    "acl": "financial_core.assert_f3_correction_postings(event uuid, expected jsonb):{postgres=X/postgres},financial_core.assert_finances_manage(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.assert_financial_event_balanced(p_event_id uuid):{postgres=X/postgres},financial_core.can_manage_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.can_view_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.check_event_balance_from_event():{postgres=X/postgres},financial_core.check_event_balance_from_posting():{postgres=X/postgres},financial_core.check_f3_correction_closure():{postgres=X/postgres},financial_core.check_f3_posting_closure():{postgres=X/postgres},financial_core.correct_f3_command(cmd jsonb):{postgres=X/postgres},financial_core.correction_command_payloads:{postgres=arwdDxtm/postgres},financial_core.currency_scale(p_currency text):{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres},financial_core.f3_amount(p_value jsonb, p_currency text):{postgres=X/postgres},financial_core.f3_canonical(p_payload jsonb):{postgres=X/postgres},financial_core.f3_correction_canonical(p jsonb):{postgres=X/postgres},financial_core.f3_correction_child_id(g uuid, r uuid, role text):{postgres=X/postgres},financial_core.f3_correction_fingerprint(p jsonb):{postgres=X/postgres},financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid):{postgres=X/postgres},financial_core.f3_correction_reason(p jsonb):{postgres=X/postgres},financial_core.f3_correction_signed_amount(p numeric, c text):{postgres=X/postgres},financial_core.f3_correction_timestamp(p timestamp with time zone):{postgres=X/postgres},financial_core.f3_currency(p_value jsonb):{postgres=X/postgres},financial_core.f3_fingerprint(p_payload jsonb):{postgres=X/postgres},financial_core.f3_timestamp(p_value jsonb):{postgres=X/postgres},financial_core.f3_trim(p_text text):{postgres=X/postgres},financial_core.f3_uuid(p_value jsonb, p_optional boolean):{postgres=X/postgres},financial_core.format_projection_amount(p_amount numeric, p_currency text):{postgres=X/postgres},financial_core.guard_f3_correction_lineage():{postgres=X/postgres},financial_core.guard_f3_correction_payload():{postgres=X/postgres},financial_core.guard_f3_payload():{postgres=X/postgres},financial_core.guard_f3_posting_closure():{postgres=X/postgres},financial_core.guard_financial_account():{postgres=X/postgres},financial_core.guard_financial_category():{postgres=X/postgres},financial_core.guard_financial_event_epoch():{postgres=X/postgres},financial_core.guard_financial_event_history():{postgres=X/postgres},financial_core.guard_financial_fund():{postgres=X/postgres},financial_core.guard_financial_posting_history():{postgres=X/postgres},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):{postgres=X/postgres},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):{postgres=X/postgres},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):{postgres=X/postgres},financial_core.posting_command_payloads:{postgres=arwdDxtm/postgres},financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean):{postgres=X/postgres},financial_core.resolve_f3_correction_replacement(d jsonb, target jsonb, replay boolean):{postgres=X/postgres},financial_private.epoch_transitions:{postgres=arwdDxtm/postgres},financial_private.guard_ledger_epoch():{postgres=X/postgres},financial_private.internal_financial_tenants:{postgres=arwdDxtm/postgres},public.correct_financial_event(p_command jsonb):{postgres=X/postgres,authenticated=X/postgres},public.financial_accounts:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_categories:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_events:{postgres=arwdDxtm/postgres,service_role=r/postgres},public.financial_funds:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_ledger_epochs:{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres},public.financial_postings:{postgres=arwdDxtm/postgres,service_role=r/postgres},public.get_financial_cashbook(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer):{postgres=X/postgres,authenticated=X/postgres},public.get_financial_projection_bundle(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone):{postgres=X/postgres,authenticated=X/postgres},public.post_financial_command(p_command jsonb):{postgres=X/postgres,authenticated=X/postgres}",
+    "policy": "public.financial_ledger_epochs.financial_ledger_epoch_active_reader:SELECT:{authenticated}:(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))):,public.financial_accounts.financial_accounts_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):,public.financial_accounts.financial_accounts_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_accounts.financial_accounts_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):,public.financial_funds.financial_funds_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_categories.financial_categories_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances):,public.financial_categories.financial_categories_manager_insert:INSERT:{authenticated}::(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_categories.financial_categories_manager_update:UPDATE:{authenticated}:(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)):(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_events.financial_events_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_events.group_id) AS can_view_finances):,public.financial_postings.financial_postings_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_postings.group_id) AS can_view_finances):",
+    "schema": "financial_core:postgres,financial_private:postgres",
+    "function_owner": "financial_core.format_projection_amount(p_amount numeric, p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_correction_payload():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_reason(p jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_canonical(p jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_fingerprint(p jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_timestamp(p timestamp with time zone):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_signed_amount(p numeric, c text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_child_id(g uuid, r uuid, role text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.resolve_f3_correction_replacement(d jsonb, target jsonb, replay boolean):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_f3_correction_postings(event uuid, expected jsonb):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_correction_lineage():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_f3_correction_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.correct_f3_command(cmd jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.correct_financial_event(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.get_financial_projection_bundle(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone):postgres:true:{\"search_path=\\\"\\\"\"},public.get_financial_cashbook(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer):postgres:true:{\"search_path=\\\"\\\"\"},financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_posting_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_event():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_account():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_fund():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_category():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.assert_financial_event_balanced(p_event_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_posting():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.currency_scale(p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.can_manage_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.can_view_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_finances_manage(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.f3_uuid(p_value jsonb, p_optional boolean):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_currency(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_payload():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_amount(p_value jsonb, p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_timestamp(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_trim(p_text text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_canonical(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_fingerprint(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.post_financial_command(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"}",
+    "f3_objects_absent": false,
+    "migration_file": "00122_f3_04_correction_reversal.sql",
+    "migration_version": "20260913173004",
+    "migration_name": "00122_f3_04_correction_reversal",
+    "migration_digest": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+    "recognition": [
+      "manual_income"
+    ]
+  },
+  "00123_f3_05_opening_cash_command.sql": {
+    "acl": "financial_core.assert_f3_correction_postings(event uuid, expected jsonb):{postgres=X/postgres},financial_core.assert_finances_manage(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.assert_financial_event_balanced(p_event_id uuid):{postgres=X/postgres},financial_core.can_manage_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.can_view_finances(p_group_id uuid):{postgres=X/postgres,authenticated=X/postgres},financial_core.check_event_balance_from_event():{postgres=X/postgres},financial_core.check_event_balance_from_posting():{postgres=X/postgres},financial_core.check_f3_correction_closure():{postgres=X/postgres},financial_core.check_f3_posting_closure():{postgres=X/postgres},financial_core.correct_f3_command(cmd jsonb):{postgres=X/postgres},financial_core.correction_command_payloads:{postgres=arwdDxtm/postgres},financial_core.currency_scale(p_currency text):{postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres},financial_core.f3_amount(p_value jsonb, p_currency text):{postgres=X/postgres},financial_core.f3_canonical(p_payload jsonb):{postgres=X/postgres},financial_core.f3_correction_canonical(p jsonb):{postgres=X/postgres},financial_core.f3_correction_child_id(g uuid, r uuid, role text):{postgres=X/postgres},financial_core.f3_correction_fingerprint(p jsonb):{postgres=X/postgres},financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid):{postgres=X/postgres},financial_core.f3_correction_reason(p jsonb):{postgres=X/postgres},financial_core.f3_correction_signed_amount(p numeric, c text):{postgres=X/postgres},financial_core.f3_correction_timestamp(p timestamp with time zone):{postgres=X/postgres},financial_core.f3_currency(p_value jsonb):{postgres=X/postgres},financial_core.f3_fingerprint(p_payload jsonb):{postgres=X/postgres},financial_core.f3_opening_safe_text(p_value text, p_max integer, p_required boolean):{postgres=X/postgres},financial_core.f3_timestamp(p_value jsonb):{postgres=X/postgres},financial_core.f3_trim(p_text text):{postgres=X/postgres},financial_core.f3_uuid(p_value jsonb, p_optional boolean):{postgres=X/postgres},financial_core.format_projection_amount(p_amount numeric, p_currency text):{postgres=X/postgres},financial_core.guard_f3_correction_lineage():{postgres=X/postgres},financial_core.guard_f3_correction_payload():{postgres=X/postgres},financial_core.guard_f3_opening_provenance():{postgres=X/postgres},financial_core.guard_f3_payload():{postgres=X/postgres},financial_core.guard_f3_posting_closure():{postgres=X/postgres},financial_core.guard_financial_account():{postgres=X/postgres},financial_core.guard_financial_category():{postgres=X/postgres},financial_core.guard_financial_event_epoch():{postgres=X/postgres},financial_core.guard_financial_event_history():{postgres=X/postgres},financial_core.guard_financial_fund():{postgres=X/postgres},financial_core.guard_financial_posting_history():{postgres=X/postgres},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):{postgres=X/postgres},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):{postgres=X/postgres},financial_core.opening_provenances:{postgres=arwdDxtm/postgres},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):{postgres=X/postgres},financial_core.post_f3_opening_cash(p_command jsonb):{postgres=X/postgres},financial_core.posting_command_payloads:{postgres=arwdDxtm/postgres},financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean):{postgres=X/postgres},financial_core.resolve_f3_correction_replacement(d jsonb, target jsonb, replay boolean):{postgres=X/postgres},financial_private.epoch_transitions:{postgres=arwdDxtm/postgres},financial_private.guard_ledger_epoch():{postgres=X/postgres},financial_private.internal_financial_tenants:{postgres=arwdDxtm/postgres},public.correct_financial_event(p_command jsonb):{postgres=X/postgres,authenticated=X/postgres},public.financial_accounts:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_categories:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_events:{postgres=arwdDxtm/postgres,service_role=r/postgres},public.financial_funds:{postgres=arwdDxtm/postgres,authenticated=arw/postgres,service_role=r/postgres},public.financial_ledger_epochs:{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=r/postgres},public.financial_postings:{postgres=arwdDxtm/postgres,service_role=r/postgres},public.get_financial_cashbook(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer):{postgres=X/postgres,authenticated=X/postgres},public.get_financial_projection_bundle(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone):{postgres=X/postgres,authenticated=X/postgres},public.post_financial_command(p_command jsonb):{postgres=X/postgres,authenticated=X/postgres},public.post_financial_opening_cash(p_command jsonb):{postgres=X/postgres,authenticated=X/postgres}",
+    "policy": "public.financial_ledger_epochs.financial_ledger_epoch_active_reader:SELECT:{authenticated}:(EXISTS ( SELECT 1\n   FROM memberships m\n  WHERE ((m.group_id = financial_ledger_epochs.group_id) AND (m.user_id = auth.uid()) AND (m.membership_status = 'active'::text)))):,public.financial_accounts.financial_accounts_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):,public.financial_accounts.financial_accounts_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_accounts.financial_accounts_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_accounts.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):,public.financial_funds.financial_funds_manager_insert:INSERT:{authenticated}::( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_funds.financial_funds_manager_update:UPDATE:{authenticated}:( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances):( SELECT financial_core.can_manage_finances(financial_funds.group_id) AS can_manage_finances),public.financial_categories.financial_categories_manager_select:SELECT:{authenticated}:( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances):,public.financial_categories.financial_categories_manager_insert:INSERT:{authenticated}::(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_categories.financial_categories_manager_update:UPDATE:{authenticated}:(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)):(( SELECT financial_core.can_manage_finances(financial_categories.group_id) AS can_manage_finances) AND (NOT is_system)),public.financial_events.financial_events_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_events.group_id) AS can_view_finances):,public.financial_postings.financial_postings_finance_reader:SELECT:{authenticated}:( SELECT financial_core.can_view_finances(financial_postings.group_id) AS can_view_finances):",
+    "schema": "financial_core:postgres,financial_private:postgres",
+    "function_owner": "financial_core.format_projection_amount(p_amount numeric, p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.projection_cashbook_rows(p_group_id uuid, p_include_audit boolean):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_correction_payload():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_reason(p jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_canonical(p jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_fingerprint(p jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_timestamp(p timestamp with time zone):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_signed_amount(p numeric, c text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_child_id(g uuid, r uuid, role text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_correction_posting_json(id uuid, event_id uuid, g uuid, epoch uuid, c text, occurred timestamp with time zone, amount numeric, control financial_control_class, account uuid, fund uuid, category uuid, cat_class financial_category_class, member uuid, project uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.resolve_f3_correction_replacement(d jsonb, target jsonb, replay boolean):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_f3_correction_postings(event uuid, expected jsonb):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_correction_lineage():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_f3_correction_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.correct_f3_command(cmd jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.correct_financial_event(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_opening_provenance():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.post_f3_opening_cash(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.f3_opening_safe_text(p_value text, p_max integer, p_required boolean):postgres:false:{\"search_path=\\\"\\\"\"},public.post_financial_opening_cash(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.get_financial_projection_bundle(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone):postgres:true:{\"search_path=\\\"\\\"\"},public.get_financial_cashbook(p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer):postgres:true:{\"search_path=\\\"\\\"\"},financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_posting_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_event():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_account():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_fund():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_category():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.assert_financial_event_balanced(p_event_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_posting():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.currency_scale(p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.can_manage_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.can_view_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_finances_manage(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.f3_uuid(p_value jsonb, p_optional boolean):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_currency(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_f3_payload():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_amount(p_value jsonb, p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_timestamp(p_value jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_trim(p_text text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_canonical(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.f3_fingerprint(p_payload jsonb):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_f3_posting_closure():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_f3_identity(p_group uuid, p_request uuid, p_module text, p_source text, p_effect text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.post_f3_command(p_command jsonb, p_opening jsonb):postgres:true:{\"search_path=\\\"\\\"\"},public.post_financial_command(p_command jsonb):postgres:true:{\"search_path=\\\"\\\"\"}",
+    "f3_objects_absent": false,
+    "migration_file": "00123_f3_05_opening_cash_command.sql",
+    "migration_version": "20260913173005",
+    "migration_name": "00123_f3_05_opening_cash_command",
+    "migration_digest": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+    "recognition": [
+      "manual_income"
+    ]
+  }
+};
+
+export const FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
+  "00118_f3_bounded_financial_epoch_foundation.sql": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5",
+  "00119_f3_01_core_ledger_foundation.sql": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
+  "00120_f3_02_secure_posting_idempotency.sql": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610",
+  "00121_f3_03_projection_read_proof.sql": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
+  "00122_f3_04_correction_reversal.sql": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
+  "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66"
+});
+
+
+function assertSealedExpectedHashesAtLoad() {
+  const frozen = {};
+  for (const file of Object.keys(FROZEN_EXPECTED_FINGERPRINTS_RAW)) {
+    frozen[file] = deepFreeze(FROZEN_EXPECTED_FINGERPRINTS_RAW[file]);
+  }
+  deepFreeze(frozen);
+  for (const file of Object.keys(FROZEN_EXPECTED_FINGERPRINT_SHA256)) {
+    const actual = fingerprintCanonicalSha256(frozen[file]);
+    const sealed = FROZEN_EXPECTED_FINGERPRINT_SHA256[file];
+    if (actual !== sealed) {
+      throw new Error(
+        `HOLD: frozen expected fingerprint hash mismatch for ${file} (module-load, before any DB access)`,
+      );
+    }
+  }
+  for (const file of F3_FORWARD_FILES) {
+    if (!frozen[file] || !FROZEN_EXPECTED_FINGERPRINT_SHA256[file]) {
+      throw new Error(`HOLD: missing frozen expected fingerprint for ${file}`);
+    }
+  }
+  return frozen;
+}
+
+export function fingerprintCanonicalSha256(value) {
+  return createHash("sha256").update(JSON.stringify(canonicalize(value)), "utf8").digest("hex");
+}
+
+export const FROZEN_EXPECTED_FINGERPRINTS = assertSealedExpectedHashesAtLoad();
+
+function requireFrozenFile(file) {
+  if (!FROZEN_EXPECTED_FINGERPRINTS[file]) {
+    throw new Error(`HOLD: no frozen expected fingerprint for ${file}`);
+  }
+  return file;
+}
+
+export function getFrozenExpectedFingerprint(file) {
+  const pin = requireFrozenFile(file);
+  return structuredClone(FROZEN_EXPECTED_FINGERPRINTS[pin]);
+}
+
+export function expectedFingerprintSha256(file) {
+  const pin = requireFrozenFile(file);
+  return FROZEN_EXPECTED_FINGERPRINT_SHA256[pin];
+}
+
+export function assertExpectedFingerprintImmutable(file) {
+  const pin = requireFrozenFile(file);
+  const recomputed = fingerprintCanonicalSha256(FROZEN_EXPECTED_FINGERPRINTS[pin]);
+  const sealed = FROZEN_EXPECTED_FINGERPRINT_SHA256[pin];
+  if (recomputed !== sealed) {
+    throw new Error(`HOLD: expected fingerprint mutated for ${pin}`);
+  }
+  return { file: pin, sha256: recomputed, unchanged: true };
+}
+
+export function recordPreDbExpectedHashes() {
+  const sha256BeforeDb = {};
+  for (const file of F3_FORWARD_FILES) {
+    assertExpectedFingerprintImmutable(file);
+    sha256BeforeDb[file] = expectedFingerprintSha256(file);
+  }
+  return Object.freeze({
+    recordedBeforeDbAccess: true,
+    independentOfObserved: true,
+    constructedOffline: true,
+    sha256BeforeDb: Object.freeze(sha256BeforeDb),
+  });
+}
+
+function frozenMigrationName(file) {
+  return String(file).replace(/\.sql$/i, "");
+}
+
+/**
+ * Observed catalog fields come ONLY from the live CATALOG_FINGERPRINT_SQL
+ * inventory. Meta fields come ONLY from frozen pins / PREASSIGNED_VERSIONS /
+ * FROZEN_DIGESTS / recognition allowlist. Never copies expected↔observed.
+ */
+export function buildIndependentObservedFingerprint(file, catalogInventory) {
+  if (!F3_FORWARD_FILES.includes(file)) {
+    throw new Error(`HOLD: unknown file ${file}`);
+  }
+  if (catalogInventory == null || typeof catalogInventory !== "object" || Array.isArray(catalogInventory)) {
+    return {
+      migration_file: file,
+      migration_version: PREASSIGNED_VERSIONS[file],
+      migration_name: frozenMigrationName(file),
+      migration_digest: FROZEN_DIGESTS[file],
+      recognition: [...RECOGNITION_ALLOWLIST],
+    };
+  }
+  const observed = {};
+  const catalogKeyAllow = new Set([...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_OPTIONAL_CATALOG_KEYS]);
+  for (const key of Object.keys(catalogInventory)) {
+    if (catalogKeyAllow.has(key)) {
+      observed[key] = catalogInventory[key];
+    }
+  }
+  observed.migration_file = file;
+  observed.migration_version = PREASSIGNED_VERSIONS[file];
+  observed.migration_name = frozenMigrationName(file);
+  observed.migration_digest = FROZEN_DIGESTS[file];
+  observed.recognition = [...RECOGNITION_ALLOWLIST];
+  return observed;
+}
+
+function normalizeSetLikeString(value) {
+  if (typeof value !== "string") return value;
+  const parts = value.split(",").map((part) => part.trim()).filter((part) => part.length > 0);
+  parts.sort();
+  return parts.join(",");
+}
+
+function canonicalizeForCompare(value, key = null) {
+  if (key && FINGERPRINT_SET_LIKE_STRING_KEYS.includes(key) && typeof value === "string") {
+    return normalizeSetLikeString(value);
+  }
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    const items = value.map((item) => canonicalizeForCompare(item));
+    if (items.every((item) => item === null || typeof item !== "object")) {
+      return [...items].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    }
+    return items;
+  }
+  const out = {};
+  for (const k of Object.keys(value).sort()) {
+    out[k] = canonicalizeForCompare(value[k], k);
+  }
+  return out;
+}
+
+export function canonicalFingerprintEqual(a, b) {
+  return JSON.stringify(canonicalizeForCompare(a)) === JSON.stringify(canonicalizeForCompare(b));
+}
+
 
 /**
  * Marker list is retained for evidence/docs only. Authorization MUST NOT
@@ -286,7 +556,7 @@ export function objectsPresentFromProbe(result, options) {
   return evaluateObjectProbe(result, options).present === true;
 }
 
-export function fingerprintCompleteAndExact(fingerprint) {
+export function fingerprintCompleteAndExact(fingerprint, file) {
   if (!fingerprint || typeof fingerprint !== "object" || Array.isArray(fingerprint)) {
     return { ok: false, reason: "fingerprint missing or not an object" };
   }
@@ -298,6 +568,13 @@ export function fingerprintCompleteAndExact(fingerprint) {
   if (observed == null || typeof observed !== "object" || Array.isArray(observed)) {
     return { ok: false, reason: "fingerprint.observed missing or not an object" };
   }
+  const expectedHashBefore = fingerprintCanonicalSha256(expected);
+  const allowed = new Set(FINGERPRINT_ALLOWED_KEYS);
+  for (const key of new Set([...Object.keys(expected), ...Object.keys(observed)])) {
+    if (!allowed.has(key)) {
+      return { ok: false, reason: `unexpected fingerprint key ${key}` };
+    }
+  }
   for (const key of FINGERPRINT_REQUIRED_KEYS) {
     if (!(key in expected) || expected[key] == null) {
       return { ok: false, reason: `expected missing key ${key}` };
@@ -306,19 +583,39 @@ export function fingerprintCompleteAndExact(fingerprint) {
       return { ok: false, reason: `observed missing key ${key}` };
     }
   }
+  const presentCatalog = new Set();
+  for (const key of [...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_OPTIONAL_CATALOG_KEYS]) {
+    if (Object.prototype.hasOwnProperty.call(expected, key) || Object.prototype.hasOwnProperty.call(observed, key)) {
+      presentCatalog.add(key);
+    }
+  }
+  for (const key of presentCatalog) {
+    if (!Object.prototype.hasOwnProperty.call(expected, key)) {
+      return { ok: false, reason: `expected missing key ${key}` };
+    }
+    if (!Object.prototype.hasOwnProperty.call(observed, key)) {
+      return { ok: false, reason: `observed missing key ${key}` };
+    }
+  }
   if (!sameKeySet(expected, observed)) {
     return { ok: false, reason: "expected/observed key sets differ (missing or unexpected keys)" };
-  }
-  for (const key of Object.keys(expected)) {
-    if (!FINGERPRINT_CATALOG_KEYS.includes(key) && !FINGERPRINT_REQUIRED_KEYS.includes(key)) {
-      return { ok: false, reason: `unexpected fingerprint key ${key}` };
-    }
   }
   if (expected.f3_objects_absent === true || observed.f3_objects_absent === true) {
     return { ok: false, reason: "fingerprint f3_objects_absent is true after target apply" };
   }
-  if (!canonicalDeepEqual(expected, observed)) {
+  if (!canonicalFingerprintEqual(expected, observed)) {
     return { ok: false, reason: "fingerprint expected and observed are not canonically equal" };
+  }
+  const expectedHashAfter = fingerprintCanonicalSha256(expected);
+  if (expectedHashBefore !== expectedHashAfter) {
+    return { ok: false, reason: "expected fingerprint mutated during compare" };
+  }
+  const pinFile = file || expected.migration_file;
+  if (pinFile && FROZEN_EXPECTED_FINGERPRINT_SHA256[pinFile]) {
+    if (expectedHashAfter !== FROZEN_EXPECTED_FINGERPRINT_SHA256[pinFile]) {
+      return { ok: false, reason: "expected fingerprint is not the sealed frozen constant" };
+    }
+    assertExpectedFingerprintImmutable(pinFile);
   }
   return { ok: true };
 }

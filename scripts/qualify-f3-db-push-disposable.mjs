@@ -243,12 +243,13 @@ function objectsPresentFromProbe(result) {
       ? parsed.rows[0]
       : null;
   if (!row || typeof row !== "object") return false;
-  const keys = Object.keys(row);
-  if (keys.length === 0) return false;
-  for (const key of keys) {
-    if (!/^p\d+$/.test(key)) return false;
-    const value = row[key];
-    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const vals = Object.values(row);
+  if (vals.length === 0) return false;
+  const present = (v) => v !== null && v !== undefined && v !== false && v !== "f" && v !== "";
+  if (!vals.every(present)) return false;
+  // Catalog-boundary: pN must be structured objects, never to_reg*::text.
+  for (const value of vals) {
+    if (typeof value !== "object" || Array.isArray(value)) return false;
     if (Object.prototype.hasOwnProperty.call(value, "oid")) return false;
   }
   return true;

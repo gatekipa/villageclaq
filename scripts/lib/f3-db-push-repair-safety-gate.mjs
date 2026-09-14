@@ -1401,6 +1401,687 @@ export function canonicalFingerprintEqual(a, b) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+/**
+ * One canonical full-fingerprint collector used at every qualify phase.
+ * Catalog fields come ONLY from the live CATALOG_FINGERPRINT_SQL inventory
+ * via buildIndependentObservedFingerprint. Meta fields come ONLY from
+ * frozen pins. Never substitutes inventoryFromQuery as the fingerprint.
+ * Never copies pre-repair meta onto a partial catalog snapshot.
+ */
+export const FULL_FINGERPRINT_COLLECTOR_ID = "canonical_full_fingerprint_collector";
+
+export const FULL_FINGERPRINT_PHASES = Object.freeze({
+  FROZEN_EXPECTED_BEFORE_DB: "frozen_expected_before_db",
+  AFTER_COMMIT_FAILED_HISTORY: "after_commit_failed_history_before_repair",
+  AFTER_POISON_CLEANUP: "after_poison_cleanup_verified_absent_before_repair",
+  AFTER_SUCCESSFUL_REPAIR: "after_successful_repair",
+  AFTER_RETRY_NO_PENDING: "after_retry_no_pending",
+  AFTER_CLEAN_CONTINUATION: "after_clean_continuation",
+});
+
+export const POST_POISON_FULL_FINGERPRINT_HOLD =
+  "HOLD: post-poison-cleanup full fingerprint capture missing, partial, malformed, or unequal; repair not spawned; no continuation";
+
+export const POST_REPAIR_FULL_FINGERPRINT_HOLD =
+  "HOLD: post-repair full fingerprint capture missing, partial, malformed, or unequal; retry not spawned; no continuation";
+
+export const POST_RETRY_FULL_FINGERPRINT_HOLD =
+  "HOLD: post-retry full fingerprint capture missing, partial, malformed, or unequal; no continuation";
+
+export const POST_CONTINUATION_FULL_FINGERPRINT_HOLD =
+  "HOLD: post-continuation full fingerprint capture missing, partial, malformed, or unequal; no continuation";
+
+export function catalogInventoryFromFingerprint(fingerprint) {
+  if (fingerprint == null || typeof fingerprint !== "object" || Array.isArray(fingerprint)) {
+    return null;
+  }
+  const catalog = {};
+  const allow = new Set([...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_OPTIONAL_CATALOG_KEYS]);
+  for (const key of Object.keys(fingerprint)) {
+    if (allow.has(key)) catalog[key] = fingerprint[key];
+  }
+  return catalog;
+}
+
+function catalogAndSecuritySlice(fingerprint) {
+  return catalogInventoryFromFingerprint(fingerprint);
+}
+
+export function fingerprintKeyDiffs(left, right) {
+  if (
+    left == null ||
+    right == null ||
+    typeof left !== "object" ||
+    typeof right !== "object" ||
+    Array.isArray(left) ||
+    Array.isArray(right)
+  ) {
+    return {
+      comparable: false,
+      equal: false,
+      changedKeys: [],
+      missingKeys: [],
+      extraKeys: [],
+    };
+  }
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  const missingKeys = leftKeys.filter((key) => !Object.prototype.hasOwnProperty.call(right, key)).sort();
+  const extraKeys = rightKeys.filter((key) => !Object.prototype.hasOwnProperty.call(left, key)).sort();
+  const changedKeys = [];
+  for (const key of leftKeys) {
+    if (!Object.prototype.hasOwnProperty.call(right, key)) continue;
+    const leftCanon = canonicalizeFingerprintForCompare(left[key], key);
+    const rightCanon = canonicalizeFingerprintForCompare(right[key], key);
+    if (isFingerprintCanonicalizationRejected(leftCanon) || isFingerprintCanonicalizationRejected(rightCanon)) {
+      changedKeys.push(key);
+      continue;
+    }
+    if (JSON.stringify(canonicalize(leftCanon)) !== JSON.stringify(canonicalize(rightCanon))) {
+      changedKeys.push(key);
+    }
+  }
+  changedKeys.sort();
+  return {
+    comparable: true,
+    equal: missingKeys.length === 0 && extraKeys.length === 0 && changedKeys.length === 0,
+    changedKeys,
+    missingKeys,
+    extraKeys,
+  };
+}
+
+export function catalogAndSecurityEqual(a, b) {
+  const left = catalogAndSecuritySlice(a);
+  const right = catalogAndSecuritySlice(b);
+  if (!left || !right) return false;
+  const diffs = fingerprintKeyDiffs(left, right);
+  return diffs.comparable === true && diffs.equal === true;
+}
+
+export function isPartialCatalogInventory(catalogInventory, file) {
+  if (catalogInventory == null || typeof catalogInventory !== "object" || Array.isArray(catalogInventory)) {
+    return true;
+  }
+  if (!F3_FORWARD_FILES.includes(file)) return true;
+  const expected = getFrozenExpectedFingerprint(file);
+  for (const key of FINGERPRINT_REQUIRED_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(catalogInventory, key) || catalogInventory[key] == null) {
+      return true;
+    }
+  }
+  for (const key of FINGERPRINT_OPTIONAL_CATALOG_KEYS) {
+    if (
+      Object.prototype.hasOwnProperty.call(expected, key) &&
+      !Object.prototype.hasOwnProperty.call(catalogInventory, key)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function fingerprintHasCompleteKeyset(fingerprint, expected) {
+  if (
+    fingerprint == null ||
+    expected == null ||
+    typeof fingerprint !== "object" ||
+    typeof expected !== "object" ||
+    Array.isArray(fingerprint) ||
+    Array.isArray(expected)
+  ) {
+    return false;
+  }
+  for (const key of FINGERPRINT_REQUIRED_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(fingerprint, key) || fingerprint[key] == null) return false;
+  }
+  for (const key of FINGERPRINT_META_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(fingerprint, key) || fingerprint[key] == null) return false;
+  }
+  for (const key of FINGERPRINT_OPTIONAL_CATALOG_KEYS) {
+    if (
+      Object.prototype.hasOwnProperty.call(expected, key) &&
+      !Object.prototype.hasOwnProperty.call(fingerprint, key)
+    ) {
+      return false;
+    }
+  }
+  return sameKeySet(expected, fingerprint);
+}
+
+function collectorProvenance(phase, extra = {}) {
+  return {
+    collector: FULL_FINGERPRINT_COLLECTOR_ID,
+    builder: "buildIndependentObservedFingerprint",
+    catalogSource: "live_CATALOG_FINGERPRINT_SQL_inventory",
+    metaSource: "frozen_pins_PREASSIGNED_VERSIONS_FROZEN_DIGESTS_RECOGNITION_ALLOWLIST",
+    copiedFromPreRepair: false,
+    assembledFromPartialInventory: false,
+    independentOfObserved: false,
+    constructedOffline: false,
+    populatedFromObserved: false,
+    phase: phase || null,
+    ...extra,
+  };
+}
+
+function failedFullFingerprintCapture(reason, extra = {}) {
+  return {
+    ok: false,
+    captureOk: false,
+    reason,
+    phase: extra.phase ?? null,
+    file: extra.file ?? null,
+    fingerprint: extra.fingerprint ?? null,
+    sha256: extra.sha256 ?? null,
+    keyset: extra.keyset ?? [],
+    provenance: extra.provenance ?? collectorProvenance(extra.phase),
+    canonicalJson: extra.canonicalJson ?? null,
+    diffsVsExpected: extra.diffsVsExpected ?? null,
+    diffsVsPreRepair: extra.diffsVsPreRepair ?? null,
+    diffsVsPostRepair: extra.diffsVsPostRepair ?? null,
+  };
+}
+
+export function collectCanonicalFullFingerprint(input = {}) {
+  const { file, catalogInventory, phase, queryStatus } = input;
+  const provenance = collectorProvenance(phase, { queryStatus: queryStatus ?? null });
+  if (!F3_FORWARD_FILES.includes(file)) {
+    return failedFullFingerprintCapture(`unknown file ${file}`, { file, phase, provenance });
+  }
+  if (queryStatus != null && queryStatus !== 0) {
+    return failedFullFingerprintCapture(`catalog query status ${queryStatus}`, { file, phase, provenance });
+  }
+  if (catalogInventory == null || typeof catalogInventory !== "object" || Array.isArray(catalogInventory)) {
+    return failedFullFingerprintCapture("catalog inventory missing or not an object", { file, phase, provenance });
+  }
+  if (isPartialCatalogInventory(catalogInventory, file)) {
+    provenance.assembledFromPartialInventory = true;
+    let partial = null;
+    try {
+      partial = buildIndependentObservedFingerprint(file, catalogInventory);
+    } catch {
+      partial = null;
+    }
+    return failedFullFingerprintCapture(
+      "partial catalog inventory cannot substitute for a full fingerprint",
+      {
+        file,
+        phase,
+        provenance,
+        fingerprint: partial,
+        keyset: partial && typeof partial === "object" ? Object.keys(partial).sort() : [],
+      },
+    );
+  }
+
+  let fingerprint;
+  try {
+    fingerprint = buildIndependentObservedFingerprint(file, catalogInventory);
+  } catch (err) {
+    return failedFullFingerprintCapture(err instanceof Error ? err.message : "builder failed", {
+      file,
+      phase,
+      provenance,
+    });
+  }
+
+  const expected = getFrozenExpectedFingerprint(file);
+  const keyset = Object.keys(fingerprint).sort();
+  let sha256 = null;
+  let canonicalJson = null;
+  try {
+    const canonical = canonicalizeFingerprintForCompare(fingerprint);
+    if (!isFingerprintCanonicalizationRejected(canonical)) {
+      sha256 = fingerprintCanonicalSha256(fingerprint);
+      canonicalJson = canonicalize(canonical);
+    }
+  } catch {
+    sha256 = null;
+    canonicalJson = null;
+  }
+
+  if (!fingerprintHasCompleteKeyset(fingerprint, expected)) {
+    return failedFullFingerprintCapture("assembled fingerprint is missing required or expected keys", {
+      file,
+      phase,
+      provenance,
+      fingerprint,
+      sha256,
+      keyset,
+      canonicalJson,
+    });
+  }
+
+  return {
+    ok: true,
+    captureOk: true,
+    reason: null,
+    phase: phase || null,
+    file,
+    fingerprint,
+    sha256,
+    keyset,
+    provenance,
+    canonicalJson,
+    diffsVsExpected: null,
+    diffsVsPreRepair: null,
+    diffsVsPostRepair: null,
+  };
+}
+
+export function finalizeFingerprintCapture(capture, comparisons = {}) {
+  const record = capture && typeof capture === "object" ? { ...capture } : failedFullFingerprintCapture("capture missing");
+  const observed = record.fingerprint;
+  if (comparisons.expected !== undefined) {
+    record.diffsVsExpected = fingerprintKeyDiffs(comparisons.expected, observed);
+  }
+  if (comparisons.preRepairObserved !== undefined) {
+    record.diffsVsPreRepair = fingerprintKeyDiffs(comparisons.preRepairObserved, observed);
+  }
+  if (comparisons.postRepairObserved !== undefined) {
+    record.diffsVsPostRepair = fingerprintKeyDiffs(comparisons.postRepairObserved, observed);
+  }
+  return record;
+}
+
+export function captureFrozenExpectedFingerprint(file) {
+  assertExpectedFingerprintImmutable(file);
+  const fingerprint = getFrozenExpectedFingerprint(file);
+  const sha256 = expectedFingerprintSha256(file);
+  const canonical = canonicalizeFingerprintForCompare(fingerprint);
+  return {
+    ok: true,
+    captureOk: true,
+    reason: null,
+    phase: FULL_FINGERPRINT_PHASES.FROZEN_EXPECTED_BEFORE_DB,
+    file,
+    fingerprint,
+    sha256,
+    keyset: Object.keys(fingerprint).sort(),
+    provenance: {
+      collector: FULL_FINGERPRINT_COLLECTOR_ID,
+      builder: "getFrozenExpectedFingerprint",
+      catalogSource: "FROZEN_EXPECTED_FINGERPRINTS",
+      metaSource: "frozen_pins_independent",
+      copiedFromPreRepair: false,
+      assembledFromPartialInventory: false,
+      independentOfObserved: true,
+      constructedOffline: true,
+      populatedFromObserved: false,
+      phase: FULL_FINGERPRINT_PHASES.FROZEN_EXPECTED_BEFORE_DB,
+    },
+    canonicalJson: isFingerprintCanonicalizationRejected(canonical) ? null : canonicalize(canonical),
+    diffsVsExpected: fingerprintKeyDiffs(fingerprint, fingerprint),
+    diffsVsPreRepair: null,
+    diffsVsPostRepair: null,
+  };
+}
+
+export function recordFrozenExpectedFingerprintCaptures() {
+  const captures = {};
+  for (const file of F3_FORWARD_FILES) {
+    captures[file] = Object.freeze(captureFrozenExpectedFingerprint(file));
+  }
+  return Object.freeze({
+    recordedBeforeDbAccess: true,
+    independentOfObserved: true,
+    constructedOffline: true,
+    populatedFromObserved: false,
+    captures: Object.freeze(captures),
+  });
+}
+
+function evaluateCanonicalPhaseCapture({
+  file,
+  capture,
+  expected,
+  preRepairObserved,
+  postRepairObserved,
+  hold,
+  requireCollector = true,
+} = {}) {
+  if (!capture || typeof capture !== "object" || Array.isArray(capture)) {
+    return { ok: false, hold, reason: "full fingerprint capture missing", allowRetry: false, allowContinuation: false };
+  }
+  if (capture.ok !== true || capture.captureOk !== true) {
+    return {
+      ok: false,
+      hold,
+      reason: capture.reason || "full fingerprint capture failed",
+      allowRetry: false,
+      allowContinuation: false,
+    };
+  }
+  if (requireCollector && capture.provenance?.collector !== FULL_FINGERPRINT_COLLECTOR_ID) {
+    return {
+      ok: false,
+      hold,
+      reason: "fingerprint not assembled by the canonical full-fingerprint collector",
+      allowRetry: false,
+      allowContinuation: false,
+    };
+  }
+  if (capture.provenance?.copiedFromPreRepair === true) {
+    return {
+      ok: false,
+      hold,
+      reason: "copying pre-repair metadata onto a post-phase inventory is prohibited",
+      allowRetry: false,
+      allowContinuation: false,
+    };
+  }
+  if (capture.provenance?.assembledFromPartialInventory === true) {
+    return {
+      ok: false,
+      hold,
+      reason: "partial inventory cannot substitute for a full fingerprint",
+      allowRetry: false,
+      allowContinuation: false,
+    };
+  }
+  const observed = capture.fingerprint;
+  if (observed == null || typeof observed !== "object" || Array.isArray(observed)) {
+    return { ok: false, hold, reason: "captured fingerprint missing or malformed", allowRetry: false, allowContinuation: false };
+  }
+  const complete = fingerprintCompleteAndExact({ expected, observed }, file);
+  if (!complete.ok) {
+    return { ok: false, hold, reason: complete.reason, allowRetry: false, allowContinuation: false };
+  }
+  if (preRepairObserved != null && !catalogAndSecurityEqual(observed, preRepairObserved)) {
+    return {
+      ok: false,
+      hold,
+      reason: "security/catalog differs from authorized pre-repair committed state",
+      allowRetry: false,
+      allowContinuation: false,
+    };
+  }
+  if (postRepairObserved != null && !catalogAndSecurityEqual(observed, postRepairObserved)) {
+    return {
+      ok: false,
+      hold,
+      reason: "security/catalog differs from authorized post-repair state",
+      allowRetry: false,
+      allowContinuation: false,
+    };
+  }
+  return {
+    ok: true,
+    hold: null,
+    reason: null,
+    allowRetry: hold === POST_REPAIR_FULL_FINGERPRINT_HOLD,
+    allowContinuation: hold === POST_RETRY_FULL_FINGERPRINT_HOLD || hold === POST_CONTINUATION_FULL_FINGERPRINT_HOLD,
+    historyReconciliationSeparate: true,
+    diffsVsExpected: fingerprintKeyDiffs(expected, observed),
+    diffsVsPreRepair: preRepairObserved != null ? fingerprintKeyDiffs(preRepairObserved, observed) : null,
+    diffsVsPostRepair: postRepairObserved != null ? fingerprintKeyDiffs(postRepairObserved, observed) : null,
+  };
+}
+
+export function evaluatePostPoisonFullFingerprint(input = {}) {
+  const result = evaluateCanonicalPhaseCapture({
+    ...input,
+    hold: POST_POISON_FULL_FINGERPRINT_HOLD,
+  });
+  return { ...result, allowRepair: result.ok === true, allowRetry: false, allowContinuation: false };
+}
+
+export function evaluatePostRepairFullFingerprint(input = {}) {
+  const result = evaluateCanonicalPhaseCapture({
+    ...input,
+    hold: POST_REPAIR_FULL_FINGERPRINT_HOLD,
+  });
+  return { ...result, allowRetry: result.ok === true, allowContinuation: false };
+}
+
+export function evaluatePostRetryFullFingerprint(input = {}) {
+  const result = evaluateCanonicalPhaseCapture({
+    ...input,
+    hold: POST_RETRY_FULL_FINGERPRINT_HOLD,
+  });
+  return { ...result, allowRetry: false, allowContinuation: result.ok === true };
+}
+
+export function evaluatePostContinuationFullFingerprint(input = {}) {
+  const result = evaluateCanonicalPhaseCapture({
+    ...input,
+    hold: POST_CONTINUATION_FULL_FINGERPRINT_HOLD,
+  });
+  return { ...result, allowRetry: false, allowContinuation: result.ok === true };
+}
+
+/**
+ * Qualifier-path fingerprint sequence used by hosted qualify and local harness.
+ * Pre-repair rejects never spawn repair. Post-repair / post-retry misses HOLD
+ * the sequence and block retry / continuation.
+ */
+export function runQualifyFingerprintHoldSequence(input = {}) {
+  const file = input.file;
+  const expected = getFrozenExpectedFingerprint(file);
+  const phases = {
+    frozenExpected: captureFrozenExpectedFingerprint(file),
+  };
+
+  const afterCommit = finalizeFingerprintCapture(
+    collectCanonicalFullFingerprint({
+      file,
+      catalogInventory: input.afterCommitCatalog,
+      phase: FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+      queryStatus: input.afterCommitQueryStatus ?? 0,
+    }),
+    { expected },
+  );
+  phases.afterCommitFailedHistory = afterCommit;
+  const preRepairExact = afterCommit.ok
+    ? fingerprintCompleteAndExact({ expected, observed: afterCommit.fingerprint }, file)
+    : { ok: false, reason: afterCommit.reason || "pre-repair full fingerprint capture failed" };
+  if (!preRepairExact.ok) {
+    return {
+      ok: false,
+      hold: REPAIR_SAFETY_HOLD,
+      reason: preRepairExact.reason,
+      allowRepair: false,
+      allowRetry: false,
+      allowContinuation: false,
+      repairCalls: 0,
+      retryCalls: 0,
+      continuationCalls: 0,
+      phases,
+      preRepairExact,
+    };
+  }
+
+  const afterPoison = finalizeFingerprintCapture(
+    collectCanonicalFullFingerprint({
+      file,
+      catalogInventory: input.afterPoisonCatalog === undefined ? input.afterCommitCatalog : input.afterPoisonCatalog,
+      phase: FULL_FINGERPRINT_PHASES.AFTER_POISON_CLEANUP,
+      queryStatus: input.afterPoisonQueryStatus ?? 0,
+    }),
+    { expected, preRepairObserved: afterCommit.fingerprint },
+  );
+  phases.afterPoisonCleanup = afterPoison;
+  const poisonEval = evaluatePostPoisonFullFingerprint({
+    file,
+    capture: afterPoison,
+    expected,
+    preRepairObserved: afterCommit.fingerprint,
+  });
+  if (!poisonEval.ok) {
+    return {
+      ok: false,
+      hold: poisonEval.hold,
+      reason: poisonEval.reason,
+      allowRepair: false,
+      allowRetry: false,
+      allowContinuation: false,
+      repairCalls: 0,
+      retryCalls: 0,
+      continuationCalls: 0,
+      phases,
+      preRepairExact,
+      poisonEval,
+    };
+  }
+
+  const afterRepair = finalizeFingerprintCapture(
+    collectCanonicalFullFingerprint({
+      file,
+      catalogInventory: input.afterRepairCatalog,
+      phase: FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
+      queryStatus: input.afterRepairQueryStatus ?? 0,
+    }),
+    { expected, preRepairObserved: afterCommit.fingerprint },
+  );
+  phases.afterSuccessfulRepair = afterRepair;
+  const postRepairEval = evaluatePostRepairFullFingerprint({
+    file,
+    capture: afterRepair,
+    expected,
+    preRepairObserved: afterCommit.fingerprint,
+  });
+  if (!postRepairEval.ok) {
+    return {
+      ok: false,
+      hold: postRepairEval.hold,
+      reason: postRepairEval.reason,
+      allowRepair: true,
+      allowRetry: false,
+      allowContinuation: false,
+      repairCalls: 1,
+      retryCalls: 0,
+      continuationCalls: 0,
+      phases,
+      preRepairExact,
+      poisonEval,
+      postRepairEval,
+    };
+  }
+
+  const pending = Array.isArray(input.retryPending) ? input.retryPending : [];
+  if (pending.length > 0) {
+    return {
+      ok: false,
+      hold: POST_RETRY_FULL_FINGERPRINT_HOLD,
+      reason: "retry still reports a pending target",
+      allowRepair: true,
+      allowRetry: true,
+      allowContinuation: false,
+      repairCalls: 1,
+      retryCalls: 1,
+      continuationCalls: 0,
+      phases,
+      preRepairExact,
+      poisonEval,
+      postRepairEval,
+    };
+  }
+
+  const afterRetry = finalizeFingerprintCapture(
+    collectCanonicalFullFingerprint({
+      file,
+      catalogInventory: input.afterRetryCatalog === undefined ? input.afterRepairCatalog : input.afterRetryCatalog,
+      phase: FULL_FINGERPRINT_PHASES.AFTER_RETRY_NO_PENDING,
+      queryStatus: input.afterRetryQueryStatus ?? 0,
+    }),
+    {
+      expected,
+      preRepairObserved: afterCommit.fingerprint,
+      postRepairObserved: afterRepair.fingerprint,
+    },
+  );
+  phases.afterRetryNoPending = afterRetry;
+  const postRetryEval = evaluatePostRetryFullFingerprint({
+    file,
+    capture: afterRetry,
+    expected,
+    preRepairObserved: afterCommit.fingerprint,
+    postRepairObserved: afterRepair.fingerprint,
+  });
+  if (!postRetryEval.ok) {
+    return {
+      ok: false,
+      hold: postRetryEval.hold,
+      reason: postRetryEval.reason,
+      allowRepair: true,
+      allowRetry: true,
+      allowContinuation: false,
+      repairCalls: 1,
+      retryCalls: 1,
+      continuationCalls: 0,
+      phases,
+      preRepairExact,
+      poisonEval,
+      postRepairEval,
+      postRetryEval,
+    };
+  }
+
+  let continuationEval = { ok: true, hold: null };
+  if (input.continueToNext === true) {
+    const afterContinuation = finalizeFingerprintCapture(
+      collectCanonicalFullFingerprint({
+        file,
+        catalogInventory:
+          input.afterContinuationCatalog === undefined ? input.afterRetryCatalog ?? input.afterRepairCatalog : input.afterContinuationCatalog,
+        phase: FULL_FINGERPRINT_PHASES.AFTER_CLEAN_CONTINUATION,
+        queryStatus: input.afterContinuationQueryStatus ?? 0,
+      }),
+      {
+        expected,
+        preRepairObserved: afterCommit.fingerprint,
+        postRepairObserved: afterRepair.fingerprint,
+      },
+    );
+    phases.afterCleanContinuation = afterContinuation;
+    continuationEval = evaluatePostContinuationFullFingerprint({
+      file,
+      capture: afterContinuation,
+      expected,
+      preRepairObserved: afterCommit.fingerprint,
+      postRepairObserved: afterRepair.fingerprint,
+    });
+    if (!continuationEval.ok) {
+      return {
+        ok: false,
+        hold: continuationEval.hold,
+        reason: continuationEval.reason,
+        allowRepair: true,
+        allowRetry: true,
+        allowContinuation: false,
+        repairCalls: 1,
+        retryCalls: 1,
+        continuationCalls: 0,
+        phases,
+        preRepairExact,
+        poisonEval,
+        postRepairEval,
+        postRetryEval,
+        continuationEval,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    hold: null,
+    reason: null,
+    allowRepair: true,
+    allowRetry: true,
+    allowContinuation: true,
+    repairCalls: 1,
+    retryCalls: 1,
+    continuationCalls: input.continueToNext === true ? 1 : 0,
+    phases,
+    preRepairExact,
+    poisonEval,
+    postRepairEval,
+    postRetryEval,
+    continuationEval,
+  };
+}
+
 
 /**
  * Marker list is retained for evidence/docs only. Authorization MUST NOT

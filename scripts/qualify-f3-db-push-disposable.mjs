@@ -116,16 +116,28 @@ import {
 } from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 import {
   CATALOG_FINGERPRINT_SQL, // structured JSON records; routine ACL identity is schema/object_name/prokind/identity_arguments — never a comma-joined object_identity label. Overrides floor comma-joined query.
+  FULL_FINGERPRINT_PHASES,
   POISON_ABSENT_PROBE_SQL,
+  POST_CONTINUATION_FULL_FINGERPRINT_HOLD,
+  POST_POISON_FULL_FINGERPRINT_HOLD,
+  POST_REPAIR_FULL_FINGERPRINT_HOLD,
+  POST_RETRY_FULL_FINGERPRINT_HOLD,
   PRODUCTION_HISTORY_LIMITATION_WARNING,
   REPAIR_SAFETY_HOLD,
   assertExpectedFingerprintImmutable,
   assertPrefixCompleteSinglePendingStaging,
-  buildIndependentObservedFingerprint,
+  captureFrozenExpectedFingerprint,
+  collectCanonicalFullFingerprint,
+  evaluatePostContinuationFullFingerprint,
+  evaluatePostPoisonFullFingerprint,
+  evaluatePostRepairFullFingerprint,
+  evaluatePostRetryFullFingerprint,
   expectedFingerprintSha256,
+  finalizeFingerprintCapture,
   getFrozenExpectedFingerprint,
   objectProbeSql, // catalog-boundary structured probe identity; to_regprocedure resolves OID only; compare pg_proc identity to frozen descriptor — never to_regprocedure::text vs lookup spelling. Overrides history-inject text compare.
   objectsPresentFromProbe as objectsPresentFromProbeStrict,
+  recordFrozenExpectedFingerprintCaptures,
   recordPreDbExpectedHashes,
   runRepairSafetyThenMaybeRepair,
   syncIsolatedMigrationsThrough,
@@ -223,6 +235,19 @@ function parseArgs(argv) {
   };
 }
 
+function collectPhaseFingerprint(file, queryResult, phase) {
+  const catalog =
+    queryResult && queryResult.status === 0
+      ? inventoryFromQuery(queryResult.stdout)
+      : null;
+  return collectCanonicalFullFingerprint({
+    file,
+    catalogInventory: catalog,
+    phase,
+    queryStatus: queryResult?.status ?? null,
+  });
+}
+
 function objectsPresentFromProbe(result) {
   // CLI 2.117.0 --output-format json may be either:
   //   [{ p0: ..., p1: ... }]  (workdir db query path)
@@ -278,6 +303,7 @@ async function main() {
     candidateOnly: true,
     productionApproved: false,
     expectedFingerprintsBeforeDb: recordPreDbExpectedHashes(),
+    frozenExpectedFingerprintCaptures: recordFrozenExpectedFingerprintCaptures(),
     managementApiApply: MANAGEMENT_API_APPLY_DISQUALIFICATION,
     projectRef: APPROVED_DISPOSABLE_PROJECT_REF,
     host: APPROVED_DISPOSABLE_HOST,
@@ -562,20 +588,32 @@ async function main() {
           sql: objectProbeSql(TARGET_OBJECT_PROBES[file]),
         });
         const objectsPresent = objectsPresentFromProbe({ ...probe, file });
-        const fingerprintBeforeRepair = await runDbQuery({
+        const fingerprintBeforeRepairQuery = await runDbQuery({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
           sql: CATALOG_FINGERPRINT_SQL,
         });
-        const catalogObserved = inventoryFromQuery(fingerprintBeforeRepair.stdout);
-        const fingerprintObserved = buildIndependentObservedFingerprint(file, catalogObserved);
+        const fingerprintExpectedFrozen = evidence.frozenExpectedFingerprintCaptures?.captures?.[file]
+          || captureFrozenExpectedFingerprint(file);
+        const expectedFingerprint = getFrozenExpectedFingerprint(file);
+        const fingerprintAfterCommitFailedHistory = finalizeFingerprintCapture(
+          collectPhaseFingerprint(
+            file,
+            fingerprintBeforeRepairQuery,
+            FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+          ),
+          { expected: expectedFingerprint },
+        );
+        const fingerprintObserved = fingerprintAfterCommitFailedHistory.fingerprint;
         assertExpectedFingerprintImmutable(file);
         const fingerprint = {
-          expected: getFrozenExpectedFingerprint(file),
+          expected: expectedFingerprint,
           observed: fingerprintObserved,
           expectedSha256BeforeDb: expectedFingerprintSha256(file),
         };
+        let fingerprintAfterPoisonCleanup = null;
+        let poisonFingerprintEval = null;
         const classification = classifyDbPushHistoryFailure({
           exitStatus: push.status,
           stdout: push.stdout,
@@ -620,14 +658,58 @@ async function main() {
               help: queryHelp,
               sql: POISON_ABSENT_PROBE_SQL,
             }),
-          repair: () =>
-            runFilenameVersionRepair({
+          repair: async () => {
+            const poisonQuery = await runDbQuery({
+              bin: cli.bin,
+              workdir: isolated.workdir,
+              help: queryHelp,
+              sql: CATALOG_FINGERPRINT_SQL,
+            });
+            fingerprintAfterPoisonCleanup = finalizeFingerprintCapture(
+              collectPhaseFingerprint(
+                file,
+                poisonQuery,
+                FULL_FINGERPRINT_PHASES.AFTER_POISON_CLEANUP,
+              ),
+              { expected: expectedFingerprint, preRepairObserved: fingerprintObserved },
+            );
+            poisonFingerprintEval = evaluatePostPoisonFullFingerprint({
+              file,
+              capture: fingerprintAfterPoisonCleanup,
+              expected: expectedFingerprint,
+              preRepairObserved: fingerprintObserved,
+            });
+            if (!poisonFingerprintEval.ok) {
+              return {
+                status: 1,
+                stdout: "",
+                stderr: poisonFingerprintEval.hold || POST_POISON_FULL_FINGERPRINT_HOLD,
+              };
+            }
+            return runFilenameVersionRepair({
               bin: cli.bin,
               version,
               workdir: isolated.workdir,
               help: repairHelp,
-            }),
+            });
+          },
         });
+        if (fingerprintAfterPoisonCleanup == null && decided.cleanupProven) {
+          const poisonQuery = await runDbQuery({
+            bin: cli.bin,
+            workdir: isolated.workdir,
+            help: queryHelp,
+            sql: CATALOG_FINGERPRINT_SQL,
+          });
+          fingerprintAfterPoisonCleanup = finalizeFingerprintCapture(
+            collectPhaseFingerprint(
+              file,
+              poisonQuery,
+              FULL_FINGERPRINT_PHASES.AFTER_POISON_CLEANUP,
+            ),
+            { expected: expectedFingerprint, preRepairObserved: fingerprintObserved },
+          );
+        }
         const step = {
           file,
           destName: timestampFilenameFor(file),
@@ -641,24 +723,44 @@ async function main() {
           repairSafety: decided.gate,
           objectsPresent,
           historyAfterFail: rowsFromQuery(historyAfterFail),
+          fingerprintExpectedFrozen,
+          fingerprintAfterCommitFailedHistory,
           fingerprintBeforeRepair: fingerprint,
+          fingerprintAfterPoisonCleanup,
+          poisonFingerprintEval,
           repair: decided.repair,
           repairAttempted: decided.repairAttempted,
           continuation: decided.continuation,
         };
-        if (!decided.repairAuthorized || decided.continuation === false) {
+        const holdSequence = (limitation, extra = {}) => {
           evidence.sequence.push({
             ...step,
-            historyAfterRepair: null,
-            fingerprintAfterRepair: null,
-            retry: null,
+            historyAfterRepair: extra.historyAfterRepair ?? null,
+            fingerprintAfterRepair: extra.fingerprintAfterRepair ?? null,
+            fingerprintAfterRetryNoPending: extra.fingerprintAfterRetryNoPending ?? null,
+            fingerprintAfterCleanContinuation: extra.fingerprintAfterCleanContinuation ?? null,
+            retry: extra.retry ?? null,
+            retryStaged: extra.retryStaged ?? null,
+            retryPreflight: extra.retryPreflight ?? null,
+            postRepairFingerprintEval: extra.postRepairFingerprintEval ?? null,
+            postRetryFingerprintEval: extra.postRetryFingerprintEval ?? null,
+            postContinuationFingerprintEval: extra.postContinuationFingerprintEval ?? null,
           });
           evidence.status = "HOLD";
           evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
-          evidence.limitation = decided.repairAuthorized
-            ? "HOLD: repair authorized but repair command failed after poison cleanup; no continuation"
-            : (decided.gate.hold || REPAIR_SAFETY_HOLD);
+          evidence.limitation = limitation;
           evidence.originalSqlError = decided.gate.originalSqlError;
+        };
+        if (poisonFingerprintEval && !poisonFingerprintEval.ok) {
+          holdSequence(poisonFingerprintEval.hold || POST_POISON_FULL_FINGERPRINT_HOLD);
+          break;
+        }
+        if (!decided.repairAuthorized || decided.continuation === false) {
+          holdSequence(
+            decided.repairAuthorized
+              ? "HOLD: repair authorized but repair command failed after poison cleanup; no continuation"
+              : (decided.gate.hold || REPAIR_SAFETY_HOLD),
+          );
           break;
         }
         const historyAfterRepair = await runDbQuery({
@@ -667,12 +769,34 @@ async function main() {
           help: queryHelp,
           sql: READ_SCHEMA_MIGRATIONS_SQL,
         });
-        const fingerprintAfterRepair = await runDbQuery({
+        const fingerprintAfterRepairQuery = await runDbQuery({
           bin: cli.bin,
           workdir: isolated.workdir,
           help: queryHelp,
           sql: CATALOG_FINGERPRINT_SQL,
         });
+        const fingerprintAfterRepair = finalizeFingerprintCapture(
+          collectPhaseFingerprint(
+            file,
+            fingerprintAfterRepairQuery,
+            FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
+          ),
+          { expected: expectedFingerprint, preRepairObserved: fingerprintObserved },
+        );
+        const postRepairFingerprintEval = evaluatePostRepairFullFingerprint({
+          file,
+          capture: fingerprintAfterRepair,
+          expected: expectedFingerprint,
+          preRepairObserved: fingerprintObserved,
+        });
+        if (!postRepairFingerprintEval.ok) {
+          holdSequence(postRepairFingerprintEval.hold || POST_REPAIR_FULL_FINGERPRINT_HOLD, {
+            historyAfterRepair: rowsFromQuery(historyAfterRepair),
+            fingerprintAfterRepair,
+            postRepairFingerprintEval,
+          });
+          break;
+        }
         const retryStaged = syncIsolatedMigrationsThrough(isolated, file);
         const historyBeforeRetry = await queryHistory();
         const retryPreflight = assertPrefixCompleteSinglePendingStaging({
@@ -687,10 +811,104 @@ async function main() {
           workdir: isolated.workdir,
           help: pushHelp,
         });
+        const fingerprintAfterRetryQuery = await runDbQuery({
+          bin: cli.bin,
+          workdir: isolated.workdir,
+          help: queryHelp,
+          sql: CATALOG_FINGERPRINT_SQL,
+        });
+        const fingerprintAfterRetryNoPending = finalizeFingerprintCapture(
+          collectPhaseFingerprint(
+            file,
+            fingerprintAfterRetryQuery,
+            FULL_FINGERPRINT_PHASES.AFTER_RETRY_NO_PENDING,
+          ),
+          {
+            expected: expectedFingerprint,
+            preRepairObserved: fingerprintObserved,
+            postRepairObserved: fingerprintAfterRepair.fingerprint,
+          },
+        );
+        const postRetryFingerprintEval = evaluatePostRetryFullFingerprint({
+          file,
+          capture: fingerprintAfterRetryNoPending,
+          expected: expectedFingerprint,
+          preRepairObserved: fingerprintObserved,
+          postRepairObserved: fingerprintAfterRepair.fingerprint,
+        });
+        const retryPending = Array.isArray(retryPreflight?.pending) ? retryPreflight.pending : [];
+        if (!postRetryFingerprintEval.ok || retryPending.length > 0) {
+          holdSequence(
+            retryPending.length > 0
+              ? POST_RETRY_FULL_FINGERPRINT_HOLD
+              : (postRetryFingerprintEval.hold || POST_RETRY_FULL_FINGERPRINT_HOLD),
+            {
+              historyAfterRepair: rowsFromQuery(historyAfterRepair),
+              fingerprintAfterRepair,
+              fingerprintAfterRetryNoPending,
+              postRepairFingerprintEval,
+              postRetryFingerprintEval,
+              retryStaged,
+              retryPreflight,
+              retry,
+            },
+          );
+          break;
+        }
+        const isLastFile = file === F3_FORWARD_FILES[F3_FORWARD_FILES.length - 1];
+        let fingerprintAfterCleanContinuation = null;
+        let postContinuationFingerprintEval = null;
+        if (!isLastFile) {
+          const continuationQuery = await runDbQuery({
+            bin: cli.bin,
+            workdir: isolated.workdir,
+            help: queryHelp,
+            sql: CATALOG_FINGERPRINT_SQL,
+          });
+          fingerprintAfterCleanContinuation = finalizeFingerprintCapture(
+            collectPhaseFingerprint(
+              file,
+              continuationQuery,
+              FULL_FINGERPRINT_PHASES.AFTER_CLEAN_CONTINUATION,
+            ),
+            {
+              expected: expectedFingerprint,
+              preRepairObserved: fingerprintObserved,
+              postRepairObserved: fingerprintAfterRepair.fingerprint,
+            },
+          );
+          postContinuationFingerprintEval = evaluatePostContinuationFullFingerprint({
+            file,
+            capture: fingerprintAfterCleanContinuation,
+            expected: expectedFingerprint,
+            preRepairObserved: fingerprintObserved,
+            postRepairObserved: fingerprintAfterRepair.fingerprint,
+          });
+          if (!postContinuationFingerprintEval.ok) {
+            holdSequence(postContinuationFingerprintEval.hold || POST_CONTINUATION_FULL_FINGERPRINT_HOLD, {
+              historyAfterRepair: rowsFromQuery(historyAfterRepair),
+              fingerprintAfterRepair,
+              fingerprintAfterRetryNoPending,
+              fingerprintAfterCleanContinuation,
+              postRepairFingerprintEval,
+              postRetryFingerprintEval,
+              postContinuationFingerprintEval,
+              retryStaged,
+              retryPreflight,
+              retry,
+            });
+            break;
+          }
+        }
         evidence.sequence.push({
           ...step,
           historyAfterRepair: rowsFromQuery(historyAfterRepair),
-          fingerprintAfterRepair: inventoryFromQuery(fingerprintAfterRepair.stdout),
+          fingerprintAfterRepair,
+          fingerprintAfterRetryNoPending,
+          fingerprintAfterCleanContinuation,
+          postRepairFingerprintEval,
+          postRetryFingerprintEval,
+          postContinuationFingerprintEval,
           retryStaged,
           retryPreflight,
           retry,

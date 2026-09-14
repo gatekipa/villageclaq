@@ -99,13 +99,27 @@ import {
   PREFIX_COMPLETE_SINGLE_PENDING_HOLD,
   PRODUCTION_HISTORY_LIMITATION_WARNING,
   REPAIR_SAFETY_HOLD,
+  POST_CONTINUATION_FULL_FINGERPRINT_HOLD,
+  POST_POISON_FULL_FINGERPRINT_HOLD,
+  POST_REPAIR_FULL_FINGERPRINT_HOLD,
+  POST_RETRY_FULL_FINGERPRINT_HOLD,
+  FULL_FINGERPRINT_COLLECTOR_ID,
+  FULL_FINGERPRINT_PHASES,
   assertExpectedFingerprintImmutable,
   assertPrefixCompleteSinglePendingStaging,
   authorizedStagedPrefixThrough,
   buildIndependentObservedFingerprint,
+  captureFrozenExpectedFingerprint,
+  catalogInventoryFromFingerprint,
+  collectCanonicalFullFingerprint,
+  evaluatePostContinuationFullFingerprint,
+  evaluatePostPoisonFullFingerprint,
+  evaluatePostRepairFullFingerprint,
+  evaluatePostRetryFullFingerprint,
   evaluatePrefixCompleteSinglePendingStaging,
   evaluateRepairSafetyGate,
   expectedFingerprintSha256,
+  finalizeFingerprintCapture,
   canonicalizeFingerprintForCompare,
   CATALOG_FINGERPRINT_SQL,
   FINGERPRINT_CANONICALIZATION_REASON,
@@ -122,8 +136,10 @@ import {
   getFrozenExpectedObjectProbeDescriptors,
   objectProbeSql,
   objectsPresentFromProbe,
+  recordFrozenExpectedFingerprintCaptures,
   recordPreDbExpectedHashes,
   runPrefixCompleteSinglePendingOrchestration,
+  runQualifyFingerprintHoldSequence,
   runRepairSafetyThenMaybeRepair,
   syncIsolatedMigrationsThrough,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
@@ -724,9 +740,11 @@ test("qualify runner refuses to run without env (NOT_RUN) and never applies via 
   assert.match(qualify, /parseEvidenceOutArg/);
   assert.match(qualify, /f3-db-push-query-parse/);
   assert.match(qualify, /getFrozenExpectedFingerprint/);
-  assert.match(qualify, /buildIndependentObservedFingerprint/);
+  assert.match(qualify, /collectCanonicalFullFingerprint/);
   assert.match(qualify, /recordPreDbExpectedHashes/);
+  assert.match(qualify, /recordFrozenExpectedFingerprintCaptures/);
   assert.match(qualify, /expectedFingerprintsBeforeDb/);
+  assert.match(qualify, /frozenExpectedFingerprintCaptures/);
   assert.doesNotMatch(qualify, /expected:\s*null/);
   const cliSrc = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-cli.mjs"), "utf8");
   assert.match(cliSrc, /hasOutputFormat: \/--output-format\//);
@@ -2162,6 +2180,14 @@ test("qualify runner classifies before repair and uses the new success label", (
   assert.match(qualify, /mechanicsPass = "SUPERSEDED"/);
   assert.match(qualify, /FILE-BASED RUNNER QUALIFICATION PASS — STUB\/LIVE-PIN FLOOR LIMITATION/);
   assert.match(qualify, /DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117/);
+  assert.match(qualify, /fingerprintAfterCommitFailedHistory/);
+  assert.match(qualify, /fingerprintAfterPoisonCleanup/);
+  assert.match(qualify, /fingerprintAfterRetryNoPending/);
+  assert.match(qualify, /fingerprintAfterCleanContinuation/);
+  assert.match(qualify, /evaluatePostRepairFullFingerprint/);
+  assert.match(qualify, /evaluatePostRetryFullFingerprint/);
+  assert.doesNotMatch(seq, /fingerprintAfterRepair:\s*inventoryFromQuery/);
+  assert.doesNotMatch(seq, /fingerprintAfterRetryNoPending:\s*inventoryFromQuery/);
 });
 
 test("real isolated staging stages prefix-complete through current and blocks unexpected files", () => {
@@ -2627,4 +2653,457 @@ test("harness uses exported staging preflight rather than a test-local copy", ()
   const localDef = (name) => new RegExp(`export\\s+function\\s+${name}\\s*\\(`).test(harness);
   assert.equal(localDef("assertPrefixCompleteSinglePendingStaging"), false);
   assert.equal(localDef("syncIsolatedMigrationsThrough"), false);
+});
+
+function catalogFromFrozen(file = FILE118) {
+  return catalogInventoryFromFingerprint(getFrozenExpectedFingerprint(file));
+}
+
+function passingFullSequenceInput(overrides = {}) {
+  const catalog = catalogFromFrozen(FILE118);
+  return {
+    file: FILE118,
+    afterCommitCatalog: catalog,
+    afterPoisonCatalog: catalog,
+    afterRepairCatalog: catalog,
+    afterRetryCatalog: catalog,
+    afterContinuationCatalog: catalog,
+    retryPending: [],
+    continueToNext: true,
+    ...overrides,
+  };
+}
+
+test("canonical full-fingerprint collector is the only post-repair/post-retry assembler", () => {
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  const qualifyStripped = qualify
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
+  assert.match(gate, /export function collectCanonicalFullFingerprint/);
+  assert.match(gate, /buildIndependentObservedFingerprint\(file, catalogInventory\)/);
+  assert.match(qualify, /collectPhaseFingerprint/);
+  assert.match(qualify, /collectCanonicalFullFingerprint/);
+  assert.match(qualify, /FULL_FINGERPRINT_PHASES\.AFTER_SUCCESSFUL_REPAIR/);
+  assert.match(qualify, /FULL_FINGERPRINT_PHASES\.AFTER_RETRY_NO_PENDING/);
+  assert.match(qualify, /FULL_FINGERPRINT_PHASES\.AFTER_CLEAN_CONTINUATION/);
+  assert.match(qualify, /FULL_FINGERPRINT_PHASES\.AFTER_POISON_CLEANUP/);
+  assert.match(qualify, /FULL_FINGERPRINT_PHASES\.AFTER_COMMIT_FAILED_HISTORY/);
+  assert.doesNotMatch(seq, /fingerprintAfterRepair:\s*inventoryFromQuery/);
+  assert.doesNotMatch(seq, /fingerprintAfterRetryNoPending:\s*inventoryFromQuery/);
+  assert.doesNotMatch(qualifyStripped, /\.\.\.\s*fingerprintObserved/);
+  assert.doesNotMatch(qualifyStripped, /\.\.\.\s*fingerprintBeforeRepair/);
+  assert.doesNotMatch(qualifyStripped, /migration_file:\s*fingerprintObserved/);
+  assert.doesNotMatch(qualifyStripped, /Object\.assign\(\s*[^,]+,\s*fingerprintObserved/);
+  assert.match(gate, /Never substitutes inventoryFromQuery as the fingerprint/);
+  assert.match(gate, /Never copies pre-repair meta onto a partial catalog snapshot/);
+});
+
+test("1-4 full pre/post-repair/post-retry/continuation captures are required on the qualify path", () => {
+  const catalog = catalogFromFrozen();
+  const ok = runQualifyFingerprintHoldSequence(passingFullSequenceInput());
+  assert.equal(ok.ok, true);
+  assert.equal(ok.phases.frozenExpected.ok, true);
+  assert.equal(ok.phases.afterCommitFailedHistory.ok, true);
+  assert.equal(ok.phases.afterPoisonCleanup.ok, true);
+  assert.equal(ok.phases.afterSuccessfulRepair.ok, true);
+  assert.equal(ok.phases.afterRetryNoPending.ok, true);
+  assert.equal(ok.phases.afterCleanContinuation.ok, true);
+  for (const phase of [
+    ok.phases.afterCommitFailedHistory,
+    ok.phases.afterPoisonCleanup,
+    ok.phases.afterSuccessfulRepair,
+    ok.phases.afterRetryNoPending,
+    ok.phases.afterCleanContinuation,
+  ]) {
+    assert.equal(phase.provenance.collector, FULL_FINGERPRINT_COLLECTOR_ID);
+    assert.equal(phase.provenance.builder, "buildIndependentObservedFingerprint");
+    assert.equal(phase.provenance.copiedFromPreRepair, false);
+    assert.ok(phase.sha256);
+    assert.ok(phase.canonicalJson);
+    assert.deepEqual(phase.fingerprint.recognition, ["manual_income"]);
+    assert.ok(phase.keyset.includes("schema"));
+    assert.ok(phase.keyset.includes("function_owner"));
+    assert.ok(phase.keyset.includes("acl"));
+    assert.ok(phase.keyset.includes("policy"));
+    assert.ok(phase.keyset.includes("recognition"));
+    assert.ok(phase.keyset.includes("migration_digest"));
+    assert.ok(phase.keyset.includes("migration_file"));
+    assert.ok(phase.keyset.includes("migration_name"));
+    assert.ok(phase.keyset.includes("migration_version"));
+    assert.ok(Array.isArray(phase.fingerprint.acl));
+    assert.equal(typeof phase.fingerprint.acl[0].identity_arguments, "string");
+  }
+  assert.equal(ok.repairCalls, 1);
+  assert.equal(ok.retryCalls, 1);
+  assert.equal(ok.continuationCalls, 1);
+
+  const missingRepair = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    afterRepairCatalog: null,
+  }));
+  assert.equal(missingRepair.ok, false);
+  assert.equal(missingRepair.allowRetry, false);
+  assert.equal(missingRepair.retryCalls, 0);
+  assert.equal(missingRepair.hold, POST_REPAIR_FULL_FINGERPRINT_HOLD);
+
+  const missingRetry = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    afterRetryCatalog: null,
+  }));
+  assert.equal(missingRetry.ok, false);
+  assert.equal(missingRetry.allowContinuation, false);
+  assert.equal(missingRetry.hold, POST_RETRY_FULL_FINGERPRINT_HOLD);
+
+  const missingPre = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    afterCommitCatalog: null,
+  }));
+  assert.equal(missingPre.ok, false);
+  assert.equal(missingPre.repairCalls, 0);
+  assert.equal(missingPre.hold, REPAIR_SAFETY_HOLD);
+  assert.ok(catalog);
+});
+
+test("5-6 missing or extra fingerprint keys HOLD on the qualify path", () => {
+  const catalog = catalogFromFrozen();
+  const missingAcl = { ...catalog };
+  delete missingAcl.acl;
+  const missing = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    afterRepairCatalog: missingAcl,
+  }));
+  assert.equal(missing.ok, false);
+  assert.equal(missing.allowRetry, false);
+  assert.equal(missing.retryCalls, 0);
+  assert.match(missing.hold, /HOLD/);
+
+  const extra = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    afterRepairCatalog: { ...catalog, unexpected_key: true },
+  }));
+  const extraObserved = collectCanonicalFullFingerprint({
+    file: FILE118,
+    catalogInventory: { ...catalog, unexpected_key: true },
+    phase: FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
+  });
+  assert.equal(extraObserved.ok, true, "collector ignores unknown catalog keys");
+  const extraDirect = evaluatePostRepairFullFingerprint({
+    file: FILE118,
+    capture: {
+      ...extraObserved,
+      fingerprint: { ...extraObserved.fingerprint, unexpected_key: true },
+    },
+    expected: getFrozenExpectedFingerprint(FILE118),
+    preRepairObserved: extraObserved.fingerprint,
+  });
+  assert.equal(extraDirect.ok, false);
+  assert.equal(extraDirect.allowRetry, false);
+  assert.equal(extra.ok, true);
+});
+
+test("7-8 partial inventory cannot substitute for post-repair or post-retry fingerprints", () => {
+  const catalog = catalogFromFrozen();
+  const inventoryOnly = {
+    schema: catalog.schema,
+    function_owner: catalog.function_owner,
+    acl: catalog.acl,
+    policy: catalog.policy,
+    f3_objects_absent: catalog.f3_objects_absent,
+  };
+  const asCapture = {
+    ok: true,
+    captureOk: true,
+    fingerprint: inventoryOnly,
+    provenance: {
+      collector: FULL_FINGERPRINT_COLLECTOR_ID,
+      builder: "inventoryFromQuery",
+      copiedFromPreRepair: false,
+      assembledFromPartialInventory: false,
+    },
+  };
+  const postRepair = evaluatePostRepairFullFingerprint({
+    file: FILE118,
+    capture: asCapture,
+    expected: getFrozenExpectedFingerprint(FILE118),
+    preRepairObserved: collectCanonicalFullFingerprint({
+      file: FILE118,
+      catalogInventory: catalog,
+      phase: FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+    }).fingerprint,
+  });
+  assert.equal(postRepair.ok, false);
+  assert.equal(postRepair.allowRetry, false);
+  assert.equal(postRepair.hold, POST_REPAIR_FULL_FINGERPRINT_HOLD);
+
+  const postRetry = evaluatePostRetryFullFingerprint({
+    file: FILE118,
+    capture: asCapture,
+    expected: getFrozenExpectedFingerprint(FILE118),
+    preRepairObserved: asCapture.fingerprint,
+    postRepairObserved: asCapture.fingerprint,
+  });
+  assert.equal(postRetry.ok, false);
+  assert.equal(postRetry.allowContinuation, false);
+  assert.equal(postRetry.hold, POST_RETRY_FULL_FINGERPRINT_HOLD);
+
+  const missingOptional = { ...catalog };
+  delete missingOptional.f3_objects_absent;
+  const partialCollect = collectCanonicalFullFingerprint({
+    file: FILE118,
+    catalogInventory: missingOptional,
+    phase: FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
+  });
+  assert.equal(partialCollect.ok, false);
+  assert.equal(partialCollect.provenance.assembledFromPartialInventory, true);
+});
+
+test("9-10 copying pre-repair metadata onto post-repair inventory is prohibited", () => {
+  const catalog = catalogFromFrozen();
+  const full = collectCanonicalFullFingerprint({
+    file: FILE118,
+    catalogInventory: catalog,
+    phase: FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+  });
+  const merged = {
+    ...catalog,
+    migration_file: full.fingerprint.migration_file,
+    migration_version: full.fingerprint.migration_version,
+    migration_name: full.fingerprint.migration_name,
+    migration_digest: full.fingerprint.migration_digest,
+    recognition: full.fingerprint.recognition,
+  };
+  const reconstructed = {
+    ok: true,
+    captureOk: true,
+    fingerprint: merged,
+    provenance: {
+      collector: "manual_merge",
+      builder: "preRepairMetaOntoInventory",
+      copiedFromPreRepair: true,
+      assembledFromPartialInventory: true,
+    },
+  };
+  const postRepair = evaluatePostRepairFullFingerprint({
+    file: FILE118,
+    capture: reconstructed,
+    expected: getFrozenExpectedFingerprint(FILE118),
+    preRepairObserved: full.fingerprint,
+  });
+  assert.equal(postRepair.ok, false);
+  assert.equal(postRepair.allowRetry, false);
+  assert.match(postRepair.reason, /pre-repair metadata|partial inventory|canonical/);
+
+  const postRetry = evaluatePostRetryFullFingerprint({
+    file: FILE118,
+    capture: reconstructed,
+    expected: getFrozenExpectedFingerprint(FILE118),
+    preRepairObserved: full.fingerprint,
+    postRepairObserved: full.fingerprint,
+  });
+  assert.equal(postRetry.ok, false);
+  assert.equal(postRetry.allowContinuation, false);
+
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const stripped = qualify.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  assert.doesNotMatch(stripped, /copiedFromPreRepair:\s*true/);
+  assert.doesNotMatch(stripped, /\.\.\.\s*inventoryFromQuery/);
+});
+
+test("11-13 malformed post-repair captures HOLD and block retry", () => {
+  const catalog = catalogFromFrozen();
+  const pre = collectCanonicalFullFingerprint({
+    file: FILE118,
+    catalogInventory: catalog,
+    phase: FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+  }).fingerprint;
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const cases = [
+    { name: "null", capture: null },
+    { name: "string", capture: "not-a-capture" },
+    { name: "array", capture: [] },
+    { name: "missing fingerprint", capture: { ok: true, captureOk: true, provenance: { collector: FULL_FINGERPRINT_COLLECTOR_ID } } },
+  ];
+  for (const c of cases) {
+    const evaluated = evaluatePostRepairFullFingerprint({
+      file: FILE118,
+      capture: c.capture,
+      expected,
+      preRepairObserved: pre,
+    });
+    assert.equal(evaluated.ok, false, c.name);
+    assert.equal(evaluated.allowRetry, false, c.name);
+    assert.equal(evaluated.hold, POST_REPAIR_FULL_FINGERPRINT_HOLD, c.name);
+  }
+});
+
+test("14-17 catalog drift after repair HOLDs and blocks retry", () => {
+  const catalog = catalogFromFrozen();
+  const pre = collectCanonicalFullFingerprint({
+    file: FILE118,
+    catalogInventory: catalog,
+    phase: FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+  }).fingerprint;
+  const drifts = [
+    { name: "acl", catalog: { ...catalog, acl: [] } },
+    { name: "function_owner", catalog: { ...catalog, function_owner: [] } },
+    { name: "policy", catalog: { ...catalog, policy: [] } },
+    { name: "schema", catalog: { ...catalog, schema: [] } },
+  ];
+  for (const c of drifts) {
+    const decided = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+      afterRepairCatalog: c.catalog,
+    }));
+    assert.equal(decided.ok, false, c.name);
+    assert.equal(decided.allowRetry, false, c.name);
+    assert.equal(decided.retryCalls, 0, c.name);
+    assert.equal(decided.hold, POST_REPAIR_FULL_FINGERPRINT_HOLD, c.name);
+    assert.ok(pre);
+  }
+});
+
+test("18-19 post-repair mismatch blocks retry and continuation; 20 post-retry mismatch blocks continuation", async () => {
+  const catalog = catalogFromFrozen();
+  const drifted = { ...catalog, acl: [] };
+  let retryCalls = 0;
+  let continuationCalls = 0;
+  const postRepairHold = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    afterRepairCatalog: drifted,
+  }));
+  if (postRepairHold.allowRetry) retryCalls += 1;
+  if (postRepairHold.allowContinuation) continuationCalls += 1;
+  assert.equal(postRepairHold.ok, false);
+  assert.equal(retryCalls, 0);
+  assert.equal(continuationCalls, 0);
+  assert.equal(postRepairHold.retryCalls, 0);
+  assert.equal(postRepairHold.continuationCalls, 0);
+
+  retryCalls = 0;
+  continuationCalls = 0;
+  const postRetryHold = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    afterRetryCatalog: drifted,
+  }));
+  if (postRetryHold.allowRetry) retryCalls += 1;
+  if (postRetryHold.allowContinuation) continuationCalls += 1;
+  assert.equal(postRetryHold.ok, false);
+  assert.equal(postRetryHold.hold, POST_RETRY_FULL_FINGERPRINT_HOLD);
+  assert.equal(continuationCalls, 0);
+  assert.equal(postRetryHold.continuationCalls, 0);
+
+  const pendingHold = runQualifyFingerprintHoldSequence(passingFullSequenceInput({
+    retryPending: [FILE118],
+  }));
+  assert.equal(pendingHold.ok, false);
+  assert.equal(pendingHold.allowContinuation, false);
+  assert.equal(pendingHold.hold, POST_RETRY_FULL_FINGERPRINT_HOLD);
+});
+
+test("21 source contract: qualify persists phase captures and never uses inventoryFromQuery as the fingerprint", () => {
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  assert.match(qualify, /fingerprintExpectedFrozen/);
+  assert.match(qualify, /fingerprintAfterCommitFailedHistory/);
+  assert.match(qualify, /fingerprintAfterPoisonCleanup/);
+  assert.match(qualify, /fingerprintAfterRepair/);
+  assert.match(qualify, /fingerprintAfterRetryNoPending/);
+  assert.match(qualify, /fingerprintAfterCleanContinuation/);
+  assert.match(qualify, /POST_REPAIR_FULL_FINGERPRINT_HOLD/);
+  assert.match(qualify, /POST_RETRY_FULL_FINGERPRINT_HOLD/);
+  const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
+  const afterRepairAssign = seq.match(/fingerprintAfterRepair[^\n]+/g) || [];
+  assert.ok(afterRepairAssign.length >= 1);
+  for (const line of afterRepairAssign) {
+    assert.equal(/inventoryFromQuery/.test(line), false, line);
+  }
+});
+
+test("22 successful full captures equal sealed expected hashes; frozen expected is not populated from observed", () => {
+  const recorded = recordFrozenExpectedFingerprintCaptures();
+  assert.equal(recorded.recordedBeforeDbAccess, true);
+  assert.equal(recorded.independentOfObserved, true);
+  assert.equal(recorded.populatedFromObserved, false);
+  const sealed = {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+  };
+  for (const file of F3_FORWARD_FILES) {
+    const frozen = captureFrozenExpectedFingerprint(file);
+    assert.equal(frozen.sha256, sealed[file], file);
+    assert.equal(frozen.provenance.populatedFromObserved, false);
+    assert.deepEqual(frozen.fingerprint.recognition, ["manual_income"]);
+    const catalog = catalogInventoryFromFingerprint(frozen.fingerprint);
+    const collected = collectCanonicalFullFingerprint({
+      file,
+      catalogInventory: catalog,
+      phase: FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
+    });
+    assert.equal(collected.ok, true, file);
+    assert.equal(collected.sha256, sealed[file], file);
+    assert.equal(fingerprintCompleteAndExact({
+      expected: frozen.fingerprint,
+      observed: collected.fingerprint,
+    }, file).ok, true, file);
+    assert.equal(collected.fingerprint.migration_digest, FROZEN_DIGESTS[file], file);
+  }
+});
+
+test("pre-repair collector rejects still spawn zero repair via the actual gate path", async () => {
+  const catalog = catalogFromFrozen();
+  const partial = collectCanonicalFullFingerprint({
+    file: FILE118,
+    catalogInventory: { schema: catalog.schema },
+    phase: FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+  });
+  assert.equal(partial.ok, false);
+  let repairCalls = 0;
+  const decided = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput({
+      fingerprint: {
+        expected: getFrozenExpectedFingerprint(FILE118),
+        observed: partial.fingerprint,
+      },
+    }),
+    cleanup: () => provenCleanup(),
+    verifyPoisonAbsent: () => poisonAbsentResult(),
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+  });
+  assert.equal(decided.repairAuthorized, false);
+  assert.equal(decided.repairAttempted, false);
+  assert.equal(repairCalls, 0);
+  assert.equal(decided.gate.hold, REPAIR_SAFETY_HOLD);
+});
+
+test("poison / post-repair / post-retry evaluators expose distinct HOLD strings", () => {
+  assert.match(POST_POISON_FULL_FINGERPRINT_HOLD, /poison-cleanup/);
+  assert.match(POST_REPAIR_FULL_FINGERPRINT_HOLD, /post-repair/);
+  assert.match(POST_RETRY_FULL_FINGERPRINT_HOLD, /post-retry/);
+  assert.match(POST_CONTINUATION_FULL_FINGERPRINT_HOLD, /continuation/);
+  const catalog = catalogFromFrozen();
+  const capture = finalizeFingerprintCapture(
+    collectCanonicalFullFingerprint({
+      file: FILE118,
+      catalogInventory: catalog,
+      phase: FULL_FINGERPRINT_PHASES.AFTER_SUCCESSFUL_REPAIR,
+    }),
+    {
+      expected: getFrozenExpectedFingerprint(FILE118),
+      preRepairObserved: collectCanonicalFullFingerprint({
+        file: FILE118,
+        catalogInventory: catalog,
+        phase: FULL_FINGERPRINT_PHASES.AFTER_COMMIT_FAILED_HISTORY,
+      }).fingerprint,
+    },
+  );
+  assert.equal(capture.diffsVsExpected.equal, true);
+  assert.equal(capture.diffsVsPreRepair.equal, true);
+  const poisonOk = evaluatePostPoisonFullFingerprint({
+    file: FILE118,
+    capture,
+    expected: getFrozenExpectedFingerprint(FILE118),
+    preRepairObserved: capture.fingerprint,
+  });
+  assert.equal(poisonOk.ok, true);
+  assert.equal(poisonOk.allowRepair, true);
 });

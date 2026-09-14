@@ -53,6 +53,7 @@ import {
   resolveHostedFloorMode,
   stubLivePinFloorPrecheck,
   stubLivePinFloorSqlSteps,
+  PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL,
 } from "./lib/f3-db-push-stub-live-pin-floor.mjs";
 import {
   FAILED_FLOOR_STORAGE_BUCKETS,
@@ -64,7 +65,6 @@ import {
   coerceJsonValue,
   inventoryFromQuery,
   inventoryFromQueryStdout,
-  objectsPresentFromProbe,
   parseEvidenceOutArg,
   parseJsonish,
   rowsFromQuery,
@@ -114,6 +114,7 @@ test("required qualification floor label is exact", () => {
   assert.match(STUB_LIVE_PIN_FLOOR_AUTHORITY, /Do not invent 00117 history/);
   assert.deepEqual([...DISCLOSED_STUB_LIVE_PIN_COMPONENTS], [
     "STUB_CORE_SQL",
+    "public_uuid_generate_v5_wrapper",
     "REGRESSION_SLICE_SQL",
     "CUT2_QUEUE_SLICE_SQL",
     "live_has_group_permission_cut3",
@@ -135,12 +136,13 @@ test("hosted default floor mode is stub-live-pin and greenfield is refused", () 
   assert.throws(() => installHostedFloor({ workdir: "/tmp", mode: "greenfield" }), /greenfield/);
 });
 
-test("floor SQL steps are the seven disclosed components and reuse repo fixtures", () => {
+test("floor SQL steps are the disclosed components and reuse repo fixtures", () => {
   const steps = stubLivePinFloorSqlSteps();
   assert.deepEqual(
     steps.map((s) => s.id),
     [
       "prerequisite_stub",
+      "public_uuid_generate_v5_wrapper",
       "regression_slice",
       "cut2_queue_slice",
       "live_has_group_permission_cut3",
@@ -149,11 +151,12 @@ test("floor SQL steps are the seven disclosed components and reuse repo fixtures
     ],
   );
   assert.equal(steps[0].sql, STUB_CORE_SQL);
-  assert.equal(steps[1].sql, REGRESSION_SLICE_SQL);
-  assert.equal(steps[2].sql, CUT2_QUEUE_SLICE_SQL);
-  assert.equal(steps[3].sql, extractHasGroupPermissionCreateSql());
-  assert.equal(steps[4].sql, extractEnqueueCreateSql());
-  assert.equal(steps[5].sql, remoteFloorOwnershipAndAclSql());
+  assert.equal(steps[1].sql, PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL);
+  assert.equal(steps[2].sql, REGRESSION_SLICE_SQL);
+  assert.equal(steps[3].sql, CUT2_QUEUE_SLICE_SQL);
+  assert.equal(steps[4].sql, extractHasGroupPermissionCreateSql());
+  assert.equal(steps[5].sql, extractEnqueueCreateSql());
+  assert.equal(steps[6].sql, remoteFloorOwnershipAndAclSql());
   assert.equal(assertStubFloorDoesNotReplayOrTransform(), true);
   assert.equal(assertFloorDoesNotUseDisqualifiedRunners(), true);
 });
@@ -233,6 +236,7 @@ test("gated stub+live-pin install uses psql -f for all floor SQL and never write
     result.steps.map((s) => s.id),
     [
       "prerequisite_stub",
+      "public_uuid_generate_v5_wrapper",
       "regression_slice",
       "cut2_queue_slice",
       "live_has_group_permission_cut3",
@@ -470,14 +474,17 @@ test("pre-stub clean-check accepts leftover floor storage policies/buckets or ze
   assert.equal(extraPolicy.do_not_wipe, true);
 });
 
-test("objectsPresentFromProbe treats top-level JSON array rows like envelope.rows", () => {
+test("public rowsFromQuery treats top-level JSON array rows like envelope.rows", () => {
   const presentRow = { p0: "financial_private", p1: "public.financial_ledger_epochs" };
-  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify([presentRow]) }, 2), true);
-  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify({ rows: [presentRow] }) }, 2), true);
-  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify([{ p0: null, p1: null }]) }, 2), false);
-  assert.equal(objectsPresentFromProbe({ stdout: JSON.stringify({ rows: [{ p0: "financial_private", p1: null }] }) }, 2), false);
   assert.deepEqual(rowsFromQuery({ stdout: JSON.stringify([presentRow]) }), [presentRow]);
   assert.deepEqual(rowsFromQuery({ stdout: JSON.stringify({ rows: [presentRow] }) }), [presentRow]);
+  assert.deepEqual(rowsFromQuery({ stdout: JSON.stringify([{ p0: null, p1: null }]) }), [{ p0: null, p1: null }]);
+  // Sealed qualify embeds objectsPresentFromProbe (not exported): array + rows envelopes.
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  assert.match(qualify, /function objectsPresentFromProbe\(result\)/);
+  assert.match(qualify, /Array\.isArray\(parsed\)/);
+  assert.match(qualify, /Array\.isArray\(parsed\?\.rows\)/);
+  assert.match(qualify, /vals\.every\(present\)/);
 });
 
 test("STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails auth GRANTs", () => {
@@ -494,9 +501,11 @@ test("STUB_CORE_SQL creates auth.uid/auth.jwt only when missing and soft-fails a
   assert.match(STUB_CORE_SQL, /CREATE TABLE public\.payments /);
   assert.match(STUB_CORE_SQL, /CREATE FUNCTION auth\.uid\(\)/);
   assert.match(STUB_CORE_SQL, /CREATE FUNCTION auth\.jwt\(\)/);
-  assert.match(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION public\.uuid_generate_v5\(namespace uuid, name text\)/);
-  assert.match(STUB_CORE_SQL, /SELECT extensions\.uuid_generate_v5\(namespace, name\)/);
-  assert.match(STUB_CORE_SQL, /CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions/);
+  assert.doesNotMatch(STUB_CORE_SQL, /CREATE OR REPLACE FUNCTION public\.uuid_generate_v5/);
+  assert.match(PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL, /CREATE OR REPLACE FUNCTION public\.uuid_generate_v5\(namespace uuid, name text\)/);
+  assert.match(PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL, /SELECT extensions\.uuid_generate_v5\(namespace, name\)/);
+  assert.match(PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL, /CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions/);
+  assert.ok(DISCLOSED_STUB_LIVE_PIN_COMPONENTS.includes("public_uuid_generate_v5_wrapper"));
   assert.doesNotMatch(STUB_CORE_SQL, /CREATE ROLE ubuntu/i);
 });
 

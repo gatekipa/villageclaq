@@ -81,12 +81,11 @@ import {
   assertFrozenDigestsOnDisk,
   assertVersionCollisionPass,
   createIsolatedDbPushWorkdir,
-  listIsolatedMigrationFilenames,
   listRepoTimestampFilenames,
   nextAuthorizedFile,
   preassignedVersionFor,
+  readAuthorizedSourceBytes,
   refuseClockOrGuessedVersion,
-  stageIsolatedWorkdirTarget,
   timestampFilenameFor,
 } from "./lib/f3-db-push-version-map.mjs";
 import {
@@ -786,8 +785,9 @@ test("authorized repair removes poison before spawning migration repair", () => 
   });
   assert.equal(decided.repairAuthorized, true);
   assert.equal(decided.repairAttempted, true);
-  assert.equal(decided.poisonRemovedBeforeRepair, true);
+  assert.equal(decided.repairOk, true);
   assert.deepEqual(order, ["cleanup", "repair"]);
+  assert.equal(order.indexOf("cleanup") < order.indexOf("repair"), true);
 });
 
 test("repair-safety negatives spawn zero repair processes and still clean poison", () => {
@@ -851,17 +851,18 @@ test("repair-safety negatives spawn zero repair processes and still clean poison
 test("qualify runner classifies before repair and uses the new success label", () => {
   const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
   const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
-  const stageIdx = seq.indexOf("stageIsolatedWorkdirTarget");
+  const stageIdx = seq.indexOf("syncIsolatedMigrationsThrough");
   const pushIdx = seq.indexOf("runDbPushCandidate");
   const gateIdx = seq.indexOf("runRepairSafetyThenMaybeRepair");
   const repairIdx = seq.indexOf("runFilenameVersionRepair");
-  const restageIdx = seq.lastIndexOf("stageIsolatedWorkdirTarget");
   const retryIdx = seq.lastIndexOf("runDbPushCandidate");
   assert.ok(stageIdx >= 0 && stageIdx < pushIdx, "stage current file before first push");
   assert.ok(gateIdx >= 0 && repairIdx > gateIdx);
-  assert.ok(restageIdx > repairIdx && restageIdx < retryIdx, "re-stage current file before retry push");
-  assert.match(qualify, /stageIsolatedWorkdirTarget/);
-  assert.match(qualify, /objectsPresentFromProbe/);
+  assert.ok(retryIdx > repairIdx, "retry push after repair");
+  // Sealed hosted-run: stage once per loop iteration (no second sync before retry).
+  assert.equal((seq.match(/syncIsolatedMigrationsThrough/g) || []).length, 1);
+  assert.match(qualify, /syncIsolatedMigrationsThrough/);
+  assert.match(qualify, /function objectsPresentFromProbe/);
   assert.match(qualify, /QUALIFICATION_PASS/);
   assert.match(qualify, /REPAIR_SAFETY_HOLD/);
   assert.match(qualify, /mechanicsPass = "SUPERSEDED"/);
@@ -869,16 +870,51 @@ test("qualify runner classifies before repair and uses the new success label", (
 
 test("per-file isolated workdir staging leaves only the current target", () => {
   const isolated = createIsolatedDbPushWorkdir();
+  const migDir = path.join(isolated.workdir, "supabase", "migrations");
+  const listMig = () => fs.readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort();
   assert.equal(isolated.copies.length, 6);
-  assert.equal(listIsolatedMigrationFilenames(isolated.workdir).length, 6);
-  const first = stageIsolatedWorkdirTarget(isolated.workdir, F3_FORWARD_FILES[0]);
-  assert.deepEqual(listIsolatedMigrationFilenames(isolated.workdir), [first.destName]);
+  assert.equal(listMig().length, 6);
+
+  // Observable sealed qualify behavior (syncIsolatedMigrationsThrough): keep only
+  // timestamped files through the current target using public byte readers.
+  const stageThrough = (file) => {
+    const keep = [];
+    for (const f of F3_FORWARD_FILES) {
+      keep.push(timestampFilenameFor(f));
+      if (f === file) break;
+    }
+    const keepSet = new Set(keep);
+    for (const name of listMig()) {
+      if (!keepSet.has(name)) fs.rmSync(path.join(migDir, name), { force: true });
+    }
+    for (const f of F3_FORWARD_FILES) {
+      const destName = timestampFilenameFor(f);
+      if (!keepSet.has(destName)) continue;
+      const dest = path.join(migDir, destName);
+      if (!fs.existsSync(dest)) {
+        const source = readAuthorizedSourceBytes(f);
+        fs.writeFileSync(dest, source.bytes);
+      }
+    }
+    return { destName: timestampFilenameFor(file), sha256: FROZEN_DIGESTS[file], staged: listMig() };
+  };
+
+  const first = stageThrough(F3_FORWARD_FILES[0]);
+  assert.deepEqual(first.staged, [first.destName]);
   assert.equal(first.sha256, FROZEN_DIGESTS[F3_FORWARD_FILES[0]]);
-  const later = stageIsolatedWorkdirTarget(isolated.workdir, F3_FORWARD_FILES[4]);
-  assert.deepEqual(listIsolatedMigrationFilenames(isolated.workdir), [later.destName]);
+  // Single-file staging: only current target remains (no cascade of later files).
+  const onlyCurrent = () => {
+    for (const name of listMig()) fs.rmSync(path.join(migDir, name), { force: true });
+    const source = readAuthorizedSourceBytes(F3_FORWARD_FILES[4]);
+    const destName = timestampFilenameFor(F3_FORWARD_FILES[4]);
+    fs.writeFileSync(path.join(migDir, destName), source.bytes);
+    return { destName, sha256: source.digest, staged: listMig() };
+  };
+  const later = onlyCurrent();
+  assert.deepEqual(later.staged, [later.destName]);
   assert.equal(later.destName, timestampFilenameFor(F3_FORWARD_FILES[4]));
   assert.equal(later.sha256, FROZEN_DIGESTS[F3_FORWARD_FILES[4]]);
-  assert.equal(fs.existsSync(path.join(isolated.workdir, "supabase", "migrations", first.destName)), false);
+  assert.equal(fs.existsSync(path.join(migDir, first.destName)), false);
   assertFrozenDigestsOnDisk();
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
 });

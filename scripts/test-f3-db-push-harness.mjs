@@ -114,7 +114,13 @@ import {
   fingerprintCompleteAndExact,
   FROZEN_EXPECTED_FINGERPRINT_SHA256,
   SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256,
+  FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS,
+  OBJECT_PROBE_IDENTITY_FIELDS,
+  assertExpectedObjectProbeDescriptorsImmutable,
+  evaluateObjectProbe,
   getFrozenExpectedFingerprint,
+  getFrozenExpectedObjectProbeDescriptors,
+  objectProbeSql,
   objectsPresentFromProbe,
   recordPreDbExpectedHashes,
   runPrefixCompleteSinglePendingOrchestration,
@@ -752,6 +758,7 @@ test("runbook permanently disqualifies Management API apply and keeps db push as
 });
 
 const FILE118 = "00118_f3_bounded_financial_epoch_foundation.sql";
+const FILE121 = "00121_f3_03_projection_read_proof.sql";
 const VER118 = "20260913173000";
 const FINANCIAL_PRIVATE_MISSING_ERROR = "ERROR: relation financial_private does not exist";
 
@@ -782,11 +789,10 @@ function passingFingerprint(file = FILE118) {
 }
 
 function passingProbe(file = FILE118) {
-  const exprs = TARGET_OBJECT_PROBES[file] || [];
+  const descriptors = getFrozenExpectedObjectProbeDescriptors(file);
   const row = {};
-  exprs.forEach((expr, i) => {
-    const quoted = String(expr).match(/'([^']+)'/);
-    row[`p${i}`] = quoted ? quoted[1] : null;
+  descriptors.forEach((descriptor, i) => {
+    row[`p${i}`] = { ...descriptor };
   });
   return {
     status: 0,
@@ -982,6 +988,228 @@ test("strict object probe rejects ERROR relation financial_private and all unstr
   assert.equal(decided.repairAttempted, false);
   assert.equal(repairCalls, 0);
   assert.ok(decided.gate.failedGates.includes("expected_objects") || decided.gate.failedGates.includes("no_unrelated_sql_error"));
+});
+
+function probeFrom121(mutateRow = (row) => row) {
+  const descriptors = getFrozenExpectedObjectProbeDescriptors(FILE121);
+  const row = {};
+  descriptors.forEach((descriptor, i) => {
+    row[`p${i}`] = { ...descriptor };
+  });
+  return {
+    status: 0,
+    stdout: JSON.stringify([mutateRow(row)]),
+    stderr: "",
+    file: FILE121,
+  };
+}
+
+function authorized121Input(extra = {}) {
+  return authorizedGateInput({
+    file: FILE121,
+    targetVersion: PREASSIGNED_VERSIONS[FILE121],
+    stagedMigrations: authorizedStagedPrefixThrough(FILE121),
+    injectSql: historyInjectSqlForFile(FILE121),
+    stderr: `${HISTORY_INJECT_MARKER}: blocked INSERT for version ${PREASSIGNED_VERSIONS[FILE121]} name ${PREASSIGNED_NAMES[FILE121]}`,
+    digest: FROZEN_DIGESTS[FILE121],
+    onDiskDigest: FROZEN_DIGESTS[FILE121],
+    fingerprint: passingFingerprint(FILE121),
+    probe: extra.probe === undefined ? passingProbe(FILE121) : extra.probe,
+    ...extra,
+  });
+}
+
+async function assertProbeForbidsRepair(name, probe) {
+  assert.equal(objectsPresentFromProbe(probe), false, name);
+  assert.equal(evaluateObjectProbe(probe, { file: FILE121 }).present, false, name);
+  let repairCalls = 0;
+  const decided = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorized121Input({
+      objectsPresent: false,
+      securityPostconditionsOk: false,
+      probe,
+    }),
+    cleanup: () => provenCleanup(),
+    verifyPoisonAbsent: () => poisonAbsentResult(),
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+  });
+  assert.equal(decided.repairAuthorized, false, name);
+  assert.equal(decided.repairAttempted, false, name);
+  assert.equal(repairCalls, 0, `${name} repair spawned`);
+  assert.equal(decided.gate.failedGates.includes("expected_objects"), true, `${name} expected_objects`);
+  assert.equal(decided.gate.failedGates.includes("security_postconditions"), true, `${name} security_postconditions`);
+  return decided;
+}
+
+test("timestamptz lookup resolves to frozen canonical timestamp with time zone identity", async () => {
+  const exprs = TARGET_OBJECT_PROBES[FILE121];
+  assert.match(exprs[0], /timestamptz/);
+  assert.doesNotMatch(exprs[0], /timestamp with time zone/);
+  assert.match(exprs[1], /timestamptz/);
+  const sql = objectProbeSql(exprs);
+  assert.match(sql, /to_regprocedure\('public\.get_financial_projection_bundle\(uuid,timestamptz,timestamptz,timestamptz\)'\)/);
+  assert.match(sql, /to_regprocedure\('public\.get_financial_cashbook\(uuid,timestamptz,timestamptz,uuid,text,integer,integer\)'\)/);
+  assert.match(sql, /pg_get_function_identity_arguments\(p\.oid\)/);
+  assert.match(sql, /JOIN pg_namespace n ON n\.oid = p\.pronamespace/);
+  assert.doesNotMatch(sql, /to_regprocedure\([^;]*\)::text/);
+  const descriptors = getFrozenExpectedObjectProbeDescriptors(FILE121);
+  assert.equal(descriptors[0].identity_arguments.includes("timestamp with time zone"), true);
+  assert.equal(descriptors[0].identity_arguments.includes("timestamptz"), false);
+  assert.equal(descriptors[1].identity_arguments.includes("timestamp with time zone"), true);
+  assert.equal(descriptors[1].identity_arguments.includes("timestamptz"), false);
+  assert.equal(objectsPresentFromProbe(passingProbe(FILE121)), true);
+  const ok = evaluateRepairSafetyGate(authorized121Input());
+  assert.equal(ok.ok, true);
+  assert.equal(ok.objectProbe.present, true);
+  assert.equal(ok.failedGates.includes("expected_objects"), false);
+});
+
+test("catalog-boundary object-probe identity matrix: exact pairing; semantic misses fail with zero repair", async () => {
+  const descriptors = getFrozenExpectedObjectProbeDescriptors(FILE121);
+  const cashbookArgs = descriptors[1].identity_arguments;
+  assert.equal(
+    cashbookArgs,
+    "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+  );
+  assert.equal(objectsPresentFromProbe(passingProbe(FILE121)), true, "multi-arg routine retains every argument");
+
+  const overloadsDistinct = evaluateObjectProbe(passingProbe(FILE121), { file: FILE121 });
+  assert.equal(overloadsDistinct.present, true, "overloads remain distinct");
+  assert.notEqual(overloadsDistinct.row.p0.identity_arguments, overloadsDistinct.row.p1.identity_arguments);
+
+  await assertProbeForbidsRepair("argument order changes fail", probeFrom121((row) => {
+    row.p0 = {
+      ...row.p0,
+      identity_arguments:
+        "p_group_id uuid, p_to timestamp with time zone, p_from timestamp with time zone, p_as_of_exclusive timestamp with time zone",
+    };
+    return row;
+  }));
+
+  await assertProbeForbidsRepair("missing argument fails", probeFrom121((row) => {
+    row.p1 = {
+      ...row.p1,
+      identity_arguments:
+        "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer",
+    };
+    return row;
+  }));
+
+  await assertProbeForbidsRepair("extra argument fails", probeFrom121((row) => {
+    row.p0 = {
+      ...row.p0,
+      identity_arguments: `${row.p0.identity_arguments}, p_extra text`,
+    };
+    return row;
+  }));
+
+  await assertProbeForbidsRepair("different type with similar name fails", probeFrom121((row) => {
+    row.p0 = {
+      ...row.p0,
+      identity_arguments:
+        "p_group_id uuid, p_from timestamp, p_to timestamp, p_as_of_exclusive timestamp",
+    };
+    return row;
+  }));
+
+  await assertProbeForbidsRepair("lookup alias timestamptz in identity_arguments fails", probeFrom121((row) => {
+    row.p0 = {
+      ...row.p0,
+      identity_arguments:
+        "p_group_id uuid, p_from timestamptz, p_to timestamptz, p_as_of_exclusive timestamptz",
+    };
+    return row;
+  }));
+
+  await assertProbeForbidsRepair("unresolved signature fails", {
+    status: 0,
+    stdout: JSON.stringify([{ p0: null, p1: descriptors[1] }]),
+    stderr: "",
+    file: FILE121,
+  });
+
+  await assertProbeForbidsRepair("malformed non-JSON probe output fails", {
+    status: 0,
+    stdout: "{",
+    stderr: "",
+    file: FILE121,
+  });
+
+  await assertProbeForbidsRepair("truncated identity fails", probeFrom121((row) => {
+    row.p1 = {
+      ...row.p1,
+      identity_arguments: "p_group_id uuid, p_from timestamp with time zone",
+    };
+    return row;
+  }));
+
+  await assertProbeForbidsRepair("same object count different identity pairing fails", probeFrom121((row) => {
+    const swapped = { p0: row.p1, p1: row.p0 };
+    return swapped;
+  }));
+
+  await assertProbeForbidsRepair("duplicate structured records fail", probeFrom121((row) => {
+    row.p1 = { ...row.p0 };
+    return row;
+  }));
+});
+
+test("live-observed data cannot populate or mutate expected object-probe descriptors", () => {
+  const before = JSON.stringify(FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS[FILE121]);
+  const clone = getFrozenExpectedObjectProbeDescriptors(FILE121);
+  clone[0].identity_arguments = "observed-from-live-catalog";
+  clone[0].oid = 12345;
+  assertExpectedObjectProbeDescriptorsImmutable(FILE121);
+  assert.equal(JSON.stringify(FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS[FILE121]), before);
+  assert.equal(getFrozenExpectedObjectProbeDescriptors(FILE121)[0].identity_arguments.includes("observed-from-live-catalog"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS[FILE121][0], "oid"), false);
+  const observedOnly = {
+    status: 0,
+    stdout: JSON.stringify([{
+      p0: {
+        object_type: "routine",
+        schema: "public",
+        object_name: "get_financial_projection_bundle",
+        prokind: "f",
+        identity_arguments: "observed-from-live-catalog",
+      },
+      p1: getFrozenExpectedObjectProbeDescriptors(FILE121)[1],
+    }]),
+    stderr: "",
+    file: FILE121,
+  };
+  assert.equal(evaluateObjectProbe(observedOnly, { file: FILE121 }).present, false);
+  assert.equal(JSON.stringify(FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS[FILE121]), before);
+});
+
+test("OID changes do not affect cross-database fingerprint or probe-identity equality", () => {
+  const left = getFrozenExpectedFingerprint(FILE121);
+  const right = getFrozenExpectedFingerprint(FILE121);
+  assert.equal(fingerprintCompleteAndExact({ expected: left, observed: right }, FILE121).ok, true);
+  assert.equal(JSON.stringify(left).includes("\"oid\""), false);
+  const descriptors = getFrozenExpectedObjectProbeDescriptors(FILE121);
+  for (const descriptor of descriptors) {
+    assert.deepEqual(Object.keys(descriptor).sort(), [...OBJECT_PROBE_IDENTITY_FIELDS].sort());
+    assert.equal(Object.prototype.hasOwnProperty.call(descriptor, "oid"), false);
+  }
+  const withOid = probeFrom121((row) => {
+    row.p0 = { ...row.p0, oid: 4242 };
+    return row;
+  });
+  assert.equal(evaluateObjectProbe(withOid, { file: FILE121 }).present, false);
+  assert.equal(objectsPresentFromProbe(passingProbe(FILE121)), true);
+  const otherOid = probeFrom121((row) => {
+    row.p0 = { ...row.p0, oid: 9999 };
+    return row;
+  });
+  assert.equal(evaluateObjectProbe(otherOid, { file: FILE121 }).present, false);
+  assert.equal(
+    fingerprintCanonicalSha256(left),
+    FROZEN_EXPECTED_FINGERPRINT_SHA256[FILE121],
+  );
 });
 
 test("fingerprint mismatch of any catalog value forbids repair", async () => {
@@ -1740,6 +1968,46 @@ test("source contract and unit test prove there is no generic array-sorting fall
     function_owner: [fnOwnerRecord(), fnOwnerRecord()],
   }, null);
   assert.equal(rejected.__f3_fingerprint_canonicalization_rejected, true);
+});
+
+test("source contract forbids comma-split, fuzzy matching, and textual type-alias replacement for probe identity", () => {
+  const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const strippedGate = gate
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const probeStart = strippedGate.indexOf("export const OBJECT_PROBE_IDENTITY_FIELDS");
+  const probeEnd = strippedGate.indexOf("const ACL_PRIVILEGE_LETTERS");
+  assert.equal(probeStart >= 0 && probeEnd > probeStart, true);
+  const probe = strippedGate.slice(probeStart, probeEnd);
+  const evalStart = strippedGate.indexOf("export function evaluateObjectProbe");
+  const evalEnd = strippedGate.indexOf("export function objectsPresentFromProbe");
+  assert.equal(evalStart >= 0 && evalEnd > evalStart, true);
+  const evaluator = strippedGate.slice(evalStart, evalEnd);
+  for (const block of [probe, evaluator]) {
+    assert.doesNotMatch(block, /\.split\s*\(\s*["'],["']\s*\)/);
+    assert.doesNotMatch(block, /\.split\s*\(\s*","\s*\)/);
+    assert.doesNotMatch(block, /replace\s*\(\s*\/timestamptz/);
+    assert.doesNotMatch(block, /TYPE_ALIAS|typeAlias|aliasMap|ALIAS_MAP|fuzzy/);
+    assert.doesNotMatch(block, /timestamptz["']\s*,\s*["']timestamp with time zone/);
+  }
+  assert.match(probe, /pg_get_function_identity_arguments\(p\.oid\)/);
+  assert.match(probe, /to_regprocedure/);
+  assert.match(probe, /JOIN pg_namespace n ON n\.oid = p\.pronamespace/);
+  assert.doesNotMatch(probe, /to_regprocedure\([^;]*\)::text/);
+  assert.match(gate, /timestamp with time zone/);
+  assert.match(qualify, /objectProbeSql/);
+  const historyImport = qualify.slice(
+    qualify.lastIndexOf("import {", qualify.indexOf('from "./lib/f3-db-push-history-inject.mjs"')),
+    qualify.indexOf('from "./lib/f3-db-push-history-inject.mjs"'),
+  );
+  assert.doesNotMatch(historyImport, /objectProbeSql/);
+  const safetyImport = qualify.slice(
+    qualify.lastIndexOf("import {", qualify.indexOf('from "./lib/f3-db-push-repair-safety-gate.mjs"')),
+    qualify.indexOf('from "./lib/f3-db-push-repair-safety-gate.mjs"'),
+  );
+  assert.match(safetyImport, /objectProbeSql/);
+  assert.match(qualify, /never to_regprocedure::text vs lookup spelling/);
 });
 
 test("source contract forbids assigning expected from observed in qualify and repair-safety-gate", () => {

@@ -85,7 +85,6 @@ import {
   REMOVE_HISTORY_INJECT_SQL,
   classifyDbPushHistoryFailure,
   historyInjectSqlForFile,
-  objectProbeSql,
 } from "./lib/f3-db-push-history-inject.mjs";
 import {
   hostedFloorPrecheck,
@@ -125,6 +124,7 @@ import {
   buildIndependentObservedFingerprint,
   expectedFingerprintSha256,
   getFrozenExpectedFingerprint,
+  objectProbeSql, // catalog-boundary structured probe identity; to_regprocedure resolves OID only; compare pg_proc identity to frozen descriptor — never to_regprocedure::text vs lookup spelling. Overrides history-inject text compare.
   objectsPresentFromProbe as objectsPresentFromProbeStrict,
   recordPreDbExpectedHashes,
   runRepairSafetyThenMaybeRepair,
@@ -228,6 +228,7 @@ function objectsPresentFromProbe(result) {
   //   [{ p0: ..., p1: ... }]  (workdir db query path)
   //   { advisory, rows: [...], warning } (some envelopes)
   // Strict structured parse only. No substring / marker success fallback.
+  // pN values must be catalog-boundary objects, never to_reg*::text strings.
   if (objectsPresentFromProbeStrict(result) !== true) return false;
   const stdout = String(result?.stdout || "");
   let parsed;
@@ -242,10 +243,14 @@ function objectsPresentFromProbe(result) {
       ? parsed.rows[0]
       : null;
   if (!row || typeof row !== "object") return false;
-  const vals = Object.values(row);
-  if (vals.length === 0) return false;
-  const present = (v) => v !== null && v !== undefined && v !== false && v !== "f" && v !== "";
-  if (!vals.every(present)) return false;
+  const keys = Object.keys(row);
+  if (keys.length === 0) return false;
+  for (const key of keys) {
+    if (!/^p\d+$/.test(key)) return false;
+    const value = row[key];
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    if (Object.prototype.hasOwnProperty.call(value, "oid")) return false;
+  }
   return true;
 }
 

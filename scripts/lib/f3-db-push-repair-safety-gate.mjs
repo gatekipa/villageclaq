@@ -348,6 +348,315 @@ SELECT jsonb_build_object(
 )::text
 `;
 
+/**
+ * Catalog-boundary object-probe identity fields. OIDs may be used only
+ * inside SQL to resolve/join; they MUST NOT appear here, in expected
+ * constants, in cross-database fingerprints, or in evidence hashes.
+ */
+export const OBJECT_PROBE_IDENTITY_FIELDS = Object.freeze([
+  "object_type",
+  "schema",
+  "object_name",
+  "prokind",
+  "identity_arguments",
+]);
+
+const OBJECT_PROBE_IDENTITY_KEYSET = Object.freeze([...OBJECT_PROBE_IDENTITY_FIELDS].sort());
+const OBJECT_PROBE_OID_KEYS = Object.freeze([
+  "oid",
+  "pronamespace",
+  "regprocedure",
+  "regproc",
+  "regclass",
+  "regtype",
+  "regnamespace",
+  "tableoid",
+]);
+
+const OBJECT_PROBE_RESOLVER_RE =
+  /^(to_regprocedure|to_regclass|to_regtype|to_regnamespace)\('([^']+)'\)$/;
+
+function frozenObjectProbeDescriptor(descriptor) {
+  const keys = Object.keys(descriptor).sort();
+  if (keys.length !== OBJECT_PROBE_IDENTITY_KEYSET.length
+    || keys.some((key, i) => key !== OBJECT_PROBE_IDENTITY_KEYSET[i])) {
+    throw new Error("HOLD: frozen object-probe descriptor keys are not the exact catalog field set");
+  }
+  for (const field of OBJECT_PROBE_IDENTITY_FIELDS) {
+    if (typeof descriptor[field] !== "string") {
+      throw new Error(`HOLD: frozen object-probe descriptor field ${field} is not a string`);
+    }
+  }
+  for (const key of OBJECT_PROBE_OID_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(descriptor, key)) {
+      throw new Error("HOLD: frozen object-probe descriptor must not include OID fields");
+    }
+  }
+  return Object.freeze({ ...descriptor });
+}
+
+/**
+ * Frozen object-probe expected descriptors.
+ *
+ * Provenance: derived offline from the frozen SQL/security contract
+ * (CREATE SCHEMA / CREATE TABLE / CREATE TYPE / CREATE FUNCTION in
+ * 00118–00123) together with TARGET_OBJECT_PROBES lookup keys.
+ * Routine identity_arguments use PostgreSQL catalog spelling
+ * (`timestamp with time zone`), never the `timestamptz` lookup alias.
+ * Committed before any DB access. NEVER assigned from live observed
+ * catalog. OIDs are never stored.
+ */
+export const FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS = deepFreeze({
+  "00118_f3_bounded_financial_epoch_foundation.sql": Object.freeze([
+    frozenObjectProbeDescriptor({
+      object_type: "namespace",
+      schema: "financial_private",
+      object_name: "financial_private",
+      prokind: "",
+      identity_arguments: "",
+    }),
+    frozenObjectProbeDescriptor({
+      object_type: "class",
+      schema: "public",
+      object_name: "financial_ledger_epochs",
+      prokind: "",
+      identity_arguments: "",
+    }),
+  ]),
+  "00119_f3_01_core_ledger_foundation.sql": Object.freeze([
+    frozenObjectProbeDescriptor({
+      object_type: "namespace",
+      schema: "financial_core",
+      object_name: "financial_core",
+      prokind: "",
+      identity_arguments: "",
+    }),
+    frozenObjectProbeDescriptor({
+      object_type: "class",
+      schema: "public",
+      object_name: "financial_accounts",
+      prokind: "",
+      identity_arguments: "",
+    }),
+    frozenObjectProbeDescriptor({
+      object_type: "class",
+      schema: "public",
+      object_name: "financial_events",
+      prokind: "",
+      identity_arguments: "",
+    }),
+    frozenObjectProbeDescriptor({
+      object_type: "class",
+      schema: "public",
+      object_name: "financial_postings",
+      prokind: "",
+      identity_arguments: "",
+    }),
+    frozenObjectProbeDescriptor({
+      object_type: "type",
+      schema: "public",
+      object_name: "financial_event_class",
+      prokind: "",
+      identity_arguments: "",
+    }),
+  ]),
+  "00120_f3_02_secure_posting_idempotency.sql": Object.freeze([
+    frozenObjectProbeDescriptor({
+      object_type: "routine",
+      schema: "public",
+      object_name: "post_financial_command",
+      prokind: "f",
+      identity_arguments: "p_command jsonb",
+    }),
+  ]),
+  "00121_f3_03_projection_read_proof.sql": Object.freeze([
+    frozenObjectProbeDescriptor({
+      object_type: "routine",
+      schema: "public",
+      object_name: "get_financial_projection_bundle",
+      prokind: "f",
+      identity_arguments:
+        "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone",
+    }),
+    frozenObjectProbeDescriptor({
+      object_type: "routine",
+      schema: "public",
+      object_name: "get_financial_cashbook",
+      prokind: "f",
+      identity_arguments:
+        "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+    }),
+  ]),
+  "00122_f3_04_correction_reversal.sql": Object.freeze([
+    frozenObjectProbeDescriptor({
+      object_type: "routine",
+      schema: "public",
+      object_name: "correct_financial_event",
+      prokind: "f",
+      identity_arguments: "p_command jsonb",
+    }),
+  ]),
+  "00123_f3_05_opening_cash_command.sql": Object.freeze([
+    frozenObjectProbeDescriptor({
+      object_type: "routine",
+      schema: "public",
+      object_name: "post_financial_opening_cash",
+      prokind: "f",
+      identity_arguments: "p_command jsonb",
+    }),
+  ]),
+});
+
+export function getFrozenExpectedObjectProbeDescriptors(file) {
+  const descriptors = FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS[file];
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    throw new Error(`HOLD: no frozen object-probe descriptors for ${file}`);
+  }
+  const expressions = TARGET_OBJECT_PROBES[file] || [];
+  if (expressions.length !== descriptors.length) {
+    throw new Error(`HOLD: frozen object-probe descriptors do not pair with TARGET_OBJECT_PROBES for ${file}`);
+  }
+  return structuredClone(descriptors);
+}
+
+export function assertExpectedObjectProbeDescriptorsImmutable(file) {
+  const live = FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS[file];
+  if (!live) {
+    throw new Error(`HOLD: no frozen object-probe descriptors for ${file}`);
+  }
+  const clone = getFrozenExpectedObjectProbeDescriptors(file);
+  if (JSON.stringify(live) !== JSON.stringify(clone)) {
+    throw new Error(`HOLD: frozen object-probe descriptors mutated for ${file}`);
+  }
+  return { file, unchanged: true, count: live.length };
+}
+
+function classifyObjectProbeExpression(expression) {
+  const text = String(expression || "").trim();
+  const match = text.match(OBJECT_PROBE_RESOLVER_RE);
+  if (!match) return null;
+  return { resolver: match[1], lookup: match[2], expression: text };
+}
+
+function objectProbeSelectSql(expression) {
+  const classified = classifyObjectProbeExpression(expression);
+  if (!classified) {
+    throw new Error(`HOLD: malformed object-probe expression: ${expression}`);
+  }
+  const resolver = classified.expression;
+  if (classified.resolver === "to_regprocedure") {
+    return `(
+      SELECT jsonb_build_object(
+        'object_type', 'routine'::text,
+        'schema', n.nspname,
+        'object_name', p.proname,
+        'prokind', p.prokind::text,
+        'identity_arguments', pg_get_function_identity_arguments(p.oid)
+      )
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE p.oid = ${resolver}
+    )`;
+  }
+  if (classified.resolver === "to_regclass") {
+    return `(
+      SELECT jsonb_build_object(
+        'object_type', 'class'::text,
+        'schema', n.nspname,
+        'object_name', c.relname,
+        'prokind', ''::text,
+        'identity_arguments', ''::text
+      )
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE c.oid = ${resolver}
+    )`;
+  }
+  if (classified.resolver === "to_regtype") {
+    return `(
+      SELECT jsonb_build_object(
+        'object_type', 'type'::text,
+        'schema', n.nspname,
+        'object_name', t.typname,
+        'prokind', ''::text,
+        'identity_arguments', ''::text
+      )
+      FROM pg_type t
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE t.oid = ${resolver}
+    )`;
+  }
+  return `(
+    SELECT jsonb_build_object(
+      'object_type', 'namespace'::text,
+      'schema', n.nspname,
+      'object_name', n.nspname,
+      'prokind', ''::text,
+      'identity_arguments', ''::text
+    )
+    FROM pg_namespace n
+    WHERE n.oid = ${resolver}
+  )`;
+}
+
+/**
+ * Catalog-boundary object probe. to_regprocedure / to_regclass /
+ * to_regtype / to_regnamespace resolve the intended object (must be
+ * non-null). The OID is used only to join pg_proc+pg_namespace (or the
+ * matching catalog). Output is structured identity fields — never
+ * to_regprocedure(...)::text compared with lookup spelling, never OID
+ * columns, never JS-rebuilt argument lists.
+ */
+export function objectProbeSql(expressions) {
+  if (!Array.isArray(expressions) || expressions.length === 0) {
+    throw new Error("HOLD: object probe expressions missing");
+  }
+  const selects = expressions.map((expr, i) => `${objectProbeSelectSql(expr)} AS p${i}`);
+  return `SELECT\n  ${selects.join(",\n  ")};`;
+}
+
+function structuredObjectProbeIdentityExact(observed, expected) {
+  if (!expected || typeof expected !== "object" || Array.isArray(expected)) {
+    return { ok: false, reason: "expected probe descriptor missing" };
+  }
+  if (!observed || typeof observed !== "object" || Array.isArray(observed)) {
+    return { ok: false, reason: "observed probe identity is not a structured object" };
+  }
+  const observedKeys = Object.keys(observed).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  if (
+    observedKeys.length !== OBJECT_PROBE_IDENTITY_KEYSET.length
+    || observedKeys.some((key, i) => key !== OBJECT_PROBE_IDENTITY_KEYSET[i])
+  ) {
+    return { ok: false, reason: "observed probe identity keys are not the exact catalog field set" };
+  }
+  if (
+    expectedKeys.length !== OBJECT_PROBE_IDENTITY_KEYSET.length
+    || expectedKeys.some((key, i) => key !== OBJECT_PROBE_IDENTITY_KEYSET[i])
+  ) {
+    return { ok: false, reason: "expected probe descriptor keys are not the exact catalog field set" };
+  }
+  for (const key of OBJECT_PROBE_OID_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(observed, key)
+      || Object.prototype.hasOwnProperty.call(expected, key)) {
+      return { ok: false, reason: "probe identity must not include OID or catalog-number fields" };
+    }
+  }
+  for (const field of OBJECT_PROBE_IDENTITY_FIELDS) {
+    if (typeof observed[field] !== "string" || typeof expected[field] !== "string") {
+      return { ok: false, reason: `probe identity field ${field} is not a string` };
+    }
+    if (observed[field] !== expected[field]) {
+      return { ok: false, reason: `structured identity mismatch on ${field}` };
+    }
+  }
+  return { ok: true };
+}
+
+function objectProbeIdentityFingerprint(identity) {
+  return JSON.stringify(OBJECT_PROBE_IDENTITY_FIELDS.map((field) => identity[field]));
+}
+
 const ACL_PRIVILEGE_LETTERS = Object.freeze({
   a: "INSERT",
   r: "SELECT",
@@ -1214,21 +1523,16 @@ function parseEntireJson(stdout) {
 }
 
 export function expectedIdentitiesForExpression(expression) {
-  const quoted = String(expression || "").match(/'([^']+)'/);
-  if (!quoted) return Object.freeze([]);
-  const full = quoted[1];
-  const identities = new Set([full]);
-  if (full.includes(".")) {
-    identities.add(full.slice(full.lastIndexOf(".") + 1));
-  }
-  return Object.freeze([...identities]);
+  const classified = classifyObjectProbeExpression(expression);
+  if (!classified) return Object.freeze([]);
+  return Object.freeze([classified.lookup]);
 }
 
 export function expectedRowForFile(file) {
-  const expressions = TARGET_OBJECT_PROBES[file] || [];
+  const descriptors = getFrozenExpectedObjectProbeDescriptors(file);
   const row = {};
-  expressions.forEach((expr, i) => {
-    row[`p${i}`] = expectedIdentitiesForExpression(expr);
+  descriptors.forEach((descriptor, i) => {
+    row[`p${i}`] = descriptor;
   });
   return row;
 }
@@ -1262,14 +1566,13 @@ function rowFromSupportedProbeSchema(parsed) {
   return { ok: false, reason: "wrong JSON shape" };
 }
 
-function valueIsExactIdentity(observed, allowed) {
-  if (typeof observed !== "string") return false;
-  return allowed.includes(observed);
-}
-
 /**
- * Strict object-probe parse. No substring / marker fallback.
- * Presence is accepted ONLY when every listed condition holds.
+ * Strict object-probe parse at the catalog boundary.
+ * Presence is accepted ONLY when every listed condition holds:
+ * resolved OID → structured catalog identity exactly equals the
+ * independently frozen expected descriptor. Lookup spelling is never
+ * compared to to_regprocedure(...)::text. Name-only, partial, reordered,
+ * aliased, OID-bearing, duplicated, or unexpected identities fail closed.
  */
 export function evaluateObjectProbe(result = {}, { file, expressions } = {}) {
   if (result == null || typeof result !== "object") {
@@ -1294,6 +1597,20 @@ export function evaluateObjectProbe(result = {}, { file, expressions } = {}) {
   if (!Array.isArray(exprs) || exprs.length === 0) {
     return { present: false, reason: "expected probe expressions missing" };
   }
+  for (const expr of exprs) {
+    if (!classifyObjectProbeExpression(expr)) {
+      return { present: false, reason: "malformed object-probe expression" };
+    }
+  }
+  let expectedDescriptors;
+  try {
+    expectedDescriptors = getFrozenExpectedObjectProbeDescriptors(targetFile);
+  } catch (err) {
+    return { present: false, reason: err instanceof Error ? err.message : "expected probe descriptor missing" };
+  }
+  if (expectedDescriptors.length !== exprs.length) {
+    return { present: false, reason: "frozen expected descriptors do not pair 1:1 with probe expressions" };
+  }
 
   const expectedKeys = exprs.map((_, i) => `p${i}`);
   const observedKeys = Object.keys(shaped.row).sort();
@@ -1303,21 +1620,29 @@ export function evaluateObjectProbe(result = {}, { file, expressions } = {}) {
   }
 
   const missing = [];
+  const seenFingerprints = new Set();
   for (let i = 0; i < exprs.length; i += 1) {
     const key = `p${i}`;
-    const allowed = expectedIdentitiesForExpression(exprs[i]);
     const observed = shaped.row[key];
+    const expected = expectedDescriptors[i];
     if (observed == null || observed === false || observed === "f" || observed === "") {
       missing.push(key);
       continue;
     }
-    if (!valueIsExactIdentity(observed, allowed)) {
-      return { present: false, reason: `p${i} is not an exact structured identity` };
+    const compared = structuredObjectProbeIdentityExact(observed, expected);
+    if (!compared.ok) {
+      return { present: false, reason: `p${i} ${compared.reason}` };
     }
+    const fingerprint = objectProbeIdentityFingerprint(observed);
+    if (seenFingerprints.has(fingerprint)) {
+      return { present: false, reason: "duplicate structured probe records" };
+    }
+    seenFingerprints.add(fingerprint);
   }
   if (missing.length > 0) {
     return { present: false, reason: `required object missing: ${missing.join(",")}` };
   }
+  assertExpectedObjectProbeDescriptorsImmutable(targetFile);
   return { present: true, schema: shaped.schema, row: shaped.row };
 }
 

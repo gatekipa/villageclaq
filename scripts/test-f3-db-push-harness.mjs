@@ -38,6 +38,7 @@ import {
   PRODUCTION_HISTORY_CEILING_VERSION,
   PRODUCTION_REF,
   RECOGNITION_ALLOWLIST,
+  TARGET_OBJECT_PROBES,
 } from "./lib/f3-db-push-pins.mjs";
 import {
   MANAGEMENT_API_APPLY_PERMANENTLY_DISQUALIFIED as MAPI_DISQUALIFIED,
@@ -84,7 +85,6 @@ import {
   listRepoTimestampFilenames,
   nextAuthorizedFile,
   preassignedVersionFor,
-  readAuthorizedSourceBytes,
   refuseClockOrGuessedVersion,
   timestampFilenameFor,
 } from "./lib/f3-db-push-version-map.mjs";
@@ -96,10 +96,12 @@ import {
   historyInjectSqlForVersion,
 } from "./lib/f3-db-push-history-inject.mjs";
 import {
-  FINGERPRINT_REQUIRED_MARKERS,
   REPAIR_SAFETY_HOLD,
   evaluateRepairSafetyGate,
+  fingerprintCompleteAndExact,
+  objectsPresentFromProbe,
   runRepairSafetyThenMaybeRepair,
+  syncIsolatedMigrationsThrough,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 import { BOOTSTRAP_WITH_LOCAL_SHIM } from "./_f3_apply_current_main_floor.mjs";
 import {
@@ -728,19 +730,56 @@ test("runbook permanently disqualifies Management API apply and keeps db push as
 
 const FILE118 = "00118_f3_bounded_financial_epoch_foundation.sql";
 const VER118 = "20260913173000";
+const FINANCIAL_PRIVATE_MISSING_ERROR = "ERROR: relation financial_private does not exist";
 
-function passingFingerprint(file) {
-  const markers = FINGERPRINT_REQUIRED_MARKERS[file] || ["financial_private"];
+function completeFingerprint(overrides = {}) {
   return {
-    schema: markers.join(","),
-    function_owner: markers.map((m) => `${m}:postgres`).join(","),
-    acl: markers.join(","),
-    policy: "financial_",
+    schema: "financial_private:postgres",
+    function_owner: "public.guard_ledger():postgres:true:",
+    acl: "financial_private.epochs:",
+    policy: "financial_private.epochs.p:ALL:{public}:true:true",
     f3_objects_absent: false,
+    ...overrides,
   };
 }
 
+function passingFingerprint() {
+  const observed = completeFingerprint();
+  return {
+    expected: { ...observed },
+    observed: { ...observed },
+  };
+}
+
+function passingProbe(file = FILE118) {
+  const exprs = TARGET_OBJECT_PROBES[file] || [];
+  const row = {};
+  exprs.forEach((expr, i) => {
+    const quoted = String(expr).match(/'([^']+)'/);
+    row[`p${i}`] = quoted ? quoted[1] : null;
+  });
+  return {
+    status: 0,
+    stdout: JSON.stringify([row]),
+    stderr: "",
+    file,
+  };
+}
+
+function poisonAbsentResult() {
+  return {
+    status: 0,
+    stdout: JSON.stringify({ trigger_present: false, function_present: false }),
+    stderr: "",
+  };
+}
+
+function provenCleanup() {
+  return { status: 0, stdout: "", stderr: "", sql: REMOVE_HISTORY_INJECT_SQL };
+}
+
 function authorizedGateInput(extra = {}) {
+  const { probe, fingerprint, stagedMigrations, ...rest } = extra;
   return {
     file: FILE118,
     targetVersion: VER118,
@@ -753,14 +792,21 @@ function authorizedGateInput(extra = {}) {
     historyRows: [],
     objectsPresent: true,
     securityPostconditionsOk: true,
-    fingerprint: passingFingerprint(FILE118),
+    probe: probe === undefined ? passingProbe(FILE118) : probe,
+    fingerprint: fingerprint === undefined ? passingFingerprint(FILE118) : fingerprint,
     digest: FROZEN_DIGESTS[FILE118],
     onDiskDigest: FROZEN_DIGESTS[FILE118],
-    ...extra,
+    disposableIdentityVerified: true,
+    productionIdentityRejected: true,
+    cliVersion: CLI_PIN,
+    stagedMigrations: stagedMigrations === undefined
+      ? [timestampFilenameFor(FILE118)]
+      : stagedMigrations,
+    ...rest,
   };
 }
 
-test("repair-safety gate authorizes repair only after all eight proofs", () => {
+test("repair-safety gate authorizes repair only after all proofs", () => {
   const ok = evaluateRepairSafetyGate(authorizedGateInput());
   assert.equal(ok.ok, true);
   assert.equal(ok.repairAuthorized, true);
@@ -770,27 +816,40 @@ test("repair-safety gate authorizes repair only after all eight proofs", () => {
   assert.equal(SUPERSEDED_MECHANICS_PASS_CLAIM.status, "SUPERSEDED");
 });
 
-test("authorized repair removes poison before spawning migration repair", () => {
+test("authorized repair proves poison absent before spawning migration repair", async () => {
   const order = [];
-  const decided = runRepairSafetyThenMaybeRepair({
+  const decided = await runRepairSafetyThenMaybeRepair({
     gateInput: authorizedGateInput(),
     cleanup: () => {
       order.push("cleanup");
-      return { sql: REMOVE_HISTORY_INJECT_SQL, ok: true };
+      return provenCleanup();
+    },
+    verifyPoisonAbsent: () => {
+      order.push("verify");
+      return poisonAbsentResult();
     },
     repair: () => {
       order.push("repair");
+      return { status: 0 };
+    },
+    teardown: () => {
+      order.push("teardown");
       return { status: 0 };
     },
   });
   assert.equal(decided.repairAuthorized, true);
   assert.equal(decided.repairAttempted, true);
   assert.equal(decided.repairOk, true);
-  assert.deepEqual(order, ["cleanup", "repair"]);
+  assert.equal(decided.cleanupProven, true);
+  assert.equal(decided.poisonAbsent, true);
+  assert.deepEqual(order, ["cleanup", "verify", "repair", "teardown"]);
   assert.equal(order.indexOf("cleanup") < order.indexOf("repair"), true);
+  assert.equal(order.indexOf("verify") < order.indexOf("repair"), true);
+  assert.equal(decided.teardownRecorded, true);
+  assert.notEqual(decided.teardown, decided.cleanup);
 });
 
-test("repair-safety negatives spawn zero repair processes and still clean poison", () => {
+test("repair-safety negatives spawn zero repair processes and still clean poison", async () => {
   const cases = [
     {
       name: "missing-role SQL failure",
@@ -807,7 +866,11 @@ test("repair-safety negatives spawn zero repair processes and still clean poison
     },
     {
       name: "missing expected objects",
-      extra: { objectsPresent: false, securityPostconditionsOk: false },
+      extra: {
+        objectsPresent: false,
+        securityPostconditionsOk: false,
+        probe: { status: 0, stdout: JSON.stringify([{ p0: null, p1: null }]), stderr: "", file: FILE118 },
+      },
     },
     {
       name: "wrong injection marker",
@@ -825,12 +888,13 @@ test("repair-safety negatives spawn zero repair processes and still clean poison
   for (const c of cases) {
     let repairCalls = 0;
     let cleanupCalls = 0;
-    const decided = runRepairSafetyThenMaybeRepair({
+    const decided = await runRepairSafetyThenMaybeRepair({
       gateInput: authorizedGateInput(c.extra),
       cleanup: () => {
         cleanupCalls += 1;
-        return { sql: REMOVE_HISTORY_INJECT_SQL, ok: true };
+        return { sql: REMOVE_HISTORY_INJECT_SQL, ok: true, status: 0, stdout: "", stderr: "" };
       },
+      verifyPoisonAbsent: () => poisonAbsentResult(),
       repair: () => {
         repairCalls += 1;
         return { status: 0 };
@@ -848,6 +912,174 @@ test("repair-safety negatives spawn zero repair processes and still clean poison
   }
 });
 
+test("strict object probe rejects ERROR relation financial_private and all unstructured fallbacks", async () => {
+  const mandatory = {
+    status: 1,
+    stdout: "",
+    stderr: FINANCIAL_PRIVATE_MISSING_ERROR,
+    file: FILE118,
+  };
+  assert.equal(objectsPresentFromProbe(mandatory), false);
+  assert.equal(objectsPresentFromProbe({ status: 0, stdout: "", stderr: FINANCIAL_PRIVATE_MISSING_ERROR, file: FILE118 }), false);
+  assert.equal(objectsPresentFromProbe({ status: 0, stdout: "financial_private is mentioned", stderr: "", file: FILE118 }), false);
+  assert.equal(objectsPresentFromProbe({ status: 0, stdout: "{", stderr: "", file: FILE118 }), false);
+  assert.equal(objectsPresentFromProbe({ status: 0, stdout: JSON.stringify({ p0: "financial_private" }), stderr: "", file: FILE118 }), false);
+  assert.equal(objectsPresentFromProbe({
+    status: 0,
+    stdout: JSON.stringify([{ note: "contains financial_private and public.financial_ledger_epochs" }]),
+    stderr: "",
+    file: FILE118,
+  }), false);
+  assert.equal(objectsPresentFromProbe(passingProbe(FILE118)), true);
+
+  let repairCalls = 0;
+  const decided = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput({
+      objectsPresent: true,
+      probe: mandatory,
+      stderr: `${HISTORY_INJECT_MARKER}: blocked INSERT for version ${VER118} name f3_bounded_financial_epoch_foundation`,
+    }),
+    cleanup: () => provenCleanup(),
+    verifyPoisonAbsent: () => poisonAbsentResult(),
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+  });
+  assert.equal(objectsPresentFromProbe(mandatory), false);
+  assert.equal(decided.gate.objectProbe.present, false);
+  assert.equal(decided.repairAuthorized, false);
+  assert.equal(decided.repairAttempted, false);
+  assert.equal(repairCalls, 0);
+  assert.ok(decided.gate.failedGates.includes("expected_objects") || decided.gate.failedGates.includes("no_unrelated_sql_error"));
+});
+
+test("fingerprint mismatch of any catalog value forbids repair", async () => {
+  const mismatches = [
+    { name: "owner", observed: completeFingerprint({ function_owner: "public.guard_ledger():ubuntu:true:" }) },
+    { name: "acl", observed: completeFingerprint({ acl: "financial_private.epochs:{ubuntu=arwd}" }) },
+    { name: "policy", observed: completeFingerprint({ policy: "financial_private.epochs.p:SELECT:{public}:true:true" }) },
+    { name: "rls extra key", expected: completeFingerprint(), observed: completeFingerprint({ rls: true }) },
+    { name: "missing expected", fingerprint: { observed: completeFingerprint() } },
+    { name: "subset observed", expected: completeFingerprint(), observed: { schema: "financial_private:postgres" } },
+    { name: "marker substring only", fingerprint: {
+      schema: "mentions financial_private",
+      function_owner: "mentions financial_private",
+      acl: "mentions financial_private",
+      policy: "mentions financial_private",
+    } },
+  ];
+  for (const c of mismatches) {
+    const fingerprint = c.fingerprint || { expected: c.expected || completeFingerprint(), observed: c.observed };
+    assert.equal(fingerprintCompleteAndExact(fingerprint).ok, false, c.name);
+    let repairCalls = 0;
+    const decided = await runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput({ fingerprint }),
+      cleanup: () => provenCleanup(),
+      verifyPoisonAbsent: () => poisonAbsentResult(),
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    assert.equal(decided.repairAuthorized, false, c.name);
+    assert.equal(decided.repairAttempted, false, c.name);
+    assert.equal(repairCalls, 0, `${c.name} repair spawned`);
+  }
+});
+
+test("cleanup and poison-verify negatives never invoke repair", async () => {
+  const cases = [
+    {
+      name: "cleanup status 1",
+      cleanup: () => ({ status: 1, stdout: "", stderr: "" }),
+      verify: () => poisonAbsentResult(),
+    },
+    {
+      name: "cleanup throws",
+      cleanup: () => {
+        throw new Error("cleanup exploded");
+      },
+      verify: () => poisonAbsentResult(),
+    },
+    {
+      name: "cleanup SQL ERROR",
+      cleanup: () => ({ status: 0, stdout: "", stderr: "ERROR: cannot drop trigger" }),
+      verify: () => poisonAbsentResult(),
+    },
+    {
+      name: "verify malformed",
+      cleanup: () => provenCleanup(),
+      verify: () => ({ status: 0, stdout: "not-json", stderr: "" }),
+    },
+    {
+      name: "trigger remains present",
+      cleanup: () => provenCleanup(),
+      verify: () => ({
+        status: 0,
+        stdout: JSON.stringify({ trigger_present: true, function_present: false }),
+        stderr: "",
+      }),
+    },
+    {
+      name: "function remains present",
+      cleanup: () => provenCleanup(),
+      verify: () => ({
+        status: 0,
+        stdout: JSON.stringify({ trigger_present: false, function_present: true }),
+        stderr: "",
+      }),
+    },
+    {
+      name: "cleanup state ambiguous",
+      cleanup: () => ({ ok: true, sql: REMOVE_HISTORY_INJECT_SQL }),
+      verify: () => poisonAbsentResult(),
+    },
+  ];
+  for (const c of cases) {
+    let repairCalls = 0;
+    let verifyCalls = 0;
+    const decided = await runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput(),
+      cleanup: c.cleanup,
+      verifyPoisonAbsent: () => {
+        verifyCalls += 1;
+        return c.verify();
+      },
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    assert.equal(decided.repairAuthorized, false, c.name);
+    assert.equal(decided.repairAttempted, false, c.name);
+    assert.equal(repairCalls, 0, `${c.name} repair spawned`);
+    if (c.name.startsWith("cleanup")) {
+      assert.equal(decided.cleanupProven, false, c.name);
+    }
+  }
+});
+
+test("teardown poison removal is recorded separately and is not cleanup success", async () => {
+  let repairCalls = 0;
+  const decided = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput(),
+    cleanup: () => ({ status: 1, stdout: "", stderr: "ERROR: still poisoned" }),
+    verifyPoisonAbsent: () => poisonAbsentResult(),
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+    teardown: () => ({ status: 0, stdout: "dropped leftover poison", stderr: "" }),
+  });
+  assert.equal(repairCalls, 0);
+  assert.equal(decided.repairAttempted, false);
+  assert.equal(decided.cleanupProven, false);
+  assert.equal(decided.teardownRecorded, true);
+  assert.equal(decided.teardown.status, 0);
+  assert.notEqual(decided.cleanup.status, decided.teardown.status);
+});
+
 test("qualify runner classifies before repair and uses the new success label", () => {
   const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
   const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
@@ -863,58 +1095,71 @@ test("qualify runner classifies before repair and uses the new success label", (
   assert.equal((seq.match(/syncIsolatedMigrationsThrough/g) || []).length, 1);
   assert.match(qualify, /syncIsolatedMigrationsThrough/);
   assert.match(qualify, /function objectsPresentFromProbe/);
+  assert.match(qualify, /verifyPoisonAbsent/);
   assert.match(qualify, /QUALIFICATION_PASS/);
   assert.match(qualify, /REPAIR_SAFETY_HOLD/);
   assert.match(qualify, /mechanicsPass = "SUPERSEDED"/);
+  assert.match(qualify, /FILE-BASED RUNNER QUALIFICATION PASS — STUB\/LIVE-PIN FLOOR LIMITATION/);
+  assert.match(qualify, /DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117/);
 });
 
-test("per-file isolated workdir staging leaves only the current target", () => {
+test("real isolated staging stages exactly one intended file and blocks unexpected files", () => {
   const isolated = createIsolatedDbPushWorkdir();
   const migDir = path.join(isolated.workdir, "supabase", "migrations");
   const listMig = () => fs.readdirSync(migDir).filter((f) => f.endsWith(".sql")).sort();
+  const repoBefore = assertFrozenDigestsOnDisk();
   assert.equal(isolated.copies.length, 6);
   assert.equal(listMig().length, 6);
 
-  // Observable sealed qualify behavior (syncIsolatedMigrationsThrough): keep only
-  // timestamped files through the current target using public byte readers.
-  const stageThrough = (file) => {
-    const keep = [];
-    for (const f of F3_FORWARD_FILES) {
-      keep.push(timestampFilenameFor(f));
-      if (f === file) break;
-    }
-    const keepSet = new Set(keep);
-    for (const name of listMig()) {
-      if (!keepSet.has(name)) fs.rmSync(path.join(migDir, name), { force: true });
-    }
-    for (const f of F3_FORWARD_FILES) {
-      const destName = timestampFilenameFor(f);
-      if (!keepSet.has(destName)) continue;
-      const dest = path.join(migDir, destName);
-      if (!fs.existsSync(dest)) {
-        const source = readAuthorizedSourceBytes(f);
-        fs.writeFileSync(dest, source.bytes);
-      }
-    }
-    return { destName: timestampFilenameFor(file), sha256: FROZEN_DIGESTS[file], staged: listMig() };
-  };
+  const first = syncIsolatedMigrationsThrough(isolated, F3_FORWARD_FILES[0]);
+  assert.deepEqual(first, [timestampFilenameFor(F3_FORWARD_FILES[0])]);
+  assert.deepEqual(listMig(), first);
+  for (const later of F3_FORWARD_FILES.slice(1)) {
+    assert.equal(fs.existsSync(path.join(migDir, timestampFilenameFor(later))), false, later);
+  }
 
-  const first = stageThrough(F3_FORWARD_FILES[0]);
-  assert.deepEqual(first.staged, [first.destName]);
-  assert.equal(first.sha256, FROZEN_DIGESTS[F3_FORWARD_FILES[0]]);
-  // Single-file staging: only current target remains (no cascade of later files).
-  const onlyCurrent = () => {
-    for (const name of listMig()) fs.rmSync(path.join(migDir, name), { force: true });
-    const source = readAuthorizedSourceBytes(F3_FORWARD_FILES[4]);
-    const destName = timestampFilenameFor(F3_FORWARD_FILES[4]);
-    fs.writeFileSync(path.join(migDir, destName), source.bytes);
-    return { destName, sha256: source.digest, staged: listMig() };
-  };
-  const later = onlyCurrent();
-  assert.deepEqual(later.staged, [later.destName]);
-  assert.equal(later.destName, timestampFilenameFor(F3_FORWARD_FILES[4]));
-  assert.equal(later.sha256, FROZEN_DIGESTS[F3_FORWARD_FILES[4]]);
-  assert.equal(fs.existsSync(path.join(migDir, first.destName)), false);
-  assertFrozenDigestsOnDisk();
+  const retryStaged = listMig();
+  assert.deepEqual(retryStaged, first, "retry inspects the same staged workdir; no cascade files appear");
+
+  const laterFile = F3_FORWARD_FILES[4];
+  const later = syncIsolatedMigrationsThrough(isolated, laterFile);
+  assert.deepEqual(later, [timestampFilenameFor(laterFile)]);
+  assert.deepEqual(listMig(), later);
+  assert.equal(fs.existsSync(path.join(migDir, first[0])), false);
+
+  const unexpected = path.join(migDir, "99999_unexpected_block.sql");
+  fs.writeFileSync(unexpected, "-- unexpected\n");
+  assert.throws(
+    () => syncIsolatedMigrationsThrough(isolated, laterFile),
+    (err) => err.code === "F3_DBPUSH_STAGING_UNEXPECTED_FILES" || /unexpected/.test(err.message),
+  );
+  fs.rmSync(unexpected, { force: true });
+
+  assert.deepEqual(assertFrozenDigestsOnDisk(), repoBefore);
   fs.rmSync(isolated.workdir, { recursive: true, force: true });
+});
+
+test("unexpected staged files and identity/cli misses forbid repair", async () => {
+  const cases = [
+    { name: "unexpected staged set", extra: { stagedMigrations: [timestampFilenameFor(FILE118), timestampFilenameFor(F3_FORWARD_FILES[1])] } },
+    { name: "empty staged", extra: { stagedMigrations: [] } },
+    { name: "wrong cli", extra: { cliVersion: "2.116.0" } },
+    { name: "production not rejected", extra: { productionIdentityRejected: false, projectRef: PRODUCTION_REF } },
+    { name: "disposable identity missing", extra: { disposableIdentityVerified: false } },
+  ];
+  for (const c of cases) {
+    let repairCalls = 0;
+    const decided = await runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput(c.extra),
+      cleanup: () => provenCleanup(),
+      verifyPoisonAbsent: () => poisonAbsentResult(),
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    assert.equal(decided.repairAuthorized, false, c.name);
+    assert.equal(decided.repairAttempted, false, c.name);
+    assert.equal(repairCalls, 0, `${c.name} repair spawned`);
+  }
 });

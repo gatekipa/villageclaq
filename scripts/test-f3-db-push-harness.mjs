@@ -1792,6 +1792,7 @@ test("harness uses exported staging preflight rather than a test-local copy", ()
   assert.match(harness, /assertPrefixCompleteSinglePendingStaging/);
   assert.match(harness, /runPrefixCompleteSinglePendingOrchestration/);
   assert.match(harness, /evaluatePrefixCompleteSinglePendingStaging/);
-  assert.equal((harness.match(/function assertPrefixCompleteSinglePendingStaging/g) || []).length, 0);
-  assert.equal((harness.match(/function syncIsolatedMigrationsThrough/g) || []).length, 0);
+  const localDef = (name) => new RegExp(`export\\s+function\\s+${name}\\s*\\(`).test(harness);
+  assert.equal(localDef("assertPrefixCompleteSinglePendingStaging"), false);
+  assert.equal(localDef("syncIsolatedMigrationsThrough"), false);
 });

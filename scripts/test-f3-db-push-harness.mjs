@@ -1139,7 +1139,7 @@ test("reordered set-like values normalize; security-relevant changes never norma
 
   const security = frozenPair((observed) => {
     observed.acl = observed.acl.map((row) => (
-      row.grantee === "postgres" && row.object_identity === "epoch_transitions"
+      row.grantee === "postgres" && row.object_name === "epoch_transitions"
         ? { ...row, grantee: "ubuntu" }
         : row
     ));
@@ -1197,14 +1197,44 @@ test("module-load frozen expected hashes are independent of observed and match t
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256["00119_f3_01_core_ledger_foundation.sql"],
     "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c",
   );
+  assert.deepEqual(
+    Object.fromEntries(F3_FORWARD_FILES.map((file) => [file, getFrozenExpectedFingerprint(file).migration_digest])),
+    {
+      "00118_f3_bounded_financial_epoch_foundation.sql": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "00119_f3_01_core_ledger_foundation.sql": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "00120_f3_02_secure_posting_idempotency.sql": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "00121_f3_03_projection_read_proof.sql": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "00122_f3_04_correction_reversal.sql": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "00123_f3_05_opening_cash_command.sql": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+    },
+  );
+  for (const file of F3_FORWARD_FILES) {
+    assert.deepEqual(getFrozenExpectedFingerprint(file).recognition, ["manual_income"]);
+  }
   assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
-    "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
-    "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
-    "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
-    "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
-    "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
   });
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.concatenated_object_identity["00119_f3_01_core_ledger_foundation.sql"],
+    "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+  );
+  for (const file of F3_FORWARD_FILES) {
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256[file],
+      `${file} new seal must supersede comma-joined hash`,
+    );
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.concatenated_object_identity[file],
+      `${file} new seal must supersede concatenated object_identity hash`,
+    );
+  }
   for (const file of F3_FORWARD_FILES) {
     const clone = getFrozenExpectedFingerprint(file);
     clone.acl = "mutated-clone";
@@ -1229,7 +1259,9 @@ function aclRecord(overrides = {}) {
   return {
     object_type: "table",
     schema: "financial_core",
-    object_identity: "financial_accounts",
+    object_name: "financial_accounts",
+    prokind: "",
+    identity_arguments: "",
     grantee: "authenticated",
     grantor: "postgres",
     privilege: "SELECT",
@@ -1324,8 +1356,8 @@ test("semantic set canonicalization matrix: order-only pass; association/express
   ));
 
   const acls = [
-    aclRecord({ object_identity: "financial_accounts", privilege: "SELECT" }),
-    aclRecord({ object_identity: "financial_funds", privilege: "INSERT", grantee: "postgres" }),
+    aclRecord({ object_name: "financial_accounts", privilege: "SELECT" }),
+    aclRecord({ object_name: "financial_funds", privilege: "INSERT", grantee: "postgres" }),
   ];
   assert.equal(
     fingerprintCompleteAndExact(pairFromCatalog({ acl: acls }, { acl: [acls[1], acls[0]] })).ok,
@@ -1334,28 +1366,28 @@ test("semantic set canonicalization matrix: order-only pass; association/express
   );
   await assertFingerprintForbidsRepair("acl wrong grantee", pairFromCatalog(
     { acl: acls },
-    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "SELECT", grantee: "ubuntu" }), acls[1]] },
+    { acl: [aclRecord({ object_name: "financial_accounts", privilege: "SELECT", grantee: "ubuntu" }), acls[1]] },
   ));
   await assertFingerprintForbidsRepair("acl wrong grantor", pairFromCatalog(
     { acl: acls },
-    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "SELECT", grantor: "ubuntu" }), acls[1]] },
+    { acl: [aclRecord({ object_name: "financial_accounts", privilege: "SELECT", grantor: "ubuntu" }), acls[1]] },
   ));
   await assertFingerprintForbidsRepair("acl wrong privilege", pairFromCatalog(
     { acl: acls },
-    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "UPDATE" }), acls[1]] },
+    { acl: [aclRecord({ object_name: "financial_accounts", privilege: "UPDATE" }), acls[1]] },
   ));
   await assertFingerprintForbidsRepair("acl wrong grantable", pairFromCatalog(
     { acl: acls },
-    { acl: [aclRecord({ object_identity: "financial_accounts", privilege: "SELECT", grantable: true }), acls[1]] },
+    { acl: [aclRecord({ object_name: "financial_accounts", privilege: "SELECT", grantable: true }), acls[1]] },
   ));
   await assertFingerprintForbidsRepair("acl moved to different object", pairFromCatalog(
     { acl: acls },
-    { acl: [aclRecord({ object_identity: "financial_funds", privilege: "SELECT" }), acls[1]] },
+    { acl: [aclRecord({ object_name: "financial_funds", privilege: "SELECT" }), acls[1]] },
   ));
   await assertFingerprintForbidsRepair("acl missing", pairFromCatalog({ acl: acls }, { acl: [acls[0]] }));
   await assertFingerprintForbidsRepair("acl extra", pairFromCatalog(
     { acl: acls },
-    { acl: [...acls, aclRecord({ object_identity: "financial_events", privilege: "DELETE" })] },
+    { acl: [...acls, aclRecord({ object_name: "financial_events", privilege: "DELETE" })] },
   ));
   await assertFingerprintForbidsRepair("acl duplicate", pairFromCatalog(
     { acl: acls },
@@ -1429,6 +1461,232 @@ test("semantic set canonicalization matrix: order-only pass; association/express
   assert.equal(before119, FROZEN_EXPECTED_FINGERPRINT_SHA256["00119_f3_01_core_ledger_foundation.sql"]);
 });
 
+const LOCK_OCCURRENCE_ARGS =
+  "p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid";
+
+test("structured ACL object identity matrix: complete pairing; comma truncation fails; repairCalls=0", async () => {
+  const twoArg = aclRecord({
+    object_type: "routine",
+    object_name: "f3_amount",
+    prokind: "f",
+    identity_arguments: "p_value jsonb, p_currency text",
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  const threePlus = aclRecord({
+    object_type: "routine",
+    object_name: "lock_financial_occurrence",
+    prokind: "f",
+    identity_arguments: LOCK_OCCURRENCE_ARGS,
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog({ acl: [twoArg] }, { acl: [twoArg] })).ok,
+    true,
+    "2-arg routine identity remains complete",
+  );
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog({ acl: [threePlus] }, { acl: [threePlus] })).ok,
+    true,
+    "3+-arg routine identity remains complete",
+  );
+
+  const overloadA = aclRecord({
+    object_type: "routine",
+    object_name: "lock_it",
+    prokind: "f",
+    identity_arguments: "p uuid",
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  const overloadB = aclRecord({
+    object_type: "routine",
+    object_name: "lock_it",
+    prokind: "f",
+    identity_arguments: "p uuid, q text",
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog(
+      { acl: [overloadA, overloadB] },
+      { acl: [overloadB, overloadA] },
+    )).ok,
+    true,
+    "multiple overloads remain distinct; order-only PASS",
+  );
+  await assertFingerprintForbidsRepair("overloads merged", pairFromCatalog(
+    { acl: [overloadA, overloadB] },
+    { acl: [overloadA] },
+  ));
+
+  await assertFingerprintForbidsRepair("internal commas never truncate identity", pairFromCatalog(
+    { acl: [threePlus] },
+    { acl: [aclRecord({ ...threePlus, identity_arguments: "p_group_id uuid, p_source_module text" })] },
+  ));
+
+  const schemaArgs = aclRecord({
+    object_type: "routine",
+    object_name: "get_financial_cashbook",
+    prokind: "f",
+    identity_arguments: "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog({ acl: [schemaArgs] }, { acl: [schemaArgs] })).ok,
+    true,
+    "schema-qualified arg types intact",
+  );
+  await assertFingerprintForbidsRepair("schema-qualified args coarsened", pairFromCatalog(
+    { acl: [schemaArgs] },
+    { acl: [aclRecord({ ...schemaArgs, identity_arguments: "p_group_id uuid, p_from timestamp, p_to timestamp" })] },
+  ));
+
+  const quoted = aclRecord({
+    object_type: "routine",
+    object_name: "weird",
+    prokind: "f",
+    identity_arguments: '"foo, bar" uuid, p text',
+    privilege: "EXECUTE",
+    grantee: "postgres",
+  });
+  const unquoted = aclRecord({
+    ...quoted,
+    identity_arguments: "foo uuid, bar uuid, p text",
+  });
+  await assertFingerprintForbidsRepair("quoted names remain distinct", pairFromCatalog(
+    { acl: [quoted] },
+    { acl: [unquoted] },
+  ));
+
+  const publicGrant = aclRecord({
+    object_type: "routine",
+    object_name: "guard_ledger_epoch",
+    prokind: "f",
+    identity_arguments: "",
+    grantee: "PUBLIC",
+    privilege: "EXECUTE",
+  });
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog({ acl: [publicGrant] }, { acl: [publicGrant] })).ok,
+    true,
+    "PUBLIC grantee correct",
+  );
+  await assertFingerprintForbidsRepair("PUBLIC grantee became empty", pairFromCatalog(
+    { acl: [publicGrant] },
+    { acl: [aclRecord({ ...publicGrant, grantee: "" })] },
+  ));
+
+  assert.equal(
+    fingerprintCompleteAndExact(pairFromCatalog(
+      { acl: [twoArg, threePlus] },
+      { acl: [threePlus, twoArg] },
+    )).ok,
+    true,
+    "same complete ACL records different order → PASS",
+  );
+
+  await assertFingerprintForbidsRepair("truncated identity after first comma → FAIL", pairFromCatalog(
+    { acl: [threePlus] },
+    { acl: [aclRecord({ ...threePlus, identity_arguments: threePlus.identity_arguments.split(",").slice(0, 2).join(",") })] },
+  ));
+
+  await assertFingerprintForbidsRepair("ACL moved between overloads → FAIL", pairFromCatalog(
+    { acl: [overloadA, overloadB] },
+    { acl: [aclRecord({ ...overloadA, identity_arguments: overloadB.identity_arguments }), overloadB] },
+  ));
+
+  await assertFingerprintForbidsRepair("arg identity changed → FAIL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [aclRecord({ ...twoArg, identity_arguments: "p_value jsonb, p_other text" })] },
+  ));
+  await assertFingerprintForbidsRepair("grantee changed → FAIL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [aclRecord({ ...twoArg, grantee: "authenticated" })] },
+  ));
+  await assertFingerprintForbidsRepair("grantor changed → FAIL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [aclRecord({ ...twoArg, grantor: "ubuntu" })] },
+  ));
+  await assertFingerprintForbidsRepair("privilege changed → FAIL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [aclRecord({ ...twoArg, privilege: "SELECT" })] },
+  ));
+  await assertFingerprintForbidsRepair("grantable changed → FAIL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [aclRecord({ ...twoArg, grantable: true })] },
+  ));
+
+  await assertFingerprintForbidsRepair("missing ACL → FAIL", pairFromCatalog(
+    { acl: [twoArg, threePlus] },
+    { acl: [twoArg] },
+  ));
+  await assertFingerprintForbidsRepair("extra ACL → FAIL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [twoArg, threePlus] },
+  ));
+  await assertFingerprintForbidsRepair("duplicate ACL → FAIL", pairFromCatalog(
+    { acl: [twoArg] },
+    { acl: [twoArg, twoArg] },
+  ));
+  await assertFingerprintForbidsRepair("same ACL count different identity pairing → FAIL", pairFromCatalog(
+    { acl: [overloadA, twoArg] },
+    { acl: [overloadB, twoArg] },
+  ));
+
+  const frozen119 = getFrozenExpectedFingerprint("00119_f3_01_core_ledger_foundation.sql");
+  assert.deepEqual([...frozen119.recognition], ["manual_income"]);
+  assert.equal(frozen119.migration_digest, FROZEN_DIGESTS["00119_f3_01_core_ledger_foundation.sql"]);
+  const lockRows = frozen119.acl.filter((row) => row.object_name === "lock_financial_occurrence");
+  assert.equal(lockRows.length, 1);
+  assert.equal(lockRows[0].object_type, "routine");
+  assert.equal(lockRows[0].schema, "financial_core");
+  assert.equal(lockRows[0].identity_arguments, LOCK_OCCURRENCE_ARGS);
+  assert.equal(lockRows[0].prokind, "f");
+  const truncatedObserved = buildIndependentObservedFingerprint("00119_f3_01_core_ledger_foundation.sql", {
+    schema: frozen119.schema,
+    function_owner: frozen119.function_owner,
+    acl: frozen119.acl.map((row) => (
+      row.object_name === "lock_financial_occurrence"
+        ? { ...row, identity_arguments: "p_group_id uuid, p_source_module text" }
+        : row
+    )),
+    policy: frozen119.policy,
+    f3_objects_absent: frozen119.f3_objects_absent,
+  });
+  await assertFingerprintForbidsRepair("00119 hosted truncation HOLD reproduction", {
+    expected: frozen119,
+    observed: truncatedObserved,
+  });
+});
+
+test("source contract forbids comma-split ACL object identity parsing", () => {
+  const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  const harness = fs.readFileSync(path.join(root, "scripts/test-f3-db-push-harness.mjs"), "utf8");
+  const strippedGate = gate
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  assert.doesNotMatch(strippedGate, /object_identity\s*\.split\s*\(/);
+  assert.doesNotMatch(strippedGate, /identity_arguments\s*\.split\s*\(/);
+  assert.doesNotMatch(strippedGate, /object_label\s*\.split\s*\(\s*["'],["']\s*\)/);
+  assert.doesNotMatch(strippedGate, /object_name\s*\.split\s*\(\s*["'],["']\s*\)/);
+  assert.match(strippedGate, /structuredAclIdentityFromLegacyLabel/);
+  assert.match(strippedGate, /matchingParenClose/);
+  assert.match(qualify, /identity_arguments/);
+  assert.match(qualify, /never a comma-joined object_identity label/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /pg_get_function_identity_arguments\(p\.oid\)/);
+  assert.doesNotMatch(CATALOG_FINGERPRINT_SQL, /split_part\s*\(/i);
+  const parserStart = strippedGate.indexOf("function structuredAclIdentityFromLegacyLabel");
+  const parserEnd = strippedGate.indexOf("function parseLegacySchema");
+  assert.equal(parserStart >= 0 && parserEnd > parserStart, true);
+  const parser = strippedGate.slice(parserStart, parserEnd);
+  assert.doesNotMatch(parser, /\.split\s*\(/);
+  assert.match(harness, /structured ACL object identity matrix/);
+});
+
 test("source contract and unit test prove there is no generic array-sorting fallback", () => {
   const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
   const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
@@ -1443,7 +1701,21 @@ test("source contract and unit test prove there is no generic array-sorting fall
   assert.match(CATALOG_FINGERPRINT_SQL, /jsonb_agg/);
   assert.match(CATALOG_FINGERPRINT_SQL, /identity_arguments/);
   assert.match(CATALOG_FINGERPRINT_SQL, /aclexplode/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /acldefault/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /pg_get_function_identity_arguments\(p\.oid\)/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /'object_name',\s*x\.object_name/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /'prokind',\s*x\.prokind/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /'identity_arguments',\s*x\.identity_arguments/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /p\.proname/);
+  assert.match(CATALOG_FINGERPRINT_SQL, /p\.prokind/);
   assert.doesNotMatch(CATALOG_FINGERPRINT_SQL, /string_agg/);
+  assert.doesNotMatch(CATALOG_FINGERPRINT_SQL, /proname\s*\|\|\s*'\('/);
+  assert.doesNotMatch(CATALOG_FINGERPRINT_SQL, /object_identity/);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.acl.fields.includes("object_name"), true);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.acl.fields.includes("identity_arguments"), true);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.acl.fields.includes("prokind"), true);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.acl.fields.includes("object_identity"), false);
+  assert.equal(FINGERPRINT_FIELD_REGISTRY.acl.doNotSort.includes("identity_arguments"), true);
   assert.equal(FINGERPRINT_FIELD_REGISTRY.function_owner.sortBy.includes("owner"), true);
   assert.equal(FINGERPRINT_FIELD_REGISTRY.policy.innerSetFields.includes("roles"), true);
   assert.equal(FINGERPRINT_FIELD_REGISTRY.policy.doNotSort.includes("using"), true);

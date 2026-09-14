@@ -122,7 +122,9 @@ export const FINGERPRINT_FIELD_REGISTRY = Object.freeze({
     fields: Object.freeze([
       "object_type",
       "schema",
-      "object_identity",
+      "object_name",
+      "prokind",
+      "identity_arguments",
       "grantee",
       "grantor",
       "privilege",
@@ -131,15 +133,16 @@ export const FINGERPRINT_FIELD_REGISTRY = Object.freeze({
     sortBy: Object.freeze([
       "object_type",
       "schema",
-      "object_identity",
+      "object_name",
+      "identity_arguments",
       "grantee",
       "grantor",
       "privilege",
       "grantable",
     ]),
     innerSetFields: Object.freeze([]),
-    doNotSort: Object.freeze(["object_identity"]),
-    notes: "One record per privilege. Object identity is not split. grantable is boolean.",
+    doNotSort: Object.freeze(["identity_arguments", "object_name", "prokind"]),
+    notes: "One record per privilege. Routine identity is schema+object_name+prokind+identity_arguments (never a comma-joined label). Canonicalization reorders complete records only. identity_arguments are never split or reordered.",
   }),
   policy: Object.freeze({
     kind: "record_set",
@@ -185,12 +188,24 @@ export const FINGERPRINT_FIELD_REGISTRY = Object.freeze({
 });
 
 export const FINGERPRINT_CANONICALIZATION_REASON =
-  "canonicalization format (comma-joined catalog strings → structured records + registry set-order); semantic members unchanged";
+  "canonicalization format (comma-joined catalog strings → structured ACL identity by catalog fields + registry set-order); semantic members unchanged";
 
 /**
  * Hosted catalog fingerprint query. Overrides floor CATALOG_FINGERPRINT_SQL
  * (comma-joined strings) so observed inventory is structured JSON records.
  * Same object filters as the floor query; representation only.
+ *
+ * Routine ACL identity is obtained by routine OID inside SQL:
+ *   pg_namespace.nspname, pg_proc.proname, pg_proc.prokind,
+ *   pg_get_function_identity_arguments(pg_proc.oid).
+ * Those fields stay separate. identity_arguments are never concatenated
+ * into a comma-bearing object_identity label and never parsed back.
+ * ACL rows join to the owning object by OID, then explode with
+ * aclexplode; grantee OID 0 is PUBLIC via pg_get_userbyid.
+ * acldefault is the catalog default facility when a stored ACL is NULL;
+ * this seal keeps NULL as an empty grant row so membership matches the
+ * frozen stored-ACL contract (no invented default grants, no OIDs in
+ * the fingerprint).
  */
 export const CATALOG_FINGERPRINT_SQL = `
 SELECT jsonb_build_object(
@@ -227,19 +242,23 @@ SELECT jsonb_build_object(
       jsonb_build_object(
         'object_type', x.object_type,
         'schema', x.schema,
-        'object_identity', x.object_identity,
+        'object_name', x.object_name,
+        'prokind', x.prokind,
+        'identity_arguments', x.identity_arguments,
         'grantee', x.grantee,
         'grantor', x.grantor,
         'privilege', x.privilege,
         'grantable', x.grantable
       )
-      ORDER BY x.object_type, x.schema, x.object_identity, x.grantee, x.grantor, x.privilege, x.grantable::text
+      ORDER BY x.object_type, x.schema, x.object_name, x.identity_arguments, x.grantee, x.grantor, x.privilege, x.grantable::text
     ), '[]'::jsonb)
     FROM (
       SELECT
         'table'::text AS object_type,
         n.nspname AS schema,
-        c.relname AS object_identity,
+        c.relname AS object_name,
+        ''::text AS prokind,
+        ''::text AS identity_arguments,
         CASE
           WHEN c.relacl IS NULL THEN ''
           WHEN a.grantee = 0 THEN 'PUBLIC'
@@ -267,9 +286,11 @@ SELECT jsonb_build_object(
         )
       UNION ALL
       SELECT
-        'function'::text,
+        'routine'::text,
         n.nspname,
-        p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')',
+        p.proname,
+        p.prokind::text,
+        pg_get_function_identity_arguments(p.oid),
         CASE
           WHEN p.proacl IS NULL THEN ''
           WHEN a.grantee = 0 THEN 'PUBLIC'
@@ -289,6 +310,9 @@ SELECT jsonb_build_object(
         END
       FROM pg_proc p
       JOIN pg_namespace n ON n.oid = p.pronamespace
+      -- acldefault('f', proowner) is the catalog default when proacl is NULL.
+      -- This seal does not expand those defaults: stored NULL stays an empty
+      -- grant row so membership matches the frozen stored-ACL contract.
       LEFT JOIN LATERAL aclexplode(p.proacl) a ON p.proacl IS NOT NULL
       WHERE n.nspname IN ('public','financial_core','financial_private')
         AND (n.nspname LIKE 'financial_%' OR p.proname ~ 'financial|f3_|guard_ledger')
@@ -398,10 +422,57 @@ function splitSchemaIdentity(identity) {
     if (ch === "(") depth += 1;
     else if (ch === ")") depth = Math.max(0, depth - 1);
     else if (ch === "." && depth === 0) {
-      return { schema: text.slice(0, i), object_identity: text.slice(i + 1) };
+      return { schema: text.slice(0, i), object_label: text.slice(i + 1) };
     }
   }
   return null;
+}
+
+function matchingParenClose(text, openIndex) {
+  if (openIndex < 0 || text[openIndex] !== "(") return -1;
+  let depth = 0;
+  for (let j = openIndex; j < text.length; j += 1) {
+    if (text[j] === "(") depth += 1;
+    else if (text[j] === ")") {
+      depth -= 1;
+      if (depth === 0) return j;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Offline upgrade of a frozen-contract object label into structured identity.
+ * Extracts the whole identity_arguments slice between matching parentheses.
+ * Never splits or reconstructs arguments on commas. Display labels are not
+ * stored; callers must not parse a generated label back into fingerprint data.
+ */
+function structuredAclIdentityFromLegacyLabel(label) {
+  const text = String(label);
+  const open = text.indexOf("(");
+  if (open < 0) {
+    return {
+      ok: true,
+      object_type: "table",
+      object_name: text,
+      prokind: "",
+      identity_arguments: "",
+    };
+  }
+  const close = matchingParenClose(text, open);
+  if (close < 0) {
+    return { ok: false, reason: "acl routine identity arguments are unbalanced" };
+  }
+  if (close !== text.length - 1) {
+    return { ok: false, reason: "acl routine identity has trailing identity junk" };
+  }
+  return {
+    ok: true,
+    object_type: "routine",
+    object_name: text.slice(0, open),
+    prokind: "f",
+    identity_arguments: text.slice(open + 1, close),
+  };
 }
 
 function parseLegacySchema(value) {
@@ -428,25 +499,14 @@ function parseLegacyFunctionOwner(value) {
     while (text[i] === ",") i += 1;
     if (i >= text.length) break;
     const ident = splitSchemaIdentity(text.slice(i));
-    if (!ident || !ident.schema || !ident.object_identity) {
+    if (!ident || !ident.schema || !ident.object_label) {
       return { ok: false, reason: "function_owner identity is not schema.function(args)" };
     }
-    const close = (() => {
-      const start = ident.object_identity.indexOf("(");
-      if (start < 0) return -1;
-      let depth = 0;
-      for (let j = start; j < ident.object_identity.length; j += 1) {
-        if (ident.object_identity[j] === "(") depth += 1;
-        else if (ident.object_identity[j] === ")") {
-          depth -= 1;
-          if (depth === 0) return j;
-        }
-      }
-      return -1;
-    })();
+    const start = ident.object_label.indexOf("(");
+    const close = matchingParenClose(ident.object_label, start);
     if (close < 0) return { ok: false, reason: "function_owner identity arguments are unbalanced" };
-    const functionName = ident.object_identity.slice(0, ident.object_identity.indexOf("("));
-    const identityArguments = ident.object_identity.slice(ident.object_identity.indexOf("(") + 1, close);
+    const functionName = ident.object_label.slice(0, start);
+    const identityArguments = ident.object_label.slice(start + 1, close);
     const consumedIdentity = ident.schema.length + 1 + close + 1;
     i += consumedIdentity;
     if (text[i] !== ":") return { ok: false, reason: "function_owner missing owner separator" };
@@ -536,12 +596,18 @@ function parseLegacyAcl(value) {
     }
     const split = splitSchemaIdentity(identity);
     if (!split) return { ok: false, reason: "acl identity is not schema.object" };
-    const objectType = split.object_identity.includes("(") ? "function" : "table";
+    const structured = structuredAclIdentityFromLegacyLabel(split.object_label);
+    if (!structured.ok) return { ok: false, reason: structured.reason };
+    const identityFields = {
+      object_type: structured.object_type,
+      schema: split.schema,
+      object_name: structured.object_name,
+      prokind: structured.prokind,
+      identity_arguments: structured.identity_arguments,
+    };
     if (!aclBody) {
       records.push({
-        object_type: objectType,
-        schema: split.schema,
-        object_identity: split.object_identity,
+        ...identityFields,
         grantee: "",
         grantor: "",
         privilege: "",
@@ -562,9 +628,7 @@ function parseLegacyAcl(value) {
       const exploded = explodeAclPrivileges(privs);
       if (exploded.length === 0) {
         records.push({
-          object_type: objectType,
-          schema: split.schema,
-          object_identity: split.object_identity,
+          ...identityFields,
           grantee,
           grantor,
           privilege: "",
@@ -574,9 +638,7 @@ function parseLegacyAcl(value) {
       }
       for (const grant of exploded) {
         records.push({
-          object_type: objectType,
-          schema: split.schema,
-          object_identity: split.object_identity,
+          ...identityFields,
           grantee,
           grantor,
           privilege: grant.privilege,
@@ -683,6 +745,8 @@ function normalizeRegistryRecord(key, raw, spec) {
       out[field] = [];
     } else if (field === "grantable" && key === "acl") {
       out[field] = false;
+    } else if ((field === "identity_arguments" || field === "prokind" || field === "object_name") && key === "acl") {
+      out[field] = "";
     } else if ((field === "security_definer" || field === "search_path") && key === "function_owner") {
       out[field] = field === "security_definer" ? null : "";
     } else {
@@ -871,8 +935,9 @@ const FROZEN_EXPECTED_FINGERPRINTS_RAW = {
 };
 
 /**
- * Pre-canonicalization seals (comma-joined catalog strings).
- * Superseded because representation/order changed — not semantic drift.
+ * Pre-canonicalization seals (comma-joined catalog strings) plus the
+ * concatenated object_identity generation (comma-truncation class).
+ * Superseded because representation changed — not semantic drift.
  */
 export const SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
   reason: FINGERPRINT_CANONICALIZATION_REASON,
@@ -882,15 +947,24 @@ export const SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
   "00121_f3_03_projection_read_proof.sql": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c",
   "00122_f3_04_correction_reversal.sql": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee",
   "00123_f3_05_opening_cash_command.sql": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66",
+  concatenated_object_identity: Object.freeze({
+    reason: "superseded concatenated ACL object_identity (comma-truncation class); semantic members unchanged",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
+    "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
+    "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
+    "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
+    "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
+    "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
+  }),
 });
 
 export const FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
-  "00118_f3_bounded_financial_epoch_foundation.sql": "07ce0b411f0a7098de31ada42dd2863cb6fc50e94fe685ff998b0bd16613e535",
-  "00119_f3_01_core_ledger_foundation.sql": "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
-  "00120_f3_02_secure_posting_idempotency.sql": "ebeb5c45edc4ee41e1fc98687b11d6c0fe122d629a972c8d4b507ab2096b117b",
-  "00121_f3_03_projection_read_proof.sql": "f026b6abcfd37efda7c5d12c687077958acf0be01cf9154a77070b32fd245976",
-  "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
-  "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
+  "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+  "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+  "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+  "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+  "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+  "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
 });
 
 
@@ -900,14 +974,18 @@ function assertSealedExpectedHashesAtLoad() {
     frozen[file] = deepFreeze(upgradeFingerprintToStructured(FROZEN_EXPECTED_FINGERPRINTS_RAW[file]));
   }
   deepFreeze(frozen);
+  const sealMismatches = [];
   for (const file of Object.keys(FROZEN_EXPECTED_FINGERPRINT_SHA256)) {
     const actual = fingerprintCanonicalSha256(frozen[file]);
     const sealed = FROZEN_EXPECTED_FINGERPRINT_SHA256[file];
     if (actual !== sealed) {
-      throw new Error(
-        `HOLD: frozen expected fingerprint hash mismatch for ${file} (module-load, before any DB access)`,
-      );
+      sealMismatches.push(`${file} actual=${actual} sealed=${sealed}`);
     }
+  }
+  if (sealMismatches.length > 0) {
+    throw new Error(
+      `HOLD: frozen expected fingerprint hash mismatch (module-load, before any DB access): ${sealMismatches.join("; ")}`,
+    );
   }
   for (const file of F3_FORWARD_FILES) {
     if (!frozen[file] || !FROZEN_EXPECTED_FINGERPRINT_SHA256[file]) {

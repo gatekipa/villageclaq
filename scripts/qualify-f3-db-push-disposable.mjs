@@ -116,7 +116,7 @@ import {
   evaluatePreStubFloorCleanCheck,
 } from "./lib/f3-db-push-pre-stub-floor-clean-check.mjs";
 import {
-  CATALOG_FINGERPRINT_SQL, // structured JSON records — overrides floor comma-joined query
+  CATALOG_FINGERPRINT_SQL, // structured JSON records; routine ACL identity is schema/object_name/prokind/identity_arguments — never a comma-joined object_identity label. Overrides floor comma-joined query.
   POISON_ABSENT_PROBE_SQL,
   PRODUCTION_HISTORY_LIMITATION_WARNING,
   REPAIR_SAFETY_HOLD,

@@ -145,6 +145,10 @@ import {
   writeQualifyEvidenceArtifacts,
   F3_FULL_FINGERPRINT_SCHEMA_VERSION,
   EXPECTED_FINGERPRINT_SEAL_PROVENANCE,
+  SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
+  evaluatePlatformAclCalibration,
+  authorizeDbPushAfterPlatformAclCalibration,
+  PLATFORM_ACL_CALIBRATION_HOLD,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -287,6 +291,31 @@ function objectsPresentFromProbe(result) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const platformAclCalibration = authorizeDbPushAfterPlatformAclCalibration();
+  if (!platformAclCalibration.ok) {
+    const payload = {
+      status: "HOLD",
+      verdict: FILE_BASED_RUNNER_VERDICTS.HOLD,
+      ok: false,
+      mode: args.sealFromLocalOracle ? "seal-expected-from-local-oracle" : "qualify",
+      reason: platformAclCalibration.reason || PLATFORM_ACL_CALIBRATION_HOLD,
+      platformAclCalibration,
+      sealedPlatformAclEnvelopeDigest: SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
+      productionContacted: false,
+      dbPushCalls: 0,
+      repairCalls: 0,
+      fingerprint_exact: false,
+    };
+    const json = JSON.stringify(sanitizeForLog(payload), null, 2);
+    console.log(json);
+    if (args.evidenceOut) {
+      writeQualifyEvidenceArtifacts({
+        dest: path.resolve(root, args.evidenceOut),
+        sanitizedJson: json,
+      });
+    }
+    process.exit(1);
+  }
   if (args.sealFromLocalOracle) {
     const sealed = await sealExpectedFingerprintsFromLocalOracle();
     const payload = {
@@ -300,6 +329,8 @@ async function main() {
       hashes: sealed.hashes || null,
       recognition: sealed.recognition || [...RECOGNITION_ALLOWLIST],
       schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+      sealedPlatformAclEnvelopeDigest: SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
+      platformAclCalibration,
     };
     const json = JSON.stringify(sanitizeForLog(payload), null, 2);
     console.log(json);
@@ -333,6 +364,8 @@ async function main() {
     productionApproved: false,
     expectedFingerprintsBeforeDb: recordPreDbExpectedHashes(),
     frozenExpectedFingerprintCaptures: recordFrozenExpectedFingerprintCaptures(),
+    sealedPlatformAclEnvelopeDigest: SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
+    platformAclCalibration,
     managementApiApply: MANAGEMENT_API_APPLY_DISQUALIFICATION,
     projectRef: APPROVED_DISPOSABLE_PROJECT_REF,
     host: APPROVED_DISPOSABLE_HOST,
@@ -598,6 +631,14 @@ async function main() {
           phase: "initial",
         });
         const injectSql = historyInjectSqlForFile(file);
+        const prePushCalibration = evaluatePlatformAclCalibration();
+        if (!prePushCalibration.ok) {
+          evidence.status = "HOLD";
+          evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
+          evidence.limitation = prePushCalibration.reason || PLATFORM_ACL_CALIBRATION_HOLD;
+          evidence.platformAclCalibration = prePushCalibration;
+          throw Object.assign(new Error(evidence.limitation), { code: "F3_PLATFORM_ACL_CALIBRATION_HOLD" });
+        }
         const inject = runGatedRemoteSqlText(isolated.workdir, `inject-${version}.sql`, injectSql);
         const push = runDbPushCandidate({
           bin: cli.bin,

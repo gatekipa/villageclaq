@@ -1,0 +1,29 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "verdict": "HOLD",
+  "functional_sha": "104a5b514c35b5a3bee6526578f7bccc3575dfb3",
+  "stopped_at": "00119_f3_01_core_ledger_foundation.sql",
+  "version": "20260913173001",
+  "failed_gates": [
+    "fingerprint_exact"
+  ],
+  "root_cause": "00119 repair-safety fingerprint_exact failed: frozen expected function_owner order differs from live catalog-observed function_owner order (same functions, different sequence). Prefix-complete staging for 00119 succeeded (staged 118+119; pending=[119]).",
+  "fingerprint_diff_fields": [
+    "function_owner"
+  ],
+  "expected_function_owner": "financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_posting_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_event():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_account():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_fund():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_category():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.assert_financial_event_balanced(p_event_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_posting():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.currency_scale(p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.can_manage_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.can_view_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_finances_manage(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"}",
+  "observed_function_owner": "financial_private.guard_ledger_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_epoch():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_account():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_fund():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_category():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_event_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.guard_financial_posting_history():postgres:false:{\"search_path=\\\"\\\"\"},financial_core.assert_financial_event_balanced(p_event_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_event():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.check_event_balance_from_posting():postgres:true:{\"search_path=\\\"\\\"\"},financial_core.lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.currency_scale(p_currency text):postgres:false:{\"search_path=\\\"\\\"\"},financial_core.can_manage_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.can_view_finances(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"},financial_core.assert_finances_manage(p_group_id uuid):postgres:true:{\"search_path=\\\"\\\"\"}",
+  "prefix_complete_staging_ok": true,
+  "00118_pass": {
+    "repairAttempted": true,
+    "continuation": true,
+    "objectsPresent": true,
+    "failedGates": []
+  },
+  "repair_attempted_on_failing": false,
+  "objects_present": true,
+  "classification_split": "POST_COMMIT_HISTORY_FAILURE",
+  "do_not_repair_on_partial": true,
+  "tip_not_modified": true,
+  "no_silent_rerun": true
+}

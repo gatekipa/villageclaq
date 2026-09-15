@@ -1,0 +1,99 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "functional_sha": "8e67138929d5c0925a89adb0d34eeff9a2d3cab4",
+  "hosted_verdict": "HOLD",
+  "stopped_at": {
+    "file": "00119_f3_01_core_ledger_foundation.sql",
+    "version": "20260913173001",
+    "destName": "20260913173001_f3_01_core_ledger_foundation.sql"
+  },
+  "failedGates": [
+    "fingerprint_exact"
+  ],
+  "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+  "root_cause": {
+    "kind": "acl_object_identity_truncation",
+    "field": "acl",
+    "same_length": true,
+    "expected_len": 109,
+    "observed_len": 109,
+    "only_in_expected_count": 1,
+    "only_in_observed_count": 1,
+    "only_in_expected": [
+      {
+        "object_type": "function",
+        "schema": "financial_core",
+        "object_identity": "lock_financial_occurrence(p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid)",
+        "grantee": "postgres",
+        "grantor": "postgres",
+        "privilege": "EXECUTE",
+        "grantable": false
+      }
+    ],
+    "only_in_observed": [
+      {
+        "object_type": "function",
+        "schema": "financial_core",
+        "object_identity": "lock_financial_occurrence(p_group_id uuid, p_source_module text",
+        "grantee": "postgres",
+        "grantor": "postgres",
+        "privilege": "EXECUTE",
+        "grantable": false
+      }
+    ],
+    "explanation": "After semantic set canonicalization, function_owner order-only mismatch is cleared. Hosted 00119 still fails fingerprint_exact because live catalog ACL object_identity for multi-argument functions is truncated at an internal comma (e.g. lock_financial_occurrence(...text, ...) → ...text). Expected sealed fingerprint retains full identity_arguments. Not an order-only difference; tip not patched; no silent rerun."
+  },
+  "per_migration": [
+    {
+      "file": "00118_f3_bounded_financial_epoch_foundation.sql",
+      "version": "20260913173000",
+      "result": "PASS",
+      "prefix_pending": [
+        "20260913173000"
+      ],
+      "staged_count": 1,
+      "fingerprint_exact": true,
+      "repairAttempted": true,
+      "retry_pending_empty": true,
+      "continuation": true,
+      "failedGates": []
+    },
+    {
+      "file": "00119_f3_01_core_ledger_foundation.sql",
+      "version": "20260913173001",
+      "result": "HOLD",
+      "prefix_pending": [
+        "20260913173001"
+      ],
+      "staged_count": 2,
+      "fingerprint_exact": false,
+      "repairAttempted": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ]
+    },
+    {
+      "prefix": "00120",
+      "result": "NOT_RUN",
+      "reason": "stopped earlier at 00119"
+    },
+    {
+      "prefix": "00121",
+      "result": "NOT_RUN",
+      "reason": "stopped earlier at 00119"
+    },
+    {
+      "prefix": "00122",
+      "result": "NOT_RUN",
+      "reason": "stopped earlier at 00119"
+    },
+    {
+      "prefix": "00123",
+      "result": "NOT_RUN",
+      "reason": "stopped earlier at 00119"
+    }
+  ],
+  "founder_rule": "STOP on first failure; no silent patch/rerun",
+  "tip_modified": false
+}

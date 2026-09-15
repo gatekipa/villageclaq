@@ -1,0 +1,11 @@
+{
+  "out": "<redacted-path>",
+  "metaPath": "<redacted-path>",
+  "sha256": "06208107bc7fd15874a6975f22148fcac62f66f693b5624835b41b268d90c8e1",
+  "bytes": 24472,
+  "sanitized_before_hash": true,
+  "tests_in_meta": 110,
+  "yaml_marker_exact_errors": 0,
+  "fail_count": 0,
+  "pass_count": 110
+}

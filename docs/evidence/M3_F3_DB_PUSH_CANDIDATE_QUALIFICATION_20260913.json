@@ -1,0 +1,92 @@
+{
+  "artifact": "M3_F3_DB_PUSH_CANDIDATE_QUALIFICATION_20260913",
+  "verdict": "HOLD",
+  "file_based_runner_qualification": "HOLD",
+  "errorCode": "F3_DBPUSH_FLOOR_HOLD",
+  "exit": 1,
+  "do_not_convert_to_pass": true,
+  "production_approval_claimed": false,
+  "hosted_db_push_pass_claimed": false,
+  "management_api_apply": "PERMANENTLY DISQUALIFIED",
+  "db_push_status": "QUALIFICATION CANDIDATE ONLY — not exercised for F3 this run",
+  "psql_floor_is_candidate_runner": false,
+  "functional_sha": "164f57949df774586155b007bf8a6c067ded4874",
+  "functional_sha_unchanged": true,
+  "hosted_functional_tip": "164f57949df774586155b007bf8a6c067ded4874",
+  "evidence_sha": "79bdf1dd55fef7ddd0dcaa2162795a801ed4e741",
+  "tip_sha": "79bdf1dd55fef7ddd0dcaa2162795a801ed4e741",
+  "pr83": "a293f5958b31548ccec7591b653eff2857ae9a90",
+  "pr84": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/84",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "authoritative"
+  },
+  "pr85": {
+    "url": "https://github.com/gatekipa/villageclaq/pull/85",
+    "state": "OPEN DRAFT UNMERGED",
+    "role": "companion",
+    "do_not_close": true
+  },
+  "recognition": ["manual_income"],
+  "partial_floor_probe_before_run": "CLEAN_ENOUGH_FOR_FLOOR",
+  "hosted": {
+    "command": "node scripts/qualify-f3-db-push-disposable.mjs --prep-floor --sequence-f3",
+    "floor_runner": "gated_psql_file",
+    "cleared_v1_db_query_multistatement_defect": true,
+    "bootstrap": "applied",
+    "applied_through": "00029",
+    "failedAt": "00030_enterprise_branches_committees.sql",
+    "psql_status": 3,
+    "installed": false,
+    "exact": false,
+    "00031_through_00117": "not applied",
+    "sequence_00118_00123": "NOT_RUN",
+    "sequence": [],
+    "pooler": {
+      "host": "aws-0-us-east-1.pooler.supabase.com",
+      "port": 5432,
+      "user": "postgres.jkorwnwwmdeflfntxntl",
+      "sslmode": "require"
+    }
+  },
+  "disposable_now": {
+    "state": "PARTIAL",
+    "public_tables_approx": 71,
+    "schema_migrations_rows": 0,
+    "mapi_get_migrations": [],
+    "committees_budget_allocation": "absent",
+    "exchange_rates": "present",
+    "org_group_columns": "present",
+    "cleanup_this_commit": false,
+    "wipe_requires_founder_auth": true
+  },
+  "likely_00030_cause": {
+    "get_user_group_ids": "SETOF uuid (00014)",
+    "00030_policies": "unnest(get_user_group_ids())",
+    "local_bootstrap_shim": "public.unnest(uuid) present in BOOTSTRAP",
+    "remote_shim_verified_this_commit": false,
+    "do_not_weaken_checks": true
+  },
+  "large_sql_bytes": {
+    "00118": {"bytes": 12150, "sha256": "517774fd883ecc8c8ba7d2e287c7245a1289b21623c839f594b0801611968f3c", "hosted_db_push": "NOT_RUN"},
+    "00119": {"bytes": 34878, "sha256": "9b09a733ed848e2a88a894db0815bd0f33f86335b58f7c9cd58845b6607d785d", "hosted_db_push": "NOT_RUN"},
+    "00120": {"bytes": 32318, "sha256": "4b870418ea15160a7aec0e6df707d9c8a3afc435f2d8bd1c861e0af7c47eb505", "hosted_db_push": "NOT_RUN"},
+    "00121": {"bytes": 35291, "sha256": "568ae0b15b1b6e6c0a7effd9e9b5644a294cc22d76dbbf0e6714a28888825cf5", "hosted_db_push": "NOT_RUN"},
+    "00122": {"bytes": 48436, "sha256": "fd2c6e8729d1c7983421804b5f028edd16170c9f9056c8db2f3994f4dff8bdf9", "hosted_db_push": "NOT_RUN"},
+    "00123": {"bytes": 19028, "sha256": "848b7cbe7e4e20e2e284d88f9954be0be8ffdfe4fc6d7c649e536d0c09aab699", "hosted_db_push": "NOT_RUN"}
+  },
+  "local_counts": {
+    "observed_at": "2026-09-13T19:40Z",
+    "db_push_harness": "29/29",
+    "test_f3": "991/991",
+    "test_m2": "111/111",
+    "cut1_static": "11/11",
+    "cut2_nonregression": "20/20",
+    "cut3_storage_buckets": "11/11",
+    "tsc": "PASS",
+    "note": "hosted HOLD overrides any local PASS claim"
+  },
+  "production_ref_contacted": false,
+  "repair_automatic": false,
+  "founder_stop": "Do not cleanup/delete disposable. Wipe/retry requires founder authorization."
+}

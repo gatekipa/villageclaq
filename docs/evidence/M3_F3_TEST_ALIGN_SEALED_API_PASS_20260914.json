@@ -1,0 +1,91 @@
+{
+  "title": "M3 F3 test-align sealed hosted-run APIs PASS",
+  "date": "2026-09-14",
+  "verdict": "PASS \u2014 local harness aligned to sealed hosted-run APIs",
+  "status": "PASS",
+  "supersedes": [
+    "18-exact-byte-restore-HOLD-local-harness-import-gap",
+    "HOLD \u2014 exact hosted-run harness bytes on tip; local harness import gap"
+  ],
+  "functional_tip": "e159bf7762d2674676513ea406a3290f42388aed",
+  "parent": "58f767dca033c2044b07c08bb6e018345e4c85b3",
+  "prs": {
+    "84": "e159bf7762d2674676513ea406a3290f42388aed",
+    "85": "e159bf7762d2674676513ea406a3290f42388aed",
+    "86": "e159bf7762d2674676513ea406a3290f42388aed"
+  },
+  "scope": "test-only alignment of scripts/test-f3-db-push-harness.mjs and scripts/test-f3-stub-live-pin-floor.mjs",
+  "sealed_executables": {
+    "untouched": true,
+    "mismatches": 0,
+    "closure_mismatches_vs_hosted_run_exact_bytes": 0,
+    "paths": [
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/lib/f3-db-push-stub-live-pin-floor.mjs",
+      "scripts/lib/f3-db-push-version-map.mjs",
+      "scripts/lib/f3-db-push-query-parse.mjs",
+      "scripts/fixtures/f3-forward-prerequisites.mjs"
+    ]
+  },
+  "migrations": {
+    "edited": false,
+    "digest_mismatches": 0,
+    "digests_sha256": {
+      "00118": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+      "00119": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+      "00120": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+      "00121": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+      "00122": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+      "00123": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d"
+    }
+  },
+  "alignment": {
+    "removed_imports": [
+      "objectsPresentFromProbe",
+      "listIsolatedMigrationFilenames",
+      "stageIsolatedWorkdirTarget"
+    ],
+    "public_apis_exercised": [
+      "rowsFromQuery",
+      "createIsolatedDbPushWorkdir",
+      "readAuthorizedSourceBytes",
+      "timestampFilenameFor",
+      "evaluateRepairSafetyGate",
+      "runRepairSafetyThenMaybeRepair",
+      "PUBLIC_UUID_GENERATE_V5_WRAPPER_SQL",
+      "DISCLOSED_STUB_LIVE_PIN_COMPONENTS"
+    ],
+    "source_contracts": [
+      "qualify embeds private objectsPresentFromProbe",
+      "qualify uses syncIsolatedMigrationsThrough once per loop before first push",
+      "retry push after repair without second sync (sealed behavior)",
+      "poison cleanup before repair (order cleanup, repair); repairOk on authorize"
+    ]
+  },
+  "local_suites": {
+    "test:f3-db-push": "70/71 PASS (1 skip)",
+    "test:f3-recognition": "40/40 PASS",
+    "test:f3-oracles": "577/577 PASS",
+    "test:f3-mapi-harness": "22/22 PASS",
+    "test:f3-local-safety": "45/45 PASS",
+    "test:m2": "111/111 PASS",
+    "test:m2-cut2-nonregression": "20/20 PASS",
+    "test:storage-buckets": "11/11 PASS",
+    "test:s0-cut1-active-authorization": "11/11 PASS",
+    "test:f3-acl-portability": "3 pass / 1 skip / 0 fail",
+    "tsc": "PASS",
+    "build": "PASS",
+    "test:f3": "719 pass / 313 fail / 1 skip \u2014 local PostgreSQL peer-auth unavailable (env); not import-gap regressions"
+  },
+  "hosted_qualification": "unchanged \u2014 FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION",
+  "not_authorized_here": [
+    "merge",
+    "deploy",
+    "production access",
+    "disposable access",
+    "hosted requal/wipe/repair",
+    "Daybreak/Astra"
+  ],
+  "recorded_at_utc": "2026-09-14T03:44:15.505791Z"
+}

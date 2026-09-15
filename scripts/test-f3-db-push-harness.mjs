@@ -139,6 +139,18 @@ import {
   JS_SQL_PARSER_SUPERSEDED_REASON,
   FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
   sealExpectedFingerprintsFromLocalOracle,
+  SEALED_PLATFORM_ACL_ENVELOPE,
+  SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
+  PLATFORM_ACL_CALIBRATION_HOLD,
+  PLATFORM_ACL_INAPPLICABLE_OBJECT_HOLD,
+  APPLICABLE_PLATFORM_ACL_OBJECT_CLASSES,
+  evaluatePlatformAclCalibration,
+  authorizeDbPushAfterPlatformAclCalibration,
+  applyPlatformAclEnvelopeToLocalOracle,
+  defaultPrivilegesSqlFromEnvelope,
+  platformRolesSqlFromEnvelope,
+  platformAclEnvelopeDigest,
+  assertFingerprintAclContracts,
   extractExactPostgresError,
   sanitizeEvidenceOutBytes,
   buildSuiteMetaFromSanitizedOut,
@@ -803,7 +815,7 @@ const VER118 = "20260913173000";
 const FINANCIAL_PRIVATE_MISSING_ERROR = "ERROR: relation financial_private does not exist";
 
 function completeFingerprint(overrides = {}) {
-  return {
+  const merged = {
     schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
     schema: "financial_private:postgres",
     schemas: [{ name: "financial_private", owner: "postgres", acl: [] }],
@@ -832,6 +844,13 @@ function completeFingerprint(overrides = {}) {
     recognition: ["manual_income"],
     ...overrides,
   };
+  if (Object.prototype.hasOwnProperty.call(overrides, "acl") && !Object.prototype.hasOwnProperty.call(overrides, "acls")) {
+    merged.acls = overrides.acl;
+  }
+  if (Object.prototype.hasOwnProperty.call(overrides, "acls") && !Object.prototype.hasOwnProperty.call(overrides, "acl")) {
+    merged.acl = overrides.acls;
+  }
+  return merged;
 }
 
 function passingFingerprint(file = FILE118) {
@@ -1480,12 +1499,12 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.deepEqual(getFrozenExpectedFingerprint(file).recognition, ["manual_income"]);
   }
   assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
-    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
-    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
-    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
-    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
-    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+    "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+    "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+    "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+    "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+    "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
   });
   assert.equal(
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.js_sql_parser_shapes.reason,
@@ -1497,12 +1516,27 @@ test("module-load frozen expected hashes are independent of observed and match t
   );
   assert.equal(
     recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
-    "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
   );
   assert.notEqual(
     recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.bare_local_pg17_without_platform_defaults["00118_f3_bounded_financial_epoch_foundation.sql"],
+  );
+  assert.equal(
+    EXPECTED_FINGERPRINT_SEAL_PROVENANCE.independently_reproduced_hosted_00118_after_platform_defaults,
+    true,
+  );
+  assert.equal(
+    recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
     EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
   );
+  for (const file of F3_FORWARD_FILES.filter((name) => name !== "00118_f3_bounded_financial_epoch_foundation.sql")) {
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
+      `${file} must not equal hosted 72af6699`,
+    );
+  }
   assert.notEqual(
     recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
     "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
@@ -1517,9 +1551,33 @@ test("module-load frozen expected hashes are independent of observed and match t
   assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_hosted, true);
   assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_copied_from_hosted_observed, true);
   assert.equal(
+    SEALED_PLATFORM_ACL_ENVELOPE_DIGEST,
+    "eb58900b492b95371decfdab86b3786afc2c8089c6b0a117497f9e0b22c41a2a",
+  );
+  assert.equal(platformAclEnvelopeDigest(SEALED_PLATFORM_ACL_ENVELOPE), SEALED_PLATFORM_ACL_ENVELOPE_DIGEST);
+  assert.equal(evaluatePlatformAclCalibration().ok, true);
+  assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.platform_acl_envelope_digest, SEALED_PLATFORM_ACL_ENVELOPE_DIGEST);
+  assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_from_hosted_fingerprint_72af6699, true);
+  assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_from_financial_ledger_epochs, true);
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.bare_local_pg17_without_platform_defaults["00118_f3_bounded_financial_epoch_foundation.sql"],
+    "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+  );
+  assert.equal(
+    FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
+    "5bdc6f4b431168d3f3c8a37ba4548bc73732cf45c1194eeb84daead688e35cf2",
+  );
+  assert.notEqual(
     FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
     "26bcb10d8e0b1a2f05434af975538054864fbfbb4e3da23f4335eefc4b8634ac",
   );
+  for (const file of F3_FORWARD_FILES) {
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.bare_local_pg17_without_platform_defaults[file],
+      `${file} new seal must supersede bare local PG17 without platform defaults`,
+    );
+  }
   assert.equal(
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.ten_field_schema.reason,
     TEN_FIELD_SCHEMA_SUPERSEDED_REASON,
@@ -3104,12 +3162,12 @@ test("22 successful full captures equal sealed expected hashes; frozen expected 
   assert.equal(recorded.independentOfObserved, true);
   assert.equal(recorded.populatedFromObserved, false);
   const sealed = {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
-    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
-    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
-    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
-    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
-    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+    "00119_f3_01_core_ledger_foundation.sql": "af633e8c0c2cd5aa4df743960e03e5d9d2e17c36907c76cb9ee8ee2dfe8a2ebc",
+    "00120_f3_02_secure_posting_idempotency.sql": "b1b3b3c3ab4163378c8dfdbeb1da1421a5a1480b5a457424da9bc4a885d1027c",
+    "00121_f3_03_projection_read_proof.sql": "db68839cc5f61ab22a84a21965af4e90a41e7b4139a056c371aa0347eb4e04ca",
+    "00122_f3_04_correction_reversal.sql": "d8b2d0316e555339bcd95e944fd23e5c7686f16fa34d1d4c4691d610b1dc7659",
+    "00123_f3_05_opening_cash_command.sql": "07e984115ffc24f4e9e0f0d5d1d7f8c903c81064312e5c0b498e367ca11a0854",
   };
   for (const file of F3_FORWARD_FILES) {
     const frozen = captureFrozenExpectedFingerprint(file);
@@ -3328,6 +3386,11 @@ test("corrected builder uses PG deparser shapes and independent local-oracle sea
   const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
   assert.match(gate, /independent_local_pg17_CATALOG_FINGERPRINT_SQL/);
   assert.match(gate, /buildIndependentObservedFingerprint\(file, requireOracleCatalog\(file\)\)/);
+  assert.match(gate, /SEALED_PLATFORM_ACL_ENVELOPE_DIGEST/);
+  assert.match(gate, /ALTER DEFAULT PRIVILEGES FOR ROLE/);
+  assert.match(qualify, /authorizeDbPushAfterPlatformAclCalibration/);
+  assert.match(qualify, /evaluatePlatformAclCalibration/);
+  assert.deepEqual([...APPLICABLE_PLATFORM_ACL_OBJECT_CLASSES], ["table", "sequence", "function"]);
   assert.doesNotMatch(
     gate.slice(gate.indexOf("export function buildExpandedExpectedFingerprint")),
     /applyMigrationSqlToCatalog/,
@@ -3545,4 +3608,238 @@ test("evidence pipeline hashes sanitized .out bytes and detaches index checksum"
   assert.equal(verified.sha256, index.sha256);
   fs.writeFileSync(index.checksumPath, "0".repeat(64) + "\n");
   assert.equal(verifyEvidenceIndex(dir).ok, false);
+});
+
+function serviceRoleAclRow(overrides = {}) {
+  return {
+    object_type: "table",
+    schema: "public",
+    object_name: "financial_ledger_epochs",
+    prokind: "",
+    identity_arguments: "",
+    grantee: "service_role",
+    grantor: "postgres",
+    privilege: "SELECT",
+    grantable: false,
+    ...overrides,
+  };
+}
+
+async function assertPlatformAclNegative(name, { fingerprint, gateExtra = {}, applyInput = null }) {
+  let dbPushCalls = 0;
+  let repairCalls = 0;
+  if (applyInput) {
+    const applied = applyPlatformAclEnvelopeToLocalOracle({
+      ...applyInput,
+      applySql: () => {
+        throw new Error("platform envelope applySql must not run on rejected input");
+      },
+    });
+    assert.equal(applied.ok, false, `${name} apply rejected`);
+    assert.equal(applied.applied, false, `${name} applied`);
+  }
+  if (fingerprint) {
+    const exact = fingerprintCompleteAndExact(fingerprint, FILE118);
+    assert.equal(exact.ok, false, `${name} fingerprintCompleteAndExact`);
+  }
+  const prePush = authorizeDbPushAfterPlatformAclCalibration({
+    envelope: Object.prototype.hasOwnProperty.call(gateExtra, "platformAclEnvelope")
+      ? gateExtra.platformAclEnvelope
+      : SEALED_PLATFORM_ACL_ENVELOPE,
+    targetObjectClass: gateExtra.platformAclTargetObjectClass,
+  });
+  if (gateExtra.platformAclEnvelope !== undefined || gateExtra.platformAclTargetObjectClass !== undefined) {
+    if (prePush.ok === false) {
+      assert.equal(prePush.dbPushAuthorized, false, `${name} dbPushAuthorized`);
+      assert.equal(prePush.fingerprint_exact, false, `${name} prePush fingerprint_exact`);
+    }
+  }
+  if (!prePush.ok) {
+    assert.equal(dbPushCalls, 0, `${name} dbPushCalls`);
+  }
+  const decided = await runRepairSafetyThenMaybeRepair({
+    gateInput: authorizedGateInput({
+      fingerprint: fingerprint || passingFingerprint(FILE118),
+      ...gateExtra,
+    }),
+    cleanup: () => provenCleanup(),
+    verifyPoisonAbsent: () => poisonAbsentResult(),
+    repair: () => {
+      repairCalls += 1;
+      return { status: 0 };
+    },
+  });
+  assert.equal(decided.repairAuthorized, false, `${name} repairAuthorized`);
+  assert.equal(decided.repairAttempted, false, `${name} repairAttempted`);
+  assert.equal(repairCalls, 0, `${name} repairCalls`);
+  assert.equal(decided.gate.failedGates.includes("fingerprint_exact"), true, `${name} fingerprint_exact`);
+  assert.equal(dbPushCalls, 0, `${name} dbPushCalls after gate`);
+  return decided;
+}
+
+test("Phase B platform ACL envelope is sealed at module load and fail-closed", () => {
+  assert.equal(SEALED_PLATFORM_ACL_ENVELOPE.digest_sha256, SEALED_PLATFORM_ACL_ENVELOPE_DIGEST);
+  assert.equal(SEALED_PLATFORM_ACL_ENVELOPE.not_from_hosted_fingerprint_72af6699, true);
+  assert.equal(SEALED_PLATFORM_ACL_ENVELOPE.not_from_financial_ledger_epochs, true);
+  assert.match(platformRolesSqlFromEnvelope(), /CREATE ROLE service_role/);
+  assert.match(platformRolesSqlFromEnvelope(), /CREATE ROLE anon/);
+  assert.match(platformRolesSqlFromEnvelope(), /CREATE ROLE authenticated/);
+  const sql = defaultPrivilegesSqlFromEnvelope();
+  assert.match(sql, /ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT/);
+  assert.match(sql, /ON TABLES TO service_role/);
+  assert.match(sql, /ON SEQUENCES TO service_role/);
+  assert.match(sql, /ON FUNCTIONS TO service_role/);
+  assert.doesNotMatch(sql, /ON TYPES/);
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  assert.match(qualify, /authorizeDbPushAfterPlatformAclCalibration/);
+  assert.match(qualify, /F3_PLATFORM_ACL_CALIBRATION_HOLD/);
+  const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  assert.match(gate, /no post-process union of service_role/);
+  assert.doesNotMatch(gate, /blindly union service_role into fingerprints/);
+});
+
+test("Phase B platform ACL negatives: missing/extra/wrong service_role and grant semantics", async () => {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const cases = [
+    ["missing-service_role-tuple", (o) => {
+      o.acls = o.acls.filter((row) => row.grantee !== "service_role");
+      o.acl = o.acls;
+      o.relations = o.relations.map((rel) => ({
+        ...rel,
+        acl: (rel.acl || []).filter((row) => row.grantee !== "service_role"),
+      }));
+    }],
+    ["extra-service_role-tuple", (o) => {
+      const extra = serviceRoleAclRow({ privilege: "TRUNCATE", object_name: "financial_ledger_epochs" });
+      const already = o.acls.some((row) => (
+        row.grantee === extra.grantee && row.privilege === extra.privilege && row.object_name === extra.object_name
+      ));
+      o.acls = already
+        ? [...o.acls, { ...extra, object_name: "forged_extra_epochs" }]
+        : [...o.acls, extra];
+      o.acl = o.acls;
+    }],
+    ["wrong-privilege", (o) => {
+      o.acls = o.acls.map((row) => (
+        row.grantee === "service_role" ? { ...row, privilege: "DELETE" } : row
+      ));
+      o.acl = o.acls;
+    }],
+    ["wrong-grantor", (o) => {
+      o.acls = o.acls.map((row) => (
+        row.grantee === "service_role" ? { ...row, grantor: "ubuntu" } : row
+      ));
+      o.acl = o.acls;
+    }],
+    ["wrong-object", (o) => {
+      o.acls = o.acls.map((row) => (
+        row.grantee === "service_role" ? { ...row, object_name: "forged_object" } : row
+      ));
+      o.acl = o.acls;
+    }],
+    ["wrong-grantability", (o) => {
+      o.acls = o.acls.map((row) => (
+        row.grantee === "service_role" ? { ...row, grantable: true } : row
+      ));
+      o.acl = o.acls;
+    }],
+    ["acl-acls-disagreement", (o) => {
+      o.acls = o.acls.map((row, i) => (i === 0 ? { ...row, grantee: "ubuntu" } : row));
+    }],
+  ];
+  for (const [name, mutate] of cases) {
+    const observed = structuredClone(expected);
+    mutate(observed);
+    await assertPlatformAclNegative(name, {
+      fingerprint: { expected, observed },
+    });
+  }
+});
+
+test("Phase B applying platform envelope to inapplicable object type rejects before db push", async () => {
+  const mutated = structuredClone(SEALED_PLATFORM_ACL_ENVELOPE);
+  mutated.default_acl_canonical = [
+    ...mutated.default_acl_canonical,
+    {
+      creating_role: "postgres",
+      schema_name: "public",
+      object_class: "type",
+      grantor: "postgres",
+      grantee: "service_role",
+      privilege_type: "USAGE",
+      is_grantable: false,
+    },
+  ];
+  await assertPlatformAclNegative("inapplicable-type-in-envelope", {
+    applyInput: { envelope: mutated },
+    gateExtra: { platformAclEnvelope: mutated },
+  });
+  await assertPlatformAclNegative("inapplicable-target-object-class", {
+    applyInput: {
+      envelope: SEALED_PLATFORM_ACL_ENVELOPE,
+      targetObjectClass: "type",
+    },
+    gateExtra: { platformAclTargetObjectClass: "type" },
+  });
+  assert.throws(
+    () => defaultPrivilegesSqlFromEnvelope(SEALED_PLATFORM_ACL_ENVELOPE, "type"),
+    (err) => /inapplicable object type/i.test(err.message),
+  );
+  assert.match(PLATFORM_ACL_INAPPLICABLE_OBJECT_HOLD, /inapplicable object type/);
+});
+
+test("Phase B target-observed ACL cannot replace or mutate sealed expected", async () => {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const before = fingerprintCanonicalSha256(expected);
+  const hostedLike = structuredClone(expected);
+  hostedLike.acls = [...hostedLike.acls, serviceRoleAclRow({ privilege: "MAINTAIN" })];
+  hostedLike.acl = hostedLike.acls;
+  const forgedExpected = structuredClone(hostedLike);
+  await assertPlatformAclNegative("target-observed-cannot-become-expected", {
+    fingerprint: { expected: forgedExpected, observed: hostedLike },
+  });
+  assert.equal(fingerprintCanonicalSha256(getFrozenExpectedFingerprint(FILE118)), before);
+  assertExpectedFingerprintImmutable(FILE118);
+  assert.equal(
+    EXPECTED_FINGERPRINT_SEAL_PROVENANCE.independently_reproduced_hosted_00118_after_platform_defaults,
+    true,
+  );
+  assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_copied_from_hosted_observed, true);
+  assert.notEqual(
+    fingerprintCanonicalSha256(forgedExpected),
+    before,
+  );
+  const contracts = assertFingerprintAclContracts(expected);
+  assert.equal(contracts.ok, true);
+});
+
+test("Phase B malformed or absent calibration evidence rejects before db push", async () => {
+  const cases = [
+    ["absent", null],
+    ["malformed-string", "not-an-envelope"],
+    ["malformed-array", []],
+    ["digest-mismatch", { ...SEALED_PLATFORM_ACL_ENVELOPE, artifact: "forged-envelope" }],
+  ];
+  for (const [name, envelope] of cases) {
+    const prePush = authorizeDbPushAfterPlatformAclCalibration({ envelope });
+    assert.equal(prePush.ok, false, name);
+    assert.equal(prePush.dbPushAuthorized, false, name);
+    assert.equal(prePush.fingerprint_exact, false, name);
+    assert.equal(prePush.dbPushCalls, 0, name);
+    assert.equal(prePush.repairCalls, 0, name);
+    await assertPlatformAclNegative(name, {
+      gateExtra: { platformAclEnvelope: envelope },
+    });
+    const sealed = await sealExpectedFingerprintsFromLocalOracle({
+      platformAclEnvelope: envelope,
+      fixtures: {
+        createDisposableDatabase() {
+          throw new Error("seal must not open a database when calibration fails");
+        },
+      },
+    });
+    assert.equal(sealed.ok, false, `${name} seal`);
+    assert.equal(sealed.status, "HOLD", `${name} seal status`);
+  }
+  assert.match(PLATFORM_ACL_CALIBRATION_HOLD, /digest mismatch|missing|malformed/);
 });

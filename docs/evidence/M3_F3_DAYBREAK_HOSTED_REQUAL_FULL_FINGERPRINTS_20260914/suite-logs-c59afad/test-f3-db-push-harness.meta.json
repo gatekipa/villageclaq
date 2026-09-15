@@ -1,0 +1,15 @@
+{
+  "name": "test-f3-db-push-harness",
+  "command": "node --test scripts/test-f3-db-push-harness.mjs",
+  "startedAt": "2026-09-14T21:32:12Z",
+  "endedAt": "2026-09-14T21:32:13Z",
+  "exit": 0,
+  "pass": 71,
+  "fail": 0,
+  "skip": 0,
+  "tap_ok": 71,
+  "tap_not_ok": 0,
+  "log": "<redacted-path>",
+  "sha256": "037fbcf113a9629ed85b22c47154804131a855dd5582a61d75fe822ea5fcea4f",
+  "bytes": 14978
+}

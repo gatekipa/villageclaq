@@ -1,0 +1,8 @@
+{
+  "artifact": "floor-limitation",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "floorLabel": "DOCUMENTED QUALIFICATION FIXTURE \u2014 NOT A CLEAN 00001\u201300117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+  "stub_live_pin": true,
+  "00117_via_gated_psql": true,
+  "not_production_equivalent": true
+}

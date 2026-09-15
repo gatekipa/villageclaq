@@ -1,0 +1,6 @@
+{
+  "artifact": "production-history-limitation",
+  "warning": "disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, separately authorized read-only production preflight must prove every production-recorded migration has authoritative local timestamp file, frozen SQL digest, and order.",
+  "production_ref_contacted": false,
+  "production_ref_forbidden": "llbnliixczcqfftxpsmb"
+}

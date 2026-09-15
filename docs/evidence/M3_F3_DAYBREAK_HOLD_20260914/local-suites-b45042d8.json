@@ -1,0 +1,254 @@
+{
+  "tip": "b45042d8c9927a72fa1fddf9e6be27b96ee56919",
+  "parent": "c1a18a95",
+  "verifiedAt": "2026-09-14T04:21:46.489Z",
+  "verifiedAtET": "9/14/2026, 12:21:46 AM ET",
+  "successCriteria": {
+    "test_f3_db_push_zero_fail": true,
+    "verdict": "CONTINUE"
+  },
+  "compare": {
+    "range": "c1a18a95...b45042d8",
+    "status": "ahead",
+    "ahead_by": 1,
+    "total_commits": 1,
+    "filesOnlyAuthorizedThree": true,
+    "files": [
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/test-f3-db-push-harness.mjs"
+    ]
+  },
+  "digests": {
+    "allMatch": true,
+    "files": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": {
+        "expected": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "actual": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "match": true,
+        "bytes": 12935
+      },
+      "00119_f3_01_core_ledger_foundation.sql": {
+        "expected": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "actual": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "match": true,
+        "bytes": 35663
+      },
+      "00120_f3_02_secure_posting_idempotency.sql": {
+        "expected": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "actual": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "match": true,
+        "bytes": 33103
+      },
+      "00121_f3_03_projection_read_proof.sql": {
+        "expected": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "actual": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "match": true,
+        "bytes": 36076
+      },
+      "00122_f3_04_correction_reversal.sql": {
+        "expected": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "actual": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "match": true,
+        "bytes": 49221
+      },
+      "00123_f3_05_opening_cash_command.sql": {
+        "expected": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "actual": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "match": true,
+        "bytes": 19813
+      }
+    }
+  },
+  "recognition": {
+    "exact": [
+      "manual_income"
+    ],
+    "ok": true
+  },
+  "repairSafetyMatrix": {
+    "names": [
+      "repair-safety gate authorizes repair only after all proofs",
+      "authorized repair proves poison absent before spawning migration repair",
+      "repair-safety negatives spawn zero repair processes and still clean poison",
+      "strict object probe rejects ERROR relation financial_private and all unstructured fallbacks",
+      "fingerprint mismatch of any catalog value forbids repair",
+      "cleanup and poison-verify negatives never invoke repair",
+      "teardown poison removal is recorded separately and is not cleanup success",
+      "qualify runner classifies before repair and uses the new success label",
+      "unexpected staged files and identity/cli misses forbid repair"
+    ],
+    "count": 9,
+    "focusedHarness": {
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0
+    },
+    "fullyGreen": true
+  },
+  "suites": {
+    "test:f3-db-push": {
+      "tests": 76,
+      "pass": 75,
+      "fail": 0,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-db-push.out"
+    },
+    "node --test scripts/test-f3-db-push-harness.mjs": {
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-db-push-harness.out",
+      "note": "focused repair-safety harness"
+    },
+    "test:f3-recognition": {
+      "tests": 40,
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-recognition.out"
+    },
+    "test:f3-oracles": {
+      "tests": 577,
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-oracles.out"
+    },
+    "test:f3-mapi-harness": {
+      "tests": 22,
+      "pass": 22,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-mapi-harness.out"
+    },
+    "test:f3-local-safety": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-local-safety.out"
+    },
+    "node --test scripts/test-f3-acl-portability.mjs": {
+      "tests": 4,
+      "pass": 3,
+      "fail": 0,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-acl-portability.out"
+    },
+    "test:f3": {
+      "tests": 1038,
+      "pass": 724,
+      "fail": 313,
+      "skipped": 1,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "test-f3-raw.out",
+      "note": "PG peer-auth failures expected locally; classification artifact written"
+    },
+    "test:f3-regression": {
+      "tests": 14,
+      "pass": 0,
+      "fail": 14,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-f3-regression.out",
+      "note": "all fail: local PG peer-auth"
+    },
+    "test:m2": {
+      "tests": 111,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-m2.out"
+    },
+    "test:m2-static-security": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-m2-static-security.out"
+    },
+    "test:s0-cut1-active-authorization": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-s0-cut1.out"
+    },
+    "test:s0-cut2": {
+      "tests": 21,
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-s0-cut2.out",
+      "note": "7 fails: CUT2 disposable PostgreSQL unavailable",
+      "failingTests": [
+        "duplicate lookup only provenance=1 + channel + template + idempotencyKey",
+        "conflict without trusted canonical row → trusted_idempotency_conflict_mismatch; no mutation",
+        "trusted unique index only matches provenance=1; legacy keys cannot poison",
+        "NULL provenance untouched; drain selects only provenance=1",
+        "each of 17 WA uniques is provenance-scoped",
+        "only cut2_provenance_version=1 is trusted; RPC hardcodes 1; clients cannot mint it",
+        "service_role UPDATE only worker columns; MUST NOT update immutables"
+      ]
+    },
+    "test:storage-buckets": {
+      "tests": 11,
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "log": "suite-logs/test-storage-buckets.out"
+    },
+    "npx tsc --noEmit": {
+      "pass": true,
+      "fail": 0,
+      "exitCode": 0,
+      "diagnostics": 0,
+      "log": "suite-logs/tsc-noEmit.out"
+    },
+    "npm run build (dummy non-prod env)": {
+      "ok": true,
+      "env": {
+        "NEXT_PUBLIC_SUPABASE_URL": "http://127.0.0.1",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "dummy"
+      },
+      "log": "suite-logs/build.out"
+    }
+  },
+  "artifacts": {
+    "summary": "/workspace/f3-daybreak-hold/evidence/local-suites-b45042d8.json",
+    "classification": "/workspace/f3-daybreak-hold/evidence/test-f3-failure-classification.json",
+    "f3Raw": "/workspace/f3-daybreak-hold/evidence/test-f3-raw.out",
+    "digestRecognition": "/workspace/f3-daybreak-hold/evidence/digest-recognition-check.json"
+  }
+}

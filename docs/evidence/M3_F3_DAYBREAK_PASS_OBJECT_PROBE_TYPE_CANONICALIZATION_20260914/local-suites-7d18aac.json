@@ -1,0 +1,365 @@
+{
+  "tip": "7d18aacaa163f9738be16be80489654b048e2150",
+  "parent": "27ecf243829961b92aa08d4077128e9829f69ebe",
+  "verifiedAt": "2026-09-14T18:33:00.079515Z",
+  "verifiedAtET": "9/14/2026, 6:33:00 PM ET",
+  "successCriteria": {
+    "test_f3_db_push_zero_fail": true,
+    "verdict": "CONTINUE"
+  },
+  "compare": {
+    "range": "780f0922...7d18aac",
+    "status": "ahead",
+    "ahead_by": 2,
+    "total_commits": 2,
+    "filesOnlyAuthorizedThree": true,
+    "files": [
+      "scripts/lib/f3-db-push-repair-safety-gate.mjs",
+      "scripts/qualify-f3-db-push-disposable.mjs",
+      "scripts/test-f3-db-push-harness.mjs"
+    ]
+  },
+  "digests": {
+    "allMatch": true,
+    "files": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": {
+        "expected": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "actual": "bb823ebdddcefba7774f3347a609a05393d9a67c9430d0bd925c3458eaf5efed",
+        "match": true,
+        "bytes": 12935
+      },
+      "00119_f3_01_core_ledger_foundation.sql": {
+        "expected": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "actual": "b22e16783fbb429ccae0ce15291d83311861f4e873cd01363bbd630372633f11",
+        "match": true,
+        "bytes": 35663
+      },
+      "00120_f3_02_secure_posting_idempotency.sql": {
+        "expected": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "actual": "d81c8f52d4fccea4b654c3a54806ffc07d654ffa2a33540c97b74721d56b9a60",
+        "match": true,
+        "bytes": 33103
+      },
+      "00121_f3_03_projection_read_proof.sql": {
+        "expected": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "actual": "51f40ccbd7dad79362b8cf2cd9854b9c8cdfd7295e4c10be5892d953915e90ce",
+        "match": true,
+        "bytes": 36076
+      },
+      "00122_f3_04_correction_reversal.sql": {
+        "expected": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "actual": "84f52b89b764a468db7748e5c572f2543c5d466e5369ff36e6889d85ca8434f3",
+        "match": true,
+        "bytes": 49221
+      },
+      "00123_f3_05_opening_cash_command.sql": {
+        "expected": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "actual": "0c8af9d755e5329ca58d6c5ae967fbe5b18e3e41bb836c934cfea0c06afce96d",
+        "match": true,
+        "bytes": 19813
+      }
+    }
+  },
+  "recognition": {
+    "exact": [
+      "manual_income"
+    ],
+    "ok": true
+  },
+  "expectedFingerprintHashes": {
+    "recomputedMatchSealed": true,
+    "supersededToNew": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": {
+        "sealed": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+        "recomputed": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+        "match": true,
+        "superseded_concatenated_object_identity": "a1538e7d2d451c198350535128ece77cbe54ad31cd11d6d902f7efc0ece231c5"
+      },
+      "00119_f3_01_core_ledger_foundation.sql": {
+        "sealed": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+        "recomputed": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+        "match": true,
+        "superseded_concatenated_object_identity": "422c5d8b22ae4c07f59261f09988afccf80efb85f3c05dc5c3c91063a12f7f4c"
+      },
+      "00120_f3_02_secure_posting_idempotency.sql": {
+        "sealed": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+        "recomputed": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+        "match": true,
+        "superseded_concatenated_object_identity": "1f5433b99ee60148fe708c51e576ce50cf082e8279e32057aa8e0e1a2e450610"
+      },
+      "00121_f3_03_projection_read_proof.sql": {
+        "sealed": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+        "recomputed": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+        "match": true,
+        "superseded_concatenated_object_identity": "6705f7bb63cf18eda2b22bace9ff69c2c915207238f760437eccf08441e95c3c"
+      },
+      "00122_f3_04_correction_reversal.sql": {
+        "sealed": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+        "recomputed": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+        "match": true,
+        "superseded_concatenated_object_identity": "e84cf051957897be0434d6b2fb71a3f4317228080d994110ec4470b8cb97b9ee"
+      },
+      "00123_f3_05_opening_cash_command.sql": {
+        "sealed": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+        "recomputed": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+        "match": true,
+        "superseded_concatenated_object_identity": "3ff28c4c5f3f31c05014febd2c4e25158b597048f5e1e3bc7ea23a1d7ef40b66"
+      }
+    }
+  },
+  "objectProbeDescriptors": {
+    "uses_timestamp_with_time_zone": true,
+    "no_timestamptz_in_identity_arguments": true,
+    "perFile": {
+      "00118_f3_bounded_financial_epoch_foundation.sql": [
+        {
+          "schema": "financial_private",
+          "object_name": "financial_private",
+          "prokind": "",
+          "identity_arguments": "",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        },
+        {
+          "schema": "public",
+          "object_name": "financial_ledger_epochs",
+          "prokind": "",
+          "identity_arguments": "",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        }
+      ],
+      "00119_f3_01_core_ledger_foundation.sql": [
+        {
+          "schema": "financial_core",
+          "object_name": "financial_core",
+          "prokind": "",
+          "identity_arguments": "",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        },
+        {
+          "schema": "public",
+          "object_name": "financial_accounts",
+          "prokind": "",
+          "identity_arguments": "",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        },
+        {
+          "schema": "public",
+          "object_name": "financial_events",
+          "prokind": "",
+          "identity_arguments": "",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        },
+        {
+          "schema": "public",
+          "object_name": "financial_postings",
+          "prokind": "",
+          "identity_arguments": "",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        },
+        {
+          "schema": "public",
+          "object_name": "financial_event_class",
+          "prokind": "",
+          "identity_arguments": "",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        }
+      ],
+      "00120_f3_02_secure_posting_idempotency.sql": [
+        {
+          "schema": "public",
+          "object_name": "post_financial_command",
+          "prokind": "f",
+          "identity_arguments": "p_command jsonb",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        }
+      ],
+      "00121_f3_03_projection_read_proof.sql": [
+        {
+          "schema": "public",
+          "object_name": "get_financial_projection_bundle",
+          "prokind": "f",
+          "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_as_of_exclusive timestamp with time zone",
+          "uses_timestamp_with_time_zone": true,
+          "uses_timestamptz_alias": false
+        },
+        {
+          "schema": "public",
+          "object_name": "get_financial_cashbook",
+          "prokind": "f",
+          "identity_arguments": "p_group_id uuid, p_from timestamp with time zone, p_to timestamp with time zone, p_account_id uuid, p_currency text, p_offset integer, p_limit integer",
+          "uses_timestamp_with_time_zone": true,
+          "uses_timestamptz_alias": false
+        }
+      ],
+      "00122_f3_04_correction_reversal.sql": [
+        {
+          "schema": "public",
+          "object_name": "correct_financial_event",
+          "prokind": "f",
+          "identity_arguments": "p_command jsonb",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        }
+      ],
+      "00123_f3_05_opening_cash_command.sql": [
+        {
+          "schema": "public",
+          "object_name": "post_financial_opening_cash",
+          "prokind": "f",
+          "identity_arguments": "p_command jsonb",
+          "uses_timestamp_with_time_zone": false,
+          "uses_timestamptz_alias": false
+        }
+      ]
+    }
+  },
+  "sourceContract": {
+    "noCommaSplitIdentityParser": true,
+    "identityFromCatalogFields": true,
+    "fields": [
+      "schema",
+      "object_name",
+      "prokind",
+      "identity_arguments"
+    ],
+    "notes": "identity_arguments taken whole between matching parentheses / via pg_get_function_identity_arguments; never comma-split",
+    "timestamptzCanonicalization": {
+      "FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS_uses_timestamp_with_time_zone": true,
+      "no_timestamptz_alias_in_identity_arguments": true,
+      "descriptors_ok": true
+    }
+  },
+  "sealsBeforeDbAccess": {
+    "executableByteManifest": "<redacted-path>",
+    "dependencyClosure": "<redacted-path>",
+    "sealed": true
+  },
+  "suites": {
+    "test:f3-db-push": {
+      "pass": 94,
+      "fail": 0,
+      "skipped": 1,
+      "tests": 95,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-f3-db-push.out"
+    },
+    "test-f3-db-push-harness": {
+      "pass": 59,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 59,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-f3-db-push-harness.out"
+    },
+    "test:f3-recognition": {
+      "pass": 40,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 40,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-f3-recognition.out"
+    },
+    "test:f3-oracles": {
+      "pass": 577,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 577,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-f3-oracles.out"
+    },
+    "test:f3-local-safety": {
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 45,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-f3-local-safety.out"
+    },
+    "test-f3-acl-portability": {
+      "pass": 3,
+      "fail": 0,
+      "skipped": 1,
+      "tests": 4,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-f3-acl-portability.out"
+    },
+    "test:m2": {
+      "pass": 111,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 111,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-m2.out"
+    },
+    "test:m2-static-security": {
+      "pass": 9,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 9,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-m2-static-security.out"
+    },
+    "test:s0-cut1-active-authorization": {
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 11,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-s0-cut1-active-authorization.out"
+    },
+    "test:s0-cut2": {
+      "pass": 14,
+      "fail": 7,
+      "skipped": 0,
+      "tests": 21,
+      "exit": 1,
+      "log": "suite-logs-7d18aac/test-s0-cut2.out",
+      "envLimitation": true
+    },
+    "test:storage-buckets": {
+      "pass": 11,
+      "fail": 0,
+      "skipped": 0,
+      "tests": 11,
+      "exit": 0,
+      "log": "suite-logs-7d18aac/test-storage-buckets.out"
+    },
+    "test:f3": {
+      "pass": 743,
+      "fail": 313,
+      "skipped": 1,
+      "tests": 1057,
+      "exit": 1,
+      "log": "suite-logs-7d18aac/test-f3.out",
+      "peerAuthEnv": true
+    },
+    "test:f3-regression": {
+      "pass": 0,
+      "fail": 14,
+      "skipped": 0,
+      "tests": 14,
+      "exit": 1,
+      "log": "suite-logs-7d18aac/test-f3-regression.out",
+      "peerAuthEnv": true
+    },
+    "tsc --noEmit": {
+      "exit": 0,
+      "pass": true,
+      "log": "suite-logs-7d18aac/tsc-noEmit.out"
+    },
+    "npm run build": {
+      "exit": 0,
+      "pass": true,
+      "log": "suite-logs-7d18aac/next-build.out"
+    }
+  },
+  "note": "test:f3 / test:f3-regression / test:s0-cut2 failures are local peer-auth / env \u2014 not tip regression; see test-f3-failure-classification-7d18aac.json"
+}

@@ -1,0 +1,17 @@
+{
+  "artifact": "expected-descriptor-provenance",
+  "functional_sha": "ebd4c20bcf72500b77ea24bd7269094f3dc13b3e",
+  "builder": "buildExpandedExpectedFingerprint / assertSealedExpectedHashesAtLoad",
+  "catalogSource": "FROZEN_EXPECTED_FINGERPRINTS (offline from migration SQL + security contract)",
+  "sealed_hashes": {
+    "00118_f3_bounded_financial_epoch_foundation.sql": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+    "00119_f3_01_core_ledger_foundation.sql": "7ec7ba2f5e05f244939cc123266fda1efb330eb68ca389fc571f1b4df93aa419",
+    "00120_f3_02_secure_posting_idempotency.sql": "6ee99d881bcf972f86a4a5e9c8932d491fc6b6e02daf34c99947fe1dca8b9e41",
+    "00121_f3_03_projection_read_proof.sql": "22ec40e5979ae30947e139c77983ba793b914d5f5df9a2009234b0caf1172599",
+    "00122_f3_04_correction_reversal.sql": "f66af826fb10ad4d5e2c3a8d3c6ba282d8e29fdd316fee6b6d4e9434faa62e92",
+    "00123_f3_05_opening_cash_command.sql": "96696f7105843e1288e71d218d55607da47ec240516aa32f9d5b725bca665d3f"
+  },
+  "independent_of_observed": true,
+  "constructed_offline_before_db": true,
+  "module_load_asserted": true
+}

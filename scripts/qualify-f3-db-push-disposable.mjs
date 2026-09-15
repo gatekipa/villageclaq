@@ -140,9 +140,11 @@ import {
   recordFrozenExpectedFingerprintCaptures,
   recordPreDbExpectedHashes,
   runRepairSafetyThenMaybeRepair,
+  sealExpectedFingerprintsFromLocalOracle,
   syncIsolatedMigrationsThrough,
   writeQualifyEvidenceArtifacts,
   F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+  EXPECTED_FINGERPRINT_SEAL_PROVENANCE,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -234,6 +236,7 @@ function parseArgs(argv) {
     skipCleanup: argv.includes("--skip-cleanup"),
     floorMode: parseFloorMode(argv),
     evidenceOut: parseEvidenceOutArg(argv),
+    sealFromLocalOracle: argv.includes("--seal-expected-from-local-oracle"),
   };
 }
 
@@ -284,6 +287,30 @@ function objectsPresentFromProbe(result) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.sealFromLocalOracle) {
+    const sealed = await sealExpectedFingerprintsFromLocalOracle();
+    const payload = {
+      mode: "seal-expected-from-local-oracle",
+      productionContacted: false,
+      hostedDisposableContacted: false,
+      provenance: sealed.provenance || { ...EXPECTED_FINGERPRINT_SEAL_PROVENANCE },
+      ok: sealed.ok === true,
+      status: sealed.status,
+      reason: sealed.reason || null,
+      hashes: sealed.hashes || null,
+      recognition: sealed.recognition || [...RECOGNITION_ALLOWLIST],
+      schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+    };
+    const json = JSON.stringify(sanitizeForLog(payload), null, 2);
+    console.log(json);
+    if (args.evidenceOut) {
+      writeQualifyEvidenceArtifacts({
+        dest: path.resolve(root, args.evidenceOut),
+        sanitizedJson: json,
+      });
+    }
+    process.exit(sealed.ok === true ? 0 : sealed.status === "NOT_RUN" ? 2 : 1);
+  }
   if (!dbPushGatesSatisfiedFromEnv()) {
     const payload = chiefRunbook();
     console.log(JSON.stringify(payload, null, 2));

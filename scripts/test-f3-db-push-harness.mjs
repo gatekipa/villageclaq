@@ -3792,7 +3792,10 @@ test("Phase B target-observed ACL cannot replace or mutate sealed expected", asy
   const expected = getFrozenExpectedFingerprint(FILE118);
   const before = fingerprintCanonicalSha256(expected);
   const hostedLike = structuredClone(expected);
-  hostedLike.acls = [...hostedLike.acls, serviceRoleAclRow({ privilege: "MAINTAIN" })];
+  hostedLike.acls = [...hostedLike.acls, serviceRoleAclRow({
+    privilege: "SELECT",
+    object_name: "target_observed_forged_epochs",
+  })];
   hostedLike.acl = hostedLike.acls;
   const forgedExpected = structuredClone(hostedLike);
   await assertPlatformAclNegative("target-observed-cannot-become-expected", {

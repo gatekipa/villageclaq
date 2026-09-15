@@ -135,6 +135,10 @@ import {
   fingerprintCompleteAndExact,
   FROZEN_EXPECTED_FINGERPRINT_SHA256,
   SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256,
+  EXPECTED_FINGERPRINT_SEAL_PROVENANCE,
+  JS_SQL_PARSER_SUPERSEDED_REASON,
+  FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
+  sealExpectedFingerprintsFromLocalOracle,
   extractExactPostgresError,
   sanitizeEvidenceOutBytes,
   buildSuiteMetaFromSanitizedOut,
@@ -1476,13 +1480,46 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.deepEqual(getFrozenExpectedFingerprint(file).recognition, ["manual_income"]);
   }
   assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
-    "00119_f3_01_core_ledger_foundation.sql": "7ec7ba2f5e05f244939cc123266fda1efb330eb68ca389fc571f1b4df93aa419",
-    "00120_f3_02_secure_posting_idempotency.sql": "6ee99d881bcf972f86a4a5e9c8932d491fc6b6e02daf34c99947fe1dca8b9e41",
-    "00121_f3_03_projection_read_proof.sql": "22ec40e5979ae30947e139c77983ba793b914d5f5df9a2009234b0caf1172599",
-    "00122_f3_04_correction_reversal.sql": "f66af826fb10ad4d5e2c3a8d3c6ba282d8e29fdd316fee6b6d4e9434faa62e92",
-    "00123_f3_05_opening_cash_command.sql": "96696f7105843e1288e71d218d55607da47ec240516aa32f9d5b725bca665d3f",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547",
   });
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.js_sql_parser_shapes.reason,
+    JS_SQL_PARSER_SUPERSEDED_REASON,
+  );
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.js_sql_parser_shapes["00118_f3_bounded_financial_epoch_foundation.sql"],
+    "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+  );
+  assert.equal(
+    recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
+    "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+  );
+  assert.notEqual(
+    recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
+    EXPECTED_FINGERPRINT_SEAL_PROVENANCE.hosted_observed_00118_forbidden,
+  );
+  assert.notEqual(
+    recorded.sha256BeforeDb["00118_f3_bounded_financial_epoch_foundation.sql"],
+    "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+  );
+  for (const file of F3_FORWARD_FILES) {
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.js_sql_parser_shapes[file],
+      `${file} new seal must supersede JS SQL-parser hash`,
+    );
+  }
+  assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_hosted, true);
+  assert.equal(EXPECTED_FINGERPRINT_SEAL_PROVENANCE.not_copied_from_hosted_observed, true);
+  assert.equal(
+    FROZEN_EXPECTED_ORACLE_CATALOG_SHA256,
+    "26bcb10d8e0b1a2f05434af975538054864fbfbb4e3da23f4335eefc4b8634ac",
+  );
   assert.equal(
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.ten_field_schema.reason,
     TEN_FIELD_SCHEMA_SUPERSEDED_REASON,
@@ -3067,12 +3104,12 @@ test("22 successful full captures equal sealed expected hashes; frozen expected 
   assert.equal(recorded.independentOfObserved, true);
   assert.equal(recorded.populatedFromObserved, false);
   const sealed = {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
-    "00119_f3_01_core_ledger_foundation.sql": "7ec7ba2f5e05f244939cc123266fda1efb330eb68ca389fc571f1b4df93aa419",
-    "00120_f3_02_secure_posting_idempotency.sql": "6ee99d881bcf972f86a4a5e9c8932d491fc6b6e02daf34c99947fe1dca8b9e41",
-    "00121_f3_03_projection_read_proof.sql": "22ec40e5979ae30947e139c77983ba793b914d5f5df9a2009234b0caf1172599",
-    "00122_f3_04_correction_reversal.sql": "f66af826fb10ad4d5e2c3a8d3c6ba282d8e29fdd316fee6b6d4e9434faa62e92",
-    "00123_f3_05_opening_cash_command.sql": "96696f7105843e1288e71d218d55607da47ec240516aa32f9d5b725bca665d3f",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "8299680fd5b3def52a981ae8c8ee097f29f13507b91d4f0799557236f1b5001c",
+    "00119_f3_01_core_ledger_foundation.sql": "0ee6c447ac89510f381abd30908b7fb5ba304537e60c577d6eedcc7835a7ed43",
+    "00120_f3_02_secure_posting_idempotency.sql": "13234a1e57a8c181da1a356ba1f236efc919efb6edb642062239499ff10d0ce9",
+    "00121_f3_03_projection_read_proof.sql": "b1693eda6e5e3944db092d800e037e366c9fd8e18723db962493b502c539cb30",
+    "00122_f3_04_correction_reversal.sql": "9add78f222edc0f933512f726f08ed92feed94432b9a9234c32e6952a1dfc00c",
+    "00123_f3_05_opening_cash_command.sql": "0234d2bf2374c8a681d186b8d77364b4b4db02eac76cebf786173d4a835f9547",
   };
   for (const file of F3_FORWARD_FILES) {
     const frozen = captureFrozenExpectedFingerprint(file);
@@ -3229,11 +3266,21 @@ test("expanded catalog drift matrix forbids repair on the actual gate path", asy
     ["oid-forbidden", (o) => { o.relations = o.relations.map((row) => ({ ...row, oid: 4242 })); }],
     ["duplicate-rls", (o) => { o.rls = [...o.rls, { ...o.rls[0] }]; }],
     ["enum-label-order", (o) => {
-      if (o.types.length === 0) {
-        o.columns = [];
+      const enumRow = o.types.find((row) => row.kind === "enum" && Array.isArray(row.labels) && row.labels.length > 1);
+      if (enumRow) {
+        o.types = o.types.map((row) => (
+          row === enumRow ? { ...row, labels: [...row.labels].reverse() } : row
+        ));
         return;
       }
-      o.types = o.types.map((row) => ({ ...row, labels: [...row.labels].reverse() }));
+      o.types = [...o.types, {
+        schema: "public",
+        name: "financial_forged_enum",
+        kind: "enum",
+        labels: ["b", "a"],
+        owner: "postgres",
+        acl: [],
+      }];
     }],
   ];
   for (const [name, mutate] of drifts) {
@@ -3259,6 +3306,194 @@ test("expanded catalog drift matrix forbids repair on the actual gate path", asy
     assert.equal(repairCalls, 0, `${name} repair spawned`);
     assert.equal(decided.gate.failedGates.includes("fingerprint_exact"), true, `${name} fingerprint_exact`);
   }
+});
+
+test("corrected builder uses PG deparser shapes and independent local-oracle seals", () => {
+  const expected118 = getFrozenExpectedFingerprint(FILE118);
+  const expected119 = getFrozenExpectedFingerprint("00119_f3_01_core_ledger_foundation.sql");
+  assert.ok(expected118.triggers.some((row) => String(row.timing_events).startsWith("CREATE TRIGGER")));
+  assert.ok(expected118.indexes.some((row) => /USING (btree|gist)/.test(row.definition)));
+  assert.ok(expected118.constraints.some((row) => /PRIMARY KEY/.test(row.definition)));
+  assert.ok(expected118.routines.some((row) => String(row.functiondef).includes("CREATE OR REPLACE FUNCTION")));
+  assert.ok(expected118.columns.every((row) => Object.prototype.hasOwnProperty.call(row, "typmod")));
+  assert.ok(expected118.types.some((row) => row.kind === "composite"));
+  const enumType = expected119.types.find((row) => row.kind === "enum" && row.labels.length > 1);
+  assert.ok(enumType, "00119 has ordered enum labels");
+  assert.notDeepEqual(enumType.labels, [...enumType.labels].sort());
+  assert.ok(expected118.schemas[0].acl.length > 0);
+  assert.deepEqual(expected118.recognition, ["manual_income"]);
+  const qualify = fs.readFileSync(path.join(root, "scripts/qualify-f3-db-push-disposable.mjs"), "utf8");
+  assert.match(qualify, /--seal-expected-from-local-oracle/);
+  assert.match(qualify, /sealExpectedFingerprintsFromLocalOracle/);
+  const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  assert.match(gate, /independent_local_pg17_CATALOG_FINGERPRINT_SQL/);
+  assert.match(gate, /buildIndependentObservedFingerprint\(file, requireOracleCatalog\(file\)\)/);
+  assert.doesNotMatch(
+    gate.slice(gate.indexOf("export function buildExpandedExpectedFingerprint")),
+    /applyMigrationSqlToCatalog/,
+  );
+});
+
+test("corrected builder+comparator local negatives forbid repair with zero retry", async () => {
+  const expected118 = getFrozenExpectedFingerprint(FILE118);
+  const expected119 = getFrozenExpectedFingerprint("00119_f3_01_core_ledger_foundation.sql");
+  const enumName = expected119.types.find((row) => row.kind === "enum" && row.labels.length > 1)?.name;
+  const domainName = expected119.types.find((row) => row.kind === "domain")?.name;
+  const cases = [
+    ["column-type", FILE118, expected118, (o) => {
+      o.columns = o.columns.map((row) => (
+        row.relation === "financial_ledger_epochs" && row.name === "group_id"
+          ? { ...row, type: "text" }
+          : row
+      ));
+    }],
+    ["column-default", FILE118, expected118, (o) => {
+      o.columns = o.columns.map((row) => (
+        row.relation === "financial_ledger_epochs" && row.name === "id"
+          ? { ...row, default: "uuid_generate_v4()" }
+          : row
+      ));
+    }],
+    ["column-nullability", FILE118, expected118, (o) => {
+      o.columns = o.columns.map((row) => (
+        row.relation === "financial_ledger_epochs" && row.name === "group_id"
+          ? { ...row, nullable: true }
+          : row
+      ));
+    }],
+    ["missing-column", FILE118, expected118, (o) => {
+      o.columns = o.columns.filter((row) => !(row.relation === "financial_ledger_epochs" && row.name === "group_id"));
+    }],
+    ["extra-column", FILE118, expected118, (o) => {
+      const col = o.columns.find((row) => row.relation === "financial_ledger_epochs" && row.name === "group_id");
+      o.columns = [...o.columns, { ...col, name: "forged_extra", ordinal: 99 }];
+    }],
+    ["reordered-columns", FILE118, expected118, (o) => {
+      const first = o.columns.find((row) => row.relation === "financial_ledger_epochs" && row.ordinal === 1);
+      const second = o.columns.find((row) => row.relation === "financial_ledger_epochs" && row.ordinal === 2);
+      o.columns = o.columns.map((row) => {
+        if (row === first) return { ...second, ordinal: 1 };
+        if (row === second) return { ...first, ordinal: 2 };
+        return row;
+      });
+    }],
+    ["constraint-drift", FILE118, expected118, (o) => {
+      o.constraints = o.constraints.map((row, i) => (i === 0 ? { ...row, definition: "CHECK (false)" } : row));
+    }],
+    ["index-drift", FILE118, expected118, (o) => {
+      o.indexes = o.indexes.map((row, i) => (i === 0 ? { ...row, definition: `${row.definition} /*drift*/` } : row));
+    }],
+    ["routine-drift", FILE118, expected118, (o) => {
+      o.routines = o.routines.map((row, i) => (i === 0 ? { ...row, functiondef: "CREATE FUNCTION forged()" } : row));
+    }],
+    ["owner-drift", FILE118, expected118, (o) => {
+      o.function_owner = o.function_owner.map((row) => ({ ...row, owner: "ubuntu" }));
+    }],
+    ["schema-drift", FILE118, expected118, (o) => {
+      o.schemas = o.schemas.map((row) => ({ ...row, owner: "ubuntu" }));
+    }],
+    ["trigger-drift", FILE118, expected118, (o) => {
+      o.triggers = o.triggers.map((row, i) => (i === 0 ? { ...row, timing_events: "BEFORE INSERT" } : row));
+    }],
+    ["type-drift", FILE118, expected118, (o) => {
+      o.types = o.types.map((row, i) => (i === 0 ? { ...row, kind: "enum", labels: ["x"] } : row));
+    }],
+    ["enum-drift", "00119_f3_01_core_ledger_foundation.sql", expected119, (o) => {
+      o.types = o.types.map((row) => (
+        row.name === enumName ? { ...row, labels: [...row.labels].reverse() } : row
+      ));
+    }],
+    ["domain-drift", "00119_f3_01_core_ledger_foundation.sql", expected119, (o) => {
+      if (domainName) {
+        o.types = o.types.map((row) => (row.name === domainName ? { ...row, name: `${row.name}_forged` } : row));
+      } else {
+        o.types = [...o.types, {
+          schema: "public",
+          name: "financial_forged_domain",
+          kind: "domain",
+          labels: [],
+          owner: "postgres",
+          acl: [],
+        }];
+      }
+    }],
+    ["rls-enabled", FILE118, expected118, (o) => {
+      o.rls = o.rls.map((row) => ({ ...row, rls_enabled: !row.rls_enabled }));
+    }],
+    ["rls-forced", FILE118, expected118, (o) => {
+      o.rls = o.rls.map((row) => ({ ...row, rls_force: !row.rls_force }));
+    }],
+    ["policy-drift", FILE118, expected118, (o) => {
+      o.policies = o.policies.map((row) => ({ ...row, using: "(false)" }));
+      o.policy = o.policies;
+    }],
+    ["acl-association", FILE118, expected118, (o) => {
+      o.acls = o.acls.map((row, i) => (i === 0 ? { ...row, grantee: "ubuntu" } : row));
+      o.acl = o.acls;
+    }],
+    ["search_path", FILE118, expected118, (o) => {
+      o.function_owner = o.function_owner.map((row) => ({ ...row, search_path: "public" }));
+      o.routines = o.routines.map((row) => ({ ...row, search_path: "public" }));
+    }],
+    ["hgp", FILE118, expected118, (o) => {
+      o.hgp = { ...o.hgp, def_md5: "0".repeat(32) };
+    }],
+    ["recognition", FILE118, expected118, (o) => {
+      o.recognition = ["manual_expense"];
+    }],
+    ["migration-digest", FILE118, expected118, (o) => {
+      o.migration_digest = "0".repeat(64);
+    }],
+    ["migration-metadata", FILE118, expected118, (o) => {
+      o.migration_version = "00000000000000";
+      o.migration_source_label = "wrong";
+    }],
+    ["missing-key", FILE118, expected118, (o) => {
+      delete o.triggers;
+    }],
+    ["extra-key", FILE118, expected118, (o) => {
+      o.forged_extra = true;
+    }],
+    ["duplicate-records", FILE118, expected118, (o) => {
+      o.columns = [...o.columns, { ...o.columns[0] }];
+    }],
+    ["wrong-schema-version", FILE118, expected118, (o) => {
+      o.schema_version = "f3-full-catalog-v0";
+    }],
+  ];
+  for (const [name, file, expected, mutate] of cases) {
+    const observed = structuredClone(expected);
+    mutate(observed);
+    assert.equal(fingerprintCompleteAndExact({ expected, observed }, file).ok, false, name);
+    let repairCalls = 0;
+    const decided = await runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput({ fingerprint: { expected, observed } }),
+      cleanup: () => provenCleanup(),
+      verifyPoisonAbsent: () => poisonAbsentResult(),
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    assert.equal(decided.repairAuthorized, false, name);
+    assert.equal(decided.repairAttempted, false, name);
+    assert.equal(repairCalls, 0, `${name} repair spawned`);
+    assert.equal(decided.gate.failedGates.includes("fingerprint_exact"), true, `${name} fingerprint_exact`);
+  }
+});
+
+test("local-oracle seal helper refuses hosted fixtures and reports NOT_RUN without local PG hooks", async () => {
+  const missing = await sealExpectedFingerprintsFromLocalOracle({
+    fixtures: {
+      createDisposableDatabase() {
+        throw new Error("could not connect to server");
+      },
+    },
+  });
+  assert.equal(missing.ok, false);
+  assert.equal(missing.status, "NOT_RUN");
+  assert.equal(missing.provenance.not_hosted, true);
+  assert.equal(missing.provenance.not_copied_from_hosted_observed, true);
 });
 
 test("evidence pipeline hashes sanitized .out bytes and detaches index checksum", () => {

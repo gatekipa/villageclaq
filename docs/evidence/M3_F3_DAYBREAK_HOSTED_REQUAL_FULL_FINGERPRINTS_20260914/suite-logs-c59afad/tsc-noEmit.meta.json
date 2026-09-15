@@ -1,0 +1,13 @@
+{
+  "name": "tsc-noEmit",
+  "command": "npx tsc --noEmit",
+  "startedAt": "2026-09-14T21:33:10Z",
+  "endedAt": "2026-09-14T21:33:38Z",
+  "exit": 0,
+  "pass": 0,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "3f08b1b3933868bd37b118052b0594a72c0dfd189d7969fd38b430ff8523d99b",
+  "bytes": 129
+}

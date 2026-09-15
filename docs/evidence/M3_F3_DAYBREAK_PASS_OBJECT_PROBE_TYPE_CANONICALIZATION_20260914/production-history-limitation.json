@@ -1,0 +1,16 @@
+{
+  "artifact": "production-history-limitation",
+  "functional_sha": "7d18aacaa163f9738be16be80489654b048e2150",
+  "production_ref_forbidden": "llbnliixczcqfftxpsmb",
+  "production_contacted": false,
+  "management_api_apply": "PERMANENTLY DISQUALIFIED",
+  "claims": {
+    "productionApproval": "NOT CLAIMED",
+    "managementApiApply": "PERMANENTLY DISQUALIFIED",
+    "dbPush": "FILE-BASED RUNNER QUALIFICATION PASS \u2014 STUB/LIVE-PIN FLOOR LIMITATION; prior MECHANICS PASS SUPERSEDED; not production PASS; not clean replay PASS; not merge/deploy auth",
+    "applyTimeClock": "FORBIDDEN / NOT USED",
+    "automaticRepair": "FORBIDDEN",
+    "mechanicsPass": "SUPERSEDED"
+  },
+  "productionHistoryLimitation": "WARNING: disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, a separately authorized read-only production preflight must prove every production-recorded migration has an authoritative local timestamp file, frozen SQL digest, and order. Empty placeholders and guessed history are forbidden. Do not invent production migrations."
+}

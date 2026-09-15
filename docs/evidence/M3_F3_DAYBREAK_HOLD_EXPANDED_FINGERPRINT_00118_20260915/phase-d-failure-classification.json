@@ -1,0 +1,27 @@
+{
+  "artifact": "phase-d-failure-classification",
+  "functional_sha": "ebd4c20bcf72500b77ea24bd7269094f3dc13b3e",
+  "status": "HOLD",
+  "limitation": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+  "originalSqlError": "Connecting to remote database...\nDo you want to push these migrations to the remote database?\n • 20260913173000_f3_bounded_financial_epoch_foundation.sql\n [Y/n] y\nApplying migration 20260913173000_f3_bounded_financial_epoch_foundation.sql...\nERROR: F3_DBPUSH_DISPOSABLE_HISTORY_INJECT: blocked INSERT for version 20260913173000 name f3_bounded_financial_epoch_foundation (SQLSTATE P0001)\nAt statement: 28\nINSERT INTO supabase_migrations.schema_migrations(version, name, statements) VALUES($1, $2, $3)\nTry rerunning the command with --debug to troubleshoot the error.",
+  "stopped_at": "00118_f3_bounded_financial_epoch_foundation.sql",
+  "failedGates": [
+    "fingerprint_exact"
+  ],
+  "fingerprint_drift": {
+    "sealed": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+    "after_commit": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+    "after_poison": "72af66999f3a53a870cd1a5d0ed99a2acb7f510c69bfe16204b9fe0f217f757f",
+    "changedKeys": [
+      "columns",
+      "constraints",
+      "indexes",
+      "routines",
+      "schemas",
+      "triggers",
+      "types"
+    ]
+  },
+  "no_silent_rerun": true,
+  "repair_not_spawned": true
+}

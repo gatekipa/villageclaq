@@ -1,0 +1,51 @@
+{
+  "artifact": "M3_F3_POST_S0_REGRESSION_20260913",
+  "date": "2026-09-13",
+  "functional_sha": "fc3d4ff8cb59ad09abdc07033cbfd20cec75e585",
+  "supersedes": {
+    "artifact": "M3_F3_POST_S0_REGRESSION_20260913 bound to bb0c918",
+    "old_functional_sha": "bb0c918201f4114303404a3498f312d9679c36cd",
+    "old_evidence_tip": "a983157cbc3507f925f5889d23ac2a1be90e2a2d"
+  },
+  "suite": "scripts/test-financial-f3-post-s0-regression.mjs",
+  "result": "14/14 PASS",
+  "fresh": true,
+  "static_companion": {
+    "test-financial-f3-migration-atomicity": "14/14 PASS",
+    "test-m2-static-security": "9/9 PASS",
+    "test-s0-cut1-active-authorization": "11/11 PASS",
+    "test-storage-buckets": "11/11 PASS",
+    "test-m2-cut2-nonregression": "20/20 PASS",
+    "tsc": "PASS",
+    "next_build": "PASS (dummy non-prod env only; URL https://example.invalid.supabase.local)"
+  },
+  "disposable_boundary": {
+    "floor": "stub current-main objects + live Cut 2 HGP/enqueue/queue pins + real 00117 + NEW 00118-00123",
+    "greenfield_00001_00117_replay": "NOT CLEAN (historical 00030 unnest / 00061 param rename). Disclosed. F3 is not the cause.",
+    "production_url_used": false,
+    "postgres": "17.11 (Ubuntu 17.11-1.pgdg24.04+2)"
+  },
+  "cut1": {
+    "has_group_permission": "unchanged live pin 69536846… / 96a296df…",
+    "overload_count": 1,
+    "no_2arg_function": true,
+    "verdict": "SAFER OR UNCHANGED"
+  },
+  "cut2": {
+    "enqueue_pin": "unchanged dbdb16cd… / 3fa76af5…",
+    "queue_table_acl": "LIVE pin unchanged",
+    "queue_column_acl": "LIVE pin unchanged",
+    "f3_queue_insert": false
+  },
+  "cut3": {
+    "storage_helpers_created_by_f3": false,
+    "storage_receipts_authorized_token_in_f3_ddl": false,
+    "test_storage_buckets": "11/11 PASS"
+  },
+  "m2": {
+    "policy_tables_after_00117_plus_f3": "present",
+    "rows": { "policies": 0, "triggers": 0, "occurrences": 0 },
+    "enabled_default": false,
+    "closed_status": "CLOSED dormant 0/0/0 — F3 did not enable or enqueue"
+  }
+}

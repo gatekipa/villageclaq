@@ -1,0 +1,379 @@
+{
+  "artifact": "negative-hosted-matrix",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "cli": "2.117.0",
+  "tip_modules": [
+    "scripts/lib/f3-db-push-repair-safety-gate.mjs"
+  ],
+  "real_apis_exercised": [
+    "fingerprintCompleteAndExact",
+    "runRepairSafetyThenMaybeRepair",
+    "evaluateObjectProbe",
+    "evaluatePoisonAbsent",
+    "evaluateCleanupProven",
+    "getFrozenExpectedFingerprint",
+    "buildIndependentObservedFingerprint",
+    "assertPrefixCompleteSinglePendingStaging",
+    "runPrefixCompleteSinglePendingOrchestration",
+    "syncIsolatedMigrationsThrough"
+  ],
+  "isolated_staging": {
+    "staged118": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ],
+    "stagedNames": [
+      "20260913173000_f3_bounded_financial_epoch_foundation.sql"
+    ]
+  },
+  "cases": [
+    {
+      "id": "N1",
+      "title": "Multi-argument ACL identity remains complete",
+      "kind": "accepted",
+      "accepted": true,
+      "fingerprint_exact": true,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "fingerprintEval_2arg": {
+        "ok": true
+      },
+      "fingerprintEval_3plus": {
+        "ok": true
+      },
+      "frozen119_complete": {
+        "ok": true
+      },
+      "lock_identity_arguments": "p_group_id uuid, p_source_module text, p_source_record_id text, p_effect_kind text, p_ledger_epoch_id uuid",
+      "no_truncation": true,
+      "modules": {
+        "fingerprintCompleteAndExact": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      }
+    },
+    {
+      "id": "N2",
+      "title": "Overloads remain distinct",
+      "kind": "accepted",
+      "accepted": true,
+      "fingerprint_exact": true,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "order_only_accepted": {
+        "ok": true
+      },
+      "merge_fingerprint_exact": false,
+      "merge_rejected": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      },
+      "modules": {
+        "fingerprintCompleteAndExact": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "merge_repairCalls": 0,
+      "merge_failedGates": [
+        "fingerprint_exact"
+      ]
+    },
+    {
+      "id": "N3",
+      "title": "Record-order-only ACL difference accepted",
+      "kind": "accepted",
+      "accepted": true,
+      "fingerprint_exact": true,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "fingerprintEval": {
+        "ok": true
+      },
+      "modules": {
+        "fingerprintCompleteAndExact": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      }
+    },
+    {
+      "id": "N4",
+      "title": "Truncated identity rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      },
+      "frozen119_truncation": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      },
+      "proof_no_truncation_accepted": true
+    },
+    {
+      "id": "N5",
+      "title": "Same ACL count different object pairing rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint expected and observed are not canonically equal"
+      }
+    },
+    {
+      "id": "N6",
+      "title": "Wrong grantee/grantor/privilege/grantability rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "fingerprintEvals": {
+        "grantee": {
+          "ok": false,
+          "reason": "fingerprint expected and observed are not canonically equal"
+        },
+        "grantor": {
+          "ok": false,
+          "reason": "fingerprint expected and observed are not canonically equal"
+        },
+        "privilege": {
+          "ok": false,
+          "reason": "fingerprint expected and observed are not canonically equal"
+        },
+        "grantable": {
+          "ok": false,
+          "reason": "fingerprint expected and observed are not canonically equal"
+        }
+      }
+    },
+    {
+      "id": "N7",
+      "title": "Missing/extra/duplicate ACL rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "fingerprintEvals": {
+        "missing": {
+          "ok": false,
+          "reason": "fingerprint expected and observed are not canonically equal"
+        },
+        "extra": {
+          "ok": false,
+          "reason": "fingerprint expected and observed are not canonically equal"
+        },
+        "duplicate": {
+          "ok": false,
+          "reason": "fingerprint expected and observed are not canonically equal"
+        }
+      }
+    },
+    {
+      "id": "N8",
+      "title": "Malformed/nonzero probe rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "expected_objects",
+        "security_postconditions"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "evaluateObjectProbe": {
+        "present": false,
+        "reason": "non-JSON"
+      },
+      "also_nonzero": {
+        "present": false,
+        "reason": "probe status 1"
+      }
+    },
+    {
+      "id": "N9",
+      "title": "Fingerprint mismatch rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [
+        "fingerprint_exact"
+      ],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "fingerprintEval": {
+        "ok": false,
+        "reason": "fingerprint.expected missing or not an object"
+      }
+    },
+    {
+      "id": "N10",
+      "title": "Cleanup failure rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "evaluateCleanupProven": {
+        "ok": false,
+        "reason": "cleanup status 1"
+      }
+    },
+    {
+      "id": "N11",
+      "title": "Poison remains rejected",
+      "kind": "rejected",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "repairAttempted": false,
+      "repairAuthorized": false,
+      "continuation": false,
+      "failedGates": [],
+      "hold": "HOLD: repair-safety gate failed; poison cleaned; repair not spawned; no continuation",
+      "fingerprint_exact": false,
+      "modules": {
+        "runRepairSafetyThenMaybeRepair": true,
+        "fingerprintCompleteAndExact": true,
+        "evaluateObjectProbe": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      },
+      "evaluatePoisonAbsent": {
+        "ok": false,
+        "absent": false,
+        "reason": "poison trigger remains present"
+      }
+    },
+    {
+      "id": "N12",
+      "title": "Staging-prefix mismatch rejected",
+      "kind": "staging_preflight",
+      "accepted": false,
+      "dbPushCalls": 0,
+      "repairCalls": 0,
+      "ok": false,
+      "hold": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned: cliVersion=undefined required=2.117.0",
+      "preflight_code": "cli_pin",
+      "preflight_reason": "HOLD: prefix-complete single-pending staging preflight failed; db push not spawned; repair not spawned: cliVersion=undefined required=2.117.0",
+      "orchestration": {
+        "ok": false,
+        "dbPushAttempted": false,
+        "repairAttempted": false
+      },
+      "modules": {
+        "assertPrefixCompleteSinglePendingStaging": true,
+        "runPrefixCompleteSinglePendingOrchestration": true,
+        "syncIsolatedMigrationsThrough": true,
+        "tip_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315"
+      }
+    }
+  ],
+  "summary": {
+    "accepted": [
+      "N1",
+      "N2",
+      "N3"
+    ],
+    "rejected": [
+      "N4",
+      "N5",
+      "N6",
+      "N7",
+      "N8",
+      "N9",
+      "N10",
+      "N11",
+      "N12"
+    ],
+    "all_repairCalls_zero": true,
+    "all_staging_dbPushCalls_zero": true,
+    "case_count": 12
+  }
+}

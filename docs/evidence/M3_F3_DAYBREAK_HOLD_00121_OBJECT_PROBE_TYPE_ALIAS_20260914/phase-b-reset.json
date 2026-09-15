@@ -1,0 +1,128 @@
+{
+  "artifact": "phase-b-qualification-reset",
+  "functional_sha": "1ff551ec2b885d21c6afa009dd530b5c1b6b4315",
+  "project_ref": "jkorwnwwmdeflfntxntl",
+  "production_contacted": false,
+  "project_deleted_or_paused": false,
+  "reset_done": true,
+  "statements_emitted": 62,
+  "dropped": {
+    "f3_schemas": [
+      "financial_core",
+      "financial_private"
+    ],
+    "public_tables_count": 37,
+    "public_tables": [
+      "announcements",
+      "contribution_obligations",
+      "elections",
+      "events",
+      "financial_accounts",
+      "financial_categories",
+      "financial_events",
+      "financial_funds",
+      "financial_ledger_epochs",
+      "financial_postings",
+      "fines",
+      "group_positions",
+      "group_subscriptions",
+      "groups",
+      "hosting_assignments",
+      "hosting_rosters",
+      "hosting_swap_requests",
+      "invitations",
+      "loans",
+      "meeting_minutes",
+      "member_transfers",
+      "memberships",
+      "notification_policies",
+      "notification_policy_occurrences",
+      "notification_policy_triggers",
+      "notifications_queue",
+      "organizations",
+      "payment_obligation_applications",
+      "payments",
+      "position_assignments",
+      "position_permissions",
+      "profiles",
+      "projects",
+      "relief_claims",
+      "relief_enrollments",
+      "relief_plans",
+      "relief_remittances"
+    ],
+    "public_enums_count": 8,
+    "app_functions": [
+      "request_member_transfer(jsonb)",
+      "compute_member_standing(uuid)",
+      "uuid_generate_v5(uuid,text)",
+      "notification_policy_set_updated_at()",
+      "has_group_permission(uuid,text,uuid)",
+      "execute_member_transfer(jsonb)",
+      "enqueue_outbound_notification(text,uuid,notification_channel,uuid,text)",
+      "m2_is_valid_iana_timezone(text)"
+    ],
+    "btree_gist": true,
+    "auth_trigger": false,
+    "storage_policies": [],
+    "schema_migrations_versions": [
+      "20260913173000",
+      "20260913173001",
+      "20260913173002",
+      "20260913173003",
+      "20260913173004",
+      "20260913173005"
+    ]
+  },
+  "reset_result": {
+    "status": 0,
+    "stdout": "         reset_status         \n------------------------------\n qualification_reset_complete\n(1 row)\n\n",
+    "stderr": "psql:<redacted-path> NOTICE:  drop cascades to 36 other objects\nDETAIL:  drop cascades to function financial_core.currency_scale(text)\ndrop cascades to constraint financial_accounts_currency_supported on table financial_accounts\ndrop cascades to constraint financial_events_currency_supported on table financial_events\ndrop cascades to constraint financial_postings_amount_precision on table financial_postings\ndrop cascades to function financial_core.guard_financial_account()\ndrop cascades to trigger financial_accounts_guard on table financial_accounts\ndrop cascades to function financial_core.guard_financial_fund()\ndrop cascades to trigger financial_funds_guard on table financial_funds\ndrop cascades to function financial_core.guard_financial_category()\ndrop cascades to trigger financial_categories_guard on table financial_categories\ndrop cascades to function financial_core.guard_financial_event_epoch()\ndrop cascades to trigger financial_events_epoch_guard on table financial_events\ndrop cascades to function financial_core.guard_financial_event_history()\ndrop cascades to trigger financial_events_history_guard on table financial_events\ndrop cascades to function financial_core.guard_financial_posting_history()\ndrop cascades to trigger financial_postings_history_guard on table financial_postings\ndrop cascades to function financial_core.assert_financial_event_balanced(uuid)\ndrop cascades to function financial_core.check_event_balance_from_event()\ndrop cascades to trigger financial_events_balance_guard on table financial_events\ndrop cascades to function financial_core.check_event_balance_from_posting()\ndrop cascades to trigger financial_postings_balance_guard on table financial_postings\ndrop cascades to function financial_core.can_manage_finances(uuid)\ndrop cascades to policy financial_accounts_manager_select on table financial_accounts\ndrop cascades to policy financial_accounts_manager_insert on table financial_accounts\ndrop cascades to policy financial_accounts_manager_update on table financial_accounts\ndrop cascades to policy financial_funds_manager_select on table financial_funds\ndrop cascades to policy financial_funds_manager_insert on table financial_funds\ndrop cascades to policy financial_funds_manager_update on table financial_funds\ndrop cascades to policy financial_categories_manager_select on table financial_categories\ndrop cascades to policy financial_categories_manager_insert on table financial_categories\ndrop cascades to policy financial_categories_manager_update on table financial_categories\ndrop cascades to function financial_core.can_view_finances(uuid)\ndrop cascades to policy financial_events_finance_reader on table financial_events\ndrop cascades to policy financial_postings_finance_reader on table financial_postings\ndrop cascades to function financial_core.assert_finances_manage(uuid)\ndrop cascades to function financial_core.lock_financial_occurrence(uuid,text,text,text,uuid)\npsql:<redacted-path> NOTICE:  drop cascades to 4 other objects\nDETAIL:  drop cascades to table financial_private.epoch_transitions\ndrop cascades to table financial_private.internal_financial_tenants\ndrop cascades to function financial_private.guard_ledger_epoch()\ndrop cascades to trigger financial_ledger_epoch_guard on table financial_ledger_epochs\npsql:<redacted-path> NOTICE:  drop cascades to constraint financial_postings_account_scope on table financial_postings\npsql:<redacted-path> NOTICE:  drop cascades to constraint financial_postings_category_scope on table financial_postings\npsql:<redacted-path> NOTICE:  drop cascades to constraint financial_postings_event_scope on table financial_postings\npsql:<redacted-path> NOTICE:  drop cascades to constraint financial_postings_fund_scope "
+  },
+  "post_reset_classification": {
+    "verdict": "CLEAN_BASELINE",
+    "reason": "public VillageClaq floor objects absent; managed schemas preserved; schema_migrations leftover empty or absent",
+    "cleanBaseline": true,
+    "historyRows": 0,
+    "financialPresent": false,
+    "publicTables": [],
+    "ambiguous": []
+  },
+  "post_reset_history_get": [],
+  "pre_stub_floor_clean_check": {
+    "artifact": "06-pre-stub-floor-clean-check",
+    "clean_ok": true,
+    "residuals": [],
+    "residual_cleanup": {
+      "storage_policies": [],
+      "storage_buckets": [],
+      "blocking": false,
+      "drop_narrowly": false,
+      "wipe_to_baseline": false,
+      "note": "incomplete prior wipe residuals: the 10 named FAILED_FLOOR_STORAGE_POLICY_NAMES (+ empty floor buckets avatars/group-documents/receipts if safe) may be dropped narrowly. Not --wipe-to-baseline. Not blocking when public/history/F3 match Chief 06."
+    },
+    "public_tables": 0,
+    "public_tables_list": [],
+    "migrations": [],
+    "schema_migrations_rows": 0,
+    "schema_migrations_history": [],
+    "f3_absent": true,
+    "matches_post_wipe_baseline": true,
+    "do_not_wipe": true,
+    "classification_verdict": "CLEAN_BASELINE",
+    "label": "DOCUMENTED QUALIFICATION FIXTURE — NOT A CLEAN 00001–00117 REPLAY AND NOT PRODUCTION-EQUIVALENT",
+    "recognition": [
+      "manual_income"
+    ],
+    "hold": null
+  },
+  "poison_absent": {
+    "ok": true,
+    "absent": true,
+    "row": {
+      "function_present": false,
+      "trigger_present": false
+    }
+  },
+  "sql_artifact": "phase-b-reset.sql"
+}

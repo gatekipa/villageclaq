@@ -1,0 +1,13 @@
+{
+  "name": "test-f3-recognition",
+  "command": "npm run test:f3-recognition",
+  "startedAt": "2026-09-14T21:33:07Z",
+  "endedAt": "2026-09-14T21:33:07Z",
+  "exit": 0,
+  "pass": 40,
+  "fail": 0,
+  "skip": 0,
+  "log": "<redacted-path>",
+  "sha256": "d408ae8f702e3b4d634b55b27c1a404d5a607e50f17e5d5780261a7b5d4dfa3f",
+  "bytes": 7649
+}

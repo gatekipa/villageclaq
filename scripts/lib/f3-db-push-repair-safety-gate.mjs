@@ -46,24 +46,161 @@ export const PREFIX_COMPLETE_SINGLE_PENDING_HOLD =
 export const PRODUCTION_HISTORY_LIMITATION_WARNING =
   "WARNING: disposable proves prefix-complete staging for F3 qualification history only. Before any production db push, a separately authorized read-only production preflight must prove every production-recorded migration has an authoritative local timestamp file, frozen SQL digest, and order. Empty placeholders and guessed history are forbidden. Do not invent production migrations.";
 
+/**
+ * Immutable complete-catalog fingerprint schema.
+ * Expected and observed MUST share this version, the exact required-key
+ * set, nested key contracts, types, and shapes. Prior ten-field hashes
+ * are SUPERSEDED.
+ */
+export const F3_FULL_FINGERPRINT_SCHEMA_VERSION = "f3-full-catalog-v1";
+
+export const F3_FULL_FINGERPRINT_NESTED_KEYS = Object.freeze({
+  schemas: Object.freeze(["name", "owner", "acl"]),
+  schema: Object.freeze(["schema", "owner"]),
+  schema_acl: Object.freeze(["grantee", "grantor", "privilege", "grantable"]),
+  relations: Object.freeze([
+    "schema",
+    "name",
+    "relkind",
+    "persistence",
+    "owner",
+    "replica_identity",
+    "rls_enabled",
+    "rls_force",
+    "acl",
+  ]),
+  columns: Object.freeze([
+    "schema",
+    "relation",
+    "ordinal",
+    "name",
+    "type",
+    "typmod",
+    "nullable",
+    "default",
+    "identity",
+    "generated",
+    "collation",
+  ]),
+  types: Object.freeze(["schema", "name", "kind", "labels", "owner", "acl"]),
+  views: Object.freeze([
+    "schema",
+    "name",
+    "kind",
+    "definition",
+    "security_invoker",
+    "security_barrier",
+    "owner",
+    "acl",
+  ]),
+  routines: Object.freeze([
+    "schema",
+    "name",
+    "identity_arguments",
+    "result_type",
+    "language",
+    "owner",
+    "functiondef",
+    "volatility",
+    "parallel",
+    "strict",
+    "leakproof",
+    "security_definer",
+    "proconfig",
+    "search_path",
+    "acl",
+  ]),
+  rls: Object.freeze(["schema", "relation", "rls_enabled", "rls_force"]),
+  policies: Object.freeze([
+    "schema",
+    "table",
+    "policy_name",
+    "command",
+    "permissive",
+    "roles",
+    "using",
+    "with_check",
+  ]),
+  acls: Object.freeze([
+    "object_type",
+    "schema",
+    "object_name",
+    "prokind",
+    "identity_arguments",
+    "grantee",
+    "grantor",
+    "privilege",
+    "grantable",
+  ]),
+  constraints: Object.freeze(["schema", "relation", "name", "contype", "definition"]),
+  indexes: Object.freeze(["schema", "relation", "name", "unique", "definition"]),
+  triggers: Object.freeze([
+    "schema",
+    "relation",
+    "name",
+    "constraint_trigger",
+    "timing_events",
+    "for_each",
+    "function_identity",
+  ]),
+  hgp: Object.freeze([
+    "schema",
+    "name",
+    "identity_arguments",
+    "result_type",
+    "language",
+    "owner",
+    "security_definer",
+    "proconfig",
+    "def_md5",
+    "src_md5",
+    "count",
+  ]),
+  enqueue: Object.freeze([
+    "schema",
+    "name",
+    "identity_arguments",
+    "result_type",
+    "language",
+    "owner",
+    "security_definer",
+    "proconfig",
+    "def_md5",
+    "src_md5",
+    "count",
+  ]),
+});
+
 export const FINGERPRINT_REQUIRED_KEYS = Object.freeze([
+  "schema_version",
   "schema",
+  "schemas",
   "function_owner",
   "acl",
+  "acls",
   "policy",
+  "policies",
+  "relations",
+  "columns",
+  "types",
+  "views",
+  "routines",
+  "rls",
+  "constraints",
+  "indexes",
+  "triggers",
+  "hgp",
+  "enqueue",
+  "f3_objects_absent",
 ]);
 
 /** Catalog fields that, if present on either side, must exist on both and match exactly. */
 export const FINGERPRINT_OPTIONAL_CATALOG_KEYS = Object.freeze([
-  "rls",
   "owner",
   "function_definition",
   "search_path",
   "hgp_pin",
-  "hgp",
-  "enqueue",
   "object_identity",
-  "f3_objects_absent",
 ]);
 
 export const FINGERPRINT_CATALOG_KEYS = Object.freeze([
@@ -73,7 +210,9 @@ export const FINGERPRINT_CATALOG_KEYS = Object.freeze([
 ]);
 
 export const FINGERPRINT_META_KEYS = Object.freeze([
+  "schema_version",
   "migration_file",
+  "migration_source_label",
   "migration_version",
   "migration_name",
   "migration_digest",
@@ -83,6 +222,39 @@ export const FINGERPRINT_META_KEYS = Object.freeze([
 export const FINGERPRINT_ALLOWED_KEYS = Object.freeze([
   ...new Set([...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_CATALOG_KEYS, ...FINGERPRINT_META_KEYS]),
 ]);
+
+export const F3_HGP_PIN = Object.freeze({
+  schema: "public",
+  name: "has_group_permission",
+  identity_arguments: "gid uuid, perm_key text, uid uuid",
+  result_type: "boolean",
+  language: "plpgsql",
+  owner: "postgres",
+  security_definer: true,
+  proconfig: Object.freeze(['search_path=""']),
+  def_md5: "695368464e97297fbf0f90ce7345162f",
+  src_md5: "96a296dfd541c7fc75ec68c4da1d92ff",
+  count: 1,
+});
+
+export const F3_ENQUEUE_PIN = Object.freeze({
+  schema: "public",
+  name: "enqueue_outbound_notification",
+  identity_arguments:
+    "p_notification_type text, p_domain_object_id uuid, p_channel notification_channel, p_recipient_membership_id uuid, p_locale text",
+  result_type: "TABLE(queue_id uuid, result text)",
+  language: "plpgsql",
+  owner: "postgres",
+  security_definer: true,
+  proconfig: Object.freeze(['search_path=""']),
+  def_md5: "dbdb16cdced6cae9cbdbfb6a6a9f421f",
+  src_md5: "3fa76af51e431ccbd31eb033dcff0b80",
+  count: 1,
+});
+
+export const TEN_FIELD_FINGERPRINT_SCHEMA_VERSION = "ten-field";
+export const TEN_FIELD_SCHEMA_SUPERSEDED_REASON =
+  "SUPERSEDED: ten-field fingerprint schema omitted required catalog/security fields";
 
 /**
  * Explicit field registry: ONLY these collections are set-canonicalized.
@@ -184,6 +356,111 @@ export const FINGERPRINT_FIELD_REGISTRY = Object.freeze({
     innerSetFields: Object.freeze([]),
     doNotSort: Object.freeze([]),
     notes: "Allowlist tags. Order meaningless. Exact strings only — never word-split.",
+  }),
+  schemas: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.schemas,
+    sortBy: Object.freeze(["name", "owner"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze([]),
+    notes: "Complete schema inventory with structured ACL. Order of schemas is meaningless.",
+  }),
+  relations: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.relations,
+    sortBy: Object.freeze(["schema", "name", "relkind"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["persistence", "replica_identity"]),
+    notes: "Relation identity includes relkind, persistence, owner, replica identity, explicit RLS, ACL.",
+  }),
+  columns: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.columns,
+    sortBy: Object.freeze(["schema", "relation", "ordinal", "name"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["type", "typmod", "default", "identity", "generated", "collation"]),
+    notes: "Column ordinal is semantic. Types are canonical. Never sort table column order independently of ordinal.",
+  }),
+  types: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.types,
+    sortBy: Object.freeze(["schema", "name", "kind"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["labels"]),
+    notes: "Enum labels keep semantic CREATE order. Never sort labels.",
+  }),
+  views: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.views,
+    sortBy: Object.freeze(["schema", "name", "kind"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["definition"]),
+    notes: "View/matview definition and security options compare exactly.",
+  }),
+  routines: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.routines,
+    sortBy: Object.freeze(["schema", "name", "identity_arguments", "owner"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["identity_arguments", "functiondef", "result_type", "proconfig", "search_path"]),
+    notes: "identity_arguments are never comma-split or reordered. functiondef is the complete definition.",
+  }),
+  rls: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.rls,
+    sortBy: Object.freeze(["schema", "relation"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze([]),
+    notes: "Explicit RLS records. Absent is not false. Empty array is allowed only when no target relation has RLS state.",
+  }),
+  policies: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.policies,
+    sortBy: Object.freeze(["schema", "table", "policy_name", "command"]),
+    innerSetFields: Object.freeze(["roles"]),
+    doNotSort: Object.freeze(["using", "with_check"]),
+    notes: "Same association as policy. USING / WITH CHECK never sorted or whitespace-normalized.",
+  }),
+  acls: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.acls,
+    sortBy: Object.freeze([
+      "object_type",
+      "schema",
+      "object_name",
+      "identity_arguments",
+      "grantee",
+      "grantor",
+      "privilege",
+      "grantable",
+    ]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["identity_arguments", "object_name", "prokind"]),
+    notes: "Full ACL association. Whole-record sort only. identity_arguments never split.",
+  }),
+  constraints: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.constraints,
+    sortBy: Object.freeze(["schema", "relation", "name", "contype"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["definition"]),
+    notes: "Named and inline table constraints for 00118–00123 targets.",
+  }),
+  indexes: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.indexes,
+    sortBy: Object.freeze(["schema", "relation", "name"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["definition"]),
+    notes: "Index definitions compare exactly, including predicates.",
+  }),
+  triggers: Object.freeze({
+    kind: "record_set",
+    fields: F3_FULL_FINGERPRINT_NESTED_KEYS.triggers,
+    sortBy: Object.freeze(["schema", "relation", "name"]),
+    innerSetFields: Object.freeze([]),
+    doNotSort: Object.freeze(["timing_events", "function_identity"]),
+    notes: "Trigger timing/events and function identity compare exactly.",
   }),
 });
 
@@ -344,6 +621,402 @@ SELECT jsonb_build_object(
     AND to_regprocedure('public.post_financial_command(jsonb)') IS NULL
     AND to_regprocedure('public.correct_financial_event(jsonb)') IS NULL
     AND to_regprocedure('public.post_financial_opening_cash(jsonb)') IS NULL
+  ),
+  'schema_version', '${F3_FULL_FINGERPRINT_SCHEMA_VERSION}'::text,
+  'schemas', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'name', n.nspname,
+        'owner', pg_get_userbyid(n.nspowner),
+        'acl', coalesce((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+              'grantor', pg_get_userbyid(a.grantor),
+              'privilege', a.privilege_type,
+              'grantable', a.is_grantable
+            )
+            ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+                     pg_get_userbyid(a.grantor), a.privilege_type, a.is_grantable::text
+          )
+          FROM aclexplode(n.nspacl) a
+          WHERE n.nspacl IS NOT NULL
+        ), '[]'::jsonb)
+      )
+      ORDER BY n.nspname
+    ), '[]'::jsonb)
+    FROM pg_namespace n
+    WHERE n.nspname IN ('financial_core','financial_private')
+  ),
+  'relations', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'name', c.relname,
+        'relkind', c.relkind::text,
+        'persistence', CASE c.relpersistence WHEN 'p' THEN 'permanent' WHEN 'u' THEN 'unlogged' ELSE 'temporary' END,
+        'owner', pg_get_userbyid(c.relowner),
+        'replica_identity', CASE c.relreplident WHEN 'd' THEN 'default' WHEN 'n' THEN 'nothing' WHEN 'f' THEN 'full' ELSE 'index' END,
+        'rls_enabled', c.relrowsecurity,
+        'rls_force', c.relforcerowsecurity,
+        'acl', coalesce((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+              'grantor', pg_get_userbyid(a.grantor),
+              'privilege', a.privilege_type,
+              'grantable', a.is_grantable
+            )
+            ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+                     pg_get_userbyid(a.grantor), a.privilege_type, a.is_grantable::text
+          )
+          FROM aclexplode(c.relacl) a
+          WHERE c.relacl IS NOT NULL
+        ), '[]'::jsonb)
+      )
+      ORDER BY n.nspname, c.relname
+    ), '[]'::jsonb)
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('r','p')
+      AND (
+        n.nspname IN ('financial_core','financial_private')
+        OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+      )
+  ),
+  'columns', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'relation', c.relname,
+        'ordinal', a.attnum,
+        'name', a.attname,
+        'type', format_type(a.atttypid, NULL),
+        'typmod', CASE WHEN a.atttypmod >= 0 THEN a.atttypmod ELSE NULL END,
+        'nullable', NOT a.attnotnull,
+        'default', pg_get_expr(ad.adbin, ad.adrelid),
+        'identity', CASE a.attidentity WHEN 'a' THEN 'always' WHEN 'd' THEN 'by_default' ELSE NULL END,
+        'generated', CASE a.attgenerated WHEN 's' THEN 'stored' ELSE NULL END,
+        'collation', NULLIF(coll.collname, '')
+      )
+      ORDER BY n.nspname, c.relname, a.attnum
+    ), '[]'::jsonb)
+    FROM pg_attribute a
+    JOIN pg_class c ON c.oid = a.attrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+    LEFT JOIN pg_collation coll ON coll.oid = a.attcollation AND a.attcollation <> 0
+    WHERE a.attnum > 0 AND NOT a.attisdropped
+      AND c.relkind IN ('r','p')
+      AND (
+        n.nspname IN ('financial_core','financial_private')
+        OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+      )
+  ),
+  'types', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'name', t.typname,
+        'kind', CASE t.typtype WHEN 'e' THEN 'enum' WHEN 'd' THEN 'domain' WHEN 'c' THEN 'composite' ELSE t.typtype::text END,
+        'labels', CASE
+          WHEN t.typtype = 'e' THEN coalesce((
+            SELECT jsonb_agg(e.enumlabel ORDER BY e.enumsortorder)
+            FROM pg_enum e WHERE e.enumtypid = t.oid
+          ), '[]'::jsonb)
+          ELSE '[]'::jsonb
+        END,
+        'owner', pg_get_userbyid(t.typowner),
+        'acl', coalesce((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+              'grantor', pg_get_userbyid(a.grantor),
+              'privilege', a.privilege_type,
+              'grantable', a.is_grantable
+            )
+            ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+                     pg_get_userbyid(a.grantor), a.privilege_type, a.is_grantable::text
+          )
+          FROM aclexplode(t.typacl) a
+          WHERE t.typacl IS NOT NULL
+        ), '[]'::jsonb)
+      )
+      ORDER BY n.nspname, t.typname
+    ), '[]'::jsonb)
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname IN ('public','financial_core','financial_private')
+      AND t.typtype IN ('e','d','c')
+      AND (n.nspname LIKE 'financial_%' OR t.typname LIKE 'financial_%')
+  ),
+  'views', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'name', c.relname,
+        'kind', CASE c.relkind WHEN 'm' THEN 'matview' ELSE 'view' END,
+        'definition', pg_get_viewdef(c.oid, true),
+        'security_invoker', coalesce((c.reloptions::text LIKE '%security_invoker=true%'), false),
+        'security_barrier', coalesce((c.reloptions::text LIKE '%security_barrier=true%'), false),
+        'owner', pg_get_userbyid(c.relowner),
+        'acl', coalesce((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+              'grantor', pg_get_userbyid(a.grantor),
+              'privilege', a.privilege_type,
+              'grantable', a.is_grantable
+            )
+            ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+                     pg_get_userbyid(a.grantor), a.privilege_type, a.is_grantable::text
+          )
+          FROM aclexplode(c.relacl) a
+          WHERE c.relacl IS NOT NULL
+        ), '[]'::jsonb)
+      )
+      ORDER BY n.nspname, c.relname
+    ), '[]'::jsonb)
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('v','m')
+      AND (
+        n.nspname IN ('financial_core','financial_private')
+        OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+      )
+  ),
+  'routines', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'name', p.proname,
+        'identity_arguments', pg_get_function_identity_arguments(p.oid),
+        'result_type', pg_get_function_result(p.oid),
+        'language', l.lanname,
+        'owner', pg_get_userbyid(p.proowner),
+        'functiondef', pg_get_functiondef(p.oid),
+        'volatility', CASE p.provolatile WHEN 'i' THEN 'immutable' WHEN 's' THEN 'stable' ELSE 'volatile' END,
+        'parallel', CASE p.proparallel WHEN 's' THEN 'safe' WHEN 'r' THEN 'restricted' ELSE 'unsafe' END,
+        'strict', p.proisstrict,
+        'leakproof', p.proleakproof,
+        'security_definer', p.prosecdef,
+        'proconfig', coalesce(to_jsonb(p.proconfig), '[]'::jsonb),
+        'search_path', coalesce(p.proconfig::text, ''),
+        'acl', coalesce((
+          SELECT jsonb_agg(
+            jsonb_build_object(
+              'grantee', CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+              'grantor', pg_get_userbyid(a.grantor),
+              'privilege', a.privilege_type,
+              'grantable', a.is_grantable
+            )
+            ORDER BY CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+                     pg_get_userbyid(a.grantor), a.privilege_type, a.is_grantable::text
+          )
+          FROM aclexplode(p.proacl) a
+          WHERE p.proacl IS NOT NULL
+        ), '[]'::jsonb)
+      )
+      ORDER BY n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)
+    ), '[]'::jsonb)
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    JOIN pg_language l ON l.oid = p.prolang
+    WHERE n.nspname IN ('public','financial_core','financial_private')
+      AND (n.nspname LIKE 'financial_%' OR p.proname ~ 'financial|f3_|guard_ledger')
+  ),
+  'rls', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'relation', c.relname,
+        'rls_enabled', c.relrowsecurity,
+        'rls_force', c.relforcerowsecurity
+      )
+      ORDER BY n.nspname, c.relname
+    ), '[]'::jsonb)
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('r','p')
+      AND (
+        n.nspname IN ('financial_core','financial_private')
+        OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+      )
+  ),
+  'policies', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', schemaname,
+        'table', tablename,
+        'policy_name', policyname,
+        'command', cmd,
+        'permissive', (upper(permissive) IN ('PERMISSIVE','YES','T','TRUE')),
+        'roles', to_jsonb(roles),
+        'using', coalesce(qual, ''),
+        'with_check', coalesce(with_check, '')
+      )
+      ORDER BY schemaname, tablename, policyname, cmd
+    ), '[]'::jsonb)
+    FROM pg_policies
+    WHERE schemaname IN ('public','financial_core','financial_private')
+      AND (tablename LIKE 'financial_%' OR schemaname LIKE 'financial_%')
+  ),
+  'acls', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'object_type', x.object_type,
+        'schema', x.schema,
+        'object_name', x.object_name,
+        'prokind', x.prokind,
+        'identity_arguments', x.identity_arguments,
+        'grantee', x.grantee,
+        'grantor', x.grantor,
+        'privilege', x.privilege,
+        'grantable', x.grantable
+      )
+      ORDER BY x.object_type, x.schema, x.object_name, x.identity_arguments, x.grantee, x.grantor, x.privilege, x.grantable::text
+    ), '[]'::jsonb)
+    FROM (
+      SELECT
+        'table'::text AS object_type,
+        n.nspname AS schema,
+        c.relname AS object_name,
+        ''::text AS prokind,
+        ''::text AS identity_arguments,
+        CASE WHEN c.relacl IS NULL THEN '' WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END AS grantee,
+        CASE WHEN c.relacl IS NULL THEN '' ELSE pg_get_userbyid(a.grantor) END AS grantor,
+        CASE WHEN c.relacl IS NULL THEN '' ELSE a.privilege_type END AS privilege,
+        CASE WHEN c.relacl IS NULL THEN false ELSE a.is_grantable END AS grantable
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      LEFT JOIN LATERAL aclexplode(c.relacl) a ON c.relacl IS NOT NULL
+      WHERE c.relkind = 'r'
+        AND (
+          n.nspname IN ('financial_core','financial_private')
+          OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+        )
+      UNION ALL
+      SELECT
+        'routine'::text,
+        n.nspname,
+        p.proname,
+        p.prokind::text,
+        pg_get_function_identity_arguments(p.oid),
+        CASE WHEN p.proacl IS NULL THEN '' WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_get_userbyid(a.grantee) END,
+        CASE WHEN p.proacl IS NULL THEN '' ELSE pg_get_userbyid(a.grantor) END,
+        CASE WHEN p.proacl IS NULL THEN '' ELSE a.privilege_type END,
+        CASE WHEN p.proacl IS NULL THEN false ELSE a.is_grantable END
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      LEFT JOIN LATERAL aclexplode(p.proacl) a ON p.proacl IS NOT NULL
+      WHERE n.nspname IN ('public','financial_core','financial_private')
+        AND (n.nspname LIKE 'financial_%' OR p.proname ~ 'financial|f3_|guard_ledger')
+    ) x
+  ),
+  'constraints', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'relation', c.relname,
+        'name', con.conname,
+        'contype', con.contype::text,
+        'definition', pg_get_constraintdef(con.oid)
+      )
+      ORDER BY n.nspname, c.relname, con.conname
+    ), '[]'::jsonb)
+    FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE (
+      n.nspname IN ('financial_core','financial_private')
+      OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+    )
+  ),
+  'indexes', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'relation', t.relname,
+        'name', ic.relname,
+        'unique', i.indisunique,
+        'definition', pg_get_indexdef(i.indexrelid)
+      )
+      ORDER BY n.nspname, t.relname, ic.relname
+    ), '[]'::jsonb)
+    FROM pg_index i
+    JOIN pg_class ic ON ic.oid = i.indexrelid
+    JOIN pg_class t ON t.oid = i.indrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE NOT i.indisprimary
+      AND (
+        n.nspname IN ('financial_core','financial_private')
+        OR (n.nspname = 'public' AND t.relname LIKE 'financial_%')
+      )
+  ),
+  'triggers', (
+    SELECT coalesce(jsonb_agg(
+      jsonb_build_object(
+        'schema', n.nspname,
+        'relation', c.relname,
+        'name', t.tgname,
+        'constraint_trigger', t.tgconstraint <> 0,
+        'timing_events', pg_get_triggerdef(t.oid),
+        'for_each', CASE WHEN (t.tgtype & 1) = 1 THEN 'row' ELSE 'statement' END,
+        'function_identity', format('%s(%s)', p.proname, pg_get_function_identity_arguments(p.oid))
+      )
+      ORDER BY n.nspname, c.relname, t.tgname
+    ), '[]'::jsonb)
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_proc p ON p.oid = t.tgfoid
+    WHERE NOT t.tgisinternal
+      AND (
+        n.nspname IN ('financial_core','financial_private')
+        OR (n.nspname = 'public' AND c.relname LIKE 'financial_%')
+      )
+  ),
+  'hgp', (
+    SELECT jsonb_build_object(
+      'schema', 'public',
+      'name', 'has_group_permission',
+      'identity_arguments', pg_get_function_identity_arguments(p.oid),
+      'result_type', pg_get_function_result(p.oid),
+      'language', l.lanname,
+      'owner', pg_get_userbyid(p.proowner),
+      'security_definer', p.prosecdef,
+      'proconfig', coalesce(to_jsonb(p.proconfig), '[]'::jsonb),
+      'def_md5', md5(pg_get_functiondef(p.oid)),
+      'src_md5', md5(p.prosrc),
+      'count', (SELECT count(*) FROM pg_proc p2 JOIN pg_namespace n2 ON n2.oid = p2.pronamespace
+                WHERE n2.nspname = 'public' AND p2.proname = 'has_group_permission')
+    )
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    JOIN pg_language l ON l.oid = p.prolang
+    WHERE n.nspname = 'public' AND p.proname = 'has_group_permission'
+    LIMIT 1
+  ),
+  'enqueue', (
+    SELECT jsonb_build_object(
+      'schema', 'public',
+      'name', 'enqueue_outbound_notification',
+      'identity_arguments', pg_get_function_identity_arguments(p.oid),
+      'result_type', pg_get_function_result(p.oid),
+      'language', l.lanname,
+      'owner', pg_get_userbyid(p.proowner),
+      'security_definer', p.prosecdef,
+      'proconfig', coalesce(to_jsonb(p.proconfig), '[]'::jsonb),
+      'def_md5', md5(pg_get_functiondef(p.oid)),
+      'src_md5', md5(p.prosrc),
+      'count', (SELECT count(*) FROM pg_proc p2 JOIN pg_namespace n2 ON n2.oid = p2.pronamespace
+                WHERE n2.nspname = 'public' AND p2.proname = 'enqueue_outbound_notification')
+    )
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    JOIN pg_language l ON l.oid = p.prolang
+    WHERE n.nspname = 'public' AND p.proname = 'enqueue_outbound_notification'
+    LIMIT 1
   )
 )::text
 `;
@@ -1035,8 +1708,8 @@ function parseLegacyPolicy(value) {
 function parseLegacyCollection(key, value) {
   if (key === "schema") return parseLegacySchema(value);
   if (key === "function_owner") return parseLegacyFunctionOwner(value);
-  if (key === "acl") return parseLegacyAcl(value);
-  if (key === "policy") return parseLegacyPolicy(value);
+  if (key === "acl" || key === "acls") return parseLegacyAcl(value);
+  if (key === "policy" || key === "policies") return parseLegacyPolicy(value);
   return { ok: false, reason: `${key} has no legacy parser` };
 }
 
@@ -1121,6 +1794,14 @@ function canonicalizeRegisteredField(key, value) {
 
 export function canonicalizeFingerprintForCompare(value, key = null) {
   if (key && FINGERPRINT_FIELD_REGISTRY[key]) {
+    // Nested identity fields reuse names like `schema` / `name`. Those
+    // scalars are not collections. Only canonicalize actual collections.
+    if (typeof value === "string" && key === "schema" && !value.includes(":")) {
+      // Nested identity fields reuse the name `schema` (e.g. "public").
+      // Those scalars are not collections. Top-level schema inventory
+      // always uses schema:owner and therefore contains ":".
+      return value;
+    }
     return canonicalizeRegisteredField(key, value);
   }
   if (value === null || typeof value !== "object") return value;
@@ -1151,6 +1832,738 @@ function deepFreeze(value) {
     for (const key of Object.keys(value)) deepFreeze(value[key]);
   }
   return Object.freeze(value);
+}
+
+export const EVIDENCE_INDEX_FILENAME = "evidence-index.json";
+export const EVIDENCE_INDEX_CHECKSUM_FILENAME = "evidence-index.sha256";
+export const EVIDENCE_INDEX_EXCLUSIONS = Object.freeze([
+  EVIDENCE_INDEX_FILENAME,
+  EVIDENCE_INDEX_CHECKSUM_FILENAME,
+]);
+export const YAML_ERROR_MARKER = "error: |-";
+
+function sha256Utf8(text) {
+  return createHash("sha256").update(String(text), "utf8").digest("hex");
+}
+
+function sha256Bytes(buf) {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+export function sanitizeEvidenceOutBytes(raw, extraSecrets = []) {
+  const secrets = extraSecrets.filter(Boolean).map(String);
+  const input = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw ?? ""), "utf8");
+  let text = input.toString("utf8");
+  for (const secret of secrets) {
+    if (!secret) continue;
+    text = text.split(secret).join("[REDACTED]");
+  }
+  text = text.replace(
+    /postgres(?:\.[A-Za-z0-9]+)?:[^@\s]+@/g,
+    "postgres:[REDACTED]@",
+  );
+  return Buffer.from(text, "utf8");
+}
+
+export function extractExactPostgresError(text) {
+  const blob = String(text || "");
+  const lines = blob.split(/\r?\n/);
+  const pgLines = lines
+    .map((line) => line.trim())
+    .filter((line) => /(?:^|[\s:])(?:ERROR|FATAL|PANIC):\s+\S/.test(line));
+  if (pgLines.length > 0) {
+    const chosen = pgLines[0].replace(/^\s*-\s*/, "").trim();
+    if (chosen && chosen !== YAML_ERROR_MARKER && !/^error:\s*\|-?\s*$/.test(chosen)) {
+      return chosen;
+    }
+  }
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!/^error:\s*\|-?\s*$/.test(lines[i].trim())) continue;
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const next = lines[j].replace(/^\s+/, "").trim();
+      if (!next || next === YAML_ERROR_MARKER || /^error:\s*\|-?\s*$/.test(next)) continue;
+      if (/^(code|name|stack|expected|actual|operator):\s*/.test(next)) break;
+      if (/^(ERROR|FATAL|PANIC):/.test(next) || next.length > 0) {
+        return next;
+      }
+    }
+  }
+  return null;
+}
+
+export function buildSuiteMetaFromSanitizedOut({ sanitizedOut, tests = [] } = {}) {
+  const bytes = Buffer.isBuffer(sanitizedOut)
+    ? sanitizedOut
+    : Buffer.from(String(sanitizedOut ?? ""), "utf8");
+  const text = bytes.toString("utf8");
+  const listed = Array.isArray(tests) ? tests : [];
+  return {
+    sha256: sha256Bytes(bytes),
+    bytes: bytes.byteLength,
+    encoding: "utf8",
+    sanitized_before_hash: true,
+    tests: listed.map((test) => {
+      const rawError = test?.exact_error ?? test?.error ?? test?.output ?? "";
+      const exact = extractExactPostgresError(
+        `${rawError}\n${test?.output || ""}\n${test?.stderr || ""}\n${text}`,
+      );
+      return {
+        name: test?.name ?? null,
+        ok: test?.ok ?? null,
+        exact_error: exact,
+      };
+    }),
+  };
+}
+
+export function writeSuiteMetaForOutFile(outPath, { tests = [], extraSecrets = [] } = {}) {
+  const raw = fs.readFileSync(outPath);
+  const sanitized = sanitizeEvidenceOutBytes(raw, extraSecrets);
+  if (Buffer.compare(raw, sanitized) !== 0) {
+    fs.writeFileSync(outPath, sanitized);
+  }
+  const meta = buildSuiteMetaFromSanitizedOut({ sanitizedOut: sanitized, tests });
+  const metaPath = outPath.endsWith(".out")
+    ? `${outPath.slice(0, -4)}.meta.json`
+    : `${outPath}.meta.json`;
+  fs.writeFileSync(metaPath, `${JSON.stringify(meta, null, 2)}\n`);
+  return { metaPath, meta, sanitizedBytes: sanitized.byteLength };
+}
+
+export function buildEvidenceIndex({ artifacts = [], exclusions = EVIDENCE_INDEX_EXCLUSIONS } = {}) {
+  const excluded = new Set(exclusions);
+  const listed = [...artifacts]
+    .map((item) => (typeof item === "string" ? { path: item } : item))
+    .filter((item) => item && item.path && !excluded.has(path.basename(item.path)))
+    .sort((a, b) => String(a.path).localeCompare(String(b.path)));
+  return {
+    version: 1,
+    exclusions: [...excluded].sort(),
+    self_hash: false,
+    detached_checksum: EVIDENCE_INDEX_CHECKSUM_FILENAME,
+    artifacts: listed,
+  };
+}
+
+export function writeEvidenceIndexAndChecksum(dir, artifacts = []) {
+  const index = buildEvidenceIndex({ artifacts });
+  const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+  const checksumPath = path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME);
+  const body = `${JSON.stringify(index, null, 2)}\n`;
+  fs.writeFileSync(indexPath, body);
+  fs.writeFileSync(checksumPath, `${sha256Utf8(body)}\n`);
+  return { indexPath, checksumPath, index, sha256: sha256Utf8(body) };
+}
+
+export function verifyEvidenceIndex(dir) {
+  const indexPath = path.join(dir, EVIDENCE_INDEX_FILENAME);
+  const checksumPath = path.join(dir, EVIDENCE_INDEX_CHECKSUM_FILENAME);
+  if (!fs.existsSync(indexPath)) {
+    return { ok: false, reason: "evidence-index.json missing" };
+  }
+  if (!fs.existsSync(checksumPath)) {
+    return { ok: false, reason: "detached evidence-index.sha256 missing" };
+  }
+  const body = fs.readFileSync(indexPath, "utf8");
+  const expected = fs.readFileSync(checksumPath, "utf8").trim();
+  const actual = sha256Utf8(body);
+  if (actual !== expected) {
+    return { ok: false, reason: "evidence-index.sha256 does not match evidence-index.json" };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return { ok: false, reason: "evidence-index.json is not JSON" };
+  }
+  if (parsed.self_hash === true) {
+    return { ok: false, reason: "evidence-index.json must not self-hash" };
+  }
+  const names = (parsed.artifacts || []).map((item) => path.basename(item.path || item));
+  if (names.includes(EVIDENCE_INDEX_FILENAME) || names.includes(EVIDENCE_INDEX_CHECKSUM_FILENAME)) {
+    return { ok: false, reason: "evidence-index lists itself or its detached checksum" };
+  }
+  return { ok: true, sha256: actual, index: parsed };
+}
+
+export function writeQualifyEvidenceArtifacts({ dest, sanitizedJson, extraSecrets = [] } = {}) {
+  const abs = path.resolve(dest);
+  const sanitized = sanitizeEvidenceOutBytes(sanitizedJson, extraSecrets);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, sanitized);
+  const meta = writeSuiteMetaForOutFile(abs, {
+    tests: [{
+      name: "qualify-f3-db-push-disposable",
+      ok: null,
+      output: sanitized.toString("utf8"),
+    }],
+    extraSecrets,
+  });
+  const dir = path.dirname(abs);
+  const index = writeEvidenceIndexAndChecksum(dir, [
+    { path: path.basename(abs), sha256: sha256Bytes(sanitized), bytes: sanitized.byteLength },
+    { path: path.basename(meta.metaPath), sha256: sha256Utf8(fs.readFileSync(meta.metaPath, "utf8")) },
+  ]);
+  return { outPath: abs, ...meta, ...index };
+}
+
+function sourceLabelForFile(file) {
+  const match = String(file).match(/^(0011[89]|0012[0-3])/);
+  return match ? match[1] : String(file).replace(/\.sql$/i, "");
+}
+
+function cloneJson(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function emptyGrantList() {
+  return [];
+}
+
+function reconstructFunctiondef(routine) {
+  const lines = [
+    `CREATE FUNCTION ${routine.schema}.${routine.name}(${routine.identity_arguments})`,
+    ` RETURNS ${routine.result_type}`,
+    ` LANGUAGE ${routine.language}`,
+  ];
+  if (routine.volatility && routine.volatility !== "volatile") {
+    lines.push(` ${String(routine.volatility).toUpperCase()}`);
+  }
+  if (routine.strict) lines.push(" STRICT");
+  if (routine.leakproof) lines.push(" LEAKPROOF");
+  if (routine.security_definer) lines.push(" SECURITY DEFINER");
+  if (routine.parallel && routine.parallel !== "unsafe") {
+    lines.push(` PARALLEL ${String(routine.parallel).toUpperCase()}`);
+  }
+  if (Array.isArray(routine.proconfig) && routine.proconfig.includes('search_path=""')) {
+    lines.push(" SET search_path TO ''");
+  }
+  lines.push(`AS $function$${routine.definition || ""}$function$`);
+  return lines.join("\n");
+}
+
+function stripSqlLineComments(sql) {
+  const out = [];
+  let i = 0;
+  let dollar = null;
+  while (i < sql.length) {
+    if (dollar) {
+      const end = sql.indexOf(dollar, i);
+      if (end < 0) {
+        out.push(sql.slice(i));
+        break;
+      }
+      out.push(sql.slice(i, end + dollar.length));
+      i = end + dollar.length;
+      dollar = null;
+      continue;
+    }
+    if (sql[i] === "-" && sql[i + 1] === "-") {
+      while (i < sql.length && sql[i] !== "\n") i += 1;
+      out.push("\n");
+      continue;
+    }
+    if (sql[i] === "$") {
+      const m = sql.slice(i).match(/^\$[A-Za-z0-9_]*\$/);
+      if (m) {
+        dollar = m[0];
+        out.push(m[0]);
+        i += m[0].length;
+        continue;
+      }
+    }
+    out.push(sql[i]);
+    i += 1;
+  }
+  return out.join("");
+}
+
+function splitQualifiedName(name, fallbackSchema = "public") {
+  const text = String(name).replace(/"/g, "");
+  const idx = text.indexOf(".");
+  if (idx > 0) return { schema: text.slice(0, idx), name: text.slice(idx + 1) };
+  return { schema: fallbackSchema, name: text };
+}
+
+function canonicalSqlType(raw) {
+  return String(raw || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\btimestamptz\b/gi, "timestamp with time zone")
+    .replace(/\bint4\b/gi, "integer")
+    .replace(/\bint8\b/gi, "bigint")
+    .replace(/\bint2\b/gi, "smallint")
+    .replace(/\bbool\b/gi, "boolean")
+    .replace(/\bvarchar\b/gi, "character varying");
+}
+
+function stripDefaultClauses(identityArgs) {
+  return canonicalSqlType(String(identityArgs || "").replace(/\s+DEFAULT\s+(?:NULL|'[^']*'|[^\s,]+)/gi, ""));
+}
+
+function splitTopLevelSql(text, sep = ",") {
+  const parts = [];
+  let start = 0;
+  let depth = 0;
+  let dollar = null;
+  for (let i = 0; i < text.length; i += 1) {
+    if (dollar) {
+      if (text.startsWith(dollar, i)) {
+        i += dollar.length - 1;
+        dollar = null;
+      }
+      continue;
+    }
+    if (text[i] === "$") {
+      const m = text.slice(i).match(/^\$[A-Za-z0-9_]*\$/);
+      if (m) {
+        dollar = m[0];
+        i += m[0].length - 1;
+        continue;
+      }
+    }
+    if (text[i] === "(") depth += 1;
+    else if (text[i] === ")") depth = Math.max(0, depth - 1);
+    else if (text[i] === sep && depth === 0) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+function parseEnumLabels(body) {
+  const labels = [];
+  const re = /'((?:\\'|[^'])*)'/g;
+  let match;
+  while ((match = re.exec(String(body)))) labels.push(match[1].replace(/\\'/g, "'"));
+  return labels;
+}
+
+function parseCreateFunction(sql, start) {
+  const headerEnd = sql.slice(start).search(/\bAS\s+\$/i);
+  if (headerEnd < 0) return null;
+  const header = sql.slice(start, start + headerEnd);
+  const named = header.match(/^CREATE\s+FUNCTION\s+([A-Za-z0-9_.]+)\s*\(/i);
+  if (!named) return null;
+  const q = splitQualifiedName(named[1]);
+  const argsOpen = header.indexOf("(");
+  let depth = 0;
+  let argsClose = -1;
+  for (let i = argsOpen; i < header.length; i += 1) {
+    if (header[i] === "(") depth += 1;
+    else if (header[i] === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        argsClose = i;
+        break;
+      }
+    }
+  }
+  if (argsClose < 0) return null;
+  const identityArguments = stripDefaultClauses(header.slice(argsOpen + 1, argsClose));
+  const after = header.slice(argsClose + 1);
+  const ret = after.match(/RETURNS\s+((?:TABLE\s*\([\s\S]+?\)|[A-Za-z0-9_.]+(?:\s+with\s+time\s+zone)?))/i);
+  const lang = after.match(/LANGUAGE\s+([A-Za-z0-9_]+)/i);
+  const asMatch = sql.slice(start + headerEnd).match(/^AS\s+(\$[A-Za-z0-9_]*\$)/i);
+  if (!asMatch) return null;
+  const delim = asMatch[1];
+  const rel = sql.slice(start + headerEnd);
+  const bodyStart = start + headerEnd + rel.indexOf(delim) + delim.length;
+  const bodyEnd = sql.indexOf(delim, bodyStart);
+  if (bodyEnd < 0) return null;
+  const definition = sql.slice(bodyStart, bodyEnd);
+  const searchPath = /\bSET\s+search_path\s*=\s*''/i.test(after);
+  const routine = {
+    schema: q.schema,
+    name: q.name,
+    identity_arguments: identityArguments,
+    result_type: canonicalSqlType(ret ? ret[1].replace(/\s+/g, " ").trim() : ""),
+    language: lang ? lang[1].toLowerCase() : "plpgsql",
+    owner: "postgres",
+    definition,
+    volatility: /\bIMMUTABLE\b/i.test(after) ? "immutable" : /\bSTABLE\b/i.test(after) ? "stable" : "volatile",
+    parallel: /\bPARALLEL\s+SAFE\b/i.test(after) ? "safe" : /\bPARALLEL\s+RESTRICTED\b/i.test(after) ? "restricted" : "unsafe",
+    strict: /\bSTRICT\b|\bRETURNS\s+NULL\s+ON\s+NULL\s+INPUT\b/i.test(after),
+    leakproof: /\bLEAKPROOF\b/i.test(after),
+    security_definer: /\bSECURITY\s+DEFINER\b/i.test(after),
+    proconfig: searchPath ? ['search_path=""'] : [],
+    search_path: searchPath ? "{\"search_path=\\\"\\\"\"}" : "",
+    acl: emptyGrantList(),
+  };
+  routine.functiondef = reconstructFunctiondef(routine);
+  return routine;
+}
+
+function parseCreateTable(sql, match, lastIndex) {
+  const q = splitQualifiedName(match[1]);
+  let depth = 1;
+  let i = lastIndex;
+  const start = i;
+  for (; i < sql.length; i += 1) {
+    if (sql[i] === "(") depth += 1;
+    else if (sql[i] === ")") {
+      depth -= 1;
+      if (depth === 0) break;
+    }
+  }
+  const body = sql.slice(start, i);
+  const items = splitTopLevelSql(body);
+  const columns = [];
+  const constraints = [];
+  let ordinal = 0;
+  for (const item of items) {
+    if (/^(CONSTRAINT|PRIMARY KEY|UNIQUE|CHECK|EXCLUDE|FOREIGN KEY)\b/i.test(item)) {
+      const named = item.match(/^CONSTRAINT\s+([A-Za-z0-9_]+)\s+([\s\S]+)$/i);
+      constraints.push({
+        schema: q.schema,
+        relation: q.name,
+        name: named ? named[1] : "",
+        contype: /PRIMARY KEY/i.test(item) ? "p"
+          : /UNIQUE/i.test(item) ? "u"
+            : /EXCLUDE/i.test(item) ? "x"
+              : /FOREIGN KEY|REFERENCES/i.test(item) ? "f"
+                : "c",
+        definition: named ? named[2].trim() : item,
+      });
+      continue;
+    }
+    const col = item.match(/^([A-Za-z0-9_]+)\s+([\s\S]+)$/);
+    if (!col) continue;
+    ordinal += 1;
+    const rest = col[2];
+    const typeMatch = rest.match(/^((?:[A-Za-z0-9_.]+(?:\s+with\s+time\s+zone)?(?:\s*\([^)]*\))?(?:\s*\[\])*)+)/i);
+    const typeRaw = typeMatch ? typeMatch[1] : rest.split(/\s+/)[0];
+    const typmodMatch = typeRaw.match(/\(([^)]*)\)$/);
+    columns.push({
+      schema: q.schema,
+      relation: q.name,
+      ordinal,
+      name: col[1],
+      type: canonicalSqlType(typeRaw.replace(/\s*\([^)]*\)$/, "")),
+      typmod: typmodMatch ? typmodMatch[1] : null,
+      nullable: !/\bNOT NULL\b/i.test(rest) && !/\bPRIMARY KEY\b/i.test(rest),
+      default: (() => {
+        const found = rest.match(/\bDEFAULT\s+((?:(?!\bCONSTRAINT\b|\bNOT NULL\b|\bNULL\b|\bPRIMARY KEY\b|\bUNIQUE\b|\bCHECK\b|\bREFERENCES\b|\bCOLLATE\b|\bGENERATED\b).)+)/i);
+        return found ? found[1].trim() : null;
+      })(),
+      identity: /\bGENERATED\s+ALWAYS\s+AS\s+IDENTITY\b/i.test(rest)
+        ? "always"
+        : /\bGENERATED\s+BY DEFAULT\s+AS\s+IDENTITY\b/i.test(rest)
+          ? "by_default"
+          : null,
+      generated: /\bGENERATED\s+ALWAYS\s+AS\b/i.test(rest) && !/\bIDENTITY\b/i.test(rest) ? "stored" : null,
+      collation: (() => {
+        const found = rest.match(/\bCOLLATE\s+([A-Za-z0-9_."]+)/i);
+        return found ? found[1] : null;
+      })(),
+    });
+    if (/\bPRIMARY KEY\b/i.test(rest)) {
+      constraints.push({
+        schema: q.schema,
+        relation: q.name,
+        name: `${q.name}_pkey`,
+        contype: "p",
+        definition: `PRIMARY KEY (${col[1]})`,
+      });
+    }
+  }
+  return {
+    relation: {
+      schema: q.schema,
+      name: q.name,
+      relkind: "r",
+      persistence: "permanent",
+      owner: "postgres",
+      replica_identity: "default",
+      rls_enabled: false,
+      rls_force: false,
+      acl: emptyGrantList(),
+    },
+    columns,
+    constraints,
+  };
+}
+
+function readAuthorizedMigrationSql(file) {
+  const abs = path.join(repoRoot, "supabase", "migrations", file);
+  if (!fs.existsSync(abs)) {
+    throw new Error(`HOLD: authorized migration missing for offline fingerprint: ${file}`);
+  }
+  const bytes = fs.readFileSync(abs);
+  const digest = sha256Buffer(bytes);
+  if (digest !== FROZEN_DIGESTS[file]) {
+    throw new Error(`HOLD: offline fingerprint builder saw digest drift for ${file}`);
+  }
+  return stripSqlLineComments(bytes.toString("utf8"));
+}
+
+function emptyCatalogState() {
+  return {
+    schemas: [],
+    relations: [],
+    columns: [],
+    types: [],
+    views: [],
+    routines: [],
+    rls: [],
+    constraints: [],
+    indexes: [],
+    triggers: [],
+    schemaAcl: {},
+  };
+}
+
+function applyMigrationSqlToCatalog(state, sql) {
+  const schemaRe = /CREATE\s+SCHEMA(?:\s+IF\s+NOT\s+EXISTS)?\s+([A-Za-z0-9_]+)/gi;
+  let match;
+  while ((match = schemaRe.exec(sql))) {
+    if (!state.schemas.some((row) => row.name === match[1])) {
+      state.schemas.push({ name: match[1], owner: "postgres", acl: emptyGrantList() });
+    }
+  }
+  const usageGrant = /GRANT\s+USAGE\s+ON\s+SCHEMA\s+([A-Za-z0-9_]+)\s+TO\s+([A-Za-z0-9_,\s]+)/gi;
+  while ((match = usageGrant.exec(sql))) {
+    const schema = state.schemas.find((row) => row.name === match[1]);
+    if (!schema) continue;
+    for (const role of match[2].split(",").map((part) => part.trim()).filter(Boolean)) {
+      schema.acl.push({
+        grantee: role,
+        grantor: "postgres",
+        privilege: "USAGE",
+        grantable: false,
+      });
+    }
+  }
+  const typeRe = /CREATE\s+TYPE\s+([A-Za-z0-9_.]+)\s+AS\s+ENUM\s*(\([\s\S]*?\))/gi;
+  while ((match = typeRe.exec(sql))) {
+    const q = splitQualifiedName(match[1]);
+    state.types.push({
+      schema: q.schema,
+      name: q.name,
+      kind: "enum",
+      labels: parseEnumLabels(match[2]),
+      owner: "postgres",
+      acl: emptyGrantList(),
+    });
+  }
+  const tableRe = /CREATE\s+TABLE\s+([A-Za-z0-9_.]+)\s*\(/gi;
+  while ((match = tableRe.exec(sql))) {
+    const parsed = parseCreateTable(sql, match, tableRe.lastIndex);
+    state.relations.push(parsed.relation);
+    state.columns.push(...parsed.columns);
+    state.constraints.push(...parsed.constraints);
+  }
+  const fnRe = /CREATE\s+FUNCTION\s+/gi;
+  while ((match = fnRe.exec(sql))) {
+    const routine = parseCreateFunction(sql, match.index);
+    if (routine) state.routines.push(routine);
+  }
+  const rlsEnable = /ALTER\s+TABLE\s+([A-Za-z0-9_.]+)\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/gi;
+  const rlsForce = /ALTER\s+TABLE\s+([A-Za-z0-9_.]+)\s+FORCE\s+ROW\s+LEVEL\s+SECURITY/gi;
+  const enabled = new Set();
+  const forced = new Set();
+  while ((match = rlsEnable.exec(sql))) enabled.add(match[1].replace(/"/g, ""));
+  while ((match = rlsForce.exec(sql))) forced.add(match[1].replace(/"/g, ""));
+  for (const rel of state.relations) {
+    const key = `${rel.schema}.${rel.name}`;
+    const alt = rel.schema === "public" ? rel.name : key;
+    if (enabled.has(key) || enabled.has(alt)) rel.rls_enabled = true;
+    if (forced.has(key) || forced.has(alt)) rel.rls_force = true;
+  }
+  const idxRe = /CREATE\s+(UNIQUE\s+)?INDEX\s+([A-Za-z0-9_]+)\s+ON\s+([A-Za-z0-9_.]+)\s*([\s\S]*?);/gi;
+  while ((match = idxRe.exec(sql))) {
+    const q = splitQualifiedName(match[3]);
+    state.indexes.push({
+      schema: q.schema,
+      relation: q.name,
+      name: match[2],
+      unique: Boolean(match[1]),
+      definition: `CREATE ${match[1] ? "UNIQUE " : ""}INDEX ${match[2]} ON ${match[3]} ${match[4].trim()}`,
+    });
+  }
+  const trgRe = /CREATE\s+(CONSTRAINT\s+)?TRIGGER\s+([A-Za-z0-9_]+)\s+([\s\S]*?)\s+ON\s+([A-Za-z0-9_.]+)\s+([\s\S]*?)EXECUTE\s+FUNCTION\s+([A-Za-z0-9_.]+)\s*\(([\s\S]*?)\);/gi;
+  while ((match = trgRe.exec(sql))) {
+    const q = splitQualifiedName(match[4]);
+    state.triggers.push({
+      schema: q.schema,
+      relation: q.name,
+      name: match[2],
+      constraint_trigger: Boolean(match[1]),
+      timing_events: match[3].replace(/\s+/g, " ").trim(),
+      for_each: /FOR EACH ROW/i.test(match[5]) ? "row" : /FOR EACH STATEMENT/i.test(match[5]) ? "statement" : "",
+      function_identity: `${match[6]}(${stripDefaultClauses(match[7])})`,
+    });
+  }
+  return state;
+}
+
+function explicitRlsRecords(relations) {
+  return relations.map((rel) => ({
+    schema: rel.schema,
+    relation: rel.name,
+    rls_enabled: rel.rls_enabled === true,
+    rls_force: rel.rls_force === true,
+  }));
+}
+
+function attachRoutineAclFromFunctionOwnerAndAcl(routines, functionOwner, aclRows) {
+  for (const routine of routines) {
+    const ownerRow = (functionOwner || []).find((row) => (
+      row.schema === routine.schema
+      && row.function === routine.name
+      && row.identity_arguments === routine.identity_arguments
+    ));
+    if (ownerRow) {
+      routine.owner = ownerRow.owner;
+      routine.security_definer = ownerRow.security_definer;
+      if (ownerRow.search_path) routine.search_path = ownerRow.search_path;
+    }
+    routine.acl = (aclRows || []).filter((row) => (
+      row.object_type === "routine"
+      && row.schema === routine.schema
+      && row.object_name === routine.name
+      && row.identity_arguments === routine.identity_arguments
+    )).map((row) => ({
+      grantee: row.grantee,
+      grantor: row.grantor,
+      privilege: row.privilege,
+      grantable: row.grantable,
+    }));
+  }
+  return routines;
+}
+
+function attachRelationAcl(relations, aclRows) {
+  for (const rel of relations) {
+    rel.acl = (aclRows || []).filter((row) => (
+      row.object_type === "table"
+      && row.schema === rel.schema
+      && row.object_name === rel.name
+    )).map((row) => ({
+      grantee: row.grantee,
+      grantor: row.grantor,
+      privilege: row.privilege,
+      grantable: row.grantable,
+    }));
+  }
+  return relations;
+}
+
+/**
+ * Offline expected fingerprint for one cumulative stage.
+ * Built from frozen SQL bytes + the sealed security-contract seed.
+ * Never assigned from a live catalog / observed inventory.
+ */
+export function buildExpandedExpectedFingerprint(file, structuredSeed) {
+  if (!F3_FORWARD_FILES.includes(file)) {
+    throw new Error(`HOLD: unknown file ${file}`);
+  }
+  const idx = F3_FORWARD_FILES.indexOf(file);
+  const state = emptyCatalogState();
+  for (const prior of F3_FORWARD_FILES.slice(0, idx + 1)) {
+    applyMigrationSqlToCatalog(state, readAuthorizedMigrationSql(prior));
+  }
+  const seed = structuredSeed && typeof structuredSeed === "object" ? structuredSeed : {};
+  const functionOwner = Array.isArray(seed.function_owner) ? seed.function_owner : [];
+  const aclRows = Array.isArray(seed.acl) ? seed.acl : [];
+  const policyRows = Array.isArray(seed.policy) ? seed.policy : [];
+  attachRoutineAclFromFunctionOwnerAndAcl(state.routines, functionOwner, aclRows);
+  attachRelationAcl(state.relations, aclRows);
+  const fingerprint = {
+    schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+    schema: Array.isArray(seed.schema) ? cloneJson(seed.schema) : seed.schema,
+    schemas: state.schemas.map((row) => ({
+      name: row.name,
+      owner: row.owner,
+      acl: cloneJson(row.acl),
+    })),
+    function_owner: cloneJson(functionOwner),
+    acl: cloneJson(aclRows),
+    acls: cloneJson(aclRows),
+    policy: cloneJson(policyRows),
+    policies: cloneJson(policyRows),
+    relations: cloneJson(state.relations),
+    columns: cloneJson(state.columns),
+    types: cloneJson(state.types),
+    views: cloneJson(state.views),
+    routines: cloneJson(state.routines.map((row) => {
+      const { definition, ...rest } = row;
+      return rest;
+    })),
+    rls: explicitRlsRecords(state.relations),
+    constraints: cloneJson(state.constraints),
+    indexes: cloneJson(state.indexes),
+    triggers: cloneJson(state.triggers),
+    hgp: { ...F3_HGP_PIN },
+    enqueue: { ...F3_ENQUEUE_PIN },
+    f3_objects_absent: seed.f3_objects_absent === true,
+    migration_file: file,
+    migration_source_label: sourceLabelForFile(file),
+    migration_version: PREASSIGNED_VERSIONS[file],
+    migration_name: String(file).replace(/\.sql$/i, ""),
+    migration_digest: FROZEN_DIGESTS[file],
+    recognition: [...RECOGNITION_ALLOWLIST],
+  };
+  return fingerprint;
+}
+
+function fingerprintContainsOid(value) {
+  if (value == null || typeof value !== "object") return false;
+  if (Array.isArray(value)) return value.some((item) => fingerprintContainsOid(item));
+  for (const key of Object.keys(value)) {
+    if (/^(oid|pronamespace|regprocedure|regproc|regclass|regtype|regnamespace|tableoid)$/i.test(key)) {
+      return true;
+    }
+    if (fingerprintContainsOid(value[key])) return true;
+  }
+  return false;
+}
+
+function nestedKeyContractErrors(fingerprint) {
+  const errors = [];
+  for (const [key, required] of Object.entries(F3_FULL_FINGERPRINT_NESTED_KEYS)) {
+    if (!Object.prototype.hasOwnProperty.call(fingerprint, key)) continue;
+    const value = fingerprint[key];
+    if (key === "hgp" || key === "enqueue") {
+      if (value == null || typeof value !== "object" || Array.isArray(value)) {
+        errors.push(`${key} must be a structured object`);
+        continue;
+      }
+      const keys = Object.keys(value).sort();
+      const expected = [...required].sort();
+      if (keys.length !== expected.length || keys.some((item, i) => item !== expected[i])) {
+        errors.push(`${key} nested keys are not the exact contract`);
+      }
+      continue;
+    }
+    if (!Array.isArray(value)) {
+      errors.push(`${key} must be an array`);
+      continue;
+    }
+    const seen = new Set();
+    for (const record of value) {
+      if (record == null || typeof record !== "object" || Array.isArray(record)) {
+        errors.push(`${key} record is not an object`);
+        continue;
+      }
+      for (const field of required) {
+        if (!Object.prototype.hasOwnProperty.call(record, field)) {
+          errors.push(`${key} missing nested key ${field}`);
+        }
+      }
+      for (const extra of Object.keys(record)) {
+        if (!required.includes(extra)) {
+          errors.push(`${key} unexpected nested key ${extra}`);
+        }
+      }
+      const fingerprintKey = JSON.stringify(canonicalize(record));
+      if (seen.has(fingerprintKey)) errors.push(`${key} duplicate records`);
+      seen.add(fingerprintKey);
+    }
+  }
+  return errors;
 }
 
 /* AUTO-EMBEDDED from docs/evidence/M3_F3_FROZEN_EXPECTED_FINGERPRINTS_20260914.json
@@ -1265,22 +2678,33 @@ export const SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
     "00122_f3_04_correction_reversal.sql": "e245610827cc6aebbfd64b86f684f8cea9b6d53311b7788bbd5459c93029faae",
     "00123_f3_05_opening_cash_command.sql": "f25e2ea4a86650faf3d5f0a01175bac4a1d2f44f11e3c2e7fc5a9acff422c09a",
   }),
+  ten_field_schema: Object.freeze({
+    reason: TEN_FIELD_SCHEMA_SUPERSEDED_REASON,
+    schema_version: TEN_FIELD_FINGERPRINT_SCHEMA_VERSION,
+    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
+    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
+    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
+    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
+    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+  }),
 });
 
 export const FROZEN_EXPECTED_FINGERPRINT_SHA256 = Object.freeze({
-  "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
-  "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
-  "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
-  "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
-  "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
-  "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+  "00118_f3_bounded_financial_epoch_foundation.sql": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+  "00119_f3_01_core_ledger_foundation.sql": "7ec7ba2f5e05f244939cc123266fda1efb330eb68ca389fc571f1b4df93aa419",
+  "00120_f3_02_secure_posting_idempotency.sql": "6ee99d881bcf972f86a4a5e9c8932d491fc6b6e02daf34c99947fe1dca8b9e41",
+  "00121_f3_03_projection_read_proof.sql": "22ec40e5979ae30947e139c77983ba793b914d5f5df9a2009234b0caf1172599",
+  "00122_f3_04_correction_reversal.sql": "f66af826fb10ad4d5e2c3a8d3c6ba282d8e29fdd316fee6b6d4e9434faa62e92",
+  "00123_f3_05_opening_cash_command.sql": "96696f7105843e1288e71d218d55607da47ec240516aa32f9d5b725bca665d3f",
 });
 
 
 function assertSealedExpectedHashesAtLoad() {
   const frozen = {};
   for (const file of Object.keys(FROZEN_EXPECTED_FINGERPRINTS_RAW)) {
-    frozen[file] = deepFreeze(upgradeFingerprintToStructured(FROZEN_EXPECTED_FINGERPRINTS_RAW[file]));
+    const structured = upgradeFingerprintToStructured(FROZEN_EXPECTED_FINGERPRINTS_RAW[file]);
+    frozen[file] = deepFreeze(buildExpandedExpectedFingerprint(file, structured));
   }
   deepFreeze(frozen);
   const sealMismatches = [];
@@ -1370,7 +2794,9 @@ export function buildIndependentObservedFingerprint(file, catalogInventory) {
   }
   if (catalogInventory == null || typeof catalogInventory !== "object" || Array.isArray(catalogInventory)) {
     return {
+      schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
       migration_file: file,
+      migration_source_label: sourceLabelForFile(file),
       migration_version: PREASSIGNED_VERSIONS[file],
       migration_name: frozenMigrationName(file),
       migration_digest: FROZEN_DIGESTS[file],
@@ -1380,11 +2806,13 @@ export function buildIndependentObservedFingerprint(file, catalogInventory) {
   const observed = {};
   const catalogKeyAllow = new Set([...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_OPTIONAL_CATALOG_KEYS]);
   for (const key of Object.keys(catalogInventory)) {
-    if (catalogKeyAllow.has(key)) {
+    if (catalogKeyAllow.has(key) && key !== "schema_version" && key !== "recognition") {
       observed[key] = catalogInventory[key];
     }
   }
+  observed.schema_version = F3_FULL_FINGERPRINT_SCHEMA_VERSION;
   observed.migration_file = file;
+  observed.migration_source_label = sourceLabelForFile(file);
   observed.migration_version = PREASSIGNED_VERSIONS[file];
   observed.migration_name = frozenMigrationName(file);
   observed.migration_digest = FROZEN_DIGESTS[file];
@@ -1436,9 +2864,17 @@ export function catalogInventoryFromFingerprint(fingerprint) {
     return null;
   }
   const catalog = {};
+  const metaOnly = new Set([
+    "migration_file",
+    "migration_source_label",
+    "migration_version",
+    "migration_name",
+    "migration_digest",
+    "recognition",
+  ]);
   const allow = new Set([...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_OPTIONAL_CATALOG_KEYS]);
   for (const key of Object.keys(fingerprint)) {
-    if (allow.has(key)) catalog[key] = fingerprint[key];
+    if (allow.has(key) && !metaOnly.has(key)) catalog[key] = fingerprint[key];
   }
   return catalog;
 }
@@ -2343,7 +3779,22 @@ export function fingerprintCompleteAndExact(fingerprint, file) {
   if (observed == null || typeof observed !== "object" || Array.isArray(observed)) {
     return { ok: false, reason: "fingerprint.observed missing or not an object" };
   }
-  const expectedHashBefore = fingerprintCanonicalSha256(expected);
+  if (fingerprintContainsOid(expected) || fingerprintContainsOid(observed)) {
+    return { ok: false, reason: "fingerprint must not contain OID fields" };
+  }
+  if (
+    expected.schema_version !== F3_FULL_FINGERPRINT_SCHEMA_VERSION
+    || observed.schema_version !== F3_FULL_FINGERPRINT_SCHEMA_VERSION
+    || expected.schema_version !== observed.schema_version
+  ) {
+    return { ok: false, reason: "fingerprint schema_version mismatch" };
+  }
+  let expectedHashBefore;
+  try {
+    expectedHashBefore = fingerprintCanonicalSha256(expected);
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : "expected fingerprint cannot be hashed" };
+  }
   const allowed = new Set(FINGERPRINT_ALLOWED_KEYS);
   for (const key of new Set([...Object.keys(expected), ...Object.keys(observed)])) {
     if (!allowed.has(key)) {
@@ -2351,12 +3802,33 @@ export function fingerprintCompleteAndExact(fingerprint, file) {
     }
   }
   for (const key of FINGERPRINT_REQUIRED_KEYS) {
-    if (!(key in expected) || expected[key] == null) {
+    if (!Object.prototype.hasOwnProperty.call(expected, key)) {
       return { ok: false, reason: `expected missing key ${key}` };
     }
-    if (!(key in observed) || observed[key] == null) {
+    if (!Object.prototype.hasOwnProperty.call(observed, key)) {
       return { ok: false, reason: `observed missing key ${key}` };
     }
+    if (expected[key] === undefined) {
+      return { ok: false, reason: `expected missing key ${key}` };
+    }
+    if (observed[key] === undefined) {
+      return { ok: false, reason: `observed missing key ${key}` };
+    }
+  }
+  const expectedCanon = canonicalizeFingerprintForCompare(expected);
+  const observedCanon = canonicalizeFingerprintForCompare(observed);
+  if (isFingerprintCanonicalizationRejected(expectedCanon)) {
+    return { ok: false, reason: `expected canonicalization rejected: ${expectedCanon.reason}` };
+  }
+  if (isFingerprintCanonicalizationRejected(observedCanon)) {
+    return { ok: false, reason: `observed canonicalization rejected: ${observedCanon.reason}` };
+  }
+  const nestedErrors = [
+    ...nestedKeyContractErrors(expectedCanon),
+    ...nestedKeyContractErrors(observedCanon),
+  ];
+  if (nestedErrors.length > 0) {
+    return { ok: false, reason: nestedErrors[0] };
   }
   const presentCatalog = new Set();
   for (const key of [...FINGERPRINT_REQUIRED_KEYS, ...FINGERPRINT_OPTIONAL_CATALOG_KEYS]) {
@@ -2381,16 +3853,20 @@ export function fingerprintCompleteAndExact(fingerprint, file) {
   if (!canonicalFingerprintEqual(expected, observed)) {
     return { ok: false, reason: "fingerprint expected and observed are not canonically equal" };
   }
-  const expectedHashAfter = fingerprintCanonicalSha256(expected);
+  let expectedHashAfter;
+  try {
+    expectedHashAfter = fingerprintCanonicalSha256(expected);
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : "expected fingerprint cannot be hashed after compare" };
+  }
   if (expectedHashBefore !== expectedHashAfter) {
     return { ok: false, reason: "expected fingerprint mutated during compare" };
   }
-  const pinFile = file || expected.migration_file;
-  if (pinFile && FROZEN_EXPECTED_FINGERPRINT_SHA256[pinFile]) {
-    if (expectedHashAfter !== FROZEN_EXPECTED_FINGERPRINT_SHA256[pinFile]) {
+  if (file && FROZEN_EXPECTED_FINGERPRINT_SHA256[file]) {
+    if (expectedHashAfter !== FROZEN_EXPECTED_FINGERPRINT_SHA256[file]) {
       return { ok: false, reason: "expected fingerprint is not the sealed frozen constant" };
     }
-    assertExpectedFingerprintImmutable(pinFile);
+    assertExpectedFingerprintImmutable(file);
   }
   return { ok: true };
 }

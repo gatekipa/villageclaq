@@ -141,6 +141,8 @@ import {
   recordPreDbExpectedHashes,
   runRepairSafetyThenMaybeRepair,
   syncIsolatedMigrationsThrough,
+  writeQualifyEvidenceArtifacts,
+  F3_FULL_FINGERPRINT_SCHEMA_VERSION,
 } from "./lib/f3-db-push-repair-safety-gate.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -943,11 +945,14 @@ async function main() {
     if (!evidence.verdict) evidence.verdict = FILE_BASED_RUNNER_VERDICTS.HOLD;
   }
 
+  evidence.fingerprintSchemaVersion = F3_FULL_FINGERPRINT_SCHEMA_VERSION;
   const json = JSON.stringify(sanitizeForLog(evidence), null, 2);
   console.log(json);
   if (args.evidenceOut) {
-    fs.mkdirSync(path.dirname(path.resolve(root, args.evidenceOut)), { recursive: true });
-    fs.writeFileSync(path.resolve(root, args.evidenceOut), json);
+    writeQualifyEvidenceArtifacts({
+      dest: path.resolve(root, args.evidenceOut),
+      sanitizedJson: json,
+    });
   }
   if (String(evidence.verdict) === FILE_BASED_RUNNER_VERDICTS.BLOCKED || evidence.status === "NOT_RUN") {
     process.exit(2);

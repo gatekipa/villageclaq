@@ -4,7 +4,9 @@
  * processes. 00118–00123 SQL bytes are never rewritten.
  */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test, { afterEach, beforeEach } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -124,10 +126,26 @@ import {
   CATALOG_FINGERPRINT_SQL,
   FINGERPRINT_CANONICALIZATION_REASON,
   FINGERPRINT_FIELD_REGISTRY,
+  F3_FULL_FINGERPRINT_SCHEMA_VERSION,
+  F3_FULL_FINGERPRINT_NESTED_KEYS,
+  F3_HGP_PIN,
+  F3_ENQUEUE_PIN,
+  TEN_FIELD_SCHEMA_SUPERSEDED_REASON,
   fingerprintCanonicalSha256,
   fingerprintCompleteAndExact,
   FROZEN_EXPECTED_FINGERPRINT_SHA256,
   SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256,
+  extractExactPostgresError,
+  sanitizeEvidenceOutBytes,
+  buildSuiteMetaFromSanitizedOut,
+  buildEvidenceIndex,
+  writeEvidenceIndexAndChecksum,
+  verifyEvidenceIndex,
+  writeSuiteMetaForOutFile,
+  YAML_ERROR_MARKER,
+  EVIDENCE_INDEX_FILENAME,
+  EVIDENCE_INDEX_CHECKSUM_FILENAME,
+  EVIDENCE_INDEX_EXCLUSIONS,
   FROZEN_EXPECTED_OBJECT_PROBE_DESCRIPTORS,
   OBJECT_PROBE_IDENTITY_FIELDS,
   assertExpectedObjectProbeDescriptorsImmutable,
@@ -782,24 +800,39 @@ const FINANCIAL_PRIVATE_MISSING_ERROR = "ERROR: relation financial_private does 
 
 function completeFingerprint(overrides = {}) {
   return {
+    schema_version: F3_FULL_FINGERPRINT_SCHEMA_VERSION,
     schema: "financial_private:postgres",
+    schemas: [{ name: "financial_private", owner: "postgres", acl: [] }],
     function_owner: "public.guard_ledger():postgres:true:",
     acl: "financial_private.epochs:",
+    acls: "financial_private.epochs:",
     policy: "financial_private.epochs.p:ALL:{public}:true:true",
+    policies: "financial_private.epochs.p:ALL:{public}:true:true",
+    relations: [],
+    columns: [],
+    types: [],
+    views: [],
+    routines: [],
+    rls: [],
+    constraints: [],
+    indexes: [],
+    triggers: [],
+    hgp: { ...F3_HGP_PIN },
+    enqueue: { ...F3_ENQUEUE_PIN },
     f3_objects_absent: false,
+    migration_file: FILE118,
+    migration_source_label: "00118",
+    migration_version: VER118,
+    migration_name: "00118_f3_bounded_financial_epoch_foundation",
+    migration_digest: FROZEN_DIGESTS[FILE118],
+    recognition: ["manual_income"],
     ...overrides,
   };
 }
 
 function passingFingerprint(file = FILE118) {
   const expected = getFrozenExpectedFingerprint(file);
-  const catalog = {
-    schema: expected.schema,
-    function_owner: expected.function_owner,
-    acl: expected.acl,
-    policy: expected.policy,
-    f3_objects_absent: expected.f3_objects_absent,
-  };
+  const catalog = catalogInventoryFromFingerprint(expected);
   return {
     expected,
     observed: buildIndependentObservedFingerprint(file, catalog),
@@ -1284,13 +1317,7 @@ async function assertFingerprintForbidsRepair(name, fingerprint) {
 
 function frozenPair(mutateObserved = (observed) => observed) {
   const expected = getFrozenExpectedFingerprint(FILE118);
-  const catalog = {
-    schema: expected.schema,
-    function_owner: expected.function_owner,
-    acl: expected.acl,
-    policy: expected.policy,
-    f3_objects_absent: expected.f3_objects_absent,
-  };
+  const catalog = catalogInventoryFromFingerprint(expected);
   const observed = mutateObserved(buildIndependentObservedFingerprint(FILE118, catalog));
   return { expected, observed };
 }
@@ -1311,7 +1338,7 @@ test("fingerprint gate forbids null sides, missing keys, extra keys, and securit
   await assertFingerprintForbidsRepair("observed missing key", observedMissing);
 
   const observedExtra = frozenPair((observed) => {
-    observed.rls = "on";
+    observed.unexpected_catalog_field = "on";
     return observed;
   });
   await assertFingerprintForbidsRepair("observed extra key", observedExtra);
@@ -1355,13 +1382,7 @@ test("fingerprint gate forbids null sides, missing keys, extra keys, and securit
 
 test("reordered set-like values normalize; security-relevant changes never normalize away", async () => {
   const expected = getFrozenExpectedFingerprint(FILE118);
-  const catalog = {
-    schema: expected.schema,
-    function_owner: expected.function_owner,
-    acl: expected.acl,
-    policy: expected.policy,
-    f3_objects_absent: expected.f3_objects_absent,
-  };
+  const catalog = catalogInventoryFromFingerprint(expected);
   const reordered = buildIndependentObservedFingerprint(FILE118, catalog);
   reordered.function_owner = [...expected.function_owner].reverse();
   reordered.acl = [...expected.acl].reverse();
@@ -1415,11 +1436,8 @@ test("expected object is unchanged after observed processing", async () => {
   const sealed = expectedFingerprintSha256(FILE118);
   assert.equal(before, sealed);
   const catalog = {
+    ...catalogInventoryFromFingerprint(expected),
     schema: "mutated-schema-should-not-touch-expected",
-    function_owner: expected.function_owner,
-    acl: expected.acl,
-    policy: expected.policy,
-    f3_objects_absent: false,
   };
   const observed = buildIndependentObservedFingerprint(FILE118, catalog);
   observed.acl = "attacker-rewrote-observed-acl";
@@ -1458,13 +1476,28 @@ test("module-load frozen expected hashes are independent of observed and match t
     assert.deepEqual(getFrozenExpectedFingerprint(file).recognition, ["manual_income"]);
   }
   assert.deepEqual(recorded.sha256BeforeDb, {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
-    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
-    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
-    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
-    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
-    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+    "00119_f3_01_core_ledger_foundation.sql": "7ec7ba2f5e05f244939cc123266fda1efb330eb68ca389fc571f1b4df93aa419",
+    "00120_f3_02_secure_posting_idempotency.sql": "6ee99d881bcf972f86a4a5e9c8932d491fc6b6e02daf34c99947fe1dca8b9e41",
+    "00121_f3_03_projection_read_proof.sql": "22ec40e5979ae30947e139c77983ba793b914d5f5df9a2009234b0caf1172599",
+    "00122_f3_04_correction_reversal.sql": "f66af826fb10ad4d5e2c3a8d3c6ba282d8e29fdd316fee6b6d4e9434faa62e92",
+    "00123_f3_05_opening_cash_command.sql": "96696f7105843e1288e71d218d55607da47ec240516aa32f9d5b725bca665d3f",
   });
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.ten_field_schema.reason,
+    TEN_FIELD_SCHEMA_SUPERSEDED_REASON,
+  );
+  assert.equal(
+    SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.ten_field_schema["00118_f3_bounded_financial_epoch_foundation.sql"],
+    "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
+  );
+  for (const file of F3_FORWARD_FILES) {
+    assert.notEqual(
+      recorded.sha256BeforeDb[file],
+      SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.ten_field_schema[file],
+      `${file} new seal must supersede ten-field hash`,
+    );
+  }
   assert.equal(
     SUPERSEDED_FROZEN_EXPECTED_FINGERPRINT_SHA256.concatenated_object_identity["00119_f3_01_core_ledger_foundation.sql"],
     "e8005d0591d974d4b24ced9529904bd7c0727bc3fd98a5aeabf61c7325ab4d26",
@@ -1690,13 +1723,11 @@ test("semantic set canonicalization matrix: order-only pass; association/express
   ]));
 
   const frozen119 = getFrozenExpectedFingerprint("00119_f3_01_core_ledger_foundation.sql");
-  const observed119 = buildIndependentObservedFingerprint("00119_f3_01_core_ledger_foundation.sql", {
-    schema: frozen119.schema,
-    function_owner: [...frozen119.function_owner].reverse(),
-    acl: [...frozen119.acl].reverse(),
-    policy: [...frozen119.policy].reverse(),
-    f3_objects_absent: frozen119.f3_objects_absent,
-  });
+  const catalog119 = catalogInventoryFromFingerprint(frozen119);
+  const observed119 = buildIndependentObservedFingerprint("00119_f3_01_core_ledger_foundation.sql", catalog119);
+  observed119.function_owner = [...frozen119.function_owner].reverse();
+  observed119.acl = [...frozen119.acl].reverse();
+  observed119.policy = [...frozen119.policy].reverse();
   const before119 = fingerprintCanonicalSha256(frozen119);
   assert.equal(
     fingerprintCompleteAndExact({ expected: frozen119, observed: observed119 }, "00119_f3_01_core_ledger_foundation.sql").ok,
@@ -2724,10 +2755,26 @@ test("1-4 full pre/post-repair/post-retry/continuation captures are required on 
     assert.ok(phase.canonicalJson);
     assert.deepEqual(phase.fingerprint.recognition, ["manual_income"]);
     assert.ok(phase.keyset.includes("schema"));
+    assert.ok(phase.keyset.includes("schemas"));
     assert.ok(phase.keyset.includes("function_owner"));
     assert.ok(phase.keyset.includes("acl"));
+    assert.ok(phase.keyset.includes("acls"));
     assert.ok(phase.keyset.includes("policy"));
+    assert.ok(phase.keyset.includes("policies"));
+    assert.ok(phase.keyset.includes("relations"));
+    assert.ok(phase.keyset.includes("columns"));
+    assert.ok(phase.keyset.includes("types"));
+    assert.ok(phase.keyset.includes("views"));
+    assert.ok(phase.keyset.includes("routines"));
+    assert.ok(phase.keyset.includes("rls"));
+    assert.ok(phase.keyset.includes("constraints"));
+    assert.ok(phase.keyset.includes("indexes"));
+    assert.ok(phase.keyset.includes("triggers"));
+    assert.ok(phase.keyset.includes("hgp"));
+    assert.ok(phase.keyset.includes("enqueue"));
+    assert.ok(phase.keyset.includes("schema_version"));
     assert.ok(phase.keyset.includes("recognition"));
+    assert.equal(phase.fingerprint.schema_version, F3_FULL_FINGERPRINT_SCHEMA_VERSION);
     assert.ok(phase.keyset.includes("migration_digest"));
     assert.ok(phase.keyset.includes("migration_file"));
     assert.ok(phase.keyset.includes("migration_name"));
@@ -3004,6 +3051,8 @@ test("21 source contract: qualify persists phase captures and never uses invento
   assert.match(qualify, /fingerprintAfterCleanContinuation/);
   assert.match(qualify, /POST_REPAIR_FULL_FINGERPRINT_HOLD/);
   assert.match(qualify, /POST_RETRY_FULL_FINGERPRINT_HOLD/);
+  assert.match(qualify, /writeQualifyEvidenceArtifacts/);
+  assert.match(qualify, /F3_FULL_FINGERPRINT_SCHEMA_VERSION/);
   const seq = qualify.slice(qualify.indexOf("for (const file of F3_FORWARD_FILES)"));
   const afterRepairAssign = seq.match(/fingerprintAfterRepair[^\n]+/g) || [];
   assert.ok(afterRepairAssign.length >= 1);
@@ -3018,12 +3067,12 @@ test("22 successful full captures equal sealed expected hashes; frozen expected 
   assert.equal(recorded.independentOfObserved, true);
   assert.equal(recorded.populatedFromObserved, false);
   const sealed = {
-    "00118_f3_bounded_financial_epoch_foundation.sql": "0a403e8d3848e07769fcb453b78deebb1ad29217f4ed1d9c684dc64ca1b27a02",
-    "00119_f3_01_core_ledger_foundation.sql": "ca61697371861b6a8b59b6be2505bacdc1491446410941ca4f4e3f89a5b1bbdf",
-    "00120_f3_02_secure_posting_idempotency.sql": "9c10de93a78f837d84d9b9232c94e0bdb731c9e748763ca53f80349ad0b37161",
-    "00121_f3_03_projection_read_proof.sql": "17ebfe3eb6a503056940b58965a86f88b2cad91bea4720c12ac4b9797e7f25af",
-    "00122_f3_04_correction_reversal.sql": "07675b49e6321dff9bebfcd5c245e8fb56a97937b823d896032b008427439f16",
-    "00123_f3_05_opening_cash_command.sql": "5017ff96ad59c6ca42c93719dfc92f3137ccb591f00bf1acf6bfbefcdf7ba965",
+    "00118_f3_bounded_financial_epoch_foundation.sql": "ee5ece5603bee8e3afcb20888b87cd3e3bb9e334c7f56df0235181b49c91a309",
+    "00119_f3_01_core_ledger_foundation.sql": "7ec7ba2f5e05f244939cc123266fda1efb330eb68ca389fc571f1b4df93aa419",
+    "00120_f3_02_secure_posting_idempotency.sql": "6ee99d881bcf972f86a4a5e9c8932d491fc6b6e02daf34c99947fe1dca8b9e41",
+    "00121_f3_03_projection_read_proof.sql": "22ec40e5979ae30947e139c77983ba793b914d5f5df9a2009234b0caf1172599",
+    "00122_f3_04_correction_reversal.sql": "f66af826fb10ad4d5e2c3a8d3c6ba282d8e29fdd316fee6b6d4e9434faa62e92",
+    "00123_f3_05_opening_cash_command.sql": "96696f7105843e1288e71d218d55607da47ec240516aa32f9d5b725bca665d3f",
   };
   for (const file of F3_FORWARD_FILES) {
     const frozen = captureFrozenExpectedFingerprint(file);
@@ -3106,4 +3155,159 @@ test("poison / post-repair / post-retry evaluators expose distinct HOLD strings"
   });
   assert.equal(poisonOk.ok, true);
   assert.equal(poisonOk.allowRepair, true);
+});
+
+test("expanded catalog fingerprint schema version and required keys are complete", () => {
+  assert.equal(F3_FULL_FINGERPRINT_SCHEMA_VERSION, "f3-full-catalog-v1");
+  const required = [
+    "schema_version", "schema", "schemas", "function_owner", "acl", "acls",
+    "policy", "policies", "relations", "columns", "types", "views", "routines",
+    "rls", "constraints", "indexes", "triggers", "hgp", "enqueue", "f3_objects_absent",
+  ];
+  for (const file of F3_FORWARD_FILES) {
+    const fp = getFrozenExpectedFingerprint(file);
+    assert.equal(fp.schema_version, F3_FULL_FINGERPRINT_SCHEMA_VERSION, file);
+    assert.equal(fp.migration_source_label, file.slice(0, 5), file);
+    assert.deepEqual(fp.recognition, ["manual_income"], file);
+    assert.deepEqual(fp.hgp, { ...F3_HGP_PIN }, file);
+    assert.deepEqual(fp.enqueue, { ...F3_ENQUEUE_PIN }, file);
+    assert.equal(JSON.stringify(fp).includes("\"oid\""), false, file);
+    for (const key of required) {
+      assert.equal(Object.prototype.hasOwnProperty.call(fp, key), true, `${file} ${key}`);
+      assert.notEqual(fp[key], undefined, `${file} ${key} undefined`);
+    }
+    assert.ok(Array.isArray(fp.views), `${file} views`);
+    assert.ok(Array.isArray(fp.constraints), `${file} constraints`);
+    assert.ok(Array.isArray(fp.indexes), `${file} indexes`);
+    assert.ok(Array.isArray(fp.triggers), `${file} triggers`);
+    assert.ok(Array.isArray(fp.rls), `${file} rls`);
+    assert.ok(fp.relations.length > 0, `${file} relations`);
+    assert.ok(fp.routines.length > 0, `${file} routines`);
+    for (const [key, nested] of Object.entries(F3_FULL_FINGERPRINT_NESTED_KEYS)) {
+      if (!Object.prototype.hasOwnProperty.call(fp, key)) continue;
+      if (key === "hgp" || key === "enqueue") {
+        assert.deepEqual(Object.keys(fp[key]).sort(), [...nested].sort(), `${file} ${key}`);
+        continue;
+      }
+      assert.ok(Array.isArray(fp[key]), `${file} ${key} collection`);
+      for (const record of fp[key]) {
+        assert.deepEqual(Object.keys(record).sort(), [...nested].sort(), `${file} ${key} record`);
+      }
+    }
+  }
+  const gate = fs.readFileSync(path.join(root, "scripts/lib/f3-db-push-repair-safety-gate.mjs"), "utf8");
+  assert.match(gate, /fingerprintCompleteAndExact\(input\.fingerprint, file\)/);
+  assert.match(gate, /if \(!fp\.ok\) fail\("fingerprint_exact"/);
+  const evalFn = gate.slice(gate.indexOf("export function evaluateRepairSafetyGate"));
+  const fpIdx = evalFn.indexOf("fingerprintCompleteAndExact");
+  const repairAuthIdx = evalFn.indexOf("repairAuthorized: ok");
+  assert.ok(fpIdx > 0 && repairAuthIdx > fpIdx, "expanded comparator runs before repair authorization");
+});
+
+test("expanded catalog drift matrix forbids repair on the actual gate path", async () => {
+  const expected = getFrozenExpectedFingerprint(FILE118);
+  const drifts = [
+    ["schema_version", (o) => { o.schema_version = "ten-field"; }],
+    ["schemas", (o) => { o.schemas = []; }],
+    ["relations", (o) => { o.relations = []; }],
+    ["columns", (o) => { o.columns = []; }],
+    ["types", (o) => { o.types = [{ schema: "public", name: "forged", kind: "enum", labels: ["x"], owner: "postgres", acl: [] }]; }],
+    ["views", (o) => { o.views = [{ schema: "public", name: "forged_view", kind: "view", definition: "select 1", security_invoker: false, security_barrier: false, owner: "postgres", acl: [] }]; }],
+    ["routines", (o) => { o.routines = []; }],
+    ["rls", (o) => { o.rls = o.rls.map((row) => ({ ...row, rls_enabled: !row.rls_enabled })); }],
+    ["policies", (o) => { o.policies = []; }],
+    ["acls", (o) => { o.acls = []; }],
+    ["constraints", (o) => { o.constraints = []; }],
+    ["indexes", (o) => { o.indexes = []; }],
+    ["triggers", (o) => { o.triggers = []; }],
+    ["hgp", (o) => { o.hgp = { ...o.hgp, def_md5: "deadbeefdeadbeefdeadbeefdeadbeef" }; }],
+    ["enqueue", (o) => { o.enqueue = { ...o.enqueue, src_md5: "cafebabecafebabecafebabecafebabe" }; }],
+    ["recognition", (o) => { o.recognition = ["manual_expense"]; }],
+    ["source_label", (o) => { o.migration_source_label = "00118"; o.migration_version = "00118"; }],
+    ["null-not-absent", (o) => { o.views = null; }],
+    ["missing-not-empty", (o) => { delete o.triggers; }],
+    ["oid-forbidden", (o) => { o.relations = o.relations.map((row) => ({ ...row, oid: 4242 })); }],
+    ["duplicate-rls", (o) => { o.rls = [...o.rls, { ...o.rls[0] }]; }],
+    ["enum-label-order", (o) => {
+      if (o.types.length === 0) {
+        o.columns = [];
+        return;
+      }
+      o.types = o.types.map((row) => ({ ...row, labels: [...row.labels].reverse() }));
+    }],
+  ];
+  for (const [name, mutate] of drifts) {
+    const observed = structuredClone(expected);
+    mutate(observed);
+    if (name === "source_label") {
+      observed.migration_source_label = "wrong-label";
+    }
+    const fingerprint = { expected, observed };
+    assert.equal(fingerprintCompleteAndExact(fingerprint, FILE118).ok, false, name);
+    let repairCalls = 0;
+    const decided = await runRepairSafetyThenMaybeRepair({
+      gateInput: authorizedGateInput({ fingerprint }),
+      cleanup: () => provenCleanup(),
+      verifyPoisonAbsent: () => poisonAbsentResult(),
+      repair: () => {
+        repairCalls += 1;
+        return { status: 0 };
+      },
+    });
+    assert.equal(decided.repairAuthorized, false, name);
+    assert.equal(decided.repairAttempted, false, name);
+    assert.equal(repairCalls, 0, `${name} repair spawned`);
+    assert.equal(decided.gate.failedGates.includes("fingerprint_exact"), true, `${name} fingerprint_exact`);
+  }
+});
+
+test("evidence pipeline hashes sanitized .out bytes and detaches index checksum", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f3-evidence-"));
+  const outPath = path.join(dir, "suite.out");
+  const secret = "super-secret-db-password";
+  const rawOut = [
+    "# Subtest: pg failure",
+    "not ok 1 - pg failure",
+    "  ---",
+    `  ${YAML_ERROR_MARKER}`,
+    "    ERROR:  role \"ubuntu\" does not exist",
+    `  password: ${secret}`,
+    "  ...",
+    "",
+  ].join("\n");
+  fs.writeFileSync(outPath, rawOut);
+  const written = writeSuiteMetaForOutFile(outPath, {
+    tests: [{ name: "pg failure", ok: false, output: rawOut }],
+    extraSecrets: [secret],
+  });
+  const sanitized = fs.readFileSync(outPath);
+  assert.equal(sanitized.includes(secret), false);
+  assert.equal(written.meta.sha256, createHash("sha256").update(sanitized).digest("hex"));
+  assert.equal(written.meta.bytes, sanitized.byteLength);
+  assert.notEqual(written.meta.sha256, createHash("sha256").update(rawOut).digest("hex"));
+  assert.equal(written.meta.tests[0].exact_error, 'ERROR:  role "ubuntu" does not exist');
+  assert.notEqual(written.meta.tests[0].exact_error, YAML_ERROR_MARKER);
+  assert.equal(extractExactPostgresError(`  ${YAML_ERROR_MARKER}\n`), null);
+
+  const markerOnly = buildSuiteMetaFromSanitizedOut({
+    sanitizedOut: Buffer.from(`# fail\n  ${YAML_ERROR_MARKER}\n  ...\n`, "utf8"),
+    tests: [{ name: "marker", output: `  ${YAML_ERROR_MARKER}\n` }],
+  });
+  assert.notEqual(markerOnly.tests[0].exact_error, YAML_ERROR_MARKER);
+
+  const index = writeEvidenceIndexAndChecksum(dir, [
+    { path: "suite.out", sha256: written.meta.sha256, bytes: written.meta.bytes },
+    { path: "suite.meta.json", sha256: createHash("sha256").update(fs.readFileSync(written.metaPath)).digest("hex") },
+    { path: EVIDENCE_INDEX_FILENAME },
+    { path: EVIDENCE_INDEX_CHECKSUM_FILENAME },
+  ]);
+  assert.deepEqual(EVIDENCE_INDEX_EXCLUSIONS, [EVIDENCE_INDEX_FILENAME, EVIDENCE_INDEX_CHECKSUM_FILENAME]);
+  assert.equal(index.index.self_hash, false);
+  assert.equal(index.index.artifacts.some((item) => item.path === EVIDENCE_INDEX_FILENAME), false);
+  assert.equal(index.index.artifacts.some((item) => item.path === EVIDENCE_INDEX_CHECKSUM_FILENAME), false);
+  const verified = verifyEvidenceIndex(dir);
+  assert.equal(verified.ok, true);
+  assert.equal(verified.sha256, index.sha256);
+  fs.writeFileSync(index.checksumPath, "0".repeat(64) + "\n");
+  assert.equal(verifyEvidenceIndex(dir).ok, false);
 });

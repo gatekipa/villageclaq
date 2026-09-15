@@ -1,0 +1,339 @@
+=== BEGIN test-f3-regression at 2026-09-14T21:34:29Z ===
+COMMAND: npm run test:f3-regression
+
+> villageclaq@0.1.0 test:f3-regression
+> node --test scripts/test-financial-f3-post-s0-regression.mjs
+
+TAP version 13
+# Subtest: 00001-00117 bytes are unchanged vs main pin
+not ok 1 - 00001-00117 bytes are unchanged vs main pin
+  ---
+  duration_ms: 0.719177
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: F3 batch is exactly 00118-00123; no timestamp F3 history
+not ok 2 - F3 batch is exactly 00118-00123; no timestamp F3 history
+  ---
+  duration_ms: 0.05382
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: F3 SQL does not replace HGP, transfer RPCs, standing, enqueue, or Cut 3 storage
+not ok 3 - F3 SQL does not replace HGP, transfer RPCs, standing, enqueue, or Cut 3 storage
+  ---
+  duration_ms: 0.039919
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: has_group_permission live pin unchanged after 00117+00118-00123
+not ok 4 - has_group_permission live pin unchanged after 00117+00118-00123
+  ---
+  duration_ms: 0.034997
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: enqueue_outbound_notification live pin unchanged
+not ok 5 - enqueue_outbound_notification live pin unchanged
+  ---
+  duration_ms: 0.057799
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: Cut 2 notifications_queue ACL unchanged (table + column)
+not ok 6 - Cut 2 notifications_queue ACL unchanged (table + column)
+  ---
+  duration_ms: 0.036072
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: M2 policy tables exist, dormant, zero rows
+not ok 7 - M2 policy tables exist, dormant, zero rows
+  ---
+  duration_ms: 0.074435
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: current-main contribution/payment/application/relief/transfer tables survive
+not ok 8 - current-main contribution/payment/application/relief/transfer tables survive
+  ---
+  duration_ms: 0.034504
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: S0-008 transfer stubs and standing stub are not replaced
+not ok 9 - S0-008 transfer stubs and standing stub are not replaced
+  ---
+  duration_ms: 0.261298
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: F3 public command RPCs are authenticated-only
+not ok 10 - F3 public command RPCs are authenticated-only
+  ---
+  duration_ms: 0.134093
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: F3 DEFINER objects are postgres-owned with empty search_path
+not ok 11 - F3 DEFINER objects are postgres-owned with empty search_path
+  ---
+  duration_ms: 0.036486
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: raw posted truth is not writable by authenticated
+not ok 12 - raw posted truth is not writable by authenticated
+  ---
+  duration_ms: 0.032302
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: no F3 function inserts notifications_queue
+not ok 13 - no F3 function inserts notifications_queue
+  ---
+  duration_ms: 0.024729
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+# Subtest: Cut 3 storage helpers remain absent on this slice (F3 did not create them)
+not ok 14 - Cut 3 storage helpers remain absent on this slice (F3 did not create them)
+  ---
+  duration_ms: 0.024236
+  type: 'test'
+  location: '<redacted-path>'
+  failureType: 'hookFailed'
+  error: |-
+    psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  Peer authentication failed for user "ubuntu"
+    
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    throwPsqlFailure (file://<redacted-path>
+    psqlAdmin (file://<redacted-path>
+    createDisposableDatabase (file://<redacted-path>
+    Object.start (file://<redacted-path>
+    TestContext.<anonymous> (file://<redacted-path>
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:565:20)
+    Test.createHook (node:internal/test_runner/test:872:33)
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 0
+# fail 14
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 103.462985
+=== END test-f3-regression exit=1 at 2026-09-14T21:34:30Z ===
